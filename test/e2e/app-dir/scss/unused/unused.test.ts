@@ -29,25 +29,25 @@ describe.each([
     })
   })
 
+  // This test introduces a syntax error after startup and requires HMR.
+  // @force-gate dev
   describe('Body is not hidden when broken in Development', () => {
-    const { next, isNextDev } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       dependencies,
       nextConfig,
     })
 
-    ;(isNextDev ? describe : describe.skip)('development only', () => {
-      it('should have body visible', async () => {
-        await next.patchFile('pages/index.js', (contents) => {
-          return contents.replace('<div />', '<div>')
-        })
-
-        const browser = await next.browser('/')
-        const currentDisplay = await browser.eval(
-          `window.getComputedStyle(document.querySelector('body')).display`
-        )
-        expect(currentDisplay).toBe('block')
+    it('should have body visible', async () => {
+      await next.patchFile('pages/index.js', (contents) => {
+        return contents.replace('<div />', '<div>')
       })
+
+      const browser = await next.browser('/')
+      const currentDisplay = await browser.eval(
+        `window.getComputedStyle(document.querySelector('body')).display`
+      )
+      expect(currentDisplay).toBe('block')
     })
   })
 })

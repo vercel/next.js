@@ -63,100 +63,100 @@ describe('i18n Support basePath', () => {
 
   runTests(ctx)
 
+  // These checks rebuild the fixture and inspect the production routes manifest.
+  // @force-gate !dev
   describe('with localeDetection disabled', () => {
-    if (!isNextDev) {
-      beforeAll(async () => {
-        await next.stop()
-        await next.patchFile('next.config.js', (content) =>
-          content.replace('// localeDetection', 'localeDetection')
-        )
-        await next.build()
-        await next.start()
-        ctx.appPort = Number(new URL(next.url).port)
+    beforeAll(async () => {
+      await next.stop()
+      await next.patchFile('next.config.js', (content) =>
+        content.replace('// localeDetection', 'localeDetection')
+      )
+      await next.build()
+      await next.start()
+      ctx.appPort = Number(new URL(next.url).port)
+    })
+
+    it('should have localeDetection in routes-manifest', async () => {
+      const routesManifest = JSON.parse(
+        await next.readFile('.next/routes-manifest.json')
+      )
+
+      expect(routesManifest.i18n).toEqual({
+        localeDetection: false,
+        locales: [
+          'en-US',
+          'nl-NL',
+          'nl-BE',
+          'nl',
+          'fr-BE',
+          'fr',
+          'en',
+          'go',
+          'go-BE',
+          'do',
+          'do-BE',
+        ],
+        defaultLocale: 'en-US',
+        domains: [
+          {
+            http: true,
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
+          },
+          {
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
+          },
+        ],
       })
+    })
 
-      it('should have localeDetection in routes-manifest', async () => {
-        const routesManifest = JSON.parse(
-          await next.readFile('.next/routes-manifest.json')
-        )
+    it('should not detect locale from accept-language', async () => {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || '/'}`,
+        {},
+        {
+          redirect: 'manual',
+          headers: {
+            'accept-language': 'fr',
+          },
+        }
+      )
 
-        expect(routesManifest.i18n).toEqual({
-          localeDetection: false,
-          locales: [
-            'en-US',
-            'nl-NL',
-            'nl-BE',
-            'nl',
-            'fr-BE',
-            'fr',
-            'en',
-            'go',
-            'go-BE',
-            'do',
-            'do-BE',
-          ],
-          defaultLocale: 'en-US',
-          domains: [
-            {
-              http: true,
-              domain: 'example.do',
-              defaultLocale: 'do',
-              locales: ['do-BE'],
-            },
-            {
-              domain: 'example.com',
-              defaultLocale: 'go',
-              locales: ['go-BE'],
-            },
-          ],
-        })
-      })
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/')
+      expect($('#router-as-path').text()).toBe('/')
+    })
 
-      it('should not detect locale from accept-language', async () => {
+    it('should set locale from detected path', async () => {
+      for (const locale of locales) {
         const res = await fetchViaHTTP(
           ctx.appPort,
-          `${ctx.basePath || '/'}`,
+          `${ctx.basePath}/${locale}`,
           {},
           {
             redirect: 'manual',
             headers: {
-              'accept-language': 'fr',
+              'accept-language': 'en-US,en;q=0.9',
             },
           }
         )
 
         expect(res.status).toBe(200)
         const $ = cheerio.load(await res.text())
-        expect($('html').attr('lang')).toBe('en-US')
-        expect($('#router-locale').text()).toBe('en-US')
+        expect($('html').attr('lang')).toBe(locale)
+        expect($('#router-locale').text()).toBe(locale)
         expect(JSON.parse($('#router-locales').text())).toEqual(locales)
         expect($('#router-pathname').text()).toBe('/')
         expect($('#router-as-path').text()).toBe('/')
-      })
-
-      it('should set locale from detected path', async () => {
-        for (const locale of locales) {
-          const res = await fetchViaHTTP(
-            ctx.appPort,
-            `${ctx.basePath}/${locale}`,
-            {},
-            {
-              redirect: 'manual',
-              headers: {
-                'accept-language': 'en-US,en;q=0.9',
-              },
-            }
-          )
-
-          expect(res.status).toBe(200)
-          const $ = cheerio.load(await res.text())
-          expect($('html').attr('lang')).toBe(locale)
-          expect($('#router-locale').text()).toBe(locale)
-          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-          expect($('#router-pathname').text()).toBe('/')
-          expect($('#router-as-path').text()).toBe('/')
-        }
-      })
-    }
+      }
+    })
   })
 })

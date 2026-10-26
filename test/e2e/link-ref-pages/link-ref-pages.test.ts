@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import {
   getClientBuildManifestLoaderChunkUrlPath,
   retry,
@@ -72,7 +72,10 @@ describe('Link ref forwarding', () => {
       await noError('/child-ref-func-cleanup')
     })
   })
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
+
+  // Prefetching is disabled in dev, and these checks read the local build manifest.
+  // @force-gate start
+  describe('production mode', () => {
     it('should preload with forwardRef', async () => {
       await didPrefetch('/function')
     })

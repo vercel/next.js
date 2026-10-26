@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
@@ -281,19 +281,12 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
     })
   })
-  ;(isNextStart ? describe : describe.skip)(
-    'Server support for headers in next.config.js',
-    () => {
-      const size = 96
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'app'),
-      })
-      if (skipped) return
 
-      beforeAll(async () => {
-        await next.patchFile(
-          'next.config.js',
-          `module.exports = {
+  describe('Server support for headers in next.config.js', () => {
+    const size = 96
+    const { next, skipped, isNextDev } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
         async headers() {
           return [
             {
@@ -307,66 +300,52 @@ describe('Image Optimizer', () => {
             },
           ]
         },
-      }`
-        )
-      })
-      afterAll(async () => {
-        await next.patchFile(
-          'next.config.js',
-          '// prettier-ignore\nmodule.exports = { /* replaceme */ }'
-        )
-      })
+      },
+    })
+    if (skipped) return
 
-      it('should set max-age header', async () => {
-        const query = { url: '/test.png', w: size, q: 75 }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(200)
-        expect(res.headers.get('Cache-Control')).toBe(
-          'public, max-age=14400, must-revalidate'
-        )
-        expect(res.headers.get('Content-Disposition')).toBe(
-          'attachment; filename="test.webp"'
-        )
+    it('should set max-age header', async () => {
+      const query = { url: '/test.png', w: size, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=${isNextDev ? 0 : 14400}, must-revalidate`
+      )
+      expect(res.headers.get('Content-Disposition')).toBe(
+        'attachment; filename="test.webp"'
+      )
 
-        const imagesDir = join(next.testDir, '.next', 'cache', 'images')
-        await check(async () => {
-          const files = await fsToJson(imagesDir)
-          let found = false
-          const maxAge = '14400'
-          Object.keys(files).forEach((dir) => {
-            if (
-              Object.keys(files[dir]).some((file) =>
-                file.includes(`${maxAge}.`)
-              )
-            ) {
-              found = true
-            }
-          })
-          return found ? 'success' : 'failed'
-        }, 'success')
-      })
+      const imagesDir = join(next.testDir, next.distDir, 'cache', 'images')
+      await check(async () => {
+        const files = await fsToJson(imagesDir)
+        let found = false
+        const maxAge = '14400'
+        Object.keys(files).forEach((dir) => {
+          if (
+            Object.keys(files[dir]).some((file) => file.includes(`${maxAge}.`))
+          ) {
+            found = true
+          }
+        })
+        return found ? 'success' : 'failed'
+      }, 'success')
+    })
 
-      it('should not set max-age header when not matching next.config.js', async () => {
-        const query = { url: '/test.jpg', w: size, q: 75 }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(200)
-        expect(res.headers.get('Cache-Control')).toBe(
-          'public, max-age=14400, must-revalidate'
-        )
-        expect(res.headers.get('Content-Disposition')).toBe(
-          'attachment; filename="test.webp"'
-        )
-      })
-    }
-  )
+    it('should not set max-age header when not matching next.config.js', async () => {
+      const query = { url: '/test.jpg', w: size, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=${isNextDev ? 0 : 14400}, must-revalidate`
+      )
+      expect(res.headers.get('Content-Disposition')).toBe(
+        'attachment; filename="test.webp"'
+      )
+    })
+  })
+
   describe('next.config.js cloudinary loader', () => {
     const { next, skipped } = nextTestSetup({
       files: join(__dirname, 'app'),
@@ -422,88 +401,78 @@ describe('Image Optimizer', () => {
       expect(res.headers.get('Content-Type')).toBe('image/jpeg')
     })
   })
-  ;(isNextStart ? describe : describe.skip)(
-    'External rewrite support with for serving static content in images',
-    () => {
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'app'),
-        nextConfig: {
-          async rewrites() {
-            return [
-              {
-                source: '/:base(next-js)/:rest*',
-                destination:
-                  'https://assets.vercel.com/image/upload/v1538361091/repositories/:base/:rest*',
-              },
-            ]
-          },
+
+  describe('External rewrite support with for serving static content in images', () => {
+    const { next, skipped, isNextDev } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        async rewrites() {
+          return [
+            {
+              source: '/:base(next-js)/:rest*',
+              destination:
+                'https://assets.vercel.com/image/upload/v1538361091/repositories/:base/:rest*',
+            },
+          ]
         },
-      })
-      if (skipped) return
+      },
+    })
+    if (skipped) return
 
-      it('should return response when image is served from an external rewrite', async () => {
-        const imagesDir = join(next.testDir, '.next', 'cache', 'images')
-        await cleanImagesDir(imagesDir)
+    it('should return response when image is served from an external rewrite', async () => {
+      const imagesDir = join(next.testDir, next.distDir, 'cache', 'images')
+      await cleanImagesDir(imagesDir)
 
-        const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(200)
-        expect(res.headers.get('Content-Type')).toBe('image/webp')
-        expect(res.headers.get('Cache-Control')).toBe(
-          'public, max-age=31536000, must-revalidate'
-        )
-        expect(res.headers.get('Vary')).toBe('Accept')
-        expect(res.headers.get('Content-Disposition')).toBe(
-          'attachment; filename="next-js-bg.webp"'
-        )
+      const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=${isNextDev ? 0 : 31536000}, must-revalidate`
+      )
+      expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('Content-Disposition')).toBe(
+        'attachment; filename="next-js-bg.webp"'
+      )
 
-        await check(async () => {
-          const files = await fsToJson(imagesDir)
-          let found = false
-          const maxAge = '31536000'
-          Object.keys(files).forEach((dir) => {
-            if (
-              Object.keys(files[dir]).some((file) =>
-                file.includes(`${maxAge}.`)
-              )
-            ) {
-              found = true
-            }
-          })
-          return found ? 'success' : 'failed'
-        }, 'success')
-        await expectWidth(res, 64)
-      })
-    }
-  )
-  ;(isNextDev ? describe : describe.skip)(
-    'dev support for dynamic blur placeholder',
-    () => {
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'app'),
-        nextConfig: {
-          images: {
-            deviceSizes: [largeSize],
-            imageSizes: [],
-          },
+      await check(async () => {
+        const files = await fsToJson(imagesDir)
+        let found = false
+        const maxAge = '31536000'
+        Object.keys(files).forEach((dir) => {
+          if (
+            Object.keys(files[dir]).some((file) => file.includes(`${maxAge}.`))
+          ) {
+            found = true
+          }
+        })
+        return found ? 'success' : 'failed'
+      }, 'success')
+      await expectWidth(res, 64)
+    })
+  })
+
+  // Only development accepts the implicit blur-placeholder width and quality.
+  // @gate dev
+  describe('dev support for dynamic blur placeholder', () => {
+    const { next, skipped } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        images: {
+          deviceSizes: [largeSize],
+          imageSizes: [],
         },
-      })
-      if (skipped) return
+      },
+    })
+    if (skipped) return
 
-      it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
-        const query = { url: '/test.png', w: 8, q: 70 }
-        const opts = { headers: { accept: 'image/webp' } }
-        const res = await next.fetch(
-          `/_next/image?${toQueryString(query)}`,
-          opts
-        )
-        expect(res.status).toBe(200)
-        await expectWidth(res, 320)
-      })
-    }
-  )
+    it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
+      const query = { url: '/test.png', w: 8, q: 70 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
+      expect(res.status).toBe(200)
+      await expectWidth(res, 320)
+    })
+  })
 })
