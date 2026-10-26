@@ -300,6 +300,8 @@ export const testCapabilities = {
     scheduling: {
       supported: true,
       maxWorkers: { default: 1, minimum: 1, maximum: 64 },
+      fileParallelism:
+        'Root Boolean fileParallelism and bare positive/negative CLI forms select the existing maxWorkers budget with explicit CLI precedence and fresh watch generation selection. Complete development/production isolated Node one-shot reference rows and bounded Source/installed watch generations pass. Original extra-start/editor observation failures remain unresolved despite unchanged passing replays; full genuine watch lifecycle, project-local settings, other profiles/pools and equals/camel grammar remain unqualified.',
       workerPercentages:
         'Explicit --max-workers, familiar --maxWorkers and maxWorkers configuration accept host-relative percentages with the measured reference parseInt, rounding and host clamp, followed by the existing 1..64 scheduling budget. The unchanged two-file development/production CLI corpus matches complete cases and rows; percentages resolving above 64, broader defaults and browser/watch combinations remain unqualified.',
       scope:

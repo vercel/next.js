@@ -82,6 +82,7 @@ export interface TestProjectConfig {
 export interface TestConfig {
   compatibility: 'vitest'
   maxWorkers: number
+  fileParallelism?: boolean
   cache?: boolean | { dir: string }
   projects: TestProjectConfig[]
 }
@@ -235,7 +236,14 @@ export function parseTestConfig(
   const config = object(value, 'config')
   keys(
     config,
-    ['compatibility', 'projects', 'maxWorkers', 'testNamePattern', 'cache'],
+    [
+      'compatibility',
+      'projects',
+      'maxWorkers',
+      'fileParallelism',
+      'testNamePattern',
+      'cache',
+    ],
     'config'
   )
   function namePattern(
@@ -256,6 +264,11 @@ export function parseTestConfig(
     config.testNamePattern,
     'config.testNamePattern'
   )
+  if (
+    config.fileParallelism !== undefined &&
+    typeof config.fileParallelism !== 'boolean'
+  )
+    invalid('config.fileParallelism must be a boolean.')
   let cache: TestConfig['cache']
   if (config.cache !== undefined) {
     if (typeof config.cache === 'boolean') cache = config.cache
@@ -285,6 +298,9 @@ export function parseTestConfig(
   const normalized: TestConfig = {
     compatibility: 'vitest',
     ...(cache === undefined ? {} : { cache }),
+    ...(config.fileParallelism === undefined
+      ? {}
+      : { fileParallelism: config.fileParallelism as boolean }),
     maxWorkers: parseMaxWorkers(
       config.maxWorkers === undefined ? 1 : config.maxWorkers
     ),
@@ -884,7 +900,8 @@ export function normalizeTestConfig(value: unknown): TestConfig {
   if (!('test' in config)) return parseTestConfig(config)
   validateTestConfigCompilerOptions(config)
   const test = object(config.test, 'test')
-  const { projects, maxWorkers, name, cache, ...defaults } = test
+  const { projects, maxWorkers, fileParallelism, name, cache, ...defaults } =
+    test
   const rootSequence = object(test.sequence ?? {}, 'test.sequence')
   const sequenceSeed = rootSequence.seed ?? Date.now()
   defaults.sequence = { ...rootSequence, seed: sequenceSeed }
@@ -892,6 +909,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     const normalized = parseTestConfig(
       {
         maxWorkers,
+        fileParallelism,
         cache,
         projects: [{ name: name ?? 'default', ...defaults }],
       },
@@ -906,6 +924,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
   return parseTestConfig(
     {
       maxWorkers,
+      fileParallelism,
       cache,
       projects: projects.map((projectValue, index) => {
         const project = object(projectValue, `test.projects[${index}]`)

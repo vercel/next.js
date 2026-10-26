@@ -52,6 +52,7 @@ import {
 } from 'next/dist/experimental/testing/typecheck'
 import {
   parseMaxWorkers,
+  resolveTestMaxWorkers,
   parseTestShard,
   shardTestProjects,
   sortUncachedTestProjects,
@@ -6142,6 +6143,45 @@ describe('Node watch machine generations', () => {
       outputFile,
     })
   }
+
+  it.each([
+    [{}, [1, 3, 1]],
+    [{ fileParallelism: true }, [3, 3, 3]],
+    [{ fileParallelism: false }, [1, 1, 1]],
+    [{ maxWorkers: 2 }, [1, 2, 1]],
+    [{ maxWorkers: 2, fileParallelism: true }, [2, 2, 2]],
+    [{ maxWorkers: 2, fileParallelism: false }, [1, 1, 1]],
+  ] as const)(
+    'recomputes root file parallelism across configuration generations with %j',
+    async (options, expected) => {
+      async function configure(fileParallelism: boolean) {
+        await writeFile(
+          path.join(directory, 'next.test.config.json'),
+          JSON.stringify({
+            maxWorkers: 3,
+            fileParallelism,
+            projects: [{ name: 'node' }],
+          })
+        )
+      }
+      await configure(false)
+      watching = watchTests(directory, {
+        ...options,
+        signal: controller.signal,
+        write: jest.fn(),
+        resultReporters: ['json'],
+        outputFile: 'result.json',
+      })
+      await expectGeneration('watch-1')
+      await configure(true)
+      invalidate()
+      await expectGeneration('watch-2')
+      await configure(false)
+      invalidate()
+      await expectGeneration('watch-3')
+      expect(requests.map((request) => request.maxWorkers)).toEqual(expected)
+    }
+  )
   function invalidate() {
     jest
       .mocked(watchTestFiles)
@@ -11481,3 +11521,111 @@ it('types modeled project plugins, server and Browser fields without permissive 
     outsideDiagnostics: 0,
   })
 }, 65000)
+
+describe('root file parallelism configuration', () => {
+  it('types the named root and project Boolean fields with exact strict negative diagnostics', () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [path.join(__dirname, 'config-file-parallelism-types.cjs')],
+        { encoding: 'utf8', timeout: 60000 }
+      )
+    )
+    expect(actual.results).toEqual([
+      { kind: 'positive', diagnostics: [] },
+      {
+        kind: 'negative',
+        diagnostics: [
+          { code: 2322, line: 2 },
+          { code: 2322, line: 3 },
+          { code: 2322, line: 4 },
+        ],
+      },
+    ])
+    expect(actual.strict).toBe(true)
+    expect(actual.namedTypes).toBe(3)
+    expect(actual.rootConfigAndGlobalAugmentations).toBe(true)
+    expect(actual.physicalPackageDeclarations).toBe(true)
+  }, 65000)
+
+  it.each([false, true])(
+    'retains the authored Boolean %s outside project defaults',
+    (fileParallelism) => {
+      for (const config of [
+        parseTestConfig({ maxWorkers: 3, fileParallelism }),
+        normalizeTestConfig({ test: { maxWorkers: 3, fileParallelism } }),
+        normalizeTestConfig({
+          test: {
+            maxWorkers: 3,
+            fileParallelism,
+            projects: [
+              { test: { name: 'first', maxConcurrency: 2 } },
+              { extends: false, test: { name: 'second' } },
+            ],
+          },
+        }),
+      ]) {
+        expect(config.maxWorkers).toBe(3)
+        expect(config.fileParallelism).toBe(fileParallelism)
+        expect(
+          config.projects.every(
+            (project) => !Object.hasOwn(project, 'fileParallelism')
+          )
+        ).toBe(true)
+        expect(resolveTestMaxWorkers(config)).toBe(fileParallelism ? 3 : 1)
+        expect(resolveTestMaxWorkers(config, { fileParallelism: true })).toBe(3)
+        expect(
+          resolveTestMaxWorkers(config, {
+            fileParallelism: false,
+            maxWorkers: 4,
+          })
+        ).toBe(1)
+      }
+      const config = normalizeTestConfig({
+        test: { fileParallelism, maxConcurrency: 2 },
+      })
+      expect(config.projects[0].maxConcurrency).toBe(2)
+    }
+  )
+
+  it('keeps an omitted setting absent and preserves the existing selected worker count', () => {
+    const config = normalizeTestConfig({ test: { maxWorkers: 3 } })
+    expect(Object.hasOwn(config, 'fileParallelism')).toBe(false)
+    expect(resolveTestMaxWorkers(config)).toBe(3)
+    expect(resolveTestMaxWorkers(config, { maxWorkers: 2 })).toBe(2)
+  })
+
+  it.each([null, 0, 1, 'false', [], {}])(
+    'rejects a nonboolean root file setting %j',
+    (fileParallelism) => {
+      expect(() => parseTestConfig({ fileParallelism })).toThrow(
+        'config.fileParallelism must be a boolean.'
+      )
+      expect(() => normalizeTestConfig({ test: { fileParallelism } })).toThrow(
+        'config.fileParallelism must be a boolean.'
+      )
+    }
+  )
+
+  it('retains the project-local refusal instead of silently dropping the root setting from an external realm', async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-file-parallelism-project-')
+    )
+    try {
+      await writeFile(
+        path.join(directory, 'vitest.config.mjs'),
+        'export default { test: { projects: ["./vite.project.config.mjs"] } }\n'
+      )
+      await writeFile(
+        path.join(directory, 'vite.project.config.mjs'),
+        'export default { test: { fileParallelism: false } }\n'
+      )
+      await expect(openTestConfiguration(directory)).rejects.toThrow(
+        'cannot select fileParallelism yet; configure it on the root test configuration.'
+      )
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+})

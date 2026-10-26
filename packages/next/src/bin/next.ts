@@ -683,6 +683,18 @@ program
   })
 
 let testCoverageArgument: boolean | boolean[] | undefined
+let testFileParallelismArgument: boolean | boolean[] | undefined
+function appendTestFileParallelismArgument() {
+  testFileParallelismArgument =
+    testFileParallelismArgument === undefined
+      ? true
+      : [
+          ...(Array.isArray(testFileParallelismArgument)
+            ? testFileParallelismArgument
+            : [testFileParallelismArgument]),
+          true,
+        ]
+}
 function appendTestCoverageArgument(value: boolean) {
   testCoverageArgument =
     testCoverageArgument === undefined
@@ -825,6 +837,7 @@ program
     'Inspect and pause the test worker before entry evaluation (default 127.0.0.1:9229).'
   )
   .option('--inspect-brk [address]', 'Alias for --inspectBrk.')
+  .option('--file-parallelism', 'Allow independent file workers to overlap.')
   .option('--no-file-parallelism', 'Run one file worker at a time.')
   .option('--retry <count>', 'Retry a failing test up to this many times.')
   .option('--bail <count>', 'Stop starting tests after this many failed tests.')
@@ -893,6 +906,12 @@ program
   .on('option:cache=true', function (this: Command) {
     this.setOptionValueWithSource('cache', true, 'cli')
   })
+  .on('option:file-parallelism', () => {
+    appendTestFileParallelismArgument()
+  })
+  .on('option:no-file-parallelism', () => {
+    testFileParallelismArgument = false
+  })
   .on('option:cache=false', function (this: Command) {
     this.setOptionValueWithSource('cache', false, 'cli')
   })
@@ -916,14 +935,23 @@ program
   })
   .action(async (directory, options, command: Command) => {
     try {
+      if (Array.isArray(testFileParallelismArgument))
+        throw new Error(
+          `Expected a single value for option "--fileParallelism", received [${testFileParallelismArgument.join(', ')}]`
+        )
       if (Array.isArray(testCoverageArgument))
         throw new Error(
           `Expected a single value for option "--coverage ", received [${testCoverageArgument.join(', ')}]`
         )
       const { nextTestRunner } = await import('../cli/next-test-runner.js')
       const explicitCache = command.getOptionValueSource('cache') === 'cli'
+      const explicitFileParallelism =
+        command.getOptionValueSource('fileParallelism') === 'cli'
       await nextTestRunner(directory, {
         ...options,
+        fileParallelism: explicitFileParallelism
+          ? options.fileParallelism
+          : undefined,
         cache: explicitCache ? options.cache : undefined,
         cacheDefault: explicitCache ? undefined : options.cache,
       })

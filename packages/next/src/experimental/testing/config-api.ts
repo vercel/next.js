@@ -43,6 +43,7 @@ export interface TestUserConfig {
   hookTimeout?: number
   isolate?: boolean
   maxWorkers?: number | string
+  fileParallelism?: boolean
   maxConcurrency?: number
   retry?: number | { count?: number; delay?: number; condition?: RegExp }
   clearMocks?: boolean

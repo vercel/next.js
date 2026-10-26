@@ -63,6 +63,16 @@ export function parseMaxWorkers(value: unknown): number {
   return workers
 }
 
+/** File parallelism is a run-wide limit, independent of case concurrency. */
+export function resolveTestMaxWorkers(
+  config: { maxWorkers: number; fileParallelism?: boolean },
+  options: { maxWorkers?: string | number; fileParallelism?: boolean } = {}
+): number {
+  return (options.fileParallelism ?? config.fileParallelism) === false
+    ? 1
+    : parseMaxWorkers(options.maxWorkers ?? config.maxWorkers)
+}
+
 export function parseTestShard(value: string): TestShard {
   const match = /^(\d+)\/(\d+)$/.exec(value)
   const index = Number(match?.[1])

@@ -593,6 +593,10 @@ export async function openTestProjectModules(
         ...compilerOptions,
         test: { ...settings, name },
       })
+      if (config.fileParallelism !== undefined)
+        throw new Error(
+          `Project configuration ${file} cannot select fileParallelism yet; configure it on the root test configuration.`
+        )
       for (const project of config.projects) {
         project.sequence = inheritGlobalTestSequence(
           project.sequence,

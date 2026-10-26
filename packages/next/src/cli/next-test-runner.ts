@@ -53,6 +53,7 @@ import {
 import {
   acquireTestRunLock,
   parseMaxWorkers,
+  resolveTestMaxWorkers,
   parseTestShard,
   shardTestProjects,
   sortUncachedTestProjects,
@@ -240,7 +241,7 @@ export async function nextTestRunner(
       options.update ||
       options.coverage ||
       inspect !== undefined ||
-      options.fileParallelism === false ||
+      options.fileParallelism !== undefined ||
       options.maxWorkers !== undefined ||
       options.shard !== undefined ||
       options.api !== undefined ||
@@ -479,10 +480,7 @@ export async function nextTestRunner(
         'Type-test checking currently requires a one-shot execution without --watch, --list, --inspect, or --coverage.'
       )
     }
-    const maxWorkers =
-      options.fileParallelism === false
-        ? 1
-        : parseMaxWorkers(options.maxWorkers ?? config.maxWorkers)
+    const maxWorkers = resolveTestMaxWorkers(config, options)
     if (inspect && maxWorkers !== 1)
       throw new Error(
         '--inspect requires --no-file-parallelism or --max-workers=1.'
@@ -956,7 +954,15 @@ export async function nextTestRunner(
             ? { initialRelatedFromChanged: true as const }
             : {}),
           testNamePattern: options.testNamePattern,
-          maxWorkers: options.maxWorkers === undefined ? undefined : maxWorkers,
+          // Retain the CLI count independently of the initial authored limit:
+          // later configuration generations select parallelism afresh.
+          maxWorkers:
+            options.maxWorkers === undefined
+              ? undefined
+              : options.fileParallelism === false
+                ? 1
+                : parseMaxWorkers(options.maxWorkers),
+          fileParallelism: options.fileParallelism,
           standardCoverageOptions: cliStandardCoverageOptions,
           coverageFlags,
           resultReporters: reporters,

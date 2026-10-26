@@ -31,6 +31,7 @@ import {
   type TestConfigOverrides,
 } from './config'
 import { discoverTests, type DiscoveredTestProject } from './discovery'
+import { resolveTestMaxWorkers } from './scheduling'
 import {
   createWatchSession,
   type WatchDiscovery,
@@ -104,6 +105,7 @@ export async function watchTests(
     initialRelatedFromChanged?: true
     testNamePattern?: string | RegExp
     maxWorkers?: number
+    fileParallelism?: boolean
     standardCoverageOptions?: StandardCoverageOptions
     /** Only original explicit coverage and coverage.* CLI fields. */
     coverageFlags?: Record<string, unknown>
@@ -409,6 +411,7 @@ export async function watchTests(
           testNamePattern,
           clearConfiguredNamePattern,
           maxWorkers: options.maxWorkers,
+          fileParallelism: options.fileParallelism,
           standardCoverageOptions,
         })
       )
@@ -467,7 +470,7 @@ export async function watchTests(
       ...(customCoverageDisabled ? { customCoverageDisabled: true } : {}),
       coverageInputs,
       coverageConfigurationRevision: coverageRevision,
-      maxWorkers: options.maxWorkers ?? config.maxWorkers,
+      maxWorkers: resolveTestMaxWorkers(config, options),
       directories,
       entryIds: projects.flatMap((project) =>
         project.entries.map((entry) => entry.id)
