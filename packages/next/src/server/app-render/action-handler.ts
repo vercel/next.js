@@ -1477,6 +1477,7 @@ async function executeActionAndPrepareForRender<
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
+  const wasDraftModeEnabled = requestStore.draftMode.isEnabled
   let skipPageRendering = shouldSkipPageRendering
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
@@ -1513,6 +1514,13 @@ async function executeActionAndPrepareForRender<
       // The server action might have toggled draft mode, so we need to reflect
       // that in the work store to be up-to-date for subsequent rendering.
       workStore.isDraftMode = requestStore.draftMode.isEnabled
+
+      // The action may enable draft mode after the request received a
+      // published RDC. The re-render must generate fresh values without that
+      // RDC.
+      if (!wasDraftModeEnabled && requestStore.draftMode.isEnabled) {
+        requestStore.resumeDataCache = null
+      }
 
       // If the action called revalidateTag/revalidatePath, then that might
       // affect data used by the subsequent render, so we need to make sure all
