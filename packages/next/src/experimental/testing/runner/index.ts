@@ -144,8 +144,12 @@ export interface TestFileOptions {
   onCollectionFailure?(file: File, error: unknown): void | Promise<void>
   /** Enabled only by actual compiled execution hosts; private callers retain their scopes. */
   publicTaskSelection?: true
+  /** Actual public file preparation; private standalone callers retain their semantics. */
+  prepareEmptyPublicFile?: true
   /** Explicit Istanbul host capture of one settled actual module-load failure. */
   captureCollectionCoverage?: true
+  /** Actual Node execution omits statistics for a file that never ran. */
+  omitFailedCollectionSnapshotSummary?: true
   fileId: string
   filePath: string
   tags?: readonly TestTagDefinition[]
@@ -308,8 +312,10 @@ export function initializeTestFile(options: TestFileOptions) {
 function initializeFile(
   {
     publicTaskSelection,
+    prepareEmptyPublicFile,
     onCollectionFailure,
     captureCollectionCoverage,
+    omitFailedCollectionSnapshotSummary,
     fileId,
     filePath,
     updateSnapshots = false,
@@ -465,6 +471,8 @@ function initializeFile(
   }
   let fileAssertions: typeof assertions
   let browserPublicTaskQueues = false
+  let collectionFailed = false
+  let runStarted = false
   let snapshotExecutionComplete = false
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
   let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
@@ -646,6 +654,7 @@ function initializeFile(
         sanitizeRetryConditions(collector.root)
         state = 'collected'
       } catch (error) {
+        collectionFailed = true
         if (!onCollectionFailure) {
           state = 'finished'
           worker?.fail(error, fileId)
@@ -714,6 +723,7 @@ function initializeFile(
       if (state !== 'collected')
         throw new Error(`Cannot run test file in ${state} state.`)
       state = 'running'
+      runStarted = true
       runSignal = options.signal
       captureCoverageCompletion = options.captureCoverageCompletion === true
       lateFailureSink = options.onLateFailure
@@ -736,6 +746,9 @@ function initializeFile(
           collector.root,
           {
             ...executionOptions,
+            ...(prepareEmptyPublicFile === true
+              ? { prepareEmptyPublicFile: true as const }
+              : {}),
             ...(publicTaskSelection
               ? {
                   setCurrentTest(task: Test | undefined) {
@@ -1207,6 +1220,12 @@ function initializeFile(
       return occurrence
     },
     getSnapshotSummary() {
+      if (
+        omitFailedCollectionSnapshotSummary === true &&
+        collectionFailed &&
+        !runStarted
+      )
+        return undefined
       return fileAssertions?.getSnapshotSummary()
     },
     canPublishSnapshots,

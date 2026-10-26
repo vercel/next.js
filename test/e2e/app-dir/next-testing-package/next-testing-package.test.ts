@@ -32,6 +32,36 @@ describe('next-testing-package', () => {
 
   if (isNextDev && isTurbopack) {
     it.each(['development', 'production'] as const)(
+      'preserves actual empty public File preparation and passWithNoTests hooks in %s',
+      async (mode) => {
+        const temporary = await mkdtemp(join(tmpdir(), 'next-empty-file-'))
+        try {
+          const evidence = join(temporary, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-empty-file-preparation.mjs'),
+              next.testDir,
+              evidence,
+              mode,
+            ],
+            { timeout: 300000, maxBuffer: 2 * 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.mode).toBe(mode)
+          expect(verified.profiles).toBe(2)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+        } finally {
+          await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      340000
+    )
+
+    it.each(['development', 'production'] as const)(
       'delivers actual collected module live callbacks without blocking execution in %s',
       async (mode) => {
         const temporary = await mkdtemp(

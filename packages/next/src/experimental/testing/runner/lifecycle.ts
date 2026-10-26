@@ -218,6 +218,8 @@ export interface CompletedModuleResult {
 }
 
 export interface RunnerOptions {
+  /** Actual empty public File failure, before authored file resources or hooks. */
+  prepareEmptyPublicFile?: true
   /** Internal scheduling hint capture; never publication or baseline authority. */
   captureCompletedModuleResult?: true
   /** Private Istanbul completion observation; independent of snapshot eligibility. */
@@ -2409,6 +2411,7 @@ export async function runCollected(
   }
 
   const suiteResults = new Map<string, RunnerSuiteResult>()
+  let filePreparationFailure: RunnerFailure | undefined
   function hasTests(node: TestSuite): boolean {
     return node.children.some(
       (child) => child.type === 'test' || hasTests(child)
@@ -2433,7 +2436,7 @@ export async function runCollected(
     options.setCurrentTask?.(publicSuite)
     publicSuite.mode = mode
     if (collectionBlocked) publicSuite.result = { state: 'skip' }
-    if (mode === 'run')
+    if (mode === 'run' && !(node === root && filePreparationFailure))
       publicSuite.result = { state: 'run', startTime: frameworkDateNow() }
     ancestors = [...ancestors, node]
     const errors = [...inheritedErrors]
@@ -2453,7 +2456,7 @@ export async function runCollected(
       mode === 'run' &&
       !poisoned &&
       !options.signal.aborted &&
-      !(node === root && options.passWithNoTests) &&
+      !(node === root && (options.passWithNoTests || filePreparationFailure)) &&
       !hasTests(node)
     ) {
       const failure: RunnerFailure = {
@@ -2496,7 +2499,14 @@ export async function runCollected(
       )
     }
     const enter =
-      runnable(node) && !errors.length && !poisoned && !options.signal.aborted
+      (runnable(node) ||
+        (node === root &&
+          options.prepareEmptyPublicFile === true &&
+          collectedFile.tasks.length === 0 &&
+          options.passWithNoTests === true)) &&
+      !errors.length &&
+      !poisoned &&
+      !options.signal.aborted
     const hookContext = (
       hook: SuiteHookContext['hook'],
       index: number
@@ -2888,10 +2898,34 @@ export async function runCollected(
   }
   try {
     if (options.onCollected) await options.onCollected(collectedFile)
-    await fixtureScope.run(async () => {
-      fixtureAssertions = await suiteHooks?.beginFileFixtures?.(fixtureContext)
-    })
-    await runSuite(root, [], [])
+    if (
+      options.prepareEmptyPublicFile === true &&
+      collectedFile.tasks.length === 0 &&
+      !options.passWithNoTests &&
+      !options.signal.aborted
+    ) {
+      filePreparationFailure = {
+        phase: 'runtime',
+        error: new Error(
+          `No test suite found in file ${collectedFile.filepath}`
+        ),
+      }
+      result.errors.push(filePreparationFailure)
+      collectedFile.result = {
+        state: 'fail',
+        errors: [serializeTaskError(filePreparationFailure.error)],
+      }
+    }
+    if (!filePreparationFailure)
+      await fixtureScope.run(async () => {
+        fixtureAssertions =
+          await suiteHooks?.beginFileFixtures?.(fixtureContext)
+      })
+    await runSuite(
+      root,
+      [],
+      filePreparationFailure ? [filePreparationFailure] : []
+    )
   } finally {
     try {
       try {

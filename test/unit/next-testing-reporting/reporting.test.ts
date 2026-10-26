@@ -7604,3 +7604,36 @@ describe('actual failed collected module final error projection', () => {
     }
   )
 })
+
+it.each([
+  'empty',
+  'identity',
+  'pass',
+  'nonempty',
+  'all-skip',
+  'nested',
+  'cancelled',
+  'absent',
+  'truthy',
+] as const)(
+  'preserves actual empty public File preparation and owned cleanup for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-empty-preparation-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'empty-file-preparation.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualFileRootResultIdentityHeld: true,
+        originalScopesJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)

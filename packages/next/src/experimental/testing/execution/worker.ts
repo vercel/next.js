@@ -744,6 +744,22 @@ async function run({
         : undefined
     file = entry.testRunner.initializeTestFile({
       publicTaskSelection: true,
+      ...(artifact.kind === 'node' &&
+      artifact.profile.environment === 'node' &&
+      artifact.profile.route === undefined &&
+      artifact.profile.browserClient === undefined &&
+      !artifact.cohort &&
+      !options.coverage &&
+      !options.customCoverage &&
+      (!options.entry.executionEnvironment ||
+        options.entry.executionEnvironment.name === 'node')
+        ? { prepareEmptyPublicFile: true }
+        : {}),
+      ...(artifact.kind === 'node' &&
+      artifact.profile.environment === 'node' &&
+      artifact.profile.mode === 'development'
+        ? { omitFailedCollectionSnapshotSummary: true }
+        : {}),
       ...(options.captureModuleCollected === true
         ? {
             onCollectionFailure: async (actualFile) => {

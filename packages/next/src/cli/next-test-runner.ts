@@ -403,6 +403,8 @@ export async function nextTestRunner(
       }
     | undefined
   const controller = new AbortController()
+  let standardCoverageSignalExit = false
+  let sigintReason: Error | undefined
   async function publishPendingCoverage(
     publicationOptions: {
       prepareOnly?: true
@@ -430,7 +432,13 @@ export async function nextTestRunner(
     })
   }
   const cancel = () => controller.abort(new Error('Test run interrupted.'))
-  process.once('SIGINT', cancel)
+  const interrupt = () => {
+    if (!standardCoverageSignalExit) return cancel()
+    if (controller.signal.aborted) return
+    sigintReason = new Error('Test run interrupted.')
+    controller.abort(sigintReason)
+  }
+  process.once('SIGINT', interrupt)
   process.once('SIGTERM', cancel)
   let configuration:
     | Awaited<ReturnType<typeof openTestConfiguration>>
@@ -667,6 +675,30 @@ export async function nextTestRunner(
       }
     }
     const entries = projects.flatMap((project) => project.entries)
+    standardCoverageSignalExit =
+      options.coverage === true &&
+      standardCoverageOptions !== undefined &&
+      standardCoverageOptions.provider !== 'istanbul' &&
+      !options.watch &&
+      !options.list &&
+      !inspect &&
+      apiPort === undefined &&
+      !reporters.some(isCustomResultReporter) &&
+      projects.length === 1 &&
+      projects[0].isolate !== false &&
+      projects[0].profile.mode === 'development' &&
+      projects[0].profile.environment === 'node' &&
+      projects[0].profile.route === undefined &&
+      projects[0].profile.browserClient === undefined &&
+      !projects[0].executionEnvironment &&
+      !projects[0].typecheck?.enabled &&
+      !projects[0].customCoverage &&
+      entries.length > 0 &&
+      entries.every(
+        (entry) =>
+          /\.(?:js|mjs)$/.test(entry.file) &&
+          entry.executionEnvironment === undefined
+      )
     const customProjects = projects.filter(
       (project) =>
         coverageFlags.coverage !== false &&
@@ -1248,6 +1280,15 @@ export async function nextTestRunner(
     cleanedExecution = true
   } catch (error) {
     if (pendingCoverage) resultCompletionError ??= error
+    if (
+      standardCoverageSignalExit &&
+      sigintReason !== undefined &&
+      error === sigintReason &&
+      controller.signal.reason === sigintReason
+    ) {
+      process.exitCode = 130
+      return
+    }
     throw error
   } finally {
     const deferredConfiguration = cleanedExecution && !!pendingCoverage
@@ -1387,7 +1428,7 @@ export async function nextTestRunner(
           try {
             await runLock?.unlock()
           } finally {
-            process.removeListener('SIGINT', cancel)
+            process.removeListener('SIGINT', interrupt)
             process.removeListener('SIGTERM', cancel)
           }
         }

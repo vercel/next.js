@@ -20780,3 +20780,171 @@ describe('settled V8 collection-only completion', () => {
     130000
   )
 })
+
+describe('actual failed-collection snapshot statistics', () => {
+  it.each([
+    'failed-setup-disabled',
+    'failed-setup-v8',
+    'failed-setup-istanbul',
+    'failed-partial-spec-disabled',
+    'failed-partial-spec-v8',
+    'failed-partial-spec-istanbul',
+    'beforeEach-failure-disabled',
+    'body-failure-disabled',
+    'afterAll-failure-disabled',
+  ])(
+    'matches complete genuine statistics for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-collection-statistics-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'collection-snapshot-statistics.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          completeSnapshotStatisticsExact: true,
+          actualCaseAndFileStatusesExact: true,
+          actualCoverageMapExact: true,
+          originalSourceConfigSnapshotBytesExact: true,
+          allOwnersJoined: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+
+  it.each([
+    'failed-default',
+    'failed-truthy',
+    'failed-optin',
+    'failed-finalize-error',
+    'successful-optin',
+  ])(
+    'preserves actual finalization and snapshot policies for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-collection-finalization-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'collection-snapshot-side-effects.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          { env: process.env, stdio: 'pipe', timeout: 35000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPrimitiveFinalizerCalledOnce: true,
+          actualPrimitiveSummaryRetained: true,
+          privateReportingOptInOnly: true,
+          snapshotEligibilityUnchanged: true,
+          priorSnapshotBytesExact: true,
+          rawAuthoredErrorUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})
+
+describe('owned development Node V8 SIGINT exit', () => {
+  it.each(['mjs', 'js'])(
+    'matches genuine pending %s cancellation and complete recovery',
+    async (extension) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-signal-public-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-collection-cancel.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            extension,
+            '--source',
+          ],
+          { env: process.env, stdio: 'pipe', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSIGINTAfterSpecGate: true,
+          cancelExit: 130,
+          noCancelledPublication: true,
+          completeRecoveryMaps: true,
+          allOwnersClosed: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'first',
+    'second-delivery',
+    'same-message',
+    'aggregate',
+    'preexisting-reporter',
+    'cleanup',
+    'lock',
+    'disabled',
+    'istanbul',
+  ])(
+    'preserves actual CLI reason and cleanup ownership for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-signal-owner-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-signal-ownership.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          { env: process.env, stdio: 'pipe', timeout: 35000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualCLIControllerAndFinally: true,
+          exactReasonIdentity: true,
+          independentFailuresPropagate: true,
+          listenersRemoved: true,
+          actualConfigAndLockJoined: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})
