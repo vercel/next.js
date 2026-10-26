@@ -1536,9 +1536,9 @@ impl ModuleGraphSnapshot {
     /// Must be called on the whole graph, not on an individual graph layer (where `VisitedModule`
     /// nodes can't be resolved).
     ///
-    /// See [`Self::entry_ranks`] for the ranks from the entries of the graph, which are computed
-    /// once per snapshot.
-    pub fn reverse_postorder_ranks(
+    /// Use [`Self::entry_ranks`] for the ranks from the entries of the graph, which are computed
+    /// once per snapshot. This is only for other roots, e.g. a subset of the entries.
+    fn reverse_postorder_ranks(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     ) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
@@ -1610,8 +1610,17 @@ impl ModuleGraphSnapshot {
         Ok(ranks)
     }
 
-    /// The [`Self::reverse_postorder_ranks`] from the entries of the graph, i.e. the entries of
-    /// its chunk groups ([`Self::all_chunk_group_entry_modules`]).
+    /// A priority for [`Self::traverse_edges_fixed_point_with_priority`] that minimizes the number
+    /// of retraversals: the rank of every module reachable from the entries of the graph, i.e. the
+    /// entries of its chunk groups ([`Self::all_chunk_group_entry_modules`]), in the *reverse
+    /// postorder* of a depth-first search from them.
+    ///
+    /// Traced and unused references are ignored, like in the fixed point traversal. For every
+    /// reference outside of a cycle, the importing module has a lower rank than the imported
+    /// module. So when the graph has no cycles, visiting lower ranks first (e.g. using
+    /// [`std::cmp::Reverse`] as the priority, as the traversal visits high priorities first) visits
+    /// every module only after all of the modules importing it, i.e. exactly once. Modules in or
+    /// after a cycle can still be visited multiple times.
     ///
     /// They are computed on the first call and cached in this snapshot, so that all analyses of
     /// the same graph that need exactly these ranks share one computation. As the snapshot is
@@ -1635,7 +1644,7 @@ impl ModuleGraphSnapshot {
     ///
     /// Nodes are (re)visited according to the returned priority of the node, prioritizing high
     /// values. This priority is intended to be used a heuristic to reduce the number of
-    /// retraversals. [`ModuleGraphSnapshot::reverse_postorder_ranks`] computes a priority that
+    /// retraversals. [`ModuleGraphSnapshot::entry_ranks`] computes a priority that
     /// avoids retraversals for all modules not in or after a cycle.
     ///
     /// * `entries` - The entry modules to start the traversal from
