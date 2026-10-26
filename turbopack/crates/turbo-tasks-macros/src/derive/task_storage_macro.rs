@@ -66,6 +66,9 @@ struct FieldInfo {
     /// If true, shrink this collection after task execution completes.
     /// Empty collections are removed entirely from the lazy vec.
     shrink_on_completion: bool,
+    /// If true, drop this collection after task execution completes. For transient bookkeeping
+    /// that is only meaningful while an execution is in progress.
+    drop_on_completion: bool,
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
@@ -451,6 +454,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut filter_transient = false;
     let mut use_default = false;
     let mut shrink_on_completion = false;
+    let mut drop_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
     let mut custom_drop_partial = false;
     let mut custom_mutators = false;
@@ -573,6 +577,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         use_default = true;
                     } else if ident == "shrink_on_completion" {
                         shrink_on_completion = true;
+                    } else if ident == "drop_on_completion" {
+                        drop_on_completion = true;
                     } else if ident == "drop_on_completion_if_immutable" {
                         drop_on_completion_if_immutable = true;
                     } else if ident == "custom_drop_partial" {
@@ -585,8 +591,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                             .error(format!(
                                 "unknown modifier `{ident}`, expected `inline`, \
                                  `filter_transient`, `default`, `shrink_on_completion`, \
-                                 `drop_on_completion_if_immutable`, `custom_drop_partial`, or \
-                                 `custom_mutators`"
+                                 `drop_on_completion`, `drop_on_completion_if_immutable`, \
+                                 `custom_drop_partial`, or `custom_mutators`"
                             ))
                             .emit();
                     }
@@ -670,6 +676,16 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 ))
                 .emit();
         }
+        if drop_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion` on field `{field_name}` has no effect: only collection \
+                     types (auto_set, auto_map, counter_map) support clearing"
+                ))
+                .emit();
+        }
         if inline && drop_on_completion_if_immutable {
             field_name
                 .span()
@@ -681,6 +697,17 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 ))
                 .emit();
         }
+    }
+
+    if drop_on_completion && (shrink_on_completion || drop_on_completion_if_immutable) {
+        field_name
+            .span()
+            .unwrap()
+            .error(format!(
+                "`drop_on_completion` on field `{field_name}` already empties it; remove \
+                 `shrink_on_completion` / `drop_on_completion_if_immutable`"
+            ))
+            .emit();
     }
 
     if custom_drop_partial {
@@ -738,6 +765,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         filter_transient,
         use_default,
         shrink_on_completion,
+        drop_on_completion,
         drop_on_completion_if_immutable,
         custom_drop_partial,
         as_type,
@@ -869,18 +897,6 @@ impl GroupedFields {
 // =============================================================================
 // Code Generation Helpers
 // =============================================================================
-
-/// Generate inline field clone assignments: `snapshot.field = self.field.clone();`
-fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
-    fields
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                snapshot.#field_name = self.#field_name.clone();
-            }
-        })
-        .collect()
-}
 
 fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
@@ -2920,10 +2936,12 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// This method:
 /// 1. Queries `self.typed().flags.immutable()` once
-/// 2. Shrinks any inline collection fields with `shrink_on_completion`
+/// 2. Shrinks any inline collection fields with `shrink_on_completion` and drops any with
+///    `drop_on_completion`
 /// 3. Uses swap_retain pattern to process all lazy fields in one pass
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
-/// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
+/// 5. For fields with `drop_on_completion`: remove
+/// 6. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
     // Generate cleanup calls for inline collection fields.
     // Invalid attribute combinations (e.g. shrink/drop on non-collection fields) are rejected
@@ -2934,7 +2952,11 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             continue;
         }
         let field_name = &field.field_name;
-        if field.drop_on_completion_if_immutable {
+        if field.drop_on_completion {
+            inline_cleanups.push(quote! {
+                typed.#field_name = Default::default();
+            });
+        } else if field.drop_on_completion_if_immutable {
             inline_cleanups.push(quote! {
                 if is_immutable {
                     typed.#field_name = Default::default();
@@ -2963,6 +2985,12 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
 
+        if field.drop_on_completion {
+            match_arms.push(quote! {
+                LazyField::#variant_name(_) => false,
+            });
+            continue;
+        }
         if !shrink && !drop_if_immutable {
             continue;
         }
@@ -3014,6 +3042,7 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         #[doc = ""]
         #[doc = "This method performs a single pass over lazy fields to:"]
         #[doc = "- Shrink collections marked with `shrink_on_completion`"]
+        #[doc = "- Remove collections marked with `drop_on_completion`"]
         #[doc = "- Remove empty collections"]
         #[doc = "- Drop fields marked with `drop_on_completion_if_immutable` for immutable tasks"]
         #[doc = ""]
@@ -3803,25 +3832,6 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     }
 }
 
-/// Generate clone inline statements for a category.
-fn gen_clone_inline_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_clone_inline_fields(grouped_fields.persistent_inline(category))
-}
-
-/// Generate clone lazy match arms for a category.
-fn gen_clone_lazy_arms_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_lazy_match_arms(grouped_fields.persistent_lazy(category), |_, field| {
-        let variant_name = &field.variant_name;
-        quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
-    })
-}
-
 /// Generate restore inline statements for a category.
 fn gen_restore_inline_for_category(
     grouped_fields: &GroupedFields,
@@ -3833,11 +3843,9 @@ fn gen_restore_inline_for_category(
         .collect()
 }
 
-/// Generate snapshot clone and restore methods for TaskStorage.
+/// Generate snapshot restore methods for TaskStorage.
 ///
 /// Generates:
-/// - `clone_meta_snapshot(&self) -> TaskStorage` - Clone only persistent meta fields
-/// - `clone_data_snapshot(&self) -> TaskStorage` - Clone only persistent data fields
 /// - `restore_from(&mut self, source, category)` - Restore data by category from decoded storage
 /// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
@@ -3845,14 +3853,8 @@ fn gen_restore_inline_for_category(
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
     let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
     let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
-    let has_any_flags = has_meta_flags || has_data_flags;
 
     // Generate field operations by category
-    let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
-    let clone_data_inline = gen_clone_inline_for_category(grouped_fields, Category::Data);
-    let clone_meta_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Meta);
-    let clone_data_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Data);
-
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
@@ -3870,15 +3872,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
         .filter(|(_, f)| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
         .map(|(idx, f)| gen_restore_lazy_merge_arm(f, idx as u8))
         .collect();
-
-    let clone_all_flags = if has_any_flags {
-        quote! {
-            // Clone all persisted flags
-            snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
-        }
-    } else {
-        quote! {}
-    };
 
     // Generate flags handling for restore - per category
     let restore_meta_flags = if has_meta_flags {
@@ -3902,34 +3895,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields
-            pub fn clone_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline meta fields
-                #(#clone_meta_inline)*
-
-                // Clone inline data fields
-                #(#clone_data_inline)*
-
-                #clone_all_flags
-
-                // Clone all persistent lazy fields (both meta and data).
-                // (No pre-`reserve`: the schema has ≤24 lazy fields, so at most 3 grows
-                // (0→4→8→16→24) total — cheaper than complicating the public API surface
-                // of `TinyVec`.)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
             /// Restore persisted data from a decoded TaskStorage.
             ///
             /// This is used during restore operations to copy decoded persisted data

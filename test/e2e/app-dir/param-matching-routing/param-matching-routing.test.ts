@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { gate, retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
+// The legacy Vercel builder does not support these parameter-matching outputs.
+// @force-gate !deploy || adapter
 describe('param-matching-routing', () => {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -440,82 +440,122 @@ export async function printTreeView(
       ])
 
       if (pageInfo?.ssgPageRoutes?.length) {
-        const totalRoutes = pageInfo.ssgPageRoutes.length
+        const ssgPageRoutes = pageInfo.ssgPageRoutes
+        const totalRoutes = ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '│'
+        const routeDurations = pageInfo.ssgPageDurations
+        let hasDuration = false
 
-        // HERE
-
-        let routes: { route: string; duration: number; avgDuration?: number }[]
-        if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
-          const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
-          const routesWithDuration = pageInfo.ssgPageRoutes
-            .map((route, idx) => ({
-              route,
-              duration: pageInfo.ssgPageDurations![idx] || 0,
-            }))
-            .sort(({ duration: a }, { duration: b }) =>
-              // Sort by duration
-              // keep too small durations in original order at the end
-              a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
-            )
-          routes = routesWithDuration.slice(0, previewPages)
-          const remainingRoutes = routesWithDuration.slice(previewPages)
-          if (remainingRoutes.length) {
-            const remaining = remainingRoutes.length
-            const avgDuration = Math.round(
-              remainingRoutes.reduce(
-                (total, { duration }) => total + duration,
-                0
-              ) / remainingRoutes.length
-            )
-            routes.push({
-              route: `[+${remaining} more paths]`,
-              duration: 0,
-              avgDuration,
-            })
-          }
-        } else {
-          const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
-          routes = pageInfo.ssgPageRoutes
-            .slice(0, previewPages)
-            .map((route) => ({ route, duration: 0 }))
-          if (totalRoutes > previewPages) {
-            const remaining = totalRoutes - previewPages
-            routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        if (routeDurations) {
+          for (let index = 0; index < routeDurations.length; index++) {
+            if (routeDurations[index] > MIN_DURATION) {
+              hasDuration = true
+              break
+            }
           }
         }
 
-        routes.forEach(
-          ({ route, duration, avgDuration }, index, { length }) => {
-            const innerSymbol = index === length - 1 ? '└' : '├'
-            // Generated child paths can have more precise metadata than the
-            // parent route pattern, so prefer the child entry when present.
-            const routePageInfo = pageInfos.get(route) ?? pageInfo
-            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
-            usedSymbols.add(routeSymbol)
+        const maxPreviewPages = hasDuration ? 7 : 3
+        const previewPages =
+          totalRoutes === maxPreviewPages + 1
+            ? totalRoutes
+            : Math.min(totalRoutes, maxPreviewPages)
+        let routeIndexes: number[] | undefined
 
-            const initialCacheControl =
-              pageInfos.get(route)?.initialCacheControl
-
-            messages.push([
-              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
-                duration > MIN_DURATION
-                  ? ` (${getPrettyDuration(duration)})`
-                  : ''
-              }${
-                avgDuration && avgDuration > MIN_DURATION
-                  ? ` (avg ${getPrettyDuration(avgDuration)})`
-                  : ''
-              }`,
-              showRevalidate && initialCacheControl
-                ? formatRevalidate(initialCacheControl)
-                : '',
-              showExpire && initialCacheControl
-                ? formatExpire(initialCacheControl)
-                : '',
-            ])
+        if (hasDuration) {
+          // Keep the source arrays immutable. Sorting only their indexes avoids
+          // allocating a route object for every generated path.
+          routeIndexes = []
+          for (let index = 0; index < totalRoutes; index++) {
+            routeIndexes.push(index)
           }
-        )
+
+          routeIndexes.sort((indexA, indexB) => {
+            const durationA = routeDurations![indexA] || 0
+            const durationB = routeDurations![indexB] || 0
+
+            // Keep too small durations in their original order at the end.
+            return durationA <= MIN_DURATION && durationB <= MIN_DURATION
+              ? 0
+              : durationB - durationA
+          })
+        }
+
+        const hasSummary = totalRoutes > previewPages
+        let summarySymbol: string | undefined
+        let avgDuration: number | undefined
+
+        if (hasSummary) {
+          const firstHiddenIndex = routeIndexes?.[previewPages] ?? previewPages
+          const firstHiddenRoute = ssgPageRoutes[firstHiddenIndex]
+          summarySymbol = getTreeViewSymbol(
+            firstHiddenRoute,
+            pageInfos.get(firstHiddenRoute) ?? pageInfo
+          )
+
+          let hiddenTotalDuration = 0
+          for (let index = previewPages; index < totalRoutes; index++) {
+            const routeIndex = routeIndexes?.[index] ?? index
+            const route = ssgPageRoutes[routeIndex]
+
+            if (
+              index > previewPages &&
+              summarySymbol !== undefined &&
+              getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo) !==
+                summarySymbol
+            ) {
+              summarySymbol = undefined
+            }
+
+            if (hasDuration) {
+              hiddenTotalDuration += routeDurations![routeIndex] || 0
+            }
+          }
+
+          if (hasDuration) {
+            avgDuration = Math.round(
+              hiddenTotalDuration / (totalRoutes - previewPages)
+            )
+          }
+        }
+
+        // Emit the preview and optional summary directly into the table instead
+        // of allocating intermediate route arrays.
+        const displayedRoutes = previewPages + (hasSummary ? 1 : 0)
+        for (let index = 0; index < displayedRoutes; index++) {
+          const isSummary = index === previewPages
+          const routeIndex = routeIndexes?.[index] ?? index
+          const route = isSummary
+            ? `[+${totalRoutes - previewPages} more paths]`
+            : ssgPageRoutes[routeIndex]
+          const duration = isSummary
+            ? 0
+            : hasDuration
+              ? routeDurations![routeIndex] || 0
+              : 0
+          const routeSymbol =
+            (isSummary ? summarySymbol : undefined) ??
+            getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo)
+          const innerSymbol = index === displayedRoutes - 1 ? '└' : '├'
+          const initialCacheControl = pageInfos.get(route)?.initialCacheControl
+
+          usedSymbols.add(routeSymbol)
+          messages.push([
+            `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
+              duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+            }${
+              isSummary && avgDuration && avgDuration > MIN_DURATION
+                ? ` (avg ${getPrettyDuration(avgDuration)})`
+                : ''
+            }`,
+            showRevalidate && initialCacheControl
+              ? formatRevalidate(initialCacheControl)
+              : '',
+            showExpire && initialCacheControl
+              ? formatExpire(initialCacheControl)
+              : '',
+          ])
+        }
       }
     })
   }

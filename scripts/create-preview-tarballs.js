@@ -151,6 +151,29 @@ async function main() {
       }
     }
 
+    // Internal dependencies are `workspace:*` in the repo, and the loop above
+    // is what resolves them -- to a tarball URL, not a version, because that is
+    // what preview installs need. `npm pack` below does not understand the
+    // protocol, so anything left unresolved would ship a broken manifest.
+    for (const field of [
+      'dependencies',
+      'devDependencies',
+      'peerDependencies',
+      'optionalDependencies',
+    ]) {
+      for (const [dependencyName, specifier] of Object.entries(
+        manifest[field] ?? {}
+      )) {
+        if (typeof specifier === 'string' && specifier.includes('workspace:')) {
+          throw new Error(
+            `${manifest.name} has an unresolved workspace dependency ` +
+              `${field}.${dependencyName} ("${specifier}"). It is missing from ` +
+              `the release package list.`
+          )
+        }
+      }
+    }
+
     await fs.writeFile(
       packageJsonPath,
       JSON.stringify(manifest, null, 2) +

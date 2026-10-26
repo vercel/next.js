@@ -349,7 +349,7 @@ declare module 'next/link' {
 declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation.js'
 
-  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
+  import type { NavigateOptions, PrefetchOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
   import type { RedirectType } from 'next/dist/client/components/redirect-error.js'
   
   interface AppRouterInstance extends OriginalAppRouterInstance {
@@ -366,7 +366,7 @@ declare module 'next/navigation' {
     /**
      * Prefetch the provided href.
      */
-    prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
+    prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: PrefetchOptions): void
   }
 
   export function useRouter(): AppRouterInstance;

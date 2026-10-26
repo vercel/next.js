@@ -1,8 +1,8 @@
 diff --git a/dist/lib/agents/plugin/orchestrator.js b/dist/lib/agents/plugin/orchestrator.js
-index 8a95213..8f04f85 100644
+index a2c32ee70e7..fd0f3c2a3d8 100644
 --- a/dist/lib/agents/plugin/orchestrator.js
 +++ b/dist/lib/agents/plugin/orchestrator.js
-@@ -87,8 +87,25 @@ export function resolveJudgeRuntime(def, options) {
+@@ -87,11 +87,28 @@ export function resolveJudgeRuntime(def, options) {
   * Run all install steps for an agent, reproducing the old per-step error wording.
   * Throws on final failure so the caller's catch turns it into an error result.
   */
@@ -31,81 +31,205 @@ index 8a95213..8f04f85 100644
 -            : sandbox.runCommand(step.cmd ?? '', step.args ?? []);
 +            ? sandbox.runShell(step.script ?? '', env)
 +            : sandbox.runCommand(step.cmd ?? '', step.args ?? [], { env });
-@@ -109,6 +126,73 @@ async function runInstallSteps(sandbox, def, options) {
+         let result = await exec();
+         // Optional single retry (the project `npm install` flakes occasionally).
+         if (result.exitCode !== 0 && step.retryOnce) {
+@@ -109,6 +126,152 @@ async function runInstallSteps(sandbox, def, options) {
          }
      }
  }
 +const preparedFixtures = new Map();
-+async function preparedFixture(fixturePath, workspaceFiles, def, options) {
-+    let pending = preparedFixtures.get(fixturePath);
-+    if (!pending) {
-+        pending = (async () => {
-+            const preparedSandbox = await createSandbox({
-+                timeout: options.timeout,
++function preparedFixture(fixturePath, workspaceFiles, def, options) {
++    let prepared = preparedFixtures.get(fixturePath);
++    if (!prepared) {
++        // Cancellation belongs to shared preparation, not whichever agent first
++        // creates it. Keep the VM alive while another consumer still needs it.
++        prepared = {
++            consumers: new Set(),
++            cancelled: false,
++            sandbox: null,
++            snapshot: null,
++            stopPromise: null,
++        };
++        prepared.stop = () => {
++            if (prepared.sandbox && !prepared.stopPromise) {
++                const sandbox = prepared.sandbox;
++                prepared.stopPromise = Promise.resolve().then(() => sandbox.stop());
++                // Creation can complete after the last consumer has left. Observe
++                // late teardown errors as well as awaiting them when possible.
++                prepared.stopPromise.catch(error => console.error('Shared fixture teardown failed:', error));
++            }
++            return prepared.stopPromise;
++        };
++        prepared.pending = (async () => {
++            prepared.sandbox = await createSandbox({
++                timeout: options.timeout + (options.agentOptions?.afterAgent ? 45000 : 0),
 +                runtime: 'node24',
 +                backend: options.sandbox,
 +            });
 +            try {
-+                await preparedSandbox.uploadFiles(workspaceFiles);
-+                await initGitAndCommit(preparedSandbox);
++                if (prepared.cancelled) {
++                    throw new Error('Aborted shared fixture preparation');
++                }
++                const sandbox = prepared.sandbox;
++                await sandbox.uploadFiles(workspaceFiles);
++                await initGitAndCommit(sandbox);
 +                const setupResult = options.setup
-+                    ? await options.setup(preparedSandbox)
++                    ? await options.setup(sandbox)
 +                    : undefined;
-+                const neutralWorkspace = await prepareNeutralWorkspace(preparedSandbox);
-+                await runInstallSteps(preparedSandbox, def, options, true, setupResult?.env);
-+                await verifyNoTestFiles(preparedSandbox);
-+                const snapshot = await preparedSandbox.snapshot({
++                if (prepared.cancelled) {
++                    throw new Error('Aborted shared fixture preparation');
++                }
++                const neutralWorkspace = await prepareNeutralWorkspace(sandbox);
++                await runInstallSteps(sandbox, def, options, true, setupResult?.env);
++                await verifyNoTestFiles(sandbox);
++                const snapshot = await sandbox.snapshot({
 +                    expiration: 24 * 60 * 60 * 1000,
 +                });
-+                return {
-+                    snapshot,
-+                    setupResult,
-+                    neutralWorkspace,
-+                    remaining: Number(process.env.AGENT_EVAL_PREPARED_FIXTURE_CONSUMERS ?? 2),
-+                };
++                // Snapshot creation stops the preparation VM. If cancellation
++                // raced with it, delete the late snapshot instead of caching it.
++                prepared.sandbox = null;
++                if (prepared.cancelled) {
++                    await snapshot.delete();
++                    throw new Error('Aborted shared fixture preparation');
++                }
++                prepared.snapshot = snapshot;
++                return { snapshot, setupResult, neutralWorkspace };
 +            }
 +            catch (error) {
-+                await preparedSandbox.stop().catch(() => { });
++                await prepared.stop();
 +                throw error;
 +            }
 +        })();
-+        preparedFixtures.set(fixturePath, pending);
++        // No consumer may remain to await a late preparation failure.
++        prepared.pending.catch(error => console.error('Shared fixture preparation failed:', error));
++        preparedFixtures.set(fixturePath, prepared);
 +    }
-+    return pending;
++    return prepared;
 +}
 +async function forkPreparedFixture(fixturePath, workspaceFiles, def, options) {
-+    const prepared = await preparedFixture(fixturePath, workspaceFiles, def, options);
++    const prepared = preparedFixture(fixturePath, workspaceFiles, def, options);
++    let sandbox = null;
++    let stopPromise = null;
++    let rejectAbort;
++    const aborted = new Promise((resolve, reject) => { rejectAbort = reject; });
++    const cancel = () => {
++        prepared.consumers.delete(cancel);
++        if (prepared.consumers.size === 0) {
++            prepared.cancelled = true;
++            if (preparedFixtures.get(fixturePath) === prepared) {
++                preparedFixtures.delete(fixturePath);
++            }
++            prepared.stop();
++        }
++        // Retain the created fork while snapshot cleanup still delays handoff.
++        if (sandbox && !stopPromise) {
++            stopPromise = Promise.resolve().then(() => sandbox.stop());
++            stopPromise.catch(error => console.error('Prepared fork teardown failed:', error));
++        }
++        rejectAbort(new Error('Aborted shared fixture preparation'));
++    };
++    prepared.consumers.add(cancel);
++    options.signal?.addEventListener('abort', cancel, { once: true });
++    if (options.signal?.aborted) {
++        cancel();
++    }
 +    try {
-+        const sandbox = await createSandbox({
-+            timeout: options.timeout,
++        // A cancelled consumer can exit even when setup stays blocked; another
++        // consumer can keep using the same pending preparation.
++        const result = await Promise.race([prepared.pending, aborted]);
++        sandbox = await createSandbox({
++            timeout: options.timeout + (options.agentOptions?.afterAgent ? 45000 : 0),
 +            runtime: 'node24',
 +            backend: options.sandbox,
-+            snapshotId: prepared.snapshot.snapshotId,
++            snapshotId: result.snapshot.snapshotId,
 +        });
-+        sandbox.setWorkingDirectory(prepared.neutralWorkspace.cwd);
++        if (options.signal?.aborted) {
++            cancel();
++            throw new Error('Aborted shared fixture preparation');
++        }
++        sandbox.setWorkingDirectory(result.neutralWorkspace.cwd);
 +        return {
 +            sandbox,
-+            setupResult: prepared.setupResult,
-+            neutralWorkspace: prepared.neutralWorkspace,
++            setupResult: result.setupResult,
++            neutralWorkspace: result.neutralWorkspace,
 +        };
 +    }
 +    finally {
-+        prepared.remaining -= 1;
-+        if (prepared.remaining === 0) {
-+            preparedFixtures.delete(fixturePath);
-+            try {
-+                await prepared.snapshot.delete();
++        try {
++            prepared.consumers.delete(cancel);
++            if (prepared.consumers.size === 0) {
++                if (preparedFixtures.get(fixturePath) === prepared) {
++                    preparedFixtures.delete(fixturePath);
++                }
++                if (prepared.snapshot) {
++                    const snapshot = prepared.snapshot;
++                    prepared.snapshot = null;
++                    try {
++                        await snapshot.delete();
++                    }
++                    catch (error) {
++                        console.error('Failed to delete prepared fixture snapshot:', error);
++                    }
++                }
 +            }
-+            catch (error) {
-+                console.error('Failed to delete prepared fixture snapshot:', error);
-+            }
++            await prepared.stopPromise;
++        }
++        finally {
++            options.signal?.removeEventListener('abort', cancel);
++            await stopPromise;
++        }
++        if (options.signal?.aborted) {
++            throw new Error('Aborted shared fixture preparation');
 +        }
 +    }
 +}
  /** Write the agent's config files into the sandbox (codex TOML, opencode.json, …). */
  async function writeConfigFiles(sandbox, def, options) {
      for (const cf of def.configFiles(options)) {
-@@ -226,11 +310,22 @@ async function runOnce(def, fixturePath, options) {
+@@ -200,12 +363,40 @@ async function runOnce(def, fixturePath, options) {
+     let modelRepair;
+     let aborted = false;
+     let sandboxStopped = false;
++    let agentStarted = false;
++    let capturePromise;
++    let captureError;
++    let stopPromise;
++    const captureAgent = () => {
++        if (!capturePromise && sandbox && agentStarted && options.agentOptions?.afterAgent) {
++            capturePromise = new Promise((resolve, reject) => {
++                const timer = setTimeout(() => reject(new Error('Artifact capture timed out after 30s')), 30000);
++                Promise.resolve().then(() => options.agentOptions.afterAgent(sandbox)).then(resolve, reject).finally(() => clearTimeout(timer));
++            }).catch(error => {
++                captureError = error;
++                console.error('Artifact capture failed:', String(error));
++            });
++        }
++        return capturePromise;
++    };
+     // --- abort wiring (identical to the old adapter) ---------------------------
+     const abortHandler = () => {
+         aborted = true;
+         if (sandbox && !sandboxStopped) {
+             sandboxStopped = true;
+-            sandbox.stop().catch(() => { });
++            if (options.agentOptions?.afterAgent) {
++                stopPromise = (async () => {
++                    try {
++                        await captureAgent();
++                    } finally {
++                        await sandbox.stop();
++                    }
++                })();
++                // Keep the rejection observed until the awaited finally reports it.
++                stopPromise.catch(error => console.error('Failure capture/teardown:', String(error)));
++            } else {
++                sandbox.stop().catch(() => { });
++            }
+         }
+     };
+     if (options.signal) {
+@@ -226,11 +417,22 @@ async function runOnce(def, fixturePath, options) {
          //    memoization (~/.codex/agent-eval-canary.json, see codex/run.mjs) relies
          //    on that shared lifetime — a sandbox-per-invocation change would make
          //    every judge assertion re-pay the canary exec.
@@ -125,7 +249,7 @@ index 8a95213..8f04f85 100644
 +        }
 +        else {
 +            sandbox = await createSandbox({
-+                timeout: options.timeout,
++                timeout: options.timeout + (options.agentOptions?.afterAgent ? 45000 : 0),
 +                runtime: 'node24',
 +                backend: options.sandbox,
 +            });
@@ -133,7 +257,7 @@ index 8a95213..8f04f85 100644
          if (aborted) {
              return {
                  success: false,
-@@ -242,21 +337,25 @@ async function runOnce(def, fixturePath, options) {
+@@ -242,21 +444,25 @@ async function runOnce(def, fixturePath, options) {
          }
          // 3. Upload workspace, establish the git baseline, run user setup, relocate to
          //    the neutral workspace. (All agent-agnostic; unchanged shared helpers.)
@@ -166,16 +290,34 @@ index 8a95213..8f04f85 100644
              await writeConfigFiles(sandbox, judgeRuntime.judgeDef, judgeRuntime.judgeOptions);
          }
          // 5. Guard: no stray test files leaked into the workspace before the agent runs.
-@@ -281,7 +380,7 @@ async function runOnce(def, fixturePath, options) {
+@@ -281,7 +487,8 @@ async function runOnce(def, fixturePath, options) {
              // that must match the TOML config). Omitted entirely for agents without it.
              extra: def.runnerExtra?.(options),
          };
 -        const runEnv = { ...def.authEnv(options), ...neutralWorkspace.env };
 +        const runEnv = { ...def.authEnv(options), ...neutralWorkspace.env, ...setupResult?.env };
++        agentStarted = true;
          const nodeResult = await sandbox.runCommand('node', [RUNNER_PATH, JSON.stringify(input)], { env: runEnv });
          // 8. Read the runner's result (file → marker → throw-on-crash).
          const runnerResult = await readRunnerResult(sandbox, RESULT_PATH, nodeResult);
-@@ -318,7 +417,7 @@ async function runOnce(def, fixturePath, options) {
+@@ -289,6 +496,10 @@ async function runOnce(def, fixturePath, options) {
+         transcript = runnerResult.transcript ?? undefined;
+         observedModel = runnerResult.observedModel ?? undefined;
+         modelRepair = runnerResult.modelRepair ?? undefined;
++        await captureAgent();
++        if (captureError) {
++            throw captureError;
++        }
+         if (aborted) {
+             return {
+                 success: false,
+@@ -313,12 +524,13 @@ async function runOnce(def, fixturePath, options) {
+                 modelRepair,
+             };
+         }
++        await options.agentOptions?.beforeValidation?.(sandbox);
+         // 10. VALIDATION (unchanged shared helpers; parseTranscript runs host-side here).
+         // The JUDGE's auth env is set on the eval process so EVAL.ts judge matchers can
          // re-invoke the agent in-sandbox (the vitest process inherits it to children).
          // By default the judge is the codegen agent+model; options.judge pins a fixed one
          // (judgeRuntime was resolved at step 4b so its CLI could be installed).
@@ -184,8 +326,134 @@ index 8a95213..8f04f85 100644
          if (options.validation !== 'none') {
              await sandbox.uploadFiles(testFiles);
              await createVitestConfig(sandbox);
+@@ -337,6 +549,7 @@ async function runOnce(def, fixturePath, options) {
+             await sandbox.writeFiles(judgeFiles);
+         }
+         const validationResults = await runValidation(sandbox, options.scripts ?? [], options.validation, validationEnv);
++        await options.agentOptions?.afterValidation?.(sandbox);
+         // 11. Capture generated/deleted files (git diff).
+         const { generatedFiles, deletedFiles } = await captureGeneratedFiles(sandbox);
+         return {
+@@ -380,9 +593,15 @@ async function runOnce(def, fixturePath, options) {
+         if (options.signal) {
+             options.signal.removeEventListener('abort', abortHandler);
+         }
+-        if (sandbox && !sandboxStopped) {
++        if (stopPromise) {
++            await stopPromise;
++        } else if (sandbox && !sandboxStopped) {
+             sandboxStopped = true;
+-            await sandbox.stop();
++            try {
++                await captureAgent();
++            } finally {
++                await sandbox.stop();
++            }
+         }
+     }
+ }
+diff --git a/dist/lib/runner.js b/dist/lib/runner.js
+index b0c6a3672925853e19a5091ad4155c8086e8c946..02764f9d2a879e3437b3d46ea40cf47f3f976ea6 100644
+--- a/dist/lib/runner.js
++++ b/dist/lib/runner.js
+@@ -76,6 +76,17 @@ export async function runExperiment(options) {
+     for (const fixture of fixtures) {
+         abortControllers.set(fixture.name, new AbortController());
+     }
++    // Opt-in suite cancellation reaches the same capture/stop path as timeout.
++    const handleProcessSignals = process.env.AGENT_EVAL_HANDLE_SIGNALS === '1';
++    const cancel = () => {
++        for (const controller of abortControllers.values()) {
++            controller.abort();
++        }
++    };
++    if (handleProcessSignals) {
++        process.on('SIGINT', cancel);
++        process.on('SIGTERM', cancel);
++    }
+     // Build list of all attempts to run
+     const attempts = [];
+     for (const fixture of fixtures) {
+@@ -104,14 +115,13 @@ export async function runExperiment(options) {
+         // Create per-attempt controller for timeout cleanup
+         const attemptController = new AbortController();
+         // Propagate earlyExit abort to this attempt's controller
+-        if (config.earlyExit) {
++        if (config.earlyExit || handleProcessSignals) {
+             controller.signal.addEventListener('abort', () => attemptController.abort(), { once: true });
+         }
+         let timeoutId;
+         const modelPolicy = config.modelPolicy ?? 'agent-default';
+         const requestedModel = modelPolicy === 'native-default' ? undefined : config.model;
+-        const agentResult = await Promise.race([
+-            agent.run(fixture.path, {
++        const pendingAgent = agent.run(fixture.path, {
+                 prompt: config.editPrompt ? config.editPrompt(fixture.prompt) : fixture.prompt,
+                 model: requestedModel,
+                 modelPolicy,
+@@ -126,16 +136,32 @@ export async function runExperiment(options) {
+                 webResearch: config.webResearch,
+                 disableBundledSkills: config.disableBundledSkills,
+                 judge: config.judge,
+-            }),
++            });
++        const agentResult = await Promise.race([
++            pendingAgent,
+             new Promise((_, reject) => {
+                 timeoutId = setTimeout(() => {
+                     attemptController.abort(); // Signal agent to clean up sandbox
+                     reject(new Error(`Eval timed out after ${config.timeout}s`));
+                 }, timeoutMs);
+             }),
+-        ]).catch((error) => {
++        ]).catch(async (error) => {
+             // Convert timeout error to AgentResult format
+             if (error instanceof Error && error.message.includes('timed out')) {
++                if (config.agentOptions?.afterAgent) {
++                    // Opt-in capture settles before callbacks/result persistence.
++                    // The capture itself is bounded at 30s; keep teardown bounded too.
++                    let timer;
++                    try {
++                        await Promise.race([pendingAgent, new Promise((_, reject) => {
++                            timer = setTimeout(() => reject(new Error('Failure teardown timed out')), 40000);
++                        })]);
++                    } catch (cleanupError) {
++                        console.error('Failure capture/teardown:', String(cleanupError));
++                    } finally {
++                        clearTimeout(timer);
++                    }
++                }
+                 return {
+                     success: false,
+                     output: '',
+@@ -197,7 +223,7 @@ export async function runExperiment(options) {
+     const runAttemptWithRetry = async (attempt) => {
+         for (let retry = 0;; retry++) {
+             const result = await runAttempt(attempt);
+-            const isSuspiciouslyFast = !result.aborted &&
++            const isSuspiciouslyFast = !config.agentOptions?.disableFastRetry && !result.aborted &&
+                 result.runData.result.status === 'failed' &&
+                 result.runData.result.duration < ANOMALY_THRESHOLD_S &&
+                 !result.runData.result.error?.includes('timed out');
+@@ -227,7 +253,15 @@ export async function runExperiment(options) {
+         }
+         return result;
+     };
+-    const results = await Promise.all(attempts.map(runOne));
++    let results;
++    try {
++        results = await Promise.all(attempts.map(runOne));
++    } finally {
++        if (handleProcessSignals) {
++            process.off('SIGINT', cancel);
++            process.off('SIGTERM', cancel);
++        }
++    }
+     // Group results by fixture, excluding aborted results
+     const resultsByFixture = new Map();
+     for (const fixture of fixtures) {
 diff --git a/dist/lib/sandbox.d.ts b/dist/lib/sandbox.d.ts
-index 8803497..74d79b9 100644
+index 8803497ab16a5f707b519e899d2d641481c43f37..10a1202622e4ec01b62246d1346a7af2457197e0 100644
 --- a/dist/lib/sandbox.d.ts
 +++ b/dist/lib/sandbox.d.ts
 @@ -2,7 +2,7 @@
@@ -217,15 +485,8 @@ index 8803497..74d79b9 100644
      private resolveSandboxPath;
      /**
       * Stop and clean up the sandbox.
-@@ -182,4 +188,4 @@ export declare function splitTestFiles(files: SandboxFile[]): {
-  * Verify that no test files exist in the sandbox.
-  */
- export declare function verifyNoTestFiles(sandbox: SandboxManager | DockerSandboxManager): Promise<void>;
--//# sourceMappingURL=sandbox.d.ts.map
-\ No newline at end of file
-+//# sourceMappingURL=sandbox.d.ts.map
 diff --git a/dist/lib/sandbox.js b/dist/lib/sandbox.js
-index fa7f130..9306764 100644
+index 26591c4d91b378deaae40ee173c8c493b512a13f..f23babdfb47b292bf9a55172227c546058e71879 100644
 --- a/dist/lib/sandbox.js
 +++ b/dist/lib/sandbox.js
 @@ -94,9 +94,12 @@ export class SandboxManager {
@@ -261,7 +522,7 @@ index fa7f130..9306764 100644
  }
  /**
 diff --git a/dist/lib/types.d.ts b/dist/lib/types.d.ts
-index c6e6e93..66ac1c4 100644
+index c6e6e93a3a48ab39faf93ded7b0efb1ca4e22e7f..66ac1c45b7cd451ba6f66c6ffa8c0d9d5cfaccce 100644
 --- a/dist/lib/types.d.ts
 +++ b/dist/lib/types.d.ts
 @@ -65,7 +65,10 @@ export interface Sandbox {

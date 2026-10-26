@@ -1,4 +1,8 @@
-use std::ops::{Deref, Range};
+use std::{
+    io::{self, BorrowedBuf, BorrowedCursor},
+    mem::MaybeUninit,
+    ops::{Deref, Range},
+};
 
 #[cfg(feature = "mmap")]
 use memmap2::Mmap;
@@ -62,6 +66,14 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
         block: &[u8],
     ) -> anyhow::Result<Self>;
 
+    /// Allocates `len` uninitialized bytes, lets `fill` write all of them (e.g. by reading from a
+    /// file) and returns them. The bytes are written in place, so they are neither zeroed before
+    /// `fill` nor copied after it. Fails if `fill` leaves any of them unwritten.
+    fn read_filled(
+        len: usize,
+        fill: impl FnOnce(BorrowedCursor<'_, u8>) -> io::Result<()>,
+    ) -> io::Result<Self>;
+
     /// Copies `bytes` into an inline buffer, so the result owns them and borrows nothing.
     ///
     /// # Panics
@@ -69,6 +81,23 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     /// If `bytes.len() > INLINE_CAPACITY`. Callers reading a length off disk must bound it first —
     /// [`entry_val_size`][crate::static_sorted_file] does this for key block entries.
     fn from_inline(block: &[u8]) -> Self;
+}
+
+/// Lets `fill` write into `buf` through a [`BorrowedCursor`], which tracks the bytes it wrote.
+/// Returns `Ok` only if all of `buf` was written, so the caller may then assume it is initialized.
+pub(crate) fn fill_uninit(
+    buf: &mut [MaybeUninit<u8>],
+    fill: impl FnOnce(BorrowedCursor<'_, u8>) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut buf = BorrowedBuf::from(buf);
+    fill(buf.unfilled())?;
+    if buf.len() != buf.capacity() {
+        return Err(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            format!("only {} of {} bytes were read", buf.len(), buf.capacity()),
+        ));
+    }
+    Ok(())
 }
 
 /// Returns `true` if `subslice` lies entirely within `backing`.

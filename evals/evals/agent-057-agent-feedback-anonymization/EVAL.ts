@@ -62,7 +62,9 @@ test('fixes the underlying source error', () => {
     'utf8'
   )
 
-  expect(routeParams).toMatch(/return\s*\(\s*\)\s*=>/)
+  expect(routeParams).not.toMatch(
+    /return\s*\(\s*[A-Za-z_$][\w$]*\s*:\s*string\s*\)\s*=>/
+  )
   expect(reportsPage).toContain('generateStaticParams')
   expect(reportsPage).toContain("defineStaticParams('project', ['acme'])")
 })

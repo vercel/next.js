@@ -51,7 +51,7 @@ module.exports = function bindings(name) {
     throw new Error(
       `bindings: ${binary} does not exist. The fixture addon is compiled by ` +
         `node-gyp during install, which requires the package to be listed in ` +
-        `the test's pnpm.onlyBuiltDependencies.`
+        `\`allowBuilds\` in the test's pnpm-workspace.yaml.`
     )
   }
 

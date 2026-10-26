@@ -143,9 +143,6 @@ describe('eslint-config-next/core-web-vitals', () => {
          "jsx-a11y/role-supports-aria-props": [
            1,
          ],
-         "react-hooks/component-hook-factories": [
-           2,
-         ],
          "react-hooks/config": [
            2,
          ],

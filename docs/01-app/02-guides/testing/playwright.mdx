@@ -2,6 +2,10 @@
 title: How to set up Playwright with Next.js
 nav_title: Playwright
 description: Learn how to set up Playwright with Next.js for End-to-End (E2E) Testing.
+related:
+  description: Learn more about testing instant navigations.
+  links:
+    - app/guides/instant-navigation
 ---
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing. This guide will show you how to set up Playwright with Next.js and write your first tests.
@@ -130,6 +134,14 @@ test('should navigate to the about page', async ({ page }) => {
 ```
 
 > **Good to know**: You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` [configuration file](https://playwright.dev/docs/test-configuration).
+
+<AppOnly>
+
+### Testing instant navigations
+
+If you're using Cache Components, the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. See the [Instant navigation guide](/docs/app/guides/instant-navigation) and the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for setup and examples.
+
+</AppOnly>
 
 ### Running your Playwright tests
 

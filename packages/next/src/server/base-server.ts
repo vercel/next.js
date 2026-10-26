@@ -37,7 +37,6 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
@@ -100,6 +99,10 @@ import {
   NEXT_REQUEST_ID_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -221,6 +224,11 @@ export interface Options {
    * Object containing the configuration next.config.js
    */
   conf: NextConfig
+  /**
+   * Present when the build manifest was read, even if its marker is undefined.
+   * @internal
+   */
+  compileMode?: { isExperimentalCompile: boolean | undefined }
   /**
    * Set to false when the server was created by Next.js
    */
@@ -415,15 +423,6 @@ export default abstract class Server<
     match: PagesAPIRouteMatch
   ): Promise<boolean>
 
-  protected abstract renderHTML(
-    req: ServerRequest,
-    res: ServerResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts,
-    routeMatch: AppRenderRouteMatch
-  ): Promise<RenderResult>
-
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
@@ -442,6 +441,11 @@ export default abstract class Server<
    * server; returns `undefined` otherwise.
    */
   protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
+  /** Available only on the dev server with Turbopack HMR. */
+  protected getClientHmrVersion(): string | undefined {
     return undefined
   }
 
@@ -601,7 +605,9 @@ export default abstract class Server<
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
-      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
+      isExperimentalCompile: options.compileMode
+        ? options.compileMode.isExperimentalCompile
+        : this.nextConfig.experimental.isExperimentalCompile,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
       partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
@@ -676,7 +682,7 @@ export default abstract class Server<
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
@@ -703,7 +709,9 @@ export default abstract class Server<
     } else if (isRSCRequestHeader(req.headers[RSC_HEADER])) {
       addRequestMeta(req, 'isRSCRequest', true)
 
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
+      if (
+        req.headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
+      ) {
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
 
         const segmentPrefetchRSCRequest =
@@ -877,87 +885,137 @@ export default abstract class Server<
     const method = req.method.toUpperCase()
     const tracer = getTracer()
 
-    const handleRequest = () =>
-      tracer.withPropagatedContext(req.headers, () => {
-        // Capture the parent span before creating the handleRequest span.
-        // When deployed with an adapter, the platform's runtime may create its
-        // own OTEL HTTP server span before Next.js runs. We propagate http.route
-        // to this parent span so APM tools (e.g. Datadog) can derive the
-        // resource name correctly.
-        const parentSpan = tracer.getActiveScopeSpan()
+    const handleRequest = () => {
+      // The render pass after a middleware invocation continues the trace
+      // context on the request, even when another span is active (e.g. a
+      // custom server or APM HTTP span). That is the context the
+      // middleware-invoke pass wrote onto the request, so the middleware span
+      // and the render are siblings under that pass's span, or a `traceparent`
+      // the middleware explicitly set as a request-header override.
+      const forcePropagation =
+        !getRequestMeta(req, 'middlewareInvoke') &&
+        getRequestMeta(req, 'middlewareInvokeTraceparent') !== undefined
+      // With forced propagation the active (host) span isn't the parent, so
+      // capture it before propagating to keep propagating `http.route` to it.
+      const hostSpan = forcePropagation
+        ? tracer.getActiveScopeSpan()
+        : undefined
 
-        return tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      return tracer.withPropagatedContext(
+        req.headers,
+        () => {
+          // Capture the parent span before creating the handleRequest span.
+          // When deployed with an adapter, the platform's runtime may create its
+          // own OTEL HTTP server span before Next.js runs. We propagate http.route
+          // to this parent span so APM tools (e.g. Datadog) can derive the
+          // resource name correctly.
+          const parentSpan = forcePropagation
+            ? hostSpan
+            : tracer.getActiveScopeSpan()
+
+          return tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          async (span) =>
-            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-              if (!span) return
-
-              const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-              span.setAttributes({
-                'http.status_code': res.statusCode,
-                'next.rsc': isRSCRequest,
-              })
-
-              if (res.statusCode && res.statusCode >= 500) {
-                // For 5xx status codes: SHOULD be set to 'Error' span status.
-                // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-                span.setStatus({
-                  code: SpanStatusCode.ERROR,
-                })
-                // For span status 'Error', SHOULD set 'error.type' attribute.
-                span.setAttribute('error.type', res.statusCode.toString())
-              }
-
-              const rootSpanAttributes = tracer.getRootSpanAttributes()
-              // We were unable to get attributes, probably OTEL is not enabled
-              if (!rootSpanAttributes) return
-
-              if (
-                rootSpanAttributes.get('next.span_type') !==
-                BaseServerSpan.handleRequest
-              ) {
-                console.warn(
-                  `Unexpected root span type '${rootSpanAttributes.get(
-                    'next.span_type'
-                  )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-                )
-                return
-              }
-
-              const route = rootSpanAttributes.get('next.route')
-              if (route) {
-                const name = isRSCRequest
-                  ? `RSC ${method} ${route}`
-                  : `${method} ${route}`
-
-                span.setAttributes({
-                  'next.route': route,
-                  'http.route': route,
-                  'next.span_name': name,
-                })
-                span.updateName(name)
-
-                // Propagate http.route to the parent span if one exists and
-                // is different from the handleRequest span. This ensures APM
-                // tools that read attributes from the outermost span (e.g.
-                // a platform-created HTTP span) can derive the resource name.
-                if (parentSpan && parentSpan !== span) {
-                  parentSpan.setAttribute('http.route', route)
+            async (span) => {
+              if (getRequestMeta(req, 'middlewareInvoke')) {
+                // When middleware lets the request continue, the router server
+                // calls `handleRequest` twice: once to run middleware (this pass)
+                // and once to render. Publish this span's W3C trace context on
+                // the request, so the middleware span (including the Edge
+                // sandbox, which extracts it from the request headers) and the
+                // render pass are both children of this span (siblings) instead
+                // of starting new traces.
+                const traceContext = tracer.getTraceContextHeaders()
+                if (traceContext) {
+                  Object.assign(req.headers, traceContext)
+                  if (!traceContext.tracestate) {
+                    // Don't pair this span's `traceparent` with a
+                    // `tracestate` of another trace context (e.g. an incoming
+                    // one, when a host span is this span's parent).
+                    delete req.headers.tracestate
+                  }
+                  addRequestMeta(
+                    req,
+                    'middlewareInvokeTraceparent',
+                    traceContext.traceparent
+                  )
                 }
-              } else {
-                span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
-            })
-        )
-      })
+
+              return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+                if (!span) return
+
+                const isRSCRequest =
+                  getRequestMeta(req, 'isRSCRequest') ?? false
+                span.setAttributes({
+                  'http.status_code': res.statusCode,
+                  'next.rsc': isRSCRequest,
+                })
+
+                if (res.statusCode && res.statusCode >= 500) {
+                  // For 5xx status codes: SHOULD be set to 'Error' span status.
+                  // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+                  span.setStatus({
+                    code: SpanStatusCode.ERROR,
+                  })
+                  // For span status 'Error', SHOULD set 'error.type' attribute.
+                  span.setAttribute('error.type', res.statusCode.toString())
+                }
+
+                const rootSpanAttributes = tracer.getRootSpanAttributes()
+                // We were unable to get attributes, probably OTEL is not enabled
+                if (!rootSpanAttributes) return
+
+                if (
+                  rootSpanAttributes.get('next.span_type') !==
+                  BaseServerSpan.handleRequest
+                ) {
+                  console.warn(
+                    `Unexpected root span type '${rootSpanAttributes.get(
+                      'next.span_type'
+                    )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+                  )
+                  return
+                }
+
+                const route = rootSpanAttributes.get('next.route')
+                if (route) {
+                  const name = isRSCRequest
+                    ? `RSC ${method} ${route}`
+                    : `${method} ${route}`
+
+                  span.setAttributes({
+                    'next.route': route,
+                    'http.route': route,
+                    'next.span_name': name,
+                  })
+                  span.updateName(name)
+
+                  // Propagate http.route to the parent span if one exists and
+                  // is different from the handleRequest span. This ensures APM
+                  // tools that read attributes from the outermost span (e.g.
+                  // a platform-created HTTP span) can derive the resource name.
+                  if (parentSpan && parentSpan !== span) {
+                    parentSpan.setAttribute('http.route', route)
+                  }
+                } else {
+                  span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+                }
+              })
+            }
+          )
+        },
+        undefined,
+        forcePropagation
+      )
+    }
 
     if (!isRequestInsightsEnabled()) {
       return handleRequest()
@@ -2044,7 +2102,11 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+  }
+
+  public getAssetPrefix(): string {
+    return this.renderOpts.assetPrefix || ''
   }
 
   protected prepared: boolean = false
@@ -2383,6 +2445,12 @@ export default abstract class Server<
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
+    if (this.dev && getRequestMeta(req, 'initialHmrVersion') === undefined) {
+      // Snapshot before rendering/streaming HTML. Reading the live version at
+      // script insertion or socket connection can hide an intervening CSS edit.
+      addRequestMeta(req, 'initialHmrVersion', this.getClientHmrVersion())
+    }
+
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }
@@ -2419,17 +2487,18 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1', '2', and '3'. Strip all other values here.
-            prefetchHeaderValue === '1' ||
-            prefetchHeaderValue === '2' ||
-            prefetchHeaderValue === '3'
+          ? // We only recognize the values we send. Strip all others here.
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_STATIC ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_SHELL ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,
             // so we don't expect the header to be stripped by an intermediate layer.
             // This should only happen for static prefetches, so we only handle those here.
             getRequestMeta(req, 'isPrefetchRSCRequest')
-            ? '1'
+            ? NEXT_ROUTER_PREFETCH_STATIC
             : undefined
 
       const segmentPrefetchRSCRequest =
@@ -2906,7 +2975,7 @@ export default abstract class Server<
             },
             set(target: any, prop, value) {
               if (prop === 'fetchMetrics') {
-                ;(req as any).fetchMetrics = value
+                req.fetchMetrics = value
               }
               target[prop] = value
               return true

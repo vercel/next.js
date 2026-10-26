@@ -49,14 +49,15 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
-    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
+    chunk::EcmascriptChunkType,
+    transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -429,9 +430,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 enable_exports_info_inlining: true,
-                enable_rust_react_compiler: options
-                    .enable_rust_react_compiler
-                    .then_some(ReactCompilerCompilationMode::Infer),
+                enable_rust_react_compiler: options.enable_rust_react_compiler.then_some(
+                    ReactCompilerTransformOptions {
+                        compilation_mode: ReactCompilerCompilationMode::Infer,
+                        ..Default::default()
+                    },
+                ),
                 ..Default::default()
             },
             environment: Some(env),
@@ -637,7 +641,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         chunk_root_path
                             .join(entry_module.ident().await?.path.file_stem().unwrap())?
                             .with_extension("entry.js"),
-                        ChunkGroup::Entry(entry_modules),
+                        ChunkGroupKey::Entry(entry_modules),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
@@ -652,7 +656,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .cell(),
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
-            ChunkGroup::Entry(entry_modules.into_iter().collect()),
+            ChunkGroupKey::Entry(entry_modules.into_iter().collect()),
             module_graph,
             OutputAssets::empty(),
             AvailabilityInfo::root(),
@@ -666,7 +670,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().await?.path.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            ChunkGroup::Entry(entry_modules),
+                            ChunkGroupKey::Entry(entry_modules),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
