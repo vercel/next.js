@@ -83,8 +83,8 @@ impl BuiltinRootKind {
 )]
 pub enum AdditionalRootName {
     Builtin(BuiltinRootKind),
-    /// The key of a root configured in `next.config.js`. This must pass
-    /// [`validate_additional_root_name`] before it is used to create a file system.
+    /// The key of a root configured in `next.config.js`. This must pass validation before it is
+    /// used to create a file system.
     Configured(RcStr),
 }
 
