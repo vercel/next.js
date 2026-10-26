@@ -3,6 +3,7 @@ import {
   hasOnlyBrowserCleanupFailures,
 } from './run-errors'
 import { relative, sep } from 'node:path'
+import type { TestEntry } from '../contracts'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import {
   isReportedSuiteError,
@@ -85,6 +86,25 @@ class Collection {
     }
   }
 }
+export type QueuedReporterEntry = Pick<TestEntry, 'id' | 'file' | 'projectName'>
+
+/** The selected file exists; no collected declaration or result exists yet. */
+export function createQueuedReporterModule(
+  projectDir: string,
+  entry: QueuedReporterEntry
+) {
+  return {
+    type: 'module' as const,
+    id: entry.id,
+    moduleId: entry.file,
+    relativeModuleId: relative(projectDir, entry.file).split(sep).join('/'),
+    project: { name: entry.projectName ?? '' },
+    children: new Collection([]),
+    state: () => 'pending' as const,
+    errors: (): unknown[] => [],
+  }
+}
+
 function declarationOptions(
   value: ReporterTaskSnapshot,
   tags: string[]

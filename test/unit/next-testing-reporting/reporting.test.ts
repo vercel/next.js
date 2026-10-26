@@ -1,5 +1,6 @@
 import {
   cp,
+  realpath,
   mkdtemp,
   mkdir,
   readFile,
@@ -6919,4 +6920,324 @@ it.each([
     machine.dispose()
     human.dispose()
   }
+)
+
+describe('actual queued module reporter ownership', () => {
+  async function queuedReporter(reject = false) {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-queued-reporter-'))
+    )
+    await cp(
+      join(__dirname, 'fixtures/module-queued.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(
+      join(root, 'queued-options.json'),
+      JSON.stringify({ root, reject })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', './reporter.mjs']),
+      outputFile: 'result.json',
+      write() {},
+    })
+    await machine.initialize()
+    const files = ['alpha.case.mjs', 'beta.case.mjs'].map((file) => ({
+      ...entry,
+      id: file,
+      file: join(root, file),
+      projectName: 'named',
+    }))
+    const rows = async () =>
+      (await readFile(join(root, 'queued-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    const release = async () => {
+      await Promise.all(
+        files.map((file) => writeFile(`${file.file}.release`, 'release'))
+      )
+    }
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    return { root, machine, files, rows, release, emit }
+  }
+
+  it('starts both actual callbacks without blocking completed modules and joins before run-end', async () => {
+    const c = await queuedReporter()
+    try {
+      expect(c.machine.captureModuleQueued).toBe(true)
+      c.emit({ type: 'run-start' })
+      for (const file of c.files) {
+        c.machine.onModuleQueued(file)
+        c.emit({ type: 'file-start', entry: file })
+        c.emit({
+          type: 'file-end',
+          entryId: file.id,
+          status: 'passed',
+          durationMs: 1,
+        })
+      }
+      await retry(async () => {
+        expect((await c.rows()).map((row) => row.event)).toEqual([
+          'queued',
+          'queued',
+          'end',
+          'end',
+        ])
+      })
+      for (const row of await c.rows()) {
+        if (row.event === 'queued')
+          expect(row).toMatchObject({
+            id: row.file,
+            relative: row.file,
+            project: 'named',
+            type: 'module',
+            state: 'pending',
+            children: 0,
+            errors: [],
+          })
+        else
+          expect(row).toMatchObject({
+            same: false,
+            queuedState: 'pending',
+            queuedChildren: 0,
+            state: 'passed',
+          })
+      }
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 2 })
+      let finished = false
+      const finish = c.machine.finish().then(() => {
+        finished = true
+      })
+      await retry(async () => {
+        expect(
+          (await c.rows()).filter((row) => row.event === 'end')
+        ).toHaveLength(2)
+      })
+      expect(finished).toBe(false)
+      await c.release()
+      await finish
+      expect((await c.rows()).map((row) => row.event)).toEqual([
+        'queued',
+        'queued',
+        'end',
+        'end',
+        'queued-return',
+        'queued-return',
+        'run-end',
+      ])
+      expect((await c.rows()).at(-1)).toMatchObject({
+        reason: 'passed',
+        errors: [],
+      })
+      await c.machine.dispose()
+      expect((await c.rows()).at(-1)).toEqual({ event: 'close' })
+    } finally {
+      await c.release()
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains a queued callback rejection without changing passed module, JSON or run reason', async () => {
+    const c = await queuedReporter(true)
+    try {
+      c.emit({ type: 'run-start' })
+      c.machine.onModuleQueued(c.files[0])
+      c.emit({ type: 'file-start', entry: c.files[0] })
+      c.emit({
+        type: 'file-end',
+        entryId: c.files[0].id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      await expect(c.machine.finish()).rejects.toThrow(
+        'owned queued reporter failure'
+      )
+      const rows = await c.rows()
+      expect(rows.map((row) => row.event)).toEqual(['queued', 'end', 'run-end'])
+      expect(rows[1]).toMatchObject({
+        state: 'passed',
+        same: false,
+        queuedState: 'pending',
+      })
+      expect(rows[2]).toMatchObject({
+        reason: 'passed',
+        errors: ['owned queued reporter failure'],
+      })
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({
+        success: true,
+        numPassedTestSuites: 1,
+        numFailedTestSuites: 0,
+      })
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains duplicate queue occurrences as actual reporter errors without inventing a module result', async () => {
+    const c = await queuedReporter(true)
+    try {
+      c.emit({ type: 'run-start' })
+      c.machine.onModuleQueued(c.files[0])
+      c.machine.onModuleQueued(c.files[0])
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      await expect(c.machine.finish()).rejects.toThrow(
+        'Custom reporter console callbacks failed.'
+      )
+      const rows = await c.rows()
+      expect(rows.filter((row) => row.event === 'queued')).toHaveLength(1)
+      expect(rows.at(-1).errors).toHaveLength(2)
+      expect(rows.at(-1)).toMatchObject({
+        event: 'run-end',
+        modules: [],
+        errors: expect.arrayContaining([
+          'Invalid selected module queue occurrence.',
+          'owned queued reporter failure',
+        ]),
+      })
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+})
+
+it.each([
+  'collect-only',
+  'shared',
+  'typecheck',
+  'project-environment',
+  'file-environment',
+  'browser',
+  'rsc',
+] as const)(
+  'refuses unqualified queued module producer role %s before execution',
+  async (role) => {
+    const { normalizeTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const project = {
+      ...normalizeTestConfig({ test: { include: ['*.case.mjs'] } }).projects[0],
+      entries: [{ ...entry }],
+    }
+    if (role === 'shared') project.isolate = false
+    if (role === 'typecheck') project.entries[0].typecheck = true
+    if (role === 'project-environment')
+      project.executionEnvironment = { name: 'jsdom' }
+    if (role === 'file-environment')
+      project.entries[0].executionEnvironment = { name: 'jsdom' }
+    if (role === 'browser') project.profile.environment = 'browser'
+    if (role === 'rsc') project.profile.environment = 'rsc'
+    const queued = jest.fn()
+    await expect(
+      runTests('/project', [project], {
+        signal: new AbortController().signal,
+        write() {},
+        onModuleQueued: queued,
+        collectOnly: role === 'collect-only',
+      })
+    ).rejects.toThrow(
+      'Queued module reporters require one-shot isolated ordinary Node execution.'
+    )
+    expect(queued).not.toHaveBeenCalled()
+  }
+)
+
+it('reconstructs ordered independent queued transport failures, reused values and causes', async () => {
+  const { readQueuedModuleFailure } = await import(
+    'next/dist/experimental/testing/watch-process'
+  )
+  const shared = new Error('owned shared value', {
+    cause: new Error('owned cause'),
+  })
+  const diagnostic = serializeDiagnostic(
+    new AggregateError([shared, shared, undefined], 'owned combined failures'),
+    { phase: 'runtime' }
+  )
+  const error = readQueuedModuleFailure(diagnostic) as AggregateError
+  expect(error.errors.map((error) => error.message)).toEqual([
+    'owned shared value',
+    'owned shared value',
+    'undefined',
+  ])
+  expect(error.errors[0]).not.toBe(error.errors[1])
+  expect(error.errors[0].cause.message).toBe('owned cause')
+  expect(error.errors[1].cause.message).toBe('owned cause')
+  expect(error.errors[0].stack).toBe(shared.stack)
+  expect(serializeDiagnostic(error, { phase: 'runtime' })).toEqual(diagnostic)
+  for (const invalid of [
+    {},
+    { ...diagnostic, errors: [] },
+    { ...diagnostic, severity: 'warning' },
+    { ...diagnostic, errors: [undefined] },
+  ])
+    expect(() => readQueuedModuleFailure(invalid)).toThrow(
+      'Invalid queued module transport failure.'
+    )
+})
+
+it.each([
+  'both',
+  'two-writes',
+  'same-value',
+  'undefined-run',
+  'undefined-write',
+  'echo',
+] as const)(
+  'retains actual queued IPC and execution occurrences through the parent for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-queued-transport-'))
+    try {
+      const output = join(root, 'error.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'queued-transport.mjs'), mode, output],
+        { timeout: 45000, encoding: 'utf8' }
+      )
+      const error = JSON.parse(await readFile(output, 'utf8'))
+      const expected =
+        mode === 'two-writes'
+          ? ['owned queued write 1', 'owned queued write 2']
+          : mode === 'same-value'
+            ? [
+                'owned queued IPC write failure',
+                'owned queued IPC write failure',
+              ]
+            : mode === 'undefined-run'
+              ? ['undefined', 'owned queued IPC write failure']
+              : mode === 'undefined-write'
+                ? ['owned independent execution disposal failure', 'undefined']
+                : mode === 'echo'
+                  ? ['owned queued IPC write failure']
+                  : [
+                      'owned independent execution disposal failure',
+                      'owned queued IPC write failure',
+                    ]
+      expect(error.name).toBe('AggregateError')
+      expect(error.errors.map((item) => item.message)).toEqual(expected)
+      for (const item of error.errors) {
+        if (item.message === 'undefined') {
+          expect(item).not.toHaveProperty('name')
+          expect(item).not.toHaveProperty('stack')
+        }
+        if (item.message === 'owned queued IPC write failure')
+          expect(item.cause.message).toBe('owned actual write cause')
+      }
+      const result = JSON.parse(await readFile(output + '.result.json', 'utf8'))
+      expect(result.leakedProcesses).toEqual([])
+      expect(result.cleanupFailures).toEqual([])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  60000
 )

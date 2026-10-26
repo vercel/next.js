@@ -4,7 +4,10 @@ import {
   hasOnlyBrowserCleanupRunFailures,
 } from './run-errors'
 import { createCustomReporterWatchFile } from './custom-reporter-watch-tasks'
-import { createLiveReporterTaskStore } from './custom-reporter-live-tasks'
+import {
+  createLiveReporterTaskStore,
+  createQueuedReporterModule,
+} from './custom-reporter-live-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
 import { pathToFileURL } from 'node:url'
 import { extname, isAbsolute, sep } from 'node:path'
@@ -21,6 +24,7 @@ type Reporter = {
   onWatcherStart?(files?: unknown[]): unknown
   onTestRemoved?(file: string): unknown
   onUserConsoleLog?(log: unknown): unknown
+  onTestModuleQueued?(module: unknown): unknown
   onTestModuleEnd?(module: unknown): unknown
   onTestCaseResult?(test: unknown): unknown
   onTestRunEnd?(modules: unknown[], errors: unknown[], reason: string): unknown
@@ -29,6 +33,7 @@ let reporters: Reporter[] = []
 const closeCallbacks: (() => unknown)[] = []
 let live: ReturnType<typeof createLiveReporterTaskStore>
 let root: string
+let queuedProjectRoot: string
 let initialized = false
 let finished = false
 let watching = false
@@ -43,6 +48,8 @@ const completedModules = new Map<
     >
 >()
 let queue = Promise.resolve()
+const queuedCallbacks: Promise<void>[] = []
+const queuedEntryIds = new Set<string>()
 const send = (value: object) =>
   new Promise<void>((resolve, reject) =>
     process.send!(value, (error: Error | null) =>
@@ -73,6 +80,7 @@ async function settle(callbacks: (() => unknown)[]) {
     throw new AggregateError(errors, 'Custom reporter callbacks failed.')
 }
 async function shutdown() {
+  await Promise.all(queuedCallbacks)
   await settle(closeCallbacks.splice(0))
 }
 async function replayCases(tree: ReporterTaskSnapshot) {
@@ -94,6 +102,7 @@ async function finishCallbacks(
   errors: unknown[],
   reason: string
 ) {
+  await Promise.all(queuedCallbacks)
   let completionError: unknown
   await settle(
     reporters.map(
@@ -124,6 +133,7 @@ async function handle(message: any) {
       initialized = true
       watching = message.input.watch === true
       root = message.input.projectDir
+      queuedProjectRoot = message.input.queuedProjectRoot
       live = createLiveReporterTaskStore(root)
       const context = contextMember(
         {
@@ -184,6 +194,7 @@ async function handle(message: any) {
           for (const name of Object.getOwnPropertyNames(proto))
             if (
               /^on[A-Z]/.test(name) &&
+              !(name === 'onTestModuleQueued' && !watching) &&
               ![
                 'onInit',
                 'onUserConsoleLog',
@@ -209,6 +220,9 @@ async function handle(message: any) {
       )
       await send({
         type: 'custom-reporter-result',
+        captureModuleQueued: reporters.some(
+          (reporter) => typeof reporter.onTestModuleQueued === 'function'
+        ),
         captureTaskResults: reporters.some(
           (reporter) =>
             typeof reporter.onTestCaseResult === 'function' ||
@@ -515,6 +529,37 @@ async function handle(message: any) {
   }
 }
 process.on('message', (message: any) => {
+  if (message?.type === 'module-queued' && initialized && !finished) {
+    try {
+      const entry = message.entry
+      if (
+        watching ||
+        !entry ||
+        typeof entry.id !== 'string' ||
+        typeof entry.file !== 'string' ||
+        !isAbsolute(entry.file) ||
+        (entry.projectName !== undefined &&
+          typeof entry.projectName !== 'string') ||
+        queuedEntryIds.has(entry.id) ||
+        !reporters.some((reporter) => reporter.onTestModuleQueued)
+      )
+        throw new Error('Invalid selected module queue occurrence.')
+      queuedEntryIds.add(entry.id)
+      const module = createQueuedReporterModule(queuedProjectRoot, entry)
+      queuedCallbacks.push(
+        settle(
+          reporters.map(
+            (reporter) => () => reporter.onTestModuleQueued?.(module)
+          )
+        ).catch((error) => {
+          consoleErrors.push(error)
+        })
+      )
+    } catch (error) {
+      consoleErrors.push(error)
+    }
+    return
+  }
   if (message?.type === 'task-state' && initialized && !finished) {
     try {
       live.update(message.taskTree, message.taskUpdateIds)

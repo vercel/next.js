@@ -1035,6 +1035,9 @@ export async function nextTestRunner(
       )
       customExecutionStarted = customProjects.length > 0
       const summary = await runTests(projectDir, projects, {
+        ...(machine.captureModuleQueued
+          ? { onModuleQueued: machine.onModuleQueued }
+          : {}),
         captureTaskResults: machine.captureTaskResults,
         ...(resultCache
           ? {

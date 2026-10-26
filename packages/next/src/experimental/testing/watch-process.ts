@@ -33,10 +33,10 @@ import { randomUUID } from 'crypto'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { join, relative, isAbsolute, resolve as resolvePath } from 'path'
 import type { DiscoveredTestProject } from './discovery'
-import type { TestProfile } from './contracts'
+import type { TestEntry, TestProfile } from './contracts'
 import type { WatchDirectories } from './incremental/watch-files'
 import type { runTests } from './orchestrator'
-import type { ResultEvent } from './reporting/events'
+import type { ResultEvent, SerializedDiagnostic } from './reporting/events'
 import {
   createTestReporter,
   type TestReporterOptions,
@@ -63,6 +63,8 @@ export type WatchProcessRequest =
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
   | {
       operation: 'run'
+      /** Private actual scheduler occurrence; no authored callback acknowledgement. */
+      captureModuleQueued?: true
       captureTaskResults?: boolean
       compilerTransforms?: Record<
         string,
@@ -116,8 +118,76 @@ export type WatchProcessResult =
 
 export type WatchProcessMessage =
   | { type: 'result'; value: WatchProcessResult }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; queueFailure?: SerializedDiagnostic }
   | { type: 'event'; event: ResultEvent }
+  | { type: 'module-queued'; entryId: string }
+
+/** Private queue-transport failures retain actual ordered execution/write errors. */
+export function readQueuedModuleFailure(payload: unknown): Error {
+  let remaining = 20_000
+  function read(value: unknown, depth: number): Error {
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value) ||
+      depth > 10 ||
+      --remaining < 0
+    )
+      throw new Error('Invalid queued module transport failure.')
+    const diagnostic = value as Record<string, unknown>
+    if (
+      diagnostic.phase !== 'runtime' ||
+      diagnostic.severity !== 'error' ||
+      typeof diagnostic.message !== 'string' ||
+      Object.keys(diagnostic).some(
+        (key) =>
+          ![
+            'phase',
+            'severity',
+            'message',
+            'name',
+            'stack',
+            'diff',
+            'cause',
+            'errors',
+          ].includes(key)
+      ) ||
+      ['name', 'stack', 'diff'].some(
+        (key) =>
+          diagnostic[key] !== undefined && typeof diagnostic[key] !== 'string'
+      ) ||
+      (diagnostic.errors !== undefined && !Array.isArray(diagnostic.errors))
+    )
+      throw new Error('Invalid queued module transport failure.')
+    const options =
+      diagnostic.cause === undefined
+        ? undefined
+        : { cause: read(diagnostic.cause, depth + 1) }
+    const error = Array.isArray(diagnostic.errors)
+      ? new AggregateError(
+          diagnostic.errors.map((nested) => read(nested, depth + 1)),
+          diagnostic.message,
+          options
+        )
+      : new Error(diagnostic.message, options)
+    // Primitive rejection diagnostics do not own an Error name or stack.
+    // Shadow the constructor defaults rather than inventing parent frames.
+    Object.defineProperties(error, {
+      name: { value: diagnostic.name, writable: true, configurable: true },
+      stack: { value: diagnostic.stack, writable: true, configurable: true },
+    })
+    if (typeof diagnostic.diff === 'string')
+      Object.defineProperty(error, 'diff', {
+        value: diagnostic.diff,
+        enumerable: true,
+      })
+    return error
+  }
+  const error = read(payload, 0)
+  if (!(error instanceof AggregateError) || !error.errors.length)
+    throw new Error('Invalid queued module transport failure.')
+  return error
+}
 
 export interface ArtifactAllocationRequest {
   type: 'artifact-allocation-request'
@@ -211,6 +281,8 @@ export async function runWatchProcess(
     writeError?: (text: string) => void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     onEvent?: (event: ResultEvent) => void
+    /** Canonical parent-selected file, issued before its actual compilation. */
+    onModuleQueued?: (entry: TestEntry) => void
     /** Direct parent facts, released only after real generation cleanup. */
     onCompletedModules?: (facts: readonly RuntimeModuleCompletion[]) => void
     /** Parent-validated actual config module files; never child-provided watch paths. */
@@ -222,6 +294,16 @@ export async function runWatchProcess(
     report?: boolean
   }
 ): Promise<WatchProcessResult> {
+  if (
+    (options.onModuleQueued &&
+      (request.operation !== 'run' || request.captureModuleQueued !== true)) ||
+    (request.operation === 'run' &&
+      request.captureModuleQueued !== undefined &&
+      (request.captureModuleQueued !== true || !options.onModuleQueued))
+  )
+    throw new Error(
+      'Queued module capture requires its private parent observer.'
+    )
   if (
     options.onCompletedModules &&
     (request.operation !== 'run' ||
@@ -503,6 +585,14 @@ export async function runWatchProcess(
           )
         : []
     )
+    const queuedEntries = new Map(
+      request.operation === 'run'
+        ? request.projects.flatMap((project) =>
+            project.entries.map((entry) => [entry.id, entry] as const)
+          )
+        : []
+    )
+    const observedQueuedEntries = new Set<string>()
     const launchedFiles = new Map<string, { runId: string; revision: string }>()
     let observedCaseStart = false
     const compilationFailures = new Set<string>()
@@ -865,6 +955,25 @@ export async function runWatchProcess(
           cancel()
           return
         }
+        if (value?.type === 'module-queued') {
+          try {
+            const entry = queuedEntries.get(value.entryId)
+            if (
+              request.operation !== 'run' ||
+              request.captureModuleQueued !== true ||
+              !options.onModuleQueued ||
+              !entry ||
+              observedQueuedEntries.has(value.entryId)
+            )
+              throw new Error('Invalid selected module queue occurrence.')
+            observedQueuedEntries.add(value.entryId)
+            options.onModuleQueued(entry)
+          } catch (error) {
+            fail(error)
+            cancel()
+          }
+          return
+        }
         if (value?.type === 'event') {
           try {
             const event = value.event
@@ -1040,8 +1149,25 @@ export async function runWatchProcess(
         )
       if (!failed && !options.signal.aborted) {
         if (!message) fail(new Error('Watch process closed without a result.'))
-        else if (message.type === 'error') fail(new Error(message.message))
-        else if (
+        else if (message.type === 'error') {
+          try {
+            if (message.queueFailure !== undefined) {
+              if (
+                request.operation !== 'run' ||
+                request.captureModuleQueued !== true
+              )
+                throw new Error('Unrequested queued module transport failure.')
+              const error = readQueuedModuleFailure(message.queueFailure)
+              if (error.message !== message.message)
+                throw new Error(
+                  'Invalid queued module transport failure message.'
+                )
+              fail(error)
+            } else fail(new Error(message.message))
+          } catch (error) {
+            fail(error)
+          }
+        } else if (
           message.type !== 'result' ||
           message.value.operation !== request.operation
         )

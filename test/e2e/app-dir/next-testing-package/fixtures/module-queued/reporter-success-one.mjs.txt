@@ -1,0 +1,10 @@
+import{appendFileSync,existsSync,writeFileSync}from'node:fs'
+import{basename,join}from'node:path'
+const queued=new Map()
+const record=value=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'reporter',...value})+'\n')
+const info=m=>({file:basename(m.moduleId),state:m.state(),children:m.children.size,errors:m.errors().map(e=>e.message),project:m.project.name,type:m.type,id:m.id})
+export default class{
+ async onTestModuleQueued(m){const file=basename(m.moduleId);queued.set(file,m);record({event:'queued',...info(m)});writeFileSync(join(process.env.QUEUED_MARKERS,file),'queued');while(!existsSync(join(process.env.QUEUED_RELEASE,file)))await new Promise(resolve=>setTimeout(resolve,10));record({event:'queued-return',...info(m)})}
+ onTestModuleEnd(m){record({event:'end',same:m===queued.get(basename(m.moduleId)),...info(m)})}
+ onTestRunEnd(modules,errors,reason){record({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({same:m===queued.get(basename(m.moduleId)),...info(m)}))})}
+}

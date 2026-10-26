@@ -32,6 +32,36 @@ describe('next-testing-package', () => {
 
   if (isNextDev && isTurbopack) {
     it.each(['development', 'production'] as const)(
+      'delivers actual queued module callbacks without blocking execution in %s',
+      async (mode) => {
+        const temporary = await mkdtemp(join(tmpdir(), 'next-module-queued-'))
+        try {
+          const evidence = join(temporary, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-module-queued.mjs'),
+              next.testDir,
+              evidence,
+              mode,
+            ],
+            { timeout: 500000, maxBuffer: 2 * 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.mode).toBe(mode)
+          expect(verified.profiles).toBe(7)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+        } finally {
+          await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      540000
+    )
+
+    it.each(['development', 'production'] as const)(
       'preserves configured file parallelism and CLI precedence in %s',
       async (mode) => {
         const temporary = await mkdtemp(

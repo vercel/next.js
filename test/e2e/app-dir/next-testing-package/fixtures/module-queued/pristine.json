@@ -1,0 +1,327 @@
+[
+  {
+    "profile": "success-two",
+    "workers": 2,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      },
+      {
+        "file": "b.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": {
+      "counts": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "files": [
+        {
+          "name": "a.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case a completes",
+              "status": "passed",
+              "title": "case a completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "name": "b.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case b completes",
+              "status": "passed",
+              "title": "case b completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    "status": 0
+  },
+  {
+    "profile": "success-one",
+    "workers": 1,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      },
+      {
+        "file": "b.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": {
+      "counts": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "files": [
+        {
+          "name": "a.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case a completes",
+              "status": "passed",
+              "title": "case a completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "name": "b.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case b completes",
+              "status": "passed",
+              "title": "case b completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    "status": 0
+  },
+  {
+    "profile": "load-failure",
+    "workers": 1,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": null,
+    "status": 1
+  },
+  {
+    "profile": "syntax-failure",
+    "workers": 1,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": null,
+    "status": 1
+  },
+  {
+    "profile": "held-body",
+    "workers": 1,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "relativeModuleId": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": {
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "files": [
+        {
+          "name": "a.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case a completes",
+              "status": "passed",
+              "title": "case a completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    "status": 0
+  },
+  {
+    "profile": "queue-reject",
+    "workers": 1,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "relativeModuleId": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": {
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "files": [
+        {
+          "name": "a.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case a completes",
+              "status": "passed",
+              "title": "case a completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    "status": 1
+  },
+  {
+    "profile": "selection",
+    "workers": 1,
+    "queued": [
+      {
+        "file": "a.case.mjs",
+        "relativeModuleId": "a.case.mjs",
+        "state": "pending",
+        "children": 0,
+        "errors": [],
+        "project": "",
+        "type": "module"
+      }
+    ],
+    "stableReport": {
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "files": [
+        {
+          "name": "a.case.mjs",
+          "status": "passed",
+          "message": "",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "case a completes",
+              "status": "passed",
+              "title": "case a completes",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    "status": 0
+  }
+]

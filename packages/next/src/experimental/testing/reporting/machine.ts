@@ -777,6 +777,16 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureModuleQueued() {
+      return custom?.captureModuleQueued === true
+    },
+    onModuleQueued(entry: TestEntry) {
+      if (!initialized)
+        throw new Error(
+          'Custom reporters must initialize before queue occurrences.'
+        )
+      custom?.onModuleQueued(entry)
+    },
     get captureTaskResults() {
       return (
         custom?.captureTaskResults === true ||

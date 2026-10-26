@@ -1,5 +1,7 @@
 import { resolve as resolvePath, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { realpath } from 'node:fs/promises'
+import type { TestEntry } from '../contracts'
 import { runTestProcess } from '../execution/process'
 import type { ResultEvent, SerializedDiagnostic } from './events'
 import type { CustomReporterCompletion } from './custom-reporter-tasks'
@@ -78,6 +80,7 @@ export async function openCustomReporters(options: {
   write(text: string): void
   writeError?(text: string): void
 }) {
+  const projectRoot = await realpath(options.projectDir)
   const files = options.reporters.map((name) =>
     reporterPath(name, options.projectDir)
   )
@@ -97,6 +100,7 @@ export async function openCustomReporters(options: {
   let terminalWatchFailure = false
   let watchHookError: Error | undefined
   let captureTaskResults = false
+  let captureModuleQueued = false
   let reporterErrors: SerializedDiagnostic[] = []
   let cancelledReporterErrors: Error[] | undefined
   let terminalReporterFailure:
@@ -117,6 +121,7 @@ export async function openCustomReporters(options: {
   let shutdownResponseFailure: unknown
   let disposal: Promise<void> | undefined
   let consoleQueue = Promise.resolve()
+  const queuedWrites: Promise<void>[] = []
   let consoleFailure: unknown
   const observedModules = new Set<string>()
   const retainConsoleFailure = (error: unknown) => {
@@ -174,6 +179,7 @@ export async function openCustomReporters(options: {
     input: {
       files,
       projectDir: options.projectDir,
+      queuedProjectRoot: projectRoot,
       ...(options.watch ? { watch: true } : {}),
     },
     signal: controller.signal,
@@ -187,6 +193,8 @@ export async function openCustomReporters(options: {
         message?.type !== 'custom-reporter-failed'
       )
         throw new Error('Invalid custom reporter response.')
+      if (message.captureModuleQueued !== undefined)
+        captureModuleQueued = message.captureModuleQueued === true
       if (message.captureTaskResults !== undefined)
         captureTaskResults = message.captureTaskResults === true
       if (message.reporterErrors !== undefined) {
@@ -311,6 +319,7 @@ export async function openCustomReporters(options: {
         ? handledFailure
         : undefined
     return (disposal ??= (async () => {
+      await Promise.all(queuedWrites)
       await consoleQueue
       closing = true
       const cleanupErrors: unknown[] = []
@@ -361,6 +370,25 @@ export async function openCustomReporters(options: {
   try {
     await loaded
     return {
+      get captureModuleQueued() {
+        return captureModuleQueued
+      },
+      onModuleQueued(entry: TestEntry) {
+        if (!captureModuleQueued || options.watch || closing || closed)
+          throw new Error('Queued module reporter session is unavailable.')
+        queuedWrites.push(
+          send({
+            type: 'module-queued',
+            entry: {
+              id: entry.id,
+              file: entry.file,
+              ...(entry.projectName === undefined
+                ? {}
+                : { projectName: entry.projectName }),
+            },
+          }).catch(retainConsoleFailure)
+        )
+      },
       get captureTaskResults() {
         return captureTaskResults
       },
@@ -515,6 +543,7 @@ export async function openCustomReporters(options: {
           .catch(retainConsoleFailure)
       },
       async finish(completion: CustomReporterCompletion) {
+        await Promise.all(queuedWrites)
         await consoleQueue
         if (options.signal?.aborted) {
           await settleCancellation()

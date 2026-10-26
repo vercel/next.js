@@ -1,0 +1,5 @@
+import{test}from'vitest'
+import{appendFileSync}from'node:fs'
+const record=event=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event,file:'b'})+'\n')
+record('module-enter')
+test('case b completes',()=>record('body'))

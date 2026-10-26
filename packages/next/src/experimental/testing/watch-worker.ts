@@ -7,6 +7,9 @@ import type {
 import { randomUUID } from 'crypto'
 import type { WatchDirectories } from './incremental/watch-files'
 import { getTestRunLockPath } from './run-lock'
+import { serializeDiagnostic } from './reporting/diagnostics'
+
+class QueuedModuleTransportFailure extends AggregateError {}
 
 const controller = new AbortController()
 const userCancellation = new AbortController()
@@ -81,7 +84,39 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
         }),
     })
     const { runTests } = await import('./orchestrator.js')
+    const queueWrites: Promise<void>[] = []
+    const queueWriteFailures: unknown[] = []
+    let queueAbortReason: Error | undefined
+    let executionRejected = false
+    let executionFailure: unknown
     const result = await runTests(request.projectDir, request.projects, {
+      ...(request.captureModuleQueued === true
+        ? {
+            onModuleQueued(entry) {
+              queueWrites.push(
+                new Promise<void>((resolve, reject) => {
+                  if (!process.connected)
+                    return reject(
+                      new Error('Test watch coordinator disconnected.')
+                    )
+                  process.send!(
+                    { type: 'module-queued', entryId: entry.id },
+                    (error: Error | null) => (error ? reject(error) : resolve())
+                  )
+                }).catch((error: unknown) => {
+                  queueWriteFailures.push(error)
+                  if (!controller.signal.aborted) {
+                    queueAbortReason = new Error(
+                      'Queued module transport aborted execution.',
+                      { cause: error }
+                    )
+                    controller.abort(queueAbortReason)
+                  }
+                })
+              )
+            },
+          }
+        : {}),
       ...(request.compilerTransforms
         ? { compilerTransforms: request.compilerTransforms }
         : {}),
@@ -158,7 +193,30 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
         })
       },
     })
-    return { operation: 'run', result }
+      .catch((error: unknown) => {
+        executionRejected = true
+        executionFailure = error
+      })
+      .finally(() => Promise.all(queueWrites))
+    if (queueWriteFailures.length) {
+      // Only this private abort marker identifies the causal observation of a
+      // write already retained below. Reused authored Error values stay separate.
+      const independentExecutionFailure =
+        executionRejected &&
+        (queueAbortReason === undefined ||
+          executionFailure !== queueAbortReason)
+      throw new QueuedModuleTransportFailure(
+        [
+          ...(independentExecutionFailure ? [executionFailure] : []),
+          ...queueWriteFailures,
+        ],
+        independentExecutionFailure
+          ? 'Test execution and queued module transport failed.'
+          : 'Queued module transport failed.'
+      )
+    }
+    if (executionRejected) throw executionFailure
+    return { operation: 'run', result: result! }
   }
   const modes = new Set(request.profiles.map((profile) => profile.mode))
   if (modes.size !== 1) throw new Error('Watch requires one compilation mode.')
@@ -248,6 +306,11 @@ function onMessage(
           error instanceof Error
             ? error.message
             : 'Unknown watch process failure.',
+        ...(error instanceof QueuedModuleTransportFailure &&
+        message.request.operation === 'run' &&
+        message.request.captureModuleQueued === true
+          ? { queueFailure: serializeDiagnostic(error, { phase: 'runtime' }) }
+          : {}),
       })
   )
 }

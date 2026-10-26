@@ -76,6 +76,8 @@ interface PreparedTest {
 }
 
 export interface RunTestsOptions {
+  /** Actual selected-file scheduling; never a collected task snapshot. */
+  onModuleQueued?: (entry: TestEntry) => void
   captureTaskResults?: boolean
   /** Private direct-parent facts, published after compiler and runtime cleanup. */
   onCompletedModules?: (facts: readonly RuntimeModuleCompletion[]) => void
@@ -141,6 +143,25 @@ export async function runTests(
   projects: DiscoveredTestProject[],
   options: RunTestsOptions
 ) {
+  if (
+    options.onModuleQueued &&
+    (options.collectOnly ||
+      options.userCancelSignal ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.executionEnvironment ||
+          project.entries.some(
+            (entry) => entry.executionEnvironment || entry.typecheck
+          ) ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined
+      ))
+  )
+    throw new Error(
+      'Queued module reporters require one-shot isolated ordinary Node execution.'
+    )
   if (
     options.onCompletedModules &&
     (!options.isolateProjects ||
@@ -1228,6 +1249,9 @@ export async function runTests(
       const completion = await runWatchProcess(
         {
           operation: 'run',
+          ...(options.onModuleQueued
+            ? { captureModuleQueued: true as const }
+            : {}),
           captureTaskResults: options.captureTaskResults,
           projectDir,
           projects: group,
@@ -1302,6 +1326,7 @@ export async function runTests(
               }
             : {}),
           onCustomCoverageSuite: options.onCustomCoverageSuite,
+          onModuleQueued: options.onModuleQueued,
           onEvent(event) {
             if (
               event.type === 'file-start' &&
@@ -1877,6 +1902,7 @@ export async function runTests(
                   return
                 const fileStarted = performance.now()
                 try {
+                  options.onModuleQueued?.(entry)
                   const runtimeRequest =
                     runtimeConfigurationPlan?.requests.find(
                       (request) => request.profile.id === project.profile.id
