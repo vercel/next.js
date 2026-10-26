@@ -380,6 +380,7 @@ export default class FileSystemCache implements CacheHandler {
                 headers: meta?.headers,
                 status: meta?.status,
               },
+              cacheControl: meta?.cacheControl,
             }
           } else {
             throw new Error(
@@ -731,6 +732,7 @@ export default class FileSystemCache implements CacheHandler {
           postponed: undefined,
           segmentPaths: undefined,
           prefetchHints: undefined,
+          cacheControl,
           routeCacheLastModified: lastModified,
         }
         writer.append(

@@ -96,14 +96,12 @@ export async function exportAppPage(
       }
     )
     const result = await lazyPrerenderAppPage(
-      nextReq,
       new NodeNextResponse(res),
       requestUrl,
       pathname,
       query,
       fallbackRouteParams,
       renderOpts,
-      undefined, // dev
       sharedContext,
       routeMatch,
       parsedRequestHeaders,

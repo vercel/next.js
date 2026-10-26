@@ -49,7 +49,7 @@ describe('force stale', () => {
         'no-requests'
       )
 
-      // The data succesfully streams in.
+      // The data successfully streams in.
       const content = await browser.elementById('dynamic-page-content')
       expect(await content.text()).toBe('Dynamic page content')
     }
@@ -219,6 +219,41 @@ describe('force stale', () => {
       // Navigating from the default link makes no requests either.
       await act(async () => {
         const link = await browser.elementById('partially-static-default')
+        await link.click()
+      }, 'no-requests')
+      expect(await browser.elementById('partially-static-page').text()).toBe(
+        'Partially static page content'
+      )
+    }
+  )
+
+  it(
+    'a prefetch="navigation" link does a full prefetch, like ' +
+      'prefetch={true}',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // This route doesn't opt into Partial Prefetching, so a link that asks
+      // for the navigation stage gets the whole page, including the dynamic
+      // content.
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="partially-static-navigation"]'
+        )
+        await toggle.click()
+      }, [
+        { includes: 'Static layout content' },
+        { includes: 'Partially static page content' },
+      ])
+
+      // Everything was prefetched, so the navigation makes no requests.
+      await act(async () => {
+        const link = await browser.elementById('partially-static-navigation')
         await link.click()
       }, 'no-requests')
       expect(await browser.elementById('partially-static-page').text()).toBe(

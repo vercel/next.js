@@ -261,10 +261,11 @@ export function navigateToKnownRoute(
     process.env.NODE_ENV !== 'production' &&
     process.env.__NEXT_CACHE_COMPONENTS
   ) {
-    // Warn when navigating via a `<Link prefetch={true}>` to a route that has
-    // not opted into Partial Prefetching. Such a link does a legacy "full"
-    // prefetch that includes the route's dynamic data, defeating the
-    // static/dynamic split that Cache Components provides.
+    // Warn when navigating via a link that asks for more than the shell, like
+    // `<Link prefetch={true}>`, to a route that has not opted into Partial
+    // Prefetching. Such a link does a legacy "full" prefetch that includes the
+    // route's dynamic data, defeating the static/dynamic split that Cache
+    // Components provides.
     //
     // This runs at navigation time (rather than prefetch time) so that, in dev
     // where we don't prefetch, the warning only appears when you actually
@@ -288,7 +289,7 @@ export function navigateToKnownRoute(
       if (ownerStack === undefined) {
         console.error(
           '' +
-            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
+            'Cannot associate the prefetch warning with a specific <Link> making it harder to find the cause of the following warning. ' +
             'This is a bug in Next.js.'
         )
       } else if (ownerStack !== null) {
