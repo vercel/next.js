@@ -1877,9 +1877,16 @@ export default class Router implements BaseRouter {
           Router.events.emit('routeChangeComplete', as, routeProps)
         }
 
-        // A hash mark # is the optional last part of a URL
+        // A hash mark # is the optional last part of a URL.
+        // Skip scrolling to hash on popstate (_h === 0) so browser back/forward
+        // navigation preserves the restored scroll position (#13653).
         const hashRegex = /#.+$/
-        if (shouldScroll && hashRegex.test(as)) {
+        if (
+          shouldScroll &&
+          !forcedScroll &&
+          (options as any)._h !== 0 &&
+          hashRegex.test(as)
+        ) {
           this.scrollToHash(as)
         }
       }
