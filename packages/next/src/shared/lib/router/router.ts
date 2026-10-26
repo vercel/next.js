@@ -1002,7 +1002,10 @@ export default class Router implements BaseRouter {
         },
         cachedRouteInfo,
         null
-      )
+      ).catch(() => {
+        // Ignore cancellations from the optimistic cached render;
+        // the subsequent this.change() call handles the navigation.
+      })
     }
 
     this.change(
