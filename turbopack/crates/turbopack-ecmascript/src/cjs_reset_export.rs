@@ -105,6 +105,40 @@ fn clean<'a>(
     node.visit_with(&mut visitor);
     !visitor.found
 }
+/// Only direct default leaves may read the actual declared export binding.
+/// The same binding remains forbidden in the body and all other parameter nodes.
+fn clean_binding_function(
+    function: &swc_core::ecma::ast::Function,
+    unresolved: Mark,
+    binding: &Id,
+) -> bool {
+    let mut visitor = ForbiddenUse {
+        unresolved,
+        function: Some(binding),
+        found: false,
+    };
+    function.decorators.visit_with(&mut visitor);
+    for parameter in &function.params {
+        parameter.decorators.visit_with(&mut visitor);
+        if let Pat::Object(object) = &parameter.pat {
+            for property in &object.props {
+                if let ObjectPatProp::Assign(property) = property
+                    && matches!(property.value.as_deref(), Some(Expr::Ident(ident)) if ident.to_id() == *binding)
+                {
+                    property.key.visit_with(&mut visitor);
+                } else {
+                    property.visit_with(&mut visitor);
+                }
+            }
+        } else {
+            parameter.pat.visit_with(&mut visitor);
+        }
+    }
+    function.body.visit_with(&mut visitor);
+    function.type_params.visit_with(&mut visitor);
+    function.return_type.visit_with(&mut visitor);
+    !visitor.found
+}
 fn assignment(statement: &Stmt) -> Option<&swc_core::ecma::ast::AssignExpr> {
     let Stmt::Expr(statement) = statement else {
         return None;
@@ -373,7 +407,7 @@ fn certify_for_callable_publication(
             if function
                 .params
                 .iter()
-                .all(|parameter| callable_parameter(parameter, false)) =>
+                .all(|parameter| callable_parameter(parameter, true)) =>
         {
             (CommonJsResetExportShape::ArrowFunctionExpression, None)
         }
@@ -428,7 +462,7 @@ fn certify_for_callable_publication(
             if let Stmt::Decl(Decl::Fn(function)) = statement
                 && function.ident.to_id() == *binding
             {
-                if !clean(&function.function, unresolved, Some(binding)) {
+                if !clean_binding_function(&function.function, unresolved, binding) {
                     return unsupported;
                 }
                 continue;
@@ -731,10 +765,56 @@ mod tests {
     }
 
     #[test]
-    fn keeps_object_shorthand_default_boundaries() {
+    fn accepts_declared_binding_shorthand_self_defaults() {
+        for source in [
+            "function callable({value = callable}) { return value }; module.exports = callable",
+            "async function callable({value = callable}) { return value }; module.exports = \
+             callable",
+            "function* callable({value = callable}) { yield value }; module.exports = callable",
+            "async function* callable({value = callable}) { yield value }; module.exports = \
+             callable",
+        ] {
+            check(source, CommonJsResetExportShape::FunctionBinding);
+        }
+    }
+
+    #[test]
+    fn keeps_declared_binding_default_and_body_boundaries() {
+        for source in [
+            "function callable({value = callable}) { return callable }; module.exports = callable",
+            "function callable({value: {nested = callable}}) { return nested }; module.exports = \
+             callable",
+            "function callable([value = callable]) { return value }; module.exports = callable",
+            "function callable({value: renamed = callable}) { return renamed }; module.exports = \
+             callable",
+            "function callable({[callable]: value = 1}) { return value }; module.exports = \
+             callable",
+            "function callable({value = callable.seed}) { return value }; module.exports = \
+             callable",
+            "function callable({value = module.exports}) { return value }; module.exports = \
+             callable",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
+        }
+    }
+
+    #[test]
+    fn accepts_terminal_arrow_object_shorthand_defaults() {
         for source in [
             "module.exports = ({value = 1}) => value",
             "module.exports = async ({value = 1}) => value",
+            "const getValue = () => 1; module.exports = ({value = getValue()}) => value",
+            "const getValue = () => 1; module.exports = async ({value = getValue()}) => value",
+            "module.exports = ({value = bodyOnly}) => { const bodyOnly = 1; return value }",
+            "module.exports = async ({value = bodyOnly}) => { const bodyOnly = 1; return value }",
+        ] {
+            check(source, CommonJsResetExportShape::ArrowFunctionExpression);
+        }
+    }
+
+    #[test]
+    fn keeps_object_shorthand_default_boundaries() {
+        for source in [
             "module.exports = function({value: renamed = 1}) { return renamed }",
             "module.exports = function({value: {nested = 1}}) { return nested }",
             "module.exports = function({value = 1, ...rest}) { return [value, rest] }",
@@ -1300,7 +1380,11 @@ mod tests {
             }
             check(
                 &format!("module.exports = ({parameters}) => 1"),
-                CommonJsResetExportShape::Unsupported,
+                if parameters == "{value = 1}" {
+                    CommonJsResetExportShape::ArrowFunctionExpression
+                } else {
+                    CommonJsResetExportShape::Unsupported
+                },
             );
         }
         for body in [

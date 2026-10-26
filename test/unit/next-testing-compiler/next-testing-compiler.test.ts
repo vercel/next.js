@@ -8948,3 +8948,114 @@ it.each(
   },
   130000
 )
+
+const arrowShorthandForms = [
+  'async:body-scope',
+  'async:computed-default',
+  'async:literal',
+  'sync:body-scope',
+  'sync:computed-default',
+  'sync:literal',
+] as const
+
+it.each(
+  arrowShorthandForms.flatMap((form) =>
+    (['development', 'production'] as const).map((mode) => ({ form, mode }))
+  )
+)(
+  'preserves actual CommonJS arrow shorthand defaults: $form/$mode',
+  ({ form, mode }) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-cjs-arrow-defaults-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'cjs-arrow-defaults.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          form,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      const checks = JSON.parse(
+        readFileSync(join(output, 'CHECKS.json'), 'utf8')
+      )
+      expect(checks).toMatchObject({
+        form,
+        mode,
+        completeAuthoredCasesAndRows: true,
+        namespaceAndFunctionDescriptors: true,
+        dependencyResetAndHeldValues: true,
+        exactDefaultParameterScope: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+        cases: 3,
+        rows: 3,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
+
+const bindingSelfForms = [
+  'async:binding-self',
+  'generator:binding-self',
+  'async-generator:binding-self',
+] as const
+
+it.each(
+  bindingSelfForms.flatMap((form) =>
+    (['development', 'production'] as const).map((mode) => ({ form, mode }))
+  )
+)(
+  'preserves actual declared CommonJS binding self defaults: $form/$mode',
+  ({ form, mode }) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-cjs-binding-self-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'cjs-binding-self-defaults.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          form,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      const checks = JSON.parse(
+        readFileSync(join(output, 'CHECKS.json'), 'utf8')
+      )
+      expect(checks).toMatchObject({
+        form,
+        mode,
+        completeAuthoredCasesAndRows: true,
+        namespaceAndFunctionDescriptors: true,
+        dependencyResetAndHeldValues: true,
+        exactDefaultParameterScope: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+        cases: 3,
+        rows: 3,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
