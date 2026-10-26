@@ -15,7 +15,14 @@ const repo = fs.realpathSync(repoArg),
 assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
 const pristine = JSON.parse(
-  fs.readFileSync(path.join(here, 'cjs-async-defaults-pristine.json'))
+  fs.readFileSync(
+    path.join(
+      here,
+      form === 'sync:binding-self'
+        ? 'cjs-sync-binding-self-pristine.json'
+        : 'cjs-async-defaults-pristine.json'
+    )
+  )
 )
 assert.equal(pristine.referenceVersion, '5.0.4')
 const expected = pristine.forms[form]
