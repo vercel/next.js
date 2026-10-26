@@ -192,13 +192,13 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               className="bg-white rounded-lg p-6 shadow-md border border-zinc-200 hover:shadow-lg transition-shadow group focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              aria-label="Read React.js Docker guide"
+              aria-label="Read Node.js Docker guide"
             >
               <h3 className="text-lg font-semibold mb-2 text-black group-hover:text-blue-600">
-                React.js Guide →
+                Node.js Guide →
               </h3>
               <p className="text-zinc-600 text-sm">
-                Official Docker guide for React.js applications following best
+                Official Docker guide for Node.js applications following best
                 practices for containerization.
               </p>
             </Link>
