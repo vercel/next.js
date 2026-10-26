@@ -2049,7 +2049,7 @@ export interface NextConfig {
           properties?: string[]
         }
     relay?: {
-      src: string
+      src?: string
       artifactDirectory?: string
       language?: 'typescript' | 'javascript' | 'flow'
       eagerEsModules?: boolean
