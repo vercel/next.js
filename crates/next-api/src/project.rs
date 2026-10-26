@@ -1854,7 +1854,6 @@ impl Project {
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
-        let turbopack_chunking = self.next_config().turbopack_chunking().await?;
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1882,8 +1881,6 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
-            chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
-            chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)

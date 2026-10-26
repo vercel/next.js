@@ -31,9 +31,8 @@ import { join, relative } from 'path'
       )
     }
 
-    // Lists the Node.js server JS chunks of the last build. Edge chunking is
-    // covered by `test/production/app-dir/turbopack-chunking-edge`, because
-    // edge routes are not compatible with Cache Components.
+    // Lists the Node.js server JS chunks of the last build. The server size
+    // thresholds don't apply to edge chunks.
     async function listServerChunks() {
       const serverDir = join(next.testDir, '.next', 'server')
       return (await recursiveReadDir(serverDir, { relativePathnames: false }))

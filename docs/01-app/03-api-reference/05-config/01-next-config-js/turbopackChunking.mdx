@@ -125,12 +125,14 @@ being made is costly, however, smaller chunks are more likely to be re-usable ac
 ## Server Chunks
 
 The size thresholds above only apply to client-side JavaScript. Server-side JavaScript for the
-Node.js and Edge runtimes uses separate thresholds, with the same defaults for both runtimes:
+Node.js runtime uses separate thresholds:
 
 - **`minServerChunkSize`** (default `4000`): Turbopack will avoid creating more than one server
   chunk smaller than this size by merging small chunks into larger ones.
 - **`maxMergeServerChunkSize`** (default `100000`): Turbopack never merges a server chunk larger
   than this size with other chunks.
+
+These options don't apply to the Edge runtime, whose chunking is not configurable.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

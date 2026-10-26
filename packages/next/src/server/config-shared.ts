@@ -964,14 +964,15 @@ export interface ExperimentalConfig {
      */
     minComponentChunkSize?: number
     /**
-     * Avoid creating more than one server (Node.js and edge) chunk smaller than this size, in
-     * bytes. Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB).
+     * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
+     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
+     * apply to Edge runtime chunks.
      */
     minServerChunkSize?: number
     /**
-     * Never merge server (Node.js and edge) chunks bigger than this size, in bytes, with other
-     * chunks. This keeps code in big chunks from being duplicated across multiple chunks.
-     * Defaults to `100000` (100 KB).
+     * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
+     * (100 KB). Doesn't apply to Edge runtime chunks.
      */
     maxMergeServerChunkSize?: number
   }
