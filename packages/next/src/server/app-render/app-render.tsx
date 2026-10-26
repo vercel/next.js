@@ -510,11 +510,14 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
+    // When global-not-found is present, use full components. Otherwise, keep
+    // the root layout to render a complete HTML document.
     hasGlobalNotFound
       ? components
-      : { 'global-error': components['global-error'] },
+      : {
+          layout: components.layout,
+          'global-error': components['global-error'],
+        },
     null, // staticSiblings
   ]
 }
@@ -2884,6 +2887,13 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
+
+  // MPA form submissions need a complete document with the submitted form
+  // state. Their new render can still reuse the extracted RDC.
+  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
+    postponedState = null
+  }
+
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     requestHeaders,
