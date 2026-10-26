@@ -127,7 +127,8 @@ export function createCoverageAttemptTracker(
         } else if (
           options.deferSettledFileErrors &&
           !receivedCompletion &&
-          event.diagnostic.phase === 'cleanup' &&
+          (event.diagnostic.phase === 'cleanup' ||
+            event.diagnostic.phase === 'collection') &&
           event.diagnostic.unhandled === undefined &&
           event.coverageFileError &&
           Object.keys(event.coverageFileError).every(

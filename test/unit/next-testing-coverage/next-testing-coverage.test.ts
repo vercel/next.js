@@ -19762,3 +19762,279 @@ describe('settled Istanbul beforeEach callback completion', () => {
     130000
   )
 })
+
+describe('settled Istanbul collection load completion', () => {
+  const owner = {
+    runId: 'load-run',
+    entryId: 'load-entry',
+    revision: 'load-revision',
+  }
+  const diagnostic = {
+    severity: 'error' as const,
+    phase: 'collection' as const,
+    name: 'Error',
+    message: 'actual settled loader failure',
+    stack: 'original authored load frame',
+  }
+  const failure: ResultEvent = {
+    version: 1,
+    timestamp: 0,
+    type: 'diagnostic',
+    ...owner,
+    coverageFileError: { index: 0 },
+    diagnostic,
+  }
+  async function tracker() {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    return createCoverageAttemptTracker({
+      deferSettledFileErrors: true,
+      fileErrorOwner: owner,
+    })
+  }
+  it('authorizes the actual no-case collection slot only after joined completion', async () => {
+    const actual = await tracker()
+    actual.observe(failure)
+    expect(actual.complete).toBe(false)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('Unrequested')
+    actual.observeCoverageCompletion(true)
+    actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(actual.complete).toBe(true)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('repeated')
+  })
+  it('retains ordinary V8 collection failure vetoes', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    const actual = createCoverageAttemptTracker()
+    actual.observe(failure)
+    actual.observeCoverageCompletion(true)
+    expect(actual.complete).toBe(false)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('Unrequested')
+  })
+  it('rejects missing, duplicate, malformed, foreign and changed collection tuples', async () => {
+    for (const references of [
+      [],
+      [
+        { index: 0, diagnostic },
+        { index: 0, diagnostic },
+      ],
+      [{ index: -1, diagnostic }],
+      [{ index: 1, diagnostic }],
+      [{ index: 0, diagnostic, unknown: true }],
+      [{ index: 0, diagnostic: { ...diagnostic, message: 'other stage' } }],
+      [{ index: 0, diagnostic: { ...diagnostic, phase: 'runtime' } }],
+    ]) {
+      const actual = await tracker()
+      actual.observe(failure)
+      actual.observeCoverageCompletion(true)
+      expect(() => actual.authorizeSettledFileErrors(references)).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    for (const changed of [
+      { ...failure, runId: 'foreign' },
+      { ...failure, entryId: 'foreign' },
+      { ...failure, revision: 'foreign' },
+      { ...failure, diagnostic: { ...diagnostic, phase: 'runtime' as const } },
+      {
+        ...failure,
+        diagnostic: { ...diagnostic, unhandled: 'rejection' as const },
+      },
+    ]) {
+      const actual = await tracker()
+      actual.observe(changed)
+      actual.observeCoverageCompletion(true)
+      expect(() =>
+        actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+      ).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+  })
+  it('keeps duplicate or late collection diagnostics incomplete', async () => {
+    const duplicate = await tracker()
+    duplicate.observe(failure)
+    duplicate.observe(failure)
+    duplicate.observeCoverageCompletion(true)
+    duplicate.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(duplicate.complete).toBe(false)
+    const late = await tracker()
+    late.observeCoverageCompletion(true)
+    late.observe(failure)
+    expect(() =>
+      late.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow()
+    expect(late.complete).toBe(false)
+  })
+  it.each([
+    'import-sync',
+    'import-async',
+    'import-undefined',
+    'import-sync-report-false',
+    'import-async-report-false',
+    'import-mixed-disposal',
+    'import-mixed-settle',
+  ])(
+    'retains actual loader, stage, no-case and physical join facts for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-collection-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({ noInventedCaseEvents: true })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'import-sync',
+    'import-async',
+    'import-undefined',
+    'import-sync-report-false',
+    'import-async-report-false',
+  ])(
+    'matches genuine no-case result, file message and complete report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-collection-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-collection-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledCollectionFailure: true,
+          noCaseStartsInvented: true,
+          completeMapsSummaryLCOV: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'missing-getter',
+    'foreign-getter',
+    'missing-slot',
+    'duplicate-event',
+    'mismatched-slot',
+    'duplicate-slot',
+    'missing-own-error',
+    'array-carrier',
+    'function-carrier',
+    'inherited-error',
+    'accessor-error',
+    'post-file-cleanup',
+  ])(
+    'preserves the original collection diagnostic and rejects %s',
+    async (fault) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-collection-fault-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            fault.endsWith('-error') || fault.endsWith('-carrier')
+              ? 'import-undefined'
+              : 'import-sync',
+            '--fault=' + fault,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          fault,
+          originalCollectionFailureRetained: true,
+          strictIncompleteCapture: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+it('keeps actual unfinished Istanbul collection behind its process deadline and snapshot veto', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const output = await mkdtemp(
+    join(tmpdir(), 'next-istanbul-collection-deadline-')
+  )
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'istanbul-collection-private.mjs'),
+        join(__dirname, '../../..'),
+        output,
+        'import-pending-control',
+      ],
+      {
+        env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+        stdio: 'pipe',
+        timeout: 125000,
+      }
+    )
+    expect(
+      JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+    ).toMatchObject({
+      actualPendingLoadGate: true,
+      actualProcessDeadline: true,
+      strictIncompleteCapture: true,
+      priorSnapshotsUnchanged: true,
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 130000)

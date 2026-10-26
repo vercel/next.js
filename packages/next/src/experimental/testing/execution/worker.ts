@@ -121,6 +121,13 @@ async function run({
   const moduleFailures = options.captureCompletedModuleResult
     ? new Map<unknown, ReturnType<typeof serializeDiagnostic>>()
     : undefined
+  let provisionalCollectionFailure:
+    | {
+        error: unknown
+        index: number
+        diagnostic: ReturnType<typeof serializeDiagnostic>
+      }
+    | undefined
   const event = (payload: EventPayload, timestamp = realDateNow()) =>
     send({
       type: 'event',
@@ -134,17 +141,27 @@ async function run({
   const diagnostic = (
     error: unknown,
     phase: 'collection' | 'runtime' | 'cleanup',
-    unhandled?: 'rejection'
+    unhandled?: 'rejection',
+    fileErrorIndex?: number
   ) => {
     const failure = {
       ...serializeDiagnostic(error, { phase }),
       ...(unhandled ? { unhandled } : {}),
     }
     moduleFailures?.set(error, failure)
+    if (fileErrorIndex !== undefined)
+      provisionalCollectionFailure = {
+        error,
+        index: fileErrorIndex,
+        diagnostic: failure,
+      }
     return event({
       type: 'diagnostic',
       entryId: artifact.entryId,
       revision: artifact.revision,
+      ...(fileErrorIndex !== undefined
+        ? { coverageFileError: { index: fileErrorIndex } }
+        : {}),
       diagnostic: failure,
     })
   }
@@ -701,6 +718,9 @@ async function run({
         : undefined
     file = entry.testRunner.initializeTestFile({
       publicTaskSelection: true,
+      ...(options.coverage?.kind === 'node-istanbul'
+        ? { captureCollectionCoverage: true }
+        : {}),
       ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
         ? {
             onUnhandledRejection(
@@ -1129,9 +1149,21 @@ async function run({
     }
   } catch (error) {
     snapshotHostComplete = false
-    coverageComplete = false
+    const deferCollectionFailure =
+      options.coverage?.kind === 'node-istanbul' &&
+      phase === 'collection' &&
+      file !== undefined &&
+      !controller.signal.aborted &&
+      !lateFailures.has(error)
+    if (!deferCollectionFailure) coverageComplete = false
     if (controller.signal.aborted) status = 'cancelled'
-    else if (!lateFailures.has(error)) await diagnostic(error, phase)
+    else if (!lateFailures.has(error))
+      await diagnostic(
+        error,
+        phase,
+        undefined,
+        deferCollectionFailure ? 0 : undefined
+      )
     if (
       !controller.signal.aborted &&
       moduleFailurePhase &&
@@ -1297,48 +1329,78 @@ async function run({
           }[]
         | undefined
       if (options.coverage.kind === 'node-istanbul') {
-        const observed = file!.getCompletedCoverageFailures()
-        if (
-          !observed ||
-          observed.length !== provisionalCoverageFailures.length ||
-          provisionalCoverageFailures.some(
-            (failure) => !observed.includes(failure)
+        if (provisionalCollectionFailure) {
+          const observed =
+            typeof file?.getCompletedCollectionCoverageFailure === 'function'
+              ? file.getCompletedCollectionCoverageFailure()
+              : undefined
+          const errorField =
+            observed !== null &&
+            typeof observed === 'object' &&
+            !Array.isArray(observed) &&
+            Reflect.ownKeys(observed).length === 1
+              ? Object.getOwnPropertyDescriptor(observed, 'error')
+              : undefined
+          if (
+            !errorField ||
+            !('value' in errorField) ||
+            errorField.value !== provisionalCollectionFailure.error ||
+            provisionalCoverageFailures.length ||
+            reportedFileErrors.length ||
+            reportedSuiteErrors.length
           )
-        )
-          coverageComplete = false
-        else {
-          settledSuiteErrors = []
-          settledFileErrors = []
-          for (const failure of observed) {
-            const owners = reportedSuiteErrors.filter(
-              (item) => item.failure === failure
+            coverageComplete = false
+          else
+            settledFileErrors = [
+              {
+                index: provisionalCollectionFailure.index,
+                diagnostic: provisionalCollectionFailure.diagnostic,
+              },
+            ]
+        } else {
+          const observed = file!.getCompletedCoverageFailures()
+          if (
+            !observed ||
+            observed.length !== provisionalCoverageFailures.length ||
+            provisionalCoverageFailures.some(
+              (failure) => !observed.includes(failure)
             )
-            const fileOwners = reportedFileErrors.filter(
-              (item) => item.failure === failure
-            )
-            if (fileOwners.length === 1 && owners.length <= 1) {
-              settledFileErrors.push({
-                index: fileOwners[0].index,
-                diagnostic: fileOwners[0].diagnostic,
-              })
-            } else if (owners.length === 1 && fileOwners.length === 0) {
-              settledSuiteErrors.push({
-                suiteId: owners[0].suiteId,
-                index: owners[0].index,
-              })
-            } else if (
-              !(
-                owners.length === 0 &&
-                fileOwners.length === 0 &&
-                failure.phase === 'runtime' &&
-                nativeCoverageOccurrences.filter(
-                  (item) => item.afterAll && item.reason === failure.error
-                ).length === 1 &&
-                lateFailures.has(failure.error)
+          )
+            coverageComplete = false
+          else {
+            settledSuiteErrors = []
+            settledFileErrors = []
+            for (const failure of observed) {
+              const owners = reportedSuiteErrors.filter(
+                (item) => item.failure === failure
               )
-            ) {
-              coverageComplete = false
-              break
+              const fileOwners = reportedFileErrors.filter(
+                (item) => item.failure === failure
+              )
+              if (fileOwners.length === 1 && owners.length <= 1) {
+                settledFileErrors.push({
+                  index: fileOwners[0].index,
+                  diagnostic: fileOwners[0].diagnostic,
+                })
+              } else if (owners.length === 1 && fileOwners.length === 0) {
+                settledSuiteErrors.push({
+                  suiteId: owners[0].suiteId,
+                  index: owners[0].index,
+                })
+              } else if (
+                !(
+                  owners.length === 0 &&
+                  fileOwners.length === 0 &&
+                  failure.phase === 'runtime' &&
+                  nativeCoverageOccurrences.filter(
+                    (item) => item.afterAll && item.reason === failure.error
+                  ).length === 1 &&
+                  lateFailures.has(failure.error)
+                )
+              ) {
+                coverageComplete = false
+                break
+              }
             }
           }
         }

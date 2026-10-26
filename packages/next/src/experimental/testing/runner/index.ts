@@ -139,6 +139,8 @@ export function getActiveHook(): SuiteHookContext | undefined {
 export interface TestFileOptions {
   /** Enabled only by actual compiled execution hosts; private callers retain their scopes. */
   publicTaskSelection?: true
+  /** Explicit Istanbul host capture of one settled actual module-load failure. */
+  captureCollectionCoverage?: true
   fileId: string
   filePath: string
   tags?: readonly TestTagDefinition[]
@@ -301,6 +303,7 @@ export function initializeTestFile(options: TestFileOptions) {
 function initializeFile(
   {
     publicTaskSelection,
+    captureCollectionCoverage,
     fileId,
     filePath,
     updateSnapshots = false,
@@ -458,6 +461,7 @@ function initializeFile(
   let browserPublicTaskQueues = false
   let snapshotExecutionComplete = false
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
+  let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
   let disposalSucceeded = false
   let ownedWorkerDisposalFailure: { readonly error: unknown } | undefined
   let runSignal: AbortSignal | undefined
@@ -580,6 +584,7 @@ function initializeFile(
             }
           }
           const errors: unknown[] = []
+          let loadFailure: { error: unknown } | undefined
           const collectionAssertions = fileAssertions!.beginCollection({
             id: fileId,
             name: filePath,
@@ -587,6 +592,7 @@ function initializeFile(
           try {
             await load()
           } catch (error) {
+            if (captureCollectionCoverage) loadFailure = { error }
             errors.push(error)
           }
           try {
@@ -604,6 +610,12 @@ function initializeFile(
           } catch (error) {
             errors.push(error)
           }
+          if (
+            loadFailure &&
+            errors.length === 1 &&
+            errors[0] === loadFailure.error
+          )
+            settledCollectionFailure = Object.freeze(loadFailure)
           if (errors.length === 1) throw errors[0]
           if (errors.length > 1)
             throw new AggregateError(errors, 'Test file collection failed.')
@@ -1069,6 +1081,20 @@ function initializeFile(
       )
         return undefined
       return completedCoverageFailures
+    },
+    getCompletedCollectionCoverageFailure() {
+      if (
+        captureCollectionCoverage !== true ||
+        state !== 'disposed' ||
+        !disposalSucceeded ||
+        !settledCollectionFailure ||
+        (worker && (!worker.disposalSucceeded || worker.failures.length)) ||
+        runSignal?.aborted ||
+        lateErrors.length ||
+        fileAssertions?.hasCompleteNativeBodyRejections() !== true
+      )
+        return undefined
+      return settledCollectionFailure
     },
     async dispose(disposal?: {
       beforeOwnedWorkerDispose?: () => unknown | Promise<unknown>
