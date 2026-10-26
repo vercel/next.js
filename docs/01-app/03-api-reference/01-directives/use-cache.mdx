@@ -607,6 +607,7 @@ Framework function exports are covered like any other, so [`generateMetadata`](/
 > **Good to know**:
 >
 > - When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
+> - Only exported functions are available to Client Components. Other exports, such as constants and objects, are dropped from what the client receives, so importing one fails the build with an "export doesn't exist" error. Move shared values to a separate file without the directive.
 
 ### Caching a route segment's output with `use cache`
 
