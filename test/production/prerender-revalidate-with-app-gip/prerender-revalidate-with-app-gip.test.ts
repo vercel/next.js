@@ -14,4 +14,9 @@ describe('ISG with GIP in _app should not override cache-control', () => {
     expect(cacheControl).not.toContain('max-age=3600')
     expect(cacheControl).toContain('s-maxage=10')
   })
+
+  it('should respect Cache-Control set via next.config headers', async () => {
+    const res = await next.fetch('/isg-custom-header')
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=1234')
+  })
 })
