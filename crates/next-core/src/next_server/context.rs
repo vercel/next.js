@@ -1035,6 +1035,10 @@ pub struct ServerChunkingContextOptions {
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
     pub lazy_dynamic_imports: bool,
+    /// Override for the production JS `min_chunk_size` (default `4_000`).
+    pub chunking_min_chunk_size: Option<usize>,
+    /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
+    pub chunking_max_merge_chunk_size: Option<usize>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1065,6 +1069,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         style_groups_algorithm,
         per_page_module_graph,
         lazy_dynamic_imports,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1128,9 +1134,9 @@ pub async fn get_server_chunking_context_with_client_assets(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: 4_000,
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
                     max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: 100_000,
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
                     request_cost: Some(10_000),
                     ..Default::default()
                 },
@@ -1177,6 +1183,8 @@ pub async fn get_server_chunking_context(
         style_groups_algorithm,
         per_page_module_graph,
         lazy_dynamic_imports,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1241,9 +1249,9 @@ pub async fn get_server_chunking_context(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: 4_000,
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
                     max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: 100_000,
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
                     request_cost: Some(10_000),
                     ..Default::default()
                 },

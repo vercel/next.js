@@ -1,6 +1,6 @@
 ---
 title: turbopackChunking
-description: Configure how Turbopack splits your client-side JavaScript into chunks in production.
+description: Configure how Turbopack splits your client-side and server-side JavaScript into chunks in production.
 version: experimental
 ---
 
@@ -101,8 +101,8 @@ module.exports = nextConfig
 
 ## Size Thresholds
 
-The following options control how aggressively Turbopack merges chunks and how large a chunk is
-allowed to grow. Sizes are in bytes of uncompressed, unminified code (roughly 5x
+The following options control how aggressively Turbopack merges client-side chunks and how large
+a chunk is allowed to grow. Sizes are in bytes of uncompressed, unminified code (roughly 5x
 the size of the compressed, minified output).
 
 - **`minChunkSize`** (default `50000`): Turbopack will avoid creating more
@@ -121,6 +121,31 @@ the size of the compressed, minified output).
 When merging chunks, the trade-off being made is an improvement to performance on initial page
 loads at the cost of navigation performance. This is because each additional network request
 being made is costly, however, smaller chunks are more likely to be re-usable across pages.
+
+## Server Chunks
+
+The size thresholds above only apply to client-side JavaScript. Server-side JavaScript for the
+Node.js and Edge runtimes uses separate thresholds, with different defaults for each runtime:
+
+- **`minServerChunkSize`** (default `4000` for Node.js, `20000` for Edge): Turbopack will avoid
+  creating more than one server chunk smaller than this size by merging small chunks into larger
+  ones.
+- **`maxMergeServerChunkSize`** (default `100000` for Node.js, `0` for Edge, which means no
+  limit): Turbopack never merges a server chunk larger than this size with other chunks.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackChunking: {
+      minServerChunkSize: 10000,
+      maxMergeServerChunkSize: 200000,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
 
 <AppOnly>
 

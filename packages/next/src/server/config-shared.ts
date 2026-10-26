@@ -937,7 +937,7 @@ export interface ExperimentalConfig {
      */
     requestCost?: number
     /**
-     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
      * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
      */
     minChunkSize?: number
@@ -947,8 +947,9 @@ export interface ExperimentalConfig {
      */
     maxChunkCountPerGroup?: number
     /**
-     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
-     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
+     * (200 KB).
      */
     maxMergeChunkSize?: number
     /**
@@ -962,6 +963,18 @@ export interface ExperimentalConfig {
      * single remainder chunk. Defaults to `20000` (20 KB).
      */
     minComponentChunkSize?: number
+    /**
+     * Avoid creating more than one server (Node.js and edge) chunk smaller than this size, in
+     * bytes. Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB)
+     * for Node.js server chunks and `20000` (20 KB) for edge chunks.
+     */
+    minServerChunkSize?: number
+    /**
+     * Never merge server (Node.js and edge) chunks bigger than this size, in bytes, with other
+     * chunks. This keeps code in big chunks from being duplicated across multiple chunks.
+     * Defaults to `100000` (100 KB) for Node.js server chunks and `0` (no limit) for edge chunks.
+     */
+    maxMergeServerChunkSize?: number
   }
 
   /**
