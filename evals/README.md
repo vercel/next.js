@@ -94,42 +94,21 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
-The public evals are grouped by purpose in `eval.suites.json`. Run one group
-with `--suite`:
+Run a group from `eval.suites.json` with `--suite`:
 
 ```bash
 pnpm eval --suite regression
 pnpm eval --suite competency --dry
 ```
 
-- `regression` preserves behavior already saturated across frontier and weaker
-  models.
-- `competency` measures tasks that still distinguish model capability.
-- `audit` holds tasks whose grader, documentation sensitivity, or stability
-  needs review before they move into another suite.
+- `audit` is the starting point for new or unverified evals.
+- `competency` contains verified evals that distinguish model capability.
+- `regression` contains evals that reach at least 90% valid pass@1 across
+  frontier and weaker models over multiple runs or versions.
 
-Every public eval must belong to exactly one suite. Suite selection is
-independent of context treatment: a suite still runs both `baseline` and
-`agents-md` by default. Non-published evals and planned transfers to other
-measurement systems are not represented as runnable suites. Individual eval
-commands and `--all` continue to work as before.
-
-### Classifying a new eval
-
-Add every new public eval to exactly one suite in `eval.suites.json`:
-
-1. Start it in `audit` while its grader, version applicability, documentation
-   effect, and pass@1 stability are being validated.
-2. Move it to `competency` once the task is trustworthy and still produces
-   valid failures or useful model-tier differences.
-3. Move it to `regression` only after multiple independent runs or versions
-   reach at least 90% valid pass@1 for both frontier and weaker model tiers.
-
-An eval that measures a different question, such as framework preference or
-an end-to-end deployment journey, should not enter a Next.js runnable suite.
-Mark it as non-published while it is transferred to the owning measurement
-system. Runner validation fails when a public eval is unclassified or listed
-in more than one suite.
+Every public eval must appear in exactly one suite. A suite still runs both
+`baseline` and `agents-md`. Set `publish: false` in `eval.config.json` when an
+eval belongs in another measurement system.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 
