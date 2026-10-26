@@ -47,7 +47,8 @@ function reviewFormCommand(url: string, platform: NodeJS.Platform) {
   if (platform === 'win32') {
     return {
       command: process.env.ComSpec || 'cmd.exe',
-      args: ['/d', '/s', '/c', 'start', '""', url],
+      args: ['/d', '/s', '/c', 'start', '""', `"${url}"`],
+      windowsVerbatimArguments: true,
     }
   }
   return { command: 'xdg-open', args: [url] }
@@ -58,10 +59,14 @@ export function openAgentFeedbackReviewForm(
   platform: NodeJS.Platform = process.platform,
   spawnReviewForm: SpawnReviewForm = spawn
 ): Promise<void> {
-  const { command, args } = reviewFormCommand(url, platform)
+  const { command, args, windowsVerbatimArguments } = reviewFormCommand(
+    url,
+    platform
+  )
   const child = spawnReviewForm(command, args, {
     detached: true,
     stdio: 'ignore',
+    ...(windowsVerbatimArguments && { windowsVerbatimArguments }),
   })
 
   return new Promise((resolve, reject) => {

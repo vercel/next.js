@@ -30,31 +30,51 @@ describe('agentFeedbackReviewUrl', () => {
 })
 
 describe('openAgentFeedbackReviewForm', () => {
+  const url = 'https://nextjs.org/agent-feedback#report=test'
+
   it.each([
-    ['darwin', 'open'],
-    ['linux', 'xdg-open'],
-    ['win32', process.env.ComSpec || 'cmd.exe'],
+    [
+      'darwin',
+      'open',
+      [url],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    ],
+    [
+      'linux',
+      'xdg-open',
+      [url],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    ],
+    [
+      'win32',
+      process.env.ComSpec || 'cmd.exe',
+      ['/d', '/s', '/c', 'start', '""', `"${url}"`],
+      {
+        detached: true,
+        stdio: 'ignore',
+        windowsVerbatimArguments: true,
+      },
+    ],
   ] as const)(
     'uses the platform browser command on %s',
-    async (platform, command) => {
+    async (platform, command, args, options) => {
       const child = new EventEmitter() as EventEmitter & {
         unref: jest.Mock
       }
       child.unref = jest.fn()
       const spawnReviewForm = jest.fn(() => child as never)
-      const opened = openAgentFeedbackReviewForm(
-        'https://nextjs.org/agent-feedback#report=test',
-        platform,
-        spawnReviewForm
-      )
+      const opened = openAgentFeedbackReviewForm(url, platform, spawnReviewForm)
 
       child.emit('spawn')
       await opened
 
-      expect(spawnReviewForm).toHaveBeenCalledWith(command, expect.any(Array), {
-        detached: true,
-        stdio: 'ignore',
-      })
+      expect(spawnReviewForm).toHaveBeenCalledWith(command, args, options)
       expect(child.unref).toHaveBeenCalled()
     }
   )

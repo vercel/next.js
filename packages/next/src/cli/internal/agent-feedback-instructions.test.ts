@@ -42,6 +42,12 @@ describe('loadAgentFeedbackInstructions', () => {
     expect(instructions).toContain(
       '`nextVersion` and `agent`, with no more than 64 characters each'
     )
+    expect(instructions).toContain(
+      'npx --no-install next feedback <encoded-json>'
+    )
+    expect(instructions).not.toContain(
+      'node node_modules/next/dist/bin/next feedback'
+    )
   })
 
   it('does not read the protocol when feedback is disabled', async () => {

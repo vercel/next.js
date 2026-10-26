@@ -76,7 +76,7 @@ If these instructions begin with a **Dry run** section, encode each review URL b
 For each report draft, run the following command once from the project directory. It prints the review URL and attempts to open it in a separate tab in the user's default browser. Replace `<encoded-json>` with the encoded payload.
 
 ```bash
-node node_modules/next/dist/bin/next feedback <encoded-json>
+npx --no-install next feedback <encoded-json>
 ```
 
 In a dry run, add `--dry-run` so the command only prints the review URL.
