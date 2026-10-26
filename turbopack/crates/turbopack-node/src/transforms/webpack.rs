@@ -17,7 +17,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     glob::{Glob, GlobOptions},
     json::parse_json_with_source_context,
     rope::Rope,
@@ -240,6 +240,30 @@ async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath>
         .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
         .await?
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
+}
+
+/// Resolves a path passed to the loader's `fs`. As elsewhere in Turbopack, `..` is applied
+/// lexically before symlinks are followed. Returns `None` when Node's callback will report the
+/// error instead.
+async fn resolve_loader_path(cwd: &FileSystemPath, path: &str) -> Result<Option<FileSystemPath>> {
+    match loader_path(cwd, path).await?.realpath().await? {
+        Ok(path) => Ok(Some(path)),
+        // Changes behind a symlink leaving the configured roots can't be tracked.
+        Err(error) if matches!(error.kind(), RealPathErrorType::Invalid { .. }) => {
+            Err(error.into())
+        }
+        Err(_) => Ok(None),
+    }
+}
+
+async fn register_loader_stat_dependencies(cwd: &FileSystemPath, file: &str) -> Result<()> {
+    let Some(path) = resolve_loader_path(cwd, file).await? else {
+        return Ok(());
+    };
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs)
+        .expect("resolved loader paths are backed by DiskFileSystem");
+    fs.full_metadata(path).await?;
+    Ok(())
 }
 
 // TODO: This creates a task that's keyed on the list of file paths, which might churn through tasks
@@ -667,6 +691,8 @@ pub enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     TrackFileRead { file: RcStr },
     #[serde(rename_all = "camelCase")]
+    TrackFileStat { file: RcStr },
+    #[serde(rename_all = "camelCase")]
     ImportModule { lookup_path: RcStr, request: RcStr },
 }
 
@@ -690,6 +716,7 @@ pub enum ResponseMessage {
     },
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
+    TrackFileStat {},
     #[serde(rename_all = "camelCase")]
     ImportModule {
         entry_path: RcStr,
@@ -935,8 +962,16 @@ impl EvaluateContext for WebpackLoaderContext {
             RequestMessage::TrackFileRead { file } => {
                 // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
                 // await the read though to cover at least one class of race conditions.
-                let _ = &*loader_path(&self.cwd, &file).await?.read().await?;
+                if let Some(path) = resolve_loader_path(&self.cwd, &file).await? {
+                    let _ = &*path.read().await?;
+                }
                 Ok(ResponseMessage::TrackFileRead {})
+            }
+            RequestMessage::TrackFileStat { file } => {
+                register_loader_stat_dependencies(&self.cwd, &file)
+                    .await
+                    .with_context(|| format!("tracking webpack loader stat of {file}"))?;
+                Ok(ResponseMessage::TrackFileStat {})
             }
             RequestMessage::ImportModule {
                 lookup_path,
