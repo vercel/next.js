@@ -2298,7 +2298,8 @@ export default abstract class Server<
         // In dev mode, pages without getServerSideProps or getInitialProps are
         // rendered dynamically but should still reject non-GET/HEAD methods,
         // matching production behavior where they would be static strings.
-        (!isAppPath &&
+        (this.dev &&
+          !isAppPath &&
           !hasServerProps &&
           !hasCustomAppGetInitialProps &&
           !(components.Component as any)?.getInitialProps))
