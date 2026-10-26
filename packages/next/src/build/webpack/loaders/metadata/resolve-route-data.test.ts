@@ -116,6 +116,50 @@ describe('resolveRouteData', () => {
       `)
     })
 
+    it('should resolve content signals', () => {
+      const data: MetadataRoute.Robots = {
+        rules: [
+          {
+            userAgent: '*',
+            allow: '/',
+            contentSignal: {
+              aiTrain: true,
+              search: true,
+              aiInput: false,
+            },
+          },
+          {
+            userAgent: 'ExampleBot',
+            contentSignal: [
+              {
+                path: ['/blog', '/about'],
+                search: true,
+              },
+              {
+                path: '/projects',
+                aiTrain: false,
+                search: true,
+                aiInput: false,
+              },
+            ],
+          },
+        ],
+      }
+
+      expect(resolveRobots(data)).toMatchInlineSnapshot(`
+        "User-Agent: *
+        Allow: /
+        Content-Signal: ai-train=yes, search=yes, ai-input=no
+
+        User-Agent: ExampleBot
+        Content-Signal: /blog search=yes
+        Content-Signal: /about search=yes
+        Content-Signal: /projects ai-train=no, search=yes, ai-input=no
+
+        "
+      `)
+    })
+
     it('should skip null/undefined entries in `other`', () => {
       const data: MetadataRoute.Robots = {
         rules: {
