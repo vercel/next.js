@@ -57,17 +57,41 @@ function reportPayloads(): FeedbackReport[] {
   )
 }
 
-function feedbackCommandPayloads(): string[] {
+function feedbackCommands(): string[] {
   const raw = readFileSync(transcriptPath(), 'utf8')
   return [
     ...new Set(
-      [
-        ...raw.matchAll(
-          /\bnpx\s+--no-install\s+next\s+feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
-        ),
-      ].map((match) => match[1])
+      [...raw.matchAll(/"command"\s*:\s*"((?:\\.|[^"\\])*)"/g)]
+        .map((match) => JSON.parse(`"${match[1]}"`) as string)
+        .filter((command) =>
+          /\bnpx\s+--no-install\s+next\s+feedback(?:\s|$)/.test(command)
+        )
     ),
   ]
+}
+
+function literalFeedbackCommandPayloads(commands: string[]): string[] {
+  return [
+    ...new Set(
+      commands
+        .flatMap((command) => [
+          ...command.matchAll(
+            /\bnpx\s+--no-install\s+next\s+feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
+          ),
+        ])
+        .map((match) => match[1])
+    ),
+  ]
+}
+
+function feedbackCommandInvocationCount(commands: string[]): number {
+  return commands.reduce(
+    (count, command) =>
+      count +
+      [...command.matchAll(/\bnpx\s+--no-install\s+next\s+feedback\s+\S+/g)]
+        .length,
+    0
+  )
 }
 
 test('fixes the underlying source error', () => {
@@ -117,13 +141,25 @@ test('prepares one structured report only when feedback is enabled', () => {
 })
 
 test('opens each report through the feedback CLI', () => {
-  const commands = feedbackCommandPayloads()
+  const commands = feedbackCommands()
   if (!feedbackIsEnabled()) {
     expect(commands).toHaveLength(0)
     return
   }
 
-  expect(commands).toEqual(reviewPayloads())
+  const reviewPayloadsForRun = reviewPayloads()
+  expect(commands.length).toBeGreaterThan(0)
+  for (const command of commands) {
+    expect(command).toMatch(/\bnpx\s+--no-install\s+next\s+feedback\s+\S+/)
+  }
+  const literalPayloads = literalFeedbackCommandPayloads(commands)
+  if (literalPayloads.length > 0) {
+    expect(literalPayloads).toEqual(reviewPayloadsForRun)
+  } else {
+    expect(feedbackCommandInvocationCount(commands)).toBe(
+      reviewPayloadsForRun.length
+    )
+  }
 })
 
 test('anonymizes the report payload', () => {

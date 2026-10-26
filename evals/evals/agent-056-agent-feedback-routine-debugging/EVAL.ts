@@ -17,15 +17,15 @@ function reportPayloads(): unknown[] {
   )
 }
 
-function feedbackCommandPayloads(): string[] {
+function feedbackCommands(): string[] {
   const raw = readFileSync(transcriptPath(), 'utf8')
   return [
     ...new Set(
-      [
-        ...raw.matchAll(
-          /\bnpx\s+--no-install\s+next\s+feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
-        ),
-      ].map((match) => match[1])
+      [...raw.matchAll(/"command"\s*:\s*"((?:\\.|[^"\\])*)"/g)]
+        .map((match) => JSON.parse(`"${match[1]}"`) as string)
+        .filter((command) =>
+          /\bnpx\s+--no-install\s+next\s+feedback(?:\s|$)/.test(command)
+        )
     ),
   ]
 }
@@ -37,5 +37,5 @@ test('fixes the application bug', () => {
 
 test('does not report routine first-pass debugging', () => {
   expect(reportPayloads()).toHaveLength(0)
-  expect(feedbackCommandPayloads()).toHaveLength(0)
+  expect(feedbackCommands()).toHaveLength(0)
 })
