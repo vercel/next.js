@@ -500,7 +500,7 @@ fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool
 
 pub struct ModuleSideEffectsAnalysisResult {
     pub side_effects: ModuleSideEffects,
-    /// Module-scope `const`/`let` bindings whose initializers can be removed when unused.
+    /// Bindings outside functions or class static blocks whose declarations are all pure.
     pub pure_top_level_declarations: HashSet<Id>,
 }
 
@@ -528,6 +528,9 @@ pub fn compute_module_evaluation_side_effects(
     } else {
         ModuleSideEffects::SideEffectFree
     };
+    visitor
+        .pure_top_level_declarations
+        .retain(|id| !visitor.impure_top_level_declarations.contains(id));
     ModuleSideEffectsAnalysisResult {
         side_effects,
         pure_top_level_declarations: visitor.pure_top_level_declarations,
@@ -547,6 +550,9 @@ struct SideEffectVisitor<'a> {
     /// Member mutations rooted at these are not module-evaluation side effects.
     safe_assignment_constant_ids: HashSet<Id>,
     pure_top_level_declarations: HashSet<Id>,
+    impure_top_level_declarations: HashSet<Id>,
+    /// Functions and class static blocks have their own var scope.
+    in_function: bool,
     has_side_effects: bool,
     /// Effects that module inference ignores, but that prevent dropping an initializer.
     has_initializer_side_effects: bool,
@@ -569,6 +575,8 @@ impl<'a> SideEffectVisitor<'a> {
             module_exports_has_accessor,
             safe_assignment_constant_ids,
             pure_top_level_declarations: HashSet::new(),
+            impure_top_level_declarations: HashSet::new(),
+            in_function: false,
             has_side_effects: false,
             has_initializer_side_effects: false,
             will_invoke_fn_exprs: false,
@@ -581,8 +589,7 @@ impl<'a> SideEffectVisitor<'a> {
         self.has_side_effects = true;
     }
 
-    /// Analyze a top-level item independently, retaining the module's overall result.
-    /// Early exits within an item must not hide later pure declarations.
+    /// Analyze an item independently, retaining the module's overall result.
     fn check_for_side_effects(&mut self, f: impl FnOnce(&mut Self)) -> bool {
         let previous = std::mem::take(&mut self.has_side_effects);
         let previous_initializer = std::mem::take(&mut self.has_initializer_side_effects);
@@ -593,44 +600,22 @@ impl<'a> SideEffectVisitor<'a> {
         has_side_effects
     }
 
-    fn visit_top_level_decl(&mut self, decl: &Decl) {
-        match decl {
-            // Function declarations do not execute their bodies during module evaluation.
-            Decl::Fn(_) => {}
-            Decl::Var(var) => {
-                self.visit_top_level_var_decl(var);
-            }
-            _ => {
-                self.check_for_side_effects(|this| decl.visit_with(this));
-            }
-        }
-    }
-
-    fn visit_top_level_var_decl(&mut self, var: &VarDecl) {
-        for declarator in &var.decls {
-            let has_side_effects = self.check_for_side_effects(|this| declarator.visit_with(this));
-            // A `var` binding may have effectful redeclarations in nested statements that
-            // this analysis does not inspect. Lexical bindings cannot be redeclared.
-            if var.kind != VarDeclKind::Var && !has_side_effects {
-                let ids: Vec<Id> = find_pat_ids(&declarator.name);
-                self.pure_top_level_declarations.extend(ids);
-            }
-        }
-    }
-
-    fn visit_top_level_stmt(&mut self, stmt: &Stmt) {
-        if let Stmt::Decl(decl) = stmt {
-            self.visit_top_level_decl(decl);
+    fn record_top_level_declarations(
+        &mut self,
+        ids: impl IntoIterator<Item = Id>,
+        has_side_effects: bool,
+    ) {
+        if has_side_effects {
+            self.impure_top_level_declarations.extend(ids);
         } else {
-            self.check_for_side_effects(|this| stmt.visit_with(this));
-            // The loop is still conservatively effectful, but an unused pure initializer
-            // can be removed independently. Uses in the condition or body keep it live.
-            if let Stmt::For(for_stmt) = stmt
-                && let Some(VarDeclOrExpr::VarDecl(var)) = &for_stmt.init
-            {
-                self.visit_top_level_var_decl(var);
-            }
+            self.pure_top_level_declarations.extend(ids);
         }
+    }
+
+    fn with_function_scope(&mut self, f: impl FnOnce(&mut Self)) {
+        let previous = std::mem::replace(&mut self.in_function, true);
+        f(self);
+        self.in_function = previous;
     }
 
     /// Temporarily set `will_invoke_fn_exprs` to the given value, execute the closure,
@@ -845,36 +830,9 @@ impl<'a> SideEffectVisitor<'a> {
 
 impl<'a> Visit for SideEffectVisitor<'a> {
     noop_visit_type!();
-    // If we've already found side effects, skip further visitation
-    fn visit_program(&mut self, program: &Program) {
-        check_side_effects!(self);
-        program.visit_children_with(self);
-    }
-
-    fn visit_module(&mut self, module: &Module) {
-        for item in &module.body {
-            match item {
-                ModuleItem::Stmt(stmt) => self.visit_top_level_stmt(stmt),
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => {
-                    self.visit_top_level_decl(&export.decl);
-                }
-                _ => {
-                    self.check_for_side_effects(|this| item.visit_with(this));
-                }
-            }
-        }
-    }
-
-    fn visit_script(&mut self, script: &Script) {
-        for stmt in &script.body {
-            self.visit_top_level_stmt(stmt);
-        }
-    }
 
     // Module declarations (imports/exports) need special handling
     fn visit_module_decl(&mut self, decl: &ModuleDecl) {
-        check_side_effects!(self);
-
         match decl {
             // Import statements may have side effects, which could require full graph analysis
             // Record that to decide if we can upgrade ModuleEvaluationIsSideEffectFree to
@@ -885,47 +843,16 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
             // Export declarations need to check their contents
             ModuleDecl::ExportDecl(export_decl) => {
-                // Check the declaration being exported
-                match &export_decl.decl {
-                    Decl::Fn(_) => {
-                        // function declarations are pure
-                    }
-                    Decl::Class(class_decl) => {
-                        // Class declarations can have side effects in static blocks, extends or
-                        // static property initializers.
-                        class_decl.visit_with(self);
-                    }
-                    Decl::Var(var_decl) => {
-                        // Variable declarations need their initializers checked
-                        var_decl.visit_with(self);
-                    }
-                    _ => {
-                        // Other declarations should be checked
-                        export_decl.decl.visit_with(self);
-                    }
-                }
+                export_decl.decl.visit_with(self);
             }
 
             ModuleDecl::ExportDefaultDecl(export_default_decl) => {
-                // Check the default export
-                match &export_default_decl.decl {
-                    DefaultDecl::Class(cls) => {
-                        // Class expressions can have side effects in extends clause and static
-                        // members
-                        cls.visit_with(self);
-                    }
-                    DefaultDecl::Fn(_) => {
-                        // function declarations are pure
-                    }
-                    DefaultDecl::TsInterfaceDecl(_) => {
-                        // TypeScript interface declarations are pure
-                    }
-                }
+                export_default_decl.visit_with(self);
             }
 
             ModuleDecl::ExportDefaultExpr(export_default_expr) => {
                 // Check the expression being exported
-                export_default_expr.expr.visit_with(self);
+                self.check_for_side_effects(|this| export_default_expr.expr.visit_with(this));
             }
 
             // Re-exports have no side effects
@@ -958,24 +885,16 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
     // Statement-level detection
     fn visit_stmt(&mut self, stmt: &Stmt) {
-        check_side_effects!(self);
+        // Module-scope statement traversal must continue after finding effects so
+        // nested `var` redeclarations cannot be hidden by an early exit.
+        if self.in_function {
+            check_side_effects!(self);
+        }
 
         match stmt {
             // Expression statements need checking
             Stmt::Expr(expr_stmt) => {
-                expr_stmt.visit_with(self);
-            }
-            // Variable declarations need checking (initializers might have side effects)
-            Stmt::Decl(Decl::Var(var_decl)) => {
-                var_decl.visit_with(self);
-            }
-            // Function declarations are side-effect free
-            Stmt::Decl(Decl::Fn(_)) => {
-                // Function declarations don't execute, so no side effects
-            }
-            // Class declarations can have side effects in extends clause and static members
-            Stmt::Decl(Decl::Class(class_decl)) => {
-                class_decl.visit_with(self);
+                self.check_for_side_effects(|this| expr_stmt.visit_with(this));
             }
             // Other declarations
             Stmt::Decl(decl) => {
@@ -986,7 +905,62 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Most other statement types (if, for, while, etc.) at top level
                 // would be unusual and potentially have side effects
                 self.mark_side_effect();
+                if !self.in_function {
+                    stmt.visit_children_with(self);
+                }
             }
+        }
+    }
+
+    fn visit_var_decl(&mut self, var: &VarDecl) {
+        if self.in_function {
+            var.visit_children_with(self);
+            return;
+        }
+        for declarator in &var.decls {
+            let has_side_effects = self.check_for_side_effects(|this| declarator.visit_with(this));
+            let ids: Vec<Id> = find_pat_ids(&declarator.name);
+            self.record_top_level_declarations(ids, has_side_effects);
+        }
+    }
+
+    fn visit_fn_decl(&mut self, function: &FnDecl) {
+        if !self.in_function {
+            self.record_top_level_declarations([function.ident.to_id()], false);
+        }
+        // Function bodies have their own var scope and do not execute at declaration time.
+    }
+
+    fn visit_function(&mut self, function: &Function) {
+        self.with_function_scope(|this| function.visit_children_with(this));
+    }
+
+    fn visit_arrow_expr(&mut self, arrow: &ArrowExpr) {
+        self.with_function_scope(|this| arrow.visit_children_with(this));
+    }
+
+    fn visit_class_decl(&mut self, class: &ClassDecl) {
+        let collect = !self.in_function;
+        let has_side_effects = self.check_for_side_effects(|this| class.class.visit_with(this));
+        if collect {
+            self.record_top_level_declarations([class.ident.to_id()], has_side_effects);
+        }
+    }
+
+    fn visit_export_default_decl(&mut self, export: &ExportDefaultDecl) {
+        match &export.decl {
+            DefaultDecl::Fn(function) => {
+                if let Some(ident) = &function.ident {
+                    self.record_top_level_declarations([ident.to_id()], false);
+                }
+            }
+            DefaultDecl::Class(class) => {
+                let has_side_effects = self.check_for_side_effects(|this| class.visit_with(this));
+                if let Some(ident) = &class.ident {
+                    self.record_top_level_declarations([ident.to_id()], has_side_effects);
+                }
+            }
+            DefaultDecl::TsInterfaceDecl(_) => {}
         }
     }
 
@@ -1326,9 +1300,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
             ClassMember::StaticBlock(block) => {
                 // Static blocks may have side effects because they execute immediately
                 // Check the statements in the block
-                for stmt in &block.body.stmts {
-                    stmt.visit_with(self);
-                }
+                self.with_function_scope(|this| block.body.stmts.visit_with(this));
             }
             // Check static properties - they execute at definition time
             ClassMember::ClassProp(class_prop) if class_prop.is_static => {
@@ -1524,21 +1496,38 @@ mod tests {
     }
 
     #[rstest::rstest]
-    #[case("const a = 1; let b; var c = () => effect();", &["a", "b"])]
+    #[case("const a = 1; let b; var c = () => effect();", &["a", "b", "c"])]
     #[case("effect(); const a = 1, b = effect(), c = 2;", &["a", "c"])]
     #[case("export const a = effect(), b = 1; export let c = 2;", &["b", "c"])]
     #[case("const { a, b: [c = 1], ...d } = value;", &["a", "c", "d"])]
     #[case("const { a = effect(), b } = value; const c = 1;", &["c"])]
-    #[case("function a() { effect(); const nested = 1; } export function b() {}", &[])]
-    #[case("class A { method() { effect(); } } class B { static x = effect(); }", &[])]
-    #[case("export class A {} export default class B {}", &[])]
-    #[case("export default function a() { effect(); }", &[])]
+    #[case("function a() { effect(); const nested = 1; } export function b() {}", &["a", "b"])]
+    #[case("class A { method() { effect(); } } class B { static x = effect(); }", &["A"])]
+    #[case("export class A {} export default class B {}", &["A", "B"])]
+    #[case("export default function a() { effect(); }", &["a"])]
     #[case("export default class A { static x = effect(); }", &[])]
     #[case("export default function () {}", &[])]
     #[case("export default class {}", &[])]
     #[case("const a = class { static { const nested = 1; } };", &["a"])]
-    #[case("{ const nested = 1; } const a = () => { const nested = 2; };", &["a"])]
+    #[case("const a = [1].map(() => { var nested = 1; });", &["a"])]
+    #[case("[1].map(() => { var nested = 1; }); const a = 1;", &["a"])]
+    #[case("const a = [1].map(function () { var nested = 1; });", &["a"])]
+    #[case("{ const nested = 1; } const a = () => { const nested = 2; };", &["nested", "a"])]
     #[case("var a = 1; var a = effect(); var b = effect(); var b = 1;", &[])]
+    #[case("var a = 1; { effect(); var a = effect(); }", &[])]
+    #[case("{ effect(); var a = effect(); } var a = 1;", &[])]
+    #[case("var a = 1; if (condition) { var a = effect(); }", &[])]
+    #[case("var a = 1; for (;;) { var a = effect(); }", &[])]
+    #[case("var a = 1; switch (value) { case 0: var a = effect(); }", &[])]
+    #[case("var a = 1; { var a = 2; }", &["a"])]
+    #[case("function a() {} var a = effect();", &[])]
+    #[case("var a = effect(); function a() {}", &[])]
+    #[case("function a() {} { effect(); var a = effect(); }", &[])]
+    #[case("function a() {} var a = () => effect();", &["a"])]
+    #[case("var a = 1; function b() { var a = effect(); }", &["a", "b"])]
+    #[case("var a = 1; { let a = effect(); }", &["a"])]
+    #[case("var a = 1; class B { static { var a = effect(); } }", &["a"])]
+    #[case("{ let a = 1; } { let a = effect(); }", &["a"])]
     #[case("const a = /*#__PURE__*/ factory(), b = /*#__PURE__*/ factory(effect());", &["a"])]
     #[case("const a = /*#__PURE__*/ factory(...iterable), b = [...iterable];", &[])]
     #[case("const a = { ...value }, b = { ...{ x: 1 } };", &["b"])]

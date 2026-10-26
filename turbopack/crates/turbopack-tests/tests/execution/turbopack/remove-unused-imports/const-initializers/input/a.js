@@ -25,7 +25,8 @@ const unusedBeforeEffect = unused,
   mixedEffectResult = effect('mixed declaration'),
   unusedAfterEffect = () => unused()
 let unusedLet = unused
-var unusedVar = () => used()
+var unusedVar = unused
+var unusedVar = () => unused()
 
 export const redeclarationEffects = []
 var unusedRedeclared = 0
@@ -33,6 +34,15 @@ var unusedRedeclared = 0
   // This shares the top-level binding, but its initializer is not pure.
   var unusedRedeclared = redeclarationEffects.push('nested var initializer')
 }
+
+{
+  effect('before nested redeclaration')
+  var unusedReverseRedeclared = redeclarationEffects.push(
+    'nested var before declaration'
+  )
+}
+var unusedReverseRedeclared = 0
+
 // Module-local writes are pure for module inference, but must not disappear just
 // because the result of the assignment is unused.
 export const config = {}

@@ -1,4 +1,5 @@
 import { config, redeclarationEffects, usedArrow, usedObject } from './a.js'
+import functionRedeclarationEffects from './function-redeclarations.cjs'
 
 it('removes unused pure initializers without leaving references to removed imports', () => {
   expect(globalThis.unusedConstDependencyBundled).toBeUndefined()
@@ -14,8 +15,19 @@ it('preserves module-local mutations whose result is unused', () => {
   expect(config.value).toBe('kept')
 })
 
-it('preserves effectful nested var initializers sharing an unused pure top-level binding', () => {
-  expect(redeclarationEffects).toEqual(['nested var initializer'])
+it('preserves effectful var initializers sharing a binding with other var declarations', () => {
+  expect(redeclarationEffects).toEqual([
+    'nested var initializer',
+    'nested var before declaration',
+  ])
+})
+
+it('preserves effectful var initializers sharing a binding with function declarations', () => {
+  expect(functionRedeclarationEffects).toEqual([
+    'function then var',
+    'var then function',
+    'function then nested var',
+  ])
 })
 
 it('keeps effectful loop initializers even when their condition is false', () => {
@@ -29,6 +41,7 @@ it('preserves initializer, argument, destructuring, spread, and iteration effect
     'destructuring',
     'spread',
     'mixed declaration',
+    'before nested redeclaration',
     'require',
     'iteration',
     'iteration',
