@@ -48,6 +48,11 @@ describe('next/font/google loader', () => {
         'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=fallback',
       ],
       [
+        'Newsreader',
+        { weight: ['700'], axes: ['opsz'] },
+        'https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,700&display=swap',
+      ],
+      [
         'Roboto_Flex',
         {
           display: 'optional',
