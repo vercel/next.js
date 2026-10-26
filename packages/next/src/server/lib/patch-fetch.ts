@@ -285,10 +285,22 @@ async function createCachedDynamicResponse(
   // for more details: https://github.com/vercel/next.js/pull/73274
   const [cloned1, cloned2] = cloneResponse(res)
 
+  // Cancelling one branch of a tee waits until the other branch is cancelled
+  // too. When the caller cancels the body, stop filling the cache as well, so
+  // that `cancel()` doesn't wait for the rest of the upstream response.
+  const cacheFill = new AbortController()
+  const cacheBody = cloned1.body
+    ? new Response(
+        cloned1.body.pipeThrough(new TransformStream(), {
+          signal: cacheFill.signal,
+        })
+      )
+    : cloned1
+
   // We are dynamically rendering including dev mode. We want to return the
   // response to the caller as soon as possible because it might stream over a
   // very long time.
-  const cacheSetPromise = cloned1
+  const cacheSetPromise = cacheBody
     .arrayBuffer()
     .then(async (arrayBuffer) => {
       const bodyBuffer = Buffer.from(arrayBuffer)
@@ -311,8 +323,9 @@ async function createCachedDynamicResponse(
       }
     })
     .catch((error) => {
-      // Don't warn if the request was aborted intentionally.
-      if (!signal?.aborted) {
+      // Don't warn if the request was aborted or the body was cancelled
+      // intentionally.
+      if (!signal?.aborted && !cacheFill.signal.aborted) {
         console.warn(`Failed to set fetch cache`, input, error)
       }
     })
@@ -340,7 +353,60 @@ async function createCachedDynamicResponse(
       delete pendingRevalidates[pendingRevalidateKey]
     })
 
-  return cloned2
+  return cancelWithCacheFill(cloned2, cacheFill)
+}
+
+/**
+ * Returns a response with the same body as `response`, where cancelling the
+ * body also aborts `cacheFill`.
+ */
+function cancelWithCacheFill(
+  response: Response,
+  cacheFill: AbortController
+): Response {
+  if (!response.body) {
+    return response
+  }
+
+  // Only lock the original body once it is read. Until then, the stream
+  // below keeps `response` alive, so if the caller drops the body without
+  // reading it, `response` is garbage collected and cloneResponse cancels
+  // the original body like before.
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+  const body = new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        reader ??= response.body!.getReader()
+        const { done, value } = await reader.read()
+        if (done) {
+          controller.close()
+        } else {
+          controller.enqueue(value)
+        }
+      },
+      cancel(reason) {
+        cacheFill.abort(reason)
+        return (reader ?? response.body!).cancel(reason)
+      },
+    },
+    { highWaterMark: 0 }
+  )
+
+  const wrapped = new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  })
+
+  Object.defineProperty(wrapped, 'url', {
+    value: response.url,
+    // How the original response.url behaves
+    configurable: true,
+    enumerable: true,
+    writable: false,
+  })
+
+  return wrapped
 }
 
 interface PatchableModule {
