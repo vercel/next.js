@@ -10,7 +10,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Once you have [configured the Next.js module for Drupal](https://next-drupal.org/guides/decoupled-drupal-nextjs) and have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-drupal&env=NEXT_PUBLIC_DRUPAL_BASE_URL,NEXT_IMAGE_DOMAIN,DRUPAL_SITE_ID,DRUPAL_FRONT_PAGE,DRUPAL_PREVIEW_SECRET,DRUPAL_NEXT_CLIENT_ID,DRUPAL_NEXT_CLIENT_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ghost&envLink=https://vercel.link/cms-drupal-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-drupal&env=NEXT_PUBLIC_DRUPAL_BASE_URL,NEXT_IMAGE_DOMAIN,DRUPAL_SITE_ID,DRUPAL_FRONT_PAGE,DRUPAL_PREVIEW_SECRET,DRUPAL_NEXT_CLIENT_ID,DRUPAL_NEXT_CLIENT_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Drupal&envLink=https://vercel.link/cms-drupal-env)
 
 ### Related examples
 
@@ -67,4 +67,4 @@ See the Get Started guide [here](https://next-drupal.org/guides/decoupled-drupal
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-drupal&env=NEXT_PUBLIC_DRUPAL_BASE_URL,NEXT_IMAGE_DOMAIN,DRUPAL_SITE_ID,DRUPAL_FRONT_PAGE,DRUPAL_PREVIEW_SECRET,DRUPAL_NEXT_CLIENT_ID,DRUPAL_NEXT_CLIENT_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20ghost&envLink=https://vercel.link/cms-drupal-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-drupal&env=NEXT_PUBLIC_DRUPAL_BASE_URL,NEXT_IMAGE_DOMAIN,DRUPAL_SITE_ID,DRUPAL_FRONT_PAGE,DRUPAL_PREVIEW_SECRET,DRUPAL_NEXT_CLIENT_ID,DRUPAL_NEXT_CLIENT_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Drupal&envLink=https://vercel.link/cms-drupal-env)
