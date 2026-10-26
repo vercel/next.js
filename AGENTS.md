@@ -72,7 +72,7 @@ For iterative Next.js source development, default to watch mode plus the explici
 
 **Default agent rule:** If you are changing Next.js source, start `pnpm --filter=next dev` in a separate terminal session before making edits (unless it is already running). If you skip this, explicitly state why (for example: docs-only, test-only, read-only investigation, or CI-only analysis).
 
-**Test-only changes:** When changes are confined to `test/`, do not start `pnpm --filter=next dev` or rebuild Next.js. Run the relevant mode-specific tests directly; the test harness builds test fixtures as needed. This assumes the workspace is already bootstrapped and framework build outputs are current. A fresh checkout, branch switch, or missing/stale build outputs still requires a bootstrap build.
+**Test-only changes:** When changes are confined to `test/`, do not start `pnpm --filter=next dev` or rebuild Next.js. Run the relevant mode-specific tests directly; the test harness builds test fixtures as needed. This assumes the workspace is already bootstrapped and framework build outputs are current. Missing or stale framework build outputs still require a build.
 
 **1. Start watch build in background:**
 
@@ -102,14 +102,9 @@ pnpm test-start-webpack test/path/to/test.ts
 
 **For type errors only:** Use `pnpm --filter=next types` (~10s) instead of `pnpm --filter=next build` (~60s).
 
-After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build-all` for branch switches/bootstrap, before CI push for framework changes, or when changes span multiple packages. Test-only changes do not require a framework rebuild before CI push.
+**Bootstrapping a new clone or worktree does not require `pnpm build-all`.** `pnpm install` already pulls in recent published native bindings, so build only what your work changes: `pnpm --filter=next build` when edits are limited to core Next.js files, `pnpm build` when changes span multiple JS packages, and `pnpm build-all` only when changes include Rust/Turbopack code. Test-only changes do not require a framework rebuild before CI push.
 
-**Always run a full bootstrap build after switching branches:**
-
-```bash
-git checkout <branch>
-pnpm build-all   # Sets up outputs for dependent packages (Turborepo dedupes if unchanged)
-```
+**Switching branches or pulling can still require a build** when it moves JS or Rust source relative to your build outputs: rebuild the affected parts before running tests (`pnpm build` for JS, `pnpm build-all` for Rust). If Next.js fails to start afterwards, the published native bindings may lag canary; see [Stale Native Binary](#stale-native-binary).
 
 ## Bundler Selection
 
@@ -160,6 +155,9 @@ Generating tests using `pnpm new-test` is mandatory.
 # type: e2e | production | development | unit
 
 pnpm new-test --args true my-feature e2e
+
+# Unit tests are created as a flat test/unit/<name>.test.ts (appDir is ignored)
+pnpm new-test --args false my-util unit
 ```
 
 **Analyzing test output efficiently:**
@@ -179,6 +177,16 @@ tail -5 /tmp/test-output.log             # Summary
 ## Writing Tests
 
 **Test writing expectations:**
+
+- **Prefer integration tests over unit tests.** Use Next.js e2e tests
+  (`test/e2e/`, `test/development/`, `test/production/`) for Next.js features,
+  and Turbopack execution tests
+  (`turbopack/crates/turbopack-tests/tests/execution/`) for Turbopack features.
+
+- **Avoid unit tests that map directly to the implementation**, except for
+  complicated algorithms. You can temporarily write unit tests to verify an
+  implementation, but don't commit them or add them to the pull request unless
+  they are necessary.
 
 - **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
 
@@ -229,6 +237,18 @@ tail -5 /tmp/test-output.log             # Summary
     },
   })
   ```
+
+- **Keep `revalidatePath`/`revalidateTag` arguments and fetch URLs
+  suite-unique.** In deploy mode the cache lives at Vercel project scope and
+  deploy e2e suites share one project per matrix dimension: revalidation
+  purges by tag/path across the whole project, and fetch cache entries are
+  keyed by URL across deployments. Prefix tags with the suite slug (e.g.
+  `cacheTag('app-static:thankyounext')`), never revalidate `/` from a
+  deploy-active fixture (every app has a `/` route — move the page to a
+  suite-unique route and revalidate that instead), and when a test depends on
+  a cached value, give the data-endpoint URL suite-unique query params (e.g.
+  `api/random?app-static-page`) so another fixture's fetches and
+  revalidations cannot share or purge the entry. See `test/AGENTS.md`.
 
 ## Linting and Types
 
@@ -450,12 +470,13 @@ npx eslint --config eslint.config.mjs --fix <files>
 
 ## Rebuilding Before Running Tests
 
-When running Next.js integration tests, rebuild if framework source files have changed, not merely test files:
+Rebuild before running Next.js integration tests when framework source files changed, whether from your own edits or from a branch switch or pull that moved JS or Rust source:
 
-- **First run after branch switch/bootstrap (or if unsure)?** → `pnpm build-all`
 - **Only edited `test/` files, with current framework build outputs?** → No framework rebuild or watch build needed; run the relevant tests directly.
-- **Edited only core Next.js files (`packages/next/**`) after bootstrap?** → `pnpm --filter=next build`
-- **Edited Next.js code or Turbopack (Rust)?** → `pnpm build-all`
+- **Changed only core Next.js files (`packages/next/**`)?** → `pnpm --filter=next build`
+- **Changed JS across multiple packages?** → `pnpm build`
+- **Changed Turbopack or other Rust code?** → `pnpm build-all`
+- **Next.js fails to start with Turbopack errors?** → The published canary native bindings may lag the source; see [Stale Native Binary](#stale-native-binary).
 
 ## Development Anti-Patterns
 
@@ -508,6 +529,8 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 ### Stale Native Binary
 
 If Turbopack produces unexpected errors after switching branches or pulling, check if `packages/next-swc/native/*.node` is stale. Delete it and run `pnpm install` to get the npm-published binary instead of a locally-built one.
+
+`pnpm install` already pulls in the latest published native bindings, which usually track canary closely. If Next.js still fails to start after that, native binding changes may have landed on canary after the last npm publish. Build the native bindings from source with `pnpm build-all`.
 
 ### Documentation Code Blocks
 

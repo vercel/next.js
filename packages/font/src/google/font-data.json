@@ -6330,12 +6330,6 @@
     "styles": ["normal"],
     "axes": [
       {
-        "tag": "GRAD",
-        "min": 0,
-        "max": 100,
-        "defaultValue": 0
-      },
-      {
         "tag": "ROND",
         "min": 0,
         "max": 100,
@@ -6343,7 +6337,7 @@
       },
       {
         "tag": "opsz",
-        "min": 6,
+        "min": 1,
         "max": 144,
         "defaultValue": 18
       },

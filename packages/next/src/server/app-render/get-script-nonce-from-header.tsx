@@ -1,4 +1,20 @@
+import type { IncomingHttpHeaders } from 'http'
+
 const CSP_NONCE_SOURCE_REGEX = /^'nonce-([A-Za-z0-9+/_-]+={0,2})'$/
+
+/**
+ * Returns the script nonce from the request's `Content-Security-Policy`
+ * header, falling back to `Content-Security-Policy-Report-Only`.
+ */
+export function getScriptNonceFromHeaders(
+  headers: IncomingHttpHeaders
+): string | undefined {
+  const csp =
+    headers['content-security-policy'] ||
+    headers['content-security-policy-report-only']
+
+  return typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+}
 
 export function getScriptNonceFromHeader(
   cspHeaderValue: string

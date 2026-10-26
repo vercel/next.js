@@ -105,7 +105,7 @@ import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
-import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
+import { getScriptNonceFromHeaders } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -465,7 +465,7 @@ export async function renderToHTMLImpl(
   renderContext: PagesRenderContext
 ): Promise<RenderResult> {
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
-  setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+  setLazyProp({ req: req }, 'cookies', getCookieParser(req.headers))
 
   // cssCacheBuster is a workaround for a Safari bug
   // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
@@ -738,12 +738,7 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
-  const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
-
-  const nonce =
-    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+  const nonce = getScriptNonceFromHeaders(req.headers)
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
@@ -1406,7 +1401,7 @@ export async function renderToHTMLImpl(
     }
 
     // @ts-ignore: documentInitialPropsRes is set
-    const { docProps } = (documentInitialPropsRes as any) || {}
+    const { docProps } = documentInitialPropsRes || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {
         return (Document as any)()

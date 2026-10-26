@@ -1,5 +1,5 @@
 import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
@@ -13,21 +13,16 @@ const EXTERNAL = {
   spanId: '0f6a325411bdc432',
 } as const
 
-const COLLECTOR_PORT = 9001
-const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
-const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
-const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
-const CLIENT_COMPONENT_GATE_PORT = 9005
-
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
-function setupCollector(next: NextInstance, port: number) {
+function setupCollector(next: NextInstance) {
   let collector: Collector | undefined
 
   // The app's span exporter remains active for the entire suite. Keep its
   // endpoint available for the same lifetime and only reset collected state.
   beforeAll(async () => {
-    collector = await connectCollector({ port })
+    collector = await connectCollector()
+    next.env.TEST_OTEL_COLLECTOR_PORT = String(collector.port)
     await next.start()
   })
 
@@ -64,8 +59,6 @@ function setup({
     ...(!useDirectEntrypointHandler
       ? {
           env: {
-            TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
-            TEST_CLIENT_COMPONENT_GATE_PORT: String(CLIENT_COMPONENT_GATE_PORT),
             NEXT_OTEL_PERFORMANCE_PREFIX: 'client-component-loading-test',
             NEXT_TELEMETRY_DISABLED: '1',
           },
@@ -81,7 +74,6 @@ function setup({
           },
           serverReadyPattern: /- Local:/,
           env: {
-            TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
             NEXT_TELEMETRY_DISABLED: '1',
             NODE_ENV: 'production',
           },
@@ -94,13 +86,21 @@ function setup({
         }
       : undefined,
   })
+  if (!testSetup.skipped && !useDirectEntrypointHandler) {
+    beforeAll(async () => {
+      testSetup.next.env.TEST_CLIENT_COMPONENT_GATE_PORT = String(
+        await findPort()
+      )
+    })
+  }
+
   return {
     next: testSetup,
     getCollector: testSetup.skipped
       ? () => {
           throw new Error('OpenTelemetry test setup was skipped')
         }
-      : setupCollector(testSetup.next, COLLECTOR_PORT),
+      : setupCollector(testSetup.next),
   }
 }
 
@@ -152,7 +152,7 @@ describe.each(
   })
 
   it('closes collector connections after each export', async () => {
-    const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
+    const response = await fetch(`http://localhost:${getCollector().port}`, {
       method: 'POST',
       body: '[]',
     })
@@ -181,7 +181,9 @@ describe.each(
         return `00-${traceId}-${'1'.repeat(16)}-01`
       }
 
-      beforeAll(() => gateServer.listen(CLIENT_COMPONENT_GATE_PORT))
+      beforeAll(() => {
+        gateServer.listen(Number(next.env.TEST_CLIENT_COMPONENT_GATE_PORT))
+      })
       beforeEach(() => {
         gateArrivals = createTestLog()
       })
@@ -207,13 +209,14 @@ describe.each(
         traceId: string
         extra?: boolean
       }) {
-        const responsePromise = next.fetch(
+        // The gate timeout starts after response headers arrive so it excludes
+        // dev compilation.
+        const response = await next.fetch(
           `/app/test/client-component-loading?id=${id}${extra ? '&variant=extra' : ''}`,
           { headers: { traceparent: traceparent(traceId) } }
         )
-        await gateArrivals.waitFor([id])
-        const response = await responsePromise
         expect(response.status).toBe(200)
+        await gateArrivals.waitFor([id])
         return response
       }
 
@@ -2041,68 +2044,205 @@ describe.each(
 })
 
 if (isNextStart) {
-  describe('opentelemetry route module preparation with direct entrypoint handler', () => {
-    let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-      dependencies: require('./package.json').dependencies,
-      startCommand: 'pnpm start-entrypoint',
-      packageJson: {
-        scripts: {
-          'start-entrypoint':
-            'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+  describe.each([
+    {
+      name: 'without parent span',
+      withParentSpan: false,
+      coldTraceparent: false,
+    },
+    {
+      name: 'without parent span, cold request with traceparent',
+      withParentSpan: false,
+      coldTraceparent: true,
+    },
+    { name: 'with parent span', withParentSpan: true, coldTraceparent: false },
+  ])(
+    'opentelemetry route module preparation with direct entrypoint handler $name',
+    ({ withParentSpan, coldTraceparent }) => {
+      let collector: Collector | undefined
+      const { next, skipped } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+        dependencies: require('./package.json').dependencies,
+        startCommand: 'pnpm start-entrypoint',
+        packageJson: {
+          scripts: {
+            'start-entrypoint': withParentSpan
+              ? 'pnpm tsx custom-entrypoint-server.ts'
+              : 'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+          },
         },
-      },
-      serverReadyPattern: /- Local:/,
-      env: {
-        TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
-        NEXT_TELEMETRY_DISABLED: '1',
-        NODE_ENV: 'production',
-      },
-    })
-
-    if (skipped) {
-      return
-    }
-
-    afterAll(async () => {
-      await collector?.shutdown()
-    })
-
-    it('should trace route module preparation', async () => {
-      const connectedCollector = await connectCollector({
-        port: ROUTE_PREPARATION_COLLECTOR_PORT,
+        serverReadyPattern: /- Local:/,
+        env: {
+          NEXT_TELEMETRY_DISABLED: '1',
+          NODE_ENV: 'production',
+        },
       })
-      collector = connectedCollector
-      await next.start()
 
-      await next.fetch('/app/param/rsc-fetch')
-      await next.fetch('/api/app/param/data')
+      if (skipped) {
+        return
+      }
 
-      await retry(async () => {
-        const prepareSpans = connectedCollector
-          .getSpans()
-          .filter(
+      afterAll(async () => {
+        await collector?.shutdown()
+      })
+
+      const pathnames = [
+        '/app/param/rsc-fetch',
+        '/api/app/param/data',
+        '/pages/param/getServerSideProps',
+        '/api/pages/param/basic',
+      ]
+
+      it('should trace route module preparation inside the request span', async () => {
+        const connectedCollector = await connectCollector()
+        collector = connectedCollector
+        next.env.TEST_OTEL_COLLECTOR_PORT = String(connectedCollector.port)
+        await next.start()
+
+        // The first request starts the process (cold: instrumentation is
+        // registered and route modules are loaded), the later ones are warm.
+        // The parent-span harness starts its own root span without extracting
+        // incoming headers, so incoming propagation only applies without it.
+        const requests: { id: string; cold: boolean; traceparent: boolean }[] =
+          []
+        for (const [index, pathname] of pathnames.entries()) {
+          for (const variant of [
+            { traceparent: index === 0 && coldTraceparent },
+            { traceparent: false },
+            ...(withParentSpan ? [] : [{ traceparent: true }]),
+          ]) {
+            const id = Math.random().toString(36).slice(2)
+            const res = await next.fetch(`${pathname}?id=${id}`, {
+              headers: variant.traceparent
+                ? {
+                    traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+                  }
+                : {},
+            })
+            expect(res.status).toBe(200)
+            requests.push({
+              id,
+              cold: index === 0 && requests.length === 0,
+              traceparent: variant.traceparent,
+            })
+          }
+        }
+
+        await retry(async () => {
+          const spans = connectedCollector.getAllSpans()
+          const byId = new Map(spans.map((span) => [span.id, span]))
+          const prepareSpans = spans.filter(
             (span) =>
               span.attributes?.['next.span_type'] === 'RouteModule.prepare'
           )
 
-        expect(prepareSpans).toEqual([
-          expect.objectContaining({
-            runtime: 'nodejs',
-            name: 'prepare route module',
-            attributes: {
-              'next.span_category': 'nextjs',
-              'next.span_name': 'prepare route module',
-              'next.span_type': 'RouteModule.prepare',
-            },
-            status: { code: 0 },
-          }),
-        ])
+          // Every route module preparation belongs to a request: none starts
+          // a trace of its own.
+          for (const span of prepareSpans) {
+            expect(span).toEqual(
+              expect.objectContaining({
+                // The parent-span harness exports through its own provider,
+                // which doesn't record the runtime.
+                ...(withParentSpan ? {} : { runtime: 'nodejs' }),
+                name: 'prepare route module',
+                attributes: {
+                  'next.span_category': 'nextjs',
+                  'next.span_name': 'prepare route module',
+                  'next.span_type': 'RouteModule.prepare',
+                },
+                status: { code: 0 },
+              })
+            )
+            const parent = byId.get(span.parentId!)
+            expect(parent?.attributes?.['next.span_type']).toBe(
+              'BaseServer.handleRequest'
+            )
+            expect(span.traceId).toMatch(/^[0-9a-f]{32}$/)
+            expect(span.traceId).toBe(parent!.traceId)
+          }
+
+          for (const { id, cold, traceparent } of requests) {
+            const requestSpans = spans.filter(
+              (span) =>
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest' &&
+                String(span.attributes?.['http.target'] ?? '').includes(
+                  `id=${id}`
+                )
+            )
+            expect({ id, cold, requestSpans: requestSpans.length }).toEqual({
+              id,
+              cold,
+              requestSpans: 1,
+            })
+            const [requestSpan] = requestSpans
+            expect(requestSpan.traceId).toMatch(/^[0-9a-f]{32}$/)
+
+            // The request's route module preparation is nested in its span.
+            const requestPrepareSpans = prepareSpans.filter(
+              (span) => span.parentId === requestSpan.id
+            )
+            expect(requestPrepareSpans).toHaveLength(1)
+            expect(requestPrepareSpans[0].traceId).toBe(requestSpan.traceId)
+
+            // ...and the request span continues the request's context.
+            if (withParentSpan) {
+              const parent = byId.get(requestSpan.parentId!)
+              expect(parent).toBeDefined()
+              expect(parent!.attributes?.['next.span_type']).toBeUndefined()
+              expect(parent!.traceId).toBe(requestSpan.traceId)
+            } else if (traceparent) {
+              expect(requestSpan.traceId).toBe(EXTERNAL.traceId)
+              expect(requestSpan.parentId).toBe(EXTERNAL.spanId)
+            } else {
+              expect(requestSpan.parentId).toBeUndefined()
+            }
+          }
+
+          // The cold request registered instrumentation, so the lifecycle
+          // spans of `instrumentation.ts` are children of its request span
+          // instead of separate traces.
+          const coldRequest = requests.find((request) => request.cold)!
+          const coldRequestSpan = spans.find(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' &&
+              String(span.attributes?.['http.target'] ?? '').includes(
+                `id=${coldRequest.id}`
+              )
+          )!
+          expect(coldRequest.traceparent).toBe(coldTraceparent)
+          for (const [type, name] of [
+            ['Instrumentation.loadModule', 'load instrumentation module'],
+            ['Instrumentation.register', 'register instrumentation'],
+          ]) {
+            const lifecycleSpans = spans.filter(
+              (span) => span.attributes?.['next.span_type'] === type
+            )
+            expect(lifecycleSpans).toEqual([
+              expect.objectContaining({
+                ...(withParentSpan ? {} : { runtime: 'nodejs' }),
+                name,
+                parentId: coldRequestSpan.id,
+                traceId: coldRequestSpan.traceId,
+                attributes: {
+                  'next.span_category': 'nextjs',
+                  'next.span_name': name,
+                  'next.span_type': type,
+                },
+                status: { code: 0 },
+              }),
+            ])
+            // The request span is backdated to cover registration.
+            expect(coldRequestSpan.timestamp!).toBeLessThanOrEqual(
+              lifecycleSpans[0].timestamp!
+            )
+          }
+        })
       })
-    })
-  })
+    }
+  )
 }
 
 describe.each(
@@ -2125,9 +2265,6 @@ describe.each(
       ...(!useDirectEntrypointHandler
         ? {
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
             },
           }
@@ -2141,9 +2278,6 @@ describe.each(
             },
             serverReadyPattern: /- Local:/,
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
               NODE_ENV: 'production',
             },
@@ -2159,9 +2293,8 @@ describe.each(
     })
 
     it('should trace cold App Route module loading once', async () => {
-      collector = await connectCollector({
-        port: APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT,
-      })
+      collector = await connectCollector()
+      next.env.TEST_OTEL_COLLECTOR_PORT = String(collector.port)
       await next.start()
 
       const pathname = '/api/app/param/data'
@@ -2250,14 +2383,26 @@ describe.each(
       useDirectEntrypointHandler: true,
       withParentSpan: true,
     },
+    // Only the first request, with an incoming `traceparent`, in a fresh
+    // process.
+    isNextStart && {
+      name: 'direct entrypoints, cold request with traceparent',
+      useDirectEntrypointHandler: true,
+      coldTraceparent: true,
+    },
   ].filter(Boolean) as {
     name: string
     useDirectEntrypointHandler: boolean
     withParentSpan?: boolean
+    coldTraceparent?: boolean
   }[]
 )(
   'opentelemetry - middleware $name',
-  ({ useDirectEntrypointHandler, withParentSpan = false }) => {
+  ({
+    useDirectEntrypointHandler,
+    withParentSpan = false,
+    coldTraceparent = false,
+  }) => {
     describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
       const {
         next: { next, skipped },
@@ -2277,77 +2422,215 @@ describe.each(
         return
       }
 
-      const requests = [
-        { name: 'page', pathname: '/behind-middleware', render: true },
-        {
-          name: 'route handler',
-          pathname: '/behind-middleware/route-handler',
-          render: true,
-        },
-        // The direct entrypoint harness only serves paths that map to an
-        // entrypoint, so it can't serve rewrites or redirects.
-        ...(useDirectEntrypointHandler
-          ? []
-          : [
-              {
-                name: 'rewrite',
-                pathname: '/behind-middleware/rewrite',
-                render: true,
-              },
-              {
-                name: 'redirect',
-                pathname: '/behind-middleware/redirect',
-                render: false,
-              },
-            ]),
-      ]
+      if (useDirectEntrypointHandler) {
+        // Runs first, in a fresh process: the first request reaches the
+        // Node.js middleware, which registers `instrumentation.ts`.
+        it('should trace instrumentation registration in the first middleware request', async () => {
+          const res = await next.fetch(
+            `/behind-middleware?id=${Math.random().toString(36).slice(2)}`,
+            {
+              headers: coldTraceparent
+                ? {
+                    traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+                  }
+                : {},
+            }
+          )
+          expect(res.status).toBe(200)
 
-      const contexts = [
-        { name: 'root context', traceparent: false },
-        // The parent-span harness starts its own root span without extracting
-        // incoming headers, so incoming propagation is not applicable there.
-        ...(withParentSpan
-          ? []
-          : [{ name: 'incoming context propagation', traceparent: true }]),
-      ]
-
-      for (const ctx of contexts) {
-        ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-          ctx.name,
-          () => {
-            it.each(requests)(
-              'should keep the $name request in a single trace',
-              async ({ pathname, render }) => {
-                const id = Math.random().toString(36).slice(2)
-                // Span timestamps are epoch microseconds.
-                const startedAt = Date.now() * 1000
-                const res = await next.fetch(`${pathname}?id=${id}`, {
-                  redirect: 'manual',
-                  headers: ctx.traceparent
-                    ? {
-                        traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
-                      }
-                    : {},
-                })
-                expect(res.status).toBe(render ? 200 : 307)
-
-                await expectSingleTrace(getCollector(), {
-                  id,
-                  startedAt,
-                  pathname,
-                  // The parent-span harness exports through its own provider,
-                  // which doesn't record the runtime.
-                  middlewareRuntime: withParentSpan ? undefined : runtime,
-                  render,
-                  traceparent: ctx.traceparent,
-                  shape: withParentSpan
-                    ? 'host-root'
-                    : useDirectEntrypointHandler
-                      ? 'middleware-root'
-                      : 'handle-request-root',
-                })
-              }
+          await retry(async () => {
+            const spans = getCollector().getAllSpans()
+            const byId = new Map(spans.map((span) => [span.id, span]))
+            const [middlewareSpan] = spans.filter(
+              (span) =>
+                span.attributes?.['next.span_type'] === 'Middleware.execute'
             )
+            expect(middlewareSpan).toBeDefined()
+            // The shared parent of the middleware span: the incoming
+            // `traceparent` (not exported here), the host span, or, without
+            // either, the root inserted by the middleware adapter, backdated
+            // to cover registration. The middleware triggered registration, so
+            // the lifecycle spans are its children.
+            const parent = byId.get(middlewareSpan.parentId!)
+            if (coldTraceparent) {
+              expect(parent).toBeUndefined()
+              expect(middlewareSpan).toMatchObject({
+                parentId: EXTERNAL.spanId,
+                traceId: EXTERNAL.traceId,
+              })
+            } else {
+              expect(parent).toBeDefined()
+              expect(parent!.attributes?.['next.span_type']).toBe(
+                withParentSpan ? undefined : 'Next.request'
+              )
+            }
+
+            for (const [type, name] of [
+              ['Instrumentation.loadModule', 'load instrumentation module'],
+              ['Instrumentation.register', 'register instrumentation'],
+            ]) {
+              const lifecycleSpans = spans.filter(
+                (span) => span.attributes?.['next.span_type'] === type
+              )
+              expect(lifecycleSpans).toEqual([
+                expect.objectContaining({
+                  name,
+                  parentId: middlewareSpan.id,
+                  traceId: middlewareSpan.traceId,
+                  status: { code: 0 },
+                }),
+              ])
+              // The middleware span is backdated to cover registration.
+              expect(middlewareSpan.timestamp!).toBeLessThanOrEqual(
+                lifecycleSpans[0].timestamp!
+              )
+              if (parent) {
+                expect(parent.timestamp!).toBeLessThanOrEqual(
+                  middlewareSpan.timestamp!
+                )
+              }
+            }
+          })
+        })
+      }
+
+      if (coldTraceparent) {
+        return
+      }
+
+      for (const env of [
+        {
+          name: 'root context',
+          fetchInit: undefined,
+          span: {
+            traceId: '[trace-id]',
+            rootParentId: undefined,
+          },
+        },
+        {
+          name: 'incoming context propagation',
+          fetchInit: {
+            headers: {
+              traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+            },
+          },
+          span: {
+            traceId: EXTERNAL.traceId,
+            rootParentId: EXTERNAL.spanId,
+          },
+        },
+      ]) {
+        ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+          env.name,
+          () => {
+            // The middleware and the render are siblings in a single trace,
+            // under their shared parent.
+            it('should trace middleware', async () => {
+              await next.fetch('/behind-middleware', env.fetchInit)
+              // Behind the host span, the direct entrypoints' spans are
+              // exported without a runtime.
+              const runtimeOf = (name: string) =>
+                withParentSpan ? {} : { runtime: name }
+              const siblings = [
+                {
+                  ...runtimeOf('nodejs'),
+                  traceId: env.span.traceId,
+                  name: 'GET /behind-middleware',
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.route': '/behind-middleware',
+                    'http.status_code': 200,
+                    'http.target': '/behind-middleware',
+                    'next.route': '/behind-middleware',
+                    'next.span_name': 'GET /behind-middleware',
+                    'next.span_type': 'BaseServer.handleRequest',
+                  },
+                },
+                {
+                  ...runtimeOf(runtime),
+                  traceId: env.span.traceId,
+                  name: 'middleware GET',
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.target': '/behind-middleware',
+                    'next.span_name': 'middleware GET',
+                    'next.span_type': 'Middleware.execute',
+                  },
+                  status: { code: 0 },
+                  spans: [],
+                },
+              ]
+
+              if (!useDirectEntrypointHandler) {
+                // next-server's middleware-invoke `handleRequest` span (marked
+                // `next.bubble`) is the shared parent.
+                await expectTrace(
+                  getCollector(),
+                  [
+                    {
+                      runtime: 'nodejs',
+                      traceId: env.span.traceId,
+                      parentId: env.span.rootParentId,
+                      name: 'GET',
+                      attributes: {
+                        'http.method': 'GET',
+                        'http.target': '/behind-middleware',
+                        'next.bubble': true,
+                        'next.span_name': 'GET',
+                        'next.span_type': 'BaseServer.handleRequest',
+                      },
+                      spans: siblings,
+                    },
+                  ],
+                  false,
+                  { includeBubbleSpans: true }
+                )
+              } else if (withParentSpan) {
+                // The middleware and the render are invoked separately: the
+                // active host span around the invocations is their shared
+                // parent, also over an incoming traceparent.
+                await expectTrace(getCollector(), [
+                  {
+                    traceId: '[trace-id]',
+                    parentId: undefined,
+                    name: 'GET /behind-middleware',
+                    spans: siblings.map((span) => ({
+                      ...span,
+                      traceId: '[trace-id]',
+                    })),
+                  },
+                ])
+              } else if (env.span.rootParentId) {
+                // Without a host span, an incoming traceparent is the shared
+                // parent.
+                await expectTrace(
+                  getCollector(),
+                  siblings.map((span) => ({
+                    ...span,
+                    parentId: env.span.rootParentId,
+                  }))
+                )
+              } else {
+                // Without any trace context, the middleware adapter inserts a
+                // root span for the request, the shared parent.
+                await expectTrace(getCollector(), [
+                  {
+                    runtime: 'nodejs',
+                    traceId: env.span.traceId,
+                    parentId: undefined,
+                    name: 'GET',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.target': '/behind-middleware',
+                      'next.span_name': 'GET',
+                      'next.span_type': 'Next.request',
+                    },
+                    status: { code: 0 },
+                    spans: siblings,
+                  },
+                ])
+              }
+            })
           }
         )
       }
@@ -2355,156 +2638,78 @@ describe.each(
   }
 )
 
-// Root spans of one-time work that is not part of any request: server startup
-// (instrumentation registration, route module prewarming) and the lazy,
-// once-per-process route module preparation of direct entrypoints.
-const STARTUP_SPAN_TYPES = new Set([
-  'Instrumentation.loadModule',
-  'Instrumentation.register',
-  'LoadComponents.loadRouteModule',
-  'RouteModule.prepare',
-])
+// The first request, in a fresh process, reaches the Node.js middleware
+// entrypoint, which registers `instrumentation.ts`, but the adapter fails while
+// setting up the request, before running the middleware.
+;(isNextStart ? describe : describe.skip)(
+  'opentelemetry - middleware direct entrypoint rejecting the first request',
+  () => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({ useDirectEntrypointHandler: true, useNodeMiddleware: true })
 
-/**
- * Asserts that every span of the request tagged with `?id=<id>` belongs to a
- * single trace, using the real trace IDs (unlike `expectTrace`, which
- * normalizes them away). The middleware span's `http.target` is the pathname
- * without the query, so it is matched by `pathname` (the collector is reset
- * before every test).
- */
-async function expectSingleTrace(
-  collector: Collector,
-  {
-    id,
-    startedAt,
-    pathname,
-    middlewareRuntime,
-    render,
-    traceparent,
-    shape,
-  }: {
-    id: string
-    startedAt: number
-    pathname: string
-    middlewareRuntime: string | undefined
-    render: boolean
-    traceparent: boolean
-    // Where the middleware span sits. In every shape, the render is a direct
-    // child of the middleware span.
-    // handle-request-root: next-server's middleware-invoke `handleRequest` is
-    //   the root and the middleware span's parent (self-hosted router server).
-    // middleware-root: the middleware span is the root (separately invoked
-    //   middleware without a host span, e.g. direct entrypoints).
-    // host-root: a span started by the host wraps everything.
-    shape: 'handle-request-root' | 'middleware-root' | 'host-root'
-  }
-) {
-  await retry(async () => {
-    // Include `next.bubble` spans: next-server's middleware-invoke
-    // `handleRequest` span is one of them and is the root of the trace.
-    const spans = collector.getAllSpans()
-    const byId = new Map(spans.map((span) => [span.id, span]))
-    const isAncestor = (ancestor: SavedSpan, span: SavedSpan) => {
-      let parentId = span.parentId
-      while (parentId) {
-        if (parentId === ancestor.id) return true
-        parentId = byId.get(parentId)?.parentId
-      }
-      return false
+    if (skipped) {
+      return
     }
 
-    const requestSpans = spans.filter((span) =>
-      String(span.attributes?.['http.target'] ?? '').includes(`id=${id}`)
-    )
-    const middlewareSpans = spans.filter(
-      (span) =>
-        span.attributes?.['next.span_type'] === 'Middleware.execute' &&
-        span.attributes?.['http.target'] === pathname
-    )
-    expect(middlewareSpans).toHaveLength(1)
-    const [middlewareSpan] = middlewareSpans
-    expect(middlewareSpan.runtime).toBe(middlewareRuntime)
-    requestSpans.push(middlewareSpan)
-
-    const handleRequestSpans = requestSpans.filter(
-      (span) =>
-        span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
-    )
-    const renderSpan = handleRequestSpans.find(
-      (span) => span.attributes?.['next.route']
-    )
-    if (render) {
-      expect(renderSpan).toBeDefined()
-      // The render is always nested inside the middleware span.
-      expect(renderSpan!.parentId).toBe(middlewareSpan.id)
-    } else {
-      expect(renderSpan).toBeUndefined()
-    }
-
-    const traceIds = new Set(requestSpans.map((span) => span.traceId))
-    expect([...traceIds]).toEqual([
-      traceparent ? EXTERNAL.traceId : middlewareSpan.traceId,
-    ])
-    // Every span started for this request (not only the correlated entry
-    // spans) must be in that trace, so detached child spans fail too. One-time
-    // work (`STARTUP_SPAN_TYPES`) runs in its own root traces and is not part
-    // of the request.
-    const rootOf = (span: SavedSpan) => {
-      let current = span
-      while (current.parentId && byId.has(current.parentId)) {
-        current = byId.get(current.parentId)!
-      }
-      return current
-    }
-    const spansSinceRequest = spans.filter(
-      (span) =>
-        (span.timestamp ?? 0) >= startedAt &&
-        !STARTUP_SPAN_TYPES.has(
-          String(rootOf(span).attributes?.['next.span_type'])
+    function getLifecycleSpans() {
+      return getCollector()
+        .getAllSpans()
+        .filter((span) =>
+          ['Instrumentation.loadModule', 'Instrumentation.register'].includes(
+            span.attributes?.['next.span_type'] as string
+          )
         )
-    )
-    expect(
-      spansSinceRequest
-        .filter((span) => span.traceId !== middlewareSpan.traceId)
-        .map((span) => `${span.name}|${span.attributes?.['next.span_type']}`)
-    ).toEqual([])
-    // Every span of that trace must be reachable from a single root (or from
-    // the external parent when the request carried a traceparent).
-    const traceSpans = spans.filter(
-      (span) => span.traceId === middlewareSpan.traceId
-    )
-    const roots = traceSpans.filter(
-      (span) =>
-        !span.parentId ||
-        (traceparent && span.parentId === EXTERNAL.spanId) ||
-        !byId.has(span.parentId)
-    )
-
-    if (shape === 'handle-request-root') {
-      expect(roots).toHaveLength(1)
-      const [root] = roots
-      expect(root.attributes?.['next.span_type']).toBe(
-        'BaseServer.handleRequest'
-      )
-      // The middleware-invoke pass keeps its existing name.
-      expect(root.name).toBe('GET')
-      expect(root.attributes?.['next.bubble']).toBe(true)
-      expect(root.parentId).toBe(traceparent ? EXTERNAL.spanId : undefined)
-      expect(middlewareSpan.parentId).toBe(root.id)
-    } else if (shape === 'middleware-root') {
-      if (traceparent) {
-        expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
-      } else {
-        expect(roots).toEqual([middlewareSpan])
-      }
-    } else {
-      expect(roots).toHaveLength(1)
-      const [root] = roots
-      expect(root.attributes?.['next.span_type']).toBeUndefined()
-      expect(isAncestor(root, middlewareSpan)).toBe(true)
+        .map((span) => ({
+          type: span.attributes?.['next.span_type'] as string,
+          status: span.status,
+        }))
+        .sort((a, b) => a.type.localeCompare(b.type))
     }
-  })
-}
+
+    it('should still trace instrumentation registration, once', async () => {
+      // The cache handler throws while the adapter sets up the request.
+      const res = await next.fetch('/behind-middleware', {
+        headers: { 'x-test-fail-cache-handler': '1' },
+      })
+      expect(res.status).toBe(500)
+      // The original error propagates.
+      expect(next.cliOutput).toContain('cache handler failed for this request')
+
+      const expected = [
+        { type: 'Instrumentation.loadModule', status: { code: 0 } },
+        { type: 'Instrumentation.register', status: { code: 0 } },
+      ]
+      await retry(async () => {
+        expect(getLifecycleSpans()).toEqual(expected)
+      })
+      // The adapter rejected the request before running the middleware.
+      expect(
+        getCollector()
+          .getAllSpans()
+          .some(
+            (span) =>
+              span.attributes?.['next.span_type'] === 'Middleware.execute'
+          )
+      ).toBe(false)
+
+      // Later requests don't emit them again.
+      expect((await next.fetch('/behind-middleware')).status).toBe(200)
+      await retry(async () => {
+        expect(
+          getCollector()
+            .getAllSpans()
+            .some(
+              (span) =>
+                span.attributes?.['next.span_type'] === 'Middleware.execute'
+            )
+        ).toBe(true)
+      })
+      expect(getLifecycleSpans()).toEqual(expected)
+    })
+  }
+)
 
 describe.each(
   [
@@ -2526,9 +2731,6 @@ describe.each(
       ...(!useDirectEntrypointHandler
         ? {
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
             },
           }
@@ -2542,9 +2744,6 @@ describe.each(
             },
             serverReadyPattern: /- Local:/,
             env: {
-              TEST_OTEL_COLLECTOR_PORT: String(
-                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
-              ),
               NEXT_TELEMETRY_DISABLED: '1',
               NODE_ENV: 'production',
             },
@@ -2560,9 +2759,8 @@ describe.each(
     })
 
     it('should trace instrumentation startup', async () => {
-      collector = await connectCollector({
-        port: INSTRUMENTATION_STARTUP_COLLECTOR_PORT,
-      })
+      collector = await connectCollector()
+      next.env.TEST_OTEL_COLLECTOR_PORT = String(collector.port)
       await next.start()
       await next.fetch('/app/param/rsc-fetch')
 
@@ -2610,6 +2808,22 @@ describe.each(
         expect(loadModuleSpan?.timestamp).toBeLessThanOrEqual(
           registerSpan!.timestamp!
         )
+        if (useDirectEntrypointHandler) {
+          // Direct entrypoints register instrumentation in the first request,
+          // so the lifecycle spans are children of its request span.
+          for (const span of [loadModuleSpan, registerSpan]) {
+            const parent = spans.find(({ id }) => id === span?.parentId)
+            expect(parent?.attributes?.['next.span_type']).toBe(
+              'BaseServer.handleRequest'
+            )
+            expect(span?.traceId).toBe(parent!.traceId)
+          }
+        } else {
+          // `next start` registers instrumentation at startup, outside of any
+          // request, so the lifecycle spans are roots.
+          expect(loadModuleSpan?.parentId).toBeUndefined()
+          expect(registerSpan?.parentId).toBeUndefined()
+        }
       })
     })
   }
@@ -2623,7 +2837,6 @@ describe.each(
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       env: {
-        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_OTEL_VERBOSE: '1',
       },
@@ -2633,7 +2846,7 @@ describe.each(
       return
     }
 
-    const getCollector = setupCollector(next, COLLECTOR_PORT)
+    const getCollector = setupCollector(next)
 
     // Regression for https://github.com/vercel/otel/issues/107.
     it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
@@ -2683,7 +2896,6 @@ describe('opentelemetry with disabled fetch tracing', () => {
     dependencies: require('./package.json').dependencies,
     env: {
       NEXT_OTEL_FETCH_DISABLED: '1',
-      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
     },
   })
 
@@ -2691,7 +2903,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     return
   }
 
-  const getCollector = setupCollector(next, COLLECTOR_PORT)
+  const getCollector = setupCollector(next)
   ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
     'root context',
     () => {
@@ -2761,13 +2973,12 @@ describe('opentelemetry with custom server', () => {
     },
     serverReadyPattern: /- Local:/,
     env: {
-      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
       NEXT_TELEMETRY_DISABLED: '1',
       NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
 
-  const getCollector = setupCollector(next, COLLECTOR_PORT)
+  const getCollector = setupCollector(next)
 
   it('should set attributes correctly on handleRequest span', async () => {
     await next.fetch('/app/param/rsc-fetch')
@@ -2921,7 +3132,6 @@ if (isNextStart) {
       },
       serverReadyPattern: /- Local:/,
       env: {
-        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
         NEXT_TELEMETRY_DISABLED: '1',
         NODE_ENV: 'production',
       },
@@ -2931,7 +3141,7 @@ if (isNextStart) {
       return
     }
 
-    const getCollector = setupCollector(next, COLLECTOR_PORT)
+    const getCollector = setupCollector(next)
 
     const directEntrypointCases = [
       { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
@@ -3029,29 +3239,45 @@ type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }
 async function expectTrace(
   collector: Collector,
   match: SpanMatch[],
-  edgeOnly?: boolean
+  edgeOnly?: boolean,
+  {
+    includeBubbleSpans = false,
+  }: {
+    /**
+     * Include spans marked `next.bubble` (e.g. next-server's
+     * middleware-invoke `handleRequest` span), to match a hierarchy below them.
+     */
+    includeBubbleSpans?: boolean
+  } = {}
 ) {
-  // Extract expected http.target values from the match to filter out extra spans
-  // that may be generated in production mode (e.g., RSC prefetch requests)
-  const expectedTargets = new Set(
-    match
-      .map((m) => m.attributes?.['http.target'] as string | undefined)
-      .filter(Boolean)
-  )
+  // Extract expected http.target values from the match (including nested
+  // spans) to filter out extra spans that may be generated in production mode
+  // (e.g., RSC prefetch requests)
+  const expectedTargets = new Set<string>()
+  const collectTargets = (matches: SpanMatch[]) => {
+    for (const m of matches) {
+      const target = m.attributes?.['http.target'] as string | undefined
+      if (target) {
+        expectedTargets.add(target)
+      }
+      collectTargets(m.spans ?? [])
+    }
+  }
+  collectTargets(match)
 
   await retry(async () => {
-    const traces = collector
-      .getSpans()
-      .filter(
-        (span) =>
-          ![
-            'LoadComponents.loadRouteModule',
-            'AppRouteRouteModule.loadUserland',
-            'RouteModule.prepare',
-            'Instrumentation.loadModule',
-            'Instrumentation.register',
-          ].includes(span.attributes?.['next.span_type'] as string)
-      )
+    const traces = (
+      includeBubbleSpans ? collector.getAllSpans() : collector.getSpans()
+    ).filter(
+      (span) =>
+        ![
+          'LoadComponents.loadRouteModule',
+          'AppRouteRouteModule.loadUserland',
+          'RouteModule.prepare',
+          'Instrumentation.loadModule',
+          'Instrumentation.register',
+        ].includes(span.attributes?.['next.span_type'] as string)
+    )
 
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({
@@ -3106,16 +3332,17 @@ async function expectTrace(
     }
 
     // Filter root spans to only those matching expected http.target values
+    // (themselves or in their subtree, e.g. below a host span without one).
     // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
+    const hasExpectedTarget = (span: HierSavedSpan): boolean => {
+      const target = span.attributes?.['http.target'] as string | undefined
+      return (
+        Boolean(target && expectedTargets.has(target)) ||
+        (span.spans ?? []).some(hasExpectedTarget)
+      )
+    }
     const filteredTree =
-      expectedTargets.size > 0
-        ? tree.filter((span) => {
-            const target = span.attributes?.['http.target'] as
-              | string
-              | undefined
-            return target && expectedTargets.has(target)
-          })
-        : tree
+      expectedTargets.size > 0 ? tree.filter(hasExpectedTarget) : tree
 
     filteredTree.sort((a, b) => {
       const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')

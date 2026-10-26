@@ -78,12 +78,16 @@ overrides:
   '@types/react-dom': 19.2.4
   '@types/retry': 0.12.0
   jest-snapshot: 30.0.0-alpha.6
-  react: 'npm:react@19.3.0-canary-07dde64d-20261013'
-  react-dom: 'npm:react-dom@19.3.0-canary-07dde64d-20261013'
-  react-is: 'npm:react-is@19.3.0-canary-07dde64d-20261013'
-  scheduler: 'npm:scheduler@0.28.0-canary-07dde64d-20261013'
+  react: 'npm:react@19.3.0-canary-ab0d927f-20261020'
+  react-dom: 'npm:react-dom@19.3.0-canary-ab0d927f-20261020'
+  react-is: 'npm:react-is@19.3.0-canary-ab0d927f-20261020'
+  scheduler: 'npm:scheduler@0.28.0-canary-ab0d927f-20261020'
 
 packageExtensions:
+  # alex requires supports-color from its CLI but does not declare it. v9 is ESM-only.
+  alex@9.1.0:
+    dependencies:
+      supports-color: 8.1.1
   eslint-plugin-react-hooks@0.0.0-experimental-6de32a5a-20250822:
     dependencies:
       '@babel/plugin-proposal-private-methods': ^7.18.6

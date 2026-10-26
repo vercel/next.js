@@ -2,8 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches:
-      ['canary', 'releases/lts/active', 'releases/lts/maintenance', 'next-*-*']
+    branches: ['canary', 'releases/**']
   pull_request:
     types: [opened, synchronize]
 
@@ -315,7 +314,8 @@ jobs:
       needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
+      # `test-cargo-unit-ci` enables the `ci` cargo features, which ignore tests that are flaky on CI runners.
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-ci ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
       # Run on x86-64 instead of arm64/aarch64. The pnpm workspace in
       # turbopack/crates/turbopack-tracing/tests/node-file-trace pulls in a ton
@@ -333,6 +333,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -400,7 +403,7 @@ jobs:
         uses: ast-grep/action@cf62e780f0c88301228978d593a7784427a097a6 # v1.5.0
         with:
           # Keep in sync with the next.js repo's root package.json
-          version: 0.31.0
+          version: 0.42.0
 
   devlow-bench:
     name: Run devlow benchmarks
@@ -946,6 +949,9 @@ jobs:
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export IS_TURBOPACK_TEST=1
+        # revalidatePath/revalidateTag invalidate at project scope, so this
+        # job deploys into its own project, separate from the plain deploy job.
+        export VERCEL_TEST_PROJECT="vtest314-e2e-tests-cache-components"
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}

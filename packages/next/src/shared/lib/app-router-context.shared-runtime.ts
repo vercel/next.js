@@ -25,7 +25,7 @@ export interface NavigateOptions {
 }
 
 export interface PrefetchOptions {
-  kind?: 'auto' | 'full'
+  kind?: 'auto' | 'full' | 'shell' | 'prefetch' | 'navigation'
   onInvalidate?: () => void
 }
 
@@ -109,7 +109,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
   previousNextUrl: string | null
 }>(null as any)
 
-export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+export const TemplateContext = React.createContext<React.ReactNode>(null)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'

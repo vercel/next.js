@@ -49,7 +49,7 @@ use turbopack_core::{
     module::{Module, Modules},
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
-        binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
+        binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroupKey,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -1240,7 +1240,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_groups: SmallVec<[ChunkGroup; 1]>,
+        _chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         _module_graph: ResolvedVc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -1251,7 +1251,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
+        _chunk_group: ChunkGroupKey,
         _module_graph: ResolvedVc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _input_availability_info: AvailabilityInfo,
@@ -1273,7 +1273,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn entry_chunk_group(
         self: Vc<Self>,
         _path: FileSystemPath,
-        _chunk_group: ChunkGroup,
+        _chunk_group: ChunkGroupKey,
         _module_graph: ResolvedVc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _extra_referenced_assets: Vc<OutputAssets>,
