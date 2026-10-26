@@ -107,12 +107,12 @@ pnpm eval --suite competency --dry
 - `competency` measures tasks that still distinguish model capability.
 - `audit` holds tasks whose grader, documentation sensitivity, or stability
   needs review before they move into another suite.
-- `preference` measures product choice rather than Next.js competency. These
-  tasks are retained for transfer to the a0 suite and are not published by the
-  Next.js benchmark.
 
-Every public eval must belong to exactly one suite. Individual eval commands
-and `--all` continue to work as before.
+Every public eval must belong to exactly one suite. Suite selection is
+independent of context treatment: a suite still runs both `baseline` and
+`agents-md` by default. Non-published evals and planned transfers to other
+measurement systems are not represented as runnable suites. Individual eval
+commands and `--all` continue to work as before.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 

@@ -35,6 +35,5 @@
     "agent-038-refresh-settings",
     "agent-041-optimize-ppr-shell",
     "agent-051-prefetch-until-navigation"
-  ],
-  "preference": ["agent-044-uses-nextjs"]
+  ]
 }
