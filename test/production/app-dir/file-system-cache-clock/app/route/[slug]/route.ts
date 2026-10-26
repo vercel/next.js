@@ -1,12 +1,15 @@
 import { getData } from '../../../lib/data'
 
-export const revalidate = 3600
-
-// Nothing is prerendered at build time, so every entry is written at runtime.
+// Only this slug is prerendered. The tests request a different one, so its
+// entries are written at runtime.
 export function generateStaticParams() {
-  return []
+  return [{ slug: 'build' }]
 }
 
-export async function GET() {
-  return new Response(await getData('route'))
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params
+  return new Response(await getData(`route/${slug}`))
 }
