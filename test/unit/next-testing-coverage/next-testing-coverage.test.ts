@@ -19592,7 +19592,7 @@ describe('settled Istanbul beforeEach callback completion', () => {
     }
   }
 
-  it.each(['sync', 'async'])(
+  it.each(['sync', 'async', 'array', 'async-array'])(
     'marks only the actual settled %s callback carrier and attempt',
     async (mode) => {
       const actual = await observeCallback(mode)
@@ -19619,8 +19619,6 @@ describe('settled Istanbul beforeEach callback completion', () => {
     'parallel',
     'fixtures',
     'deadline',
-    'array',
-    'async-array',
     'throwing-wrapper',
     'substituted-wrapper',
     'outer-substituted-wrapper',
@@ -20940,6 +20938,122 @@ describe('owned development Node V8 SIGINT exit', () => {
           independentFailuresPropagate: true,
           listenersRemoved: true,
           actualConfigAndLockJoined: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})
+
+describe('settled beforeEach Array carrier coverage', () => {
+  const profiles = [
+    'beforeeach-array-sync-no-snapshots',
+    'beforeeach-array-sync-no-snapshots-report-false',
+    'beforeeach-array-async-no-snapshots',
+    'beforeeach-array-async-no-snapshots-report-false',
+  ]
+  it.each(profiles)(
+    'matches genuine full reports and failure policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-beforeeach-array-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeeach-array-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          { env: process.env, stdio: 'pipe', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({ completeMapsSummaryLCOV: true })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each(profiles)(
+    'joins actual compiled no-body and operation facts for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-beforeeach-array-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeeach-array-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          { env: process.env, stdio: 'pipe', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          privateCompilerWorker: true,
+          actualBeforeEachAttemptCarriers: true,
+        })
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'ACTUAL-RUNNER-FACTS.json'), 'utf8')
+          ).bodyInvocations
+        ).toEqual([])
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'sync',
+    'async',
+    'other-stage',
+    'borrowed',
+    'substituted',
+    'fixture',
+    'parallel',
+    'no-capture',
+  ])(
+    'preserves exact actual carrier and authored read ownership for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-beforeeach-array-carriers-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'beforeeach-array-carriers.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          { env: process.env, stdio: 'pipe', timeout: 35000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualAttemptCarrierOwnership: true,
+          noBodyInvocations: true,
+          exactlyOneAuthoredMapAndMemberReadPerInvocation: true,
+          rawErrorsUnchanged: true,
+          ...(name === 'substituted'
+            ? { privateWrapperDomain: true, snapshotPolicyTouched: false }
+            : { snapshotVetoUnchanged: true }),
         })
       } finally {
         await rm(output, { recursive: true, force: true })

@@ -750,7 +750,8 @@ export async function runCollected(
     timeout = hookTimeout,
     handleControl?: (error: unknown) => boolean,
     onTimeout?: (error: DeadlineError) => void,
-    afterFulfilled?: (value: unknown) => unknown | Promise<unknown>
+    afterFulfilled?: (value: unknown) => unknown | Promise<unknown>,
+    createdCarriers?: Set<RunnerFailure>
   ) {
     try {
       return await bounded(
@@ -771,10 +772,11 @@ export async function runCollected(
         else unrecoverableDeadline = true
       }
       errors.push(
-        ...(Array.isArray(error) ? error : [error]).map((failure) => ({
-          phase,
-          error: failure,
-        }))
+        ...(Array.isArray(error) ? error : [error]).map((failure) => {
+          const carrier = { phase, error: failure }
+          createdCarriers?.add(carrier)
+          return carrier
+        })
       )
     }
   }
@@ -1185,7 +1187,8 @@ export async function runCollected(
           timeout = hookTimeout,
           declaration?: Hook,
           observeCapturedFailure?: (error: unknown) => void,
-          observePhaseReturn?: (preserved: boolean) => void
+          observePhaseReturn?: (preserved: boolean) => void,
+          createdCarriers?: Set<RunnerFailure>
         ) => {
           const previous = failures.length
           let handledSkip = false
@@ -1310,7 +1313,8 @@ export async function runCollected(
               : undefined,
             phase === 'test'
               ? integration?.consumePublicTaskPromises
-              : undefined
+              : undefined,
+            createdCarriers
           )
           const added = failures.slice(previous)
           if (bodyDeadline && test.registrationError) {
@@ -1772,6 +1776,9 @@ export async function runCollected(
                           !Object.keys(definitions).length
                             ? { count: 0 }
                             : undefined
+                        const createdCarriers = observation
+                          ? new Set<RunnerFailure>()
+                          : undefined
                         let capturedFailure: { error: unknown } | undefined
                         const cleanup = await captureCase(
                           'beforeEach',
@@ -1789,12 +1796,15 @@ export async function runCollected(
                             ? (preserved) => {
                                 observation.phaseReturnPreserved = preserved
                               }
-                            : undefined
+                            : undefined,
+                          createdCarriers
                         )
                         if (
                           capturedFailure &&
-                          !Array.isArray(capturedFailure.error) &&
-                          !(capturedFailure.error instanceof DeadlineError) &&
+                          (Array.isArray(capturedFailure.error) ||
+                            !(
+                              capturedFailure.error instanceof DeadlineError
+                            )) &&
                           observation?.count === 1 &&
                           (observation.thrown
                             ? observation.thrown.error === capturedFailure.error
@@ -1807,7 +1817,8 @@ export async function runCollected(
                           for (const failure of errors.slice(previous))
                             if (
                               failure.phase === 'beforeEach' &&
-                              failure.error === capturedFailure.error
+                              createdCarriers?.has(failure) &&
+                              !(failure.error instanceof DeadlineError)
                             )
                               settledBeforeEachFailures.set(failure, context.id)
                         if (typeof cleanup === 'function')
