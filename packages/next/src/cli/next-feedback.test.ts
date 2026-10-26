@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { Readable } from 'stream'
+import { PassThrough, Readable } from 'stream'
 
 import {
   agentFeedbackReviewUrl,
@@ -119,6 +119,7 @@ describe('nextFeedback', () => {
   const originalExitCode = process.exitCode
 
   afterEach(() => {
+    jest.useRealTimers()
     process.exitCode = originalExitCode
     jest.restoreAllMocks()
   })
@@ -187,6 +188,45 @@ describe('nextFeedback', () => {
 
     expect(writeError).toHaveBeenCalledWith(
       'No agent feedback report was provided through standard input.\n'
+    )
+    expect(openReviewForm).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('rejects standard input that exceeds the size limit', async () => {
+    const writeError = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    const openReviewForm = jest.fn(async () => undefined)
+
+    await nextFeedback(
+      undefined,
+      {},
+      openReviewForm,
+      Readable.from(['x'.repeat(16 * 1024 + 1)])
+    )
+
+    expect(writeError).toHaveBeenCalledWith(
+      'The agent feedback report must not exceed 16384 bytes.\n'
+    )
+    expect(openReviewForm).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('times out when standard input never finishes', async () => {
+    jest.useFakeTimers()
+    const writeError = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    const openReviewForm = jest.fn(async () => undefined)
+    const input = new PassThrough()
+
+    const feedback = nextFeedback(undefined, {}, openReviewForm, input)
+    await jest.advanceTimersByTimeAsync(5_000)
+    await feedback
+
+    expect(writeError).toHaveBeenCalledWith(
+      'Timed out waiting for the agent feedback report on standard input.\n'
     )
     expect(openReviewForm).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)

@@ -4,6 +4,8 @@ import spawn from 'next/dist/compiled/cross-spawn'
 import { z } from 'next/dist/compiled/zod'
 
 const AGENT_FEEDBACK_REVIEW_URL = 'https://nextjs.org/agent-feedback#report='
+const MAX_AGENT_FEEDBACK_INPUT_BYTES = 16 * 1024
+const AGENT_FEEDBACK_INPUT_TIMEOUT_MS = 5_000
 
 type SpawnReviewForm = (
   command: string,
@@ -56,13 +58,63 @@ const agentFeedbackReportSchema = z
 async function readFeedbackInput(input: FeedbackInput): Promise<string> {
   return new Promise((resolve, reject) => {
     let report = ''
+    let inputBytes = 0
+
+    const timeout = setTimeout(() => {
+      finish(() => {
+        input.pause()
+        reject(
+          new Error(
+            'Timed out waiting for the agent feedback report on standard input.'
+          )
+        )
+      })
+    }, AGENT_FEEDBACK_INPUT_TIMEOUT_MS)
+
+    function cleanup() {
+      clearTimeout(timeout)
+      input.removeListener('data', onData)
+      input.removeListener('end', onEnd)
+      input.removeListener('error', onError)
+    }
+
+    let settled = false
+    function finish(callback: () => void) {
+      if (settled) return
+      settled = true
+      cleanup()
+      callback()
+    }
+
+    function onData(chunk: string) {
+      inputBytes += Buffer.byteLength(chunk)
+      if (inputBytes > MAX_AGENT_FEEDBACK_INPUT_BYTES) {
+        finish(() => {
+          input.pause()
+          reject(
+            new Error(
+              `The agent feedback report must not exceed ${MAX_AGENT_FEEDBACK_INPUT_BYTES} bytes.`
+            )
+          )
+        })
+        return
+      }
+
+      report += chunk
+    }
+
+    function onEnd() {
+      finish(() => resolve(report.trim()))
+    }
+
+    function onError(error: Error) {
+      finish(() => reject(error))
+    }
 
     input.setEncoding('utf8')
-    input.on('data', (chunk: string) => {
-      report += chunk
-    })
-    input.once('end', () => resolve(report.trim()))
-    input.once('error', reject)
+    input.on('data', onData)
+    input.once('end', onEnd)
+    input.once('error', onError)
   })
 }
 
