@@ -966,10 +966,10 @@ pub struct TurbopackChunkingConfig {
     /// own when `generate_component_chunks` is enabled.
     min_component_chunk_size: Option<usize>,
     /// Avoid creating more than one server (Node.js and edge) chunk smaller than this size, in
-    /// bytes (default `4000` for Node.js, `20000` for edge).
+    /// bytes (default `4000`).
     min_server_chunk_size: Option<usize>,
     /// Don't merge server (Node.js and edge) chunks bigger than this size, in bytes, with other
-    /// chunks (default `100000` for Node.js, `0` (no limit) for edge).
+    /// chunks (default `100000`).
     max_merge_server_chunk_size: Option<usize>,
 }
 

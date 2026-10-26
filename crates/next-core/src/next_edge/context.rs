@@ -193,9 +193,10 @@ pub struct EdgeChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
-    /// Override for the production JS `min_chunk_size` (default `20_000`).
+    /// Override for the production JS `min_chunk_size` (default `4_000`, same as Node.js).
     pub chunking_min_chunk_size: Option<usize>,
-    /// Override for the production JS `max_merge_chunk_size` (default `0`, i.e. no limit).
+    /// Override for the production JS `max_merge_chunk_size` (default `100_000`, same as
+    /// Node.js).
     pub chunking_max_merge_chunk_size: Option<usize>,
 }
 
@@ -279,8 +280,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(20_000),
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(0),
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
                     ..Default::default()
                 },
             )
@@ -395,8 +396,8 @@ pub async fn get_edge_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(20_000),
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(0),
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
                     ..Default::default()
                 },
             )
