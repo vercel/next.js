@@ -20066,3 +20066,210 @@ it('retains unchanged pure Node V8 modules in actual emitted, loaded and complet
     await rm(output, { recursive: true, force: true })
   }
 }, 260000)
+
+describe('settled Istanbul spec-module collection completion', () => {
+  const profiles = [
+    'mjs-no-case-sync',
+    'mjs-no-case-sync-report-false',
+    'js-no-case-sync',
+    'js-no-case-sync-report-false',
+    'mjs-partial-async',
+    'mjs-partial-async-report-false',
+    'js-partial-sync',
+    'js-partial-sync-report-false',
+  ]
+  it.each(profiles)(
+    'joins the actual spec loader and exact collection carrier for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-spec-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-spec-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
+          )
+        ).toMatchObject({
+          specCalls: 1,
+          fileRunCalled: false,
+          operationObservationAbsent: true,
+          nativeBodyObservationAbsent: true,
+          actualSoleLoadCarrier: true,
+          actualErrorOwnFieldsUnchanged: true,
+        })
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualSoleLoadCarrier: true,
+          noInventedCaseEvents: true,
+          actualMapIndependentOfReportFilePolicy: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each(profiles)(
+    'matches complete genuine no-case spec reports and failure policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-public-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-spec-collection-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledCollectionFailure: true,
+          noCaseStartsInvented: true,
+          completeMapsSummaryLCOV: true,
+          exactExistingSnapshots: true,
+          configUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'missing-getter',
+    'duplicate-slot',
+    'mismatched-slot',
+    'post-file-cleanup',
+  ])(
+    'keeps the actual spec failure and strict physical veto for %s',
+    async (fault) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-fault-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-spec-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            'mjs-partial-async',
+            '--fault=' + fault,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          fault,
+          originalCollectionFailureRetained: true,
+          strictIncompleteCapture: true,
+          noInventedCaseEvents: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it('withholds unfinished spec loading at its real process deadline and preserves prior snapshots', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-deadline-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'istanbul-spec-collection-private.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'pending-spec-control',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 125000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        actualPendingLoadGate: true,
+        actualProcessDeadline: true,
+        strictIncompleteCapture: true,
+        priorSnapshotsUnchanged: true,
+        genuineCompatibilityQualified: false,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 130000)
+})
+
+describe('Istanbul spec-load cancellation and recovery', () => {
+  it('preserves prior reports and snapshots while the actual spec loader is pending, then matches complete genuine recovery', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-cancel-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'istanbul-spec-collection-cancel.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 245000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        actualPendingSpecLoad: true,
+        actualSIGINTAfterSpecGate: true,
+        cancelExit: 130,
+        noBodyOnCancellation: true,
+        noCancelledPublication: true,
+        priorReportUnchanged: true,
+        priorSnapshotUnchanged: true,
+        recoveryExit: 0,
+        completeRecoveryMaps: true,
+        exactExistingSnapshot: true,
+        allOwnersClosed: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
