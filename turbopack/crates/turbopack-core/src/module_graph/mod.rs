@@ -24,6 +24,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     keyed::KeyedAccess,
+    util::SharedError,
 };
 use turbo_tasks_fs::FileSystemPath;
 
@@ -1001,6 +1002,9 @@ impl Deref for ModuleGraphLayer {
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
 
+/// The reverse postorder rank of each module, see [`ModuleGraphSnapshot::reverse_postorder_ranks`].
+type ModuleRanks = FxHashMap<ResolvedVc<Box<dyn Module>>, usize>;
+
 /// This struct provides traversal functionality for the module graph.
 ///
 /// Some edges might be ignored during traversal: unused references listed in
@@ -1025,10 +1029,10 @@ pub struct ModuleGraphSnapshot {
     /// are skipped during traversals.
     unused_references_edges: Option<ReadRef<UnusedReferenceEdges>>,
 
-    /// Lazily computed [`Self::entry_ranks`]. Derived from the immutable graphs, so it never needs
-    /// to be invalidated.
+    /// Lazily computed [`Self::entry_ranks`] (or the error computing them). Derived from the
+    /// immutable graphs, so it never needs to be invalidated.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
-    entry_ranks: OnceLock<FxHashMap<ResolvedVc<Box<dyn Module>>, usize>>,
+    entry_ranks: OnceLock<Result<ModuleRanks, SharedError>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -1611,15 +1615,17 @@ impl ModuleGraphSnapshot {
     ///
     /// They are computed on the first call and cached in this snapshot, so that all analyses of
     /// the same graph that need exactly these ranks share one computation. As the snapshot is
-    /// immutable, the cached ranks always match the graph. Errors are not cached.
+    /// immutable, the cached ranks always match the graph. They are computed only once, even with
+    /// concurrent callers (which wait for the first one). An error is cached as well and returned
+    /// to every caller.
     pub fn entry_ranks(&self) -> Result<&FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
-        if let Some(ranks) = self.entry_ranks.get() {
-            return Ok(ranks);
-        }
-        // Concurrent callers might compute the ranks multiple times, but the result is always the
-        // same and only the first one is stored.
-        let ranks = self.reverse_postorder_ranks(self.all_chunk_group_entry_modules())?;
-        Ok(self.entry_ranks.get_or_init(|| ranks))
+        self.entry_ranks
+            .get_or_init(|| {
+                self.reverse_postorder_ranks(self.all_chunk_group_entry_modules())
+                    .map_err(SharedError::new)
+            })
+            .as_ref()
+            .map_err(|err| err.clone().into())
     }
 
     /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
