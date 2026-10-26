@@ -1,5 +1,3 @@
-// The lint rule does not know itOnPrerelease below runs a test.
-/* eslint-disable jest/no-standalone-expect */
 import { execFileSync } from 'child_process'
 import path from 'path'
 import fs from 'fs-extra'
@@ -25,27 +23,17 @@ const MENU_CLOSED = '\x1b[?1049l'
 // Down selects Skip instead of the default Upgrade now; Return confirms it.
 const SKIP = '\x1b[B\r'
 
-// Choosing Upgrade relies on the security guard rejecting prerelease
-// versions. On a stable version it would look up npm instead.
-const itOnPrerelease = require('next/package.json').version.includes('-')
-  ? it
-  : it.skip
-
+// This test drives a local interactive CLI, which deployments cannot expose.
+// @force-gate !deploy
 describe('agent upgrade terminal', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // This test drives a local interactive CLI, which deployments cannot expose.
-    skipDeployment: true,
     dependencies: {
       // The first release with Linux prebuilds, so CI does not compile it.
       'node-pty': '1.2.0-beta.15',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   let terminal: IPty
   let output: string
@@ -179,11 +167,8 @@ describe('agent upgrade terminal', () => {
     await exit
   })
 
+  // @force-gate dev
   describe('dev', () => {
-    if (!isNextDev) {
-      return it.skip('only runs with Next.js dev', () => {})
-    }
-
     let port: number
 
     beforeEach(async () => {
@@ -243,7 +228,9 @@ describe('agent upgrade terminal', () => {
       })
     )
 
-    itOnPrerelease(
+    // Choosing Upgrade must reject prereleases rather than looking up npm.
+    // @force-gate prerelease
+    it(
       'stops dev on Upgrade now without showing held output',
       inTerminal(async () => {
         const response = await fetch(`http://127.0.0.1:${port}/log?n=1`)
@@ -351,171 +338,172 @@ describe('agent upgrade terminal', () => {
     )
   })
 
-  if (!isNextDev) {
-    describe('build', () => {
-      // Full builds can take longer than the default test timeout.
-      const BUILD_TIMEOUT = 180_000
+  // @force-gate prod
+  describe('build', () => {
+    // Full builds can take longer than the default test timeout.
+    const BUILD_TIMEOUT = 180_000
 
-      async function startBuild(
-        args: string[] = [],
-        envOverrides?: NodeJS.Dict<string>
-      ) {
-        // Keep a previous build's output from satisfying this build's checks.
-        await fs.remove(path.join(next.testDir, '.next'))
-        launch(['build', ...args], envOverrides)
-        await retry(() => {
-          expect(output).toContain('Upgrade now')
-        }, 60_000)
-      }
+    async function startBuild(
+      args: string[] = [],
+      envOverrides?: NodeJS.Dict<string>
+    ) {
+      // Keep a previous build's output from satisfying this build's checks.
+      await fs.remove(path.join(next.testDir, '.next'))
+      launch(['build', ...args], envOverrides)
+      await retry(() => {
+        expect(output).toContain('Upgrade now')
+      }, 60_000)
+    }
 
-      // The build runs in a child of the CLI. Wait until it has written its
-      // last artifacts and exited, while the menu is still open.
-      async function waitForBuildBehindMenu() {
-        await retry(() => {
-          // Stop waiting if the CLI is gone; the check below reports it.
-          if (exited) {
-            return
-          }
-          expect(childPids(terminal.pid)).toEqual([])
-        }, 150_000)
-        expect(exited).toBe(false)
-        // The marker is written near the end, so a failed build has none.
-        expect(
-          fs.existsSync(path.join(next.testDir, '.next/export-marker.json'))
-        ).toBe(true)
-      }
-
-      function childPids(pid: number) {
-        try {
-          return execFileSync('pgrep', ['-P', String(pid)], {
-            encoding: 'utf8',
-          })
-            .trim()
-            .split('\n')
-        } catch (error) {
-          // pgrep exits with 1 when nothing matches.
-          if ((error as { status?: number }).status === 1) {
-            return []
-          }
-          throw error
+    // The build runs in a child of the CLI. Wait until it has written its
+    // last artifacts and exited, while the menu is still open.
+    async function waitForBuildBehindMenu() {
+      await retry(() => {
+        // Stop waiting if the CLI is gone; the check below reports it.
+        if (exited) {
+          return
         }
+        expect(childPids(terminal.pid)).toEqual([])
+      }, 150_000)
+      expect(exited).toBe(false)
+      // The marker is written near the end, so a failed build has none.
+      expect(
+        fs.existsSync(path.join(next.testDir, '.next/export-marker.json'))
+      ).toBe(true)
+    }
+
+    function childPids(pid: number) {
+      try {
+        return execFileSync('pgrep', ['-P', String(pid)], {
+          encoding: 'utf8',
+        })
+          .trim()
+          .split('\n')
+      } catch (error) {
+        // pgrep exits with 1 when nothing matches.
+        if ((error as { status?: number }).status === 1) {
+          return []
+        }
+        throw error
       }
+    }
 
-      it(
-        'shows build output after Skip',
-        inTerminal(async () => {
-          await startBuild()
+    it(
+      'shows build output after Skip',
+      inTerminal(async () => {
+        await startBuild()
+        terminal.write(SKIP)
+        expect(await exit).toMatchObject({ exitCode: 0 })
+
+        const [beforeMenu, , after] = splitAtMenu()
+        expect(beforeMenu).toContain('UPGRADE_TERMINAL_CONFIG_LOADED')
+        expect(after).toContain('Compiled successfully')
+        // Steps the spinner shows on a terminal print a line instead.
+        expect(stripAnsi(after)).toMatch(
+          /✓ Collecting page data using \d+ workers? in /
+        )
+        expect(stripAnsi(after)).toMatch(/✓ Finalizing page optimization in /)
+      }),
+      BUILD_TIMEOUT
+    )
+
+    it(
+      'finishes the build behind the menu',
+      inTerminal(async () => {
+        await startBuild()
+        await waitForBuildBehindMenu()
+        expect(output).not.toContain('Compiled successfully')
+
+        // The menu still answers after the build exited, and the CLI exits
+        // right away.
+        terminal.write(SKIP)
+        await retry(() => expect(exited).toBe(true), 15_000)
+        expect(await exit).toMatchObject({ exitCode: 0 })
+        expect(splitAtMenu()[2]).toContain('Compiled successfully')
+      }),
+      BUILD_TIMEOUT
+    )
+
+    it(
+      'reports a signal after the build finished as a failure',
+      inTerminal(async () => {
+        await startBuild()
+        await waitForBuildBehindMenu()
+
+        process.kill(terminal.pid, 'SIGTERM')
+        await retry(() => expect(exited).toBe(true), 15_000)
+        expect(await exit).toMatchObject({ exitCode: 143 })
+        // The menu gave the normal screen back.
+        splitAtMenu()
+      }),
+      BUILD_TIMEOUT
+    )
+
+    // Choosing Upgrade must reject prereleases rather than looking up npm.
+    // @force-gate prerelease
+    it(
+      'stops the build before starting the upgrade',
+      inTerminal(async () => {
+        await startBuild()
+        terminal.write('\r')
+        expect(await exit).toMatchObject({ exitCode: 1 })
+        expect(output).toContain('Security advisories target stable versions')
+        // Output from the stopped build is dropped.
+        expect(splitAtMenu()[2]).not.toContain('Compiled successfully')
+      })
+    )
+
+    it(
+      'exits with 130 on Ctrl+C, without a NODE_ENV warning under --debug-prerender',
+      inTerminal(async () => {
+        // The CLI sets NODE_ENV for this flag; the build child inherits it and
+        // must not mistake it for one the user set.
+        await startBuild(['--debug-prerender'])
+        terminal.write('\x03')
+        expect(await exit).toMatchObject({ exitCode: 130 })
+        expect(output).not.toContain('non-standard "NODE_ENV" value')
+      })
+    )
+
+    it(
+      'keeps the menu quiet when .env opts out of telemetry',
+      inTerminal(async () => {
+        const log = path.join(next.testDir, 'telemetry.log')
+        await fs.writeFile(
+          path.join(next.testDir, '.env'),
+          'NEXT_TELEMETRY_DISABLED=1\n'
+        )
+        try {
+          // Only .env opts out, and a preload logs what would be sent.
+          await startBuild([], {
+            NEXT_TELEMETRY_DISABLED: undefined,
+            NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require ${path.join(next.testDir, 'telemetry-hook.cjs')}`,
+            UPGRADE_TERMINAL_TELEMETRY_LOG: log,
+          })
           terminal.write(SKIP)
           expect(await exit).toMatchObject({ exitCode: 0 })
+          const events = (await fs.pathExists(log))
+            ? await fs.readFile(log, 'utf8')
+            : ''
+          expect(events).not.toContain('NEXT_AGENT_UPGRADE')
+        } finally {
+          await fs.remove(path.join(next.testDir, '.env'))
+          await fs.remove(log)
+        }
+      }),
+      BUILD_TIMEOUT
+    )
 
-          const [beforeMenu, , after] = splitAtMenu()
-          expect(beforeMenu).toContain('UPGRADE_TERMINAL_CONFIG_LOADED')
-          expect(after).toContain('Compiled successfully')
-          // Steps the spinner shows on a terminal print a line instead.
-          expect(stripAnsi(after)).toMatch(
-            /✓ Collecting page data using \d+ workers? in /
-          )
-          expect(stripAnsi(after)).toMatch(/✓ Finalizing page optimization in /)
-        }),
-        BUILD_TIMEOUT
-      )
-
-      it(
-        'finishes the build behind the menu',
-        inTerminal(async () => {
-          await startBuild()
-          await waitForBuildBehindMenu()
-          expect(output).not.toContain('Compiled successfully')
-
-          // The menu still answers after the build exited, and the CLI exits
-          // right away.
-          terminal.write(SKIP)
-          await retry(() => expect(exited).toBe(true), 15_000)
-          expect(await exit).toMatchObject({ exitCode: 0 })
-          expect(splitAtMenu()[2]).toContain('Compiled successfully')
-        }),
-        BUILD_TIMEOUT
-      )
-
-      it(
-        'reports a signal after the build finished as a failure',
-        inTerminal(async () => {
-          await startBuild()
-          await waitForBuildBehindMenu()
-
-          process.kill(terminal.pid, 'SIGTERM')
-          await retry(() => expect(exited).toBe(true), 15_000)
-          expect(await exit).toMatchObject({ exitCode: 143 })
-          // The menu gave the normal screen back.
-          splitAtMenu()
-        }),
-        BUILD_TIMEOUT
-      )
-
-      itOnPrerelease(
-        'stops the build before starting the upgrade',
-        inTerminal(async () => {
-          await startBuild()
-          terminal.write('\r')
-          expect(await exit).toMatchObject({ exitCode: 1 })
-          expect(output).toContain('Security advisories target stable versions')
-          // Output from the stopped build is dropped.
-          expect(splitAtMenu()[2]).not.toContain('Compiled successfully')
-        })
-      )
-
-      it(
-        'exits with 130 on Ctrl+C, without a NODE_ENV warning under --debug-prerender',
-        inTerminal(async () => {
-          // The CLI sets NODE_ENV for this flag; the build child inherits it and
-          // must not mistake it for one the user set.
-          await startBuild(['--debug-prerender'])
-          terminal.write('\x03')
-          expect(await exit).toMatchObject({ exitCode: 130 })
-          expect(output).not.toContain('non-standard "NODE_ENV" value')
-        })
-      )
-
-      it(
-        'keeps the menu quiet when .env opts out of telemetry',
-        inTerminal(async () => {
-          const log = path.join(next.testDir, 'telemetry.log')
-          await fs.writeFile(
-            path.join(next.testDir, '.env'),
-            'NEXT_TELEMETRY_DISABLED=1\n'
-          )
-          try {
-            // Only .env opts out, and a preload logs what would be sent.
-            await startBuild([], {
-              NEXT_TELEMETRY_DISABLED: undefined,
-              NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require ${path.join(next.testDir, 'telemetry-hook.cjs')}`,
-              UPGRADE_TERMINAL_TELEMETRY_LOG: log,
-            })
-            terminal.write(SKIP)
-            expect(await exit).toMatchObject({ exitCode: 0 })
-            const events = (await fs.pathExists(log))
-              ? await fs.readFile(log, 'utf8')
-              : ''
-            expect(events).not.toContain('NEXT_AGENT_UPGRADE')
-          } finally {
-            await fs.remove(path.join(next.testDir, '.env'))
-            await fs.remove(log)
-          }
-        }),
-        BUILD_TIMEOUT
-      )
-
-      it(
-        'waits for Skip before completing generate-env',
-        inTerminal(async () => {
-          await startBuild(['--experimental-build-mode', 'generate-env'])
-          // The build child finished; the CLI still waits for an answer.
-          await retry(() => expect(childPids(terminal.pid)).toEqual([]), 60_000)
-          expect(exited).toBe(false)
-          terminal.write(SKIP)
-          expect(await exit).toMatchObject({ exitCode: 0 })
-        })
-      )
-    })
-  }
+    it(
+      'waits for Skip before completing generate-env',
+      inTerminal(async () => {
+        await startBuild(['--experimental-build-mode', 'generate-env'])
+        // The build child finished; the CLI still waits for an answer.
+        await retry(() => expect(childPids(terminal.pid)).toEqual([]), 60_000)
+        expect(exited).toBe(false)
+        terminal.write(SKIP)
+        expect(await exit).toMatchObject({ exitCode: 0 })
+      })
+    )
+  })
 })
