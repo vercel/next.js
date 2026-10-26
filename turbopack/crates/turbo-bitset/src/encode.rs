@@ -338,20 +338,33 @@ fn decode_list<D: Decoder>(decoder: &mut D, count: u64) -> Result<Bitset, Decode
     let mut remaining = count - 1;
     if matches!(decoder.config().int_encoding(), IntEncoding::Variable) {
         // Every item takes at least one byte, so a valid input has at least `remaining` more
-        // bytes. Handle batches of single-byte items without going through the reader per item.
+        // bytes. Handle batches of single-byte items directly from the reader's buffer without
+        // going through the reader per item.
         const BATCH_LEN: usize = 256;
-        let mut batch = [0u8; BATCH_LEN];
         while remaining > 0 {
             let batch_len = (remaining as usize).min(BATCH_LEN);
-            let Some(bytes) = decoder.reader().peek_read(batch_len) else {
+            // The peeked bytes borrow the decoder, which the limit claim below also needs. Check
+            // that the bytes are available first, then claim and peek again.
+            if decoder
+                .reader()
+                .peek_read(batch_len)
+                .is_none_or(|bytes| bytes.len() < batch_len)
+            {
                 break;
-            };
-            batch[..batch_len].copy_from_slice(bytes);
+            }
             // Claim the input like `u32::decode` does, for the whole batch first: a valid input
             // has all these items, and each of them claims at least that much.
             decoder.claim_bytes_read(4 * batch_len)?;
+            let Some(bytes) = decoder
+                .reader()
+                .peek_read(batch_len)
+                .and_then(|bytes| bytes.get(..batch_len))
+            else {
+                decoder.unclaim_bytes_read(4 * batch_len);
+                break;
+            };
             let mut used = 0;
-            for &byte in &batch[..batch_len] {
+            for &byte in bytes {
                 // Zero is an invalid difference and larger values are multi-byte varints, which
                 // are left to the generic path below.
                 if byte == 0 || byte > 250 || builder.last + byte as u64 >= builder.end {

@@ -5,13 +5,12 @@
 //! - `universe` is the size of the bit range the set is drawn from, starting at bit 0 (e.g. the
 //!   number of chunk groups),
 //! - `size` is `empty`, `1bit`, `4bits` or `16bits` for sets with that many random bits, or else
-//!   the density (the fraction of the range that is set) in per mille. Densities that set fewer
-//!   than 32 bits are skipped, as the fixed bit counts already cover small sets.
+//!   the density (the fraction of the range that is set) as a percentage, e.g. `10%`. A density
+//!   input has exactly that fraction of the range set (rounded down). Densities that set fewer than
+//!   32 bits are skipped, as the fixed bit counts already cover small sets.
 
 // Each target that includes this module uses a different part of it.
 #![allow(dead_code)]
-
-use std::collections::BTreeSet;
 
 pub use rand::rngs::SmallRng;
 use rand::{RngExt, SeedableRng};
@@ -52,50 +51,59 @@ pub struct Input {
     pub probes: Vec<u32>,
 }
 
-fn random_bits(rng: &mut SmallRng, universe: u32, density: u32) -> Vec<u32> {
-    (0..universe)
-        .filter(|_| rng.random_range(0..1_000) < density)
-        .collect()
-}
-
-/// `count` distinct random bits of the universe, ascending.
-fn random_count_bits(rng: &mut SmallRng, universe: u32, count: usize) -> Vec<u32> {
-    let mut bits = BTreeSet::new();
-    while bits.len() < count {
-        bits.insert(rng.random_range(0..universe));
+/// Exactly `count` distinct random bits of `0..universe`, ascending.
+///
+/// Walks the universe once and keeps each bit with probability `remaining bits / remaining
+/// universe` (selection sampling), so every bit is picked at most once and exactly `count` bits
+/// are picked.
+pub fn sample_bits(rng: &mut SmallRng, universe: u32, count: usize) -> Vec<u32> {
+    assert!(count <= universe as usize);
+    let mut bits = Vec::with_capacity(count);
+    for bit in 0..universe {
+        let remaining_bits = count - bits.len();
+        if remaining_bits == 0 {
+            break;
+        }
+        let remaining_universe = (universe - bit) as usize;
+        if rng.random_range(0..remaining_universe) < remaining_bits {
+            bits.push(bit);
+        }
     }
-    bits.into_iter().collect()
+    bits
 }
 
-/// How the bits of an input are chosen.
-#[derive(Clone, Copy)]
-enum Size {
-    /// This many distinct random bits.
-    Count(usize),
-    /// Every bit with this probability, in per mille.
-    Density(u32),
+/// The number of bits of a density input: the fraction `density` (in per mille) of the universe,
+/// rounded down.
+pub fn density_count(universe: u32, density: u32) -> usize {
+    (universe as u64 * density as u64 / 1_000) as usize
 }
 
+/// The label of a density (in per mille) in the input names, as a percentage, e.g. `0.1%` or
+/// `10%`.
+pub fn density_label(density: u32) -> String {
+    if density.is_multiple_of(10) {
+        format!("{}%", density / 10)
+    } else {
+        format!("{}.{}%", density / 10, density % 10)
+    }
+}
 pub fn inputs() -> Vec<Input> {
     let mut inputs = Vec::new();
     let mut rng = rng(42);
     for universe in UNIVERSES {
         let mut sizes = Vec::new();
         for (label, count) in BIT_COUNTS {
-            sizes.push((label.to_string(), Size::Count(count)));
+            sizes.push((label.to_string(), count));
         }
         for density in DENSITIES {
-            if universe * density / 1_000 >= MIN_DENSITY_BITS {
-                sizes.push((density.to_string(), Size::Density(density)));
+            let count = density_count(universe, density);
+            if count >= MIN_DENSITY_BITS as usize {
+                sizes.push((density_label(density), count));
             }
         }
-        for (size, kind) in sizes {
-            let generate = |rng: &mut SmallRng| match kind {
-                Size::Count(count) => random_count_bits(rng, universe, count),
-                Size::Density(density) => random_bits(rng, universe, density),
-            };
-            let bits = generate(&mut rng);
-            let other_bits = generate(&mut rng);
+        for (size, count) in sizes {
+            let bits = sample_bits(&mut rng, universe, count);
+            let other_bits = sample_bits(&mut rng, universe, count);
             let subset_bits = bits.iter().copied().skip(1).step_by(2).collect::<Vec<_>>();
             let mut not_subset_bits = subset_bits.clone();
             not_subset_bits.push(bits.last().map_or(0, |last| last + 1));

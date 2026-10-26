@@ -10,6 +10,7 @@ use bincode::{
     enc::{EncoderImpl, write::Writer},
     error::{DecodeError, EncodeError},
 };
+use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use roaring::RoaringBitmap;
 use rustc_hash::FxBuildHasher;
 use shrink_to_fit::ShrinkToFit;
@@ -231,20 +232,21 @@ fn front_growth_reuses_capacity() {
     let (ptr, capacity) = storage(&set);
     assert!(capacity >= 10);
 
-    // Growing at the front within the capacity doesn't reallocate.
-    for bit in [99 * block + 7, 96 * block, 99 * block - 1, 95 * block + 1] {
-        assert_eq!(set.insert(bit), expected.insert(bit));
-        check(&set, &expected);
-        assert_eq!(storage(&set), (ptr, capacity));
-    }
-    // Growing at the front and the back at once within the capacity doesn't reallocate either.
-    let other = [94 * block, 102 * block + 5]
+    // Growing at the front and the back at once within the capacity doesn't reallocate.
+    let other = [99 * block, 102 * block + 5]
         .into_iter()
         .collect::<Bitset>();
     set |= &other;
     expected.extend(other.iter());
     check(&set, &expected);
     assert_eq!(storage(&set), (ptr, capacity));
+
+    // Growing at the front within the capacity doesn't reallocate either.
+    for bit in [98 * block + 7, 96 * block, 98 * block - 1, 95 * block + 1] {
+        assert_eq!(set.insert(bit), expected.insert(bit));
+        check(&set, &expected);
+        assert_eq!(storage(&set), (ptr, capacity));
+    }
 
     // Growing beyond the reserved capacity keeps all bits.
     let bit = 10 * block + 1;
@@ -339,6 +341,71 @@ fn superset() {
             expected.is_subset(&other_expected),
             "{a:?} ⊆ {b:?}"
         );
+        assert_eq!(
+            set.has_bits_not_in(&other),
+            !expected.is_subset(&other_expected),
+            "{a:?} ⊈ {b:?}"
+        );
+    }
+}
+
+#[test]
+fn has_bits_not_in() {
+    let block = usize::BITS as usize;
+    // Empty, equal, subset, superset, disjoint and incomparable sets, each with leading and
+    // trailing zero blocks at different storage offsets.
+    let cases: &[(&[u32], &[u32])] = &[
+        (&[], &[]),
+        (&[], &[7]),
+        (&[7], &[]),
+        (&[1, 70, 300], &[1, 70, 300]),
+        (&[70], &[1, 70, 300]),
+        (&[1, 70, 300], &[70]),
+        (&[1, 2], &[5_000, 5_001]),
+        (&[1, 300], &[70, 300]),
+    ];
+    for &(a, b) in cases {
+        let expected = !a.iter().all(|bit| b.contains(bit));
+        for (offset_a, offset_b) in [(0, 0), (0, 3), (2, 0), (1, 5)] {
+            let padded = |bits: &[u32], offset: usize| {
+                // Store the bits with `offset` zero blocks before and after them.
+                let first = bits.iter().min().map_or(0, |&bit| bit as usize / block);
+                let start = first.saturating_sub(offset);
+                let end = bits
+                    .iter()
+                    .max()
+                    .map_or(start, |&bit| bit as usize / block + 1)
+                    + offset;
+                let mut blocks = vec![0; end - start];
+                for &bit in bits {
+                    blocks[bit as usize / block - start] |= 1 << (bit as usize % block);
+                }
+                with_storage(start, blocks)
+            };
+            let set = padded(a, offset_a);
+            let other = padded(b, offset_b);
+            assert_eq!(set.has_bits_not_in(&other), expected, "{a:?} ⊈ {b:?}");
+            assert_eq!(set.has_bits_not_in(&other), !set.is_subset(&other));
+        }
+    }
+
+    // Random sets, compared with `!is_subset`.
+    let mut rng = SmallRng::seed_from_u64(7);
+    for _ in 0..500 {
+        let universe = rng.random_range(1..2_000);
+        let random_set = |rng: &mut SmallRng, count: usize| {
+            (0..count)
+                .map(|_| rng.random_range(0..universe))
+                .collect::<Bitset>()
+        };
+        let set_len = rng.random_range(0..20);
+        let set = random_set(&mut rng, set_len);
+        let other_len = rng.random_range(0..40);
+        let mut other = random_set(&mut rng, other_len);
+        if rng.random_bool(0.5) {
+            other |= &set;
+        }
+        assert_eq!(set.has_bits_not_in(&other), !set.is_subset(&other));
     }
 }
 
@@ -422,35 +489,38 @@ fn extend() {
 }
 
 #[test]
-fn extend_around_the_stack_buffer_size() {
-    // `extend` buffers up to `EXTEND_STACK_BITS` bits on the stack and spills into a `Vec` after
-    // that. Check both paths, the boundary, and extending a set that already has bits below and
-    // above the new ones.
+fn extend_with_any_order() {
+    // `extend` inserts the items one by one: check ascending, descending, shuffled, duplicate and
+    // empty inputs, also when extending a set that already has bits below and above the new ones,
+    // and iterators that hide their length.
     let block = usize::BITS;
-    for len in [
-        0,
-        1,
-        crate::EXTEND_STACK_BITS - 1,
-        crate::EXTEND_STACK_BITS,
-        crate::EXTEND_STACK_BITS + 1,
-        3 * crate::EXTEND_STACK_BITS,
-    ] {
-        let bits = (0..len as u32)
-            .map(|i| 10 * block + i * 37 % (5 * block))
+    let mut rng = SmallRng::seed_from_u64(3);
+    for len in [0, 1, 2, 15, 16, 17, 100, 1_000] {
+        let ascending = (0..len)
+            .map(|i| 10 * block + i * 37 % (50 * block))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect::<Vec<_>>();
-        let (set, expected) = from_bits(&bits);
-        check(&set, &expected);
+        let descending = ascending.iter().rev().copied().collect::<Vec<_>>();
+        let mut shuffled = ascending.clone();
+        shuffled.shuffle(&mut rng);
+        let mut duplicates = shuffled.clone();
+        duplicates.extend(shuffled.iter().step_by(3));
+        for bits in [&ascending, &descending, &shuffled, &duplicates] {
+            let (set, expected) = from_bits(bits);
+            check(&set, &expected);
 
-        let mut set = [block, 30 * block].into_iter().collect::<Bitset>();
-        let mut expected = set.iter().collect::<BTreeSet<_>>();
-        set.extend(bits.iter().copied());
-        expected.extend(bits.iter().copied());
-        check(&set, &expected);
+            let mut set = [block, 100 * block].into_iter().collect::<Bitset>();
+            let mut expected = set.iter().collect::<BTreeSet<_>>();
+            set.extend(bits.iter().copied());
+            expected.extend(bits.iter().copied());
+            check(&set, &expected);
 
-        // An iterator that hides its length.
-        let mut set = Bitset::new();
-        set.extend(bits.iter().copied().filter(|_| true));
-        check(&set, &bits.iter().copied().collect());
+            // An iterator that hides its length.
+            let mut set = Bitset::new();
+            set.extend(bits.iter().copied().filter(|_| true));
+            check(&set, &bits.iter().copied().collect());
+        }
     }
 }
 
@@ -481,6 +551,85 @@ fn front_growth_beyond_the_capacity_keeps_all_bits() {
         check(&set, &expected);
         assert!(set.blocks.capacity() > capacity);
     }
+}
+
+#[test]
+fn front_growth_leaves_headroom() {
+    let block = usize::BITS;
+    let mut set = [1000 * block, 1001 * block].into_iter().collect::<Bitset>();
+    let mut expected = set.iter().collect::<BTreeSet<_>>();
+    set.blocks.reserve(8);
+    let (ptr, capacity) = storage(&set);
+
+    // A growth at the front moves the blocks to the end of the capacity, once.
+    assert!(set.insert(999 * block + 1));
+    expected.insert(999 * block + 1);
+    check(&set, &expected);
+    assert_eq!(storage(&set), (ptr, capacity));
+    assert_eq!(set.offset + set.blocks.len(), 1002);
+    assert_eq!(set.blocks.len(), capacity);
+
+    // Further growth at the front within that headroom doesn't move the blocks again.
+    let offset = set.offset;
+    for bit in [998 * block, (1002 - capacity as u32) * block + 5] {
+        assert!(set.insert(bit));
+        expected.insert(bit);
+        check(&set, &expected);
+        assert_eq!(set.offset, offset);
+        assert_eq!(storage(&set), (ptr, capacity));
+    }
+
+    // A reallocation at the front leaves headroom too: the range ends at the end of the new
+    // capacity.
+    let mut set = [500 * block, 501 * block].into_iter().collect::<Bitset>();
+    set.blocks = set.blocks.into_boxed_slice().into_vec();
+    let capacity = set.blocks.capacity();
+    assert!(set.insert(499 * block));
+    assert!(set.blocks.capacity() >= 2 * capacity);
+    assert_eq!(set.offset + set.blocks.len(), 502);
+    assert_eq!(set.blocks.len(), set.blocks.capacity());
+    check(&set, &[499 * block, 500 * block, 501 * block].into());
+
+    // Near block 0, the headroom is limited by block 0.
+    let mut set = [3 * block, 4 * block].into_iter().collect::<Bitset>();
+    set.blocks.reserve(20);
+    assert!(set.insert(2 * block + 9));
+    assert_eq!(set.offset, 0);
+    assert_eq!(set.blocks.len(), 5);
+    check(&set, &[2 * block + 9, 3 * block, 4 * block].into());
+}
+
+#[test]
+fn descending_inserts_are_amortized() {
+    // Inserting one bit per block in descending order must not move the stored blocks on every
+    // insert (which would be quadratic): the blocks only move when the headroom at the front is
+    // used up, which happens O(log n) times with amortized growth.
+    let block = usize::BITS;
+    let n = 4_096u32;
+    let mut set = Bitset::new();
+    let mut inserted = Vec::new();
+    let mut relocations = 0;
+    let mut reallocations = 0;
+    let (mut offset, mut storage_before) = (set.offset, storage(&set));
+    for i in 0..n {
+        let bit = (100 + n - 1 - i) * block + i % block;
+        assert!(set.insert(bit));
+        inserted.push(bit);
+        if set.offset != offset {
+            relocations += 1;
+            offset = set.offset;
+            // Every bit survives a move.
+            assert!(inserted.iter().all(|&bit| set.contains(bit)));
+        }
+        if storage(&set) != storage_before {
+            reallocations += 1;
+            storage_before = storage(&set);
+        }
+    }
+    let limit = 2 * n.ilog2() + 4;
+    assert!(relocations <= limit, "{relocations} relocations");
+    assert!(reallocations <= limit, "{reallocations} reallocations");
+    check(&set, &inserted.iter().copied().collect());
 }
 
 #[test]

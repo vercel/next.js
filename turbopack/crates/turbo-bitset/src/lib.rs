@@ -1,9 +1,10 @@
 //! A fast bitset for algorithms that work on a bounded range of `u32` indices.
 //!
-//! [`Bitset`] stores its bits in `usize` blocks, but only from the first used block on: the
-//! bitset keeps an offset (counted in whole blocks) and stores bit `i` at
+//! [`Bitset`] stores its bits in `usize` blocks, but only for a range of blocks around the used
+//! ones: the bitset keeps an offset (counted in whole blocks) and stores bit `i` at
 //! `i - offset * usize::BITS`. A set whose bits are clustered at high indices therefore doesn't
-//! allocate the empty blocks below them.
+//! allocate the empty blocks below them. Like a `Vec`, the storage grows with amortized growth,
+//! at the front as well as at the back.
 //!
 //! Compared to a `RoaringBitmap`, which is optimized for compact storage, every operation is a
 //! simple loop over machine words. That makes unions and subset checks fast when the bits span a
@@ -30,10 +31,6 @@ const BLOCK_BITS: usize = usize::BITS as usize;
 /// The number of blocks that the subset check compares before it branches on the result. Reducing
 /// a whole chunk first lets the compiler vectorize the comparison.
 const CHUNK_BLOCKS: usize = 4;
-
-/// Up to this many bits, [`Bitset::extend`] buffers the bits on the stack instead of in a
-/// `Vec` while it determines their range.
-const EXTEND_STACK_BITS: usize = 16;
 
 /// A set of `u32` indices stored as `usize` blocks that only cover the block-aligned range between
 /// the lowest and the highest stored bit.
@@ -91,9 +88,12 @@ impl Bitset {
 
     /// Makes sure that the blocks `start..end` are stored, keeping all existing bits.
     ///
-    /// This reuses the spare capacity of the storage when the new range fits into it, also when
-    /// growing at the front. Otherwise it reallocates with amortized growth and copies the existing
-    /// blocks once, directly to their new position.
+    /// Growth at the back uses the amortized growth of the `Vec`. Growth at the front is amortized
+    /// the same way: the existing blocks are moved so that the stored range ends at the end of the
+    /// capacity, which leaves all spare capacity in front of them. Further growth at the front then
+    /// only uses that headroom, without moving the blocks again, until it is used up. If the new
+    /// range doesn't fit into the capacity, the storage is reallocated with at least twice the
+    /// capacity, copying the existing blocks once, directly to their new position.
     #[cold]
     fn ensure_blocks(&mut self, start: usize, end: usize) {
         debug_assert!(start < end);
@@ -105,23 +105,30 @@ impl Bitset {
         }
         let new_start = start.min(self.offset);
         let new_end = end.max(self.offset + len);
-        let new_len = new_end - new_start;
-        let shift = self.offset - new_start;
-        if shift == 0 {
+        if new_start == self.offset {
             // Only grow at the back.
-            self.blocks.resize(new_len, 0);
+            self.blocks.resize(new_end - new_start, 0);
             return;
         }
-        if new_len <= self.blocks.capacity() {
-            // Grow at the front within the capacity: move the existing blocks up and clear the
-            // blocks before them.
+        let new_len = new_end - new_start;
+        let capacity = if new_len <= self.blocks.capacity() {
+            self.blocks.capacity()
+        } else {
+            // The same amortized growth as `Vec::reserve`.
+            new_len.max(self.blocks.capacity() * 2)
+        };
+        // End the stored range at the end of the capacity, but don't go below block 0. This is at
+        // most `new_start`, as the capacity holds the new range.
+        let new_start = new_end.saturating_sub(capacity);
+        let new_len = new_end - new_start;
+        let shift = self.offset - new_start;
+        if capacity == self.blocks.capacity() {
+            // Move the existing blocks up within the capacity and clear the blocks before them.
             self.blocks.resize(new_len, 0);
             self.blocks.copy_within(..len, shift);
             self.blocks[..shift].fill(0);
         } else {
-            // Reallocate (with the same amortized growth as `Vec::reserve`), copying the existing
-            // blocks once.
-            let mut blocks = Vec::with_capacity(new_len.max(self.blocks.capacity() * 2));
+            let mut blocks = Vec::with_capacity(capacity);
             blocks.resize(shift, 0);
             blocks.extend_from_slice(&self.blocks);
             blocks.resize(new_len, 0);
@@ -290,11 +297,17 @@ impl Bitset {
     }
 
     /// Returns whether every bit of the set is also in `other`.
-    ///
-    /// `!a.is_subset(b)` is the check for "`a` has a bit that `b` doesn't have", i.e. whether
-    /// `b |= a` would change `b`.
     pub fn is_subset(&self, other: &Self) -> bool {
         other.is_superset(self)
+    }
+
+    /// Returns whether the set contains at least one bit that `other` doesn't contain, i.e.
+    /// whether `other |= self` would change `other`.
+    ///
+    /// This is `!self.is_subset(other)`. Unlike [`Self::is_proper_superset`], it is also true when
+    /// neither set contains the other.
+    pub fn has_bits_not_in(&self, other: &Self) -> bool {
+        !self.is_subset(other)
     }
 
     /// Returns whether the set contains every bit of `other` and at least one bit that `other`
@@ -455,25 +468,6 @@ impl BitOrAssign<&Bitset> for Bitset {
     }
 }
 
-impl Bitset {
-    /// Adds `bits` to the set, allocating the whole range they need at once instead of growing for
-    /// every bit.
-    fn extend_from_slice(&mut self, bits: &[u32]) {
-        let (Some(&min), Some(&max)) = (bits.iter().min(), bits.iter().max()) else {
-            return;
-        };
-        let start = min as usize / BLOCK_BITS;
-        let end = max as usize / BLOCK_BITS + 1;
-        if start < self.offset || end > self.end() {
-            self.ensure_blocks(start, end);
-        }
-        for &bit in bits {
-            let bit = bit as usize;
-            self.blocks[bit / BLOCK_BITS - self.offset] |= 1 << (bit % BLOCK_BITS);
-        }
-    }
-}
-
 /// Adds the bits of `other` to `blocks`, which has the same length.
 fn or_blocks(blocks: &mut [usize], other: &[usize]) {
     for (block, &other_block) in blocks.iter_mut().zip(other) {
@@ -482,35 +476,12 @@ fn or_blocks(blocks: &mut [usize], other: &[usize]) {
 }
 
 impl Extend<u32> for Bitset {
+    /// Inserts every bit of `iter`. The storage grows with amortized growth at both ends, so the
+    /// order of the bits doesn't matter.
     fn extend<T: IntoIterator<Item = u32>>(&mut self, iter: T) {
-        // Buffer the first bits on the stack, so that small inputs don't need a temporary `Vec` to
-        // determine their range. If the iterator guarantees more bits than fit, collect them into
-        // a `Vec` right away.
-        let mut iter = iter.into_iter();
-        let lower_bound = iter.size_hint().0;
-        if lower_bound > EXTEND_STACK_BITS {
-            let mut bits = Vec::with_capacity(lower_bound);
-            bits.extend(iter);
-            self.extend_from_slice(&bits);
-            return;
+        for bit in iter {
+            self.insert(bit);
         }
-        let mut buffer = [0; EXTEND_STACK_BITS];
-        let mut len = 0;
-        for bit in iter.by_ref() {
-            buffer[len] = bit;
-            len += 1;
-            if len == EXTEND_STACK_BITS {
-                break;
-            }
-        }
-        if len < EXTEND_STACK_BITS {
-            self.extend_from_slice(&buffer[..len]);
-            return;
-        }
-        let mut bits = Vec::with_capacity(EXTEND_STACK_BITS + iter.size_hint().0);
-        bits.extend_from_slice(&buffer);
-        bits.extend(iter);
-        self.extend_from_slice(&bits);
     }
 }
 

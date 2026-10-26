@@ -223,17 +223,14 @@ fn validate(inputs: &[Input]) {
     }
 }
 
-pub fn bench(c: &mut Criterion) {
-    let inputs = inputs();
-    validate(&inputs);
-
-    // Building a set by inserting its bits one by one (in a fixed random order).
+/// Benchmarks building a set by inserting its bits one by one, in the order of `order`.
+fn bench_insert(c: &mut Criterion, name: &str, inputs: &[Input], order: fn(&[u32]) -> Vec<u32>) {
     bench_all(
         c,
-        "insert",
-        &inputs,
+        name,
+        inputs,
         imp(
-            |i| shuffled(&i.bits),
+            |i| order(&i.bits),
             |bits| {
                 let mut set = Bitset::new();
                 for &bit in bits {
@@ -243,20 +240,17 @@ pub fn bench(c: &mut Criterion) {
             },
         ),
         imp(
-            |i| shuffled(&i.bits),
+            |i| order(&i.bits),
             |bits| {
                 let mut set = FixedBitSet::new();
                 for &bit in bits {
-                    let bit = bit as usize;
-                    let added = !set.contains(bit);
-                    set.grow_and_insert(bit);
-                    black_box(added);
+                    set.grow_and_insert(bit as usize);
                 }
                 black_box(set);
             },
         ),
         imp(
-            |i| shuffled(&i.bits),
+            |i| order(&i.bits),
             |bits| {
                 let mut set = RoaringBitmap::new();
                 for &bit in bits {
@@ -266,6 +260,19 @@ pub fn bench(c: &mut Criterion) {
             },
         ),
     );
+}
+
+pub fn bench(c: &mut Criterion) {
+    let inputs = inputs();
+    validate(&inputs);
+
+    // Building a set by inserting its bits one by one: in a fixed random order, ascending (the set
+    // only grows at the back) and descending (the set only grows at the front).
+    bench_insert(c, "insert", &inputs, shuffled);
+    bench_insert(c, "insert_asc", &inputs, <[u32]>::to_vec);
+    bench_insert(c, "insert_desc", &inputs, |bits| {
+        bits.iter().rev().copied().collect()
+    });
 
     // Building a set from an ascending iterator.
     bench_all(
