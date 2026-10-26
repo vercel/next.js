@@ -849,43 +849,6 @@ impl DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
-    /// Tracks changes relevant to an external stat call, including sizes and timestamps.
-    /// This registers dependencies; it does not return stat results. `metadata()` returns
-    /// `FileMeta`, which omits sizes and timestamps. Metadata-only changes must invalidate stat
-    /// calls without invalidating ordinary content reads.
-    ///
-    /// The caller must resolve symlinks, including parent directories, before calling this.
-    #[turbo_tasks::function(fs, session_dependent)]
-    pub async fn full_metadata(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
-        if self.inner.is_path_denied(&fs_path) {
-            turbobail!("Cannot track metadata from denied path: {fs_path}");
-        }
-        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
-        if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.inner
-                .metadata_invalidator_map
-                .insert(full_path.clone(), invalidator);
-            let entry_type = *fs_path.get_type().await?;
-            debug_assert!(
-                !matches!(entry_type, FileSystemEntryType::Symlink),
-                "full_metadata requires a path with symlinks already resolved"
-            );
-            if !fs_path.is_root() {
-                self.inner
-                    .watcher
-                    .ensure_watched_file(&full_path, self.inner.root_path())
-                    .await?;
-            }
-            if matches!(entry_type, FileSystemEntryType::Directory) {
-                self.inner
-                    .watcher
-                    .ensure_watched_dir(&full_path, self.inner.root_path())
-                    .await?;
-            }
-        }
-        Ok(Completion::new())
-    }
-
     #[turbo_tasks::function]
     async fn new_internal(
         name: RcStr,
@@ -923,6 +886,46 @@ impl DiskFileSystem {
 impl Debug for DiskFileSystem {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "name: {}, root: {}", self.inner.name, self.inner.root)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DiskFileSystem {
+    /// Tracks changes relevant to an external stat call, including sizes and timestamps.
+    /// This registers dependencies; it does not return stat results. `metadata()` returns
+    /// `FileMeta`, which omits sizes and timestamps. Metadata-only changes must invalidate stat
+    /// calls without invalidating ordinary content reads.
+    ///
+    /// The caller must resolve symlinks, including parent directories, before calling this.
+    #[turbo_tasks::function(fs, session_dependent)]
+    pub async fn full_metadata(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
+        if self.inner.is_path_denied(&fs_path) {
+            turbobail!("Cannot track metadata from denied path: {fs_path}");
+        }
+        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.inner
+                .metadata_invalidator_map
+                .insert(full_path.clone(), invalidator);
+            let entry_type = *fs_path.get_type().await?;
+            debug_assert!(
+                !matches!(entry_type, FileSystemEntryType::Symlink),
+                "full_metadata requires a path with symlinks already resolved"
+            );
+            if !fs_path.is_root() {
+                self.inner
+                    .watcher
+                    .ensure_watched_file(&full_path, self.inner.root_path())
+                    .await?;
+            }
+            if matches!(entry_type, FileSystemEntryType::Directory) {
+                self.inner
+                    .watcher
+                    .ensure_watched_dir(&full_path, self.inner.root_path())
+                    .await?;
+            }
+        }
+        Ok(Completion::new())
     }
 }
 
