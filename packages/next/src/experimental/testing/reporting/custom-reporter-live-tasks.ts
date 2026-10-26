@@ -324,7 +324,11 @@ export function createLiveReporterTaskStore(projectDir: string) {
         )
       return retained.view
     },
-    finishModule(entryId: string, completion: CustomReporterCompletion) {
+    finishModule(
+      entryId: string,
+      completion: CustomReporterCompletion,
+      collectionFailure = false
+    ) {
       const module = modules.get(entryId)
       if (!module) return undefined
       const file = completion.files.find((item) => item.entryId === entryId)
@@ -341,7 +345,12 @@ export function createLiveReporterTaskStore(projectDir: string) {
           !isReportedSuiteError(event, completion.events) &&
           !isRunErrorDiagnostic(event.diagnostic) &&
           event.diagnostic.severity === 'error'
-            ? [event.diagnostic]
+            ? collectionFailure &&
+              event.diagnostic.phase === 'collection' &&
+              event.diagnostic.name === 'AggregateError' &&
+              event.diagnostic.errors
+              ? event.diagnostic.errors
+              : [event.diagnostic]
             : []
         ),
       ]

@@ -7,6 +7,9 @@ import {
   type TestTagDefinition,
   type Test,
   type Task,
+  type File,
+  getCollectionTaskView,
+  serializeTaskError,
 } from './tasks'
 import type { RuntimeOptions } from '../assertions/utilities'
 import {
@@ -137,6 +140,8 @@ export function getActiveHook(): SuiteHookContext | undefined {
 }
 
 export interface TestFileOptions {
+  /** Actual collection catch only; observation does not certify later cleanup. */
+  onCollectionFailure?(file: File, error: unknown): void | Promise<void>
   /** Enabled only by actual compiled execution hosts; private callers retain their scopes. */
   publicTaskSelection?: true
   /** Explicit Istanbul host capture of one settled actual module-load failure. */
@@ -303,6 +308,7 @@ export function initializeTestFile(options: TestFileOptions) {
 function initializeFile(
   {
     publicTaskSelection,
+    onCollectionFailure,
     captureCollectionCoverage,
     fileId,
     filePath,
@@ -463,6 +469,7 @@ function initializeFile(
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
   let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
   let disposalSucceeded = false
+  let collectionObservationFailed = false
   let ownedWorkerDisposalFailure: { readonly error: unknown } | undefined
   let runSignal: AbortSignal | undefined
   let captureCoverageCompletion = false
@@ -639,8 +646,39 @@ function initializeFile(
         sanitizeRetryConditions(collector.root)
         state = 'collected'
       } catch (error) {
-        state = 'finished'
+        if (!onCollectionFailure) {
+          state = 'finished'
+          worker?.fail(error, fileId)
+          throw error
+        }
         worker?.fail(error, fileId)
+        try {
+          // Finalized children are published only after successful collection.
+          // This is the actual cached File, not the private declaration tree.
+          const failedFile = getCollectionTaskView(
+            collector.root,
+            collector.root,
+            {
+              filePath,
+              testTimeout: runtimeConfig.testTimeout ?? testTimeout ?? 5000,
+            }
+          ) as File
+          const errors =
+            error instanceof AggregateError ? error.errors : [error]
+          failedFile.result = {
+            state: 'fail',
+            errors: errors.map(serializeTaskError),
+          }
+          await onCollectionFailure(failedFile, error)
+        } catch (observationError) {
+          collectionObservationFailed = true
+          throw new AggregateError(
+            [error, observationError],
+            'Test file collection and observation failed.'
+          )
+        } finally {
+          state = 'finished'
+        }
         throw error
       } finally {
         scope.close()
@@ -1085,6 +1123,7 @@ function initializeFile(
     getCompletedCollectionCoverageFailure() {
       if (
         captureCollectionCoverage !== true ||
+        collectionObservationFailed ||
         state !== 'disposed' ||
         !disposalSucceeded ||
         !settledCollectionFailure ||

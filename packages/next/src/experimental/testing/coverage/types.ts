@@ -17,6 +17,8 @@ export interface CoverageArtifactMetadata {
   /** Actual selected JavaScript instrumenter initial maps, separate from V8. */
   istanbul?: import('./istanbul-types').IstanbulInstrumentationMetadata
   istanbulHarness?: IstanbulHarnessCoverage
+  /** Existing native wrapper facts bound to the actual canonical Node project. */
+  nodeHarness?: { projectDir: string; harness: IstanbulHarnessCoverage }
   /** Explicit native test producer proof; never a public configuration value. */
   importRoles?: { version: 1; nativeMetadata: { path: string; sha256: string } }
   /** Compile-only entry; never executable runtime coverage evidence. */

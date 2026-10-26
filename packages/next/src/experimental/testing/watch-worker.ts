@@ -126,6 +126,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
         : {}),
       collectOnly: request.collectOnly,
       captureTaskResults: request.captureTaskResults,
+      ...(request.captureModuleCollected === true
+        ? { captureModuleCollected: true as const }
+        : {}),
       inspect: request.inspect,
       inspectBrk: request.inspectBrk,
       testNamePattern: request.testNamePattern,

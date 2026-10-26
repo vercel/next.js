@@ -66,6 +66,7 @@ export type WatchProcessRequest =
       /** Private actual scheduler occurrence; no authored callback acknowledgement. */
       captureModuleQueued?: true
       captureTaskResults?: boolean
+      captureModuleCollected?: true
       compilerTransforms?: Record<
         string,
         import('./compiler/transform-broker').CompilerTransformDescriptor

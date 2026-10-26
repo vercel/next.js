@@ -20273,3 +20273,510 @@ describe('Istanbul spec-load cancellation and recovery', () => {
     }
   }, 250000)
 })
+
+describe('actual Node V8 setup and serializer source roles', () => {
+  it.each([
+    'combined',
+    'combined-case-failure',
+    'serializer-explicit',
+    'setup-explicit',
+    'setup-imported',
+  ])(
+    'matches genuine V8 complete reports and snapshots for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-harness-public-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-harness-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPublicCLI: true,
+          actualJSONCoverageMap: true,
+          completeMapsSummaryLCOV: true,
+          exactExistingSnapshots: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it('joins the actual V8 worker and rejects changed Native roles, sources, requests and maps', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-v8-harness-actual-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'v8-harness-private.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'combined',
+          '--mutations',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 125000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        actualV8Capture: true,
+        actualNativeHarness: true,
+        completeReportsExact: true,
+        snapshotBytesExact: true,
+        mutationChecks: expect.any(Array),
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          .mutationChecks
+      ).toHaveLength(9)
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 130000)
+})
+
+describe('actual V8 default-object initializer association', () => {
+  it('uses unique unchanged Native AST and map roles while retaining authored counters and strict refusals', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-v8-default-object-'))
+    try {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'v8-default-object-association.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', stdio: 'pipe', timeout: 30000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        positive: 1,
+        controls: 10,
+        rawPreserved: true,
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        uniqueActualSemanticSubtree: true,
+        exactObjectClosingKeysAndReturns: true,
+        rawDataUnchanged: true,
+        actualInitializerExcludedOnly: true,
+        authoredHitsUnchanged: true,
+        existingStrictCountChecksRetained: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 35000)
+  it('matches genuine V8 complete reports for the unchanged imported serializer with its lowered default object', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-v8-default-object-public-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'v8-harness-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'serializer-imported',
+          '--source',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 125000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        actualJSONCoverageMap: true,
+        completeMapsSummaryLCOV: true,
+        exactExistingSnapshots: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 130000)
+})
+
+describe('settled V8 collection-only completion', () => {
+  const owner = {
+    runId: 'v8-load-run',
+    entryId: 'v8-load-entry',
+    revision: 'v8-load-revision',
+  }
+  const diagnostic = {
+    severity: 'error' as const,
+    phase: 'collection' as const,
+    name: 'Error',
+    message: 'actual settled V8 loader failure',
+    stack: 'original actual loader frame',
+  }
+  const failure: ResultEvent = {
+    version: 1,
+    timestamp: 0,
+    type: 'diagnostic',
+    ...owner,
+    coverageFileError: { index: 0 },
+    diagnostic,
+  }
+  async function tracker() {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    return createCoverageAttemptTracker({
+      deferSettledFileErrors: 'collection-only',
+      fileErrorOwner: owner,
+    })
+  }
+  it('authorizes the exact collection slot once after actual completion while retaining the original diagnostic', async () => {
+    const actual = await tracker(),
+      before = structuredClone(failure)
+    actual.observe(failure)
+    expect(actual.complete).toBe(false)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('Unrequested')
+    actual.observeCoverageCompletion(true)
+    actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(actual.complete).toBe(true)
+    expect(failure).toEqual(before)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('repeated')
+  })
+  it('retains cleanup, runtime, unhandled, foreign-owner, missing and duplicate vetoes', async () => {
+    for (const changed of [
+      { ...failure, diagnostic: { ...diagnostic, phase: 'cleanup' as const } },
+      { ...failure, diagnostic: { ...diagnostic, phase: 'runtime' as const } },
+      {
+        ...failure,
+        diagnostic: { ...diagnostic, unhandled: 'rejection' as const },
+      },
+      { ...failure, runId: 'other' },
+      { ...failure, entryId: 'other' },
+      { ...failure, revision: 'other' },
+      { ...failure, coverageFileError: undefined },
+    ]) {
+      const actual = await tracker()
+      actual.observe(changed)
+      actual.observeCoverageCompletion(true)
+      expect(() =>
+        actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+      ).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    for (const references of [
+      [],
+      [
+        { index: 0, diagnostic },
+        { index: 0, diagnostic },
+      ],
+      [{ index: 1, diagnostic }],
+      [{ index: 0, diagnostic: { ...diagnostic, message: 'other stage' } }],
+    ]) {
+      const actual = await tracker()
+      actual.observe(failure)
+      actual.observeCoverageCompletion(true)
+      expect(() => actual.authorizeSettledFileErrors(references)).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    const duplicate = await tracker()
+    duplicate.observe(failure)
+    duplicate.observe(failure)
+    duplicate.observeCoverageCompletion(true)
+    duplicate.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(duplicate.complete).toBe(false)
+  })
+  it('admits only the explicit isolated development Node request and keeps V8 suite slots refused', async () => {
+    const { assertCoverageCompletion, captureNodeV8CollectionCoverage } =
+      await import('next/dist/experimental/testing/execution/coverage')
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      profile,
+      ...owner,
+      rootDir: '/actual-protocol-control',
+      entryPath: 'entry.js',
+      files: [],
+      diagnostics: [],
+      coverage: { version: 1, scripts: [], sources: {} },
+    }
+    const entry = {
+      id: owner.entryId,
+      file: '/actual-protocol-control/entry.test.mjs',
+      profile,
+    }
+    const request = {
+      entry,
+      coverage: { version: 1 as const, kind: 'node-line' as const },
+    }
+    expect(captureNodeV8CollectionCoverage(artifact, request)).toBe(true)
+    for (const file of ['entry.test.cjs', 'entry.test.ts', 'entry.test.jsx'])
+      expect(
+        captureNodeV8CollectionCoverage(artifact, {
+          ...request,
+          entry: { ...entry, file },
+        })
+      ).toBe(false)
+    expect(
+      captureNodeV8CollectionCoverage(artifact, {
+        ...request,
+        collectOnly: true,
+      })
+    ).toBe(false)
+    expect(
+      captureNodeV8CollectionCoverage(
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        request
+      )
+    ).toBe(false)
+    const completion = {
+      version: 1,
+      ...owner,
+      complete: true,
+      data: { version: 1, scripts: [] },
+      settledFileErrors: [{ index: 0, diagnostic }],
+    }
+    expect(() =>
+      assertCoverageCompletion(completion, artifact, owner.runId)
+    ).not.toThrow()
+    expect(() =>
+      assertCoverageCompletion(
+        { ...completion, settledSuiteErrors: [] },
+        artifact,
+        owner.runId
+      )
+    ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(
+        completion,
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        owner.runId
+      )
+    ).toThrow('Unrequested')
+  })
+  const profiles = [
+    'setup-import-sync',
+    'setup-import-async',
+    'setup-import-undefined',
+    'setup-import-sync-report-false',
+    'setup-import-async-report-false',
+    'spec-mjs-no-case-sync',
+    'spec-mjs-no-case-sync-report-false',
+    'spec-js-no-case-sync',
+    'spec-js-no-case-sync-report-false',
+    'spec-mjs-partial-async',
+    'spec-mjs-partial-async-report-false',
+    'spec-js-partial-sync',
+    'spec-js-partial-sync-report-false',
+  ]
+  it.each(profiles)(
+    'publishes exact genuine counters, report policy and no-case file fields for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-public-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-collection-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledCollectionFailure: true,
+          noCaseStartsInvented: true,
+          completeMapsSummaryLCOV: true,
+          exactExistingSnapshots: true,
+          configUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each(profiles)(
+    'joins actual V8 loader and original Error identity without body/attempt facts for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-private-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
+          )
+        ).toMatchObject({
+          fileRunCalled: false,
+          operationObservationAbsent: true,
+          nativeBodyObservationAbsent: true,
+          actualSoleLoadCarrier: true,
+          actualErrorOwnFieldsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each(['setup-import-mixed-disposal', 'setup-import-mixed-settle'])(
+    'keeps independent same-Error stages unmarked and records the remaining publication gap for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-mixed-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
+          )
+        ).toMatchObject({
+          sameErrorIndependentStagesProven: true,
+          actualSoleLoadCarrier: false,
+          actualErrorOwnFieldsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    ['setup-import-sync', 'missing-getter'],
+    ['setup-import-sync', 'foreign-getter'],
+    ['spec-mjs-partial-async', 'duplicate-slot'],
+    ['spec-js-partial-sync', 'mismatched-slot'],
+    ['setup-import-undefined', 'missing-own-error'],
+    ['setup-import-undefined', 'accessor-error'],
+    ['spec-mjs-no-case-sync', 'duplicate-event'],
+    ['spec-mjs-no-case-sync', 'post-file-cleanup'],
+  ])(
+    'withholds incomplete %s capture for the actual %s fault',
+    async (name, fault) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-fault-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--fault=' + fault,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          fault,
+          strictIncompleteCapture: true,
+          originalCollectionFailureRetained: true,
+          noInventedCaseEvents: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each(['setup-import-pending-control', 'spec-pending-spec-control'])(
+    'keeps actual pending loader deadline and snapshot bytes for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-deadline-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-collection-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualPendingLoadGate: true,
+          actualProcessDeadline: true,
+          strictIncompleteCapture: true,
+          priorSnapshotsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})

@@ -7241,3 +7241,366 @@ it.each([
   },
   60000
 )
+
+it.each([
+  'plain',
+  'undefined-load',
+  'aggregate-load',
+  'nested-load',
+  'error-observer',
+  'undefined-observer',
+  'same-observer',
+] as const)(
+  'retains actual early failed collection File and physical observation fences for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-collected-file-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'collected-file-observation.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        originalIdentityHeld: true,
+        actualUnfinalizedFile: true,
+        observerOwnedUntilJoined: true,
+        runListDisposeFencesHeld: true,
+        bodyInvocations: 0,
+        completionNotCertifiedByObservation: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'missing-task-capture',
+  'active-v8',
+  'active-custom',
+  'collection-only',
+  'shared',
+  'typecheck',
+  'custom-environment',
+  'browser',
+  'rsc',
+] as const)(
+  'refuses unqualified actual collected-module role %s before execution',
+  async (role) => {
+    const { normalizeTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const project = {
+      ...normalizeTestConfig({ test: {} }).projects[0],
+      entries: [{ ...entry }],
+    }
+    if (role === 'shared') project.isolate = false
+    if (role === 'typecheck') project.entries[0].typecheck = true
+    if (role === 'custom-environment')
+      project.executionEnvironment = { name: 'jsdom' }
+    if (role === 'browser') project.profile.environment = 'browser'
+    if (role === 'rsc') project.profile.environment = 'rsc'
+    const options: import('next/dist/experimental/testing/orchestrator').RunTestsOptions =
+      {
+        captureModuleCollected: true,
+        captureTaskResults: role !== 'missing-task-capture',
+        signal: new AbortController().signal,
+        write() {},
+        coverage: role === 'active-v8',
+        collectOnly: role === 'collection-only',
+      }
+    if (role === 'active-custom')
+      options.customCoverageRequests = { active: {} as never }
+    await expect(runTests('/project', [project], options)).rejects.toThrow(
+      'Collected module reporters require one-shot isolated ordinary Node execution without active coverage and actual task-result capture.'
+    )
+  }
+)
+
+describe('actual collected reporter live callback ownership', () => {
+  async function collectedReporter(reject = false) {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-collected-reporter-'))
+    )
+    await cp(
+      join(__dirname, 'fixtures/module-collected.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(
+      join(root, 'collected-options.json'),
+      JSON.stringify({ root, reject })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', './reporter.mjs']),
+      outputFile: 'result.json',
+      write() {},
+    })
+    await machine.initialize()
+    const file = {
+      ...entry,
+      id: 'actual:collected',
+      file: join(root, 'case.mjs'),
+    }
+    const tree: import('next/dist/experimental/testing/reporting/live-tasks').ReporterTaskSnapshot =
+      {
+        id: file.id,
+        type: 'suite',
+        name: 'case.mjs',
+        fullName: 'case.mjs',
+        parentSuiteId: null,
+        mode: 'run',
+        tags: [],
+        meta: {},
+        filepath: file.file,
+        projectName: '',
+        tasks: [
+          {
+            id: file.id + '/0',
+            type: 'test',
+            name: 'actual declaration',
+            fullName: 'case.mjs > actual declaration',
+            fullTestName: 'actual declaration',
+            mode: 'run',
+            tags: [],
+            meta: {},
+            annotations: [],
+            artifacts: [],
+            parentSuiteId: null,
+          },
+        ],
+      }
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const rows = async () =>
+      (await readFile(join(root, 'collected-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    const release = () => writeFile(join(root, 'release'), 'release')
+    return { root, machine, file, tree, emit, rows, release }
+  }
+  it('keeps the actual live identity updating through module-end while its callback is held', async () => {
+    const c = await collectedReporter()
+    try {
+      expect(c.machine.captureModuleCollected).toBe(true)
+      expect(c.machine.captureModuleQueued).toBe(false)
+      c.emit({ type: 'run-start' })
+      c.emit({ type: 'file-start', entry: c.file, revision: 'owned-revision' })
+      c.emit({
+        type: 'file-collected',
+        entryId: c.file.id,
+        revision: 'owned-revision',
+        taskTree: c.tree,
+      })
+      await retry(async () => {
+        expect((await c.rows())[0]).toMatchObject({
+          event: 'collected',
+          state: 'pending',
+          children: 1,
+          tests: [{ state: 'pending' }],
+        })
+      })
+      const updated = {
+        ...c.tree,
+        result: { state: 'pass' as const },
+        tasks: c.tree.tasks!.map((task) => ({
+          ...task,
+          result: { state: 'pass' as const },
+        })),
+      }
+      c.emit({
+        type: 'task-update',
+        entryId: c.file.id,
+        revision: 'owned-revision',
+        taskTree: updated,
+        taskUpdateIds: [c.file.id, c.file.id + '/0'],
+        caseResults: [],
+      })
+      c.emit({
+        type: 'file-end',
+        entryId: c.file.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      await retry(async () => {
+        expect((await c.rows()).at(-1)).toMatchObject({
+          event: 'end',
+          same: true,
+          state: 'passed',
+          tests: [{ state: 'passed' }],
+        })
+      })
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      let done = false
+      const finish = c.machine.finish().then(() => {
+        done = true
+      })
+      expect(done).toBe(false)
+      await c.release()
+      await finish
+      expect((await c.rows()).map((row) => row.event)).toEqual([
+        'collected',
+        'end',
+        'collected-return',
+        'run-end',
+      ])
+      expect((await c.rows())[2]).toMatchObject({
+        state: 'passed',
+        children: 1,
+        tests: [{ state: 'passed' }],
+      })
+    } finally {
+      await c.release()
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+  it('retains the collected callback rejection with passed file/JSON/reason and actual run error', async () => {
+    const c = await collectedReporter(true)
+    try {
+      c.emit({ type: 'run-start' })
+      c.emit({ type: 'file-start', entry: c.file, revision: 'owned-revision' })
+      c.emit({
+        type: 'file-collected',
+        entryId: c.file.id,
+        revision: 'owned-revision',
+        taskTree: c.tree,
+      })
+      c.emit({
+        type: 'file-end',
+        entryId: c.file.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      await expect(c.machine.finish()).rejects.toThrow(
+        'owned collected reporter failure'
+      )
+      expect((await c.rows()).at(-1)).toMatchObject({
+        event: 'run-end',
+        reason: 'passed',
+        errors: ['owned collected reporter failure'],
+      })
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({ success: true, numPassedTestSuites: 1 })
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('actual failed collected module final error projection', () => {
+  it.each([
+    'aggregate',
+    'nested',
+    'undefined',
+    'cleanup',
+    'nonobserved',
+  ] as const)(
+    'preserves measured final errors and independent occurrences for %s',
+    async (mode) => {
+      const { createLiveReporterTaskStore } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+      )
+      const first = serializeDiagnostic(new Error('owned first'), {
+        phase: 'collection',
+      })
+      const second = serializeDiagnostic(new Error('owned second'), {
+        phase: 'collection',
+      })
+      const nested = {
+        ...serializeDiagnostic(new Error('owned nested'), {
+          phase: 'collection',
+        }),
+        name: 'AggregateError',
+        errors: [first],
+      }
+      const aggregate = {
+        ...serializeDiagnostic(new Error('owned aggregate'), {
+          phase: 'collection',
+        }),
+        name: 'AggregateError',
+        errors: [mode === 'nested' ? nested : first, second],
+      }
+      const collection =
+        mode === 'undefined'
+          ? serializeDiagnostic(undefined, { phase: 'collection' })
+          : aggregate
+      const events: ResultEvent[] = [
+        { ...envelope, type: 'run-start' },
+        { ...envelope, type: 'file-start', entry, revision: 'owned' },
+        {
+          ...envelope,
+          type: 'diagnostic',
+          entryId: entry.id,
+          revision: 'owned',
+          diagnostic: collection,
+        },
+        ...(mode === 'cleanup'
+          ? [0, 1].map(() => ({
+              ...envelope,
+              type: 'diagnostic' as const,
+              entryId: entry.id,
+              revision: 'owned',
+              diagnostic: { ...aggregate, phase: 'cleanup' as const },
+            }))
+          : []),
+        {
+          ...envelope,
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'failed',
+          durationMs: 1,
+        },
+      ]
+      const reporter = createTestReporter({ write() {} })
+      events.forEach((event) => reporter.onEvent(event))
+      const live = createLiveReporterTaskStore('/project')
+      const observed = live.update({
+        id: entry.id,
+        type: 'suite',
+        name: 'example.test.ts',
+        fullName: 'example.test.ts',
+        mode: 'run',
+        meta: {},
+        tags: [],
+        tasks: [],
+        parentSuiteId: null,
+        filepath: entry.file,
+        projectName: '',
+        result: { state: 'fail', errors: [] },
+      })
+      const final = live.finishModule(
+        entry.id,
+        { ...reporter.getResults(), events, status: 'failed' },
+        mode !== 'nonobserved'
+      )!
+      expect(final).toBe(observed)
+      expect(final.errors()).toEqual(
+        mode === 'nonobserved'
+          ? [aggregate]
+          : mode === 'undefined'
+            ? [collection]
+            : [
+                mode === 'nested' ? nested : first,
+                second,
+                ...(mode === 'cleanup'
+                  ? [
+                      { ...aggregate, phase: 'cleanup' },
+                      { ...aggregate, phase: 'cleanup' },
+                    ]
+                  : []),
+              ]
+      )
+    }
+  )
+})

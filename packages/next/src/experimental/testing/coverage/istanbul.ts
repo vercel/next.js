@@ -31,6 +31,7 @@ import {
 } from './browser-imports'
 import { associateBrowserJsxCalls } from './browser-jsx-associations'
 import { bindIfReturnEnds } from './if-return-boundaries'
+import { bindDefaultObjectInitializer } from './default-object'
 import { bindConditionalOperandEnds } from './conditional-operands'
 import { bindParameterPropertyModel } from './parameter-properties'
 import { bindNamespaceModel } from './namespaces'
@@ -691,6 +692,17 @@ async function convertCompiledScript(
           browserAutomaticFactories: browserNative.automaticFactories.get(file),
           browserCreatorMethods: browserNative.creatorMethods.get(file),
           mode: artifact.profile.mode,
+          ...(artifact.kind === 'node' &&
+          artifact.profile.mode === 'development' &&
+          artifact.profile.environment === 'node' &&
+          artifact.profile.route === undefined &&
+          artifact.profile.browserClient === undefined &&
+          !artifact.cohort &&
+          !artifact.moduleMocking &&
+          !artifact.moduleCache &&
+          !artifact.dynamicModuleMocking
+            ? { nodeDefaultObject: true as const }
+            : {}),
           sourceMap,
           coverage: {
             url: pathToFileURL(join(artifact.rootDir, metadata.path)).href,
@@ -1141,6 +1153,7 @@ async function recoverJavaScriptLocations(
     code: string
     ast: unknown
     mode: 'development' | 'production'
+    nodeDefaultObject?: true
     sourceMap: RawSourceMap
     browserImportStatements?: readonly BrowserImportStatement[]
     browserClassicFactories?: readonly BrowserClassicFactory[]
@@ -1357,6 +1370,15 @@ async function recoverJavaScriptLocations(
       sourceType: 'module',
       locations: true,
     })
+    if (emitted.nodeDefaultObject === true)
+      data = bindDefaultObjectInitializer(
+        file,
+        original,
+        data,
+        authored,
+        emitted.ast,
+        emitted.sourceMap
+      )
     bindIfReturnEnds(
       file,
       original,

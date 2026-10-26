@@ -1,5 +1,6 @@
 import { assertMockCoverageArtifact } from '../coverage/mock-sources'
 import { assertSourceCoverageArtifact } from '../coverage/source-profile'
+import { assertNodeHarnessArtifact } from '../coverage/node-harness'
 import type {
   CompiledTestArtifact,
   ExecuteTestOptions,
@@ -21,6 +22,10 @@ export function assertCoverageRequest(
       'Compile-only coverage sources cannot enter runtime capture'
     )
   if (!options.coverage) {
+    if (artifact.coverage?.nodeHarness !== undefined)
+      throw new Error(
+        'Native Node harness metadata requires its explicit request.'
+      )
     if (artifact.coverage?.istanbul || artifact.coverage?.istanbulHarness)
       throw new Error(
         'Istanbul coverage metadata requires its explicit request.'
@@ -38,6 +43,7 @@ export function assertCoverageRequest(
       artifact.profile.route !== undefined ||
       artifact.profile.browserClient !== undefined ||
       !artifact.coverage?.istanbul ||
+      artifact.coverage?.nodeHarness !== undefined ||
       options.onCoverage ||
       typeof options.onIstanbulCoverage !== 'function'
     )
@@ -66,6 +72,7 @@ export function assertCoverageRequest(
   else if (artifact.coverage?.sourcePreservation)
     throw new Error('Unrequested production source coverage provenance.')
   assertMockCoverageArtifact(artifact)
+  assertNodeHarnessArtifact(artifact)
   if (!artifact.coverage)
     throw new Error('Compiled artifact lacks coverage metadata')
   if (typeof options.onCoverage !== 'function') {
@@ -73,12 +80,50 @@ export function assertCoverageRequest(
   }
 }
 
+function nodeV8CollectionArtifact(artifact: CompiledTestArtifact): boolean {
+  return (
+    artifact.kind === 'node' &&
+    artifact.profile.mode === 'development' &&
+    artifact.profile.environment === 'node' &&
+    artifact.profile.route === undefined &&
+    artifact.profile.browserClient === undefined &&
+    !artifact.cohort &&
+    !artifact.moduleMocking &&
+    !artifact.moduleCache &&
+    !artifact.dynamicModuleMocking &&
+    !artifact.sourceDependencies &&
+    !artifact.nativeTsConfigInputs &&
+    !artifact.coverage?.istanbul &&
+    !artifact.coverage?.sourceAnalysis
+  )
+}
+
+/** The existing actual load carrier is requested only by this bounded V8 owner. */
+export function captureNodeV8CollectionCoverage(
+  artifact: CompiledTestArtifact,
+  options: Pick<
+    ExecuteTestOptions,
+    'entry' | 'coverage' | 'customCoverage' | 'collectOnly'
+  >
+): boolean {
+  return (
+    nodeV8CollectionArtifact(artifact) &&
+    options.coverage?.version === 1 &&
+    options.coverage.kind === 'node-line' &&
+    options.customCoverage === undefined &&
+    !options.collectOnly &&
+    /\.(?:mjs|js)$/.test(options.entry.file) &&
+    (options.entry.executionEnvironment === undefined ||
+      options.entry.executionEnvironment.name === 'node')
+  )
+}
+
 /** Every started retry must finish; skipped/unstarted cases need no interval. */
 export function createCoverageAttemptTracker(
   options: {
     deferNativeRejections?: boolean
     deferSettledSuiteErrors?: boolean
-    deferSettledFileErrors?: boolean
+    deferSettledFileErrors?: boolean | 'collection-only'
     fileErrorOwner?: { runId: string; entryId: string; revision: string }
   } = {}
 ) {
@@ -127,7 +172,8 @@ export function createCoverageAttemptTracker(
         } else if (
           options.deferSettledFileErrors &&
           !receivedCompletion &&
-          (event.diagnostic.phase === 'cleanup' ||
+          ((options.deferSettledFileErrors === true &&
+            event.diagnostic.phase === 'cleanup') ||
             event.diagnostic.phase === 'collection') &&
           event.diagnostic.unhandled === undefined &&
           event.coverageFileError &&
@@ -284,8 +330,13 @@ export function assertCoverageCompletion(
   }
   const completion = value as AnyTestCoverageCompletion
   if (
-    ('settledSuiteErrors' in completion || 'settledFileErrors' in completion) &&
-    (!artifact.coverage?.istanbul || completion.complete !== true)
+    ('settledSuiteErrors' in completion && !artifact.coverage?.istanbul) ||
+    ('settledFileErrors' in completion &&
+      !artifact.coverage?.istanbul &&
+      !nodeV8CollectionArtifact(artifact)) ||
+    (('settledSuiteErrors' in completion ||
+      'settledFileErrors' in completion) &&
+      completion.complete !== true)
   )
     throw new Error('Unrequested settled suite-error observation.')
   if (

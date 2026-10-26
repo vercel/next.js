@@ -30,6 +30,7 @@ import {
   assertCoverageRequest,
   assertCoverageCompletion,
   createCoverageAttemptTracker,
+  captureNodeV8CollectionCoverage,
 } from './coverage'
 import {
   commitSnapshotUpdates,
@@ -162,11 +163,18 @@ export async function executeWithEnvironment(
   const assertCustomClosure = options.customCoverage
     ? await captureCustomCoverageClosure(artifact, options.entry)
     : undefined
+  const v8CollectionCoverage = captureNodeV8CollectionCoverage(
+    artifact,
+    options
+  )
   const attempts = createCoverageAttemptTracker({
     deferSettledSuiteErrors: options.coverage?.kind === 'node-istanbul',
-    ...(options.coverage?.kind === 'node-istanbul'
+    ...(options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage
       ? {
-          deferSettledFileErrors: true,
+          deferSettledFileErrors:
+            options.coverage?.kind === 'node-istanbul'
+              ? true
+              : ('collection-only' as const),
           fileErrorOwner: {
             runId: options.runId,
             entryId: artifact.entryId,
@@ -553,9 +561,11 @@ export async function executeWithEnvironment(
       ) {
         throw new Error('Test coverage is incomplete after worker interruption')
       }
-      if (options.coverage?.kind === 'node-istanbul' && coverage?.complete) {
-        attempts.authorizeSettledSuiteErrors(coverage.settledSuiteErrors)
-        attempts.authorizeSettledFileErrors(coverage.settledFileErrors)
+      if (coverage?.complete) {
+        if (options.coverage?.kind === 'node-istanbul')
+          attempts.authorizeSettledSuiteErrors(coverage.settledSuiteErrors)
+        if (options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage)
+          attempts.authorizeSettledFileErrors(coverage.settledFileErrors)
       }
       if (!attempts.complete)
         throw new Error('Test coverage has incomplete attempts or cleanup')

@@ -777,6 +777,9 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureModuleCollected() {
+      return custom?.captureModuleCollected === true
+    },
     get captureModuleQueued() {
       return custom?.captureModuleQueued === true
     },

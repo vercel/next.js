@@ -70,6 +70,11 @@ export type TestCoverageCompletion<Data = CoverageCapture> = {
   runId: string
   entryId: string
   revision: string
+  /** Actual authorized file slots; V8 admits settled collection errors only. */
+  settledFileErrors?: readonly {
+    index: number
+    diagnostic: SerializedDiagnostic
+  }[]
 } & (
   | { complete: true; data: Data }
   | { complete: false; error: SerializedDiagnostic }
@@ -79,17 +84,12 @@ export type IstanbulCoverageCompletion =
   TestCoverageCompletion<IstanbulCoverageCapture> & {
     /** Actual authored afterAll failures, authorized only after real disposal. */
     settledSuiteErrors?: readonly { suiteId: string; index: number }[]
-    /** Exact actual file-cleanup diagnostic slots, after real disposal/joins. */
-    settledFileErrors?: readonly {
-      index: number
-      diagnostic: SerializedDiagnostic
-    }[]
   }
-/** Shared IPC; the additional observation is admitted only for Istanbul. */
+/** Shared IPC; suite-error observations remain Istanbul-only. */
 export type AnyTestCoverageCompletion = TestCoverageCompletion<
   CoverageCapture | IstanbulCoverageCapture
 > &
-  Pick<IstanbulCoverageCompletion, 'settledSuiteErrors' | 'settledFileErrors'>
+  Pick<IstanbulCoverageCompletion, 'settledSuiteErrors'>
 
 /** Explicit source registration, never an arbitrary browser-supplied module path. */
 export interface RegisteredBrowserFixture {
@@ -435,6 +435,8 @@ export interface ExecuteTestOptions {
   captureCompletedModuleResult?: true
   /** Opt-in live reporter snapshots from actual logical-case producers. */
   captureTaskResults?: boolean
+  /** Requested actual module collection observation; never a coverage certificate. */
+  captureModuleCollected?: true
   /** Address for an explicitly requested inspector on this file worker. */
   inspect?: string
   /** Pause the explicitly inspected file worker before entry evaluation. */

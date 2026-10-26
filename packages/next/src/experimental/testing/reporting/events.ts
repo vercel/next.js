@@ -173,7 +173,7 @@ type EventPayload =
       type: 'diagnostic'
       /** Exact prior suite-end error slot from this execution, when owned. */
       suiteError?: { suiteId: string; index: number }
-      /** Actual Istanbul cleanup or collection diagnostic index; never an author option. */
+      /** Actual authorized cleanup or collection diagnostic index; never an author option. */
       coverageFileError?: { index: number }
       diagnostic: SerializedDiagnostic
     } & Partial<ResultScope>)

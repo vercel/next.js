@@ -101,6 +101,7 @@ export async function openCustomReporters(options: {
   let watchHookError: Error | undefined
   let captureTaskResults = false
   let captureModuleQueued = false
+  let captureModuleCollected = false
   let reporterErrors: SerializedDiagnostic[] = []
   let cancelledReporterErrors: Error[] | undefined
   let terminalReporterFailure:
@@ -122,6 +123,7 @@ export async function openCustomReporters(options: {
   let disposal: Promise<void> | undefined
   let consoleQueue = Promise.resolve()
   const queuedWrites: Promise<void>[] = []
+  const collectedWrites: Promise<void>[] = []
   let consoleFailure: unknown
   const observedModules = new Set<string>()
   const retainConsoleFailure = (error: unknown) => {
@@ -193,6 +195,8 @@ export async function openCustomReporters(options: {
         message?.type !== 'custom-reporter-failed'
       )
         throw new Error('Invalid custom reporter response.')
+      if (message.captureModuleCollected !== undefined)
+        captureModuleCollected = message.captureModuleCollected === true
       if (message.captureModuleQueued !== undefined)
         captureModuleQueued = message.captureModuleQueued === true
       if (message.captureTaskResults !== undefined)
@@ -319,7 +323,7 @@ export async function openCustomReporters(options: {
         ? handledFailure
         : undefined
     return (disposal ??= (async () => {
-      await Promise.all(queuedWrites)
+      await Promise.all([...queuedWrites, ...collectedWrites])
       await consoleQueue
       closing = true
       const cleanupErrors: unknown[] = []
@@ -370,6 +374,9 @@ export async function openCustomReporters(options: {
   try {
     await loaded
     return {
+      get captureModuleCollected() {
+        return captureModuleCollected
+      },
       get captureModuleQueued() {
         return captureModuleQueued
       },
@@ -480,13 +487,18 @@ export async function openCustomReporters(options: {
         }
         if (event.type === 'file-collected' || event.type === 'task-update') {
           // Producer facts stay live while owned reporter callbacks await work.
-          void send({
+          const notification = send({
             type: 'task-state',
             taskTree: event.taskTree,
+            ...(event.type === 'file-collected' && captureModuleCollected
+              ? { notifyCollected: true }
+              : {}),
             ...(event.type === 'task-update'
               ? { taskUpdateIds: event.taskUpdateIds }
               : {}),
           }).catch(retainConsoleFailure)
+          if (event.type === 'file-collected' && captureModuleCollected)
+            collectedWrites.push(notification)
           if (event.type === 'task-update')
             for (const result of event.caseResults)
               consoleQueue = consoleQueue
@@ -543,7 +555,7 @@ export async function openCustomReporters(options: {
           .catch(retainConsoleFailure)
       },
       async finish(completion: CustomReporterCompletion) {
-        await Promise.all(queuedWrites)
+        await Promise.all([...queuedWrites, ...collectedWrites])
         await consoleQueue
         if (options.signal?.aborted) {
           await settleCancellation()

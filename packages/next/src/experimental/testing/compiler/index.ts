@@ -68,6 +68,7 @@ import { withCompilerTransforms } from './transform-config'
 import { withIstanbulInstrumentation } from './istanbul-config'
 import { assertTransformSource } from './transform-hooks'
 import { buildCoverageMetadata, readArtifactFile } from '../coverage/artifact'
+import { isNodeHarnessProfile } from '../coverage/node-harness'
 import { readIstanbulHarnessCoverage } from '../coverage/istanbul-harness'
 import type { CompiledCoverageSource } from '../coverage/types'
 import { sourceAnalysisEntryId } from '../coverage/source-analysis'
@@ -1974,17 +1975,33 @@ export async function createTestCompilerSession(
         coverage && profile.mode === 'production' && !profile.browserClient
           ? await readSourceCoverageProof(staging, output.entryPath, files)
           : undefined
+      const isolatedNodeV8Harness =
+        coverage?.kind === 'node-line' &&
+        isNodeHarnessProfile(profile) &&
+        !cohortInputs &&
+        !dependencyPlan &&
+        !moduleMocking &&
+        !moduleCache &&
+        !dynamicModuleMocking
+      const nativeHarness =
+        istanbulInstrumentation || isolatedNodeV8Harness
+          ? await readIstanbulHarnessCoverage({
+              entryPath: output.entryPath,
+              files,
+              projectDir: dir,
+              setupFiles,
+              snapshotSerializers,
+              signal,
+              readArtifact: (path) => readArtifactFile(staging, path),
+            })
+          : undefined
       const istanbulHarness = istanbulInstrumentation
-        ? await readIstanbulHarnessCoverage({
-            entryPath: output.entryPath,
-            files,
-            projectDir: dir,
-            setupFiles,
-            snapshotSerializers,
-            signal,
-            readArtifact: (path) => readArtifactFile(staging, path),
-          })
+        ? nativeHarness
         : undefined
+      const nodeHarness =
+        isolatedNodeV8Harness && nativeHarness
+          ? { projectDir: dir, harness: nativeHarness }
+          : undefined
       const coverageMetadata = coverage
         ? await (
             profile.browserClient
@@ -2003,6 +2020,7 @@ export async function createTestCompilerSession(
             setupFiles,
             syntheticSources: moduleMocking?.coverage,
             ...(istanbulHarness ? { istanbulHarness } : {}),
+            ...(nodeHarness ? { nodeHarness } : {}),
           })
         : undefined
       let istanbulMetadata = istanbulInstrumentation?.metadata

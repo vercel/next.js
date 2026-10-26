@@ -48,18 +48,18 @@ export async function buildCoverageMetadata(options: {
   setupFiles: readonly string[]
   syntheticSources?: MockCoverageSources
   istanbulHarness?: IstanbulHarnessCoverage
+  nodeHarness?: { projectDir: string; harness: IstanbulHarnessCoverage }
   /** Actual production Browser assets name maps by their own content hash. */
   browserSourceMapReferences?: true
 }): Promise<CoverageArtifactMetadata> {
   if (options.syntheticSources)
     validateMockCoverageSources(options.syntheticSources)
-  if (options.istanbulHarness)
-    validateIstanbulHarnessCoverage(options.istanbulHarness)
+  if (options.istanbulHarness && options.nodeHarness)
+    throw new Error('Conflicting native test harness coverage roles.')
+  const harness = options.istanbulHarness ?? options.nodeHarness?.harness
+  if (harness) validateIstanbulHarnessCoverage(harness)
   const declaredHarness = new Map(
-    options.istanbulHarness?.sources.map((source) => [
-      source.source,
-      source.sha256,
-    ])
+    harness?.sources.map((source) => [source.source, source.sha256])
   )
   const declaredSynthetic = new Map(
     options.syntheticSources?.sources.map((source) => [
@@ -214,5 +214,6 @@ export async function buildCoverageMetadata(options: {
     ...(options.istanbulHarness
       ? { istanbulHarness: options.istanbulHarness }
       : {}),
+    ...(options.nodeHarness ? { nodeHarness: options.nodeHarness } : {}),
   }
 }

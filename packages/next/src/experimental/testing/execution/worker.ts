@@ -38,6 +38,7 @@ import { createLateFailureSink } from './late-failures'
 import { browserOutputDirectory } from './browser-output'
 import { assertArtifactProfile } from './artifact-profile'
 import { assertCompiledSetup } from './setup'
+import { captureNodeV8CollectionCoverage } from './coverage'
 import { openTestEnvironment } from '../environments/runtime'
 import { installTestConsole } from './console'
 import {
@@ -118,6 +119,10 @@ async function run({
   userCancellation: allowUserCancellation,
 }: WorkerInput) {
   const started = performance.now()
+  const v8CollectionCoverage = captureNodeV8CollectionCoverage(
+    artifact,
+    options
+  )
   const moduleFailures = options.captureCompletedModuleResult
     ? new Map<unknown, ReturnType<typeof serializeDiagnostic>>()
     : undefined
@@ -133,6 +138,15 @@ async function run({
       type: 'event',
       event: {
         ...payload,
+        ...(options.captureModuleCollected === true &&
+        (payload.type === 'file-collected' || payload.type === 'task-update')
+          ? {
+              taskTree: {
+                ...payload.taskTree,
+                projectName: options.entry.projectName ?? '',
+              },
+            }
+          : {}),
         version: 1,
         runId: options.runId,
         timestamp,
@@ -390,6 +404,18 @@ async function run({
         'Client Browser Mode artifacts require the parent-owned client executor, never a Node worker.'
       )
     assertArtifactProfile(artifact, options.entry)
+    if (
+      options.captureModuleCollected !== undefined &&
+      (options.captureModuleCollected !== true ||
+        options.captureTaskResults !== true ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        ('cohort' in artifact && artifact.cohort) ||
+        options.collectOnly ||
+        options.coverage ||
+        options.customCoverage)
+    )
+      throw new Error('Unsupported actual collected-module execution role.')
     assertNodeProjectEnvironment(artifact, options)
     if (options.customCoverage) {
       const { assertCustomCoverageRequest } = await import(
@@ -718,7 +744,24 @@ async function run({
         : undefined
     file = entry.testRunner.initializeTestFile({
       publicTaskSelection: true,
-      ...(options.coverage?.kind === 'node-istanbul'
+      ...(options.captureModuleCollected === true
+        ? {
+            onCollectionFailure: async (actualFile) => {
+              await event({
+                type: 'file-collected',
+                entryId: artifact.entryId,
+                revision: artifact.revision,
+                taskTree: captureReporterTaskTree(
+                  actualFile,
+                  undefined,
+                  file!.getPublishedTaskLocation
+                ),
+              })
+              taskUpdates!.collected(actualFile)
+            },
+          }
+        : {}),
+      ...(options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage
         ? { captureCollectionCoverage: true }
         : {}),
       ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
@@ -1150,7 +1193,7 @@ async function run({
   } catch (error) {
     snapshotHostComplete = false
     const deferCollectionFailure =
-      options.coverage?.kind === 'node-istanbul' &&
+      (options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage) &&
       phase === 'collection' &&
       file !== undefined &&
       !controller.signal.aborted &&
@@ -1328,79 +1371,80 @@ async function run({
             diagnostic: ReturnType<typeof serializeDiagnostic>
           }[]
         | undefined
-      if (options.coverage.kind === 'node-istanbul') {
-        if (provisionalCollectionFailure) {
-          const observed =
-            typeof file?.getCompletedCollectionCoverageFailure === 'function'
-              ? file.getCompletedCollectionCoverageFailure()
-              : undefined
-          const errorField =
-            observed !== null &&
-            typeof observed === 'object' &&
-            !Array.isArray(observed) &&
-            Reflect.ownKeys(observed).length === 1
-              ? Object.getOwnPropertyDescriptor(observed, 'error')
-              : undefined
-          if (
-            !errorField ||
-            !('value' in errorField) ||
-            errorField.value !== provisionalCollectionFailure.error ||
-            provisionalCoverageFailures.length ||
-            reportedFileErrors.length ||
-            reportedSuiteErrors.length
+      if (
+        provisionalCollectionFailure &&
+        (options.coverage.kind === 'node-istanbul' || v8CollectionCoverage)
+      ) {
+        const observed =
+          typeof file?.getCompletedCollectionCoverageFailure === 'function'
+            ? file.getCompletedCollectionCoverageFailure()
+            : undefined
+        const errorField =
+          observed !== null &&
+          typeof observed === 'object' &&
+          !Array.isArray(observed) &&
+          Reflect.ownKeys(observed).length === 1
+            ? Object.getOwnPropertyDescriptor(observed, 'error')
+            : undefined
+        if (
+          !errorField ||
+          !('value' in errorField) ||
+          errorField.value !== provisionalCollectionFailure.error ||
+          provisionalCoverageFailures.length ||
+          reportedFileErrors.length ||
+          reportedSuiteErrors.length
+        )
+          coverageComplete = false
+        else
+          settledFileErrors = [
+            {
+              index: provisionalCollectionFailure.index,
+              diagnostic: provisionalCollectionFailure.diagnostic,
+            },
+          ]
+      } else if (options.coverage.kind === 'node-istanbul') {
+        const observed = file!.getCompletedCoverageFailures()
+        if (
+          !observed ||
+          observed.length !== provisionalCoverageFailures.length ||
+          provisionalCoverageFailures.some(
+            (failure) => !observed.includes(failure)
           )
-            coverageComplete = false
-          else
-            settledFileErrors = [
-              {
-                index: provisionalCollectionFailure.index,
-                diagnostic: provisionalCollectionFailure.diagnostic,
-              },
-            ]
-        } else {
-          const observed = file!.getCompletedCoverageFailures()
-          if (
-            !observed ||
-            observed.length !== provisionalCoverageFailures.length ||
-            provisionalCoverageFailures.some(
-              (failure) => !observed.includes(failure)
+        )
+          coverageComplete = false
+        else {
+          settledSuiteErrors = []
+          settledFileErrors = []
+          for (const failure of observed) {
+            const owners = reportedSuiteErrors.filter(
+              (item) => item.failure === failure
             )
-          )
-            coverageComplete = false
-          else {
-            settledSuiteErrors = []
-            settledFileErrors = []
-            for (const failure of observed) {
-              const owners = reportedSuiteErrors.filter(
-                (item) => item.failure === failure
+            const fileOwners = reportedFileErrors.filter(
+              (item) => item.failure === failure
+            )
+            if (fileOwners.length === 1 && owners.length <= 1) {
+              settledFileErrors.push({
+                index: fileOwners[0].index,
+                diagnostic: fileOwners[0].diagnostic,
+              })
+            } else if (owners.length === 1 && fileOwners.length === 0) {
+              settledSuiteErrors.push({
+                suiteId: owners[0].suiteId,
+                index: owners[0].index,
+              })
+            } else if (
+              !(
+                owners.length === 0 &&
+                fileOwners.length === 0 &&
+                failure.phase === 'runtime' &&
+                nativeCoverageOccurrences.filter(
+                  (item) => item.afterAll && item.reason === failure.error
+                ).length === 1 &&
+                lateFailures.has(failure.error)
               )
-              const fileOwners = reportedFileErrors.filter(
-                (item) => item.failure === failure
-              )
-              if (fileOwners.length === 1 && owners.length <= 1) {
-                settledFileErrors.push({
-                  index: fileOwners[0].index,
-                  diagnostic: fileOwners[0].diagnostic,
-                })
-              } else if (owners.length === 1 && fileOwners.length === 0) {
-                settledSuiteErrors.push({
-                  suiteId: owners[0].suiteId,
-                  index: owners[0].index,
-                })
-              } else if (
-                !(
-                  owners.length === 0 &&
-                  fileOwners.length === 0 &&
-                  failure.phase === 'runtime' &&
-                  nativeCoverageOccurrences.filter(
-                    (item) => item.afterAll && item.reason === failure.error
-                  ).length === 1 &&
-                  lateFailures.has(failure.error)
-                )
-              ) {
-                coverageComplete = false
-                break
-              }
+            ) {
+              coverageComplete = false
+              break
             }
           }
         }

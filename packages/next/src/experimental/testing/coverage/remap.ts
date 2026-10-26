@@ -11,6 +11,7 @@ import {
 } from './runtime-authorization'
 import { coverageHash, readArtifactFile } from './artifact'
 import { decodeCoverageMap } from './maps'
+import { verifyNodeHarnessCoverage } from './node-harness'
 import type {
   CoverageArtifactMetadata,
   CoverageCapture,
@@ -197,6 +198,7 @@ async function remapCoverageImpl(
   else if (artifact.coverage.browser)
     throw new Error('Unrequested browser coverage provenance.')
   assertMockCoverageArtifact(artifact)
+  await verifyNodeHarnessCoverage(artifact)
   const native = artifact.moduleMocking?.coverage?.nativeMetadata
   if (native)
     assertNativeMockCoverageBytes(
@@ -332,6 +334,7 @@ async function remapCoverageImpl(
       : !seen.has(artifact.entryPath)
   )
     throw new Error('Coverage capture is missing the entry script')
+  await verifyNodeHarnessCoverage(artifact)
   return {
     version: 1,
     entryId: artifact.entryId,

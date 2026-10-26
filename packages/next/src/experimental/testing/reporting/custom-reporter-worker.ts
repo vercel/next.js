@@ -25,6 +25,7 @@ type Reporter = {
   onTestRemoved?(file: string): unknown
   onUserConsoleLog?(log: unknown): unknown
   onTestModuleQueued?(module: unknown): unknown
+  onTestModuleCollected?(module: unknown): unknown
   onTestModuleEnd?(module: unknown): unknown
   onTestCaseResult?(test: unknown): unknown
   onTestRunEnd?(modules: unknown[], errors: unknown[], reason: string): unknown
@@ -49,6 +50,9 @@ const completedModules = new Map<
 >()
 let queue = Promise.resolve()
 const queuedCallbacks: Promise<void>[] = []
+const collectedCallbacks: Promise<void>[] = []
+const collectedEntryIds = new Set<string>()
+const failedCollectedEntryIds = new Set<string>()
 const queuedEntryIds = new Set<string>()
 const send = (value: object) =>
   new Promise<void>((resolve, reject) =>
@@ -80,7 +84,7 @@ async function settle(callbacks: (() => unknown)[]) {
     throw new AggregateError(errors, 'Custom reporter callbacks failed.')
 }
 async function shutdown() {
-  await Promise.all(queuedCallbacks)
+  await Promise.all([...queuedCallbacks, ...collectedCallbacks])
   await settle(closeCallbacks.splice(0))
 }
 async function replayCases(tree: ReporterTaskSnapshot) {
@@ -102,7 +106,7 @@ async function finishCallbacks(
   errors: unknown[],
   reason: string
 ) {
-  await Promise.all(queuedCallbacks)
+  await Promise.all([...queuedCallbacks, ...collectedCallbacks])
   let completionError: unknown
   await settle(
     reporters.map(
@@ -194,7 +198,11 @@ async function handle(message: any) {
           for (const name of Object.getOwnPropertyNames(proto))
             if (
               /^on[A-Z]/.test(name) &&
-              !(name === 'onTestModuleQueued' && !watching) &&
+              !(
+                ['onTestModuleQueued', 'onTestModuleCollected'].includes(
+                  name
+                ) && !watching
+              ) &&
               ![
                 'onInit',
                 'onUserConsoleLog',
@@ -220,11 +228,15 @@ async function handle(message: any) {
       )
       await send({
         type: 'custom-reporter-result',
+        captureModuleCollected: reporters.some(
+          (reporter) => typeof reporter.onTestModuleCollected === 'function'
+        ),
         captureModuleQueued: reporters.some(
           (reporter) => typeof reporter.onTestModuleQueued === 'function'
         ),
         captureTaskResults: reporters.some(
           (reporter) =>
+            typeof reporter.onTestModuleCollected === 'function' ||
             typeof reporter.onTestCaseResult === 'function' ||
             typeof reporter.onTestModuleEnd === 'function' ||
             typeof reporter.onTestRunEnd === 'function' ||
@@ -427,7 +439,13 @@ async function handle(message: any) {
         throw new Error(
           'Final module state requires its actual reporter callback.'
         )
-      if (!live.finishModule(message.entryId, message.completion))
+      if (
+        !live.finishModule(
+          message.entryId,
+          message.completion,
+          failedCollectedEntryIds.has(message.entryId)
+        )
+      )
         throw new Error(
           'Final module state requires its actual collected file.'
         )
@@ -449,7 +467,11 @@ async function handle(message: any) {
       )
         throw new Error('Custom module reporters require one completed file.')
       const module =
-        live.finishModule(message.entryId, completion) ??
+        live.finishModule(
+          message.entryId,
+          completion,
+          failedCollectedEntryIds.has(message.entryId)
+        ) ??
         createCustomReporterModules(root, completion).find(
           (item) => item.id === message.entryId
         )
@@ -562,7 +584,27 @@ process.on('message', (message: any) => {
   }
   if (message?.type === 'task-state' && initialized && !finished) {
     try {
-      live.update(message.taskTree, message.taskUpdateIds)
+      const module = live.update(message.taskTree, message.taskUpdateIds)
+      if (message.notifyCollected === true) {
+        if (
+          watching ||
+          collectedEntryIds.has(message.taskTree.id) ||
+          !reporters.some((reporter) => reporter.onTestModuleCollected)
+        )
+          throw new Error('Invalid actual module collection occurrence.')
+        collectedEntryIds.add(message.taskTree.id)
+        if (message.taskTree.result?.state === 'fail')
+          failedCollectedEntryIds.add(message.taskTree.id)
+        collectedCallbacks.push(
+          settle(
+            reporters.map(
+              (reporter) => () => reporter.onTestModuleCollected?.(module)
+            )
+          ).catch((error) => {
+            consoleErrors.push(error)
+          })
+        )
+      }
       if (watching) watchTrees.set(message.taskTree.id, message.taskTree)
     } catch (error) {
       consoleErrors.push(error)

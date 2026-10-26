@@ -76,6 +76,8 @@ interface PreparedTest {
 }
 
 export interface RunTestsOptions {
+  /** Private reporter request for actual collected-file observations. */
+  captureModuleCollected?: true
   /** Actual selected-file scheduling; never a collected task snapshot. */
   onModuleQueued?: (entry: TestEntry) => void
   captureTaskResults?: boolean
@@ -143,6 +145,33 @@ export async function runTests(
   projects: DiscoveredTestProject[],
   options: RunTestsOptions
 ) {
+  if (
+    options.captureModuleCollected !== undefined &&
+    (options.captureModuleCollected !== true ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      options.userCancelSignal ||
+      options.coverage ||
+      Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined ||
+          project.entries.some(
+            (entry) =>
+              entry.typecheck ||
+              (entry.executionEnvironment &&
+                entry.executionEnvironment.name !== 'node')
+          )
+      ))
+  )
+    throw new Error(
+      'Collected module reporters require one-shot isolated ordinary Node execution without active coverage and actual task-result capture.'
+    )
   if (
     options.onModuleQueued &&
     (options.collectOnly ||
@@ -833,6 +862,9 @@ export async function runTests(
       executing = true
       const result = await execute(artifact, {
         captureTaskResults: options.captureTaskResults,
+        ...(options.captureModuleCollected === true
+          ? { captureModuleCollected: true as const }
+          : {}),
         collectOnly: options.collectOnly,
         runId,
         projectDir,
@@ -1253,6 +1285,9 @@ export async function runTests(
             ? { captureModuleQueued: true as const }
             : {}),
           captureTaskResults: options.captureTaskResults,
+          ...(options.captureModuleCollected === true
+            ? { captureModuleCollected: true as const }
+            : {}),
           projectDir,
           projects: group,
           ...(options.compilerTransforms
@@ -1825,6 +1860,9 @@ export async function runTests(
                   cohort,
                   ordered.map((entry) => ({
                     captureTaskResults: options.captureTaskResults,
+                    ...(options.captureModuleCollected === true
+                      ? { captureModuleCollected: true as const }
+                      : {}),
                     runId,
                     projectDir,
                     entry,
