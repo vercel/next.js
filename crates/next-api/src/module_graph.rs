@@ -206,7 +206,13 @@ impl NextDynamicGraph {
                             result.push((*dynamic_entry, parent_client_reference));
 
                             state_map.insert(module, parent_state);
-                            GraphTraversalAction::Skip
+                            // Descend into the dynamically imported module: a `next/dynamic`
+                            // call can itself be nested inside another dynamically imported
+                            // module, and those nested entries must be collected as well so
+                            // their chunks end up in the react-loadable manifest (e.g. for
+                            // SSR stylesheet preloading). Each module is only visited once,
+                            // so this only adds previously unreachable entries.
+                            GraphTraversalAction::Continue
                         }
                         Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
                             state_map.insert(
