@@ -66,6 +66,7 @@ fn ordinary_object(object: &ObjectLit) -> bool {
 struct ForbiddenUse<'a> {
     unresolved: Mark,
     function: Option<&'a Id>,
+    allow_direct_calls: bool,
     found: bool,
 }
 impl Visit for ForbiddenUse<'_> {
@@ -79,6 +80,38 @@ impl Visit for ForbiddenUse<'_> {
             return;
         }
         expression.visit_children_with(self);
+    }
+
+    fn visit_call_expr(&mut self, expression: &swc_core::ecma::ast::CallExpr) {
+        if self.allow_direct_calls
+            && expression.type_args.is_none()
+            && matches!(&expression.callee, swc_core::ecma::ast::Callee::Expr(callee) if matches!(&**callee, Expr::Ident(ident) if self.function.is_some_and(|binding| *binding == ident.to_id())))
+        {
+            expression.args.visit_with(self);
+            return;
+        }
+        expression.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, function: &swc_core::ecma::ast::Function) {
+        let previous = self.allow_direct_calls;
+        self.allow_direct_calls = false;
+        function.visit_children_with(self);
+        self.allow_direct_calls = previous;
+    }
+
+    fn visit_arrow_expr(&mut self, function: &swc_core::ecma::ast::ArrowExpr) {
+        let previous = self.allow_direct_calls;
+        self.allow_direct_calls = false;
+        function.visit_children_with(self);
+        self.allow_direct_calls = previous;
+    }
+
+    fn visit_class(&mut self, class: &swc_core::ecma::ast::Class) {
+        let previous = self.allow_direct_calls;
+        self.allow_direct_calls = false;
+        class.visit_children_with(self);
+        self.allow_direct_calls = previous;
     }
 
     fn visit_ident(&mut self, ident: &swc_core::ecma::ast::Ident) {
@@ -100,6 +133,7 @@ fn clean<'a>(
     let mut visitor = ForbiddenUse {
         unresolved,
         function,
+        allow_direct_calls: false,
         found: false,
     };
     node.visit_with(&mut visitor);
@@ -115,6 +149,7 @@ fn clean_binding_function(
     let mut visitor = ForbiddenUse {
         unresolved,
         function: Some(binding),
+        allow_direct_calls: false,
         found: false,
     };
     function.decorators.visit_with(&mut visitor);
@@ -134,7 +169,9 @@ fn clean_binding_function(
             parameter.pat.visit_with(&mut visitor);
         }
     }
+    visitor.allow_direct_calls = true;
     function.body.visit_with(&mut visitor);
+    visitor.allow_direct_calls = false;
     function.type_params.visit_with(&mut visitor);
     function.return_type.visit_with(&mut visitor);
     !visitor.found
@@ -761,6 +798,42 @@ mod tests {
              yield value }",
         ] {
             check(source, CommonJsResetExportShape::NamedFunctionExpression);
+        }
+    }
+
+    #[test]
+    fn accepts_direct_declared_binding_recursion() {
+        for source in [
+            "function callable(n) { return n ? callable(n - 1) : 1 }; module.exports = callable",
+            "async function callable(n) { return n ? await callable(n - 1) : 1 }; module.exports \
+             = callable",
+            "function* callable(n) { if(n) yield* callable(n - 1); else yield 1 }; module.exports \
+             = callable",
+            "async function* callable(n) { if(n) yield* callable(n - 1); else yield 1 }; \
+             module.exports = callable",
+        ] {
+            check(source, CommonJsResetExportShape::FunctionBinding);
+        }
+    }
+
+    #[test]
+    fn keeps_direct_recursion_inside_the_actual_body() {
+        for source in [
+            "function callable(n) { return n }; callable(1); module.exports = callable",
+            "function callable(n = callable(1)) { return n }; module.exports = callable",
+            "function callable() { return callable }; module.exports = callable",
+            "function callable() { return callable(callable) }; module.exports = callable",
+            "function callable() { return () => callable() }; module.exports = callable",
+            "function callable() { function inner() { return callable() }; return inner() }; \
+             module.exports = callable",
+            "function callable() { class Inner { run() { return callable() } }; return new \
+             Inner() }; module.exports = callable",
+            "function callable() { return callable?.() }; module.exports = callable",
+            "function callable() { return callable.call(null) }; module.exports = callable",
+            "function callable() { return new callable() }; module.exports = callable",
+            "function callable() { return module.exports() }; module.exports = callable",
+        ] {
+            check(source, CommonJsResetExportShape::Unsupported);
         }
     }
 
