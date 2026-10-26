@@ -953,6 +953,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
+                  false,
                   actionWasForwarded
                 )
 
@@ -1171,6 +1172,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
+                  false,
                   actionWasForwarded
                 )
 
@@ -1303,6 +1305,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
+            isFetchAction,
             shouldSkipPageRendering
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
@@ -1467,6 +1470,7 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
+  isFetchAction: boolean,
   shouldSkipPageRendering: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
@@ -1486,11 +1490,13 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if this is an action-only request,
-    // we can skip rendering the page.
+    // Fetch actions can skip rendering when the page was not revalidated. MPA
+    // form submissions still need a complete HTML response with their form
+    // state.
     skipPageRendering ||=
-      workStore.pathWasRevalidated === undefined ||
-      workStore.pathWasRevalidated === ActionDidNotRevalidate
+      isFetchAction &&
+      (workStore.pathWasRevalidated === undefined ||
+        workStore.pathWasRevalidated === ActionDidNotRevalidate)
 
     return { actionResult, skipPageRendering }
   } finally {
