@@ -112,7 +112,7 @@ API and metadata routes from the `app/` directory:
   filePath: string     // Path to the built file
   pathname: string     // URL pathname
   sourcePage: string   // Original relative source file path
-  runtime: 'nodejs' | 'edge' // Runtime the route is built for
+  runtime: 'nodejs' | 'edge' | 'go' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   assetsHashes: Record<string, string>  // Content hashes of each `assets` entry (key: same as `assets`, value: content hash)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
@@ -128,6 +128,10 @@ API and metadata routes from the `app/` directory:
   }
 }
 ```
+
+With the experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) convention, App Router Go handlers use `runtime: 'go'`. The existing `filePath` points to a compiled HTTP server executable, and `sourcePage` keeps the same source-route identity as Node.js outputs. No new output keys are introduced. Go outputs do not include the shared Node.js runtime files in `assets`.
+
+An adapter that supports Go must package the executable and declared assets for a compatible operating system and architecture, then start its server with `PORT` set. Each Go handler is emitted independently; Go pages, middleware, and prerender parents are not part of this experiment. See [Invoking Entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go).
 
 ## Prerenders (`outputs.prerenders`)
 
