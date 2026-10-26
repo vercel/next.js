@@ -59,13 +59,11 @@ impl Bitset {
     }
 
     /// The stored blocks.
-    #[inline]
     fn blocks(&self) -> &[usize] {
         &self.blocks
     }
 
     /// The index of the block after the last stored block.
-    #[inline]
     fn end(&self) -> usize {
         self.offset + self.blocks().len()
     }
@@ -86,7 +84,6 @@ impl Bitset {
     ///
     /// A block below the offset wraps around to a huge position, so a single comparison against
     /// the length checks both ends of the range.
-    #[inline]
     fn position(&self, block: usize) -> Option<usize> {
         let position = block.wrapping_sub(self.offset);
         (position < self.blocks.len()).then_some(position)
@@ -227,7 +224,7 @@ impl Bitset {
     /// Compares the set with `other`. Returns whether the set contains every bit of `other`
     /// (superset). If `STRICT` is true, it also returns whether the set has a bit that `other`
     /// doesn't have (only meaningful if it is a superset); otherwise the second value is `false`.
-    fn superset_and_strict<const STRICT: bool>(&self, other: &Self) -> (bool, bool) {
+    fn superset_impl<const STRICT: bool>(&self, other: &Self) -> (bool, bool) {
         let blocks = self.blocks();
         let other_blocks = other.blocks();
         let any = |blocks: &[usize]| blocks.iter().any(|&b| b != 0);
@@ -289,7 +286,7 @@ impl Bitset {
 
     /// Returns whether the set contains every bit of `other`.
     pub fn is_superset(&self, other: &Self) -> bool {
-        self.superset_and_strict::<false>(other).0
+        self.superset_impl::<false>(other).0
     }
 
     /// Returns whether every bit of the set is also in `other`.
@@ -303,7 +300,7 @@ impl Bitset {
     /// Returns whether the set contains every bit of `other` and at least one bit that `other`
     /// doesn't contain.
     pub fn is_proper_superset(&self, other: &Self) -> bool {
-        let (superset, strict) = self.superset_and_strict::<true>(other);
+        let (superset, strict) = self.superset_impl::<true>(other);
         superset && strict
     }
 
@@ -478,7 +475,6 @@ impl Bitset {
 }
 
 /// Adds the bits of `other` to `blocks`, which has the same length.
-#[inline]
 fn or_blocks(blocks: &mut [usize], other: &[usize]) {
     for (block, &other_block) in blocks.iter_mut().zip(other) {
         *block |= other_block;
@@ -569,7 +565,6 @@ pub struct Iter<'a> {
 impl Iterator for Iter<'_> {
     type Item = u32;
 
-    #[inline]
     fn next(&mut self) -> Option<u32> {
         while self.current == 0 {
             let (&first, rest) = self.blocks.split_first()?;

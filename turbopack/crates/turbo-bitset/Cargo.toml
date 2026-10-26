@@ -16,6 +16,8 @@ shrink-to-fit = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 fixedbitset = { workspace = true }
+# The benchmark inputs are drawn from a seeded generator.
+rand = { workspace = true }
 # The benchmarks and the `sizes` example also compare with the serde serialization of
 # `RoaringBitmap`.
 roaring = { workspace = true, features = ["serde"] }

@@ -15,16 +15,27 @@
 //! The bitmap bytes are little-endian on every platform. Little-endian targets copy them straight
 //! from and to the storage; big-endian targets convert them one block at a time.
 //!
-//! With varint integers the list form is used only if it is smaller than 80% of the bitmap form:
-//! the bitmap form is much faster to write and read, which is worth a slightly larger encoding.
+//! With varint integers the list form is used only if `5 * n < 4 * len`, for `n` bits and a bitmap
+//! payload of `len` bytes. The bitmap form is much faster to write and read, which is worth a
+//! slightly larger encoding, and the rule needs only the bit count, not the sizes of the list
+//! items. Every list item takes at least one byte, so if the bitmap is chosen its payload is at
+//! most 1.25 times the list's items. If the list is chosen, the bits are more than 10 apart on
+//! average, and only differences above 250 take more than one byte. As their sum is below `8 *
+//! len`, the differences take fewer bytes than the bitmap payload. The rule ignores the headers and
+//! the first item, so for a set with very few bits the chosen form can be a few bytes larger than
+//! the other.
+//!
 //! With fixed-width integers (used to hash values instead of storing them) the bitmap form is
-//! always used, as it avoids computing the sizes. The decoder accepts both forms with any config.
+//! always used. The decoder accepts both forms with any config.
 
 use bincode::{
     Decode, Encode,
-    config::{Config, Endianness, IntEncoding},
+    config::{Config, IntEncoding},
     de::{Decoder, read::Reader},
-    enc::{Encoder, write::Writer},
+    enc::{
+        Encoder, EncoderImpl,
+        write::{SliceWriter, Writer},
+    },
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
@@ -36,24 +47,6 @@ const BLOCK_BYTES: usize = BLOCK_BITS / 8;
 
 /// The number of bytes needed to store every `u32` bit.
 const MAX_BYTES: u64 = 1 << 29;
-
-/// The list form is used only if its size is below this fraction of the bitmap form's size.
-const LIST_RATIO: (usize, usize) = (4, 5);
-
-/// The size of `value` as a bincode varint.
-fn varint_len(value: u64) -> usize {
-    match value {
-        0..=250 => 1,
-        251..=0xffff => 3,
-        0x1_0000..=0xffff_ffff => 5,
-        _ => 9,
-    }
-}
-
-/// The size of `value` as a bincode (zigzag) signed varint.
-fn signed_varint_len(value: i64) -> usize {
-    varint_len(((value << 1) ^ (value >> 63)) as u64)
-}
 
 /// The trimmed byte range of a set's bits: the byte offset of the first non-zero byte, the
 /// trimmed blocks, and the number of zero bytes to skip at the start of the first and at the end
@@ -124,115 +117,50 @@ fn count_below(blocks: &[usize], limit: usize) -> Option<usize> {
     Some(count)
 }
 
-/// The number of bytes that the items of the list form take beyond one byte per item, for the bits
-/// in `blocks` (whose first block has the index `first_block`), if that is below `limit`.
+/// The number of bits of the set, if the list form is used for it: only if `5 * n < 4 * len`,
+/// with `n` bits and a bitmap payload of `len` bytes (see the module docs).
+fn list_form_count(range: &ByteRange<'_>) -> Option<usize> {
+    // `5 * n < 4 * len` is `n < ceil(4 * len / 5)`. The payload is at most `MAX_BYTES` (2^29), so
+    // `4 * len` fits into `usize` on 32-bit targets too.
+    count_below(range.blocks, (4 * range.len() as usize).div_ceil(5))
+}
+
+/// Writes the items of the list form: the first bit, then the differences to the previous bit.
 ///
-/// This works on whole blocks instead of iterating the bits: an item takes 3 or 5 bytes instead of
-/// one only if it is more than 250 (the first bit, or a difference). Differences within a block are
-/// below `BLOCK_BITS`, so only the difference to the first bit of a block can be that large.
-fn list_extra_below(first_block: usize, blocks: &[usize], limit: usize) -> Option<usize> {
-    let mut extra = 0;
-    // The previous bit, initially as if it were bit 0, so the first bit's size is its own.
-    let mut previous = 0;
-    for (index, &block) in blocks.iter().enumerate() {
-        if block == 0 {
-            continue;
-        }
-        let base = ((first_block + index) * BLOCK_BITS) as u64;
-        extra += varint_len(base + block.trailing_zeros() as u64 - previous) - 1;
-        if extra >= limit {
-            return None;
-        }
-        previous = base + (BLOCK_BITS - 1 - block.leading_zeros() as usize) as u64;
-    }
-    Some(extra)
-}
-
-/// The number of bits of the list form, if the policy chooses the list form over a bitmap form
-/// with `bitmap_size` bytes: only if the list form's size is below `ceil(LIST_RATIO *
-/// bitmap_size)`.
-fn list_form_count(range: &ByteRange<'_>, bitmap_size: usize) -> Option<usize> {
-    let limit = (bitmap_size * LIST_RATIO.0).div_ceil(LIST_RATIO.1);
-    // Every item takes at least one byte, so first count the bits, which stops early (quickly for
-    // dense sets) once that lower bound reaches the limit. Then add the bytes of the larger items,
-    // computed from the blocks.
-    let count = count_below(range.blocks, limit)?;
-    let lower_bound = signed_varint_len(-(count as i64)) + varint_len(range.len()) + count;
-    if lower_bound >= limit {
-        return None;
-    }
-    let first_block = range.byte_offset as usize / BLOCK_BYTES;
-    list_extra_below(first_block, range.blocks, limit - lower_bound)?;
-    Some(count)
-}
-
-/// Appends `value` as a bincode varint to `buffer` at `pos`, which has room for 5 bytes.
-#[inline(always)]
-fn push_varint(buffer: &mut [u8], pos: &mut usize, value: u32, big_endian: bool) {
-    if value <= 250 {
-        buffer[*pos] = value as u8;
-        *pos += 1;
-    } else if value <= u16::MAX as u32 {
-        let bytes = if big_endian {
-            (value as u16).to_be_bytes()
-        } else {
-            (value as u16).to_le_bytes()
-        };
-        buffer[*pos] = 251;
-        buffer[*pos + 1..*pos + 3].copy_from_slice(&bytes);
-        *pos += 3;
-    } else {
-        let bytes = if big_endian {
-            value.to_be_bytes()
-        } else {
-            value.to_le_bytes()
-        };
-        buffer[*pos] = 252;
-        buffer[*pos + 1..*pos + 5].copy_from_slice(&bytes);
-        *pos += 5;
-    }
-}
-
-/// Writes the items of the list form (the first bit and the differences) as varints.
-///
-/// The items are collected in a stack buffer that is written in large chunks, as a write per item
-/// is slow with many writers. Within a block, the differences are below `BLOCK_BITS`, so only the
-/// first bit of each block needs the general varint encoding.
-fn write_list_items<W: Writer>(
-    writer: &mut W,
+/// The items are encoded with the encoder's config into a stack buffer that is written in large
+/// chunks, as a write per item is slow with many writers.
+fn write_list_items<E: Encoder>(
+    encoder: &mut E,
     first_block: usize,
     blocks: &[usize],
-    big_endian: bool,
 ) -> Result<(), EncodeError> {
     const BUFFER_LEN: usize = 1024;
-    // A block takes at most 5 bytes for its first item and one byte for each other item.
+    // A block's first item takes at most 5 bytes. The differences within a block are below
+    // `BLOCK_BITS`, so they take one byte each.
     const BLOCK_MAX_LEN: usize = 5 + BLOCK_BITS - 1;
+    let config = *encoder.config();
     let mut buffer = [0u8; BUFFER_LEN];
-    let mut pos = 0;
+    // Starting at 0 makes the first item the first bit itself.
     let mut previous = 0u32;
-    for (index, &block) in blocks.iter().enumerate() {
-        if block == 0 {
-            continue;
+    let mut index = 0;
+    while index < blocks.len() {
+        let mut items = EncoderImpl::new(SliceWriter::new(&mut buffer), config);
+        while index < blocks.len() && items.writer().bytes_written() + BLOCK_MAX_LEN <= BUFFER_LEN {
+            // Bits are `u32`, so the bits of a block fit too.
+            let base = ((first_block + index) * BLOCK_BITS) as u32;
+            let mut rest = blocks[index];
+            while rest != 0 {
+                let bit = base + rest.trailing_zeros();
+                (bit - previous).encode(&mut items)?;
+                previous = bit;
+                rest &= rest - 1;
+            }
+            index += 1;
         }
-        if pos + BLOCK_MAX_LEN > BUFFER_LEN {
-            writer.write(&buffer[..pos])?;
-            pos = 0;
-        }
-        // Bits are `u32`, so the bits of a block fit too.
-        let base = ((first_block + index) * BLOCK_BITS) as u32;
-        let mut last = block.trailing_zeros();
-        push_varint(&mut buffer, &mut pos, base + last - previous, big_endian);
-        let mut rest = block & (block - 1);
-        while rest != 0 {
-            let bit = rest.trailing_zeros();
-            buffer[pos] = (bit - last) as u8;
-            pos += 1;
-            last = bit;
-            rest &= rest - 1;
-        }
-        previous = base + last;
+        let written = items.into_writer().bytes_written();
+        encoder.writer().write(&buffer[..written])?;
     }
-    writer.write(&buffer[..pos])
+    Ok(())
 }
 
 impl Bitset {
@@ -258,18 +186,14 @@ impl Encode for Bitset {
         };
         let bitmap_len = range.len();
         // The list form is only used with varint integers, see the module docs.
-        if matches!(encoder.config().int_encoding(), IntEncoding::Variable) {
-            let bitmap_size = signed_varint_len(bitmap_len as i64)
-                + varint_len(range.byte_offset)
-                + bitmap_len as usize;
-            if let Some(count) = list_form_count(&range, bitmap_size) {
-                let big_endian = matches!(encoder.config().endianness(), Endianness::Big);
-                (-(count as i64)).encode(encoder)?;
-                // The payload is at most `MAX_BYTES`, so it fits into `u32`.
-                (bitmap_len as u32).encode(encoder)?;
-                let first_block = range.byte_offset as usize / BLOCK_BYTES;
-                return write_list_items(encoder.writer(), first_block, range.blocks, big_endian);
-            }
+        if matches!(encoder.config().int_encoding(), IntEncoding::Variable)
+            && let Some(count) = list_form_count(&range)
+        {
+            (-(count as i64)).encode(encoder)?;
+            // The payload is at most `MAX_BYTES`, so it fits into `u32`.
+            (bitmap_len as u32).encode(encoder)?;
+            let first_block = range.byte_offset as usize / BLOCK_BYTES;
+            return write_list_items(encoder, first_block, range.blocks);
         }
 
         (bitmap_len as i64).encode(encoder)?;
@@ -331,7 +255,6 @@ fn decode_bitmap<D: Decoder>(decoder: &mut D, len: u64) -> Result<Bitset, Decode
 
 /// Converts blocks whose memory holds little-endian bytes to native blocks: a no-op on
 /// little-endian targets, a byte swap on big-endian targets (`big_endian_target`).
-#[inline]
 fn le_blocks_to_native(blocks: &mut [usize], big_endian_target: bool) {
     if big_endian_target {
         for block in blocks {
@@ -356,7 +279,6 @@ struct ListBuilder {
 
 impl ListBuilder {
     /// Sets the bit `last + difference`, which must be within the storage.
-    #[inline(always)]
     fn push(&mut self, difference: u64) -> Result<(), DecodeError> {
         let bit = self.last + difference;
         if bit >= self.end {

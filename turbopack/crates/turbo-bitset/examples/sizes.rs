@@ -25,6 +25,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use rand::seq::SliceRandom;
 use roaring::RoaringBitmap;
 use turbo_bincode::{
     TURBO_BINCODE_CONFIG, TurboBincodeBuffer, TurboBincodeReader, TurboBincodeWriter,
@@ -32,7 +33,7 @@ use turbo_bincode::{
 };
 use turbo_bitset::Bitset;
 
-use self::inputs::{Lcg, inputs};
+use self::inputs::{SmallRng, inputs, rng};
 
 struct Counting;
 
@@ -80,11 +81,9 @@ fn check_freed<T>(value: T, measured: usize) {
     assert_eq!(freed + size_of::<T>(), measured, "unbalanced allocation");
 }
 
-fn shuffled(rng: &mut Lcg, bits: &[u32]) -> Vec<u32> {
+fn shuffled(rng: &mut SmallRng, bits: &[u32]) -> Vec<u32> {
     let mut bits = bits.to_vec();
-    for i in (1..bits.len()).rev() {
-        bits.swap(i, rng.next() as usize % (i + 1));
-    }
+    bits.shuffle(rng);
     bits
 }
 
@@ -112,7 +111,7 @@ fn main() {
          roaring_random,bitset_words,bitset_ser,bitset_form,roaring_portable,roaring_ser,\
          roaring_ser_optimized"
     );
-    let mut rng = Lcg(7);
+    let mut rng = rng(7);
     for input in inputs() {
         let bits = &input.bits;
         let random_order = shuffled(&mut rng, bits);
