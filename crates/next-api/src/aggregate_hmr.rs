@@ -136,7 +136,7 @@ impl ChunkListUpdateBuilder {
 }
 
 /// An update plus the baseline for the next pull.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue)]
 pub enum ServerHmrUpdate {
     /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
     /// version.
@@ -302,7 +302,9 @@ fn classify_server_hmr_update<'a>(
     }
 }
 
-/// Kept outside Turbo Tasks so old pull baselines cannot reactivate.
+/// Diffing inside a bounded root task ensures that the update and its returned
+/// version come from the same strongly consistent read. The caller must dispose
+/// that root after the read so old pull baselines do not remain active.
 pub async fn compute_server_hmr_update(
     chunk_lists: &[ServerHmrChunkList],
     from: Option<&ServerHmrChunkListVersion>,
@@ -430,16 +432,18 @@ mod tests {
         let merged_instruction =
             UpdateInstruction::new(EcmascriptUpdateInstruction::Merged(merged("b.js")));
 
-        let ServerHmrUpdate::Partial { instruction, .. } = classify_server_hmr_update(
+        let snapshot_version = version();
+        let ServerHmrUpdate::Partial { to, instruction } = classify_server_hmr_update(
             [
                 ServerHmrChunkUpdate::Partial(&chunk_list),
                 ServerHmrChunkUpdate::Partial(&merged_instruction),
             ],
             unchanged_membership(),
-            version(),
+            snapshot_version.clone(),
         ) else {
             panic!("partial instructions should produce a partial aggregate update");
         };
+        assert!(to.ptr_eq(&snapshot_version));
         let instruction = instruction
             .downcast_ref::<EcmascriptUpdateInstruction>()
             .expect("aggregate instruction is ECMAScript");
