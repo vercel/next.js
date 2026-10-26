@@ -5503,3 +5503,51 @@ it.each([
     })
   }
 )
+
+it.each(['fulfilled', 'rejected', 'native-reject', 'legacy'])(
+  'bounds new Native cleanup work to the actual file invocation: %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'native-cleanup-invocation.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      actualFileInvocationOnly: true,
+      callbackZeroArgsAndJoined: true,
+      closedCreatorOtherApisHeld: true,
+      newStartClosesButPendingQueryFinishes: true,
+      originalNativeRejectionHeld: true,
+      originAbsent: true,
+    })
+  }
+)
+
+it.each(['fulfilled', 'rejected', 'native-reject', 'legacy'])(
+  'retains actual component invocation and original command lifetime: %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'component-native-invocation.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      actualFileInvocationOnly: true,
+      componentKindCannotGrantCapturedDefaultCleanup: true,
+      noInventedOwnerOrMissingInvocationFallback: true,
+      callbackZeroArgsAndJoined: true,
+      closedCreatorOtherApisHeld: true,
+      newStartClosesButPendingQueryFinishes: true,
+      originalNativeRejectionHeld: true,
+      originAbsent: true,
+    })
+  }
+)

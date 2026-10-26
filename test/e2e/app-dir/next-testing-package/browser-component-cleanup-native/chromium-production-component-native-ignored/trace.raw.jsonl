@@ -1,0 +1,20 @@
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-setup\"}","browser":true,"time":1793036238125,"taskId":"704938072_0","type":"stdout","size":47}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"A\"}","browser":true,"time":1793036238125,"taskId":"704938072_0","type":"stdout","size":36}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"B\"}","browser":true,"time":1793036238129,"taskId":"704938072_1","type":"stdout","size":36}}
+{"hook":"ready","id":"704938072_0","name":"component native A","result":{"state":"passed"}}
+{"hook":"case","id":"704938072_0","name":"component native A","result":{"state":"passed","errors":[]}}
+{"hook":"ready","id":"704938072_1","name":"component native B","result":{"state":"passed"}}
+{"hook":"case","id":"704938072_1","name":"component native B","result":{"state":"passed","errors":[]}}
+{"hook":"module","id":"704938072","state":"passed","errors":[]}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"component-read\",\"read\":1,\"receiver\":true}","browser":true,"time":1793036238131,"taskId":"__vitest__unknown_test__","type":"stdout","size":74}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"component-call\",\"call\":1,\"receiver\":true}","browser":true,"time":1793036238131,"taskId":"__vitest__unknown_test__","type":"stdout","size":74}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"component-native-start\"}","browser":true,"time":1793036238131,"taskId":"__vitest__unknown_test__","type":"stdout","size":57}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"component-callback-returned-before-native\"}","browser":true,"time":1793036238132,"taskId":"__vitest__unknown_test__","type":"stdout","size":76}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-cleanup-start\",\"clicks\":0}","browser":true,"time":1793036238132,"taskId":"__vitest__unknown_test__","type":"stdout","size":66}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-await-started-component-native\"}","browser":true,"time":1793036238132,"taskId":"__vitest__unknown_test__","type":"stdout","size":72}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"late-physical-click\",\"lateClicks\":1,\"trusted\":true,\"shift\":false,\"alt\":false}","browser":true,"time":1793036238189,"taskId":"__vitest__unknown_test__","type":"stdout","size":110}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"component-native-settled\"}","browser":true,"time":1793036238195,"taskId":"__vitest__unknown_test__","type":"stdout","size":59}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-joined-component-native\",\"lateClicks\":1}","browser":true,"time":1793036238195,"taskId":"__vitest__unknown_test__","type":"stdout","size":80}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"physical-click\",\"clicks\":1,\"trusted\":true,\"shift\":false,\"alt\":false}","browser":true,"time":1793036238234,"taskId":"__vitest__unknown_test__","type":"stdout","size":101}}
+{"hook":"console","log":{"content":"BROWSER_NATIVE_FIXTURE:{\"phase\":\"worker-cleanup-end\",\"clicks\":1}","browser":true,"time":1793036238245,"taskId":"__vitest__unknown_test__","type":"stdout","size":64}}
+{"hook":"end","reason":"passed","errors":[],"rawUnhandled":[],"files":[{"id":"704938072","state":"passed","tests":[{"id":"704938072_0","name":"component native A","result":{"state":"passed","errors":[]}},{"id":"704938072_1","name":"component native B","result":{"state":"passed","errors":[]}}]}]}

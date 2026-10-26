@@ -616,6 +616,41 @@ describe('next-testing-package', () => {
     }, 540000)
   }
   if (isNextDev && isTurbopack) {
+    it('joins native work from actual component cleanup and its error observation', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-component-cleanup-native-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-component-cleanup-native.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+          ],
+          { timeout: 1080000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(8)
+        expect(verified.cases).toBe(16)
+        expect(verified.authoredRows).toBe(108)
+        expect(verified.fullSupportedProjectionsExact).toBe(true)
+        expect(verified.actualComponentNativeLifetimeExact).toBe(true)
+        expect(verified.methodAndErrorGetterNativeEffectsExact).toBe(true)
+        expect(verified.startedCommandJoinsAfterCallbackReturn).toBe(true)
+        expect(verified.trustedPhysicalClickSequenceExact).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 1110000)
+  }
+  if (isNextDev && isTurbopack) {
     it('retains independent component, keyboard and worker cleanup errors', async () => {
       const temporary = await mkdtemp(join(tmpdir(), 'next-mixed-cleanup-'))
       try {
@@ -640,6 +675,39 @@ describe('next-testing-package', () => {
         expect(verified.exactIndependentCleanupOccurrences).toBe(true)
         expect(verified.immediateGetterAndMutationOrder).toBe(true)
         expect(verified.physicalWorkerClickAndModifierStateExact).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 750000)
+  }
+  if (isNextDev && isTurbopack) {
+    it('joins native actions started by actual final default Browser cleanup', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-final-native-cleanup-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-default-cleanup-native.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+          ],
+          { timeout: 720000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(10)
+        expect(verified.cases).toBe(22)
+        expect(verified.fullSupportedProjectionsExact).toBe(true)
+        expect(verified.actualFinalFileInvocation).toBe(true)
+        expect(verified.nativeCallbackStartsAndPendingJoinsExact).toBe(true)
+        expect(verified.physicalNativeEffectsAndHeldStateExact).toBe(true)
         expect(verified.allOwnersClosed).toBe(true)
         expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
       } finally {

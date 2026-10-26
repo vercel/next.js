@@ -489,6 +489,9 @@ function initializeFile(
   let disposalSucceeded = false
   let collectionObservationFailed = false
   let ownedWorkerDisposalFailure: { readonly error: unknown } | undefined
+  let ownedBeforeWorkerInvocation:
+    | Readonly<{ assertActive(): void }>
+    | undefined
   let runSignal: AbortSignal | undefined
   let captureCoverageCompletion = false
   let state:
@@ -1183,6 +1186,9 @@ function initializeFile(
         return undefined
       return settledCollectionFailure
     },
+    captureOwnedBeforeWorkerInvocation() {
+      return ownedBeforeWorkerInvocation
+    },
     async dispose(disposal?: {
       beforeOwnedWorkerDispose?: () => unknown | Promise<unknown>
     }) {
@@ -1200,9 +1206,22 @@ function initializeFile(
         ? disposal?.beforeOwnedWorkerDispose
         : undefined
       try {
-        if (beforeWorkerDispose) await beforeWorkerDispose()
+        if (beforeWorkerDispose) {
+          const invocation = Object.freeze({
+            assertActive() {
+              if (ownedBeforeWorkerInvocation !== invocation)
+                throw new Error(
+                  'Browser cleanup requires its active file disposal invocation.'
+                )
+            },
+          })
+          ownedBeforeWorkerInvocation = invocation
+          await beforeWorkerDispose()
+        }
       } catch (error) {
         errors.push(error)
+      } finally {
+        ownedBeforeWorkerInvocation = undefined
       }
       try {
         if (!worker) await workerFixtures.dispose()

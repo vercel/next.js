@@ -109,3 +109,9 @@ turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/i
 
 # Preserve genuine mixed Browser cleanup reference report bytes.
 test/e2e/app-dir/next-testing-package/browser-mixed-cleanup/**/report.raw.json
+
+# Preserve genuine Browser Native cleanup reference report bytes.
+test/e2e/app-dir/next-testing-package/browser-default-cleanup-native/**/report.raw.json
+
+# Preserve genuine component Native cleanup reference report bytes.
+test/e2e/app-dir/next-testing-package/browser-component-cleanup-native/**/report.raw.json

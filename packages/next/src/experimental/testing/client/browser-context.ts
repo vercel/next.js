@@ -9,8 +9,10 @@ import {
   assertBrowserApiScope,
   captureAsyncScope,
   createDefaultKeyboardCleanupCall,
+  createComponentCleanupCall,
   captureDefaultKeyboardCleanupCall,
   type ClientCommandAdmission,
+  type OwnedBeforeWorkerInvocation,
 } from './async-context'
 import type {
   ClientBrowserCommand,
@@ -872,11 +874,15 @@ type KeyboardCleanupObservation<T> = {
 export async function cleanupBrowserKeyboard<T>(
   options?: {
     beforeAttempt?: boolean
+    nativeInvocation?: OwnedBeforeWorkerInvocation
     observation?: KeyboardCleanupObservation<T>
   },
   observeOutcome?: (outcome: KeyboardCleanupOutcome<T>) => void
 ) {
-  const call = createDefaultKeyboardCleanupCall(userEvent)
+  const call = createDefaultKeyboardCleanupCall(
+    userEvent,
+    options?.nativeInvocation
+  )
   const failures: unknown[] = []
   const captureFailures: unknown[] = []
   const caught: { error: unknown; captured?: Readonly<{ value: T }> }[] = []
@@ -1033,6 +1039,7 @@ export function initializeBrowserContext(
 /** The published component helper owns the real React roots and unmount logic. */
 export async function cleanupBrowserContext<T>(
   observation?: KeyboardCleanupObservation<T> & {
+    nativeInvocation?: OwnedBeforeWorkerInvocation
     onComponentFailure?(occurrence: Readonly<{ error: unknown }>): void
     onContextCleanupFailure?(occurrence: BrowserContextCleanupFailure): void
   }
@@ -1040,13 +1047,21 @@ export async function cleanupBrowserContext<T>(
   const failures: unknown[] = []
   let componentFailure: Readonly<{ error: unknown }> | undefined
   let keyboardOutcome: KeyboardCleanupOutcome<T> | undefined
+  let componentCall: ReturnType<typeof createComponentCleanupCall>
   const componentCleanup = () => {
     const key = Symbol.for('vitest:component-cleanup')
-    if (key in page) return (page as Record<symbol, () => unknown>)[key]()
+    if (key in page) {
+      componentCall = observation?.nativeInvocation
+        ? createComponentCleanupCall?.(page, observation.nativeInvocation)
+        : undefined
+      const invoke = () => (page as Record<symbol, () => unknown>)[key]()
+      return componentCall ? componentCall.run(invoke) : invoke()
+    }
   }
   const keyboardCleanup = () =>
     cleanupBrowserKeyboard(
       {
+        nativeInvocation: observation?.nativeInvocation,
         observation,
       },
       (outcome) => {
@@ -1060,19 +1075,29 @@ export async function cleanupBrowserContext<T>(
   ]) {
     if (typeof cleanup !== 'function') continue
     try {
-      await cleanup()
+      const returned = cleanup()
+      if (cleanup === componentCleanup && componentCall) {
+        const outcome = await componentCall.settle(returned)
+        if (outcome.status === 'rejected') throw outcome.error
+      } else await returned
     } catch (error) {
       failures.push(error)
       if (cleanup === componentCleanup) {
-        componentFailure = Object.freeze({ error })
+        const occurrence = Object.freeze({ error })
+        componentFailure = occurrence
         try {
           const observer = observation?.onComponentFailure
-          if (observer != null)
-            await Reflect.apply(observer, observation, [componentFailure])
+          if (observer != null) {
+            const observe = () =>
+              Reflect.apply(observer, observation, [occurrence])
+            await (componentCall ? componentCall.run(observe) : observe())
+          }
         } catch (observerError) {
           failures.push(observerError)
         }
       }
+    } finally {
+      if (cleanup === componentCleanup) componentCall?.close()
     }
   }
   if (failures.length === 1) throw failures[0]

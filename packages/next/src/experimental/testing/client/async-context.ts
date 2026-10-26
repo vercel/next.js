@@ -55,38 +55,43 @@ function runInScope<T>(scope: Scope | undefined, callback: () => T): T {
 const creatorScopes = new WeakMap<object, Scope | undefined>()
 const freezeCreator = Object.freeze
 const creatorNoop = () => {}
-type DefaultKeyboardCleanupCall = {
+export type OwnedBeforeWorkerInvocation = Readonly<{ assertActive(): void }>
+type BrowserCleanupCall = {
+  readonly kind: 'keyboard' | 'component'
   readonly target: object
   readonly onLateFailure: (error: Error) => void
+  readonly nativeInvocation?: OwnedBeforeWorkerInvocation
   closed: boolean
 }
-const defaultKeyboardCleanupViews = new WeakMap<
+const browserCleanupViews = new WeakMap<
   Scope,
-  { origin: Scope; call: DefaultKeyboardCleanupCall }
+  { origin: Scope; call: BrowserCleanupCall }
 >()
 let defaultKeyboardCleanupId = 0
-function defaultKeyboardCleanupView(
-  scope: Scope,
-  call: DefaultKeyboardCleanupCall
-): Scope {
+function browserCleanupView(scope: Scope, call: BrowserCleanupCall): Scope {
   const view = Object.create(scope) as Scope
-  defaultKeyboardCleanupViews.set(view, { origin: scope, call })
+  browserCleanupViews.set(view, { origin: scope, call })
   return view
 }
 /** Resource views keep the exact existing owner identity at private call checks. */
-function withoutDefaultKeyboardCleanupView(scope: Scope | undefined) {
-  while (scope && defaultKeyboardCleanupViews.has(scope))
-    scope = defaultKeyboardCleanupViews.get(scope)!.origin
+function withoutBrowserCleanupView(scope: Scope | undefined) {
+  while (scope && browserCleanupViews.has(scope))
+    scope = browserCleanupViews.get(scope)!.origin
   return scope
 }
 /** Private resource invocation; it never creates a test, hook or fixture owner. */
-export function createDefaultKeyboardCleanupCall(target: object) {
+export function createDefaultKeyboardCleanupCall(
+  target: object,
+  nativeInvocation?: OwnedBeforeWorkerInvocation
+) {
   const parent = active ?? fileOwner
   const late = parent?.onLateFailure ?? (() => {})
-  const call: DefaultKeyboardCleanupCall = {
+  const call: BrowserCleanupCall = {
+    kind: 'keyboard',
     target,
     closed: false,
     onLateFailure: late,
+    ...(nativeInvocation ? { nativeInvocation } : {}),
   }
   const owner: Scope = parent ?? {
     kind: 'default-keyboard-cleanup',
@@ -98,7 +103,25 @@ export function createDefaultKeyboardCleanupCall(target: object) {
     closed: false,
     onLateFailure: late,
   }
-  const view = defaultKeyboardCleanupView(owner, call)
+  return createCleanupCallView(owner, call)
+}
+/** Component cleanup uses the actual existing file owner, with no fallback owner. */
+export function createComponentCleanupCall(
+  target: object,
+  nativeInvocation: OwnedBeforeWorkerInvocation | undefined
+) {
+  const owner = active ?? fileOwner
+  if (!owner || !nativeInvocation) return undefined
+  return createCleanupCallView(owner, {
+    kind: 'component',
+    target,
+    closed: false,
+    onLateFailure: owner.onLateFailure,
+    nativeInvocation,
+  })
+}
+function createCleanupCallView(owner: Scope, call: BrowserCleanupCall) {
+  const view = browserCleanupView(owner, call)
   return {
     run<T>(callback: () => T): T {
       return runInScope(view, callback)
@@ -131,22 +154,35 @@ export function createDefaultKeyboardCleanupCall(target: object) {
 export function captureDefaultKeyboardCleanupCall(
   target: object
 ): (() => void) | undefined {
-  const call = active && defaultKeyboardCleanupViews.get(active)?.call
-  if (!call || call.target !== target) return undefined
-  const assertLive = () => {
-    if (call.closed) {
-      const error = new Error(
-        'Late default Browser keyboard cleanup invocation.'
-      )
-      call.onLateFailure(error)
-      throw error
-    }
-  }
+  const call = active && browserCleanupViews.get(active)?.call
+  if (!call || call.kind !== 'keyboard' || call.target !== target)
+    return undefined
+  const assertLive = () => assertCleanupCallLive(call)
   assertLive()
   return assertLive
 }
+function assertCleanupCallLive(call: BrowserCleanupCall) {
+  if (call.closed) {
+    const error = new Error(
+      call.kind === 'keyboard'
+        ? 'Late default Browser keyboard cleanup invocation.'
+        : 'Late Browser component cleanup invocation.'
+    )
+    call.onLateFailure(error)
+    throw error
+  }
+}
 export function isDefaultKeyboardCleanupCall(target: object): boolean {
   return captureDefaultKeyboardCleanupCall(target) !== undefined
+}
+/** New Native work requires both the actual file invocation and this call. */
+function currentCleanupNativeCall(): Scope | undefined {
+  const scope = active
+  const call = scope && browserCleanupViews.get(scope)?.call
+  if (!call?.nativeInvocation) return undefined
+  assertCleanupCallLive(call)
+  call.nativeInvocation.assertActive()
+  return scope
 }
 
 export function captureCreatorScope(): object {
@@ -165,11 +201,10 @@ export function enterCreatorScope(cell: object): () => void {
   // Module/collection-created callables grant nothing and change no frame.
   if (!scope) return creatorNoop
   const previous = active
-  const cleanupCall =
-    previous && defaultKeyboardCleanupViews.get(previous)?.call
+  const cleanupCall = previous && browserCleanupViews.get(previous)?.call
   // The creator's closed tombstone remains authoritative for every other API.
-  // Only the actual default-resource invocation follows this lexical view.
-  active = cleanupCall ? defaultKeyboardCleanupView(scope, cleanupCall) : scope
+  // Only the actual cleanup invocation follows this private lexical view.
+  active = cleanupCall ? browserCleanupView(scope, cleanupCall) : scope
   let left = false
   return () => {
     if (left) throw new Error('Browser Mode creator frame was already left.')
@@ -612,17 +647,14 @@ export function invokeClientAttempt<T>(
   callback: () => T
 ): T {
   const scope = owners.get(owner.id)
-  if (
-    !scope ||
-    scope.closed ||
-    withoutDefaultKeyboardCleanupView(current()) !== scope
-  )
+  if (!scope || scope.closed || withoutBrowserCleanupView(current()) !== scope)
     throw new Error('Invalid Browser Mode attempt ownership.')
   return callback()
 }
 export function assertBrowserApiScope(
   kind: 'declaration' | 'assertion' | 'utility' | 'browser-native'
 ) {
+  if (kind === 'browser-native' && currentCleanupNativeCall()) return
   const scope = kind === 'assertion' && assertionFileOpen ? active : current()
   if (
     scope &&
@@ -722,25 +754,18 @@ export const assertCompilerScopeActive = assertScopeActive
 export const captureCompilerAsyncScope = captureAsyncScope
 
 export interface ClientCommandAdmission {
-  readonly origin: ClientCommandAttemptOrigin
+  readonly origin?: ClientCommandAttemptOrigin
   bind(operation: Promise<unknown>): void
   query<T>(operation: Promise<unknown>, privatePureQuery: () => T): T
   finish(operation: Promise<unknown>): void
 }
 
-/** A started native operation keeps its origin without reopening that scope. */
-export function captureClientCommandAdmission():
-  | ClientCommandAdmission
-  | undefined {
-  assertBrowserApiScope('browser-native')
-  const scope = current()
-  if (scope?.kind !== 'attempt') return undefined
-  const context = scope.context
-  const origin: ClientCommandAttemptOrigin = {
-    fileId: context.fileId,
-    caseId: context.testId,
-    attempt: { id: context.id, retry: context.retry, repeat: context.repeat },
-  }
+/** A started operation retains only its exact private query and completion. */
+function createClientCommandAdmission(
+  scope: Scope,
+  origin?: ClientCommandAttemptOrigin,
+  signal?: AbortSignal
+): ClientCommandAdmission {
   let bound: Promise<unknown> | undefined
   let finished = false
   const assertOperation = (operation: Promise<unknown>) => {
@@ -748,7 +773,7 @@ export function captureClientCommandAdmission():
       throw new Error('Invalid Browser Mode command operation.')
   }
   return {
-    origin,
+    ...(origin ? { origin } : {}),
     bind(operation) {
       if (bound || finished)
         throw new Error('Browser Mode command operation was already bound.')
@@ -756,7 +781,7 @@ export function captureClientCommandAdmission():
     },
     query(operation, privatePureQuery) {
       assertOperation(operation)
-      context.signal.throwIfAborted()
+      signal?.throwIfAborted()
       return runInScope(scope, privatePureQuery)
     },
     finish(operation) {
@@ -764,6 +789,33 @@ export function captureClientCommandAdmission():
       finished = true
     },
   }
+}
+/** Serial files receive no attempt admission through the resource contract. */
+export function captureClientResourceCommandAdmission():
+  | ClientCommandAdmission
+  | undefined {
+  const scope = currentCleanupNativeCall()
+  return scope ? createClientCommandAdmission(scope) : undefined
+}
+/** A started native operation keeps its origin without reopening that scope. */
+export function captureClientCommandAdmission():
+  | ClientCommandAdmission
+  | undefined {
+  const resource = captureClientResourceCommandAdmission()
+  if (resource) return resource
+  assertBrowserApiScope('browser-native')
+  const scope = current()
+  if (scope?.kind !== 'attempt') return undefined
+  const context = scope.context
+  return createClientCommandAdmission(
+    scope,
+    {
+      fileId: context.fileId,
+      caseId: context.testId,
+      attempt: { id: context.id, retry: context.retry, repeat: context.repeat },
+    },
+    context.signal
+  )
 }
 
 /** Internal continuation propagation installs its original closed token too.

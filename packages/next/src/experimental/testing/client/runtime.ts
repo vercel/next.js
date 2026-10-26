@@ -25,6 +25,7 @@ import { getClientDeclarationLocation } from './declaration-location'
 import type { TestArtifact } from '../runner/tasks'
 import {
   captureClientCommandAdmission,
+  captureClientResourceCommandAdmission,
   nativePromiseResolve,
   nativePromiseThen,
 } from './async-context'
@@ -267,9 +268,10 @@ export async function startClientTest(
       }),
     {
       getConsoleTask: getCurrentConsoleTask,
-      ...(config.caseScheduling === 'concurrent-v1'
-        ? { captureCommandAdmission: captureClientCommandAdmission }
-        : {}),
+      captureCommandAdmission:
+        config.caseScheduling === 'concurrent-v1'
+          ? captureClientCommandAdmission
+          : captureClientResourceCommandAdmission,
     }
   )
   let mocks: { dispose(): void } | undefined
@@ -613,7 +615,8 @@ export async function startClientTest(
     }
     let browserCleanup: Promise<void> | undefined
     const cleanupBrowserResources = () => {
-      if (!browserCleanup)
+      if (!browserCleanup) {
+        const nativeInvocation = file?.captureOwnedBeforeWorkerInvocation?.()
         browserCleanup = nativePromiseThen.call(
           nativePromiseResolve(),
           async () => {
@@ -631,6 +634,7 @@ export async function startClientTest(
                     onContextCleanupFailure(occurrence) {
                       contextFailure = occurrence
                     },
+                    nativeInvocation,
                     onComponentFailure(occurrence) {
                       observedFailures.push({
                         origin: 'component-cleanup',
@@ -695,6 +699,7 @@ export async function startClientTest(
             }
           }
         ) as Promise<void>
+      }
       return browserCleanup
     }
     for (const dispose of [
