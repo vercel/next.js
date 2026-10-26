@@ -5,7 +5,7 @@ import Link from 'next/link'
 export default async function Page() {
   const randomCookie = (await cookies()).get('random')
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    'https://next-data-api-endpoint.vercel.app/api/random?actions-page',
     {
       next: { revalidate: 3600, tags: ['actions:thankyounext'] },
     }

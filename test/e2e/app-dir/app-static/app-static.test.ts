@@ -3503,7 +3503,7 @@ describe('app-dir static/dynamic handling', () => {
 
       expect(indexFetchMetrics).toHaveLength(1)
       expect(indexFetchMetrics[0]).toMatchObject({
-        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?app-static-page',
         status: 200,
         cacheStatus: expect.any(String),
         start: expect.any(Number),
@@ -5063,14 +5063,24 @@ describe('app-dir static/dynamic handling', () => {
 
   describe('unstable_cache', () => {
     it('should retrieve the same value on second request', async () => {
-      const res = await next.fetch('/unstable-cache/dynamic')
-      const html = await res.text()
-      const data = cheerio.load(html)('#cached-data').text()
-      const res2 = await next.fetch('/unstable-cache/dynamic')
-      const html2 = await res2.text()
-      const data2 = cheerio.load(html2)('#cached-data').text()
+      async function fetchCachedData() {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        return cheerio
+          .load(await res.text())('#cached-data')
+          .text()
+      }
 
-      expect(data).toEqual(data2)
+      if (isNextDeploy) {
+        // The shared Data Cache is eventually consistent across lambda
+        // instances: a request can land before another instance's write is
+        // visible and recompute. Poll until two consecutive reads agree,
+        // which is the consistency the deployed cache provides.
+        await retry(async () => {
+          expect(await fetchCachedData()).toEqual(await fetchCachedData())
+        })
+      } else {
+        expect(await fetchCachedData()).toEqual(await fetchCachedData())
+      }
     })
 
     it('should bypass cache in draft mode', async () => {
