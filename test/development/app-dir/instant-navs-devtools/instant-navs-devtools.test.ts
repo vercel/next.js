@@ -101,14 +101,9 @@ describe('instant-nav-panel', () => {
           await browser.eval((accordionSelector) => {
             document.querySelector<HTMLInputElement>(accordionSelector)!.click()
           }, accordionSelector)
-          // Let React commit the Link and IntersectionObserver schedule its
-          // prefetch before the click starts the navigation.
-          await browser.eval(
-            () =>
-              new Promise<void>((resolve) =>
-                requestIdleCallback(() => resolve(), { timeout: 100 })
-              )
-          )
+          // Wait for React to mount the Link before clicking it. router-act
+          // controls any viewport prefetch started by the same commit.
+          await browser.locator(selector).waitFor({ state: 'attached' })
           await navigate()
         }, expectedResponse)
       }
@@ -680,6 +675,29 @@ describe('instant-nav-panel', () => {
 
       // Clean up
       await clearInstantModeCookie(browser)
+    })
+
+    it('should render the prefetched shell in a deferred render while paused', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/deferred-target/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
+      expect(await browser.url()).toContain('/deferred-target/my-post')
+
+      await clickResume(browser)
+      await expectTargetPageRendered(browser)
+    })
+
+    it('should render the final content in a deferred render without pausing', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await clickLink(browser, '/deferred-target/my-post?search=foo')
+      await expectTargetPageRendered(browser)
+      expect(await browser.url()).toContain('/deferred-target/my-post')
+      await waitForInstantModeCookieAbsent(browser)
     })
 
     it('should continue capturing loading navigations when starting on a dynamic route', async () => {
