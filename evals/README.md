@@ -114,6 +114,23 @@ independent of context treatment: a suite still runs both `baseline` and
 measurement systems are not represented as runnable suites. Individual eval
 commands and `--all` continue to work as before.
 
+### Classifying a new eval
+
+Add every new public eval to exactly one suite in `eval.suites.json`:
+
+1. Start it in `audit` while its grader, version applicability, documentation
+   effect, and pass@1 stability are being validated.
+2. Move it to `competency` once the task is trustworthy and valid failures or
+   useful model-tier differences remain.
+3. Move it to `regression` only after multiple independent runs or versions
+   reach at least 90% valid pass@1 for both frontier and weaker model tiers.
+
+An eval that measures a different question, such as framework preference or
+an end-to-end deployment journey, should not enter a Next.js runnable suite.
+Mark it as non-published while it is transferred to the owning measurement
+system. The runner rejects public evals that are unclassified or listed in more
+than one suite.
+
 Use repeated runs when measuring behavior that may vary between agent runs:
 
 ```bash
