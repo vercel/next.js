@@ -2862,7 +2862,6 @@ async function renderAppPage(
     implicitTags,
   } = ctx
   const { cacheComponents, setIsrStatus, serverActions } = renderOpts
-  const { cachedNavigations } = renderOpts.experimental
   const {
     isHmrRefresh,
     isPrefetchRequest,
@@ -2957,7 +2956,7 @@ async function renderAppPage(
           createRequestStore,
           stagedFallbackParams
         )
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // MARK: RSC cacheComponents
         return generateStagedDynamicFlightRenderResultNode(ctx, requestStore)
       } else {
@@ -3569,7 +3568,6 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations } = renderOpts.experimental
   const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
@@ -3859,7 +3857,7 @@ async function renderToStream(
             requestId
           )
         }
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the shell byte length (`a`)
         // and, with Partial Prefetching, an embedded runtime prefetch that the
@@ -5404,6 +5402,17 @@ interface StagedDevRenderSetup {
 export enum PrefetchingMode {
   LegacySpeculative = 1,
   Partial = 2,
+}
+
+function shouldUseCachedNavigations(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    renderOpts.cacheComponents &&
+    renderOpts.experimental.cachedNavigations === true &&
+    !requestStore.draftMode.isEnabled
+  )
 }
 
 async function getPrefetchingModeForPage(
