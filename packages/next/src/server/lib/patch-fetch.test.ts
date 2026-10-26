@@ -288,6 +288,113 @@ describe('createPatchedFetcher', () => {
     }
   )
 
+  it('keeps the response url of a fetch cached during a prerender', async () => {
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+    const originResponse = new Response('origin body')
+    Object.defineProperty(originResponse, 'url', {
+      value: 'https://example.com/final',
+    })
+    mockFetch.mockResolvedValue(originResponse)
+    const incrementalCache = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn(),
+      generateCacheKey: jest.fn().mockResolvedValue('test-cache-key'),
+      lock: jest.fn().mockResolvedValue(() => {}),
+    } as unknown as IncrementalCache
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore: Partial<WorkStore> = {
+      page: '/',
+      route: '/',
+      incrementalCache,
+    }
+    const workUnitStore = {
+      type: 'prerender',
+      phase: 'render',
+      revalidate: 3600,
+      tags: null,
+      cacheSignal: null,
+      renderSignal: new AbortController().signal,
+    } as unknown as WorkUnitStore
+
+    const response = await workAsyncStorage.run(workStore as WorkStore, () =>
+      workUnitAsyncStorage.run(workUnitStore, () =>
+        patchedFetch('https://example.com/api', { cache: 'force-cache' })
+      )
+    )
+
+    expect(incrementalCache.set).toHaveBeenCalled()
+    expect(response.url).toBe('https://example.com/final')
+    expect(await response.text()).toBe('origin body')
+  })
+
+  it('keeps the response url for fetches that share a foreground revalidation', async () => {
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+    mockFetch.mockImplementation(async () => {
+      const response = new Response('origin body')
+      Object.defineProperty(response, 'url', {
+        value: 'https://example.com/final',
+      })
+      return response
+    })
+    const incrementalCache = {
+      get: jest.fn().mockResolvedValue({
+        isStale: true,
+        value: {
+          kind: CachedRouteKind.FETCH,
+          revalidate: 3600,
+          data: {
+            body: btoa('cached body'),
+            headers: {},
+            status: 200,
+            url: 'https://example.com/final',
+          },
+        },
+      }),
+      set: jest.fn(),
+      generateCacheKey: jest.fn().mockResolvedValue('test-cache-key'),
+      lock: jest.fn().mockResolvedValue(() => {}),
+    } as unknown as IncrementalCache
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore: Partial<WorkStore> = {
+      page: '/',
+      route: '/',
+      incrementalCache,
+    }
+    // A prerender persists its result, so a stale entry is revalidated in the
+    // foreground and identical fetches share that revalidation.
+    const workUnitStore = {
+      type: 'prerender-legacy',
+      phase: 'render',
+      revalidate: 3600,
+      tags: null,
+    } as unknown as WorkUnitStore
+
+    const responses = await workAsyncStorage.run(workStore as WorkStore, () =>
+      workUnitAsyncStorage.run(workUnitStore, () =>
+        Promise.all([
+          patchedFetch('https://example.com/api', { cache: 'force-cache' }),
+          patchedFetch('https://example.com/api', { cache: 'force-cache' }),
+        ])
+      )
+    )
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    for (const response of responses) {
+      expect(response.url).toBe('https://example.com/final')
+      expect(await response.text()).toBe('origin body')
+    }
+  })
+
   it('records an HTTP error without buffering the response stream', async () => {
     setSpanRecorderForTest((span) => spanRecords.push(span))
     let controller!: ReadableStreamDefaultController<Uint8Array>
