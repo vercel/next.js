@@ -63,6 +63,10 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       )
     })
 
+    it('should keep hash of relative url', () => {
+      expect(resolver('/foo/#bar')).toBe('https://example.com/foo/#bar')
+    })
+
     it('should resolve absolute internal url with query', () => {
       expect(resolver('https://example.com/?foo=bar')).toBe(
         'https://example.com/?foo=bar'
@@ -89,6 +93,15 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       )
       expect(resolver(new URL('https://example.com/foo'))).toBe(
         'https://example.com/foo/'
+      )
+    })
+
+    it('should add trailing slash before hash', () => {
+      expect(resolver('/foo#bar')).toBe('https://example.com/foo/#bar')
+      expect(resolver('/foo/#bar')).toBe('https://example.com/foo/#bar')
+      expect(resolver('/foo#bar?baz')).toBe('https://example.com/foo/#bar?baz')
+      expect(resolver(new URL('https://example.com/foo#bar'))).toBe(
+        'https://example.com/foo/#bar'
       )
     })
 
@@ -122,6 +135,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver(new URL('/?foo=bar', metadataBase))).toBe(
         'https://example.com/?foo=bar'
       )
+      expect(resolver('/foo?bar#baz')).toBe('https://example.com/foo?bar#baz')
     })
 
     it('should not add trailing slash to relative url that matches file pattern', () => {
