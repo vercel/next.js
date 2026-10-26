@@ -1,4 +1,5 @@
 import type { ChildProcess, SpawnOptions } from 'child_process'
+import { addAbortSignal, type Readable } from 'stream'
 
 import spawn from 'next/dist/compiled/cross-spawn'
 import { z } from 'next/dist/compiled/zod'
@@ -13,7 +14,7 @@ type SpawnReviewForm = (
   options: SpawnOptions
 ) => ChildProcess
 
-type FeedbackInput = NodeJS.ReadableStream & {
+type FeedbackInput = Readable & {
   isTTY?: boolean
 }
 
@@ -56,66 +57,43 @@ const agentFeedbackReportSchema = z
   .strict()
 
 async function readFeedbackInput(input: FeedbackInput): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let report = ''
-    let inputBytes = 0
+  const abortController = new AbortController()
+  const timeout = setTimeout(
+    () => abortController.abort(),
+    AGENT_FEEDBACK_INPUT_TIMEOUT_MS
+  )
+  let report = ''
+  let inputBytes = 0
 
-    const timeout = setTimeout(() => {
-      finish(() => {
-        input.pause()
-        reject(
-          new Error(
-            'Timed out waiting for the agent feedback report on standard input.'
-          )
-        )
-      })
-    }, AGENT_FEEDBACK_INPUT_TIMEOUT_MS)
+  input.setEncoding('utf8')
+  addAbortSignal(abortController.signal, input)
 
-    function cleanup() {
-      clearTimeout(timeout)
-      input.removeListener('data', onData)
-      input.removeListener('end', onEnd)
-      input.removeListener('error', onError)
-    }
-
-    let settled = false
-    function finish(callback: () => void) {
-      if (settled) return
-      settled = true
-      cleanup()
-      callback()
-    }
-
-    function onData(chunk: string) {
-      inputBytes += Buffer.byteLength(chunk)
+  try {
+    for await (const chunk of input as AsyncIterable<string | Buffer>) {
+      const value = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+      inputBytes += Buffer.byteLength(value)
       if (inputBytes > MAX_AGENT_FEEDBACK_INPUT_BYTES) {
-        finish(() => {
-          input.pause()
-          reject(
-            new Error(
-              `The agent feedback report must not exceed ${MAX_AGENT_FEEDBACK_INPUT_BYTES} bytes.`
-            )
-          )
-        })
-        return
+        throw new Error(
+          `The agent feedback report must not exceed ${MAX_AGENT_FEEDBACK_INPUT_BYTES} bytes.`
+        )
       }
 
-      report += chunk
+      report += value
+    }
+  } catch (error) {
+    if (abortController.signal.aborted) {
+      throw new Error(
+        'Timed out waiting for the agent feedback report on standard input.',
+        { cause: error }
+      )
     }
 
-    function onEnd() {
-      finish(() => resolve(report.trim()))
-    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
 
-    function onError(error: Error) {
-      finish(() => reject(error))
-    }
-
-    input.setEncoding('utf8')
-    input.on('data', onData)
-    input.once('end', onEnd)
-    input.once('error', onError)
-  })
+  return report.trim()
 }
 
 export async function resolveAgentFeedbackReport(
