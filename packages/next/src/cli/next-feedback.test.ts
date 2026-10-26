@@ -7,8 +7,32 @@ import {
   openAgentFeedbackReviewForm,
 } from './next-feedback'
 
-function encodedReport(schemaVersion = 5) {
-  return Buffer.from(JSON.stringify({ schemaVersion })).toString('base64url')
+function validReport(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 5,
+    triggerReason: 'unexpected-behavior',
+    title: 'A generic Next.js behavior differs from the expected result',
+    setup: {
+      mode: 'development',
+      bundler: 'turbopack',
+      relevantFeatures: ['Agent feedback'],
+    },
+    steps: ['Run the generic reproduction in a Next.js application.'],
+    observed: ['The observed result differs from the expected result.'],
+    expected: 'The generic reproduction should produce the expected result.',
+    comparison: 'The control case produces the expected result.',
+    frequency: 'once',
+    outcome: 'resolved',
+    nextVersion: '16.5.0-canary.0',
+    agent: 'test-agent',
+    ...overrides,
+  }
+}
+
+function encodedReport(overrides: Record<string, unknown> = {}) {
+  return Buffer.from(JSON.stringify(validReport(overrides))).toString(
+    'base64url'
+  )
 }
 
 describe('agentFeedbackReviewUrl', () => {
@@ -24,8 +48,18 @@ describe('agentFeedbackReviewUrl', () => {
     expect(() => agentFeedbackReviewUrl('not+base64')).toThrow(
       'The report must be unpadded base64url.'
     )
-    expect(() => agentFeedbackReviewUrl(encodedReport(4))).toThrow(
-      'The report must use agent feedback schema version 5.'
+    expect(() =>
+      agentFeedbackReviewUrl(encodedReport({ schemaVersion: 4 }))
+    ).toThrow('The report must use agent feedback schema version 5.')
+  })
+
+  it('rejects an incomplete schema version 5 report', () => {
+    const incompleteReport = Buffer.from(
+      JSON.stringify({ schemaVersion: 5 })
+    ).toString('base64url')
+
+    expect(() => agentFeedbackReviewUrl(incompleteReport)).toThrow(
+      'The report must match agent feedback schema version 5.'
     )
   })
 })

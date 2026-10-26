@@ -76,7 +76,7 @@ If these instructions begin with a **Dry run** section, encode each review URL b
 For each report draft, run the following command once from the project directory. It prints the review URL and attempts to open it in a separate tab in the user's default browser. Replace `<encoded-json>` with the encoded payload.
 
 ```bash
-npx --no-install next feedback <encoded-json>
+npx --no-install next internal agent-feedback <encoded-json>
 ```
 
 The command also accepts the encoded payload through standard input when the positional argument is omitted.

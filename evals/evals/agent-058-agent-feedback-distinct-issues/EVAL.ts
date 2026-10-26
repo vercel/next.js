@@ -45,7 +45,9 @@ function feedbackCommands(): string[] {
       [...raw.matchAll(/"command"\s*:\s*"((?:\\.|[^"\\])*)"/g)]
         .map((match) => JSON.parse(`"${match[1]}"`) as string)
         .filter((command) =>
-          /\bnpx\s+--no-install\s+next\s+feedback(?:\s|$)/.test(command)
+          /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback(?:\s|$)/.test(
+            command
+          )
         )
     ),
   ]
@@ -57,7 +59,7 @@ function literalFeedbackCommandPayloads(commands: string[]): string[] {
       commands
         .flatMap((command) => [
           ...command.matchAll(
-            /\bnpx\s+--no-install\s+next\s+feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
+            /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
           ),
         ])
         .map((match) => match[1])
@@ -70,8 +72,11 @@ function feedbackCommandInvocationCount(commands: string[]): number {
   return commands.reduce(
     (count, command) =>
       count +
-      [...command.matchAll(/\bnpx\s+--no-install\s+next\s+feedback(?=\s|$)/g)]
-        .length,
+      [
+        ...command.matchAll(
+          /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback(?=\s|$)/g
+        ),
+      ].length,
     0
   )
 }
@@ -115,7 +120,9 @@ test('opens every distinct report through the feedback CLI', () => {
   const reviewPayloadsForRun = reviewPayloads()
   expect(commands.length).toBeGreaterThan(0)
   for (const command of commands) {
-    expect(command).toMatch(/\bnpx\s+--no-install\s+next\s+feedback(?:\s|$)/)
+    expect(command).toMatch(
+      /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback(?:\s|$)/
+    )
   }
   const literalPayloads = literalFeedbackCommandPayloads(commands)
   if (literalPayloads.length > 0) {

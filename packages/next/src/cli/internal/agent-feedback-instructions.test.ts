@@ -43,10 +43,10 @@ describe('loadAgentFeedbackInstructions', () => {
       '`nextVersion` and `agent`, with no more than 64 characters each'
     )
     expect(instructions).toContain(
-      'npx --no-install next feedback <encoded-json>'
+      'npx --no-install next internal agent-feedback <encoded-json>'
     )
     expect(instructions).not.toContain(
-      'node node_modules/next/dist/bin/next feedback'
+      'node node_modules/next/dist/bin/next internal agent-feedback'
     )
   })
 
