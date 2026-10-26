@@ -93,6 +93,26 @@ where
         .unwrap()
 }
 
+/// Asserts that `tt` is the last reference to the TurboTasks instance, i.e. that nothing leaked a
+/// reference to it.
+///
+/// `stop_and_wait` returns once all jobs have signaled completion, but the spawned futures that
+/// ran them may still be in the process of dropping their own references. Poll for a while before
+/// failing.
+async fn wait_for_sole_reference(tt: &Arc<dyn TurboTasksApi>) {
+    const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+    let start = std::time::Instant::now();
+    while Arc::strong_count(tt) != 1 {
+        assert!(
+            start.elapsed() < TIMEOUT,
+            "TurboTasks instance is still referenced {} more time(s) {TIMEOUT:?} after \
+             stop_and_wait",
+            Arc::strong_count(tt) - 1
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
+}
+
 fn closure_to_name<T>(value: &T) -> String {
     let name = std::any::type_name_of_val(value);
     name.replace("::{{closure}}", "").replace("::", "_")
@@ -161,7 +181,7 @@ where
         println!("Stopping TurboTasks took {:?}", start.elapsed());
         // The eviction closure holds its own reference to the TurboTasks instance.
         drop(instance.snapshot_and_evict);
-        assert!(Arc::strong_count(&instance.tt) == 1);
+        wait_for_sole_reference(&instance.tt).await;
         let start = std::time::Instant::now();
         drop(instance.tt);
         println!("Dropping TurboTasks took {:?}", start.elapsed());
@@ -178,7 +198,7 @@ where
                 instance.tt.stop_and_wait().await;
                 println!("Stopping TurboTasks took {:?}", start.elapsed());
                 drop(instance.snapshot_and_evict);
-                assert!(Arc::strong_count(&instance.tt) == 1);
+                wait_for_sole_reference(&instance.tt).await;
                 let start = std::time::Instant::now();
                 drop(instance.tt);
                 println!("Dropping TurboTasks took {:?}", start.elapsed());
