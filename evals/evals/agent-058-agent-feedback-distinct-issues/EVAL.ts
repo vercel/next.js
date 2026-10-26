@@ -61,6 +61,7 @@ function literalFeedbackCommandPayloads(commands: string[]): string[] {
           ),
         ])
         .map((match) => match[1])
+        .filter((payload) => !payload.startsWith('-'))
     ),
   ]
 }
@@ -69,7 +70,7 @@ function feedbackCommandInvocationCount(commands: string[]): number {
   return commands.reduce(
     (count, command) =>
       count +
-      [...command.matchAll(/\bnpx\s+--no-install\s+next\s+feedback\s+\S+/g)]
+      [...command.matchAll(/\bnpx\s+--no-install\s+next\s+feedback(?=\s|$)/g)]
         .length,
     0
   )
@@ -114,7 +115,7 @@ test('opens every distinct report through the feedback CLI', () => {
   const reviewPayloadsForRun = reviewPayloads()
   expect(commands.length).toBeGreaterThan(0)
   for (const command of commands) {
-    expect(command).toMatch(/\bnpx\s+--no-install\s+next\s+feedback\s+\S+/)
+    expect(command).toMatch(/\bnpx\s+--no-install\s+next\s+feedback(?:\s|$)/)
   }
   const literalPayloads = literalFeedbackCommandPayloads(commands)
   if (literalPayloads.length > 0) {
