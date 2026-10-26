@@ -2,7 +2,10 @@
 
 Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertions. We run the prompt through a coding agent in a sandbox and check what it wrote.
 
-The point: find places where agents get Next.js wrong because their training data is stale, then fix it by shipping better docs in the `next` package itself.
+The existing suite protects known behavior and measures how version-matched
+context changes the result. As tasks become saturated, new competency evals
+must continue to separate meaningful Next.js capability. Read
+[Curating harder Next.js evals](HARDER_EVALS.md) before adding a harder task.
 
 ## How it works
 
@@ -23,6 +26,10 @@ vc env pull   # writes .env.local to repo root
 External contributors can run the same evals in local Docker with their own API key — see [Running without Vercel sandbox access](#running-without-vercel-sandbox-access).
 
 ## Writing an eval
+
+For a new harder competency task, define its measurement question, task
+contract, calibration plan, and intended visibility using
+[the harder-eval guide](HARDER_EVALS.md).
 
 Copy an existing fixture. Take the next free number — gaps are fine.
 
