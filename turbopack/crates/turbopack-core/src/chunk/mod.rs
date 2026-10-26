@@ -209,8 +209,8 @@ pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and but the namespace object is
     // needed.
     Internal,
-    // The exports of this module are read from outside this group (necessitating a namespace
-    // object anyway).
+    // The exports of this module are read from outside this group, so they need runtime
+    // registration (either in a source-module namespace or a shared flat export table).
     External,
 }
 

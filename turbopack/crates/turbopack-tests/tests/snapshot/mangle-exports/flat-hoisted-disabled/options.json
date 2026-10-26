@@ -1,0 +1,6 @@
+{
+  "scopeHoisting": true,
+  "mangleExportNames": false,
+  "removeUnusedImports": true,
+  "removeUnusedExports": true
+}

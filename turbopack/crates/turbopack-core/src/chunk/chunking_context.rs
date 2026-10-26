@@ -20,7 +20,8 @@ use crate::{
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroupKey,
-        module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
+        merged_modules::OptionMergedModuleGroup, module_batches::BatchingConfig,
+        style_groups::StyleGroupsAlgorithm,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
@@ -542,6 +543,24 @@ pub trait ChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_item_id_strategy(self: Vc<Self>) -> Result<Vc<ModuleIdStrategy>>;
+
+    /// Attach scope-hoisting analysis for code generation without changing the graph itself.
+    #[turbo_tasks::function]
+    fn with_module_graph(
+        self: Vc<Self>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<Box<dyn ChunkingContext>> {
+        self
+    }
+
+    /// Read only the scope-hoisting group containing this module.
+    #[turbo_tasks::function]
+    fn module_merging_group(
+        self: Vc<Self>,
+        _module: Vc<Box<dyn Module>>,
+    ) -> Vc<OptionMergedModuleGroup> {
+        Vc::cell(None)
+    }
 
     #[turbo_tasks::function]
     async fn module_export_usage(

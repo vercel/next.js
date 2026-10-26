@@ -1346,12 +1346,17 @@ impl EcmascriptModuleContent {
                 .try_join()
                 .await?;
 
-            let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
-                merge_modules(contents, &entry_points, &globals_merged).await?;
-
             // Use the options from an arbitrary module, since they should all be the same with
             // regards to minify_type and chunking_context.
             let options = module_options.last().unwrap().await?;
+            let flat_group = *references::esm::mangle::flat_export_group(
+                *entry_points[0].0,
+                *options.chunking_context,
+            )
+            .await?;
+            let flat_exports = flat_group.is_some();
+            let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
+                merge_modules(contents, &entry_points, &globals_merged, flat_exports).await?;
 
             let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
             let content = CodeGenResult {
@@ -1454,6 +1459,7 @@ async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
     entry_points: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
     globals_merged: &'_ Globals,
+    flat_exports: bool,
 ) -> Result<(
     Program,
     Vec<CodeGenResultComments>,
@@ -1782,6 +1788,33 @@ async fn merge_modules(
             result.push(item);
         }
         drop(span);
+
+        if flat_exports {
+            let mut getters = Vec::new();
+            // The contributions have already had their syntax contexts and source spans rewritten.
+            // Register before imports so cyclic consumers see the whole group's getters.
+            // Only inspect generated early-hoisted statements, never user code in `result`,
+            // which may contain a user binding with the same spelling as the marker.
+            merged_prelude.retain_mut(|item| {
+                if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item
+                    && let Expr::Call(call) = &mut **expr
+                    && let Callee::Expr(callee) = &call.callee
+                    && callee.is_ident_ref_to("__turbopack_flat_esm__")
+                {
+                    let Expr::Array(array) = &mut *call.args[0].expr else { unreachable!() };
+                    getters.append(&mut array.elems);
+                    return false;
+                }
+                true
+            });
+            if !getters.is_empty() {
+                let stmt = ModuleItem::Stmt(quote!("$esm($getters);" as Stmt,
+                    esm: Expr = runtime_functions::TURBOPACK_ESM.into(),
+                    getters: Expr = swc_core::ecma::ast::ArrayLit { span: DUMMY_SP, elems: getters }.into(),
+                ));
+                merged_prelude.insert(0, stmt);
+            }
+        }
 
         let span = tracing::trace_span!("hygiene").entered();
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {

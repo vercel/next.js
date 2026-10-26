@@ -407,7 +407,7 @@ impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         Ok(self.module.chunk_item_content(
-            *self.chunking_context,
+            self.chunking_context.with_module_graph(*self.module_graph),
             *self.module_graph,
             async_module_info,
             estimated,

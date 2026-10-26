@@ -28,6 +28,7 @@ use turbopack_core::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::{ChunkGroup, ChunkGroupKey},
+        merged_modules::{MergedModuleInfo, OptionMergedModuleGroup},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
@@ -388,6 +389,7 @@ pub struct BrowserChunkingContext {
     module_id_strategy: Option<ResolvedVc<ModuleIdStrategy>>,
     /// The module export usage info, if available.
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
+    merged_modules: Option<ResolvedVc<MergedModuleInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
     unused_references: Option<ResolvedVc<UnusedReferences>>,
     /// The chunking configs
@@ -458,6 +460,7 @@ impl BrowserChunkingContext {
                 manifest_chunks: false,
                 module_id_strategy: None,
                 export_usage: None,
+                merged_modules: None,
                 unused_references: None,
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
@@ -1310,6 +1313,32 @@ impl ChunkingContext for BrowserChunkingContext {
         } else {
             AsyncLoaderModule::asset_ident_for(module)
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn with_module_graph(
+        self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let this = self.await?;
+        if !this.enable_module_merging {
+            return Ok(Vc::upcast(self));
+        }
+        let mut this = (*this).clone();
+        this.merged_modules = Some(module_graph.merged_modules().to_resolved().await?);
+        Ok(Vc::upcast(this.cell()))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_merging_group(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<OptionMergedModuleGroup>> {
+        Ok(Vc::cell(if let Some(info) = self.merged_modules {
+            info.await?.groups.get(&module).await?.as_deref().copied()
+        } else {
+            None
+        }))
     }
 
     #[turbo_tasks::function]
