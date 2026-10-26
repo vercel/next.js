@@ -343,17 +343,9 @@ fn decode_list<D: Decoder>(decoder: &mut D, count: u64) -> Result<Bitset, Decode
         const BATCH_LEN: usize = 256;
         while remaining > 0 {
             let batch_len = (remaining as usize).min(BATCH_LEN);
-            // The peeked bytes borrow the decoder, which the limit claim below also needs. Check
-            // that the bytes are available first, then claim and peek again.
-            if decoder
-                .reader()
-                .peek_read(batch_len)
-                .is_none_or(|bytes| bytes.len() < batch_len)
-            {
-                break;
-            }
             // Claim the input like `u32::decode` does, for the whole batch first: a valid input
-            // has all these items, and each of them claims at least that much.
+            // has all these items, and each of them claims at least that much. Claiming before
+            // peeking keeps a single peek, since the peeked bytes borrow the decoder.
             decoder.claim_bytes_read(4 * batch_len)?;
             let Some(bytes) = decoder
                 .reader()
