@@ -786,6 +786,9 @@ async function run({
       ...(options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage
         ? { captureCollectionCoverage: true }
         : {}),
+      ...(v8CollectionCoverage
+        ? { captureSettledCollectionDeclarations: true }
+        : {}),
       ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
         ? {
             onUnhandledRejection(

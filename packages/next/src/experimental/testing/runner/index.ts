@@ -150,6 +150,8 @@ export interface TestFileOptions {
   finalizePublicTaskModes?: true
   /** Explicit Istanbul host capture of one settled actual module-load failure. */
   captureCollectionCoverage?: true
+  /** Actual V8 collection capture also observes settled declaration failures. */
+  captureSettledCollectionDeclarations?: true
   /** Actual Node execution omits statistics for a file that never ran. */
   omitFailedCollectionSnapshotSummary?: true
   fileId: string
@@ -318,6 +320,7 @@ function initializeFile(
     finalizePublicTaskModes,
     onCollectionFailure,
     captureCollectionCoverage,
+    captureSettledCollectionDeclarations,
     omitFailedCollectionSnapshotSummary,
     fileId,
     filePath,
@@ -378,6 +381,10 @@ function initializeFile(
     printConsoleTrace: undefined,
   }
   const collector = createCollector(fileId, {
+    ...(captureCollectionCoverage === true &&
+    captureSettledCollectionDeclarations === true
+      ? { observeSettledDeclarationCoverage: true as const }
+      : {}),
     filePath,
     getTaskLocation,
     tags,
@@ -603,6 +610,7 @@ function initializeFile(
           }
           const errors: unknown[] = []
           let loadFailure: { error: unknown } | undefined
+          let declarationFailure: { error: unknown } | undefined
           const collectionAssertions = fileAssertions!.beginCollection({
             id: fileId,
             name: filePath,
@@ -616,6 +624,20 @@ function initializeFile(
           try {
             await collector.settle()
           } catch (error) {
+            const observed =
+              collector.getCompletedDeclarationCoverageFailure?.()
+            const errorDescriptor =
+              observed && Object.getOwnPropertyDescriptor(observed, 'error')
+            if (
+              captureCollectionCoverage === true &&
+              captureSettledCollectionDeclarations === true &&
+              errorDescriptor &&
+              'value' in errorDescriptor &&
+              errorDescriptor.value === error &&
+              Array.isArray(observed?.occurrences) &&
+              observed.occurrences.length > 0
+            )
+              declarationFailure = { error }
             errors.push(error)
           }
           try {
@@ -628,15 +650,22 @@ function initializeFile(
           } catch (error) {
             errors.push(error)
           }
-          if (
-            loadFailure &&
-            errors.length === 1 &&
-            errors[0] === loadFailure.error
-          )
-            settledCollectionFailure = Object.freeze(loadFailure)
-          if (errors.length === 1) throw errors[0]
-          if (errors.length > 1)
-            throw new AggregateError(errors, 'Test file collection failed.')
+          if (errors.length) {
+            const error =
+              errors.length === 1
+                ? errors[0]
+                : new AggregateError(errors, 'Test file collection failed.')
+            if (
+              loadFailure &&
+              errors[0] === loadFailure.error &&
+              (errors.length === 1 ||
+                (errors.length === 2 &&
+                  declarationFailure &&
+                  errors[1] === declarationFailure.error))
+            )
+              settledCollectionFailure = Object.freeze({ error })
+            throw error
+          }
         })
         // Published Vitest 5.0.4 strips function conditions from the collected
         // task tree before its RPC notification, also changing worker execution.

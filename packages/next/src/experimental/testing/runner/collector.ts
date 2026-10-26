@@ -755,6 +755,7 @@ export function createCollector(
     getActiveCollector?: () => CollectorDispatch | undefined
     isCollectingScope?: () => boolean
     getTaskExpect?: (task: Test) => TestContext['expect']
+    observeSettledDeclarationCoverage?: true
   } = {}
 ) {
   const root = suite(fileId, '', 'run', undefined, {
@@ -765,6 +766,17 @@ export function createCollector(
   const suiteStorage = createDeclarationStorage<TestSuite>()
   const pending: Promise<PromiseSettledResult<unknown>>[] = []
   const pendingDeclarations: (() => void)[] = []
+  type DeclarationFailure = Readonly<{ suite: TestSuite; reason: unknown }>
+  const declarationFailures = new WeakMap<object, DeclarationFailure>()
+  let settleCalls = 0
+  let completedDeclarationFailure:
+    | Readonly<{
+        error: unknown
+        occurrences: readonly DeclarationFailure[]
+        pendingCount: number
+        rawCount: number
+      }>
+    | undefined
   const rawSuites: {
     collected: boolean
     collect(file: File, automatic?: boolean): Promise<Suite>
@@ -1186,7 +1198,15 @@ export function createCollector(
           pending.push(
             Promise.resolve(result).then(
               (value) => ({ status: 'fulfilled' as const, value }),
-              (reason) => ({ status: 'rejected' as const, reason })
+              (reason) => {
+                const rejected = { status: 'rejected' as const, reason }
+                if (config.observeSettledDeclarationCoverage === true)
+                  declarationFailures.set(
+                    rejected,
+                    Object.freeze({ suite: child, reason })
+                  )
+                return rejected
+              }
             )
           )
         }
@@ -1749,8 +1769,25 @@ export function createCollector(
       aroundEach: around('aroundEach'),
       aroundAll: around('aroundAll'),
     },
+    ...(config.observeSettledDeclarationCoverage === true
+      ? {
+          getCompletedDeclarationCoverageFailure() {
+            if (
+              settleCalls !== 1 ||
+              !completedDeclarationFailure ||
+              completedDeclarationFailure.pendingCount !== pending.length ||
+              completedDeclarationFailure.rawCount !== rawSuites.length
+            )
+              return undefined
+            return completedDeclarationFailure
+          },
+        }
+      : {}),
     async settle() {
+      settleCalls++
+      completedDeclarationFailure = undefined
       const errors: unknown[] = []
+      const occurrences: DeclarationFailure[] = []
       // Awaiting a suite can register more async suites. Read the live queue
       // length until all collection work, including rejected siblings, finishes.
       let index = 0
@@ -1758,7 +1795,11 @@ export function createCollector(
       while (index < pending.length || rawIndex < rawSuites.length) {
         while (index < pending.length) {
           const result = await pending[index++]
-          if (result.status === 'rejected') errors.push(result.reason)
+          if (result.status === 'rejected') {
+            errors.push(result.reason)
+            const occurrence = declarationFailures.get(result)
+            if (occurrence) occurrences.push(occurrence)
+          }
         }
         const raw = rawSuites[rawIndex++]
         if (raw && !raw.collected) {
@@ -1769,9 +1810,26 @@ export function createCollector(
           }
         }
       }
-      if (errors.length === 1) throw errors[0]
-      if (errors.length > 1)
-        throw new AggregateError(errors, 'Test suite collection failed.')
+      if (errors.length) {
+        const error =
+          errors.length === 1
+            ? errors[0]
+            : new AggregateError(errors, 'Test suite collection failed.')
+        if (
+          config.observeSettledDeclarationCoverage === true &&
+          settleCalls === 1 &&
+          rawSuites.length === 0 &&
+          occurrences.length === errors.length &&
+          new Set(occurrences).size === occurrences.length
+        )
+          completedDeclarationFailure = Object.freeze({
+            error,
+            occurrences: Object.freeze(occurrences),
+            pendingCount: pending.length,
+            rawCount: rawSuites.length,
+          })
+        throw error
+      }
     },
     close() {
       closed = true

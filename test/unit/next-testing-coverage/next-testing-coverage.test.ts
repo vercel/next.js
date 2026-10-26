@@ -20664,7 +20664,7 @@ describe('settled V8 collection-only completion', () => {
     },
     130000
   )
-  it.each(['setup-import-mixed-disposal', 'setup-import-mixed-settle'])(
+  it.each(['setup-import-mixed-disposal'])(
     'keeps independent same-Error stages unmarked and records the remaining publication gap for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
@@ -21061,4 +21061,216 @@ describe('settled beforeEach Array carrier coverage', () => {
     },
     40000
   )
+})
+
+describe('actual settled V8 declaration collection occurrences', () => {
+  it.each([
+    'collector-basic',
+    'collector-pending',
+    'collector-undefined',
+    'collector-multiple',
+    'collector-repeat',
+    'collector-raw',
+    'collector-omitted',
+    'collector-nontrue',
+    'file-basic',
+    'file-omitted',
+    'file-assertion',
+  ])(
+    'preserves exact stage and requested-only ownership for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-v8-declaration-carrier-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-declaration-carriers.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          mode: name,
+          actualDistinctOccurrences: true,
+          noInventedBodyObservation: true,
+          rawErrorFieldsUnchanged: true,
+          originalQueuesAndDisposalJoined: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+  it.each([
+    'setup-import-mixed-settle',
+    'setup-import-mixed-settle-report-false',
+  ])(
+    'publishes genuine complete maps/report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-v8-declaration-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-declaration-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledDeclarationFailure: true,
+          actualJSONCoverageMap: true,
+          noCaseStartsInvented: true,
+          completeMapsSummaryLCOV: true,
+          exactExistingSnapshots: true,
+          allOwnersJoined: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'setup-import-mixed-settle',
+    'setup-import-mixed-settle-report-false',
+  ])(
+    'joins actual compiler/worker and exact original load/declaration carriers for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-v8-declaration-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-declaration-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
+          )
+        ).toMatchObject({
+          setupCalls: 1,
+          specCalls: 0,
+          fileRunCalled: false,
+          operationObservationAbsent: true,
+          nativeBodyObservationAbsent: true,
+          actualJoinedLoadAndDeclarationCarrier: true,
+          actualErrorOwnFieldsUnchanged: true,
+          sameErrorIndependentStagesProven: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it.each([
+    'missing-getter',
+    'foreign-getter',
+    'duplicate-slot',
+    'mismatched-slot',
+    'duplicate-event',
+    'post-file-cleanup',
+  ])(
+    'keeps the actual mixed-stage %s fault incomplete',
+    async (fault) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-v8-declaration-fault-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-declaration-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            'setup-import-mixed-settle',
+            '--fault=' + fault,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          fault,
+          strictIncompleteCapture: true,
+          originalCollectionFailureRetained: true,
+          noInventedCaseEvents: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it('withholds publication while the actual declaration factory remains pending', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(join(tmpdir(), 'next-v8-declaration-pending-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'v8-declaration-private.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'setup-import-pending-declaration-control',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 125000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        actualPendingLoadGate: true,
+        actualProcessDeadline: true,
+        strictIncompleteCapture: true,
+        priorSnapshotsUnchanged: true,
+        genuineCompatibilityQualified: false,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 130000)
 })
