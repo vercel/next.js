@@ -414,7 +414,7 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void,
-  lockfile: Lockfile | undefined,
+  lockfile: Lockfile,
   serverFastRefresh?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
@@ -592,7 +592,7 @@ export async function createHotReloaderTurbopack(
     } else {
       await project.onExit()
     }
-    await lockfile?.unlock()
+    await lockfile.unlock()
   })
   // Subscription detects route additions/removals; returned endpoints stay lazy.
   const entrypointsSubscription = project.entrypointsSubscribe()

@@ -1363,14 +1363,12 @@ export default async function build(
         )
       }
 
-      if (config.experimental.lockDistDir) {
-        // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
-        // process exit.
-        await Lockfile.acquireWithRetriesOrExit(
-          path.join(distDir, 'lock'),
-          'next build'
-        )
-      }
+      // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
+      // process exit.
+      await Lockfile.acquireWithRetriesOrExit(
+        path.join(distDir, 'lock'),
+        'next build'
+      )
 
       if (config.cleanDistDir && !isGenerateMode) {
         await nextBuildSpan
