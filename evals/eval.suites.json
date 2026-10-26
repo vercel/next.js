@@ -12,6 +12,7 @@
     "agent-034-async-cookies",
     "agent-036-after-response",
     "agent-037-updatetag-cache",
+    "agent-038-refresh-settings",
     "agent-039-indirect-proxy",
     "agent-040-instant",
     "agent-042-enable-ppr",
@@ -33,7 +34,6 @@
     "agent-029-use-cache-directive",
     "agent-030-app-router-migration-hard",
     "agent-035-connection-dynamic",
-    "agent-038-refresh-settings",
     "agent-041-optimize-ppr-shell"
   ]
 }
