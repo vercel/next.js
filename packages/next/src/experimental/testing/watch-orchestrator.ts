@@ -293,23 +293,30 @@ export async function watchTests(
       }
     }
     if (
-      projects.some(
-        ({ profile, browserFixtures }) =>
+      projects.some(({ profile, browserFixtures, isolate }) => {
+        const explicitRscRoute =
+          (profile.mode === 'development' || profile.mode === 'production') &&
+          profile.environment === 'rsc' &&
+          profile.route !== undefined &&
+          isolate !== false
+        return (
           (profile.mode !== 'development' &&
             !(
               profile.mode === 'production' &&
               (profile.environment === 'node' ||
+                explicitRscRoute ||
                 (profile.environment === 'browser' &&
                   (profile.browserClient === true ||
                     (browserFixtures?.length ?? 0) > 0)))
             )) ||
           profile.runtime !== 'nodejs' ||
           profile.bundler !== 'turbopack' ||
-          profile.route !== undefined
-      )
+          (profile.route !== undefined && !explicitRscRoute)
+        )
+      })
     ) {
       throw new Error(
-        'Test watch supports route-less development profiles and production Browser client profiles, plus ordinary production Node profiles and registered production component drivers, with Turbopack Node.js only.'
+        'Test watch supports route-less development profiles and production Browser client profiles, plus ordinary production Node profiles, registered production component drivers, and isolated explicit production Node RSC route profiles or isolated explicit development Node RSC route profiles, with Turbopack Node.js only.'
       )
     }
     const metadata = await runWatchProcess(
@@ -617,6 +624,16 @@ export async function watchTests(
       )
     }
     watcher = await watchTestFiles({
+      ...(initial.projects.some(
+        (project) =>
+          project.profile.environment === 'rsc' &&
+          (project.profile.mode === 'development' ||
+            project.profile.mode === 'production') &&
+          project.profile.route !== undefined &&
+          project.isolate !== false
+      )
+        ? { sourceProcess: true as const, signal: controller.signal }
+        : {}),
       ...initial.directories,
       // Paths can establish the matching-new-test policy after byte validation;
       // they never establish complete compiler dependencies for source changes.

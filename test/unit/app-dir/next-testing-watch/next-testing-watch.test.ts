@@ -3895,3 +3895,123 @@ it('owns a failed pre-subscription observation without acquiring native subscrip
     await rm(root, { recursive: true, force: true })
   }
 })
+
+it.each([
+  'real',
+  'snapshot',
+  'opening-snapshot',
+  'backpressure',
+  'update-cancel',
+  'operation-cleanup-error',
+  'blocked-close',
+  'open-cancel',
+  'death-before-open',
+  'update-death',
+  'occurrences',
+  'callback-error',
+  'early-change',
+  'parent-death',
+])(
+  'owns the read-only input source through %s',
+  async (scenario) => {
+    const result = await promisify(execFile)(
+      process.execPath,
+      [
+        path.join(__dirname, 'watch-owned-source.mjs'),
+        require.resolve(
+          'next/dist/experimental/testing/incremental/watch-files'
+        ),
+        scenario,
+      ],
+      { env: process.env, timeout: 25000 }
+    )
+    expect(JSON.parse(result.stdout)).toMatchObject({ scenario, closed: true })
+  },
+  30000
+)
+
+it('transports cyclic error value identity without merging failure occurrences', () => {
+  const {
+    createWatchSourceErrorEncoder,
+    createWatchSourceErrorDecoder,
+  } = require('next/dist/experimental/testing/incremental/watch-source-errors')
+  const encode = createWatchSourceErrorEncoder()
+  const decode = createWatchSourceErrorDecoder()
+  const error = new TypeError('owned input error') as TypeError & {
+    cause: unknown
+    code: string
+  }
+  error.cause = error
+  error.code = 'EOWNED'
+  const group = new AggregateError(
+    [error, error],
+    'two independent observations',
+    { cause: error }
+  )
+  const snapshot = structuredClone(encode(group))
+  const restored = decode(snapshot) as AggregateError
+  expect(restored).toBeInstanceOf(AggregateError)
+  expect(restored.message).toBe(group.message)
+  expect(restored.errors).toHaveLength(2)
+  expect(restored.errors[0]).toBe(restored.errors[1])
+  expect(restored.cause).toBe(restored.errors[0])
+  expect(restored.errors[0]).toBeInstanceOf(TypeError)
+  expect(restored.errors[0].cause).toBe(restored.errors[0])
+  expect(restored.errors[0].code).toBe('EOWNED')
+  expect(restored.errors[0].stack).toBe(error.stack)
+  expect(decode(structuredClone(encode(error)))).toBe(restored.errors[0])
+})
+
+it.each([false, true])(
+  'publishes the owned native error before close and joins when observerThrows=%s',
+  async (observerThrows) => {
+    const root = await mkdtemp(path.join(tmpdir(), 'next-watch-owned-error-'))
+    const failure = new Error('actual native subscription error')
+    const deliveryFailure = new Error('owned failure observer threw')
+    const events: string[] = []
+    const subscriptions: EventEmitter[] = []
+    const observations: object[] = []
+    class Subscription extends EventEmitter {
+      close() {
+        events.push('close')
+        this.emit('close')
+      }
+    }
+    const nativeWatch = jest.spyOn(fs, 'watch').mockImplementation(() => {
+      const subscription = new Subscription()
+      subscriptions.push(subscription)
+      return subscription as any
+    })
+    let source: Awaited<ReturnType<typeof watchTestFiles>> | undefined
+    try {
+      source = await watchTestFiles({
+        directories: [root],
+        outputDirectories: [],
+        onChange() {},
+        observeFailureBeforeClose(error, observation) {
+          expect(error).toBe(failure)
+          observations.push(observation)
+          events.push('observed')
+          if (observerThrows) throw deliveryFailure
+        },
+        onError(error, observation) {
+          expect(error).toBe(failure)
+          expect(observation).toBe(observations[0])
+          events.push('callback')
+        },
+      })
+      const deliver = () => subscriptions[0].emit('error', failure)
+      if (observerThrows) {
+        expect(deliver).toThrow(AggregateError)
+      } else deliver()
+      expect(events[0]).toBe('observed')
+      expect(events.filter((event) => event === 'close')).toHaveLength(2)
+      expect(events.at(-1)).toBe('callback')
+      await source.close()
+    } finally {
+      await source?.close()
+      nativeWatch.mockRestore()
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+)

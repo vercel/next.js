@@ -1,0 +1,1 @@
+{"maxWorkers": 1, "projects": [{"name": "production-explicit-route-watch", "environment": "rsc", "mode": "production", "route": "/proof/[id]", "include": ["route.case.jsx"], "testTimeout": 60000, "fileTimeout": 120000}]}

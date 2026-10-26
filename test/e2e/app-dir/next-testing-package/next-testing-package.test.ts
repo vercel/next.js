@@ -31,6 +31,111 @@ describe('next-testing-package', () => {
   })
 
   if (isNextDev && isTurbopack) {
+    it('refreshes actual production RSC routes and layouts in the installed watch runner', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-production-rsc-route-watch-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-production-rsc-route-watch.mjs'),
+            next.testDir,
+            evidence,
+          ],
+          { timeout: 500000, maxBuffer: 2 * 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+        )
+        expect(verified.mode).toBe('production')
+        expect(verified.ordinaryReferenceRows).toBe(4)
+        expect(verified.passingGenerations).toHaveLength(6)
+        expect(verified.syntaxFailure).toBe(true)
+        expect(verified.routeConfigFailure).toBe(true)
+        expect(verified.activeCancellation).toBe(true)
+        expect(verified.retainedCompleteReport).toBe(true)
+        expect(verified.allOwnersJoined).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 540000)
+
+    it('refreshes actual development RSC routes and layouts in the installed watch runner', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-development-rsc-route-watch-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-development-rsc-route-watch.mjs'),
+            next.testDir,
+            evidence,
+          ],
+          { timeout: 500000, maxBuffer: 2 * 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+        )
+        expect(verified.mode).toBe('development')
+        expect(verified.ordinaryReferenceRows).toBe(4)
+        expect(verified.passingGenerations).toHaveLength(6)
+        expect(verified.syntaxFailure).toBe(true)
+        expect(verified.routeConfigFailure).toBe(true)
+        expect(verified.activeCancellation).toBe(true)
+        expect(verified.retainedCompleteReport).toBe(true)
+        expect(verified.allOwnersJoined).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 540000)
+
+    it.each(['settled', 'active'] as const)(
+      'retains %s Node and RSC configuration transitions in the installed watch runner',
+      async (flow) => {
+        const temporary = await mkdtemp(
+          join(tmpdir(), 'next-rsc-config-transition-')
+        )
+        try {
+          const evidence = join(temporary, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-rsc-config-watch-transitions.mjs'),
+              next.testDir,
+              evidence,
+              flow,
+            ],
+            { timeout: 500000, maxBuffer: 2 * 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.flow).toBe(flow)
+          expect(verified.mode).toBe('development')
+          expect(verified.passingGenerations).toHaveLength(
+            flow === 'settled' ? 6 : 4
+          )
+          expect(verified.activeSupersessionBothDirections).toBe(
+            flow === 'active'
+          )
+          expect(verified.providedContextFailureRecovery).toBe(true)
+          expect(verified.activeCancellation).toBe(true)
+          expect(verified.reportRetained).toBe(true)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+        } finally {
+          await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      540000
+    )
+
     it('matches genuine WebKit public queues in the installed package', async () => {
       const temporary = await mkdtemp(
         join(tmpdir(), 'next-webkit-public-queues-')

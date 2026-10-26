@@ -1,3 +1,4 @@
+import { snapshotWatchDirectories } from './watch-source-protocol'
 import path from 'path'
 import { watch, statSync, lstatSync } from 'fs'
 import {
@@ -19,6 +20,11 @@ export interface WatchDirectories {
     parentDirectory: string
     basenamePrefixes: readonly string[]
   }[]
+}
+
+export interface TestWatchSource {
+  close(): Promise<void>
+  update(next: WatchDirectories): Promise<void>
 }
 
 export interface FileChange {
@@ -55,9 +61,24 @@ function contains(directory: string, file: string) {
 export async function watchTestFiles(
   options: WatchDirectories & {
     onChange(change: FileChange): void
-    onError(error: unknown): void
+    onError(error: unknown, observation?: object): void
+    /** Private process owner; direct engine controls remain local. */
+    sourceProcess?: true
+    signal?: AbortSignal
+    /** The owned engine can publish failure before a blocking native close. */
+    observeFailureBeforeClose?(error: unknown, observation: object): void
   }
-) {
+): Promise<TestWatchSource> {
+  if (options.sourceProcess) {
+    const snapshot = {
+      ...snapshotWatchDirectories(options),
+      signal: options.signal,
+      onChange: options.onChange,
+      onError: options.onError,
+    }
+    const { createOwnedWatchSource } = await import('./watch-source-process.js')
+    return createOwnedWatchSource(snapshot)
+  }
   let directories: string[] = []
   let outputs: string[] = []
   let outputFiles: string[] = []
@@ -151,8 +172,38 @@ export async function watchTestFiles(
     if (closed) return
     // Abort the orchestrator immediately; close() remains the awaited owner of
     // all subscription shutdown, including after an asynchronous native error.
-    void close()
-    options.onError(error)
+    if (!options.observeFailureBeforeClose) {
+      void close()
+      options.onError(error)
+      return
+    }
+    const observation = {}
+    const failures: unknown[] = []
+    try {
+      options.observeFailureBeforeClose(error, observation)
+    } catch (observerError) {
+      failures.push(observerError)
+    }
+    try {
+      void close()
+    } catch (cleanupError) {
+      failures.push(cleanupError)
+      try {
+        options.observeFailureBeforeClose(cleanupError, {})
+      } catch (observerError) {
+        failures.push(observerError)
+      }
+    }
+    try {
+      options.onError(error, observation)
+    } catch (callbackError) {
+      failures.push(callbackError)
+    }
+    if (failures.length)
+      throw new AggregateError(
+        [error, ...failures],
+        'Input source error and failure delivery failed.'
+      )
   }
 
   function refreshNativePath(snapshot: Map<string, string>, file: string) {
@@ -427,6 +478,13 @@ export async function watchTestFiles(
       }
     })
     watcher.on('error', (error) => {
+      if (options.observeFailureBeforeClose) {
+        // The errored subscription is unusable even when Node emits no close.
+        // fail owns its actual native close after publishing this occurrence.
+        resolveStopped()
+        fail(error)
+        return
+      }
       // Node documents an errored FSWatcher as no longer usable. Some backends
       // close it before emitting error, without a subsequent close event.
       stopRequested = true
@@ -532,7 +590,31 @@ export async function watchTestFiles(
         if (!closed && !inputSnapshot) await reconcile()
       }
     } catch (error) {
-      await close()
+      if (!options.observeFailureBeforeClose) {
+        await close()
+        throw error
+      }
+      const failures: unknown[] = []
+      try {
+        options.observeFailureBeforeClose(error, {})
+      } catch (observerError) {
+        failures.push(observerError)
+      }
+      try {
+        await close()
+      } catch (cleanupError) {
+        failures.push(cleanupError)
+        try {
+          options.observeFailureBeforeClose(cleanupError, {})
+        } catch (observerError) {
+          failures.push(observerError)
+        }
+      }
+      if (failures.length)
+        throw new AggregateError(
+          [error, ...failures],
+          'Input source update and cleanup failed.'
+        )
       throw error
     }
   }

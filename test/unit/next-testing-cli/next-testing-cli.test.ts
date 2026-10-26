@@ -6443,6 +6443,114 @@ describe('Node watch machine generations', () => {
     }
   })
 
+  it.each(['development', 'production'] as const)(
+    'retains explicit isolated %s RSC route profiles across watch generations',
+    async (mode) => {
+      const savedEnv = process.env
+      process.env = { ...savedEnv, NODE_ENV: mode }
+      try {
+        await writeFile(
+          path.join(directory, 'next.test.config.json'),
+          JSON.stringify({
+            projects: [
+              {
+                name: 'explicit-rsc',
+                environment: 'rsc',
+                mode,
+                route: '/reference/[slug]',
+                isolate: true,
+              },
+            ],
+          })
+        )
+        start()
+        await expectGeneration('watch-1')
+        invalidate()
+        await expectGeneration('watch-2')
+        expect(requests).toHaveLength(2)
+        const ownedSource = jest.mocked(watchTestFiles).mock.calls[0][0]
+        expect(ownedSource.sourceProcess).toBe(true)
+        expect(ownedSource.signal).toBeInstanceOf(AbortSignal)
+        for (const request of requests) {
+          expect(request.projects).toHaveLength(1)
+          expect(request.projects[0].profile).toMatchObject({
+            id: 'explicit-rsc',
+            environment: 'rsc',
+            mode,
+            runtime: 'nodejs',
+            bundler: 'turbopack',
+            route: '/reference/[slug]',
+          })
+          expect(request.projects[0].isolate).toBe(true)
+        }
+      } finally {
+        controller.abort(
+          new Error('Explicit RSC route profile control finished')
+        )
+        try {
+          await watching
+        } finally {
+          process.env = savedEnv
+        }
+      }
+    }
+  )
+
+  it.each(['development', 'production'] as const)(
+    'keeps shared %s explicit RSC route profiles outside watch admission',
+    async (mode) => {
+      const savedEnv = process.env
+      process.env = { ...savedEnv, NODE_ENV: mode }
+      try {
+        await writeFile(
+          path.join(directory, 'next.test.config.json'),
+          JSON.stringify({
+            projects: [
+              {
+                name: 'shared-rsc',
+                environment: 'rsc',
+                mode,
+                route: '/reference/[slug]',
+                isolate: false,
+              },
+            ],
+          })
+        )
+        await expect(
+          watchTests(directory, { signal: controller.signal, write() {} })
+        ).rejects.toThrow(
+          'isolated explicit production Node RSC route profiles'
+        )
+        expect(runWatchProcess).not.toHaveBeenCalled()
+        expect(watchTestFiles).not.toHaveBeenCalled()
+      } finally {
+        process.env = savedEnv
+      }
+    }
+  )
+
+  it('keeps development explicit RSC route watch admission closed until qualified', async () => {
+    await writeFile(
+      path.join(directory, 'next.test.config.json'),
+      JSON.stringify({
+        projects: [
+          {
+            name: 'development-rsc',
+            environment: 'rsc',
+            mode: 'development',
+            route: '/reference/[slug]',
+            isolate: false,
+          },
+        ],
+      })
+    )
+    await expect(
+      watchTests(directory, { signal: controller.signal, write() {} })
+    ).rejects.toThrow('isolated explicit production Node RSC route profiles')
+    expect(runWatchProcess).not.toHaveBeenCalled()
+    expect(watchTestFiles).not.toHaveBeenCalled()
+  })
+
   it('keeps empty production component registrations outside watch admission', async () => {
     const savedEnv = process.env
     process.env = { ...savedEnv, NODE_ENV: 'production' }
@@ -6482,7 +6590,7 @@ describe('Node watch machine generations', () => {
           name: 'closed',
           mode: 'production',
           ...(kind === 'node'
-            ? { environment: 'rsc', route: '/explicit' }
+            ? { environment: 'rsc', route: '/explicit', isolate: false }
             : {}),
           ...(kind === 'rsc' ? { environment: 'rsc' } : {}),
           ...(kind === 'browser-driver' ? { environment: 'browser' } : {}),
