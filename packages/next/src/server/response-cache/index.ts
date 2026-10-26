@@ -543,10 +543,14 @@ export default class ResponseCache implements ResponseCacheBase {
           isMiss: !previousIncrementalCacheEntry,
         })
 
-        // We want to persist the result only if it has a cache control value
-        // defined. The minimal mode LRU write is handled in get() so that every
-        // caller, including batched invocations, populates the cache.
-        if (incrementalResponseCacheEntry.cacheControl && !this.minimal_mode) {
+        // Persist results with cache control unless the generator opts out.
+        // The minimal mode LRU write is handled in get() so that every caller,
+        // including batched invocations, populates the cache.
+        if (
+          incrementalResponseCacheEntry.cacheControl &&
+          !responseCacheEntry.skipCacheWrite &&
+          !this.minimal_mode
+        ) {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
             ...this.getCacheContext(isRoutePPREnabled, isFallback),
             cacheControl: incrementalResponseCacheEntry.cacheControl,
