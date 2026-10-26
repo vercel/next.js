@@ -232,7 +232,7 @@ fn bench_insert(c: &mut Criterion, name: &str, inputs: &[Input], order: fn(&[u32
         imp(
             |i| order(&i.bits),
             |bits| {
-                let mut set = Bitset::new();
+                let mut set: Bitset = Bitset::new();
                 for &bit in bits {
                     black_box(set.insert(bit));
                 }

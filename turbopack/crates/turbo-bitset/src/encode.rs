@@ -39,6 +39,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
+use smallvec::SmallVec;
 
 use crate::{BLOCK_BITS, Bitset};
 
@@ -163,7 +164,7 @@ fn write_list_items<E: Encoder>(
     Ok(())
 }
 
-impl Bitset {
+impl<const INLINE: usize> Bitset<INLINE> {
     /// The trimmed byte range of the set, or `None` if it is empty.
     fn byte_range(&self) -> Option<ByteRange<'_>> {
         let (first_block, blocks) = self.trimmed();
@@ -179,7 +180,7 @@ impl Bitset {
     }
 }
 
-impl Encode for Bitset {
+impl<const INLINE: usize> Encode for Bitset<INLINE> {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         let Some(range) = self.byte_range() else {
             return 0i64.encode(encoder);
@@ -203,7 +204,7 @@ impl Encode for Bitset {
     }
 }
 
-impl<Context> Decode<Context> for Bitset {
+impl<Context, const INLINE: usize> Decode<Context> for Bitset<INLINE> {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
         let len = i64::decode(decoder)?;
         match len {
@@ -214,15 +215,15 @@ impl<Context> Decode<Context> for Bitset {
     }
 }
 
-impl_borrow_decode!(Bitset);
+impl_borrow_decode!(Bitset<INLINE>, const INLINE: usize);
 
 /// Allocates the zeroed storage for the bytes `byte_offset..byte_offset + len`, claiming its size
 /// from the decoder's limit first. Returns the index of the first block and the storage.
-fn allocate<D: Decoder>(
+fn allocate<D: Decoder, const INLINE: usize>(
     decoder: &mut D,
     byte_offset: u64,
     len: u64,
-) -> Result<(usize, Vec<usize>), DecodeError> {
+) -> Result<(usize, SmallVec<[usize; INLINE]>), DecodeError> {
     if len > MAX_BYTES || byte_offset + len > MAX_BYTES {
         return Err(DecodeError::Other("Bitset extends beyond the u32 range"));
     }
@@ -230,10 +231,13 @@ fn allocate<D: Decoder>(
     let first_block = byte_offset / block_bytes;
     let block_count = ((byte_offset + len).div_ceil(block_bytes) - first_block) as usize;
     decoder.claim_bytes_read(block_count * BLOCK_BYTES)?;
-    Ok((first_block as usize, vec![0; block_count]))
+    Ok((first_block as usize, SmallVec::from_elem(0, block_count)))
 }
 
-fn decode_bitmap<D: Decoder>(decoder: &mut D, len: u64) -> Result<Bitset, DecodeError> {
+fn decode_bitmap<D: Decoder, const INLINE: usize>(
+    decoder: &mut D,
+    len: u64,
+) -> Result<Bitset<INLINE>, DecodeError> {
     let byte_offset = u32::decode(decoder)? as u64;
     let (first_block, mut blocks) = allocate(decoder, byte_offset, len)?;
     // Read the payload straight into the storage's bytes.
@@ -264,12 +268,12 @@ fn le_blocks_to_native(blocks: &mut [usize], big_endian_target: bool) {
 }
 
 /// Sets bits in a preallocated storage, keeping the bits of the current block in a register.
-struct ListBuilder {
+struct ListBuilder<const INLINE: usize> {
     /// The first bit of the storage.
     base: u64,
     /// The end of the bits that may be set (exclusive), relative to `base`.
     end: u64,
-    blocks: Vec<usize>,
+    blocks: SmallVec<[usize; INLINE]>,
     /// The index of the current block and its bits, not yet stored in `blocks`.
     index: usize,
     word: usize,
@@ -277,7 +281,7 @@ struct ListBuilder {
     last: u64,
 }
 
-impl ListBuilder {
+impl<const INLINE: usize> ListBuilder<INLINE> {
     /// Sets the bit `last + difference`, which must be within the storage.
     fn push(&mut self, difference: u64) -> Result<(), DecodeError> {
         let bit = self.last + difference;
@@ -295,7 +299,7 @@ impl ListBuilder {
         Ok(())
     }
 
-    fn finish(mut self) -> Vec<usize> {
+    fn finish(mut self) -> SmallVec<[usize; INLINE]> {
         self.blocks[self.index] |= self.word;
         self.blocks
     }
@@ -310,7 +314,10 @@ fn decode_difference<D: Decoder>(decoder: &mut D) -> Result<u64, DecodeError> {
     Ok(difference as u64)
 }
 
-fn decode_list<D: Decoder>(decoder: &mut D, count: u64) -> Result<Bitset, DecodeError> {
+fn decode_list<D: Decoder, const INLINE: usize>(
+    decoder: &mut D,
+    count: u64,
+) -> Result<Bitset<INLINE>, DecodeError> {
     if count > 1 << 32 {
         return Err(DecodeError::Other(
             "Bitset list has more items than the u32 range",

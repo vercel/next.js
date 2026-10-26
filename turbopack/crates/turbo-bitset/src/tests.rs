@@ -14,6 +14,7 @@ use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use roaring::RoaringBitmap;
 use rustc_hash::FxBuildHasher;
 use shrink_to_fit::ShrinkToFit;
+use smallvec::smallvec;
 
 use crate::Bitset;
 
@@ -151,7 +152,10 @@ fn from_bits(bits: &[u32]) -> (Bitset, BTreeSet<u32>) {
 
 /// A set storing the given block range, including leading or trailing zero blocks.
 fn with_storage(offset: usize, blocks: Vec<usize>) -> Bitset {
-    Bitset { offset, blocks }
+    Bitset {
+        offset,
+        blocks: blocks.into(),
+    }
 }
 
 /// The bits of a block range, starting at block `offset`.
@@ -174,6 +178,78 @@ fn empty() {
     assert_eq!(set, Bitset::default());
     assert!(set.is_superset(&Bitset::new()));
     assert!(!set.is_proper_superset(&Bitset::new()));
+}
+
+/// Bit counts around block boundaries, for the constructors that size the storage.
+fn constructor_lengths() -> [u32; 5] {
+    let block = usize::BITS;
+    [0, 1, block, block + 1, 10_000]
+}
+
+/// Bits below `bits` at both ends and in the middle, in this order (back first, then front), to
+/// insert into a sized set.
+fn bits_below(bits: u32) -> Vec<u32> {
+    let mut result = Vec::new();
+    for bit in [bits.wrapping_sub(1), 0, bits / 2] {
+        if bit < bits && !result.contains(&bit) {
+            result.push(bit);
+        }
+    }
+    result
+}
+
+/// The number of blocks that hold `bits` bits.
+fn blocks_for(bits: u32) -> usize {
+    (bits as usize).div_ceil(usize::BITS as usize)
+}
+
+#[test]
+fn with_len_stores_zero_blocks() {
+    for bits in constructor_lengths() {
+        let expected_blocks = blocks_for(bits);
+        let mut set = Bitset::with_len(bits);
+        // An empty set, whatever its storage.
+        check(&set, &BTreeSet::new());
+        assert_eq!(set, Bitset::new(), "bits={bits}");
+        assert_eq!(hash(&set), hash(&Bitset::new()), "bits={bits}");
+        // Exactly the blocks for `bits`, without spare capacity.
+        assert_eq!(set.offset, 0, "bits={bits}");
+        assert_eq!(set.blocks.len(), expected_blocks, "bits={bits}");
+        assert_eq!(set.blocks.capacity(), expected_blocks, "bits={bits}");
+        // Bits below `bits` are already stored.
+        let before = storage(&set);
+        let inserted = bits_below(bits);
+        for &bit in &inserted {
+            assert!(set.insert(bit));
+        }
+        assert_eq!(storage(&set), before, "bits={bits}");
+        check(&set, &inserted.into_iter().collect());
+    }
+}
+
+#[test]
+fn with_capacity_reserves_blocks() {
+    for bits in constructor_lengths() {
+        let expected_blocks = blocks_for(bits);
+        let mut set = Bitset::with_capacity(bits);
+        check(&set, &BTreeSet::new());
+        assert_eq!(set.blocks.len(), 0, "bits={bits}");
+        assert!(set.blocks.capacity() >= expected_blocks, "bits={bits}");
+        if bits == 0 {
+            assert_eq!(set.blocks.capacity(), 0);
+        }
+        // The first insert picks the offset; the others grow within the reserved capacity, at the
+        // front and at the back.
+        let before = storage(&set);
+        let inserted = bits_below(bits);
+        for &bit in &inserted {
+            set.insert(bit);
+        }
+        if bits > 0 {
+            assert_eq!(storage(&set), before, "bits={bits}");
+        }
+        check(&set, &inserted.into_iter().collect());
+    }
 }
 
 #[test]
@@ -453,7 +529,10 @@ fn equal_sets_with_different_storage_ranges() {
         let bit = bit - offset * block;
         blocks[bit / block] |= 1 << (bit % block);
     }
-    let wide = Bitset { offset, blocks };
+    let wide = Bitset {
+        offset,
+        blocks: blocks.into(),
+    };
     check(&wide, &[3_000, 3_001].into());
     assert_eq!(a, wide);
     assert_eq!(hash(&a), hash(&wide));
@@ -464,7 +543,7 @@ fn equal_sets_with_different_storage_ranges() {
     // An empty set with allocated storage equals the default empty set.
     let empty_wide = Bitset {
         offset: 10,
-        blocks: vec![0; 3],
+        blocks: smallvec![0; 3],
     };
     check(&empty_wide, &BTreeSet::new());
     assert_eq!(empty_wide, Bitset::new());
@@ -543,7 +622,7 @@ fn front_growth_beyond_the_capacity_keeps_all_bits() {
             set.insert(bit);
             expected.insert(bit);
         }
-        set.blocks = set.blocks.into_boxed_slice().into_vec();
+        set.blocks.shrink_to_fit();
         let capacity = set.blocks.capacity();
         assert_eq!(capacity, set.blocks.len());
         assert!(set.insert(new));
@@ -582,7 +661,7 @@ fn front_growth_leaves_headroom() {
     // A reallocation at the front leaves headroom too: the range ends at the end of the new
     // capacity.
     let mut set = [500 * block, 501 * block].into_iter().collect::<Bitset>();
-    set.blocks = set.blocks.into_boxed_slice().into_vec();
+    set.blocks.shrink_to_fit();
     let capacity = set.blocks.capacity();
     assert!(set.insert(499 * block));
     assert!(set.blocks.capacity() >= 2 * capacity);
