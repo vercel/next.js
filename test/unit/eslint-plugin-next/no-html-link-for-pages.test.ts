@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withPageExtensionsDir = path.join(__dirname, 'with-page-extensions-dir')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withPageExtensions: new Linter({
+    cwd: withPageExtensionsDir,
     configType: 'eslintrc',
   }),
 }
@@ -493,6 +498,58 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid nested app directory page', function () {
+    const code = `
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/dashboard/settings'>Settings</a>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withApp.verify(code, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/dashboard/settings/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('honors custom pageExtensions including mdx', function () {
+    const linterConfigWithExtensions = {
+      ...linterConfig,
+      settings: {
+        next: {
+          pageExtensions: ['js', 'jsx', 'mdx'],
+        },
+      },
+    }
+    const code = `
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/docs'>Docs</a>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withPageExtensions.verify(
+      code,
+      linterConfigWithExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/docs/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
