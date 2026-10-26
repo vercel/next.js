@@ -1,7 +1,7 @@
 import { pureExpensive } from './library/pure-expensive.js'
 import { wrapper } from './runtime.js'
 
-const pureHoistedInner = async function cached() {
+var pureHoistedInner = async function cached() {
   return pureExpensive()
 }
 
