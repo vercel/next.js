@@ -1,0 +1,165 @@
+{
+  "reference": {
+    "name": "Vitest",
+    "version": "5.0.4",
+    "browserProvider": "Playwright1.64.0"
+  },
+  "scope": "Public default userEvent.cleanup getter/call/receiver and repeated awaited captured-real cleanup, before attempts and final cleanup; exact authored console task attribution, physical key-up/next native click held-state, cases/module/file/run/error/JSON counts/exits. Plain Promise-returning wrappers only. Raw genuine Ready, runtime IDs, timing and complete reports retained without claiming those whole-report fields. Extra Promise subclass/then getters, arbitrary native cleanup callbacks, unawaited tails and coverage/snapshot/mock combinations remain separate.",
+  "profiles": [
+    {
+      "label": "chromium-development-final-repeated-captured",
+      "browser": "chromium",
+      "mode": "development",
+      "variant": "final-repeated-captured",
+      "sourceSHA256": "c9380f80063f1b807a3adb9196c63a290026a539a31d8164473569228eb3c583",
+      "source": "final-repeated-captured.test.mjs.txt",
+      "rawStandardReportSHA256": "e5dbbabfb0fdda281b5dff796c3893cf2401b930689d3f9084812af073629683",
+      "rawCustomTraceSHA256": "8a17ec96d56ca7265543d0624c005bec5cf7139b0646ca7fdf11d3cb90ba8148",
+      "projectedSHA256": "e7c80cff4f821deb81376be367df4f4600e3c8fb462e8d00c2f57764ef8bd921"
+    },
+    {
+      "label": "chromium-development-all-stages-success",
+      "browser": "chromium",
+      "mode": "development",
+      "variant": "all-stages-success",
+      "sourceSHA256": "89799d938b31873758430de0b0fec7f79c744b078f120b5a92afcadba6c058a2",
+      "source": "all-stages-success.test.mjs.txt",
+      "rawStandardReportSHA256": "1378ab20aecb061fe8b15ebb09582b960ca7124625b11a45f22beaa671e993a5",
+      "rawCustomTraceSHA256": "41fa115efd01fba7132f19635a2f469362d0851daa10fb98bc776c0c26bbbc57",
+      "projectedSHA256": "cc5f017b3999ff2710c66434d47b21d87177ee9af0b1967403636091d561be46"
+    },
+    {
+      "label": "chromium-development-before-attempt-rejection",
+      "browser": "chromium",
+      "mode": "development",
+      "variant": "before-attempt-rejection",
+      "sourceSHA256": "69cd849410884792df6aad5a9eef39a86f22e1b5495af5c25cd934916baa7cf2",
+      "source": "before-attempt-rejection.test.mjs.txt",
+      "rawStandardReportSHA256": "6fc2ebc2ca4a71ba83e878e1ca440a4a58471a224b0ef024409cc7843abfb083",
+      "rawCustomTraceSHA256": "9424b72c6c24b7dfd1ad7bd99c08d38702a401ef3126f4842eaada9b6cd604a2",
+      "projectedSHA256": "c125d18094d68a5e0699df5f81667cd8536bc2cf434945890b2b35003cb62e1a"
+    },
+    {
+      "label": "chromium-production-final-repeated-captured",
+      "browser": "chromium",
+      "mode": "production",
+      "variant": "final-repeated-captured",
+      "sourceSHA256": "c9380f80063f1b807a3adb9196c63a290026a539a31d8164473569228eb3c583",
+      "source": "final-repeated-captured.test.mjs.txt",
+      "rawStandardReportSHA256": "e2e6bad8c63437c3a812abce68019f9f6e15ab5181813fadaf9ac73398dd6907",
+      "rawCustomTraceSHA256": "13559025b7f98fad32fa61e3cac50076bb9b4ae95e671f8334b5a1266b1f600c",
+      "projectedSHA256": "e7c80cff4f821deb81376be367df4f4600e3c8fb462e8d00c2f57764ef8bd921"
+    },
+    {
+      "label": "chromium-production-all-stages-success",
+      "browser": "chromium",
+      "mode": "production",
+      "variant": "all-stages-success",
+      "sourceSHA256": "89799d938b31873758430de0b0fec7f79c744b078f120b5a92afcadba6c058a2",
+      "source": "all-stages-success.test.mjs.txt",
+      "rawStandardReportSHA256": "348d7ab80a155c963faf0c78f795f6a3c78bb7b7b759cedf59762a446de29ab9",
+      "rawCustomTraceSHA256": "b2a7da9425d61d853a85c06956186d6c10220962a1f6818fcb53188db674e700",
+      "projectedSHA256": "cc5f017b3999ff2710c66434d47b21d87177ee9af0b1967403636091d561be46"
+    },
+    {
+      "label": "chromium-production-before-attempt-rejection",
+      "browser": "chromium",
+      "mode": "production",
+      "variant": "before-attempt-rejection",
+      "sourceSHA256": "69cd849410884792df6aad5a9eef39a86f22e1b5495af5c25cd934916baa7cf2",
+      "source": "before-attempt-rejection.test.mjs.txt",
+      "rawStandardReportSHA256": "40682f826f26fc0482b638ee8639c3f802da63f08abcd147754d73f3289a7f7f",
+      "rawCustomTraceSHA256": "51ad3b5f12595efe71d9d58850510590d284ba6b61241e4319db736a779faafb",
+      "projectedSHA256": "c125d18094d68a5e0699df5f81667cd8536bc2cf434945890b2b35003cb62e1a"
+    },
+    {
+      "label": "firefox-development-final-repeated-captured",
+      "browser": "firefox",
+      "mode": "development",
+      "variant": "final-repeated-captured",
+      "sourceSHA256": "c9380f80063f1b807a3adb9196c63a290026a539a31d8164473569228eb3c583",
+      "source": "final-repeated-captured.test.mjs.txt",
+      "rawStandardReportSHA256": "4e9403e440eeaaba40659756e0a9edad5305c318c9219e4ccda9f5e3e9aa5649",
+      "rawCustomTraceSHA256": "0eb158ea727ac61af38f9fb984d1b7bc002627f26ec53ea361cb49c9964830e5",
+      "projectedSHA256": "e7c80cff4f821deb81376be367df4f4600e3c8fb462e8d00c2f57764ef8bd921"
+    },
+    {
+      "label": "firefox-development-all-stages-success",
+      "browser": "firefox",
+      "mode": "development",
+      "variant": "all-stages-success",
+      "sourceSHA256": "89799d938b31873758430de0b0fec7f79c744b078f120b5a92afcadba6c058a2",
+      "source": "all-stages-success.test.mjs.txt",
+      "rawStandardReportSHA256": "d8cb1dc3d5785406fb10dbb2b90fda4852fc9b7dfe34360dfc4c80d2b4003131",
+      "rawCustomTraceSHA256": "56679adebdbadb1d5fc7ae59a5c5dce1ffca033251dd0164af5cdc7cedecf102",
+      "projectedSHA256": "cc5f017b3999ff2710c66434d47b21d87177ee9af0b1967403636091d561be46"
+    },
+    {
+      "label": "firefox-development-before-attempt-rejection",
+      "browser": "firefox",
+      "mode": "development",
+      "variant": "before-attempt-rejection",
+      "sourceSHA256": "69cd849410884792df6aad5a9eef39a86f22e1b5495af5c25cd934916baa7cf2",
+      "source": "before-attempt-rejection.test.mjs.txt",
+      "rawStandardReportSHA256": "1b32cb53c78fb0c542b192997262f4fe81e82bcc3920fb132aabe22e787bca49",
+      "rawCustomTraceSHA256": "26ed847d9f60f0ce1d85dc87568bdc05ba616c8ea2f0b2915bf9005135e9eb9a",
+      "projectedSHA256": "c125d18094d68a5e0699df5f81667cd8536bc2cf434945890b2b35003cb62e1a"
+    },
+    {
+      "label": "firefox-production-final-repeated-captured",
+      "browser": "firefox",
+      "mode": "production",
+      "variant": "final-repeated-captured",
+      "sourceSHA256": "c9380f80063f1b807a3adb9196c63a290026a539a31d8164473569228eb3c583",
+      "source": "final-repeated-captured.test.mjs.txt",
+      "rawStandardReportSHA256": "c9854b2c11ae15701300e9e5e97551b5e46e0f1477150bf756a9d3b83fb4acf4",
+      "rawCustomTraceSHA256": "fffcc66f2023f3eb75f9bb49f15ac677689281299cfecf60f9591c5608f2ce23",
+      "projectedSHA256": "e7c80cff4f821deb81376be367df4f4600e3c8fb462e8d00c2f57764ef8bd921"
+    },
+    {
+      "label": "firefox-production-all-stages-success",
+      "browser": "firefox",
+      "mode": "production",
+      "variant": "all-stages-success",
+      "sourceSHA256": "89799d938b31873758430de0b0fec7f79c744b078f120b5a92afcadba6c058a2",
+      "source": "all-stages-success.test.mjs.txt",
+      "rawStandardReportSHA256": "929e1b79c53a7e525868cf2b641fdffb0912d7092489d0e6d0a44ee05c44f6ac",
+      "rawCustomTraceSHA256": "81e6f07a9e8b6e6923e68f7b2b11321c2d2aa27e1afa7c019519c2f6740df7d1",
+      "projectedSHA256": "cc5f017b3999ff2710c66434d47b21d87177ee9af0b1967403636091d561be46"
+    },
+    {
+      "label": "firefox-production-before-attempt-rejection",
+      "browser": "firefox",
+      "mode": "production",
+      "variant": "before-attempt-rejection",
+      "sourceSHA256": "69cd849410884792df6aad5a9eef39a86f22e1b5495af5c25cd934916baa7cf2",
+      "source": "before-attempt-rejection.test.mjs.txt",
+      "rawStandardReportSHA256": "445671916195e2e7b78c7857d0409f054dac9deacec9ccd1f24a7042e067d8d5",
+      "rawCustomTraceSHA256": "775d7759b2383416059ba42ee2975bbbc6cfcaff5dd60884cf8aaddf75a2641a",
+      "projectedSHA256": "c125d18094d68a5e0699df5f81667cd8536bc2cf434945890b2b35003cb62e1a"
+    },
+    {
+      "label": "firefox-development-focus-outside-before-final",
+      "browser": "firefox",
+      "mode": "development",
+      "variant": "focus-outside-before-final",
+      "sourceSHA256": "81ef64400856edb29c6bd5d97d0abfb49cf12d88ea11066d005f5dd1cd0852bf",
+      "source": "focus-outside-before-final.test.mjs.txt",
+      "rawStandardReportSHA256": "47dfd7586561e996884f502e5098b171fb092ecf013eff293fb129891161e532",
+      "rawCustomTraceSHA256": "11f1f217f93bee78045ec5885ebbb3f24932e15740c5345ac73aa6f3e4ac7a34",
+      "projectedSHA256": "ed66b32112715fea990d27999575f7063d531ea448bfb1febd65b0e5e386a898"
+    },
+    {
+      "label": "firefox-production-focus-outside-before-final",
+      "browser": "firefox",
+      "mode": "production",
+      "variant": "focus-outside-before-final",
+      "sourceSHA256": "81ef64400856edb29c6bd5d97d0abfb49cf12d88ea11066d005f5dd1cd0852bf",
+      "source": "focus-outside-before-final.test.mjs.txt",
+      "rawStandardReportSHA256": "60b16fe8a9107efb2c441058c217b4ef29910e4c25920169a9c59ad59a35992d",
+      "rawCustomTraceSHA256": "8173821b426a99a5fedc51905d24dfeda362b72c4b92fc2288342c81cfcba31f",
+      "projectedSHA256": "ed66b32112715fea990d27999575f7063d531ea448bfb1febd65b0e5e386a898"
+    }
+  ],
+  "additionalFocusBoundary": "Two Firefox profiles move focus to the actual outer frame before final cleanup. Both own and outer activeElement facts, outer native Shift key-up, and later worker click state are exact; cleanup must preserve that focus."
+}

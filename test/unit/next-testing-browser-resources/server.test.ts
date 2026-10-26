@@ -5323,3 +5323,183 @@ it('retains joined keyboard outcome authority and the legacy fallback', () => {
     })
   }
 })
+
+it.each([
+  'success',
+  'before-success',
+  'reject',
+  'before-reject',
+  'undefined',
+  'getter-throw',
+  'sync-throw',
+  'catch-getter-throw',
+  'catch-call-throw',
+  'catch-reject',
+  'observer-throw',
+  'capture-throw',
+  'mixed',
+  'same-error-mixed',
+  'foreign-resource',
+  'arbitrary-native',
+  'late-captured',
+  'arbitrary-native-after-await',
+  'arbitrary-page-after-await',
+  'arbitrary-locator-after-await',
+  'foreign-resource-after-await',
+  'foreign-live-caller',
+])('delegates the joined public default cleanup: %s', (mode) => {
+  const { execFileSync } = require('node:child_process')
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'public-cleanup-occurrence.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+  )
+  expect(result).toMatchObject({
+    mode,
+    getterReads: 1,
+    intrinsicUnchanged: true,
+  })
+})
+it.each(['call-failure', 'joined-captured', 'late-owned'])(
+  'preserves public cleanup failure ownership: %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'public-cleanup-consumer.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      onlyJoinedSoleKeyboardClassified: true,
+      mixedAndIndependentFailureVetoHeld: true,
+      originalFieldReadsAndSnapshotsHeld: true,
+    })
+  }
+)
+it('keeps the actual creator owner and an ownerless cleanup out of public task facts', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'public-cleanup-owner.cjs')],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+  )
+  expect(result).toEqual({
+    canonicalAttemptIdentityHeld: true,
+    liveAndClosedCreatorExact: true,
+    closedOwnerNotReactivated: true,
+    targetExact: true,
+    closedLeaseRefuses: true,
+  })
+})
+
+it('validates the captured default cleanup lease after its actual native join', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'public-cleanup-inflight.cjs')],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+  )
+  expect(result).toEqual({
+    sameEntryAdmissionValidatedAfterActualJoin: true,
+    closedLeaseReportedExactlyOnce: true,
+    remainingPhysicalCommandJoined: true,
+  })
+})
+
+it.each([
+  'same',
+  'distinct',
+  'undefined',
+  'repeat',
+  'component-only',
+  'keyboard-only',
+  'component-observer',
+  'keyboard-observer',
+  'capture-observer',
+  'context-observer',
+  'context-observer-same',
+  'context-getter',
+  'call-failure',
+])('records only the actual joined context cleanup pair: %s', (mode) => {
+  const { execFileSync } = require('node:child_process')
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'context-failure-occurrence.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+  )
+  expect(result).toEqual({
+    mode,
+    actualJoinedPairOnly: true,
+    exactTokenIdentityAndOrder: true,
+    independentObserverAndCallFailuresHeld: true,
+    sameErrorOccurrencesNotDeduplicated: true,
+    remainingCleanupAttempted: true,
+  })
+})
+
+it.each([
+  'good',
+  'file-error',
+  'missing',
+  'clone-component',
+  'swapped',
+  'different-aggregate',
+  'call',
+  'observer',
+])(
+  'preserves independent context and worker cleanup occurrences: %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'context-failure-consumer.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      exactActualTokenPairRequired: true,
+      sharedValuesCannotReplaceOccurrences: true,
+      workerRemainsIndependentThird: true,
+      internalFailureAndSnapshotVetoHeld: true,
+    })
+  }
+)
+
+it.each([
+  'component-async-observer',
+  'component-async-reject',
+  'absent-observer',
+])(
+  'joins actual component error observation before keyboard cleanup: %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'context-failure-occurrence.cjs'), mode],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+    )
+    expect(result).toEqual({
+      mode,
+      actualJoinedPairOnly: true,
+      exactTokenIdentityAndOrder: true,
+      independentObserverAndCallFailuresHeld: true,
+      sameErrorOccurrencesNotDeduplicated: true,
+      remainingCleanupAttempted: true,
+    })
+  }
+)

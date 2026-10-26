@@ -1,0 +1,275 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "method-read",
+        "read": 1,
+        "receiver": true
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "method-call",
+        "call": 1,
+        "receiver": true
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "captured-call",
+        "call": 1,
+        "originalCall": 1
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "captured-settled",
+        "call": 1,
+        "originalCall": 1
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "captured-call",
+        "call": 1,
+        "originalCall": 2
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "captured-settled",
+        "call": 1,
+        "originalCall": 2
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "setup"
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "A"
+      },
+      "task": "public cleanup A"
+    },
+    {
+      "value": {
+        "phase": "method-read",
+        "read": 2,
+        "receiver": true
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "method-call",
+        "call": 2,
+        "receiver": true
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "captured-call",
+        "call": 2,
+        "originalCall": 1
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "native-keyup",
+        "key": "Shift"
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "captured-settled",
+        "call": 2,
+        "originalCall": 1
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "captured-call",
+        "call": 2,
+        "originalCall": 2
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "captured-settled",
+        "call": 2,
+        "originalCall": 2
+      },
+      "task": "public cleanup B"
+    },
+    {
+      "value": {
+        "phase": "method-read",
+        "read": 3,
+        "receiver": true
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "method-call",
+        "call": 3,
+        "receiver": true
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "captured-call",
+        "call": 3,
+        "originalCall": 1
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "captured-settled",
+        "call": 3,
+        "originalCall": 1
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "captured-call",
+        "call": 3,
+        "originalCall": 2
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "captured-settled",
+        "call": 3,
+        "originalCall": 2
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "worker-start"
+      },
+      "task": "__vitest__unknown_test__"
+    },
+    {
+      "value": {
+        "phase": "worker-end",
+        "clicks": 1,
+        "shifts": [false],
+        "alts": [false]
+      },
+      "task": "__vitest__unknown_test__"
+    }
+  ],
+  "cases": [
+    {
+      "name": "public cleanup A",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "public cleanup B",
+      "status": "failed",
+      "failureMessages": ["public default cleanup rejected"]
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "public cleanup A",
+      "result": {
+        "state": "passed",
+        "errors": []
+      }
+    },
+    {
+      "name": "public cleanup B",
+      "result": {
+        "state": "failed",
+        "errors": [
+          {
+            "name": "DefaultCleanupWrapperError",
+            "message": "public default cleanup rejected",
+            "stack": ""
+          }
+        ]
+      }
+    }
+  ],
+  "moduleFinals": [
+    {
+      "state": "failed",
+      "errors": []
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "failed",
+      "errors": [],
+      "rawUnhandled": [],
+      "files": [
+        {
+          "state": "failed",
+          "tests": [
+            {
+              "name": "public cleanup A",
+              "result": {
+                "state": "passed",
+                "errors": []
+              }
+            },
+            {
+              "name": "public cleanup B",
+              "result": {
+                "state": "failed",
+                "errors": [
+                  {
+                    "name": "DefaultCleanupWrapperError",
+                    "message": "public default cleanup rejected",
+                    "stack": ""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "standardFiles": [
+    {
+      "status": "failed",
+      "message": ""
+    }
+  ],
+  "counts": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 1,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "success": false,
+  "exit": 1
+}

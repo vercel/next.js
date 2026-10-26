@@ -550,4 +550,71 @@ describe('next-testing-package', () => {
       }
     }, 540000)
   }
+  if (isNextDev && isTurbopack) {
+    it('retains independent component, keyboard and worker cleanup errors', async () => {
+      const temporary = await mkdtemp(join(tmpdir(), 'next-mixed-cleanup-'))
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-mixed-cleanup.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+          ],
+          { timeout: 720000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(4)
+        expect(verified.cases).toBe(8)
+        expect(verified.authoredRows).toBe(66)
+        expect(verified.fullSupportedProjectionsExact).toBe(true)
+        expect(verified.exactIndependentCleanupOccurrences).toBe(true)
+        expect(verified.immediateGetterAndMutationOrder).toBe(true)
+        expect(verified.physicalWorkerClickAndModifierStateExact).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 750000)
+  }
+  if (isNextDev && isTurbopack) {
+    it('delegates public default Browser cleanup and preserves real held-key effects', async () => {
+      const temporary = await mkdtemp(
+        join(tmpdir(), 'next-public-default-cleanup-')
+      )
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-browser-public-default-cleanup.mjs'),
+            next.testDir,
+            evidence,
+            'chromium',
+          ],
+          { timeout: 720000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(6)
+        expect(verified.cases).toBe(14)
+        expect(verified.fullSupportedProjectionsExact).toBe(true)
+        expect(verified.defaultCleanupGetterReceiverAndRepeatedRealCalls).toBe(
+          true
+        )
+        expect(verified.physicalKeyReleaseAndNextClickStateExact).toBe(true)
+        expect(verified.plainPromiseWrappersOnly).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 750000)
+  }
 })

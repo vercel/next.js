@@ -17,6 +17,7 @@ import {
   initializeBrowserContext,
   cleanupBrowserContext,
   cleanupBrowserKeyboard,
+  type BrowserContextCleanupFailure,
 } from './browser-context'
 import { installClientConsole } from './console'
 import { getClientArtifactLocation } from './artifact-location'
@@ -502,7 +503,7 @@ export async function startClientTest(
           })
         },
         async beginAttempt() {
-          await cleanupBrowserKeyboard()
+          await cleanupBrowserKeyboard({ beforeAttempt: true })
           // Held keys survive this attempt; the next attempt or file closes them.
           return { async finalize() {}, async dispose() {} }
         },
@@ -624,8 +625,12 @@ export async function startClientTest(
                   occurrence: Readonly<{ error: unknown }>
                   error: ReturnType<typeof captureCleanupError>
                 }[] = []
+                let contextFailure: BrowserContextCleanupFailure | undefined
                 try {
                   await cleanupBrowserContext({
+                    onContextCleanupFailure(occurrence) {
+                      contextFailure = occurrence
+                    },
                     onComponentFailure(occurrence) {
                       observedFailures.push({
                         origin: 'component-cleanup',
@@ -633,26 +638,45 @@ export async function startClientTest(
                         error: captureCleanupError(occurrence.error),
                       })
                     },
+                    captureKeyboardError: captureCleanupError,
                     onKeyboardCleanup(outcome) {
                       keyboardObserved = true
-                      if (outcome.status === 'rejected')
+                      if (
+                        outcome.status === 'rejected' &&
+                        outcome.ownership !== 'call'
+                      )
                         observedFailures.push({
                           origin: 'keyboard-cleanup',
                           occurrence: outcome,
-                          error: captureCleanupError(outcome.error),
+                          error:
+                            outcome.captured?.value ??
+                            captureCleanupError(outcome.error),
                         })
                     },
                   })
                 } catch (error) {
+                  const joinedPair =
+                    contextFailure !== undefined &&
+                    contextFailure.error === error &&
+                    observedFailures.length === 2 &&
+                    observedFailures[0].origin === 'component-cleanup' &&
+                    observedFailures[1].origin === 'keyboard-cleanup' &&
+                    observedFailures[0].occurrence ===
+                      contextFailure.component &&
+                    observedFailures[1].occurrence ===
+                      contextFailure.keyboard &&
+                    contextFailure.keyboard.ownership === 'cleanup'
                   if (
-                    observedFailures.length !== 1 ||
-                    observedFailures[0].occurrence.error !== error
+                    !joinedPair &&
+                    (observedFailures.length !== 1 ||
+                      observedFailures[0].occurrence.error !== error)
                   )
                     throw error
-                  browserCleanupFailures.push({
-                    origin: observedFailures[0].origin,
-                    error: observedFailures[0].error,
-                  })
+                  for (const failure of observedFailures)
+                    browserCleanupFailures.push({
+                      origin: failure.origin,
+                      error: failure.error,
+                    })
                   status = 'failed'
                 }
               },

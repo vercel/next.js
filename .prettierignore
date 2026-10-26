@@ -104,3 +104,8 @@ turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/i
 /test/e2e/app-dir/next-testing-package/browser-public-concurrency/**/report.raw.json
 /test/e2e/app-dir/next-testing-package/browser-plain-fixtures/**/report.raw.json
 /test/e2e/app-dir/next-testing-package/browser-native-fixtures/**/report.raw.json
+
+/test/e2e/app-dir/next-testing-package/browser-public-default-cleanup/**/report.raw.json
+
+# Preserve genuine mixed Browser cleanup reference report bytes.
+test/e2e/app-dir/next-testing-package/browser-mixed-cleanup/**/report.raw.json

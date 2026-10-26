@@ -8,6 +8,8 @@ import * as common from '../vitest'
 import {
   assertBrowserApiScope,
   captureAsyncScope,
+  createDefaultKeyboardCleanupCall,
+  captureDefaultKeyboardCleanupCall,
   type ClientCommandAdmission,
 } from './async-context'
 import type {
@@ -784,7 +786,10 @@ const userEventActions = {
 function createUserEvent() {
   let unreleased: string[] = []
   async function cleanup(internal = false) {
-    if (!internal) assertBrowserApiScope('browser-native')
+    const defaultCleanup = internal
+      ? undefined
+      : captureDefaultKeyboardCleanupCall(event)
+    if (!internal && !defaultCleanup) assertBrowserApiScope('browser-native')
     if (!unreleased.length) return
     if (!command) throw new Error('Browser element transport has closed.')
     await command({
@@ -793,8 +798,10 @@ function createUserEvent() {
       args: [unreleased],
     })
     unreleased = []
-    if (!internal) assertBrowserApiScope('browser-native')
+    if (defaultCleanup) defaultCleanup()
+    else if (!internal) assertBrowserApiScope('browser-native')
   }
+
   const event = {
     ...userEventActions,
     setup() {
@@ -844,9 +851,133 @@ function createUserEvent() {
 }
 const defaultUserEvent = createUserEvent()
 export const userEvent = defaultUserEvent.event
-/** The runner owns default keyboard cleanup; setup instances retain their owner. */
-export async function cleanupBrowserKeyboard() {
-  await defaultUserEvent.cleanup(true)
+type KeyboardCleanupOutcome<T> =
+  | Readonly<{ status: 'fulfilled' }>
+  | Readonly<{
+      status: 'rejected'
+      error: unknown
+      ownership?: 'cleanup' | 'call'
+      captured?: Readonly<{ value: T }>
+    }>
+export type BrowserContextCleanupFailure = Readonly<{
+  error: unknown
+  component: Readonly<{ error: unknown }>
+  keyboard: Extract<KeyboardCleanupOutcome<unknown>, { status: 'rejected' }>
+}>
+type KeyboardCleanupObservation<T> = {
+  captureKeyboardError?(error: unknown): T
+  onKeyboardCleanup?(outcome: KeyboardCleanupOutcome<T>): void
+}
+/** Only the default resource's actual public invocation receives this lease. */
+export async function cleanupBrowserKeyboard<T>(
+  options?: {
+    beforeAttempt?: boolean
+    observation?: KeyboardCleanupObservation<T>
+  },
+  observeOutcome?: (outcome: KeyboardCleanupOutcome<T>) => void
+) {
+  const call = createDefaultKeyboardCleanupCall(userEvent)
+  const failures: unknown[] = []
+  const captureFailures: unknown[] = []
+  const caught: { error: unknown; captured?: Readonly<{ value: T }> }[] = []
+  let returned: unknown, followup: unknown
+  let returnedCalled = false,
+    followupCalled = false
+  let returnedOutcome: Awaited<ReturnType<typeof call.settle>> | undefined
+  let followupOutcome: Awaited<ReturnType<typeof call.settle>> | undefined
+  try {
+    try {
+      call.run(() => {
+        // Member retrieval precedes invocation and uses the actual public receiver.
+        returned = userEvent.cleanup()
+        returnedCalled = true
+        if (options?.beforeAttempt) return
+        // Keep the pinned .catch expression boundary distinct from a returned rejection.
+        followup = (returned as Promise<unknown>).catch((error: unknown) =>
+          call.run(() => {
+            const occurrence: {
+              error: unknown
+              captured?: Readonly<{ value: T }>
+            } = { error }
+            caught.push(occurrence)
+            try {
+              const capture = options?.observation?.captureKeyboardError
+              if (capture)
+                occurrence.captured = Object.freeze({
+                  value: capture.call(options?.observation, error),
+                })
+            } catch (observerError) {
+              captureFailures.push(observerError)
+            }
+          })
+        )
+        followupCalled = true
+      })
+    } catch (error) {
+      failures.push(error)
+    }
+    // A bad .catch member does not abandon a real operation already returned.
+    const returnedJoin = returnedCalled ? call.settle(returned) : undefined
+    const followupJoin = followupCalled ? call.settle(followup) : undefined
+    if (returnedJoin) returnedOutcome = await returnedJoin
+    if (followupJoin) followupOutcome = await followupJoin
+    let outcome: KeyboardCleanupOutcome<T> = Object.freeze({
+      status: 'fulfilled',
+    })
+    if (returnedOutcome?.status === 'rejected') {
+      const ownsRejection =
+        !options?.beforeAttempt &&
+        !failures.length &&
+        !captureFailures.length &&
+        caught.length === 1 &&
+        caught[0].error === returnedOutcome.error &&
+        followupOutcome?.status === 'fulfilled'
+      outcome = Object.freeze({
+        status: 'rejected',
+        error: returnedOutcome.error,
+        ownership: ownsRejection ? ('cleanup' as const) : ('call' as const),
+        ...(ownsRejection && caught[0].captured
+          ? { captured: caught[0].captured }
+          : {}),
+      })
+      failures.push(returnedOutcome.error)
+    } else if (failures.length) {
+      outcome = Object.freeze({
+        status: 'rejected',
+        error: failures[0],
+        ownership: 'call' as const,
+      })
+    }
+    if (
+      caught.length &&
+      !(
+        caught.length === 1 &&
+        returnedOutcome?.status === 'rejected' &&
+        caught[0].error === returnedOutcome.error
+      )
+    )
+      failures.push(...caught.map(({ error }) => error))
+    failures.push(...captureFailures)
+    if (followupOutcome?.status === 'rejected')
+      failures.push(followupOutcome.error)
+    if (!options?.beforeAttempt) {
+      try {
+        observeOutcome?.(outcome)
+      } catch (observerError) {
+        failures.push(observerError)
+      }
+      try {
+        call.run(() => options?.observation?.onKeyboardCleanup?.(outcome))
+      } catch (observerError) {
+        failures.push(observerError)
+      }
+    }
+  } finally {
+    call.close()
+  }
+  if (failures.length === 1) throw failures[0]
+  if (failures.length)
+    throw new AggregateError(failures, 'Browser keyboard cleanup failed.')
 }
 
 export const server = {
@@ -900,54 +1031,79 @@ export function initializeBrowserContext(
   }
 }
 /** The published component helper owns the real React roots and unmount logic. */
-export async function cleanupBrowserContext(observation?: {
-  onComponentFailure?(occurrence: Readonly<{ error: unknown }>): void
-  onKeyboardCleanup?(
-    outcome:
-      | Readonly<{ status: 'fulfilled' }>
-      | Readonly<{ status: 'rejected'; error: unknown }>
-  ): void
-}) {
+export async function cleanupBrowserContext<T>(
+  observation?: KeyboardCleanupObservation<T> & {
+    onComponentFailure?(occurrence: Readonly<{ error: unknown }>): void
+    onContextCleanupFailure?(occurrence: BrowserContextCleanupFailure): void
+  }
+) {
   const failures: unknown[] = []
+  let componentFailure: Readonly<{ error: unknown }> | undefined
+  let keyboardOutcome: KeyboardCleanupOutcome<T> | undefined
   const componentCleanup = () => {
     const key = Symbol.for('vitest:component-cleanup')
     if (key in page) return (page as Record<symbol, () => unknown>)[key]()
   }
+  const keyboardCleanup = () =>
+    cleanupBrowserKeyboard(
+      {
+        observation,
+      },
+      (outcome) => {
+        keyboardOutcome = outcome
+      }
+    )
   for (const cleanup of [
     componentCleanup,
-    cleanupBrowserKeyboard,
+    keyboardCleanup,
     ...(deferredCommands.size ? [cleanupDeferredLocators] : []),
   ]) {
     if (typeof cleanup !== 'function') continue
-    let rejected = false,
-      rejection: unknown
     try {
       await cleanup()
     } catch (error) {
-      rejected = true
-      rejection = error
       failures.push(error)
-      if (cleanup === componentCleanup)
+      if (cleanup === componentCleanup) {
+        componentFailure = Object.freeze({ error })
         try {
-          observation?.onComponentFailure?.(Object.freeze({ error }))
+          const observer = observation?.onComponentFailure
+          if (observer != null)
+            await Reflect.apply(observer, observation, [componentFailure])
         } catch (observerError) {
           failures.push(observerError)
         }
-    }
-    if (cleanup === cleanupBrowserKeyboard)
-      try {
-        observation?.onKeyboardCleanup?.(
-          Object.freeze(
-            rejected
-              ? { status: 'rejected' as const, error: rejection }
-              : { status: 'fulfilled' as const }
-          )
-        )
-      } catch (observerError) {
-        failures.push(observerError)
       }
+    }
   }
   if (failures.length === 1) throw failures[0]
-  if (failures.length)
-    throw new AggregateError(failures, 'Browser context cleanup failed.')
+  if (failures.length) {
+    const error = new AggregateError(
+      failures,
+      'Browser context cleanup failed.'
+    )
+    if (
+      failures.length === 2 &&
+      componentFailure &&
+      keyboardOutcome?.status === 'rejected' &&
+      keyboardOutcome.ownership === 'cleanup' &&
+      Object.is(failures[0], componentFailure.error) &&
+      Object.is(failures[1], keyboardOutcome.error)
+    ) {
+      try {
+        observation?.onContextCleanupFailure?.(
+          Object.freeze({
+            error,
+            component: componentFailure,
+            keyboard: keyboardOutcome,
+          })
+        )
+      } catch (observerError) {
+        throw new AggregateError(
+          [...failures, observerError],
+          'Browser context cleanup failed.'
+        )
+      }
+    }
+    throw error
+  }
 }

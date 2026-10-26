@@ -428,7 +428,16 @@ export async function executeClient(
               throw new Error('Invalid keyboard state.')
             return runAction(async () => {
               // Settle the awaiting continuation's classifier pause before input.
-              await actionFrame.evaluate(() => {})
+              if (command.method === 'keyboard')
+                await actionFrame.evaluate(() => {
+                  if (
+                    !document.activeElement ||
+                    document.activeElement.ownerDocument !== document ||
+                    document.activeElement === document.body
+                  )
+                    window.focus()
+                })
+              else await actionFrame.evaluate(() => {})
               let skipRelease = true
               if (command.method === 'type') {
                 const typeOptions = command.args[1] as

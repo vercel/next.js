@@ -7,7 +7,11 @@ type Owner =
   | { kind: 'attempt'; context: AttemptContext }
   | { kind: 'hook'; context: SuiteHookContext }
   | {
-      kind: 'collection' | 'file-fixtures' | 'worker-fixtures'
+      kind:
+        | 'collection'
+        | 'file-fixtures'
+        | 'worker-fixtures'
+        | 'default-keyboard-cleanup'
       context: { id: string; name: string }
     }
 type Scope = Owner & {
@@ -51,6 +55,100 @@ function runInScope<T>(scope: Scope | undefined, callback: () => T): T {
 const creatorScopes = new WeakMap<object, Scope | undefined>()
 const freezeCreator = Object.freeze
 const creatorNoop = () => {}
+type DefaultKeyboardCleanupCall = {
+  readonly target: object
+  readonly onLateFailure: (error: Error) => void
+  closed: boolean
+}
+const defaultKeyboardCleanupViews = new WeakMap<
+  Scope,
+  { origin: Scope; call: DefaultKeyboardCleanupCall }
+>()
+let defaultKeyboardCleanupId = 0
+function defaultKeyboardCleanupView(
+  scope: Scope,
+  call: DefaultKeyboardCleanupCall
+): Scope {
+  const view = Object.create(scope) as Scope
+  defaultKeyboardCleanupViews.set(view, { origin: scope, call })
+  return view
+}
+/** Resource views keep the exact existing owner identity at private call checks. */
+function withoutDefaultKeyboardCleanupView(scope: Scope | undefined) {
+  while (scope && defaultKeyboardCleanupViews.has(scope))
+    scope = defaultKeyboardCleanupViews.get(scope)!.origin
+  return scope
+}
+/** Private resource invocation; it never creates a test, hook or fixture owner. */
+export function createDefaultKeyboardCleanupCall(target: object) {
+  const parent = active ?? fileOwner
+  const late = parent?.onLateFailure ?? (() => {})
+  const call: DefaultKeyboardCleanupCall = {
+    target,
+    closed: false,
+    onLateFailure: late,
+  }
+  const owner: Scope = parent ?? {
+    kind: 'default-keyboard-cleanup',
+    context: {
+      id: `default-keyboard-cleanup:${++defaultKeyboardCleanupId}`,
+      name: 'default keyboard cleanup',
+    },
+    ancestors: [],
+    closed: false,
+    onLateFailure: late,
+  }
+  const view = defaultKeyboardCleanupView(owner, call)
+  return {
+    run<T>(callback: () => T): T {
+      return runInScope(view, callback)
+    },
+    settle(
+      awaited: unknown
+    ): Promise<
+      | Readonly<{ status: 'fulfilled' }>
+      | Readonly<{ status: 'rejected'; error: unknown }>
+    > {
+      return runInScope(
+        view,
+        () =>
+          new NativePromise((resolve) => {
+            Reflect.apply(nativeThen, adoptInScope(view, awaited), [
+              () => resolve({ status: 'fulfilled' }),
+              (error: unknown) => resolve({ status: 'rejected', error }),
+            ])
+          })
+      )
+    },
+    close() {
+      call.closed = true
+    },
+  }
+}
+/** Only the captured implementation of the exact default resource uses this.
+ * A started operation validates this same lease after its actual native join;
+ * it does not infer an ambient execution owner when that join resumes. */
+export function captureDefaultKeyboardCleanupCall(
+  target: object
+): (() => void) | undefined {
+  const call = active && defaultKeyboardCleanupViews.get(active)?.call
+  if (!call || call.target !== target) return undefined
+  const assertLive = () => {
+    if (call.closed) {
+      const error = new Error(
+        'Late default Browser keyboard cleanup invocation.'
+      )
+      call.onLateFailure(error)
+      throw error
+    }
+  }
+  assertLive()
+  return assertLive
+}
+export function isDefaultKeyboardCleanupCall(target: object): boolean {
+  return captureDefaultKeyboardCleanupCall(target) !== undefined
+}
+
 export function captureCreatorScope(): object {
   const cell = { __proto__: null }
   freezeCreator(cell)
@@ -67,7 +165,11 @@ export function enterCreatorScope(cell: object): () => void {
   // Module/collection-created callables grant nothing and change no frame.
   if (!scope) return creatorNoop
   const previous = active
-  active = scope
+  const cleanupCall =
+    previous && defaultKeyboardCleanupViews.get(previous)?.call
+  // The creator's closed tombstone remains authoritative for every other API.
+  // Only the actual default-resource invocation follows this lexical view.
+  active = cleanupCall ? defaultKeyboardCleanupView(scope, cleanupCall) : scope
   let left = false
   return () => {
     if (left) throw new Error('Browser Mode creator frame was already left.')
@@ -510,7 +612,11 @@ export function invokeClientAttempt<T>(
   callback: () => T
 ): T {
   const scope = owners.get(owner.id)
-  if (!scope || scope.closed || current() !== scope)
+  if (
+    !scope ||
+    scope.closed ||
+    withoutDefaultKeyboardCleanupView(current()) !== scope
+  )
     throw new Error('Invalid Browser Mode attempt ownership.')
   return callback()
 }
