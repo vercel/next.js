@@ -1,144 +1,38 @@
 //! Compares [`Bitset`] with [`FixedBitSet`] and [`RoaringBitmap`] on the operations that the
 //! module graph algorithms use, over a range of bit densities.
 //!
-//! Every benchmark id is `<impl>/<pattern>-<universe>-<size>`:
-//! - `universe` is the size of the bit range the set is drawn from (e.g. the number of chunk
-//!   groups),
-//! - `size` is `empty`, `1bit`, `4bits` or `16bits` for sets with that many random bits, or else
-//!   the density (the fraction of the range that is set) in per mille. Densities that set fewer
-//!   than 32 bits are skipped, as the fixed bit counts already cover small sets,
-//! - `pattern` is `low` for a range starting at 0, or `high` for the same sets shifted to start at
-//!   bit 1,000,000, where `Bitset` skips the empty blocks below the range.
+//! Every benchmark id is `<impl>/<input>`, see [`inputs`] for the input names.
 //!
-//! `FixedBitSet` is used as is: it stores every bit from 0 up to the highest bit, so for the `high`
-//! pattern it also stores the empty range below bit 1,000,000.
+//! The `serialize` and `deserialize` groups use the writer and reader that Turbopack persists
+//! with (`turbo_bincode`'s `TurboBincodeWriter` into a new `TurboBincodeBuffer` and
+//! `TurboBincodeReader`, with bincode's standard config): `Bitset` with its own encoding, and
+//! `RoaringBitmap` through its serde implementation (the portable Roaring format).
 //!
-//! The `serialize` and `deserialize` groups compare the bincode encoding of `Bitset` with
-//! `RoaringBitmap` through its serde implementation (the portable Roaring format), both with
-//! bincode's standard config.
+//! The `hash` group hashes the sets with `FxHasher` through `std::hash::Hash` (`RoaringBitmap`
+//! doesn't implement `Hash`), and `hash_encode` hashes a `Bitset` like a task input is hashed for
+//! the persistent cache: encoded with `turbo_bincode`'s hash encoder into an `Xxh3Hash64Hasher`.
 
-use std::{collections::BTreeSet, hint::black_box};
+#[path = "common/inputs.rs"]
+mod inputs;
 
-use bincode::config::{Configuration, standard};
+use std::{
+    hash::{BuildHasher, Hash},
+    hint::black_box,
+};
+
+use bincode::Encode;
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use fixedbitset::FixedBitSet;
 use roaring::RoaringBitmap;
+use rustc_hash::FxBuildHasher;
+use turbo_bincode::{
+    TURBO_BINCODE_CONFIG, TurboBincodeBuffer, TurboBincodeReader, TurboBincodeWriter,
+    new_hash_encoder, turbo_bincode_decode, turbo_bincode_encode,
+};
 use turbo_bitset::Bitset;
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-const UNIVERSES: [u32; 2] = [1_024, 16_384];
-/// Sets with a fixed number of random bits.
-const BIT_COUNTS: [(&str, usize); 4] = [("empty", 0), ("1bit", 1), ("4bits", 4), ("16bits", 16)];
-/// Densities in per mille. A density is skipped for a universe where it would set fewer than
-/// [`MIN_DENSITY_BITS`] bits.
-const DENSITIES: [u32; 5] = [1, 10, 100, 500, 1_000];
-const MIN_DENSITY_BITS: u32 = 32;
-const PATTERNS: [(&str, u32); 2] = [("low", 0), ("high", 1_000_000)];
-
-/// A small deterministic linear congruential generator, so the inputs are the same on every run.
-struct Lcg(u64);
-
-impl Lcg {
-    fn next(&mut self) -> u32 {
-        self.0 = self
-            .0
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        (self.0 >> 33) as u32
-    }
-}
-
-/// One benchmark input: two sets of the same size, each with its bits in ascending order.
-struct Input {
-    name: String,
-    /// The bits of `a`, ascending.
-    bits: Vec<u32>,
-    /// A different set of the same size.
-    other_bits: Vec<u32>,
-    /// Every other bit of `a` (or nothing if `a` has at most one bit), so `a` is a superset of it
-    /// (a proper one unless `a` is empty).
-    subset_bits: Vec<u32>,
-    /// `subset_bits` plus the bit after the last bit of `a` (or the first bit of the range if `a`
-    /// is empty), so `a` is not a superset of it. The extra bit is the highest one, so a check
-    /// that walks the bits in order finds it last.
-    not_subset_bits: Vec<u32>,
-    /// Indices to look up: half of them are bits of the set, the other half are random indices
-    /// in the universe (which may or may not be in the set). For an empty set all of them are
-    /// random.
-    probes: Vec<u32>,
-}
-
-fn random_bits(rng: &mut Lcg, base: u32, universe: u32, density: u32) -> Vec<u32> {
-    (0..universe)
-        .filter(|_| rng.next() % 1_000 < density)
-        .map(|i| base + i)
-        .collect()
-}
-
-/// `count` distinct random bits of the universe, ascending.
-fn random_count_bits(rng: &mut Lcg, base: u32, universe: u32, count: usize) -> Vec<u32> {
-    let mut bits = BTreeSet::new();
-    while bits.len() < count {
-        bits.insert(base + rng.next() % universe);
-    }
-    bits.into_iter().collect()
-}
-
-/// How the bits of an input are chosen.
-#[derive(Clone, Copy)]
-enum Size {
-    /// This many distinct random bits.
-    Count(usize),
-    /// Every bit with this probability, in per mille.
-    Density(u32),
-}
-
-fn inputs() -> Vec<Input> {
-    let mut inputs = Vec::new();
-    for (pattern, base) in PATTERNS {
-        // The same seed for every pattern, so the `high` sets are exactly the `low` sets shifted.
-        let mut rng = Lcg(42);
-        for universe in UNIVERSES {
-            let mut sizes = Vec::new();
-            for (label, count) in BIT_COUNTS {
-                sizes.push((label.to_string(), Size::Count(count)));
-            }
-            for density in DENSITIES {
-                if universe * density / 1_000 >= MIN_DENSITY_BITS {
-                    sizes.push((density.to_string(), Size::Density(density)));
-                }
-            }
-            for (size, kind) in sizes {
-                let generate = |rng: &mut Lcg| match kind {
-                    Size::Count(count) => random_count_bits(rng, base, universe, count),
-                    Size::Density(density) => random_bits(rng, base, universe, density),
-                };
-                let bits = generate(&mut rng);
-                let other_bits = generate(&mut rng);
-                let subset_bits = bits.iter().copied().skip(1).step_by(2).collect::<Vec<_>>();
-                let mut not_subset_bits = subset_bits.clone();
-                not_subset_bits.push(bits.last().map_or(base, |last| last + 1));
-                let probes = (0..1_024)
-                    .map(|i| {
-                        if i % 2 == 0 && !bits.is_empty() {
-                            bits[rng.next() as usize % bits.len()]
-                        } else {
-                            base + rng.next() % universe
-                        }
-                    })
-                    .collect();
-                inputs.push(Input {
-                    name: format!("{pattern}-{universe}-{size}"),
-                    bits,
-                    other_bits,
-                    subset_bits,
-                    not_subset_bits,
-                    probes,
-                });
-            }
-        }
-    }
-    inputs
-}
+use self::inputs::{Input, Lcg, inputs};
 
 fn bitset(bits: &[u32]) -> Bitset {
     bits.iter().copied().collect()
@@ -157,22 +51,42 @@ fn roaring(bits: &[u32]) -> RoaringBitmap {
     bits.iter().copied().collect()
 }
 
-const CONFIG: Configuration = standard();
-
-fn encode_bitset(set: &Bitset) -> Vec<u8> {
-    bincode::encode_to_vec(set, CONFIG).unwrap()
+/// Encodes like Turbopack persists a value: into a new `TurboBincodeBuffer`.
+fn encode_bitset(set: &Bitset) -> TurboBincodeBuffer {
+    turbo_bincode_encode(set).unwrap()
 }
 
 fn decode_bitset(bytes: &[u8]) -> Bitset {
-    bincode::decode_from_slice(bytes, CONFIG).unwrap().0
+    turbo_bincode_decode(bytes).unwrap()
 }
 
-fn encode_roaring(set: &RoaringBitmap) -> Vec<u8> {
-    bincode::serde::encode_to_vec(set, CONFIG).unwrap()
+/// Encodes through serde with the same writer and config as [`encode_bitset`].
+fn encode_roaring(set: &RoaringBitmap) -> TurboBincodeBuffer {
+    let mut buffer = TurboBincodeBuffer::new();
+    bincode::serde::encode_into_writer(
+        set,
+        TurboBincodeWriter::new(&mut buffer),
+        TURBO_BINCODE_CONFIG,
+    )
+    .unwrap();
+    buffer
 }
 
+/// Decodes through serde with the same reader and config as [`decode_bitset`].
 fn decode_roaring(bytes: &[u8]) -> RoaringBitmap {
-    bincode::serde::decode_from_slice(bytes, CONFIG).unwrap().0
+    bincode::serde::decode_from_reader(TurboBincodeReader::new(bytes), TURBO_BINCODE_CONFIG)
+        .unwrap()
+}
+
+/// Hashes like a task input is hashed for the persistent cache.
+fn hash_encode<T: Encode>(value: &T) -> u64 {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    value.encode(&mut new_hash_encoder(&mut hasher)).unwrap();
+    hasher.finish()
+}
+
+fn fx_hash<T: Hash>(value: &T) -> u64 {
+    FxBuildHasher.hash_one(value)
 }
 
 /// The setup and the measured operation of one implementation in [`bench_all`].
@@ -294,9 +208,17 @@ fn validate(inputs: &[Input]) {
         assert_eq!(oa.is_disjoint(&ob), ra.is_disjoint(&rb));
         assert_eq!(fa.is_disjoint(&fb), ra.is_disjoint(&rb));
 
-        // Both encodings round-trip.
+        // Both encodings round-trip, and equal sets hash equally, even with a different storage
+        // range.
         assert_eq!(decode_bitset(&encode_bitset(&oa)), oa);
         assert_eq!(decode_roaring(&encode_roaring(&ra)), ra);
+        let mut padded = bitset(&input.bits);
+        padded.insert(input.universe + 1_000);
+        padded.remove(input.universe + 1_000);
+        assert_eq!(padded, oa);
+        assert_eq!(fx_hash(&padded), fx_hash(&oa));
+        assert_eq!(hash_encode(&padded), hash_encode(&oa));
+        assert_eq!(fx_hash(&fa), fx_hash(&fixed(&input.bits)));
     }
 }
 
@@ -679,6 +601,30 @@ pub fn bench(c: &mut Criterion) {
         let bytes = encode_roaring(&roaring(&input.bits));
         group.bench_function(BenchmarkId::new("RoaringBitmap", &input.name), |b| {
             b.iter(|| black_box(decode_roaring(black_box(&bytes))))
+        });
+    }
+    group.finish();
+
+    // Hashing with `FxHasher`. (`RoaringBitmap` doesn't implement `Hash`.)
+    let mut group = c.benchmark_group("bitset/hash");
+    for input in &inputs {
+        let set = bitset(&input.bits);
+        group.bench_function(BenchmarkId::new("Bitset", &input.name), |b| {
+            b.iter(|| black_box(fx_hash(black_box(&set))))
+        });
+        let set = fixed(&input.bits);
+        group.bench_function(BenchmarkId::new("FixedBitSet", &input.name), |b| {
+            b.iter(|| black_box(fx_hash(black_box(&set))))
+        });
+    }
+    group.finish();
+
+    // Hashing like a task input for the persistent cache.
+    let mut group = c.benchmark_group("bitset/hash_encode");
+    for input in &inputs {
+        let set = bitset(&input.bits);
+        group.bench_function(BenchmarkId::new("Bitset", &input.name), |b| {
+            b.iter(|| black_box(hash_encode(black_box(&set))))
         });
     }
     group.finish();
