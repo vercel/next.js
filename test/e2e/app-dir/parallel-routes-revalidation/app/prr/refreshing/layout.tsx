@@ -13,7 +13,7 @@ export default function Layout({
     <div>
       <div>{children}</div>
       <div>{modal}</div>
-      <Link href="/dynamic-refresh/foo/other">Go to Other Page</Link>
+      <Link href="/prr/refreshing/other">Go to Other Page</Link>
     </div>
   )
 }

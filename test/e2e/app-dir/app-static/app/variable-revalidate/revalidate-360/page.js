@@ -6,14 +6,17 @@ export default async function Page() {
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?page',
     {
-      next: { revalidate: 360, tags: ['thankyounext'] },
+      next: { revalidate: 360, tags: ['app-static:thankyounext'] },
     }
   ).then((res) => res.text())
 
   const data2 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?a=b',
     {
-      next: { revalidate: 360, tags: ['thankyounext', 'justputit'] },
+      next: {
+        revalidate: 360,
+        tags: ['app-static:thankyounext', 'app-static:justputit'],
+      },
     }
   ).then((res) => res.text())
 
@@ -49,7 +52,7 @@ export default async function Page() {
     },
     ['random'],
     {
-      tags: ['thankyounext'],
+      tags: ['app-static:thankyounext'],
       revalidate: 10,
     }
   )()
@@ -60,7 +63,7 @@ export default async function Page() {
       const data = await fetch(
         'https://next-data-api-endpoint.vercel.app/api/random?something',
         {
-          next: { revalidate: 15, tags: ['thankyounext'] },
+          next: { revalidate: 15, tags: ['app-static:thankyounext'] },
         }
       ).then((res) => res.text())
       return data
@@ -77,19 +80,23 @@ export default async function Page() {
     [],
     {
       revalidate: 1000,
-      tags: ['thankyounext'],
+      tags: ['app-static:thankyounext'],
     }
   )()
 
   return (
     <>
       <p id="page">/variable-revalidate/revalidate-360</p>
-      <p id="page-data">revalidate 360 (tags: thankyounext): {data}</p>
+      <p id="page-data">
+        revalidate 360 (tags: app-static:thankyounext): {data}
+      </p>
       <p id="page-data2">
-        revalidate 360 (tags: thankyounext, justputit): {data2}
+        revalidate 360 (tags: app-static:thankyounext, app-static:justputit):{' '}
+        {data2}
       </p>
       <p id="page-data3">
-        revalidate 10 (tags: thankyounext): {JSON.stringify(cachedData)}
+        revalidate 10 (tags: app-static:thankyounext):{' '}
+        {JSON.stringify(cachedData)}
       </p>
       <p id="now">{Date.now()}</p>
       <p id="nested-cache">nested cache: {cacheOuter}</p>

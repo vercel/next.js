@@ -5,7 +5,7 @@ export default async function Home(props) {
   const searchParams = await props.searchParams
   return (
     <main>
-      <Link href="/refreshing/login">
+      <Link href="/prr/refreshing/login">
         <button>Login button</button>
       </Link>
       <div>

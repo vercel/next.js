@@ -34,7 +34,7 @@ export default function Page() {
       <p className="mt-4">Drawer</p>
       <div className="mt-4 flex flex-col gap-2">
         <Link
-          href="/nested-revalidate/modal"
+          href="/prr/nested-revalidate/modal"
           className="bg-sky-600 text-white p-2 rounded"
         >
           Open modal

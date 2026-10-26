@@ -4,14 +4,14 @@ export default async function Page() {
   const data1 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?a',
     {
-      next: { tags: ['thankyounext'] },
+      next: { tags: ['actions:thankyounext'] },
     }
   ).then((res) => res.text())
 
   const data2 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?b',
     {
-      next: { tags: ['justputit'] },
+      next: { tags: ['actions:justputit'] },
     }
   ).then((res) => res.text())
 
@@ -19,18 +19,20 @@ export default async function Page() {
     <>
       <h1 id="title">another route</h1>
       <p>
-        revalidate (tags: thankyounext): <span id="thankyounext">{data1}</span>
+        revalidate (tags: actions:thankyounext):{' '}
+        <span id="thankyounext">{data1}</span>
       </p>
       <p>
-        revalidate (tags: justputit): <span id="justputit">{data2}</span>
+        revalidate (tags: actions:justputit):{' '}
+        <span id="justputit">{data2}</span>
       </p>
       <form>
         <button
           id="revalidate"
           formAction={async () => {
             'use server'
-            updateTag('thankyounext')
-            updateTag('justputit')
+            updateTag('actions:thankyounext')
+            updateTag('actions:justputit')
           }}
         >
           revalidate thankyounext

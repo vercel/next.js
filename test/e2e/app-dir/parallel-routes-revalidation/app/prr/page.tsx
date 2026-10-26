@@ -9,10 +9,10 @@ export default async function Home() {
 
   return (
     <div id="root-page">
-      <Link href="/revalidate-modal">Open Revalidate Modal</Link>
-      <Link href="/refresh-modal">Open Refresh Modal</Link>
-      <Link href="/redirect-modal">Open Redirect Modal</Link>
-      <Link href="/detail-page">Intercepted Detail Page</Link>
+      <Link href="/prr/revalidate-modal">Open Revalidate Modal</Link>
+      <Link href="/prr/refresh-modal">Open Refresh Modal</Link>
+      <Link href="/prr/redirect-modal">Open Redirect Modal</Link>
+      <Link href="/prr/detail-page">Intercepted Detail Page</Link>
       <div id="random-number">{randomNumber}</div>
       <form action={clearData}>
         <button id="clear-entries">Clear Entries</button>

@@ -172,7 +172,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res1.status).toBe(200)
 
         const revalidateRes = await next.fetch(
-          '/api/revalidate-tag-node?tag=thankyounext'
+          '/api/revalidate-tag-node?tag=app-static:thankyounext'
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -553,7 +553,7 @@ describe('app-dir static/dynamic handling', () => {
 
         await check(async () => {
           const revalidateRes = await next.fetch(
-            `${revalidateApi}?tag=thankyounext`
+            `${revalidateApi}?tag=app-static:thankyounext`
           )
           expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -610,8 +610,8 @@ describe('app-dir static/dynamic handling', () => {
 
         if (prevData) {
           expect(prevData).toBe(data)
-          prevData = data
         }
+        prevData = data
         await waitFor(500)
       }
 
@@ -621,6 +621,32 @@ describe('app-dir static/dynamic handling', () => {
         )
       }
     })
+
+    if (isNextDeploy) {
+      // Deploy fixtures share one Vercel project, and revalidation is
+      // project-scoped: another suite revalidating `/` purges this
+      // deployment's `/` as well, so the test above can observe foreign
+      // purges. Assert persistence on a suite-unique route too, which no
+      // other suite's revalidation targets.
+      it('should not revalidate suite-unique routes when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/variable-revalidate/revalidate-360')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+          }
+          prevData = data
+          await waitFor(500)
+        }
+      })
+    }
 
     it.each([
       {
@@ -2577,7 +2603,7 @@ describe('app-dir static/dynamic handling', () => {
            "initialExpireSeconds": 31536000,
            "initialHeaders": {
              "content-type": "application/json",
-             "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,thankyounext",
+             "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,app-static:thankyounext",
            },
            "initialRevalidateSeconds": 10,
            "response": "complete",

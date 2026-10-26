@@ -20,10 +20,10 @@ export async function redirectAction() {
   'use server'
   console.log('redirecting...')
   await new Promise((res) => setTimeout(res, 1000))
-  redirect('/')
+  redirect('/prr')
 }
 
 export async function clearData() {
   data = []
-  revalidatePath('/')
+  revalidatePath('/prr')
 }

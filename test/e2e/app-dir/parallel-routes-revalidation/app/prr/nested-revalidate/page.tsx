@@ -7,13 +7,13 @@ export default function Home() {
       <p id="page-now">Date.now {Date.now()}</p>
       <div className="flex flex-col gap-2">
         <Link
-          href="/nested-revalidate/drawer"
+          href="/prr/nested-revalidate/drawer"
           className="bg-sky-600 text-white p-2 rounded"
         >
           Open Drawer
         </Link>
         <Link
-          href="/nested-revalidate/modal"
+          href="/prr/nested-revalidate/modal"
           className="bg-sky-600 text-white p-2 rounded"
         >
           Open Modal

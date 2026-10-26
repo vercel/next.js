@@ -5,7 +5,7 @@ export default function Page() {
     <form
       action={async () => {
         'use server'
-        redirect('/')
+        redirect('/prr')
       }}
     >
       <button type="submit" id="redirect-page">
