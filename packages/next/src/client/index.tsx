@@ -103,7 +103,14 @@ class Container extends React.Component<{
     this.props.fn(componentErr, info)
   }
 
+  private lastHash: string =
+    typeof window !== 'undefined' ? window.location.hash : ''
+  private lastPathname: string =
+    typeof window !== 'undefined' ? window.location.pathname : ''
+
   componentDidMount() {
+    this.lastHash = location.hash
+    this.lastPathname = location.pathname
     this.scrollToHash()
 
     // We need to replace the router state if:
@@ -158,7 +165,21 @@ class Container extends React.Component<{
   }
 
   componentDidUpdate() {
-    this.scrollToHash()
+    // Only scroll to hash when staying on the same page and hash changes.
+    // For cross-page navigation (including back button), preserve the
+    // restored scroll position instead of scrolling to the anchor.
+    // Fixes #13653 - without hash and with hash should both preserve
+    // scroll position when returning via back button.
+    if (location.pathname === this.lastPathname) {
+      if (location.hash !== this.lastHash) {
+        this.lastHash = location.hash
+        this.scrollToHash()
+      }
+    } else {
+      // Cross-page navigation - update stored values but don't scroll to hash
+      this.lastHash = location.hash
+      this.lastPathname = location.pathname
+    }
   }
 
   scrollToHash() {
