@@ -115,7 +115,15 @@ export function patchConsoleMethod<T extends keyof Console>(
       this: typeof console,
       ...args: Console[T] extends (...args: infer P) => any ? P : never[]
     ) {
-      wrapper(methodName, ...args)
+      // The wrapper only exists to mirror the log elsewhere (the terminal, the
+      // MCP server). It must never keep the user's log from reaching the real
+      // console, and it must never throw back into the code that called
+      // `console.*`, so swallow anything it throws. We can't report the
+      // failure through `console` either, since that would recurse into this
+      // same wrapper.
+      try {
+        wrapper(methodName, ...args)
+      } catch {}
 
       originalMethod.apply(this, args)
     }
