@@ -9,7 +9,7 @@ export default function Page() {
 
     await addData(new Date().toISOString())
 
-    revalidatePath('/', 'layout')
+    revalidatePath('/prr', 'layout')
   }
 
   return (
@@ -24,7 +24,7 @@ export default function Page() {
         </button>
       </form>
 
-      <Link href="/">Close</Link>
+      <Link href="/prr">Close</Link>
     </dialog>
   )
 }

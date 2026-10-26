@@ -15,7 +15,7 @@ export default function Page() {
       <button onClick={() => router.refresh()} id="refresh-router">
         Refresh Router
       </button>
-      <Link href="/">Close</Link>
+      <Link href="/prr">Close</Link>
     </dialog>
   )
 }

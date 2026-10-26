@@ -3,6 +3,6 @@
 import { revalidatePath } from 'next/cache'
 
 export async function action() {
-  revalidatePath('/', 'layout')
+  revalidatePath('/popstate-revalidate', 'layout')
   return true
 }

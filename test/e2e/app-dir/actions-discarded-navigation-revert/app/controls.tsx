@@ -83,7 +83,7 @@ export function Controls() {
       <button id="dispatch-b-revalidate" onClick={dispatchBRevalidate}>
         dispatch revalidating queued action
       </button>
-      <button id="go-dest" onClick={() => router.push('/dest')}>
+      <button id="go-dest" onClick={() => router.push('/adr/dest')}>
         go to destination
       </button>
       <button id="dispatch-c" onClick={dispatchC}>

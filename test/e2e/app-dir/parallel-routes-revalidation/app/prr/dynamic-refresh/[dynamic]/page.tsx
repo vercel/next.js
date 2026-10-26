@@ -5,7 +5,7 @@ export default async function Home(props) {
   const searchParams = await props.searchParams
   return (
     <main>
-      <Link href="/dynamic-refresh/foo/login">
+      <Link href="/prr/dynamic-refresh/foo/login">
         <button>Login button</button>
       </Link>
       <div>

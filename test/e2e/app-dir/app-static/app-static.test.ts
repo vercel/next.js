@@ -15,6 +15,7 @@ import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
+// increment to trigger deploy tests: v1
 describe('app-dir static/dynamic handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
@@ -172,7 +173,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res1.status).toBe(200)
 
         const revalidateRes = await next.fetch(
-          '/api/revalidate-tag-node?tag=thankyounext'
+          '/api/revalidate-tag-node?tag=app-static:thankyounext'
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -553,7 +554,7 @@ describe('app-dir static/dynamic handling', () => {
 
         await check(async () => {
           const revalidateRes = await next.fetch(
-            `${revalidateApi}?tag=thankyounext`
+            `${revalidateApi}?tag=app-static:thankyounext`
           )
           expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -610,8 +611,8 @@ describe('app-dir static/dynamic handling', () => {
 
         if (prevData) {
           expect(prevData).toBe(data)
-          prevData = data
         }
+        prevData = data
         await waitFor(500)
       }
 
@@ -621,6 +622,32 @@ describe('app-dir static/dynamic handling', () => {
         )
       }
     })
+
+    if (isNextDeploy) {
+      // Deploy fixtures share one Vercel project, and revalidation is
+      // project-scoped: another suite revalidating `/` purges this
+      // deployment's `/` as well, so the test above can observe foreign
+      // purges. Assert persistence on a suite-unique route too, which no
+      // other suite's revalidation targets.
+      it('should not revalidate suite-unique routes when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/variable-revalidate/revalidate-360')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+          }
+          prevData = data
+          await waitFor(500)
+        }
+      })
+    }
 
     it.each([
       {
@@ -2577,7 +2604,7 @@ describe('app-dir static/dynamic handling', () => {
            "initialExpireSeconds": 31536000,
            "initialHeaders": {
              "content-type": "application/json",
-             "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,thankyounext",
+             "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,app-static:thankyounext",
            },
            "initialRevalidateSeconds": 10,
            "response": "complete",
@@ -3476,7 +3503,7 @@ describe('app-dir static/dynamic handling', () => {
 
       expect(indexFetchMetrics).toHaveLength(1)
       expect(indexFetchMetrics[0]).toMatchObject({
-        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?app-static-page',
         status: 200,
         cacheStatus: expect.any(String),
         start: expect.any(Number),
@@ -5036,14 +5063,24 @@ describe('app-dir static/dynamic handling', () => {
 
   describe('unstable_cache', () => {
     it('should retrieve the same value on second request', async () => {
-      const res = await next.fetch('/unstable-cache/dynamic')
-      const html = await res.text()
-      const data = cheerio.load(html)('#cached-data').text()
-      const res2 = await next.fetch('/unstable-cache/dynamic')
-      const html2 = await res2.text()
-      const data2 = cheerio.load(html2)('#cached-data').text()
+      async function fetchCachedData() {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        return cheerio
+          .load(await res.text())('#cached-data')
+          .text()
+      }
 
-      expect(data).toEqual(data2)
+      if (isNextDeploy) {
+        // The shared Data Cache is eventually consistent across lambda
+        // instances: a request can land before another instance's write is
+        // visible and recompute. Poll until two consecutive reads agree,
+        // which is the consistency the deployed cache provides.
+        await retry(async () => {
+          expect(await fetchCachedData()).toEqual(await fetchCachedData())
+        })
+      } else {
+        expect(await fetchCachedData()).toEqual(await fetchCachedData())
+      }
     })
 
     it('should bypass cache in draft mode', async () => {

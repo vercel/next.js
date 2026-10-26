@@ -11,10 +11,10 @@ export default function Layout({
 }) {
   return (
     <>
-      <Link prefetch={false} href="/retained-search/two?value=second">
+      <Link prefetch={false} href="/prr/retained-search/two?value=second">
         Two
       </Link>
-      <Link prefetch={false} href="/retained-search/three?value=third">
+      <Link prefetch={false} href="/prr/retained-search/three?value=third">
         Three
       </Link>
       <RefreshButton />
