@@ -54,6 +54,10 @@ function readShortDefault() {
   return shortDefault
 }
 
+function readShorthandProperties() {
+  return { shortString, smallNumber }
+}
+
 it('inlines short primitive exports during code generation', () => {
   expect(readShortValues()).toEqual([
     'dev',
@@ -68,6 +72,10 @@ it('inlines short primitive exports during code generation', () => {
   expect(readMode()).toBe('dev')
   expect(readStaticNamespace()).toBe('ns')
   expect(readShortDefault()).toBe('def')
+  expect(readShorthandProperties()).toEqual({
+    shortString: 'dev',
+    smallNumber: 1,
+  })
 
   const source = readShortValues.toString()
   expect(source).toContain('"dev"')
@@ -81,6 +89,11 @@ it('inlines short primitive exports during code generation', () => {
   expect(readStaticNamespace.toString()).not.toContain('staticNamespace')
   expect(readShortDefault.toString()).toContain('"def"')
   expect(readShortDefault.toString()).not.toContain('shortDefault')
+  expect(readShorthandProperties.toString()).toContain('shortString:')
+  expect(readShorthandProperties.toString()).toContain('smallNumber:')
+  expect(readShorthandProperties.toString()).toContain(
+    'TURBOPACK compile-time value'
+  )
 })
 
 it('omits inlined export modules without using values for analysis', () => {
