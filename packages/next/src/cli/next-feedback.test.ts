@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { Readable } from 'stream'
 
 import {
   agentFeedbackReviewUrl,
@@ -109,6 +110,52 @@ describe('nextFeedback', () => {
     await nextFeedback(encodedReport(), { dryRun: true }, openReviewForm)
 
     expect(openReviewForm).not.toHaveBeenCalled()
+  })
+
+  it('reads the report from standard input when the argument is omitted', async () => {
+    const write = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true)
+    const openReviewForm = jest.fn(async () => undefined)
+    const report = encodedReport()
+    const input = Readable.from([`${report}\n`])
+
+    await nextFeedback(undefined, {}, openReviewForm, input)
+
+    const url = `https://nextjs.org/agent-feedback#report=${report}`
+    expect(write).toHaveBeenCalledWith(`${url}\n`)
+    expect(openReviewForm).toHaveBeenCalledWith(url)
+  })
+
+  it('rejects an omitted report when standard input is interactive', async () => {
+    const writeError = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    const openReviewForm = jest.fn(async () => undefined)
+    const input = Object.assign(Readable.from([]), { isTTY: true })
+
+    await nextFeedback(undefined, {}, openReviewForm, input)
+
+    expect(writeError).toHaveBeenCalledWith(
+      'Provide an agent feedback report as an argument or pipe it through standard input.\n'
+    )
+    expect(openReviewForm).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('rejects empty standard input', async () => {
+    const writeError = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    const openReviewForm = jest.fn(async () => undefined)
+
+    await nextFeedback(undefined, {}, openReviewForm, Readable.from([' \n']))
+
+    expect(writeError).toHaveBeenCalledWith(
+      'No agent feedback report was provided through standard input.\n'
+    )
+    expect(openReviewForm).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
   })
 
   it('keeps the printed URL usable when the browser cannot open', async () => {

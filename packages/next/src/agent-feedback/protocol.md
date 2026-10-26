@@ -79,6 +79,8 @@ For each report draft, run the following command once from the project directory
 npx --no-install next feedback <encoded-json>
 ```
 
+The command also accepts the encoded payload through standard input when the positional argument is omitted.
+
 In a dry run, add `--dry-run` so the command only prints the review URL.
 
 Do not ask for permission before running the command. Opening a form does not send feedback. The command always prints the review URL as a fallback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.

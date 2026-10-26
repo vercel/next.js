@@ -10,8 +10,47 @@ type SpawnReviewForm = (
   options: SpawnOptions
 ) => ChildProcess
 
+type FeedbackInput = NodeJS.ReadableStream & {
+  isTTY?: boolean
+}
+
 export type NextFeedbackOptions = {
   dryRun?: boolean
+}
+
+async function readFeedbackInput(input: FeedbackInput): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let report = ''
+
+    input.setEncoding('utf8')
+    input.on('data', (chunk: string) => {
+      report += chunk
+    })
+    input.once('end', () => resolve(report.trim()))
+    input.once('error', reject)
+  })
+}
+
+export async function resolveAgentFeedbackReport(
+  encodedReport: string | undefined,
+  input: FeedbackInput = process.stdin
+): Promise<string> {
+  if (encodedReport !== undefined) return encodedReport
+
+  if (input.isTTY) {
+    throw new Error(
+      'Provide an agent feedback report as an argument or pipe it through standard input.'
+    )
+  }
+
+  const report = await readFeedbackInput(input)
+  if (!report) {
+    throw new Error(
+      'No agent feedback report was provided through standard input.'
+    )
+  }
+
+  return report
 }
 
 export function agentFeedbackReviewUrl(encodedReport: string): string {
@@ -79,13 +118,15 @@ export function openAgentFeedbackReviewForm(
 }
 
 export async function nextFeedback(
-  encodedReport: string,
+  encodedReport: string | undefined,
   options: NextFeedbackOptions = {},
-  openReviewForm: (url: string) => Promise<void> = openAgentFeedbackReviewForm
+  openReviewForm: (url: string) => Promise<void> = openAgentFeedbackReviewForm,
+  input: FeedbackInput = process.stdin
 ): Promise<void> {
   let url: string
   try {
-    url = agentFeedbackReviewUrl(encodedReport)
+    const report = await resolveAgentFeedbackReport(encodedReport, input)
+    url = agentFeedbackReviewUrl(report)
   } catch (error) {
     process.stderr.write(
       `${error instanceof Error ? error.message : 'Invalid agent feedback report.'}\n`
