@@ -776,7 +776,7 @@ internal
   )
   .option('--dry-run', 'Print the review URL without opening a browser.')
   .action((report: string | undefined, options: { dryRun?: boolean }) => {
-    return import('../cli/next-feedback.js').then((mod) =>
+    return import('../cli/internal/agent-feedback.js').then((mod) =>
       mod.nextFeedback(report, options)
     )
   })

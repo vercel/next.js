@@ -5,7 +5,7 @@ import {
   agentFeedbackReviewUrl,
   nextFeedback,
   openAgentFeedbackReviewForm,
-} from './next-feedback'
+} from './agent-feedback'
 
 function validReport(overrides: Record<string, unknown> = {}) {
   return {
