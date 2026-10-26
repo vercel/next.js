@@ -15,6 +15,7 @@ import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
+// increment to trigger deploy tests: v1
 describe('app-dir static/dynamic handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
