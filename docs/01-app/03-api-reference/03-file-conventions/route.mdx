@@ -309,6 +309,8 @@ export async function GET(request) {
 }
 ```
 
+Because [`redirect`](/docs/app/api-reference/functions/redirect) throws, call it **outside** the `try` block when using `try/catch` statements. A `try/catch` around the call suppresses the redirect. If you need to catch errors near the call, use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let the interrupt through first.
+
 ### Dynamic Route Segments
 
 Route Handlers can use [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes) to create request handlers from dynamic data.
