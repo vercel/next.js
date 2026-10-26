@@ -94,7 +94,8 @@ fn intern_bitmaps<'a, K: Eq + Hash>(
 /// Merges maps of sets into one map. The result is exactly what extending an empty map with each
 /// part in order gives (`result.entry(key).or_default().extend(set)`): keys in order of first
 /// appearance, and each key's set extended part by part. Disjoint key shards are merged in
-/// parallel, and the first set of each key is moved rather than copied.
+/// parallel, and the first set of each key is moved rather than copied. With a single shard, the
+/// parts are merged serially into the first part instead.
 fn merge_index_maps_of_sets<K, V>(
     parts: Vec<FxIndexMap<K, FxIndexSet<V>>>,
     shard_count: usize,
@@ -107,6 +108,25 @@ where
     type Bucket<K, V> = Vec<((usize, usize), K, FxIndexSet<V>)>;
 
     let shard_count = shard_count.max(1);
+    if shard_count == 1 {
+        let mut parts = parts.into_iter();
+        let Some(mut result) = parts.next() else {
+            return FxIndexMap::default();
+        };
+        let rest = parts.collect::<Vec<_>>();
+        result.reserve(rest.iter().map(|part| part.len()).sum());
+        for part in rest {
+            for (key, set) in part {
+                match result.entry(key) {
+                    indexmap::map::Entry::Occupied(mut e) => e.get_mut().extend(set),
+                    indexmap::map::Entry::Vacant(e) => {
+                        e.insert(set);
+                    }
+                }
+            }
+        }
+        return result;
+    }
     // Use the high bits of the hash, so the keys of one shard don't all share the low bits that the
     // per-shard hash tables use for bucket selection.
     let shard_of =
@@ -153,7 +173,10 @@ where
         });
 
     let mut all = merged.into_iter().flatten().collect::<Vec<_>>();
-    all.sort_unstable_by_key(|(pos, _, _)| *pos);
+    // Each shard's output is already sorted by position (keys are inserted on first sight, in
+    // position order), so a stable sort merges these runs instead of sorting from scratch.
+    // Positions are unique, so stability doesn't change the result.
+    all.sort_by_key(|(pos, _, _)| *pos);
     all.into_iter().map(|(_, key, set)| (key, set)).collect()
 }
 
@@ -959,7 +982,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn merge_index_maps_of_sets_matches_serial_merge() {
         for seed in 1..=20 {
-            for shard_count in [1, 3, 64] {
+            for shard_count in [0, 1, 3, 64] {
                 let parts = generate_parts(seed, 1 + seed as usize % 9);
                 let expected = serial_merge(parts.clone());
                 let actual = merge_index_maps_of_sets(parts, shard_count);
@@ -981,10 +1004,48 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn merge_index_maps_of_sets_handles_empty_input() {
-        let parts: Vec<FxIndexMap<u32, FxIndexSet<u32>>> = vec![Default::default(); 3];
-        assert!(merge_index_maps_of_sets(parts, 4).is_empty());
-        assert!(
-            merge_index_maps_of_sets(Vec::<FxIndexMap<u32, FxIndexSet<u32>>>::new(), 4).is_empty()
-        );
+        for shard_count in [0, 1, 4] {
+            let parts: Vec<FxIndexMap<u32, FxIndexSet<u32>>> = vec![Default::default(); 3];
+            assert!(merge_index_maps_of_sets(parts, shard_count).is_empty());
+            assert!(
+                merge_index_maps_of_sets(
+                    Vec::<FxIndexMap<u32, FxIndexSet<u32>>>::new(),
+                    shard_count
+                )
+                .is_empty()
+            );
+        }
+    }
+
+    /// With one shard the merge is serial, so it needs no runtime for parallelism.
+    #[test]
+    fn merge_index_maps_of_sets_single_shard_is_serial() {
+        for seed in 1..=20 {
+            for shard_count in [0, 1] {
+                let parts = generate_parts(seed, 1 + seed as usize % 9);
+                let expected = serial_merge(parts.clone());
+                let actual = merge_index_maps_of_sets(parts, shard_count);
+                assert_eq!(
+                    actual
+                        .iter()
+                        .map(|(k, v)| (*k, v.iter().copied().collect::<Vec<_>>()))
+                        .collect::<Vec<_>>(),
+                    expected
+                        .iter()
+                        .map(|(k, v)| (*k, v.iter().copied().collect::<Vec<_>>()))
+                        .collect::<Vec<_>>(),
+                    "seed {seed}, shard count {shard_count}"
+                );
+            }
+        }
+        for shard_count in [0, 1] {
+            assert!(
+                merge_index_maps_of_sets(
+                    Vec::<FxIndexMap<u32, FxIndexSet<u32>>>::new(),
+                    shard_count
+                )
+                .is_empty()
+            );
+        }
     }
 }
