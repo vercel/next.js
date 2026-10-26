@@ -212,7 +212,7 @@ pub async fn get_inline_export(
     let Some(module) = resolved.first_module().await? else {
         return Ok(None);
     };
-    let constants = get_inline_constants(*module, compile_time_info).await?;
+    let constants = get_constants(*module, compile_time_info).await?;
     let Some(constants) = constants.as_ref() else {
         return Ok(None);
     };
@@ -234,22 +234,6 @@ pub async fn get_inline_export(
 pub async fn get_constants(
     module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: Vc<CompileTimeInfo>,
-) -> Result<Vc<OptionConstantsModule>> {
-    get_constants_internal(module, compile_time_info, false).await
-}
-
-#[turbo_tasks::function]
-async fn get_inline_constants(
-    module: ResolvedVc<Box<dyn Module>>,
-    compile_time_info: Vc<CompileTimeInfo>,
-) -> Result<Vc<OptionConstantsModule>> {
-    get_constants_internal(module, compile_time_info, true).await
-}
-
-async fn get_constants_internal(
-    module: ResolvedVc<Box<dyn Module>>,
-    compile_time_info: Vc<CompileTimeInfo>,
-    include_default_expression: bool,
 ) -> Result<Vc<OptionConstantsModule>> {
     let Some(parseable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module) else {
         // should never actually happen, there should be a "imported module is not chunkable" error
@@ -273,19 +257,18 @@ async fn get_constants_internal(
 
     let arena = ThreadLocal::new();
 
-    let default_export_value =
-        if include_default_expression && let Program::Module(module) = program {
-            module.body.iter().find_map(|item| match item {
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export)) => {
-                    Some(GLOBALS.set(globals, || {
-                        eval_context.eval(arena.get_or_default(), &export.expr)
-                    }))
-                }
-                _ => None,
-            })
-        } else {
-            None
-        };
+    let default_export_value = if let Program::Module(module) = program {
+        module.body.iter().find_map(|item| match item {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export)) => {
+                Some(GLOBALS.set(globals, || {
+                    eval_context.eval(arena.get_or_default(), &export.expr)
+                }))
+            }
+            _ => None,
+        })
+    } else {
+        None
+    };
 
     let var_graph = {
         let supports_block_scoping = *compile_time_info
