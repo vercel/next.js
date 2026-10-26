@@ -19498,3 +19498,267 @@ it('vetoes Istanbul beforeAll capture when independent actual mock disposal reus
     await rm(output, { recursive: true, force: true })
   }
 }, 130000)
+
+describe('settled Istanbul beforeEach callback completion', () => {
+  async function observeCallback(mode: string) {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledBeforeEachCoverageFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('beforeeach-' + mode)
+    const error = new Error('same actual setup and later-stage error')
+    const original = Object.getOwnPropertyDescriptors(error)
+    let bodies = 0
+    const api =
+      mode === 'fixtures'
+        ? collector.api.test.extend({ value: 1 })
+        : collector.api.test
+    api.beforeEach(
+      mode === 'deadline'
+        ? () => new Promise(() => {})
+        : mode === 'throwing-wrapper' ||
+            mode === 'duplicate-wrapper' ||
+            mode === 'outer-throwing-wrapper'
+          ? () => undefined
+          : mode === 'async' ||
+              mode === 'async-array' ||
+              mode === 'substituted-wrapper' ||
+              mode === 'outer-substituted-wrapper'
+            ? async () => {
+                await Promise.resolve()
+                throw mode === 'async-array' ? [error] : error
+              }
+            : () => {
+                throw mode === 'array' ? [error] : error
+              },
+      mode === 'deadline' ? 10 : undefined
+    )
+    if (mode === 'mixed-stage')
+      api.afterEach(() => {
+        throw error
+      })
+    api('actual attempt', () => {
+      bodies++
+    })
+    await collector.settle()
+    const options: Parameters<typeof runCollected>[1] = {
+      runId: 'beforeeach-run-' + mode,
+      signal: new AbortController().signal,
+      ...(mode !== 'disabled' ? { captureCoverageCompletion: true } : {}),
+      ...(mode === 'parallel'
+        ? { sequence: { hooks: 'parallel' as const } }
+        : {}),
+    }
+    if (mode.endsWith('-wrapper'))
+      options.runWithCasePhase = (phase, fn, authored) => {
+        const value = fn()
+        if (mode === 'outer-throwing-wrapper') {
+          if (phase === 'beforeEach' && !authored) throw error
+          return value
+        }
+        if (mode === 'outer-substituted-wrapper')
+          return phase === 'beforeEach' && !authored
+            ? (Promise.resolve(value).then((value) => value) as typeof value)
+            : value
+        if (phase !== 'beforeEach' || !authored) return value
+        if (mode === 'substituted-wrapper')
+          return Promise.resolve(value).then((value) => value) as typeof value
+        if (mode === 'duplicate-wrapper') fn()
+        throw error
+      }
+    const result = await runCollected(collector.close(), options, () => {})
+    const test = result.cases[0]
+    expect(bodies).toBe(0)
+    expect(test.status).toBe('failed')
+    expect(test.errors.length).toBeGreaterThan(0)
+    expect(Object.getOwnPropertyDescriptors(error)).toEqual(original)
+    return {
+      result,
+      failures: test.errors,
+      marked: test.errors.map((failure) =>
+        isSettledBeforeEachCoverageFailure(failure, test.attempt.id)
+      ),
+      wrongAttempt: test.errors.map((failure) =>
+        isSettledBeforeEachCoverageFailure(
+          failure,
+          test.attempt.id + '/foreign'
+        )
+      ),
+      clonedCarrier: test.errors.map((failure) =>
+        isSettledBeforeEachCoverageFailure({ ...failure }, test.attempt.id)
+      ),
+    }
+  }
+
+  it.each(['sync', 'async'])(
+    'marks only the actual settled %s callback carrier and attempt',
+    async (mode) => {
+      const actual = await observeCallback(mode)
+      expect(actual.marked).toEqual([true])
+      expect(actual.wrongAttempt).toEqual([false])
+      expect(actual.clonedCarrier).toEqual([false])
+      expect(actual.result.interrupted).toBe(false)
+    }
+  )
+
+  it('keeps the same Error in an independent afterEach carrier unmarked', async () => {
+    const actual = await observeCallback('mixed-stage')
+    expect(actual.failures.map((failure) => failure.phase)).toEqual([
+      'beforeEach',
+      'afterEach',
+    ])
+    expect(actual.failures[0].error).toBe(actual.failures[1].error)
+    expect(actual.marked).toEqual([true, false])
+    expect(actual.wrongAttempt).toEqual([false, false])
+  })
+
+  it.each([
+    'disabled',
+    'parallel',
+    'fixtures',
+    'deadline',
+    'array',
+    'async-array',
+    'throwing-wrapper',
+    'substituted-wrapper',
+    'outer-substituted-wrapper',
+    'outer-throwing-wrapper',
+    'duplicate-wrapper',
+  ])('retains the separate %s boundary', async (mode) => {
+    const actual = await observeCallback(mode)
+    expect(actual.marked).not.toContain(true)
+    expect(actual.wrongAttempt).not.toContain(true)
+    if (mode === 'deadline') expect(actual.result.interrupted).toBe(true)
+  })
+
+  it('preserves successful callback microtask and teardown order', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const traces: string[][] = []
+    for (const captureCoverageCompletion of [false, true]) {
+      const trace: string[] = []
+      const collector = createCollector('beforeeach-order')
+      collector.api.beforeEach(async () => {
+        trace.push('setup')
+        queueMicrotask(() => {
+          trace.push('microtask')
+          queueMicrotask(() => trace.push('nested microtask'))
+        })
+        await Promise.resolve()
+        trace.push('setup settled')
+      })
+      collector.api.test('body', () => trace.push('body'))
+      collector.api.afterEach(() => trace.push('teardown'))
+      await collector.settle()
+      const result = await runCollected(
+        collector.close(),
+        {
+          runId: 'beforeeach-order-' + captureCoverageCompletion,
+          signal: new AbortController().signal,
+          ...(captureCoverageCompletion
+            ? { captureCoverageCompletion: true }
+            : {}),
+        },
+        () => {}
+      )
+      expect(result.cases[0].status).toBe('passed')
+      traces.push(trace)
+    }
+    expect(traces[1]).toEqual(traces[0])
+    expect(traces[1]).toEqual([
+      'setup',
+      'microtask',
+      'setup settled',
+      'nested microtask',
+      'body',
+      'teardown',
+    ])
+  })
+
+  it.each([
+    'beforeeach-sync-no-snapshots',
+    'beforeeach-async-no-snapshots',
+    'beforeeach-sync-no-snapshots-report-false',
+    'beforeeach-async-no-snapshots-report-false',
+    'beforeeach-mixed-stage-no-snapshots',
+  ])(
+    'retains actual attempt and physical completion facts for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-beforeeach-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeeach-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({ actualCaseStartsAndEnds: true })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+
+  it.each([
+    'beforeeach-sync-no-snapshots',
+    'beforeeach-async-no-snapshots',
+    'beforeeach-sync-no-snapshots-report-false',
+    'beforeeach-async-no-snapshots-report-false',
+  ])(
+    'matches genuine complete messages and report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-beforeeach-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeeach-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledBeforeEachFailure: true,
+          completeAuthoredMessages: true,
+          authoredFileAndLine: true,
+          rawFrameEqualityQualified: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})

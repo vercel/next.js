@@ -132,12 +132,24 @@ export interface RunnerFailure {
 }
 
 const settledBeforeAllFailures = new WeakMap<RunnerFailure, string>()
+const settledBeforeEachFailures = new WeakMap<RunnerFailure, string>()
 const settledAfterAllFailures = new WeakMap<RunnerFailure, string>()
 const settledFileFixtureFailures = new WeakMap<RunnerFailure, string>()
 
 /** Read only in the actual runner realm that created this failure carrier. */
 export function isSettledAuthoredAfterAllFailure(failure: RunnerFailure) {
   return settledAfterAllFailures.has(failure)
+}
+
+/** Same-realm callback carrier, bound to its actual attempt owner. */
+export function isSettledBeforeEachCoverageFailure(
+  failure: RunnerFailure,
+  attemptId: string
+) {
+  return (
+    failure.phase === 'beforeEach' &&
+    settledBeforeEachFailures.get(failure) === attemptId
+  )
 }
 
 /** Only the actual file-fixture cleanup invocation issues this carrier fact. */
@@ -1154,7 +1166,9 @@ export async function runCollected(
           fn: () => unknown | Promise<unknown>,
           failures: RunnerFailure[],
           timeout = hookTimeout,
-          declaration?: Hook
+          declaration?: Hook,
+          observeCapturedFailure?: (error: unknown) => void,
+          observePhaseReturn?: (preserved: boolean) => void
         ) => {
           const previous = failures.length
           let handledSkip = false
@@ -1167,10 +1181,24 @@ export async function runCollected(
             if (publicTask.result.hooks[hook] !== 'fail')
               publicTask.result.hooks[hook] = 'run'
           }
+          if (!options.runWithCasePhase) observePhaseReturn?.(true)
           let operation =
             phase === 'test' || !options.runWithCasePhase
               ? fn
-              : () => options.runWithCasePhase!(phase, fn)
+              : () => {
+                  if (!observePhaseReturn)
+                    return options.runWithCasePhase!(phase, fn)
+                  let returned: { value: unknown } | undefined
+                  const value = options.runWithCasePhase!(phase, () => {
+                    const outcome = fn()
+                    returned = { value: outcome }
+                    return outcome
+                  })
+                  observePhaseReturn(
+                    returned !== undefined && returned.value === value
+                  )
+                  return value
+                }
           const userCancelSignal = options.userCancelSignal
           const userCancellation = {}
           if (phase === 'test' && userCancelSignal) {
@@ -1217,6 +1245,7 @@ export async function runCollected(
                 currentlyFailed = false
                 return true
               }
+              observeCapturedFailure?.(error)
               if (error instanceof DeadlineError) {
                 if (
                   phase === 'beforeEach' ||
@@ -1596,10 +1625,18 @@ export async function runCollected(
                   undefined,
                   true
                 )
+                type BeforeEachInvocation = {
+                  count: number
+                  returned?: { value: unknown }
+                  thrown?: { error: unknown }
+                  wrapperReturned?: { value: unknown }
+                  phaseReturnPreserved?: boolean
+                }
                 const invoke = (
                   fn: Function,
                   body = false,
-                  authoredHook?: 'beforeEach' | 'afterEach' | 'cleanup'
+                  authoredHook?: 'beforeEach' | 'afterEach' | 'cleanup',
+                  observation?: BeforeEachInvocation
                 ) => {
                   const runCallback =
                     (body || authoredHook) && options.runWithCasePhase
@@ -1617,10 +1654,30 @@ export async function runCollected(
                       ? integration.awaitBodyAssertions(invokeFixtures)
                       : invokeFixtures()
                   }
-                  const callback = () =>
-                    invokeTestCallback(fn, publicContext, context)
-                  const invokeCallback = () =>
-                    runCallback ? runCallback(callback) : callback()
+                  const callback = () => {
+                    if (!observation)
+                      return invokeTestCallback(fn, publicContext, context)
+                    observation.count++
+                    try {
+                      const value = invokeTestCallback(
+                        fn,
+                        publicContext,
+                        context
+                      )
+                      observation.returned = { value }
+                      return value
+                    } catch (error) {
+                      observation.thrown = { error }
+                      throw error
+                    }
+                  }
+                  const invokeCallback = () => {
+                    const value = runCallback
+                      ? runCallback(callback)
+                      : callback()
+                    if (observation) observation.wrapperReturned = { value }
+                    return value
+                  }
                   return body && integration?.awaitBodyAssertions
                     ? integration.awaitBodyAssertions(async () =>
                         invokeCallback()
@@ -1692,13 +1749,50 @@ export async function runCollected(
                         continue
                       }
                       for (const hook of parent.hooks.beforeEach) {
+                        const previous = errors.length
+                        const observation: BeforeEachInvocation | undefined =
+                          options.captureCoverageCompletion &&
+                          !Object.keys(definitions).length
+                            ? { count: 0 }
+                            : undefined
+                        let capturedFailure: { error: unknown } | undefined
                         const cleanup = await captureCase(
                           'beforeEach',
-                          () => invoke(hook.fn, false, 'beforeEach'),
+                          () =>
+                            invoke(hook.fn, false, 'beforeEach', observation),
                           errors,
                           hook.timeout ?? hookTimeout,
-                          hook
+                          hook,
+                          observation
+                            ? (error) => {
+                                capturedFailure = { error }
+                              }
+                            : undefined,
+                          observation
+                            ? (preserved) => {
+                                observation.phaseReturnPreserved = preserved
+                              }
+                            : undefined
                         )
+                        if (
+                          capturedFailure &&
+                          !Array.isArray(capturedFailure.error) &&
+                          !(capturedFailure.error instanceof DeadlineError) &&
+                          observation?.count === 1 &&
+                          (observation.thrown
+                            ? observation.thrown.error === capturedFailure.error
+                            : observation.returned &&
+                              observation.wrapperReturned &&
+                              observation.phaseReturnPreserved &&
+                              observation.returned.value ===
+                                observation.wrapperReturned.value)
+                        )
+                          for (const failure of errors.slice(previous))
+                            if (
+                              failure.phase === 'beforeEach' &&
+                              failure.error === capturedFailure.error
+                            )
+                              settledBeforeEachFailures.set(failure, context.id)
                         if (typeof cleanup === 'function')
                           hookCleanups.push(() =>
                             bounded(

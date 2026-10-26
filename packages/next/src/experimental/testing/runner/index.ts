@@ -43,6 +43,7 @@ import {
 import {
   runCollected,
   isSettledCoverageFailure,
+  isSettledBeforeEachCoverageFailure,
   type AttemptContext,
   type RunnerFailure,
   type RunnerOptions,
@@ -947,7 +948,9 @@ function initializeFile(
               test.status !== 'cancelled' &&
               test.errors.every(
                 (failure) =>
-                  failure.phase === 'test' || failure.phase === 'assertion'
+                  failure.phase === 'test' ||
+                  failure.phase === 'assertion' ||
+                  isSettledBeforeEachCoverageFailure(failure, test.attempt.id)
               )
           )
         )
