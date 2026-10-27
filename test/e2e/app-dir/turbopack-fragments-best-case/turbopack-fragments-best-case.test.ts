@@ -25,6 +25,11 @@ describe('turbopack-fragments-best-case', () => {
     expect($('p').text().split('|')).toHaveLength(16)
   })
 
+  it('narrows a static namespace member', async () => {
+    const $ = await next.render$('/namespace')
+    expect($('p').text()).toMatch(/^feature-0:/)
+  })
+
   // Chunk artifacts are unavailable on deployments; rendering is tested in every mode above.
   // @force-gate start && turbopack
   it('emits one small chunk per independent feature', async () => {

@@ -1465,11 +1465,14 @@ async fn analyze_ecmascript_module_internal(
                             ValueLinkContext::Default,
                         )
                     } else {
-                        if options.follow_reexports && !options.module_fragments_enabled {
+                        if options.follow_reexports || options.module_fragments_enabled {
                             // TODO move this logic into Effect creation itself and don't create new
                             // references after the fact here.
                             let original_reference = r.await?;
-                            if original_reference.export_name.is_none()
+                            if matches!(
+                                original_reference.export_name,
+                                None | Some(ModulePart::Exports)
+                            ) && !eval_context.imports.should_import_all(esm_reference_index)
                                 && export.is_some()
                                 && let Some(export) = export
                             {

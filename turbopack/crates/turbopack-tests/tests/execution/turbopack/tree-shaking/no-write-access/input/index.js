@@ -6,6 +6,7 @@ it('should not allow to modify exports', () => {
   expect(getState()).toBe(state)
   expect(() => (esm.state = { not: 'allowed' })).toThrow()
   expect(() => (esm.newExport = { not: 'allowed' })).toThrow()
+  expect(() => (esm['state'] = { not: 'allowed' })).toThrow()
   expect(getState()).toBe(initialState)
   expect(state).toBe(initialState)
   expect(esm.state).toBe(initialState)

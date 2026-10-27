@@ -1585,6 +1585,12 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Member(member) = node
+            && let Expr::Ident(ident) = &*member.obj
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&ident.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
+        }
         if let SimpleAssignTarget::Ident(i) = node {
             self.register_assignment_scope(i.to_id());
             if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
