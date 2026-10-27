@@ -64,6 +64,8 @@ async function getChromeDevtoolsWorkspace(
       workspaceUUID = randomUUID()
 
       try {
+        // The cache directory might not exist yet.
+        await fs.promises.mkdir(cacheBaseDir, { recursive: true })
         await fs.promises.writeFile(cachedUUIDPath, workspaceUUID, 'utf8')
       } catch (cause) {
         console.warn(
