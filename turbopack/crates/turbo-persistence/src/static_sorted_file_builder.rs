@@ -28,6 +28,11 @@ use crate::{
 /// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
 pub const BLOCK_HEADER_SIZE: usize = 8;
 
+/// Capacity of the buffered writer for SST files. Must be well above the typical block size, so
+/// that each block (8–12 KB small-value blocks, up to 16 KB key blocks) doesn't force its own
+/// `write` syscall.
+const FILE_WRITE_BUFFER_SIZE: usize = 256 * 1024;
+
 /// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
 /// The maximum bytes that should go into a single key block
@@ -641,7 +646,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         compression: Compression,
     ) -> Result<Self> {
         let file_path = file.to_owned();
-        let file = BufWriter::new(File::create(file)?);
+        let file = BufWriter::with_capacity(FILE_WRITE_BUFFER_SIZE, File::create(file)?);
         let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
