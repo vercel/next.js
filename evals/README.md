@@ -5,7 +5,8 @@ Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertion
 The existing suite protects known behavior and measures how version-matched
 context changes the result. As tasks become saturated, new competency evals
 must continue to separate meaningful Next.js capability. Read
-[Curating harder Next.js evals](HARDER_EVALS.md) before adding a harder task.
+[Curating advanced Next.js evals](HARDER_EVALS.md) before adding an advanced
+task.
 
 ## How it works
 
@@ -27,9 +28,9 @@ External contributors can run the same evals in local Docker with their own API 
 
 ## Writing an eval
 
-For a new harder competency task, define its measurement question, task
+For a new advanced competency task, define its measurement question, task
 contract, calibration plan, and intended visibility using
-[the harder-eval guide](HARDER_EVALS.md).
+[the advanced-eval guide](HARDER_EVALS.md).
 
 Copy an existing fixture. Take the next free number — gaps are fine.
 

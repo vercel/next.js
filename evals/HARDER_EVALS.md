@@ -1,10 +1,10 @@
-# Curating harder Next.js evals
+# Curating advanced Next.js evals
 
-Harder evals measure realistic Next.js work that current agents do not solve
+Advanced evals measure realistic Next.js work that current agents do not solve
 reliably. They keep the competency suite useful as older tasks become
 saturated.
 
-Harder describes validated capability separation. It does not mean a longer
+Advanced describes validated capability separation. It does not mean a longer
 prompt, a larger repository, or a more complicated grader.
 
 ## Keep the measurement in scope
@@ -19,7 +19,7 @@ change. Route other questions to the systems that own them:
 | What changed in cost, speed, or shipped output?                        | Performance        |
 | Did bundled docs, `AGENTS.md`, or a Skill improve the same task?       | Context experiment |
 
-A candidate belongs in the harder suite only when the agent has a valid action
+A candidate belongs in the advanced suite only when the agent has a valid action
 to take and the result measures a Next.js capability.
 
 ## Find candidates
@@ -49,7 +49,7 @@ Before implementation, establish:
 5. a reference solution and representative incorrect solutions used to review
    the grader;
 6. the expected runtime, cost, owner, and maintenance trigger; and
-7. whether the task and its results may be public or must remain held out.
+7. whether the task and its results may be public or must stay held out.
 
 Keep solutions, hidden checks, and verifier-only material out of the agent's
 context. Keep the task contract independent from one runner so the task remains
@@ -69,7 +69,7 @@ Do not call a task hard until its grader and framework version are valid.
 
 ## Run portable pilot tasks
 
-Keep the existing regression suite on `agent-eval`. New harder tasks may also
+Keep the existing regression suite on `agent-eval`. New advanced tasks may also
 use the open-source Harbor task format during the pilot so their application,
 prompt, hidden verifier, and reference patch can run independently of this
 repository.
@@ -82,12 +82,13 @@ separate verifier image. Compose mode pulls the pinned images inside Vercel
 Sandbox and avoids copying large task images through Vercel Container
 Registry.
 
-Run with an approved measurement project's `VERCEL_OIDC_TOKEN` and a dedicated,
-budget-capped `AI_GATEWAY_API_KEY` in one local, ignored env file. The OIDC
-token authorizes Sandbox; the Gateway key authorizes model calls and applies
-the project spend limit. Vercel Compose tasks currently require public network
-mode, so do not reuse a general-purpose model credential. Do not copy either
-value into a task or result artifact.
+Run with an approved measurement project's `VERCEL_OIDC_TOKEN` and a dedicated
+`AI_GATEWAY_API_KEY` with its own spend limit in one local, ignored env file.
+The OIDC token authorizes Sandbox; the Gateway key authorizes model calls and
+applies its key-level limit. A Vercel project budget does not apply to API key
+requests. Vercel Compose tasks currently require public network mode, so do not
+reuse a general-purpose model credential. Do not copy either value into a task
+or result artifact.
 
 ```bash
 python -m venv .harbor
@@ -146,11 +147,11 @@ weaker models over multiple runs or framework versions.
 
 ## Set visibility and cadence
 
-New harder tasks remain unpublished by default. Publish only after reviewing
+New advanced tasks stay unpublished by default. Publish only after reviewing
 the task contract, grader, calibration, ownership, and maintenance plan. Keep
 private or held-out checks out of public fixtures and result artifacts.
 
-Run the harder competency suite when Next.js, its tasks, agents, or models
+Run the advanced competency suite when Next.js, its tasks, agents, or models
 change. Run saturated regression tasks through their cheaper, more frequent
 cadence. Record policy changes such as pass@4 to pass@1 as a new measurement
 baseline rather than one continuous score history.
