@@ -26,7 +26,7 @@ evals/agent-build/<task>/
 
 `instruction.md` is the only task instruction the agent receives. `solution/solve.sh` is available only to the oracle. The verifier runs from `tests/` in a separate environment with no network access. Harbor transfers the agent's patch into that environment for grading.
 
-The minimal `docker-compose.yaml` files select Harbor's Vercel Compose path. The linked Vercel project is named `next.js`, while Vercel Container Registry rejects the dot in that legacy project slug. Harbor's native single-container path therefore fails before the task starts. Compose builds the same Dockerfiles inside Vercel Sandbox and avoids that registry path. Keep both files until the runner or project namespace changes.
+The minimal `docker-compose.yaml` files select Harbor's Vercel Compose path. The linked Vercel project is named `next.js`, while Vercel Container Registry does not accept the dot in that legacy project slug. Harbor's native single-container path therefore fails before the task starts. Compose builds the same Dockerfiles inside Vercel Sandbox and avoids that registry path. Keep both files until the runner or project namespace changes.
 
 ## Install Harbor
 
