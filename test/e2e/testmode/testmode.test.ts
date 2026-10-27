@@ -63,7 +63,7 @@ describe('testmode', () => {
           }
           if (testData === 'compressed-response') {
             const body = gzipSync('explicitly compressed mock')
-            return new Response(body, {
+            return new Response(new Uint8Array(body), {
               headers: {
                 'content-type': 'text/plain',
                 'content-encoding': 'gzip',
