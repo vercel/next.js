@@ -115,6 +115,13 @@ export const spanRecorder: SpanProcessor = {
       name: span.name,
       type,
       attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+      links:
+        span.links.length > 0
+          ? span.links.map(({ context }) => ({
+              traceId: context.traceId,
+              spanId: context.spanId,
+            }))
+          : undefined,
       startTime: toMicroseconds(span.startTime),
       endTime: toMicroseconds(span.endTime),
       status: span.status.code,

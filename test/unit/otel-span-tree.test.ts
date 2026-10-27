@@ -245,6 +245,15 @@ describe('span event capture', () => {
     ])
   })
 
+  it('keeps the links of ended spans', () => {
+    const link = { traceId: 'f'.repeat(32), spanId: 'e'.repeat(16) }
+    const { spans } = mergeSpanEvents(
+      [{ ...event('end', 'a', undefined, 0, 1), links: [link] }],
+      [TRACE]
+    )
+    expect(spans).toEqual([expect.objectContaining({ id: 'a', links: [link] })])
+  })
+
   const options = {
     traceIds: [TRACE],
     expected: ['type-mw', 'type-render'],

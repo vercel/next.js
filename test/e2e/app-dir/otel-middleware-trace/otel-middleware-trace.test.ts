@@ -34,6 +34,9 @@ const MATCHER = [
   '/page',
   '/route-handler',
   '/rewrite',
+  '/rewrite-external',
+  '/rewrite-static',
+  '/rewrite-isr',
   '/redirect',
   '/direct',
   '/user-overrides',
@@ -58,6 +61,30 @@ function middlewareEntry(exportName: 'proxy' | 'middleware') {
 }
 
 type Body = 'html' | 'json' | 'none'
+
+// `app/isr/page.tsx` with Cache Components, where the `revalidate` segment
+// config isn't allowed: the same page, cached with time-based revalidation.
+const ISR_PAGE_CACHE_COMPONENTS = [
+  `import { cacheLife } from 'next/cache'`,
+  ``,
+  `export default async function Page() {`,
+  `  'use cache'`,
+  `  cacheLife('hours')`,
+  `  return <p id="marker">ISR page</p>`,
+  `}`,
+  ``,
+].join('\n')
+
+// The fixture files a variant overrides: its middleware entry, and the ISR page
+// with Cache Components.
+function overrideFiles(file: string, exportName: 'proxy' | 'middleware') {
+  return {
+    [file]: middlewareEntry(exportName),
+    ...(process.env.__NEXT_CACHE_COMPONENTS
+      ? { 'app/isr/page.tsx': ISR_PAGE_CACHE_COMPONENTS }
+      : {}),
+  }
+}
 
 const VARIANTS = [
   // `proxy.ts` always runs in the Node.js runtime.
@@ -315,9 +342,7 @@ describe.each(VARIANTS)(
   ({ file, exportName }) => {
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      overrideFiles: {
-        [file]: middlewareEntry(exportName),
-      },
+      overrideFiles: overrideFiles(file, exportName),
       dependencies: DEPENDENCIES,
     })
     const env = getTestEnv(isTurbopack, exportName)
@@ -899,6 +924,185 @@ describe.each(VARIANTS)(
             "[trace A] GET (Next.request) {http.target=/direct}
             └─ middleware GET (Middleware.execute) {http.target=/direct}"
           `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
+      }
+    )
+
+    // The rewritten request is proxied to another origin, so nothing of this
+    // app renders it.
+    traceTest(
+      'traces a middleware rewrite to an external origin',
+      async () => traceRequest(await next.fetch('/rewrite-external'), 'none'),
+      async ({ res, tree: getTree }) => {
+        expect(res.status).toBe(200)
+        expectNoInternalHeaders(res)
+        const tree = await getTree()
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+          "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-external, http.status_code=200}
+          └─ middleware GET (Middleware.execute) {http.target=/rewrite-external}"
+        `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
+      }
+    )
+
+    // The rewritten page is prerendered, so it is served from the cache
+    // (deployed, without invoking a function).
+    traceTest(
+      'traces a middleware rewrite to a static page',
+      async () => traceRequest(await next.fetch('/rewrite-static'), 'none'),
+      async ({ res, text, tree: getTree }) => {
+        expect(res.status).toBe(200)
+        expect(cheerio.load(text)('#marker').text()).toBe('static page')
+        expectNoInternalHeaders(res)
+        const tree = await getTree()
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+          "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-static, http.status_code=200} [error: doesn't cover descendants]
+          ├─ GET /static (BaseServer.handleRequest) {http.target=/rewrite-static, http.route=/static, next.route=/static, http.status_code=200}
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/static}
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute) {http.target=/rewrite-static}"
+        `)
+        } else if (
+          [
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+          "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-static, http.status_code=200} [error: doesn't cover descendants]
+          ├─ GET /static (BaseServer.handleRequest) {http.target=/rewrite-static, http.route=/static, next.route=/static, http.status_code=200}
+          │  ├─ NextNodeServer.clientComponentLoading
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /static (AppRender.getBodyResult) {next.route=/static}
+          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+          │  │  └─ start response (NextNodeServer.startResponse)
+          │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/static}
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute) {http.target=/rewrite-static}"
+        `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
+      }
+    )
+
+    // The rewritten page is prerendered with time-based revalidation, so it
+    // is served from the ISR cache (it never becomes stale during the test).
+    traceTest(
+      'traces a middleware rewrite to an ISR page',
+      async () => traceRequest(await next.fetch('/rewrite-isr'), 'none'),
+      async ({ res, text, tree: getTree }) => {
+        expect(res.status).toBe(200)
+        expect(cheerio.load(text)('#marker').text()).toBe('ISR page')
+        expectNoInternalHeaders(res)
+        const tree = await getTree()
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+          "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-isr, http.status_code=200} [error: doesn't cover descendants]
+          ├─ GET /isr (BaseServer.handleRequest) {http.target=/rewrite-isr, http.route=/isr, next.route=/isr, http.status_code=200}
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/isr}
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
+        `)
+        } else if (
+          [
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+          "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-isr, http.status_code=200} [error: doesn't cover descendants]
+          ├─ GET /isr (BaseServer.handleRequest) {http.target=/rewrite-isr, http.route=/isr, next.route=/isr, http.status_code=200}
+          │  ├─ NextNodeServer.clientComponentLoading
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /isr (AppRender.getBodyResult) {next.route=/isr}
+          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+          │  │  └─ start response (NextNodeServer.startResponse)
+          │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/isr}
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
+        `)
+        } else if (
+          [
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+          "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite-isr, http.status_code=200} [error: doesn't cover descendants]
+          ├─ GET /isr (BaseServer.handleRequest) {http.target=/rewrite-isr, http.route=/isr, next.route=/isr, http.status_code=200} [error: doesn't cover descendants]
+          │  ├─ NextNodeServer.clientComponentLoading
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /isr (AppRender.getBodyResult) {next.route=/isr} [error: doesn't cover descendants]
+          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+          │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+          │  │  └─ start response (NextNodeServer.startResponse)
+          │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/isr}
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
+        `)
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
@@ -1947,9 +2151,7 @@ describe.each(VARIANTS)(
   ({ file, exportName }) => {
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      overrideFiles: {
-        [file]: middlewareEntry(exportName),
-      },
+      overrideFiles: overrideFiles(file, exportName),
       dependencies: { ...DEPENDENCIES, 'get-port': '5.1.1' },
       startCommand: 'node custom-server.js',
       serverReadyPattern: /- Local:/,

@@ -10,6 +10,12 @@ export function handler(request: NextRequest) {
   let response: NextResponse
   if (pathname === '/rewrite') {
     response = NextResponse.rewrite(new URL('/page', request.url))
+  } else if (pathname === '/rewrite-external') {
+    response = NextResponse.rewrite('https://example.vercel.sh')
+  } else if (pathname === '/rewrite-static') {
+    response = NextResponse.rewrite(new URL('/static', request.url))
+  } else if (pathname === '/rewrite-isr') {
+    response = NextResponse.rewrite(new URL('/isr', request.url))
   } else if (pathname === '/redirect') {
     response = NextResponse.redirect(new URL('/page', request.url))
   } else if (pathname === '/direct') {
