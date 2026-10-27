@@ -163,8 +163,8 @@ function getMissing(spans: TreeSpan[], expected: string[]) {
   return missing
 }
 
-export interface CollectSpansOptions {
-  /** The traces of the request (e.g. the middleware's and the render's). */
+export interface SpanGroup {
+  /** The traces of a request (e.g. the middleware's and the render's). */
   traceIds: string[]
   /**
    * The `next.span_type`s of spans (with multiplicity) that must have ended
@@ -172,116 +172,216 @@ export interface CollectSpansOptions {
    * request span.
    */
   expected: string[]
+}
+
+export interface CollectOptions {
   /** How long to wait for a complete capture. */
   timeoutMs: number
   /** Delay before the poll that confirms a complete capture didn't change. */
   settleMs: number
   /** Delay between polls of an incomplete capture. */
   pollIntervalMs: number
+  /** Called with every captured span event line (once per event). */
+  log?: (message: string) => void
+}
+
+export type CollectSpansOptions = SpanGroup & CollectOptions
+
+/** The spans of a request, or why they couldn't be captured. */
+export type SpanGroupResult = { spans: TreeSpan[] } | { error: Error }
+
+interface GroupState {
+  group: SpanGroup
+  spans: TreeSpan[]
+  missing: string[]
+  notEnded: TreeSpan[]
+  history: string[]
+  /**
+   * The number of the group's events, and when, when its capture was found
+   * complete (to confirm, with a poll at least `settleMs` later, that no
+   * events were added).
+   */
+  complete?: { events: number; at: number }
+  /** Set when a poll confirmed the complete capture. */
+  settled: boolean
+  /** Set when the capture failed for good (a span was ended twice). */
+  error?: Error
+}
+
+function isComplete(state: GroupState) {
+  return (
+    state.error === undefined &&
+    state.missing.length === 0 &&
+    state.notEnded.length === 0
+  )
+}
+
+function diagnostic(state: GroupState, reason: string) {
+  return new Error(
+    [
+      reason,
+      `Missing expected spans: [${state.missing.join(', ')}]`,
+      `Spans that haven't ended: [${state.notEnded.map((span) => `${span.name} (${span.type ?? 'no type'})`).join(', ')}]`,
+      'Captured so far:',
+      printSpanTree(state.spans) || '(none)',
+      'Polls:',
+      ...state.history,
+    ].join('\n')
+  )
 }
 
 /**
  * Polls `read` (span event output, which may repeat events of earlier reads,
- * or no longer include them) until the capture of the given traces is
- * complete: every expected span has ended, every span that started has
- * ended, and one more poll after `settleMs` finds no new events. The events
- * of all polls are kept. Spans whose parents weren't captured are allowed (an
+ * or no longer include them) until the capture of every group (e.g. one per
+ * request) is complete: every expected span has ended, every span that
+ * started has ended, and one more poll after `settleMs` finds no new events.
+ * All groups share the polls (one `read` per poll), and the events of all
+ * polls are kept. Spans whose parents weren't captured are allowed (an
  * incoming `traceparent`, a host span, another process). Settling can't prove
  * that no log line arrives later (log delivery can be delayed or lose lines),
  * but the expected spans must be there.
  *
- * `read` gets the deadline of the whole capture (a `Date.now()` timestamp).
- * Throws with a diagnostic (the tree so far, with spans that haven't ended
- * badged, the missing expected spans and the poll history) when the capture
- * isn't complete within `timeoutMs`, when a span was ended more than once, or
- * when `read` fails.
+ * `read` gets the deadline of the whole capture (a `Date.now()` timestamp). A
+ * failed read (e.g. a `vercel logs` error) is recorded in the poll history
+ * and retried with the next poll.
+ *
+ * Returns a result per group: its spans, or an error with a diagnostic (the
+ * tree so far, with spans that haven't ended badged, the missing expected
+ * spans and the poll history) when its capture isn't complete, or wasn't
+ * confirmed by a later poll, within `timeoutMs`, or when one of its spans was
+ * ended more than once.
  */
-export async function collectSpanEvents(
+export async function collectSpanEventGroups(
   read: (deadline: number) => Promise<string>,
   {
-    traceIds,
-    expected,
+    groups,
     timeoutMs,
     settleMs,
     pollIntervalMs,
-  }: CollectSpansOptions
-): Promise<TreeSpan[]> {
+    log,
+  }: CollectOptions & { groups: SpanGroup[] }
+): Promise<SpanGroupResult[]> {
   const deadline = Date.now() + timeoutMs
-  const history: string[] = []
+  const traceIds = new Set(groups.flatMap((group) => group.traceIds))
   const events = new Map<string, SpanEvent>()
-  let completeSize: number | undefined
-  let spans: TreeSpan[] = []
-  let missing: string[] = expected
-  let notEnded: TreeSpan[] = []
-
-  const diagnostic = (reason: string) =>
-    [
-      reason,
-      `Missing expected spans: [${missing.join(', ')}]`,
-      `Spans that haven't ended: [${notEnded.map((span) => `${span.name} (${span.type ?? 'no type'})`).join(', ')}]`,
-      'Captured so far:',
-      printSpanTree(spans) || '(none)',
-      'Polls:',
-      ...history,
-    ].join('\n')
+  const states: GroupState[] = groups.map((group) => ({
+    group,
+    spans: [],
+    missing: group.expected,
+    notEnded: [],
+    history: [],
+    settled: false,
+  }))
+  // Whether the delay before this poll was `settleMs` (timers can fire a bit
+  // early, so elapsed time alone isn't enough to tell).
+  let settleWaited = false
 
   for (let poll = 1; ; poll++) {
-    let output: string
+    let output: string | undefined
     try {
       output = await read(deadline)
     } catch (error) {
-      throw new Error(
-        diagnostic(
-          `Reading the spans of trace(s) ${traceIds.join(', ')} failed: ${error}`
-        )
-      )
-    }
-    const parsed = parseSpanEvents(output)
-    for (const event of parsed.events) {
-      if (traceIds.includes(event.traceId) && !events.has(event.eventId)) {
-        events.set(event.eventId, event)
+      for (const state of states) {
+        state.history.push(`poll ${poll}: reading failed: ${error}`)
       }
-    }
-    const merged = mergeSpanEvents(events.values(), traceIds)
-    spans = merged.spans
-    missing = getMissing(spans, expected)
-    notEnded = spans.filter((span) => !span.ended)
-    history.push(
-      `poll ${poll}: ${spans.length} span(s), ${notEnded.length} not ended, missing [${missing.join(', ')}]` +
-        (parsed.malformed ? `, ${parsed.malformed} malformed line(s)` : '')
-    )
-    if (merged.duplicateEnds.length > 0) {
-      throw new Error(
-        diagnostic(
-          `Spans ended more than once: [${merged.duplicateEnds.join(', ')}]`
-        )
-      )
     }
 
-    if (missing.length === 0 && notEnded.length === 0) {
-      if (events.size === completeSize) {
-        return spans
+    if (output !== undefined) {
+      const parsed = parseSpanEvents(output)
+      for (const event of parsed.events) {
+        if (traceIds.has(event.traceId) && !events.has(event.eventId)) {
+          events.set(event.eventId, event)
+          log?.(`${SPAN_EVENT_MARKER} ${JSON.stringify(event)}`)
+        }
       }
-      completeSize = events.size
-      if (Date.now() + settleMs > deadline) {
-        break
+      for (const state of states) {
+        // Groups that already settled are checked again while others are
+        // still collected: an event that arrives later (e.g. a second `end`
+        // event, or a span that started) still counts.
+        if (state.error) {
+          continue
+        }
+        const merged = mergeSpanEvents(events.values(), state.group.traceIds)
+        const groupEvents = [...events.values()].filter((event) =>
+          state.group.traceIds.includes(event.traceId)
+        ).length
+        state.spans = merged.spans
+        state.missing = getMissing(state.spans, state.group.expected)
+        state.notEnded = state.spans.filter((span) => !span.ended)
+        state.history.push(
+          `poll ${poll}: ${state.spans.length} span(s), ${state.notEnded.length} not ended, missing [${state.missing.join(', ')}]` +
+            (parsed.malformed ? `, ${parsed.malformed} malformed line(s)` : '')
+        )
+        if (merged.duplicateEnds.length > 0) {
+          state.error = diagnostic(
+            state,
+            `Spans ended more than once: [${merged.duplicateEnds.join(', ')}]`
+          )
+        } else if (isComplete(state)) {
+          if (state.complete?.events === groupEvents) {
+            state.settled =
+              state.settled ||
+              settleWaited ||
+              Date.now() - state.complete.at >= settleMs
+          } else {
+            state.complete = { events: groupEvents, at: Date.now() }
+            state.settled = false
+          }
+        } else {
+          state.complete = undefined
+          state.settled = false
+        }
       }
-      await sleep(settleMs)
-      continue
     }
-    completeSize = undefined
 
-    if (Date.now() + pollIntervalMs > deadline) {
+    if (states.every((state) => state.error || state.settled)) {
       break
     }
-    await sleep(pollIntervalMs)
+    // Once every capture is complete, confirm it after `settleMs`.
+    const delay = states.every((state) => state.error || isComplete(state))
+      ? settleMs
+      : pollIntervalMs
+    if (Date.now() + delay > deadline) {
+      break
+    }
+    settleWaited = delay === settleMs
+    await sleep(delay)
   }
 
-  throw new Error(
-    diagnostic(
-      `The spans of trace(s) ${traceIds.join(', ')} weren't completely captured within ${timeoutMs}ms.`
-    )
-  )
+  return states.map((state) => {
+    if (state.error) {
+      return { error: state.error }
+    }
+    if (state.settled) {
+      return { spans: state.spans }
+    }
+    return {
+      error: diagnostic(
+        state,
+        isComplete(state)
+          ? `The spans of trace(s) ${state.group.traceIds.join(', ')} were captured, but no later poll confirmed that no more were added within ${timeoutMs}ms.`
+          : `The spans of trace(s) ${state.group.traceIds.join(', ')} weren't completely captured within ${timeoutMs}ms.`
+      ),
+    }
+  })
+}
+
+/**
+ * Collects the spans of one group (see `collectSpanEventGroups`). Throws the
+ * diagnostic when the capture is incomplete.
+ */
+export async function collectSpanEvents(
+  read: (deadline: number) => Promise<string>,
+  { traceIds, expected, ...options }: CollectSpansOptions
+): Promise<TreeSpan[]> {
+  const [result] = await collectSpanEventGroups(read, {
+    ...options,
+    groups: [{ traceIds, expected }],
+  })
+  if ('error' in result) {
+    throw result.error
+  }
+  return result.spans
 }
 
 interface DeployInstance {
@@ -299,10 +399,47 @@ function isDeployInstance(
 }
 
 /**
- * Collects the spans of a request (see `collectSpanEvents`) from the server
- * output (self-hosted) or the deployment's runtime logs (deployed, from
- * `since`, which should be a bit before the request, to allow for clock
- * differences).
+ * Collects the spans of several requests at once (see
+ * `collectSpanEventGroups`), from the server output (self-hosted) or the
+ * deployment's runtime logs (deployed, from `since`, which should be a bit
+ * before the first request, to allow for clock differences). Deployed, every
+ * poll reads the runtime logs of the whole deployment once (filtered by trace
+ * locally), and every `vercel logs` call and captured span event is logged to
+ * the test output, so the data behind a tree is in the logs of every run.
+ */
+export async function collectSpanGroups(
+  next: NextInstance,
+  { groups, since }: { groups: SpanGroup[]; since: Date }
+): Promise<SpanGroupResult[]> {
+  if (isDeployInstance(next)) {
+    const log = (message: string) =>
+      require('console').log(`[otel-span-capture] ${message}`)
+    log(
+      `Collecting the spans of ${groups.length} request(s), trace(s) ${groups.flatMap((group) => group.traceIds).join(', ')}`
+    )
+    return collectSpanEventGroups(
+      (deadline) => next.getRuntimeLogs({ since, deadline }),
+      {
+        groups,
+        // Runtime logs take a while to become available.
+        timeoutMs: 360_000,
+        settleMs: 15_000,
+        pollIntervalMs: 10_000,
+        log,
+      }
+    )
+  }
+  return collectSpanEventGroups(async () => next.cliOutput, {
+    groups,
+    timeoutMs: 15_000,
+    settleMs: 250,
+    pollIntervalMs: 100,
+  })
+}
+
+/**
+ * Collects the spans of a request (see `collectSpanGroups`). Throws the
+ * diagnostic when the capture is incomplete.
  */
 export async function collectSpans(
   next: NextInstance,
@@ -312,31 +449,12 @@ export async function collectSpans(
     since,
   }: { traceIds: string[]; expected: string[]; since: Date }
 ): Promise<TreeSpan[]> {
-  if (isDeployInstance(next)) {
-    return collectSpanEvents(
-      async (deadline) =>
-        (
-          await Promise.all(
-            traceIds.map((traceId) =>
-              next.getRuntimeLogs({ since, query: traceId, deadline })
-            )
-          )
-        ).join('\n'),
-      {
-        traceIds,
-        expected,
-        // Runtime logs take a while to become available.
-        timeoutMs: 180_000,
-        settleMs: 10_000,
-        pollIntervalMs: 5_000,
-      }
-    )
-  }
-  return collectSpanEvents(async () => next.cliOutput, {
-    traceIds,
-    expected,
-    timeoutMs: 15_000,
-    settleMs: 250,
-    pollIntervalMs: 100,
+  const [result] = await collectSpanGroups(next, {
+    groups: [{ traceIds, expected }],
+    since,
   })
+  if ('error' in result) {
+    throw result.error
+  }
+  return result.spans
 }
