@@ -3,7 +3,6 @@ import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
-import { experimentalSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
@@ -86,6 +85,8 @@ export function logExperimentalInfo({
   }
 
   if (experimentalFeatures?.length) {
+    const { experimentalSchema } =
+      require('../config-schema') as typeof import('../config-schema')
     Log.bootstrap(`- Experiments (use with caution):`)
     for (const exp of experimentalFeatures) {
       const isValid = Object.prototype.hasOwnProperty.call(
