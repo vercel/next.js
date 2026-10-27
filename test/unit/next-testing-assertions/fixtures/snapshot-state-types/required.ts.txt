@@ -1,0 +1,1 @@
+import {expect} from 'vitest'; const state: object=expect.getState().snapshotState; void state;

@@ -23,7 +23,13 @@ import {
   registerTestSuiteAlias,
 } from './runner'
 import type { TestExpect } from './assertions'
-import type { spies } from '../../compiled/next-test-primitives'
+import type { SnapshotClient, spies } from '../../compiled/next-test-primitives'
+
+declare module '../../compiled/next-test-primitives' {
+  interface MatcherState {
+    snapshotState: ReturnType<SnapshotClient['getSnapshotState']>
+  }
+}
 import {
   registerPublishedTaskListener,
   type File,

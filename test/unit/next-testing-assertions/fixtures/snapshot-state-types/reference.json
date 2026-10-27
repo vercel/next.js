@@ -1,0 +1,162 @@
+{
+  "referenceVitest": "5.0.4",
+  "compiler": "6.0.2",
+  "programs": [
+    {
+      "name": "counter-map.ts",
+      "source": "counter-map.ts.txt",
+      "sourceSHA256": "1cf7e6f72c34ca2de87d2e1afd3874a9f17862acd0c01269951097a4dba709aa",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "counter-number-read.ts",
+      "source": "counter-number-read.ts.txt",
+      "sourceSHA256": "e0deacee0df609f5227239f432f0ab1d5d1935d86d9a05c335db8dbcca43d9f4",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 1
+        }
+      ]
+    },
+    {
+      "name": "counter-number-write.ts",
+      "source": "counter-number-write.ts.txt",
+      "sourceSHA256": "247a3a14077c500ece3372b88f3e27befba9bcea5f6e34bfd96a1be643108fd7",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "counter-string-write.ts",
+      "source": "counter-string-write.ts.txt",
+      "sourceSHA256": "9f12df58c4c9866e59b283ea68c043d4fed8ef25874ae9f4cdbfc8dc320ccacc",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 1
+        }
+      ]
+    },
+    {
+      "name": "counter-total.ts",
+      "source": "counter-total.ts.txt",
+      "sourceSHA256": "4c4c49064b9ca6ea184aa13408897be13e62391f8ed8962c2fa5d704623f5ee5",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "custom-matcher-this.ts",
+      "source": "custom-matcher-this.ts.txt",
+      "sourceSHA256": "75f788a5754e9600eca1f2ffb72357e0ed59052fec44cee8e0bc2ddf5c722c24",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "get-unchecked.ts",
+      "source": "get-unchecked.ts.txt",
+      "sourceSHA256": "ea44f29eee3e23a342a94fdfbbbd193156015d94f81166cfe8ed1aaf4bff1eea",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "missing-member.ts",
+      "source": "missing-member.ts.txt",
+      "sourceSHA256": "8b6032e9e1053082db8d8cce57d34620c3196722e64eb6d34ade22aa00fae3c3",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "line": 1
+        }
+      ]
+    },
+    {
+      "name": "not-undefined.ts",
+      "source": "not-undefined.ts.txt",
+      "sourceSHA256": "a1fbf91dfb4774eac43121efbb625e07ea62488482cffec9c5c5c621cacf4bef",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 1
+        }
+      ]
+    },
+    {
+      "name": "path.ts",
+      "source": "path.ts.txt",
+      "sourceSHA256": "227a92a7e14fadc51919feb9956f03abb350f9fdc7bb22ec97697c2200152b61",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "property.ts",
+      "source": "property.ts.txt",
+      "sourceSHA256": "d32e3624f28c0d1c95cde75dfee616cb5165a02d74fddc890410744f8f513af7",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "required.ts",
+      "source": "required.ts.txt",
+      "sourceSHA256": "cb2765299da6fa0a1b96da09ef615fa30e6b1eec556e20131d5ef4575a03c531",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "state-export.ts",
+      "source": "state-export.ts.txt",
+      "sourceSHA256": "b5d5f83a8122dff5b4ca77aca3a23ccf782d5585b6a6fe023e80a2558c04295c",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "write-object.ts",
+      "source": "write-object.ts.txt",
+      "sourceSHA256": "f534497ba2d94a41373052b9b14be31b8960e305686549d1a22813d944799558",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2740,
+          "line": 1
+        }
+      ]
+    },
+    {
+      "name": "write-same-state.ts",
+      "source": "write-same-state.ts.txt",
+      "sourceSHA256": "65af9e5c51f0466a26d42793d4b78ce1b81bc5b0c51ffc5fcdbcfbd9d6893cb3",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "write-undefined.ts",
+      "source": "write-undefined.ts.txt",
+      "sourceSHA256": "c40e715a61122297dea9ff653d89ed1ff21e399685a53cd122de75d85468480c",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "context-property.ts",
+      "source": "context-property.ts.txt",
+      "sourceSHA256": "97498ef4ed1201795c6a875dbaea4b94bb905d57cfbd247bebed3a3b3d4bd485",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "context-counter-negative.ts",
+      "source": "context-counter-negative.ts.txt",
+      "sourceSHA256": "e4436136ccc75db0989f8ee657bbf3d1d9ed08af0dfe9ef006bbbbd66b224cc4",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 1
+        }
+      ]
+    }
+  ]
+}

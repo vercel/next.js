@@ -696,3 +696,21 @@ it.each(['development', 'production'])(
   },
   185000
 )
+
+it('matches genuine snapshot state and CounterMap public types', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'snapshot-state-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 18,
+    accepted: 12,
+    rejected: 6,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    globalContextCustomMatcherAndStateWrites: true,
+    actualBundledSnapshotType: true,
+  })
+}, 35000)
