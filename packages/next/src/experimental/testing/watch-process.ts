@@ -70,6 +70,8 @@ export type WatchProcessRequest =
       /** Exact positive request from the actual isolated one-shot V8 owner. */
       captureOneShotV8CollectionRestoration?: true
       preparePublicSnapshots?: true
+      /** Actual one-shot read-only V8 snapshot completion owner. */
+      captureOneShotV8ReadOnlySnapshots?: true
       /** Private actual scheduler occurrence; no authored callback acknowledgement. */
       captureModuleQueued?: true
       captureTaskResults?: boolean
@@ -339,6 +341,22 @@ export async function runWatchProcess(
   )
     throw new Error(
       'Snapshot preparation requires its positive one-shot parent observer.'
+    )
+  if (
+    request.operation === 'run' &&
+    request.captureOneShotV8ReadOnlySnapshots !== undefined &&
+    (request.captureOneShotV8ReadOnlySnapshots !== true ||
+      request.isolatedProfile !== true ||
+      request.watchCoverage === true ||
+      request.userCancellation !== undefined ||
+      options.userCancelSignal !== undefined ||
+      request.collectOnly ||
+      request.snapshotUpdateMode !== 'none' ||
+      !request.standardCoverageOptions ||
+      request.standardCoverageOptions.provider !== undefined)
+  )
+    throw new Error(
+      'V8 snapshot finishing requires its actual read-only one-shot owner.'
     )
   if (
     (options.onModuleQueued &&
@@ -674,6 +692,10 @@ export async function runWatchProcess(
       ...(request.operation === 'run' &&
       request.captureOneShotV8CollectionRestoration === true
         ? { captureOneShotV8CollectionRestoration: true as const }
+        : {}),
+      ...(request.operation === 'run' &&
+      request.captureOneShotV8ReadOnlySnapshots === true
+        ? { captureOneShotV8ReadOnlySnapshots: true as const }
         : {}),
       ...(options.onCompletedModules
         ? { captureCompletedModuleResult: true as const }

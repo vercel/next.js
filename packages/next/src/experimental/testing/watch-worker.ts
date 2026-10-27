@@ -96,6 +96,13 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       request.userCancellation === undefined
         ? { captureOneShotV8CollectionRestoration: true as const }
         : {}),
+      ...(request.captureOneShotV8ReadOnlySnapshots === true &&
+      request.isolatedProfile === true &&
+      request.watchCoverage !== true &&
+      request.userCancellation === undefined &&
+      request.snapshotUpdateMode === 'none'
+        ? { captureOneShotV8ReadOnlySnapshots: true as const }
+        : {}),
       ...(request.captureModuleQueued === true
         ? {
             onModuleQueued(entry) {

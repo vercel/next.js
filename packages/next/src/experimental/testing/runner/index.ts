@@ -157,6 +157,8 @@ export interface TestFileOptions {
   captureSettledCollectionDeclarations?: true
   /** Actual isolated V8 completed collection/restoration observation only. */
   captureCollectionRestoration?: true
+  /** Actual isolated readonly Node run; never enables Istanbul rejection capture. */
+  finishReadOnlySnapshots?: true
   /** Actual Node execution omits statistics for a file that never ran. */
   omitFailedCollectionSnapshotSummary?: true
   fileId: string
@@ -328,6 +330,7 @@ function initializeFile(
     captureCollectionCoverage,
     captureSettledCollectionDeclarations,
     captureCollectionRestoration,
+    finishReadOnlySnapshots,
     omitFailedCollectionSnapshotSummary,
     fileId,
     filePath,
@@ -505,6 +508,7 @@ function initializeFile(
     | { error: unknown; carrier: object; propagatedThroughRun: boolean }
     | undefined
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
+  let completedReadOnlySnapshotFailure: RunnerFailure | undefined
   let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
   let settledCollectionLoadOnly = false
   let completedCollectionRestoration:
@@ -666,6 +670,12 @@ function initializeFile(
             snapshotBodyFailures &&
             onUnhandledRejection !== undefined,
           captureCoverageCompletion: () => captureCoverageCompletion,
+          ...(finishReadOnlySnapshots === true
+            ? {
+                finishReadOnlySnapshots: () =>
+                  runStarted && state === 'running',
+              }
+            : {}),
           ...(captureRestoration
             ? {
                 captureCollectionRestoration: true,
@@ -896,7 +906,11 @@ function initializeFile(
       try {
         const captureCompletedModuleResult =
           options.captureCompletedModuleResult === true
-        if (captureCompletedModuleResult || options.captureCoverageCompletion)
+        if (
+          captureCompletedModuleResult ||
+          options.captureCoverageCompletion ||
+          finishReadOnlySnapshots === true
+        )
           operationObservation = { bounded: new Set(), around: new Set() }
         const moduleObservation: RunnerModuleResultObservation | undefined =
           captureCompletedModuleResult ? {} : undefined
@@ -1151,7 +1165,8 @@ function initializeFile(
           workerFixtures,
           operationObservation,
           moduleObservation,
-          options.captureCoverageCompletion === true &&
+          (options.captureCoverageCompletion === true ||
+            finishReadOnlySnapshots === true) &&
             updateMode === 'none' &&
             !worker
             ? (actual) => {
@@ -1159,11 +1174,12 @@ function initializeFile(
                   if (actual.interrupted || options.signal.aborted) return false
                   if (
                     actual.errors.length &&
-                    !actual.errors.every(
-                      (failure) =>
-                        failure.phase === 'afterAll' &&
-                        isSettledAuthoredAfterAllFailure(failure)
-                    )
+                    (captureCoverageCompletion !== true ||
+                      !actual.errors.every(
+                        (failure) =>
+                          failure.phase === 'afterAll' &&
+                          isSettledAuthoredAfterAllFailure(failure)
+                      ))
                   )
                     return false
                   if (
@@ -1186,16 +1202,19 @@ function initializeFile(
                       )
                     )
                   if (actual.cases.some((test) => test.errors.length))
-                    return !actual.cases.some(
-                      (test) =>
-                        test.status === 'cancelled' ||
-                        test.errors.some(
-                          (failure) =>
-                            !isSettledBeforeEachCoverageFailure(
-                              failure,
-                              test.attempt.id
-                            )
-                        )
+                    return (
+                      captureCoverageCompletion === true &&
+                      !actual.cases.some(
+                        (test) =>
+                          test.status === 'cancelled' ||
+                          test.errors.some(
+                            (failure) =>
+                              !isSettledBeforeEachCoverageFailure(
+                                failure,
+                                test.attempt.id
+                              )
+                          )
+                      )
                     )
                   return (
                     actual.cases.some((test) => test.status === 'passed') &&
@@ -1282,6 +1301,21 @@ function initializeFile(
           )
         )
           completedCoverageFailures = Object.freeze([...result.errors])
+        if (
+          finishReadOnlySnapshots === true &&
+          !result.interrupted &&
+          !options.signal.aborted &&
+          settledReadOnlySnapshotFailure !== undefined &&
+          result.errors.length === 1 &&
+          result.errors[0] === settledReadOnlySnapshotFailure &&
+          result.cases.some((test) => test.status === 'passed') &&
+          result.cases.every(
+            (test) =>
+              (test.status === 'passed' || test.status === 'skipped') &&
+              test.errors.length === 0
+          )
+        )
+          completedReadOnlySnapshotFailure = settledReadOnlySnapshotFailure
         // A completed body failure changes the logical result, not whether the
         // snapshot owner finished. Hook/resource failures and interruptions still
         // withhold every staged byte.
@@ -1405,6 +1439,32 @@ function initializeFile(
         return undefined
       return completedCoverageFailures
     },
+    ...(finishReadOnlySnapshots === true
+      ? {
+          getCompletedReadOnlySnapshotCoverageFailure():
+            | RunnerFailure
+            | undefined {
+            if (
+              state !== 'disposed' ||
+              !disposalSucceeded ||
+              completedReadOnlySnapshotFailure === undefined ||
+              !operationObservation ||
+              (worker &&
+                (!worker.disposalSucceeded || worker.failures.length)) ||
+              runSignal?.aborted ||
+              lateErrors.length ||
+              fileAssertions?.hasCompleteNativeBodyRejections() !== true ||
+              operationObservation.pendingHooks?.size ||
+              [
+                ...operationObservation.bounded,
+                ...operationObservation.around,
+              ].some((operation) => !operation.settled)
+            )
+              return undefined
+            return completedReadOnlySnapshotFailure
+          },
+        }
+      : {}),
     getCompletedCollectionCoverageFailure() {
       if (
         captureCollectionCoverage !== true ||

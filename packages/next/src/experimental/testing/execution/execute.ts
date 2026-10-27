@@ -36,6 +36,7 @@ import {
   createCoverageAttemptTracker,
   captureNodeV8CollectionCoverage,
   captureNodeV8CollectionRestorationCoverage,
+  captureNodeV8ReadOnlySnapshotCoverage,
 } from './coverage'
 import {
   commitSnapshotUpdates,
@@ -185,8 +186,13 @@ export async function executeWithEnvironment(
     artifact,
     options
   )
+  const v8ReadOnlySnapshots = captureNodeV8ReadOnlySnapshotCoverage(
+    artifact,
+    options
+  )
   const attempts = createCoverageAttemptTracker({
-    deferSettledSuiteErrors: options.coverage?.kind === 'node-istanbul',
+    deferSettledSuiteErrors:
+      options.coverage?.kind === 'node-istanbul' || v8ReadOnlySnapshots,
     ...(options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage
       ? {
           deferSettledFileErrors:
@@ -426,7 +432,12 @@ export async function executeWithEnvironment(
           if (message.coverage !== undefined) {
             if (!options.coverage)
               throw new Error('Test worker returned unsolicited coverage')
-            assertCoverageCompletion(message.coverage, artifact, options.runId)
+            assertCoverageCompletion(
+              message.coverage,
+              artifact,
+              options.runId,
+              v8ReadOnlySnapshots ? true : undefined
+            )
             coverage = message.coverage
             attempts.observeCoverageCompletion(coverage.complete)
           }
@@ -630,7 +641,7 @@ export async function executeWithEnvironment(
         throw new Error('Test coverage is incomplete after worker interruption')
       }
       if (coverage?.complete) {
-        if (options.coverage?.kind === 'node-istanbul')
+        if (options.coverage?.kind === 'node-istanbul' || v8ReadOnlySnapshots)
           attempts.authorizeSettledSuiteErrors(coverage.settledSuiteErrors)
         if (options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage)
           attempts.authorizeSettledFileErrors(coverage.settledFileErrors)
@@ -649,7 +660,12 @@ export async function executeWithEnvironment(
           throw new Error(customCoverage.error.message)
         await onCustomCoverage!(customCoverage)
       } else {
-        assertCoverageCompletion(coverage, artifact, options.runId)
+        assertCoverageCompletion(
+          coverage,
+          artifact,
+          options.runId,
+          v8ReadOnlySnapshots ? true : undefined
+        )
         if (!coverage.complete) throw new Error(coverage.error.message)
         if (options.coverage?.kind === 'node-istanbul') {
           if (coverage.data.kind !== 'node-istanbul')

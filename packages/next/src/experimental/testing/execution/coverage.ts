@@ -136,6 +136,26 @@ export function captureNodeV8CollectionRestorationCoverage(
   )
 }
 
+/** Read-only finishing has its own actual one-shot owner, not assertion capture. */
+export function captureNodeV8ReadOnlySnapshotCoverage(
+  artifact: CompiledTestArtifact,
+  options: Pick<
+    ExecuteTestOptions,
+    | 'entry'
+    | 'coverage'
+    | 'customCoverage'
+    | 'collectOnly'
+    | 'snapshotUpdateMode'
+    | 'captureOneShotV8ReadOnlySnapshots'
+  >
+): boolean {
+  return (
+    options.captureOneShotV8ReadOnlySnapshots === true &&
+    options.snapshotUpdateMode === 'none' &&
+    captureNodeV8CollectionCoverage(artifact, options)
+  )
+}
+
 /** Every started retry must finish; skipped/unstarted cases need no interval. */
 export function createCoverageAttemptTracker(
   options: {
@@ -367,7 +387,8 @@ export function createCoverageAttemptTracker(
 export function assertCoverageCompletion(
   value: unknown,
   artifact: CompiledTestArtifact,
-  runId: string
+  runId: string,
+  readOnlySnapshotCoverage?: true
 ): asserts value is AnyTestCoverageCompletion {
   if (artifact.coverage?.sourceAnalysis)
     throw new Error(
@@ -378,7 +399,11 @@ export function assertCoverageCompletion(
   }
   const completion = value as AnyTestCoverageCompletion
   if (
-    ('settledSuiteErrors' in completion && !artifact.coverage?.istanbul) ||
+    ('settledSuiteErrors' in completion &&
+      !artifact.coverage?.istanbul &&
+      !(
+        readOnlySnapshotCoverage === true && nodeV8CollectionArtifact(artifact)
+      )) ||
     ('settledFileErrors' in completion &&
       !artifact.coverage?.istanbul &&
       !nodeV8CollectionArtifact(artifact)) ||

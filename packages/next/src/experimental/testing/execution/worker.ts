@@ -47,6 +47,7 @@ import { assertCompiledSetup } from './setup'
 import {
   captureNodeV8CollectionCoverage,
   captureNodeV8CollectionRestorationCoverage,
+  captureNodeV8ReadOnlySnapshotCoverage,
 } from './coverage'
 import { openTestEnvironment } from '../environments/runtime'
 import { installTestConsole } from './console'
@@ -133,6 +134,10 @@ async function run({
     options
   )
   const v8CollectionRestoration = captureNodeV8CollectionRestorationCoverage(
+    artifact,
+    options
+  )
+  const v8ReadOnlySnapshots = captureNodeV8ReadOnlySnapshotCoverage(
     artifact,
     options
   )
@@ -406,6 +411,7 @@ async function run({
   let coverage: AnyTestCoverageCompletion | undefined
   let coverageComplete = true
   const provisionalCoverageFailures: RunnerFailure[] = []
+  let readOnlySnapshotCompletion: (() => RunnerFailure | undefined) | undefined
   const reportedFileErrors: {
     failure: RunnerFailure
     index: number
@@ -855,6 +861,9 @@ async function run({
       ...(options.preparePublicSnapshots === true
         ? { preparePublicSnapshots: true }
         : {}),
+      ...(v8ReadOnlySnapshots
+        ? { finishReadOnlySnapshots: true as const }
+        : {}),
       ...(artifact.kind === 'node' &&
       artifact.profile.environment === 'node' &&
       artifact.profile.route === undefined &&
@@ -962,6 +971,19 @@ async function run({
       sequence: options.sequence,
       provide: options.provide,
     })
+    if (v8ReadOnlySnapshots) {
+      const method = Object.getOwnPropertyDescriptor(
+        file,
+        'getCompletedReadOnlySnapshotCoverageFailure'
+      )
+      if (!method || !('value' in method) || typeof method.value !== 'function')
+        throw new Error(
+          'Compiled test runner lacks read-only snapshot completion.'
+        )
+      const apply = Reflect.apply
+      const getCompleted = method.value
+      readOnlySnapshotCompletion = () => apply(getCompleted, file, [])
+    }
     releaseNativeAssertionRecords = () =>
       file?.releaseNativeBodyRejectionRecords?.()
     if (
@@ -1314,7 +1336,8 @@ async function run({
             failure.phase === 'afterAll' ||
             failure.phase === 'cleanup' ||
             failure.phase === 'runtime') &&
-          options.coverage?.kind === 'node-istanbul'
+          (options.coverage?.kind === 'node-istanbul' ||
+            (v8ReadOnlySnapshots && failure.phase === 'runtime'))
         ) {
           snapshotHostComplete = false
           provisionalCoverageFailures.push(failure)
@@ -1323,7 +1346,8 @@ async function run({
           ((failure.phase === 'cleanup' || failure.phase === 'afterAll') &&
             options.coverage?.kind !== 'node-istanbul') ||
           (failure.phase === 'runtime' &&
-            options.coverage?.kind !== 'node-istanbul')
+            options.coverage?.kind !== 'node-istanbul' &&
+            !v8ReadOnlySnapshots)
         ) {
           snapshotHostComplete = false
           coverageComplete = false
@@ -1680,6 +1704,29 @@ async function run({
             }
           }
         }
+      }
+      if (v8ReadOnlySnapshots && provisionalCoverageFailures.length) {
+        const observed = readOnlySnapshotCompletion?.()
+        const owners = reportedSuiteErrors.filter(
+          (item) => item.failure === observed
+        )
+        if (
+          observed === undefined ||
+          provisionalCoverageFailures.length !== 1 ||
+          provisionalCoverageFailures[0] !== observed ||
+          owners.length !== 1 ||
+          owners[0].suiteId !== artifact.entryId ||
+          reportedSuiteErrors.length !== 1 ||
+          provisionalCollectionFailure ||
+          provisionalRestorationFailure ||
+          reportedFileErrors.length ||
+          lateFailures.failed
+        )
+          coverageComplete = false
+        else
+          settledSuiteErrors = [
+            { suiteId: owners[0].suiteId, index: owners[0].index },
+          ]
       }
       if (!coverageCollector)
         throw new Error('Test coverage collection did not start')

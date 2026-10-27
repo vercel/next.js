@@ -21912,3 +21912,271 @@ describe('actual readonly snapshot completion for passed files', () => {
     130000
   )
 })
+
+describe('actual one-shot V8 readonly snapshot completion for passed files', () => {
+  it.each([
+    'obsolete',
+    'none',
+    'none-omitted',
+    'skip-first',
+    'filtered',
+    'focused',
+    'omitted',
+    'empty',
+    'all-skipped',
+    'body',
+    'beforeAll',
+    'afterEach',
+    'cleanup-same-obsolete',
+    'finish-undefined',
+    'pending-finish',
+    'pending-abort',
+    'abort-before-run',
+    'nontrue',
+    'cleanup-undefined',
+    'pending-undefined',
+  ])(
+    'retains actual SDK/root/physical ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-readonly-passing-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'read-only-v8-passing-snapshot.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualFile: true,
+          actualSnapshotFinishOnce: true,
+          rootEvents: 1,
+          snapshotBytesUnchanged: true,
+          rawErrorFieldsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+
+  it.each([
+    'v8-passing-plain-original-report-true',
+    'v8-passing-plain-original-report-false',
+    'v8-passing-plain-removed-formatted-report-true',
+    'v8-passing-filtered-removed-formatted-report-true',
+    'v8-passing-focused-removed-formatted-report-true',
+    'v8-passing-skip-first-removed-formatted-report-true',
+    'v8-passing-no-obsolete-report-true',
+  ])(
+    'matches genuine standard reports and actual root errors for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-readonly-passing-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'readonly-v8-passing-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualOrdinaryPassedCase: true,
+          actualOrderedModuleErrors: true,
+          actualOrderedRootErrors: true,
+          completeCaseReportAndMap: true,
+          completeCoverageFiles: true,
+          snapshotBytesUnchanged: true,
+          rawFrameEqualityQualified: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual one-shot V8 readonly completion owner and suite slots', () => {
+  it('requires the exact positive owner, readonly mode and eligible artifact', async () => {
+    const { captureNodeV8ReadOnlySnapshotCoverage, assertCoverageCompletion } =
+      await import('next/dist/experimental/testing/execution/coverage')
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      profile,
+      entryId: 'readonly-owner',
+      revision: 'actual',
+      rootDir: '/readonly-owner',
+      entryPath: 'entry.js',
+      files: [],
+      diagnostics: [],
+      coverage: { version: 1, scripts: [], sources: {} },
+    }
+    const request = {
+      entry: {
+        id: artifact.entryId,
+        file: '/readonly-owner/entry.test.mjs',
+        profile,
+      },
+      coverage: { version: 1 as const, kind: 'node-line' as const },
+      snapshotUpdateMode: 'none' as const,
+    }
+    expect(captureNodeV8ReadOnlySnapshotCoverage(artifact, request)).toBe(false)
+    for (const role of [undefined, false, 1, 'true', {}, []])
+      expect(
+        Reflect.apply(captureNodeV8ReadOnlySnapshotCoverage, undefined, [
+          artifact,
+          { ...request, captureOneShotV8ReadOnlySnapshots: role },
+        ])
+      ).toBe(false)
+    const owned = {
+      ...request,
+      captureOneShotV8ReadOnlySnapshots: true as const,
+    }
+    expect(captureNodeV8ReadOnlySnapshotCoverage(artifact, owned)).toBe(true)
+    for (const mode of [undefined, 'all', 'new'])
+      expect(
+        Reflect.apply(captureNodeV8ReadOnlySnapshotCoverage, undefined, [
+          artifact,
+          { ...owned, snapshotUpdateMode: mode },
+        ])
+      ).toBe(false)
+    for (const file of [
+      'entry.test.ts',
+      'entry.test.tsx',
+      'entry.test.jsx',
+      'entry.test.cjs',
+    ])
+      expect(
+        captureNodeV8ReadOnlySnapshotCoverage(artifact, {
+          ...owned,
+          entry: { ...request.entry, file },
+        })
+      ).toBe(false)
+    expect(
+      captureNodeV8ReadOnlySnapshotCoverage(artifact, {
+        ...owned,
+        collectOnly: true,
+      })
+    ).toBe(false)
+    expect(
+      captureNodeV8ReadOnlySnapshotCoverage(
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        owned
+      )
+    ).toBe(false)
+    expect(
+      captureNodeV8ReadOnlySnapshotCoverage(
+        { ...artifact, profile: { ...profile, environment: 'browser' } },
+        owned
+      )
+    ).toBe(false)
+    const completion = {
+      version: 1,
+      runId: 'actual-run',
+      entryId: artifact.entryId,
+      revision: artifact.revision,
+      complete: true,
+      data: { version: 1, scripts: [] },
+      settledSuiteErrors: [{ suiteId: artifact.entryId, index: 0 }],
+    }
+    expect(() =>
+      assertCoverageCompletion(completion, artifact, 'actual-run')
+    ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(completion, artifact, 'actual-run', true)
+    ).not.toThrow()
+    for (const role of [undefined, false, 1, 'true', {}])
+      expect(() =>
+        Reflect.apply(assertCoverageCompletion, undefined, [
+          completion,
+          artifact,
+          'actual-run',
+          role,
+        ])
+      ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(
+        completion,
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        'actual-run',
+        true
+      )
+    ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(
+        {
+          ...completion,
+          complete: false,
+          error: { message: 'actual failure' },
+        },
+        artifact,
+        'actual-run',
+        true
+      )
+    ).toThrow('Unrequested')
+    const { settledSuiteErrors: _slots, ...omitted } = completion
+    expect(() =>
+      assertCoverageCompletion(omitted, artifact, 'actual-run')
+    ).not.toThrow()
+    expect(Object.hasOwn(request, 'captureOneShotV8ReadOnlySnapshots')).toBe(
+      false
+    )
+    expect(Object.hasOwn(omitted, 'settledSuiteErrors')).toBe(false)
+  })
+  it('keeps malformed or unowned compiler-process requests outside the role', async () => {
+    const { runWatchProcess } = await import(
+      'next/dist/experimental/testing/watch-process'
+    )
+    const base = {
+      operation: 'run' as const,
+      projectDir: '/readonly-owner',
+      projects: [],
+      isolatedProfile: true,
+      snapshotUpdateMode: 'none' as const,
+      standardCoverageOptions: { provider: undefined },
+      captureOneShotV8ReadOnlySnapshots: true,
+    }
+    for (const changes of [
+      { captureOneShotV8ReadOnlySnapshots: 1 },
+      { isolatedProfile: false },
+      { watchCoverage: true },
+      { userCancellation: true },
+      { snapshotUpdateMode: 'new' },
+      { collectOnly: true },
+      { standardCoverageOptions: undefined },
+      { standardCoverageOptions: { provider: 'istanbul' } },
+    ])
+      await expect(
+        Reflect.apply(runWatchProcess, undefined, [
+          { ...base, ...changes },
+          { signal: new AbortController().signal },
+        ])
+      ).rejects.toThrow('actual read-only one-shot owner')
+  })
+})

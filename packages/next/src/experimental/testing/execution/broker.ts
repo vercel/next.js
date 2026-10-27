@@ -20,7 +20,10 @@ import type {
 import type { ResultEvent, SerializedDiagnostic } from '../reporting/events'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
-import { captureNodeV8CollectionRestorationCoverage } from './coverage'
+import {
+  captureNodeV8CollectionRestorationCoverage,
+  captureNodeV8ReadOnlySnapshotCoverage,
+} from './coverage'
 import {
   executeCohortWithEnvironment,
   CohortExecutionClosedError,
@@ -151,6 +154,8 @@ export function createExecutionBrokerHost(options: {
   signal: AbortSignal
   /** Positive actual one-shot owner; compiler children cannot opt themselves in. */
   captureOneShotV8CollectionRestoration?: true
+  /** Actual one-shot read-only V8 snapshot completion owner. */
+  captureOneShotV8ReadOnlySnapshots?: true
   /** Parent-only capture; completion never grants compiler-child rights. */
   captureCompletedModuleResult?: true
   /** Parent-owned scheduling request, independent of the generation lifetime. */
@@ -485,6 +490,17 @@ export function createExecutionBrokerHost(options: {
               ))
           )
             throw new Error('Unrequested one-shot V8 restoration capture.')
+          if (
+            message.options.captureOneShotV8ReadOnlySnapshots !== undefined &&
+            (options.captureOneShotV8ReadOnlySnapshots !== true ||
+              !captureNodeV8ReadOnlySnapshotCoverage(
+                message.artifact,
+                message.options
+              ))
+          )
+            throw new Error(
+              'Unrequested one-shot V8 read-only snapshot capture.'
+            )
           if (
             message.options.captureCompletedModuleResult &&
             !options.captureCompletedModuleResult

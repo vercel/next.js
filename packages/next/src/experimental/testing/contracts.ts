@@ -439,6 +439,8 @@ export interface ExecuteTestOptions {
   onSnapshotPreparationFailure?: (
     failure: import('./execution/snapshot-preparation').SnapshotPreparationFailure
   ) => void | Promise<void>
+  /** Actual one-shot read-only V8 snapshot completion owner. */
+  captureOneShotV8ReadOnlySnapshots?: true
   /** Private opt-in actual fulfilled module timing and selection provenance. */
   captureCompletedModuleResult?: true
   /** Opt-in live reporter snapshots from actual logical-case producers. */

@@ -289,6 +289,8 @@ export async function createAssertionRuntime(options: {
   observeNativeBeforeEachCleanupAssertions?: boolean
   /** Actual bundle-local file run option, known after collection. */
   captureCoverageCompletion?: () => boolean
+  /** Actual explicitly owned readonly run; separate from Istanbul rejection capture. */
+  finishReadOnlySnapshots?: () => boolean
   /** Actual isolated V8 failed-collection restoration observation only. */
   captureCollectionRestoration?: true
   /** Actual File load/run state, consulted only by the explicit private role. */
@@ -4203,7 +4205,8 @@ export async function createAssertionRuntime(options: {
       selection: { partial: boolean; complete: boolean }
     ) {
       if (
-        options.captureCoverageCompletion?.() !== true ||
+        (options.captureCoverageCompletion?.() !== true &&
+          options.finishReadOnlySnapshots?.() !== true) ||
         ('deferSnapshotPreparation' in options &&
           options.deferSnapshotPreparation === true) ||
         snapshotOptions.updateSnapshot !== 'none' ||

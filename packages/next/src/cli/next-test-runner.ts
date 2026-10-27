@@ -1122,6 +1122,12 @@ export async function nextTestRunner(
           standardCoverageOptions.provider === undefined
             ? { captureOneShotV8CollectionRestoration: true as const }
             : {}),
+          ...(standardCoverageOptions &&
+          standardCoverageOptions.provider === undefined &&
+          !options.update &&
+          process.env.CI
+            ? { captureOneShotV8ReadOnlySnapshots: true as const }
+            : {}),
           ...(machine.captureModuleCollected
             ? { captureModuleCollected: true as const }
             : {}),

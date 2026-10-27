@@ -72,7 +72,10 @@ import {
   type SnapshotUpdateMode,
 } from './assertions/snapshots'
 
-import { captureNodeV8CollectionCoverage } from './execution/coverage'
+import {
+  captureNodeV8CollectionCoverage,
+  captureNodeV8ReadOnlySnapshotCoverage,
+} from './execution/coverage'
 
 interface PreparedTest {
   entry: TestEntry
@@ -91,6 +94,8 @@ export interface RunTestsOptions {
     failure: SnapshotPreparationFailure,
     deliveredDiagnostic?: Extract<ResultEvent, { type: 'diagnostic' }>
   ) => void | Promise<void>
+  /** Actual one-shot read-only V8 snapshot completion owner. */
+  captureOneShotV8ReadOnlySnapshots?: true
   /** Private reporter request for actual collected-file observations. */
   captureModuleCollected?: true
   /** Actual selected-file scheduling; never a collected task snapshot. */
@@ -1061,6 +1066,16 @@ export async function runTests(
               })
                 ? { captureOneShotV8CollectionRestoration: true as const }
                 : {}),
+              ...(captureNodeV8ReadOnlySnapshotCoverage(artifact, {
+                entry,
+                coverage: { version: 1, kind: 'node-line' },
+                snapshotUpdateMode,
+                ...(options.captureOneShotV8ReadOnlySnapshots === true
+                  ? { captureOneShotV8ReadOnlySnapshots: true as const }
+                  : {}),
+              })
+                ? { captureOneShotV8ReadOnlySnapshots: true as const }
+                : {}),
               coverage: {
                 version: 1 as const,
                 kind: artifact.profile.browserClient
@@ -1361,6 +1376,9 @@ export async function runTests(
             : {}),
           ...(options.preparePublicSnapshots === true
             ? { preparePublicSnapshots: true as const }
+            : {}),
+          ...(options.captureOneShotV8ReadOnlySnapshots === true
+            ? { captureOneShotV8ReadOnlySnapshots: true as const }
             : {}),
           ...(options.onModuleQueued
             ? { captureModuleQueued: true as const }
