@@ -1,11 +1,6 @@
 import type { ProxyFetchRequest, ProxyResponse } from './types'
 import { ABORT, CONTINUE, UNHANDLED } from './types'
 
-/**
- * The server test proxy normalizes compression headers on fetched responses.
- * Constructed responses are forwarded as supplied, including compressed bodies.
- * Handlers that replace a fetched body must also update its headers.
- */
 export type FetchHandlerResult =
   | Response
   | 'abort'
@@ -28,6 +23,12 @@ function buildRequest(req: ProxyFetchRequest): Request {
   })
 }
 
+/**
+ * Serializes a handler result, normalizing compression headers on fetched
+ * responses. Constructed responses are forwarded as supplied, including
+ * compressed bodies. Handlers that replace a fetched body must also update
+ * its headers.
+ */
 async function buildResponse(
   response: FetchHandlerResult
 ): Promise<ProxyResponse> {
