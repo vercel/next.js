@@ -58,10 +58,26 @@ describe('testmode', () => {
           if (testData === 'fetch-response') {
             return fetch(request)
           }
+          if (testData === 'fetch-response-clone') {
+            return (await fetch(request)).clone()
+          }
+          if (testData === 'compressed-response') {
+            const body = gzipSync('explicitly compressed mock')
+            return new Response(body, {
+              headers: {
+                'content-type': 'text/plain',
+                'content-encoding': 'gzip',
+                'content-length': String(body.length),
+              },
+            })
+          }
           if (testData === 'modified-response') {
             const response = await fetch(request)
+            const headers = new Headers(response.headers)
+            headers.delete('content-encoding')
+            headers.delete('content-length')
             return new Response(`modified:${await response.text()}`, {
-              headers: response.headers,
+              headers,
             })
           }
           return 'continue'
@@ -99,13 +115,12 @@ describe('testmode', () => {
 
     beforeAll(async () => {
       upstream = createServer((req, res) => {
-        const index = Number(
-          new URL(req.url!, 'http://localhost').searchParams.get('case')
-        )
+        const params = new URL(req.url!, 'http://localhost').searchParams
+        const index = Number(params.get('case'))
         const { plain, withLength } = cases[index]
         const body = gzipSync(plain)
         res.setHeader('content-type', 'text/plain')
-        res.setHeader('content-encoding', 'gzip')
+        res.setHeader('content-encoding', params.get('encoding') ?? 'gzip')
         if (withLength) res.setHeader('content-length', body.length)
         res.writeHead(200)
         res.end(body)
@@ -144,6 +159,34 @@ describe('testmode', () => {
       }
     )
 
+    it('should preserve explicitly compressed mock bytes and headers', async () => {
+      const url = `/api/compressed-http?url=${encodeURIComponent(`${upstreamUrl}?case=1`)}`
+      const response = await fetchForTest(url, 'compressed-response')
+      expect(response.status).toBe(200)
+      const result = await response.json()
+      const body = Buffer.from(result.body, 'base64')
+      expect(body).toEqual(gzipSync('explicitly compressed mock'))
+      expect(gunzipSync(body).toString()).toBe('explicitly compressed mock')
+      expect(result.headers['content-type']).toBe('text/plain')
+      expect(result.headers['content-encoding']).toBe('gzip')
+      expect(result.headers['content-length']).toBe(String(body.length))
+    })
+
+    it.each(['custom', 'gzip, custom'])(
+      'should preserve fetched bytes with unsupported encoding %s',
+      async (encoding) => {
+        const upstream = `${upstreamUrl}?case=1&encoding=${encodeURIComponent(encoding)}`
+        const url = `/api/compressed-http?url=${encodeURIComponent(upstream)}`
+        const response = await fetchForTest(url, 'fetch-response')
+        expect(response.status).toBe(200)
+        const result = await response.json()
+        const body = Buffer.from(result.body, 'base64')
+        expect(body).toEqual(gzipSync(cases[1].plain))
+        expect(result.headers['content-encoding']).toBe(encoding)
+        expect(result.headers['content-length']).toBe(String(body.length))
+      }
+    )
+
     describe.each(['without test context', 'with proxy continue'])(
       '%s',
       (context) => {
@@ -169,37 +212,37 @@ describe('testmode', () => {
       }
     )
 
-    describe.each(['fetch-response', 'modified-response'])(
-      'with proxy %s',
-      (testData) => {
-        it.each(cases)(
-          'should forward $name with a decoded body and matching headers',
-          async ({ plain, withLength }) => {
-            const index = cases.findIndex(
-              (entry) =>
-                entry.plain === plain && entry.withLength === withLength
-            )
-            const url = `/api/compressed-http?url=${encodeURIComponent(`${upstreamUrl}?case=${index}`)}`
-            const response = await fetchForTest(url, testData)
-            expect(response.status).toBe(200)
+    describe.each([
+      'fetch-response',
+      'fetch-response-clone',
+      'modified-response',
+    ])('with proxy %s', (testData) => {
+      it.each(cases)(
+        'should forward $name with a decoded body and matching headers',
+        async ({ plain, withLength }) => {
+          const index = cases.findIndex(
+            (entry) => entry.plain === plain && entry.withLength === withLength
+          )
+          const url = `/api/compressed-http?url=${encodeURIComponent(`${upstreamUrl}?case=${index}`)}`
+          const response = await fetchForTest(url, testData)
+          expect(response.status).toBe(200)
 
-            const result = await response.json()
-            const body = Buffer.from(result.body, 'base64')
-            const expected =
-              testData === 'modified-response' ? `modified:${plain}` : plain
-            expect(body.toString()).toBe(expected)
-            expect(result.headers['content-type']).toBe('text/plain')
-            expect(result.headers['content-encoding']).toBeUndefined()
-            // The interceptor may omit the length, but must not retain a stale one.
-            if (result.headers['content-length'] !== undefined) {
-              expect(result.headers['content-length']).toBe(
-                String(Buffer.byteLength(expected))
-              )
-            }
+          const result = await response.json()
+          const body = Buffer.from(result.body, 'base64')
+          const expected =
+            testData === 'modified-response' ? `modified:${plain}` : plain
+          expect(body.toString()).toBe(expected)
+          expect(result.headers['content-type']).toBe('text/plain')
+          expect(result.headers['content-encoding']).toBeUndefined()
+          // The interceptor may omit the length, but must not retain a stale one.
+          if (result.headers['content-length'] !== undefined) {
+            expect(result.headers['content-length']).toBe(
+              String(Buffer.byteLength(expected))
+            )
           }
-        )
-      }
-    )
+        }
+      )
+    })
   })
 
   describe('app router', () => {

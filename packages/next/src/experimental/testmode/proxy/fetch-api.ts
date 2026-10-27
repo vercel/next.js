@@ -1,6 +1,11 @@
 import type { ProxyFetchRequest, ProxyResponse } from './types'
 import { ABORT, CONTINUE, UNHANDLED } from './types'
 
+/**
+ * The server test proxy normalizes compression headers on fetched responses.
+ * Constructed responses are forwarded as supplied, including compressed bodies.
+ * Handlers that replace a fetched body must also update its headers.
+ */
 export type FetchHandlerResult =
   | Response
   | 'abort'
@@ -36,7 +41,26 @@ async function buildResponse(
     return CONTINUE
   }
 
-  const { status, headers, body } = response
+  const { status, body } = response
+  const headers = new Headers(response.headers)
+  const contentEncoding = headers.get('content-encoding')
+  // Fetch responses (including clones) have a URL; constructed mocks do not.
+  // Normalize only encodings fetch decodes, preserving unknown encodings and
+  // bodyless responses such as HEAD, whose headers describe the representation.
+  if (
+    response.url &&
+    body &&
+    contentEncoding &&
+    contentEncoding
+      .toLowerCase()
+      .split(',')
+      .every((coding) =>
+        ['gzip', 'x-gzip', 'deflate', 'br'].includes(coding.trim())
+      )
+  ) {
+    headers.delete('content-encoding')
+    headers.delete('content-length')
+  }
   return {
     api: 'fetch',
     response: {
