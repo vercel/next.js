@@ -21543,3 +21543,165 @@ describe('actual compiled V8 restoration continuation', () => {
     130000
   )
 })
+
+describe('actual readonly snapshot completion after settled beforeEach', () => {
+  it.each([
+    'plain',
+    'skipped-selection',
+    'async',
+    'omitted',
+    'body',
+    'afterAll',
+    'mixed-afterEach',
+    'finish-undefined',
+    'finish-same-error',
+    'cleanup-error',
+    'cleanup-same-obsolete',
+    'successful-requested',
+    'successful-omitted',
+    'pending-finish',
+    'pending-undefined',
+    'pending-abort',
+    'finalization-same-error',
+  ])(
+    'retains exact root and physical finish ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-readonly-snapshot-finish-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'read-only-snapshot-finish.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualFile: true,
+          actualSnapshotFinishOnce: true,
+          snapshotBytesUnchanged: true,
+          rawErrorFieldsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+
+  it('excludes the deferred snapshot preparation role from early finish', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-readonly-snapshot-deferred-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'read-only-snapshot-finish.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'deferred-fence',
+        ],
+        {
+          env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+          stdio: 'pipe',
+          timeout: 35000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        syntheticDeferredExcluded: true,
+        newMethodFinishCalls: 0,
+        originalFinishCleanupInvoked: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 40000)
+
+  it('matches the unchanged genuine obsolete-snapshot message and complete Istanbul reports', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-readonly-snapshot-public-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'istanbul-beforeeach-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'beforeeach-async',
+          '--source',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 125000,
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        actualSettledBeforeEachFailure: true,
+        completeAuthoredMessages: true,
+        authoredFileAndLine: true,
+        rawFrameEqualityQualified: false,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 130000)
+})
+
+it('keeps readonly snapshot bookkeeping unobservable to ordinary Set constructors', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const output = await mkdtemp(join(tmpdir(), 'next-readonly-snapshot-sets-'))
+  const counts: number[] = []
+  try {
+    for (const mode of ['successful-omitted', 'successful-requested']) {
+      const directory = join(output, mode)
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'read-only-snapshot-finish.mjs'),
+          join(__dirname, '../../..'),
+          directory,
+          mode,
+        ],
+        {
+          env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+          stdio: 'pipe',
+          timeout: 35000,
+        }
+      )
+      const receipt = JSON.parse(
+        await readFile(join(directory, 'VERIFIED.json'), 'utf8')
+      )
+      counts.push(receipt.setConstructors)
+      expect(receipt).toMatchObject({
+        actualFile: true,
+        actualSnapshotFinishOnce: true,
+        rootEvents: 1,
+        actualLogicalObsolete: false,
+      })
+    }
+    // The actual pre-finalizer runtime creates nineteen Sets in both profiles.
+    expect(counts).toEqual([19, 19])
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 80000)

@@ -891,6 +891,7 @@ function initializeFile(
       captureCoverageCompletion = options.captureCoverageCompletion === true
       lateFailureSink = options.onLateFailure
       let rootDuration: number | undefined
+      let settledReadOnlySnapshotFailure: RunnerFailure | undefined
       try {
         const captureCompletedModuleResult =
           options.captureCompletedModuleResult === true
@@ -1148,7 +1149,60 @@ function initializeFile(
           },
           workerFixtures,
           operationObservation,
-          moduleObservation
+          moduleObservation,
+          options.captureCoverageCompletion === true &&
+            updateMode === 'none' &&
+            !worker
+            ? (actual) => {
+                const eligible = () =>
+                  !(
+                    actual.interrupted ||
+                    options.signal.aborted ||
+                    actual.errors.length ||
+                    !operationObservation ||
+                    operationObservation.pendingHooks?.size ||
+                    [
+                      ...operationObservation.bounded,
+                      ...operationObservation.around,
+                    ].some((operation) => !operation.settled) ||
+                    !actual.cases.some((test) => test.errors.length) ||
+                    actual.cases.some(
+                      (test) =>
+                        test.status === 'cancelled' ||
+                        test.errors.some(
+                          (failure) =>
+                            !isSettledBeforeEachCoverageFailure(
+                              failure,
+                              test.attempt.id
+                            )
+                        )
+                    )
+                  )
+                if (!eligible()) return undefined
+                return async () => {
+                  if (!eligible()) return undefined
+                  const finalCases = getFinalCaseResults(actual.cases)
+                  const finished =
+                    await runtime.finishReadOnlySnapshotSelection(
+                      [...finalCases.values()],
+                      {
+                        partial:
+                          options.testNamePattern !== undefined ||
+                          hasFocusedTests(collector.root),
+                        // The existing beforeEach failure policy stays incomplete.
+                        complete: false,
+                      }
+                    )
+                  if (!finished?.obsolete) return undefined
+                  const failure: RunnerFailure = {
+                    phase: 'runtime',
+                    error: finished.obsolete,
+                  }
+                  settledReadOnlySnapshotFailure = failure
+                  return failure
+                }
+              }
+            : undefined
         )
         if (worker && (result.interrupted || options.signal.aborted))
           worker.fail(
@@ -1183,7 +1237,9 @@ function initializeFile(
           result.errors.every(
             (failure) =>
               isSettledCoverageFailure(failure) ||
-              coverageAfterAllCarriers.has(failure)
+              coverageAfterAllCarriers.has(failure) ||
+              (settledReadOnlySnapshotFailure !== undefined &&
+                failure === settledReadOnlySnapshotFailure)
           ) &&
           result.cases.every(
             (test) =>

@@ -395,7 +395,10 @@ export async function runCollected(
   suiteHooks?: SuiteHookLifecycle,
   workerFixtures?: FixtureWorker,
   operationObservation?: RunnerOperationObservation,
-  moduleObservation?: RunnerModuleResultObservation
+  moduleObservation?: RunnerModuleResultObservation,
+  beforeRootSuiteResult?: (
+    result: RunnerResult
+  ) => (() => Promise<RunnerFailure | undefined>) | undefined
 ): Promise<RunnerResult> {
   const seed = options.sequence?.seed ?? frameworkDateNow()
   const hookSequence = () => options.sequence?.hooks ?? 'stack'
@@ -2463,6 +2466,7 @@ export async function runCollected(
     )
   }
 
+  let deferredRootSuiteResult: (() => Promise<void>) | undefined
   async function runSuite(
     node: TestSuite,
     ancestors: TestSuite[],
@@ -2895,69 +2899,83 @@ export async function runCollected(
           await runSuite(child, ancestors, [], 'skip', true)
         else await runCase(child, ancestors, [], true)
     }
-    const finalCases = getFinalCaseResults(
-      result.cases.filter(
-        (test) =>
-          node === root ||
-          test.ancestors?.some((parent) => parent.id === node.id)
+    function publishSuiteResult() {
+      const finalCases = getFinalCaseResults(
+        result.cases.filter(
+          (test) =>
+            node === root ||
+            test.ancestors?.some((parent) => parent.id === node.id)
+        )
       )
-    )
-    const children = node.children.flatMap((child) => {
-      const completed =
-        child.type === 'suite' ? suiteResults.get(child.id) : undefined
-      return completed ? [completed] : []
-    })
-    const failed =
-      (!collectionBlocked && errors.length > 0) ||
-      children.some((child) => child.status === 'failed') ||
-      [...finalCases.values()].some((test) => test.status === 'failed')
-    const cancelled =
-      options.signal.aborted ||
-      poisoned ||
-      children.some((child) => child.status === 'cancelled')
-    const suiteResult: RunnerSuiteResult = {
-      entryId: root.id,
-      suiteId: node.id,
-      name: node.name,
-      ancestors: ancestors
-        .filter((parent) => parent !== root && parent !== node)
-        .map(({ id, name }) => ({ id, name })),
-      mode,
-      status: collectionBlocked
-        ? 'skipped'
-        : failed
-          ? 'failed'
-          : cancelled
-            ? 'cancelled'
-            : !runnable(node) &&
-                !(node === root && options.passWithNoTests && !hasTests(node))
-              ? 'skipped'
-              : 'passed',
-      durationMs: frameworkDateNow() - start,
-      blockedDescendants,
-      errors,
+      const children = node.children.flatMap((child) => {
+        const completed =
+          child.type === 'suite' ? suiteResults.get(child.id) : undefined
+        return completed ? [completed] : []
+      })
+      const failed =
+        (!collectionBlocked && errors.length > 0) ||
+        children.some((child) => child.status === 'failed') ||
+        [...finalCases.values()].some((test) => test.status === 'failed')
+      const cancelled =
+        options.signal.aborted ||
+        poisoned ||
+        children.some((child) => child.status === 'cancelled')
+      const suiteResult: RunnerSuiteResult = {
+        entryId: root.id,
+        suiteId: node.id,
+        name: node.name,
+        ancestors: ancestors
+          .filter((parent) => parent !== root && parent !== node)
+          .map(({ id, name }) => ({ id, name })),
+        mode,
+        status: collectionBlocked
+          ? 'skipped'
+          : failed
+            ? 'failed'
+            : cancelled
+              ? 'cancelled'
+              : !runnable(node) &&
+                  !(node === root && options.passWithNoTests && !hasTests(node))
+                ? 'skipped'
+                : 'passed',
+        durationMs: frameworkDateNow() - start,
+        blockedDescendants,
+        errors,
+      }
+      if (publicSuite.result) {
+        const publishedState =
+          suiteResult.status === 'passed'
+            ? 'pass'
+            : suiteResult.status === 'skipped'
+              ? 'skip'
+              : 'fail'
+        publicSuite.result.state = publishedState
+        if (moduleObservation && node === root)
+          moduleObservation.finalState = publishedState
+        publicSuite.result.duration = suiteResult.durationMs
+        if (errors.length)
+          publicSuite.result.errors = errors
+            .flatMap(({ error }) =>
+              error instanceof AggregateError ? error.errors : [error]
+            )
+            .map((error) => serializeTaskError(error))
+      }
+      suiteResults.set(node.id, suiteResult)
+      options.setCurrentTask?.(publicSuite.suite || publicSuite.file)
+      return options.onSuiteEnd?.(suiteResult, publicSuite)
     }
-    if (publicSuite.result) {
-      const publishedState =
-        suiteResult.status === 'passed'
-          ? 'pass'
-          : suiteResult.status === 'skipped'
-            ? 'skip'
-            : 'fail'
-      publicSuite.result.state = publishedState
-      if (moduleObservation && node === root)
-        moduleObservation.finalState = publishedState
-      publicSuite.result.duration = suiteResult.durationMs
-      if (errors.length)
-        publicSuite.result.errors = errors
-          .flatMap(({ error }) =>
-            error instanceof AggregateError ? error.errors : [error]
-          )
-          .map((error) => serializeTaskError(error))
-    }
-    suiteResults.set(node.id, suiteResult)
-    options.setCurrentTask?.(publicSuite.suite || publicSuite.file)
-    await options.onSuiteEnd?.(suiteResult, publicSuite)
+    const finalizeRoot =
+      node === root ? beforeRootSuiteResult?.(result) : undefined
+    if (finalizeRoot) {
+      deferredRootSuiteResult = async () => {
+        const failure = await finalizeRoot()
+        if (failure) {
+          errors.push(failure)
+          result.errors.push(failure)
+        }
+        await publishSuiteResult()
+      }
+    } else await publishSuiteResult()
   }
   try {
     if (options.onCollected) await options.onCollected(collectedFile)
@@ -3027,6 +3045,7 @@ export async function runCollected(
       for (const release of artifactRecorders.values()) release()
     }
   }
+  if (deferredRootSuiteResult) await deferredRootSuiteResult()
   // Retain the real operation until suite/file cleanup has had its chance to
   // release authored gates. Never await an unbounded operation or call it done.
   for (const [operation, owner] of retainedBodies) {

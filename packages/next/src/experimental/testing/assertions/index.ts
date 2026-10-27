@@ -363,6 +363,23 @@ export async function createAssertionRuntime(options: {
     snapshotOptions.snapshotEnvironment,
     snapshotOptions.updateSnapshot !== 'none'
   )
+  let readOnlySnapshotFinish:
+    | {
+        result: Awaited<ReturnType<SnapshotClient['finish']>>
+        obsolete?: Error
+      }
+    | { failure: { error: unknown } }
+    | undefined
+  let readOnlySnapshotFinishStarted = false
+  let readOnlySnapshotFinalization:
+    | Promise<
+        | {
+            result: Awaited<ReturnType<SnapshotClient['finish']>>
+            obsolete?: Error
+          }
+        | undefined
+      >
+    | undefined
   let disposed = false
   let snapshotPrepared = false
   let snapshotPreparation: Promise<void> | undefined
@@ -4181,13 +4198,69 @@ export async function createAssertionRuntime(options: {
     beginHook: (context: AssertionHook) => beginScope(context, 'hook'),
     beginFileFixtures: (context: AssertionCollection) =>
       beginScope(context, 'file-fixtures'),
+    finishReadOnlySnapshotSelection(
+      cases: readonly { name: string; status: string }[],
+      selection: { partial: boolean; complete: boolean }
+    ) {
+      if (
+        options.captureCoverageCompletion?.() !== true ||
+        ('deferSnapshotPreparation' in options &&
+          options.deferSnapshotPreparation === true) ||
+        snapshotOptions.updateSnapshot !== 'none' ||
+        options.collectOnly ||
+        disposed
+      )
+        return undefined
+      if (readOnlySnapshotFinishStarted)
+        throw new Error(
+          'Read-only snapshots require one actual root finalizer.'
+        )
+      if (
+        (fileAssertionLifetime || options.observeNativeUnhandledAssertions
+          ? [...scopes.values()].some((scope) => !scope.finalized)
+          : scopes.size) ||
+        suspendedScopes.size
+      )
+        throw new Error('Cannot finish snapshots with an active attempt')
+      readOnlySnapshotFinishStarted = true
+      readOnlySnapshotFinalization = (async () => {
+        try {
+          for (const test of cases)
+            if (test.status === 'skipped' || test.status === 'cancelled')
+              snapshots.skipTest(options.testPath, test.name)
+          snapshotSelection = selection
+          const state = snapshots.getSnapshotState(options.testPath)
+          if (!selection.complete) state.removeUncheckedKeys = () => {}
+          const result = await snapshots.finish(options.testPath)
+          snapshotResult = result
+          let obsolete: Error | undefined
+          if (result.unchecked) {
+            let message =
+              'Obsolete snapshots found when no snapshot update is expected.\n'
+            for (const key of result.uncheckedKeys) message += `· ${key}\n`
+            obsolete = new Error(message)
+          }
+          readOnlySnapshotFinish = { result, ...(obsolete ? { obsolete } : {}) }
+          return readOnlySnapshotFinish
+        } catch (error) {
+          // This remains an actual snapshot finish failure at the original file
+          // cleanup boundary; it never authorizes a logical suite continuation.
+          readOnlySnapshotFinish = { failure: { error } }
+          return undefined
+        }
+      })()
+      return readOnlySnapshotFinalization
+    },
     finishSnapshotSelection(
       cases: readonly { name: string; status: string }[],
       selection: { partial: boolean; complete: boolean }
     ) {
       for (const test of cases) {
         if (test.status === 'skipped' || test.status === 'cancelled')
-          if (!deferredSnapshotPreparation || snapshotPrepared)
+          if (
+            !readOnlySnapshotFinishStarted &&
+            (!deferredSnapshotPreparation || snapshotPrepared)
+          )
             snapshots.skipTest(options.testPath, test.name)
       }
       snapshotSelection = selection
@@ -4239,15 +4312,25 @@ export async function createAssertionRuntime(options: {
           !options.collectOnly &&
           (!deferredSnapshotPreparation || snapshotPrepared)
         ) {
-          const state = snapshots.getSnapshotState(options.testPath)
-          if (!snapshotSelection || !snapshotSelection.complete) {
-            // Unselected/skipped test keys are marked checked by the runner.
-            // Incomplete collection/cleanup never authorizes any pruning.
-            state.removeUncheckedKeys = () => {}
+          if (readOnlySnapshotFinishStarted) {
+            await readOnlySnapshotFinalization
+            if (!readOnlySnapshotFinish)
+              throw new Error('Read-only snapshot finalization is unfinished.')
+            if ('failure' in readOnlySnapshotFinish)
+              throw readOnlySnapshotFinish.failure.error
+            result = readOnlySnapshotFinish.result
+          } else {
+            const state = snapshots.getSnapshotState(options.testPath)
+            if (!snapshotSelection || !snapshotSelection.complete) {
+              // Unselected/skipped test keys are marked checked by the runner.
+              // Incomplete collection/cleanup never authorizes any pruning.
+              state.removeUncheckedKeys = () => {}
+            }
+            result = await snapshots.finish(options.testPath)
+            snapshotResult = result
           }
-          result = await snapshots.finish(options.testPath)
-          snapshotResult = result
           if (
+            !readOnlySnapshotFinishStarted &&
             snapshotOptions.updateSnapshot === 'none' &&
             snapshotSelection?.complete &&
             !snapshotSelection.partial &&
