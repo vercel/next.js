@@ -46,6 +46,7 @@ import {
 import {
   runCollected,
   isSettledCoverageFailure,
+  isSettledAuthoredAfterAllFailure,
   isSettledBeforeEachCoverageFailure,
   type AttemptContext,
   type RunnerFailure,
@@ -1154,19 +1155,39 @@ function initializeFile(
             updateMode === 'none' &&
             !worker
             ? (actual) => {
-                const eligible = () =>
-                  !(
-                    actual.interrupted ||
-                    options.signal.aborted ||
-                    actual.errors.length ||
+                const eligible = () => {
+                  if (actual.interrupted || options.signal.aborted) return false
+                  if (
+                    actual.errors.length &&
+                    !actual.errors.every(
+                      (failure) =>
+                        failure.phase === 'afterAll' &&
+                        isSettledAuthoredAfterAllFailure(failure)
+                    )
+                  )
+                    return false
+                  if (
                     !operationObservation ||
                     operationObservation.pendingHooks?.size ||
                     [
                       ...operationObservation.bounded,
                       ...operationObservation.around,
-                    ].some((operation) => !operation.settled) ||
-                    !actual.cases.some((test) => test.errors.length) ||
-                    actual.cases.some(
+                    ].some((operation) => !operation.settled)
+                  )
+                    return false
+                  if (actual.errors.length)
+                    return (
+                      actual.cases.length > 0 &&
+                      actual.cases.every(
+                        (test) =>
+                          (test.status === 'passed' ||
+                            test.status === 'skipped') &&
+                          test.errors.length === 0
+                      )
+                    )
+                  return (
+                    actual.cases.some((test) => test.errors.length) &&
+                    !actual.cases.some(
                       (test) =>
                         test.status === 'cancelled' ||
                         test.errors.some(
@@ -1178,6 +1199,7 @@ function initializeFile(
                         )
                     )
                   )
+                }
                 if (!eligible()) return undefined
                 return async () => {
                   if (!eligible()) return undefined

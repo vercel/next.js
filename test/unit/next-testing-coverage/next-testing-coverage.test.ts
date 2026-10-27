@@ -21705,3 +21705,105 @@ it('keeps readonly snapshot bookkeeping unobservable to ordinary Set constructor
     await rm(output, { recursive: true, force: true })
   }
 }, 80000)
+
+describe('actual readonly snapshot completion after settled afterAll', () => {
+  it.each([
+    'sync',
+    'async',
+    'skip-first',
+    'skip-second',
+    'omitted',
+    'empty',
+    'beforeAll',
+    'body-same-error',
+    'afterEach-same-error',
+    'cleanup-same-error',
+    'finish-undefined',
+    'pending-abort',
+    'timeout',
+    'abort-before-run',
+  ])(
+    'retains actual afterAll/root/physical ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-readonly-afterall-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'read-only-afterall-snapshot.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualFile: true,
+          actualSnapshotFinishOnce: true,
+          rootEvents: 1,
+          snapshotBytesUnchanged: true,
+          rawErrorFieldsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+
+  it.each([
+    'istanbul-afterAll-sync-report-true',
+    'istanbul-afterAll-sync-report-false',
+    'istanbul-afterAll-async-report-true',
+    'istanbul-afterAll-async-report-false',
+    'istanbul-afterAll-skip-first-report-true',
+    'istanbul-afterAll-skip-first-report-false',
+    'istanbul-afterAll-skip-second-report-true',
+    'istanbul-afterAll-skip-second-report-false',
+  ])(
+    'matches genuine whole reports and ordered errors for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-readonly-afterall-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'readonly-afterall-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledAfterAll: true,
+          actualOrderedModuleErrors: true,
+          completeCaseReportAndMap: true,
+          completeCoverageFiles: true,
+          snapshotBytesUnchanged: true,
+          rawFrameEqualityQualified: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
