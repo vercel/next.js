@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
+const { hostname } = require('node:os')
 const corpus = path.join(__dirname, 'fixtures/json-suite-file-message')
 function renderVectors(packageDir) {
   const { createMachineReporter } = require(
@@ -136,19 +137,40 @@ if (require.main === module) {
   const packageDir = fs.realpathSync(
     process.argv[2] ?? path.join(__dirname, '../../../packages/next')
   )
+  const renderStartedAt = Date.now()
   const rows = renderVectors(packageDir),
     expected = JSON.parse(
       fs.readFileSync(path.join(corpus, 'prior-junit.json'), 'utf8')
     )
+  const renderFinishedAt = Date.now()
   for (const row of rows) {
     assert.equal(row.message, row.expectedMessage, row.name)
-    assert.equal(row.junit, expected[row.name], row.name)
+    const metadata =
+      /<testsuite name="contract\.case\.mjs" timestamp="([^"]+)" hostname="([^"]+)" /.exec(
+        row.junit
+      )
+    assert(metadata, row.name)
+    const renderedAt = Date.parse(metadata[1])
+    assert.equal(new Date(renderedAt).toISOString(), metadata[1], row.name)
+    assert(
+      renderedAt >= renderStartedAt && renderedAt <= renderFinishedAt,
+      row.name
+    )
+    assert.equal(metadata[2], hostname(), row.name)
+    assert.equal(
+      row.junit,
+      expected[row.name].replace(
+        '<testsuite name="/project/contract.case.mjs" ',
+        metadata[0]
+      ),
+      row.name
+    )
   }
   process.stdout.write(
     JSON.stringify({
       scenarios: rows.length,
       exactRawMessages: true,
-      priorJUnitBytesHeld: true,
+      priorJUnitNonMetadataBytesHeld: true,
       originalEvidenceHeld: true,
       closedHistoryOwnedSlots: true,
     }) + '\n'

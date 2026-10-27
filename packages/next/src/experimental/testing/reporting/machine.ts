@@ -16,6 +16,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { hostname } from 'node:os'
 import { isDeepStrictEqual, stripVTControlCharacters } from 'node:util'
 import type {
   CaseResult,
@@ -843,6 +844,9 @@ export function createMachineReporter(options: {
           )
           .map((event) => (event.type === 'output' ? event.text : ''))
           .join('')
+      const filename = relative(options.projectDir, file.name)
+        .split(sep)
+        .join('/')
       const tests = file.assertionResults.map((test) => {
         const failure =
           test.status === 'failed' && test.failureMessages.length
@@ -854,11 +858,8 @@ export function createMachineReporter(options: {
           test.status === 'skipped' || test.status === 'todo'
             ? '<skipped/>'
             : ''
-        const classname = relative(options.projectDir, file.name)
-          .split(sep)
-          .join('/')
         const name = [...test.ancestorTitles, test.title].join(' > ')
-        return `<testcase classname="${xml(classname)}" name="${xml(name)}" time="${(test.duration ?? 0) / 1000}">${failure}${skipped}</testcase>`
+        return `<testcase classname="${xml(filename)}" name="${xml(name)}" time="${(test.duration ?? 0) / 1000}">${failure}${skipped}</testcase>`
       })
       if (
         file.message ||
@@ -869,7 +870,7 @@ export function createMachineReporter(options: {
           `<testcase name="[file error]"><error message="${xml(file.message || 'File execution failed')}">${xml(file.message)}</error></testcase>`
         )
       }
-      return `<testsuite name="${xml(file.name)}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${(file.endTime - file.startTime) / 1000}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
+      return `<testsuite name="${xml(filename)}" timestamp="${xml(new Date().toISOString())}" hostname="${xml(hostname())}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${(file.endTime - file.startTime) / 1000}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
     })
     const browserCleanupErrors = events.flatMap((event) =>
       event.type === 'diagnostic' &&

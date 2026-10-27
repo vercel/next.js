@@ -6489,7 +6489,7 @@ it('retains exact Browser intrinsic raw declarations and the existing closed-sco
 })
 
 describe('pinned JSON file error messages', () => {
-  it('retains exact root/diagnostic slots through closed history while preserving prior JUnit bytes and original evidence', () => {
+  it('retains exact root/diagnostic slots through closed history while preserving prior JUnit nonmetadata bytes and original evidence', () => {
     const actual = JSON.parse(
       execFileSync(
         process.execPath,
@@ -6500,7 +6500,7 @@ describe('pinned JSON file error messages', () => {
     expect(actual).toEqual({
       scenarios: 20,
       exactRawMessages: true,
-      priorJUnitBytesHeld: true,
+      priorJUnitNonMetadataBytesHeld: true,
       originalEvidenceHeld: true,
       closedHistoryOwnedSlots: true,
     })
@@ -8234,6 +8234,33 @@ it('publishes valid JUnit BMP/high-surrogate fields without copying the referenc
       sdkAbsent: false,
       version: process.version,
       execPath: process.execPath,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
+
+it('uses actual project-relative JUnit file metadata and render clock without changing physical evidence', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-metadata-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-file-metadata.mjs'), output],
+      {
+        timeout: 30000,
+        encoding: 'utf8',
+      }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      metadataControls: 7,
+      actualRenderClockObserved: true,
+      currentAndRetainedPathsExact: true,
+      physicalEvidenceUnchanged: true,
+      mixedSinkMetadataExact: true,
+      emptyAndRunErrorBytesHeld: true,
+      durationAndCountsNotChanged: true,
+      sdkAbsent: false,
     })
   } finally {
     await rm(directory, { recursive: true, force: true })
