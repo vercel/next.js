@@ -98,6 +98,16 @@ Relevant files in the Next.js core:
 
 With experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) handlers, `output.filePath` identifies a native executable rather than a JavaScript module. Package it with the declared `assets` for the target operating system and architecture, preserving executable permissions and the asset destination paths.
 
-Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. The generated server matches its emitted route pattern and derives decoded dynamic parameters from request URLs.
+Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. By default, the generated server matches its emitted route pattern and derives decoded dynamic parameters from the request URL.
+
+Platforms that preserve the public URL when rewriting to a Go function must supply the concrete routed pathname separately. Set the function's `__NEXT_GO_ADAPTER_ROUTING` environment variable to JSON with `version: 1` and `pathHeader` naming a trusted request header:
+
+```json
+{ "version": 1, "pathHeader": "x-platform-route-path" }
+```
+
+The adapter must remove caller-supplied values for this header at ingress and replace them with exactly one concrete, escaped pathname after routing, including `basePath`. Send the routed pathname rather than a dynamic route template, and omit its query string and fragment. For example, a public request for `/alias?key=one` rewritten to `/users/a%2Fb` retains `/alias?key=one` as its HTTP request URL while the routing header carries `/users/a%2Fb`.
+
+The server derives parameters from this trusted pathname, removes the routing header before calling `Handle`, and preserves `r.URL`, `r.RequestURI`, and the request query. Escaped slashes remain within their original parameter segments. Missing, repeated, or invalid routing headers return `400`; a valid pathname that does not match the emitted route returns `404`. Invalid routing configuration fails server startup. When the environment variable is unset or empty, routing headers have no special meaning and the server continues matching the request URL.
 
 The platform routes requests to the correct Go function and runs its own rewrite and proxy integration. Node.js outputs continue to use their existing handler interface. JavaScript callbacks such as `ctx.waitUntil` cannot be passed to the Go process; the initial server contract provides no completion guarantee for post-response work.
