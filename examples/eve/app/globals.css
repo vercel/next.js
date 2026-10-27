@@ -1,0 +1,109 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #111;
+  background: #fafafa;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 16px;
+}
+
+h1 {
+  margin: 0 0 8px;
+}
+
+.subtitle {
+  margin: 0 0 32px;
+  color: #666;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.message p {
+  margin: 0;
+}
+
+.message.user {
+  align-self: flex-end;
+  color: #fff;
+  background: #111;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+}
+
+.message .tool,
+.pending {
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.error {
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: #b00020;
+  background: #fdecee;
+}
+
+form {
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  padding: 10px 14px;
+  font: inherit;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+button {
+  padding: 10px 16px;
+  font: inherit;
+  color: #fff;
+  background: #111;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button[type="button"] {
+  color: #111;
+  background: #eee;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
