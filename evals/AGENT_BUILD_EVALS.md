@@ -125,8 +125,8 @@ and in the same shape as other Next.js pull requests:
    one table with a row for every model in the cohort from the start, a base
    / AGENTS.md column per task, the totals (Base, + AGENTS.md, Delta), then
    price per million tokens, tokens, cost, and time per run, so expensive and
-   cheap models compare on the same footing, then the accuracy against cost chart, drawn before any run
-   scores and filled in as runs finish. After it, a few sentences on what it means: which failures are real, and whether
+   cheap models compare on the same footing, then pass@1 and cost per run as two bar charts in the same model order,
+   filled in as runs finish. After it, a few sentences on what it means: which failures are real, and whether
    a task separates models or is saturated. Say "still running" or "not run"
    rather than leaving the section out.
 3. **Verification**: a short list covering lint, untouched and reference

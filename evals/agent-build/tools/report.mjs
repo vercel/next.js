@@ -1,9 +1,8 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
 // request: one table, a row per model with a base / AGENTS.md column per task,
 // the totals across tasks (Base, + AGENTS.md, Delta), then price per million
-// tokens, tokens, cost, and time per run, as in
-// the agent-eval result PRs, then accuracy against cost as a Mermaid chart
-// GitHub renders inline.
+// tokens, tokens, cost, and time per run, as in the agent-eval result PRs,
+// then pass@1 and cost per run as Mermaid bar charts GitHub renders inline.
 //
 // Scores are pass@1 over scored runs. An agent that runs out of time is a
 // failure, as in Harbor's own metrics; any other runner error is discarded
@@ -242,48 +241,47 @@ console.log(
   'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, with how many confirmation reruns repeated the failure, ⏳ running, · not started, — runner error, rerun.'
 )
 
-// Accuracy against cost per run, one point per model and treatment, cost on a
-// log scale across the observed range.
-const points = models
-  .flatMap((m) => [
-    { name: m.model, t: m.base, treatment: 'base' },
-    { name: `${m.model} AGENTS.md`, t: m.docs, treatment: 'agents-md' },
-  ])
-  .filter((p) => p.t.scored)
-  .map((p) => {
-    const c = runs
-      .filter(
-        (r) =>
-          scored(r) && r.treatment === p.treatment && p.name.startsWith(r.model)
-      )
-      .map((r) => r.cost)
-      .filter((x) => x != null)
-    return { name: p.name, accuracy: p.t.passed / p.t.scored, cost: mean(c) }
+// Two bar charts in the same model order: pass@1 across all scored runs and
+// cost per run. Mermaid's scatter chart cannot keep labels apart, so models
+// with the same score overlap; bars keep every name readable.
+const charted = models
+  .map((m) => {
+    const scoredRuns = runs.filter((r) => r.model === m.model && scored(r))
+    const costs = scoredRuns.map((r) => r.cost).filter((x) => x != null)
+    return {
+      name: m.model.replace(/^Claude /, ''),
+      accuracy: scoredRuns.length
+        ? (100 * scoredRuns.filter((r) => r.state === 'pass').length) /
+          scoredRuns.length
+        : null,
+      cost: mean(costs),
+    }
   })
-  .filter((p) => p.cost != null)
+  .filter((m) => m.accuracy != null)
 
 console.log()
-const log = (v) => Math.log10(Math.max(v, 0.01))
-const lo = points.length ? Math.min(...points.map((p) => log(p.cost))) : 0
-const hi = points.length ? Math.max(...points.map((p) => log(p.cost))) : 0
-const x = (v) => (hi === lo ? 0.5 : 0.05 + (0.9 * (log(v) - lo)) / (hi - lo))
-const y = (v) => Math.min(0.97, Math.max(0.03, v))
-console.log('```mermaid')
-console.log('quadrantChart')
-console.log('    title Accuracy vs cost per run')
-console.log(
-  points.length
-    ? `    x-axis "${usd(Math.min(...points.map((p) => p.cost)))}" --> "${usd(Math.max(...points.map((p) => p.cost)))} per run"`
-    : '    x-axis "cheaper" --> "more expensive per run"'
-)
-console.log('    y-axis "0% pass@1" --> "100% pass@1"')
-console.log('    quadrant-1 Accurate and expensive')
-console.log('    quadrant-2 Accurate and cheap')
-console.log('    quadrant-3 Inaccurate and cheap')
-console.log('    quadrant-4 Inaccurate and expensive')
-for (const p of points) {
+if (charted.length === 0) {
+  console.log('_The charts appear after the first scored run._')
+} else {
+  const names = charted.map((m) => `"${m.name}"`).join(', ')
+  const maxCost = Math.max(...charted.map((m) => m.cost ?? 0))
+  console.log('```mermaid')
+  console.log('xychart-beta')
+  console.log('    title "Pass@1 per model, all runs"')
+  console.log(`    x-axis [${names}]`)
+  console.log('    y-axis "pass@1 (%)" 0 --> 100')
   console.log(
-    `    ${p.name}: [${x(p.cost).toFixed(2)}, ${y(p.accuracy).toFixed(2)}]`
+    `    bar [${charted.map((m) => Math.round(m.accuracy)).join(', ')}]`
   )
+  console.log('```')
+  console.log()
+  console.log('```mermaid')
+  console.log('xychart-beta')
+  console.log('    title "Cost per run (USD)"')
+  console.log(`    x-axis [${names}]`)
+  console.log(`    y-axis "USD" 0 --> ${Math.max(1, Math.ceil(maxCost))}`)
+  console.log(
+    `    bar [${charted.map((m) => (m.cost ?? 0).toFixed(2)).join(', ')}]`
+  )
+  console.log('```')
 }
-console.log('```')
