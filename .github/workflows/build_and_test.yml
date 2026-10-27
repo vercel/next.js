@@ -922,6 +922,9 @@ jobs:
           export __NEXT_CACHE_COMPONENTS=true
           export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
           export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
+          # revalidatePath/revalidateTag invalidate at project scope, so this
+          # job deploys into its own project, separate from the plain deploy job.
+          export VERCEL_TEST_PROJECT="vtest314-e2e-tests-cache-components"
         else
           export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         fi
@@ -929,9 +932,6 @@ jobs:
         export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export IS_TURBOPACK_TEST=1
-        # revalidatePath/revalidateTag invalidate at project scope, so this
-        # job deploys into its own project, separate from the plain deploy job.
-        export VERCEL_TEST_PROJECT="vtest314-e2e-tests-cache-components"
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
