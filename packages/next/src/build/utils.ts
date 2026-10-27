@@ -1307,7 +1307,8 @@ export async function getDefinedNamedExports({
 export function detectConflictingPaths(
   combinedPages: string[],
   ssgPages: Set<string>,
-  additionalGeneratedSSGPaths: Map<string, string[]>
+  additionalGeneratedSSGPaths: Map<string, string[]>,
+  appPages?: Set<string>
 ) {
   const conflictingPaths = new Map<
     string,
@@ -1337,7 +1338,7 @@ export function detectConflictingPaths(
         (page) => page.toLowerCase() === lowerPath
       )
 
-      if (conflictingPage) {
+      if (conflictingPage && conflictingPage !== pathsPage) {
         conflictingPaths.set(lowerPath, [
           { path: curPath, page: pathsPage },
           { path: conflictingPage, page: conflictingPage },
@@ -1383,8 +1384,32 @@ export function detectConflictingPaths(
       conflictingPathsOutput += '\n'
     })
 
+    let hasAppConflict = false
+    let hasPagesConflict = false
+
+    if (appPages) {
+      conflictingPaths.forEach((pathItems) => {
+        pathItems.forEach((pathItem) => {
+          if (additionalGeneratedSSGPaths.has(pathItem.page)) {
+            if (appPages.has(pathItem.page)) {
+              hasAppConflict = true
+            } else {
+              hasPagesConflict = true
+            }
+          }
+        })
+      })
+    }
+
+    const sourceFn =
+      hasPagesConflict && hasAppConflict
+        ? 'getStaticPaths / generateStaticParams'
+        : hasAppConflict
+          ? 'generateStaticParams'
+          : 'getStaticPaths'
+
     Log.error(
-      'Conflicting paths returned from getStaticPaths, paths must be unique per page.\n' +
+      `Conflicting paths returned from ${sourceFn}, paths must be unique per page.\n` +
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )

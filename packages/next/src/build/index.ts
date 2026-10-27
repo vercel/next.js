@@ -3205,19 +3205,56 @@ export default async function build(
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
         await staticGenerationSpan.traceAsyncFn(async () => {
-          detectConflictingPaths(
-            [
-              ...combinedPages,
-              ...pageKeys.pages.filter((page) => !combinedPages.includes(page)),
-            ],
-            ssgPages,
-            new Map(
-              Array.from(additionalPaths.entries()).map(
-                ([page, routes]): [string, string[]] => {
-                  return [page, routes.map((route) => route.pathname)]
-                }
-              )
+          const appDynamicSSGPages = new Set<string>()
+          const appAdditionalPaths = new Map<string, string[]>()
+
+          for (const [originalAppPath, routes] of staticPaths) {
+            const page =
+              appPathRoutes[originalAppPath] ||
+              normalizeAppPath(originalAppPath)
+
+            if (isDynamicRoute(page)) {
+              const concretePaths = routes
+                .filter((route) => !isDynamicRoute(route.pathname))
+                .map((route) => route.pathname)
+
+              if (concretePaths.length > 0) {
+                appDynamicSSGPages.add(page)
+                const existing = appAdditionalPaths.get(page) || []
+                appAdditionalPaths.set(page, [...existing, ...concretePaths])
+              }
+            }
+          }
+
+          const allCombinedPages = [
+            ...combinedPages,
+            ...pageKeys.pages.filter((page) => !combinedPages.includes(page)),
+            ...(pageKeys.app || []).filter(
+              (page) => !combinedPages.includes(page)
+            ),
+          ]
+
+          const allSSGPages = new Set([...ssgPages, ...appDynamicSSGPages])
+
+          const allGeneratedSSGPaths = new Map<string, string[]>()
+          for (const [page, routes] of additionalPaths) {
+            allGeneratedSSGPaths.set(
+              page,
+              routes.map((route) => route.pathname)
             )
+          }
+          for (const [page, paths] of appAdditionalPaths) {
+            const existing = allGeneratedSSGPaths.get(page) || []
+            allGeneratedSSGPaths.set(page, [...existing, ...paths])
+          }
+
+          const appPages = pageKeys.app ? new Set(pageKeys.app) : undefined
+
+          detectConflictingPaths(
+            allCombinedPages,
+            allSSGPages,
+            allGeneratedSSGPaths,
+            appPages
           )
 
           const sortedStaticPaths = Array.from(staticPaths.entries()).sort(
