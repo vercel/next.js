@@ -274,8 +274,10 @@ export class Lockfile {
    *   `warnAfterMs`.
    * - Returns `undefined` (after a warning) once `timeoutMs` elapses, so the
    *   caller can proceed without the lock.
-   * - Returns `undefined` if the lockfile can't be created, e.g. on filesystems
-   *   without lock support. Callers must be safe to run without the lock.
+   * - Keeps waiting through transient I/O errors, like a held lock.
+   * - Returns `undefined` on other I/O errors, and the dummy `Lockfile` from
+   *   `tryAcquire` when filesystem locking is unsupported. Callers must be safe
+   *   to run without the lock.
    */
   static async acquireWithWait(
     path: string,
@@ -303,8 +305,11 @@ export class Lockfile {
       try {
         lockfile = Lockfile.tryAcquire(path)
       } catch (e) {
-        debugLockfile(`Proceeding without lockfile ${path}: ${e}`)
-        return undefined
+        if (!(e instanceof LockfileError) || !e.transient) {
+          debugLockfile(`Proceeding without lockfile ${path}: ${e}`)
+          return undefined
+        }
+        debugLockfile(`Transient error acquiring lockfile ${path}: ${e}`)
       }
       if (lockfile !== undefined) {
         return lockfile
