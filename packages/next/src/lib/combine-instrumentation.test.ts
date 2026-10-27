@@ -1,0 +1,83 @@
+import { combineInstrumentation } from './combine-instrumentation'
+
+const request = { path: '/', method: 'GET', headers: {} }
+const context = {
+  routerKind: 'App Router',
+  routePath: '/',
+  routeType: 'render',
+  revalidateReason: undefined,
+} as const
+
+describe('combineInstrumentation', () => {
+  it('runs every register in array order', async () => {
+    const calls: string[] = []
+    const combined = combineInstrumentation([
+      { register: async () => void calls.push('a') },
+      { register: () => void calls.push('b') },
+    ])
+    await combined.register()
+    expect(calls).toEqual(['a', 'b'])
+  })
+
+  it('keeps running after a register throws, then rethrows that error', async () => {
+    const calls: string[] = []
+    const failure = new Error('a failed')
+    const combined = combineInstrumentation([
+      {
+        register: () => {
+          throw failure
+        },
+      },
+      { register: () => void calls.push('b') },
+    ])
+    await expect(combined.register()).rejects.toBe(failure)
+    expect(calls).toEqual(['b'])
+  })
+
+  it('throws an AggregateError when several hooks fail', async () => {
+    const combined = combineInstrumentation([
+      {
+        register: () => {
+          throw new Error('a')
+        },
+      },
+      {
+        register: async () => {
+          throw new Error('b')
+        },
+      },
+    ])
+    const err: AggregateError = await combined.register().catch((e) => e)
+    expect(err).toBeInstanceOf(AggregateError)
+    expect(err.errors.map((e: Error) => e.message)).toEqual(['a', 'b'])
+  })
+
+  it('passes onRequestError arguments to every module', async () => {
+    const seen: unknown[][] = []
+    const error = new Error('request failed')
+    const combined = combineInstrumentation([
+      {
+        onRequestError: () => {
+          throw new Error('reporter down')
+        },
+      },
+      { onRequestError: (...args: unknown[]) => void seen.push(args) },
+    ])
+    await expect(
+      combined.onRequestError(error, request, context)
+    ).rejects.toThrow('reporter down')
+    expect(seen).toEqual([[error, request, context]])
+  })
+
+  it('skips missing hooks and reads hooks from a default export', async () => {
+    const calls: string[] = []
+    const combined = combineInstrumentation([
+      {},
+      { default: { register: () => void calls.push('default') } },
+      undefined,
+    ])
+    await combined.register()
+    await combined.onRequestError(new Error('x'), request, context)
+    expect(calls).toEqual(['default'])
+  })
+})

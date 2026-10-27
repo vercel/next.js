@@ -385,4 +385,16 @@ describe('loadConfig', () => {
       expect(result.experimental.durableUseCacheEntries).toBe(true)
     })
   })
+
+  describe('injectInstrumentation', () => {
+    it('is accepted by the config schema', () => {
+      expect(
+        configSchema.safeParse({ injectInstrumentation: ['./script.js'] })
+          .success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({ injectInstrumentation: 'script.js' }).success
+      ).toBe(false)
+    })
+  })
 })

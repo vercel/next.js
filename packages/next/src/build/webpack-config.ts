@@ -1373,6 +1373,7 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-instrumentation-client-loader',
+        'next-instrumentation-inject-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1951,6 +1952,17 @@ export default async function getBaseWebpackConfig(
             loader: 'next-instrumentation-client-loader',
             options: {
               modules: config.instrumentationClientInject,
+            },
+          },
+        },
+        // The server instrumentation entry when `injectInstrumentation` fills
+        // the slot. The loader emits one module that runs every entry's hooks.
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-inject-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-inject-loader',
+            options: {
+              modules: config.injectInstrumentation ?? [],
             },
           },
         },

@@ -1953,6 +1953,16 @@ export interface NextConfig {
    */
   instrumentationClientInject?: string[]
 
+  /**
+   * Paths or specifiers compiled into the server `instrumentation` slot when
+   * the project has no `instrumentation` file. A project file replaces these
+   * entirely. Every entry's `register` and `onRequestError` run in array
+   * order. One that throws does not stop the others.
+   *
+   * Set by a deployment adapter. Next.js does not install the module.
+   */
+  injectInstrumentation?: string[]
+
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
