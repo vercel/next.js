@@ -4,7 +4,7 @@ import { decideIssues } from "../lib/decide";
 import { loadIssues } from "../lib/issues";
 import {
   CONFIDENCE_THRESHOLD,
-  Review,
+  ReviewSchema,
   type Row,
   type TriageOutput,
 } from "../lib/triage";
@@ -37,10 +37,10 @@ export default defineWorkflowTool({
     const reviews = await Promise.all(
       unsure.map(async (issue) => {
         const turn = await ctx.agent("reviewer").send(JSON.stringify(issue), {
-          outputSchema: Review,
+          outputSchema: ReviewSchema,
           signal: ctx.abortSignal,
         });
-        const parsed = Review.safeParse((await turn.result()).data);
+        const parsed = ReviewSchema.safeParse((await turn.result()).data);
         return {
           number: issue.number,
           review: parsed.success ? parsed.data : undefined,

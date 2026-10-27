@@ -25,12 +25,12 @@ export type Decision = {
 };
 
 /** What the reviewer subagent returns for one issue. */
-export const Review = z.object({
+export const ReviewSchema = z.object({
   category: z.enum(CATEGORIES),
   priority: z.enum(PRIORITIES),
   summary: z.string().min(1).max(240),
 });
-export type Review = z.infer<typeof Review>;
+export type Review = z.infer<typeof ReviewSchema>;
 
 export type Row = {
   number: number;
