@@ -322,8 +322,8 @@ export async function adapter(
   // middleware received them.
   let forwardedTraceContext: TraceContextHeaders | undefined
   let forwardedRequestHeaders: Headers | undefined
-  // The root span reserved for the request (see below), until it is emitted
-  // or deferred to the render.
+  // The root span reserved for the request (see below), until it is deferred
+  // to the render.
   let requestSpan:
     | { reserved: ReservedRequestSpan; startTime: number; target: string }
     | undefined
@@ -466,15 +466,17 @@ export async function adapter(
         // the request was received, to cover registering `instrumentation.ts`.
         // When the request continues to the app, the render emits it, so it
         // covers the render too (see `deferred-request-span.ts`): its IDs are
-        // reserved, without starting it here. Otherwise, it is emitted below,
-        // ending with the middleware.
+        // reserved, without starting it here. Otherwise (a direct response, a
+        // redirect, an external rewrite, a trace context the user set for the
+        // render, or a failure), it isn't emitted at all: only requests that
+        // continue to a render get a `Next.request` span, and the middleware's
+        // spans keep the reserved span as their parent.
         const startTime = params.requestStartTime ?? Date.now()
         const attributes = {
           'http.target': request.nextUrl.pathname,
           'http.method': request.method,
         }
         const reserved = tracer.reserveRequestSpan(request.method, {
-          startTime,
           attributes,
         })
         if (reserved) {
@@ -483,10 +485,7 @@ export async function adapter(
             startTime,
             target: request.nextUrl.pathname,
           }
-          return reserved.run(executeMiddleware).catch((error) => {
-            reserved.emit({ failed: true, error })
-            throw error
-          })
+          return reserved.run(executeMiddleware)
         }
         // The SDK can't reserve the span: end it with the middleware.
         return tracer.trace(
@@ -507,11 +506,7 @@ export async function adapter(
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
-    const error = new TypeError(
-      'Expected an instance of Response to be returned'
-    )
-    requestSpan?.reserved.emit({ failed: true, error })
-    throw error
+    throw new TypeError('Expected an instance of Response to be returned')
   }
 
   if (response && cookiesFromResponse) {
@@ -686,7 +681,7 @@ export async function adapter(
             },
           })
         : undefined
-    const forwarded = forwardTraceContextToRequest(
+    forwardTraceContextToRequest(
       finalResponse.headers,
       forwardedRequestHeaders,
       deferredValue && forwardedTraceContext
@@ -700,14 +695,7 @@ export async function adapter(
           }
         : forwardedTraceContext
     )
-    if (deferredValue && forwarded) {
-      // The render emits it.
-      requestSpan = undefined
-    }
   }
-  // Emitted with the middleware: a direct response, a redirect, an external
-  // rewrite, or a trace context the user set for the render.
-  requestSpan?.reserved.emit()
 
   // Flight headers are not overridable / removable so they are applied at the end.
   const middlewareOverrideHeaders = finalResponse.headers.get(

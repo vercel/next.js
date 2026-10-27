@@ -268,7 +268,8 @@ export interface TraceContextHeaders {
 
 /**
  * A request span (`Next.request`) whose IDs are reserved, but that isn't
- * started yet (see `NextTracer.reserveRequestSpan`).
+ * started (see `NextTracer.reserveRequestSpan`). Only the render emits it,
+ * when the request continues to it (see `deferred-request-span.ts`).
  */
 export interface ReservedRequestSpan {
   traceId: string
@@ -277,11 +278,6 @@ export interface ReservedRequestSpan {
   sampled: boolean
   /** Runs `fn` with the reserved span as the active (non-recording) parent. */
   run<T>(fn: () => T): T
-  /**
-   * Emits the span, ending now. At most once, only when sampled; never
-   * throws.
-   */
-  emit(result?: { failed: boolean; error?: unknown }): void
 }
 
 // How `withPropagatedContext` handles a deferred request span (see
@@ -683,15 +679,15 @@ class NextTracerImpl implements NextTracer {
 
   /**
    * Reserves the IDs of a request span (`Next.request`, a root span of kind
-   * server) without starting it (see `reserveRootSpanIds`), to emit it later
-   * here (`emit`) or in another process (see `deferred-request-span.ts`).
-   * Returns `undefined` when OpenTelemetry isn't enabled, or the OpenTelemetry
-   * SDK doesn't have the internals used. An unsampled span is reserved too,
-   * so its children stay unsampled.
+   * server) without starting it (see `reserveRootSpanIds`), for the render to
+   * emit it later (see `deferred-request-span.ts`). Returns `undefined` when
+   * OpenTelemetry isn't enabled, or the OpenTelemetry SDK doesn't have the
+   * internals used. An unsampled span is reserved too, so its children stay
+   * unsampled.
    */
   public reserveRequestSpan(
     name: string,
-    { startTime, attributes }: { startTime?: number; attributes: Attributes }
+    { attributes }: { attributes: Attributes }
   ): ReservedRequestSpan | undefined {
     if (!this.isOpenTelemetryEnabled()) {
       return undefined
@@ -712,25 +708,11 @@ class NextTracerImpl implements NextTracer {
       isRemote: false,
       traceState: ids.traceState as TraceState | undefined,
     })
-    const span = {
-      traceId: ids.traceId,
-      spanId: ids.spanId,
-      name,
-      startTime: startTime ?? Date.now(),
-      attributes,
-    }
-    let emitted = false
     return {
       traceId: ids.traceId,
       spanId: ids.spanId,
       sampled: ids.sampled,
       run: (fn) => context.with(parentContext, fn),
-      emit: (result) => {
-        if (ids.sampled && !emitted) {
-          emitted = true
-          this.emitRequestSpan(span, result)
-        }
-      },
     }
   }
 

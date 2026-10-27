@@ -448,7 +448,6 @@ describe('deferred request span', () => {
   describe('reserveRequestSpan', () => {
     it('reserves the IDs and runs children under them without starting a span', () => {
       const reserved = getTracer().reserveRequestSpan('GET', {
-        startTime: NOW - 5,
         attributes: { 'http.method': 'GET', 'http.target': '/page' },
       })!
       expect(reserved).toBeDefined()
@@ -470,34 +469,7 @@ describe('deferred request span', () => {
       expect(started).toEqual([])
     })
 
-    it('emits the span with the reserved IDs once', () => {
-      const reserved = getTracer().reserveRequestSpan('GET', {
-        startTime: NOW - 5,
-        attributes: { 'http.method': 'GET', 'http.target': '/page' },
-      })!
-      reserved.emit({ failed: true, error: new Error('boom') })
-      reserved.emit()
-      expect(started).toEqual([
-        expect.objectContaining({
-          name: 'GET',
-          traceId: reserved.traceId,
-          spanId: reserved.spanId,
-          status: { code: SpanStatusCode.ERROR },
-          ended: 1,
-          options: expect.objectContaining({
-            root: true,
-            kind: SpanKind.SERVER,
-            startTime: NOW - 5,
-            attributes: expect.objectContaining({
-              'next.span_type': 'Next.request',
-              'http.target': '/page',
-            }),
-          }),
-        }),
-      ])
-    })
-
-    it('keeps an unsampled reservation without starting or emitting a span', () => {
+    it('keeps an unsampled reservation without starting a span', () => {
       shouldSample.mockReturnValue({ decision: 1 })
       const reserved = getTracer().reserveRequestSpan('GET', {
         attributes: {},
@@ -510,7 +482,6 @@ describe('deferred request span', () => {
           () => trace.getSpan(context.active())?.spanContext().traceFlags
         )
       ).toBe(0)
-      reserved.emit()
       expect(started).toEqual([])
     })
   })
