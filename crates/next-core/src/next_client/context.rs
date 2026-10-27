@@ -282,10 +282,10 @@ pub async fn get_client_module_options_context(
         *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
     let module_fragments_enabled_for_user_code = *next_config
-        .module_fragments_enabled_for_user_code(next_mode.is_development())
+        .module_fragments_enabled_for_user_code(true)
         .await?;
     let module_fragments_enabled_for_foreign_code = *next_config
-        .module_fragments_enabled_for_foreign_code(next_mode.is_development())
+        .module_fragments_enabled_for_foreign_code(true)
         .await?;
     let target_browsers = env.runtime_versions();
 

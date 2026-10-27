@@ -1193,7 +1193,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
-    turbopack_module_fragments: Option<bool>,
+    turbopack_module_fragments: Option<ModuleFragmentsConfig>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
@@ -1298,6 +1298,33 @@ pub enum ServerActionsOrLegacyBool {
     /// The legacy way to disable server actions. This is no longer used, server
     /// actions is always enabled.
     LegacyBool(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
+#[serde(untagged)]
+pub enum ModuleFragmentsConfig {
+    Bool(bool),
+    Targets {
+        #[serde(default)]
+        client: bool,
+        #[serde(default)]
+        server: bool,
+    },
+}
+
+impl ModuleFragmentsConfig {
+    fn enabled(&self, is_client: bool) -> bool {
+        match self {
+            Self::Bool(enabled) => *enabled,
+            Self::Targets { client, server } => {
+                if is_client {
+                    *client
+                } else {
+                    *server
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
@@ -2311,19 +2338,23 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn module_fragments_enabled_for_foreign_code(&self, _is_development: bool) -> Vc<bool> {
-        Vc::cell(matches!(
-            self.experimental.turbopack_module_fragments,
-            Some(true)
-        ))
+    pub fn module_fragments_enabled_for_foreign_code(&self, is_client: bool) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_module_fragments
+                .as_ref()
+                .is_some_and(|config| config.enabled(is_client)),
+        )
     }
 
     #[turbo_tasks::function]
-    pub fn module_fragments_enabled_for_user_code(&self, _is_development: bool) -> Vc<bool> {
-        Vc::cell(matches!(
-            self.experimental.turbopack_module_fragments,
-            Some(true)
-        ))
+    pub fn module_fragments_enabled_for_user_code(&self, is_client: bool) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_module_fragments
+                .as_ref()
+                .is_some_and(|config| config.enabled(is_client)),
+        )
     }
 
     #[turbo_tasks::function]
@@ -2862,6 +2893,26 @@ pub fn lightningcss_feature_names_to_mask(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn module_fragments_targets_preserve_boolean_behavior() {
+        for (json, client, server) in [
+            (serde_json::json!(false), false, false),
+            (serde_json::json!(true), true, true),
+            (serde_json::json!({}), false, false),
+            (serde_json::json!({"client": true}), true, false),
+            (serde_json::json!({"server": true}), false, true),
+            (
+                serde_json::json!({"client": true, "server": true}),
+                true,
+                true,
+            ),
+        ] {
+            let config: ModuleFragmentsConfig = serde_json::from_value(json).unwrap();
+            assert_eq!(config.enabled(true), client);
+            assert_eq!(config.enabled(false), server);
+        }
+    }
 
     #[test]
     fn test_serde_rule_config_item_options() {

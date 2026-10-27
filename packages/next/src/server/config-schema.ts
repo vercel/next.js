@@ -426,7 +426,15 @@ export const experimentalSchema = {
   turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
-  turbopackModuleFragments: z.boolean().optional(),
+  turbopackModuleFragments: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        client: z.boolean().optional(),
+        server: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),

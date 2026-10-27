@@ -1076,8 +1076,17 @@ export interface ExperimentalConfig {
   /**
    * Currently in active development. This splits modules into fragments and
    * chunks only import the used fragments of the modules.
+   * A boolean applies to both targets; an object configures browser and server
+   * bundles independently, with omitted targets disabled.
    */
-  turbopackModuleFragments?: boolean
+  turbopackModuleFragments?:
+    | boolean
+    | {
+        /** Enable fragments in browser bundles. Defaults to false. */
+        client?: boolean
+        /** Enable fragments in server bundles, including SSR. Defaults to false. */
+        server?: boolean
+      }
 
   /**
    * Enable removing unused imports for turbopack dev server and build.
