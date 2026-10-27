@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Next.js + eve",
-  description: "A Next.js app with an eve agent mounted using withEve.",
+  description:
+    "An issue triage agent built with eve and mounted in Next.js using withEve.",
 };
 
 export default function RootLayout({

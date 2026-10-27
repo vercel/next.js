@@ -3,14 +3,21 @@
 import { activeTurn } from "eve/events";
 import { useEveAgent } from "eve/react";
 import { useState } from "react";
+import type { Row, TriageOutput } from "../agent/lib/triage";
 
 export function Chat() {
   const [input, setInput] = useState("");
-  const agent = useEveAgent({ prewarm: input.length > 0 });
+  const agent = useEveAgent({ prewarm: true });
 
   const turnOpen = activeTurn(agent.view) !== undefined;
   const isResuming = agent.status === "resuming";
   const isThinking = turnOpen && agent.messages.at(-1)?.role === "user";
+
+  const send = (text: string) => {
+    if (text.length === 0 || isResuming) return;
+    setInput("");
+    void agent.send(text, turnOpen ? { turnPolicy: "steer" } : undefined);
+  };
 
   return (
     <>
@@ -22,11 +29,12 @@ export function Chat() {
                 case "text":
                   return <p key={part.id ?? index}>{part.text}</p>;
                 case "tool":
+                  if (part.name !== "triage_issues") return null;
                   return (
-                    <p key={part.callId} className="tool">
-                      {part.state === "completed" ? "Called" : "Calling"}{" "}
-                      <code>{part.name}</code>
-                    </p>
+                    <TriageTable
+                      key={part.callId}
+                      output={part.output as TriageOutput | undefined}
+                    />
                   );
                 default:
                   return null;
@@ -44,13 +52,21 @@ export function Chat() {
         ) : null}
       </div>
 
+      {agent.messages.length === 0 ? (
+        <button
+          type="button"
+          className="suggestion"
+          disabled={isResuming}
+          onClick={() => send("Triage the open issues.")}
+        >
+          Triage the open issues
+        </button>
+      ) : null}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          const text = input.trim();
-          if (text.length === 0 || isResuming) return;
-          setInput("");
-          void agent.send(text, turnOpen ? { turnPolicy: "steer" } : undefined);
+          send(input.trim());
         }}
       >
         <input
@@ -58,7 +74,7 @@ export function Chat() {
           autoFocus
           disabled={isResuming}
           onChange={(event) => setInput(event.currentTarget.value)}
-          placeholder="What's the weather in Paris?"
+          placeholder="Ask the agent to triage the issues"
           value={input}
         />
         {turnOpen && input.trim().length === 0 ? (
@@ -79,5 +95,45 @@ export function Chat() {
         </button>
       </form>
     </>
+  );
+}
+
+const STATUS: Record<Row["status"], string> = {
+  decided: "Decision model",
+  reviewing: "Reviewing…",
+  reviewed: "Reviewer",
+  failed: "Review failed",
+};
+
+function TriageTable({ output }: { output: TriageOutput | undefined }) {
+  if (!output) return <p className="tool">Deciding…</p>;
+  return (
+    <table className="triage">
+      <thead>
+        <tr>
+          <th>Issue</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Confidence</th>
+          <th>Decided by</th>
+        </tr>
+      </thead>
+      <tbody>
+        {output.issues.map((row) => (
+          <tr key={row.number} className={row.status}>
+            <td>
+              <strong>#{row.number}</strong> {row.title}
+              {row.summary ? (
+                <div className="summary">{row.summary}</div>
+              ) : null}
+            </td>
+            <td>{row.category}</td>
+            <td>{row.priority}</td>
+            <td>{Math.round(row.confidence * 100)}%</td>
+            <td>{STATUS[row.status]}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

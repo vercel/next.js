@@ -13,7 +13,7 @@ body {
 }
 
 main {
-  max-width: 640px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 48px 16px;
 }
@@ -66,6 +66,57 @@ code {
 .pending {
   color: #666;
   font-size: 0.875rem;
+}
+
+.message.assistant:has(.triage) {
+  max-width: 100%;
+  width: 100%;
+}
+
+.triage {
+  width: 100%;
+  margin: 4px 0 8px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  white-space: normal;
+}
+
+.triage th,
+.triage td {
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #eee;
+}
+
+.triage th {
+  color: #666;
+  font-weight: 500;
+}
+
+.triage td:not(:first-child) {
+  white-space: nowrap;
+}
+
+.triage .summary {
+  margin-top: 2px;
+  color: #666;
+}
+
+.triage .reviewing td:last-child {
+  color: #b26b00;
+}
+
+.triage .reviewed td:last-child {
+  color: #0a7d32;
+}
+
+.triage .failed td:last-child {
+  color: #b00020;
+}
+
+.suggestion {
+  margin-bottom: 12px;
 }
 
 .error {

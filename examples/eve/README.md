@@ -2,9 +2,14 @@
 
 This example shows how to run an [eve](https://eve.dev) agent and a Next.js app as one project with the built-in [`eve/next`](https://eve.dev/docs/guides/frontend/nextjs) integration.
 
+The agent triages a small batch of sample issues. A fast decision model gives every issue a category and a priority in one step. Only the issues it is unsure about go to a reviewer subagent, so most issues never need a full agent turn.
+
 - `next.config.ts` wraps the config with `withEve()`. This mounts the agent in `agent/` at `/eve/v1/*`, on the same origin as the app.
-- `agent/` defines the agent: its model (`agent.ts`), its system prompt (`instructions.md`), a typed `get_weather` tool, and the auth policy for browser requests (`channels/eve.ts`).
-- `app/chat.tsx` is a Client Component that talks to the agent through the `useEveAgent` hook from `eve/react`.
+- `agent/tools/triage_issues.ts` is a [workflow tool](https://eve.dev/docs/tools/workflows). It loads the issues, decides them with `decide()` from `eve/ai` (`agent/lib/decide.ts`), and sends each issue below the confidence threshold to the reviewer with `ctx.agent("reviewer")`. It yields progress as it works, so the app can show each issue as it is decided.
+- `agent/subagents/reviewer/` is the reviewer subagent. It sees only the issue it is sent and returns a typed category, priority, and summary.
+- `agent/lib/issues.ts` holds the sample issues. Replace `loadIssues()` with a call to your issue tracker.
+- `agent/channels/eve.ts` sets the auth policy for browser requests.
+- `app/chat.tsx` is a Client Component that talks to the agent through the `useEveAgent` hook from `eve/react` and renders the tool's progress as a table.
 
 In development, `next dev` starts the eve dev server next to Next.js and forwards the eve routes to it. On Vercel, the app and the agent deploy as one project.
 
@@ -32,7 +37,7 @@ pnpm create next-app --example eve eve-app
 
 ### Set up the model
 
-The agent uses a model through the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), which needs an `AI_GATEWAY_API_KEY` or the Vercel project's OIDC credentials. To use a key, copy `.env.example` to `.env.local` and fill it in:
+The agent, the reviewer, and the decision model use models through the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), which needs an `AI_GATEWAY_API_KEY` or the Vercel project's OIDC credentials. To use a key, copy `.env.example` to `.env.local` and fill it in:
 
 ```bash
 cp .env.example .env.local
@@ -46,7 +51,7 @@ To call a provider directly or use a local model instead, see [Set the model](ht
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and ask about the weather.
+Open [http://localhost:3000](http://localhost:3000) and select **Triage the open issues**. To see more issues go to the reviewer, raise `CONFIDENCE_THRESHOLD` in `agent/lib/triage.ts`.
 
 To run a production build locally, build the agent with `eve build` before you start Next.js:
 
