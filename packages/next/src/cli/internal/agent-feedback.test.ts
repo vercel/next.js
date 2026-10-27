@@ -44,13 +44,26 @@ describe('agentFeedbackReviewUrl', () => {
     )
   })
 
+  it('builds a review URL for a schema version 6 report', () => {
+    const report = encodedReport({
+      schemaVersion: 6,
+      agentVersion: '1.2.3',
+      model: 'claude-opus-5.5',
+      reasoningEffort: 'high',
+    })
+
+    expect(agentFeedbackReviewUrl(report)).toBe(
+      `https://nextjs.org/agent-feedback#report=${report}`
+    )
+  })
+
   it('rejects invalid and unsupported reports', () => {
     expect(() => agentFeedbackReviewUrl('not+base64')).toThrow(
       'The report must be unpadded base64url.'
     )
     expect(() =>
       agentFeedbackReviewUrl(encodedReport({ schemaVersion: 4 }))
-    ).toThrow('The report must use agent feedback schema version 5.')
+    ).toThrow('The report must use agent feedback schema version 5 or 6.')
   })
 
   it('rejects an incomplete schema version 5 report', () => {
@@ -61,6 +74,12 @@ describe('agentFeedbackReviewUrl', () => {
     expect(() => agentFeedbackReviewUrl(incompleteReport)).toThrow(
       'The report must match agent feedback schema version 5.'
     )
+  })
+
+  it('rejects an incomplete schema version 6 report', () => {
+    expect(() =>
+      agentFeedbackReviewUrl(encodedReport({ schemaVersion: 6 }))
+    ).toThrow('The report must match agent feedback schema version 6.')
   })
 })
 

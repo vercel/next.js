@@ -22,39 +22,63 @@ export type NextFeedbackOptions = {
   dryRun?: boolean
 }
 
-const agentFeedbackReportSchema = z
-  .object({
-    schemaVersion: z.literal(5),
-    triggerReason: z.enum([
-      'unexpected-behavior',
-      'documentation-mismatch',
-      'misleading-error',
-      'repeated-failed-approach',
-      'non-obvious-workaround',
-    ]),
-    title: z.string().min(1).max(100),
-    setup: z
-      .object({
-        mode: z.enum([
-          'development',
-          'production-build',
-          'production-server',
-          'test',
-        ]),
-        bundler: z.enum(['turbopack', 'webpack', 'unknown']),
-        relevantFeatures: z.array(z.string().min(1).max(32)).max(3).optional(),
-      })
-      .strict(),
-    steps: z.array(z.string().min(1).max(240)).min(1).max(4),
-    observed: z.array(z.string().min(1).max(160)).min(1).max(3),
-    expected: z.string().min(1).max(200),
-    comparison: z.string().min(1).max(180).optional(),
-    frequency: z.enum(['once', 'reproduced']),
-    outcome: z.enum(['blocked', 'worked-around', 'resolved']),
-    nextVersion: z.string().min(1).max(64),
-    agent: z.string().min(1).max(64),
-  })
-  .strict()
+const agentFeedbackReportFields = {
+  triggerReason: z.enum([
+    'unexpected-behavior',
+    'documentation-mismatch',
+    'misleading-error',
+    'repeated-failed-approach',
+    'non-obvious-workaround',
+  ]),
+  title: z.string().min(1).max(100),
+  setup: z
+    .object({
+      mode: z.enum([
+        'development',
+        'production-build',
+        'production-server',
+        'test',
+      ]),
+      bundler: z.enum(['turbopack', 'webpack', 'unknown']),
+      relevantFeatures: z.array(z.string().min(1).max(32)).max(3).optional(),
+    })
+    .strict(),
+  steps: z.array(z.string().min(1).max(240)).min(1).max(4),
+  observed: z.array(z.string().min(1).max(160)).min(1).max(3),
+  expected: z.string().min(1).max(200),
+  comparison: z.string().min(1).max(180).optional(),
+  frequency: z.enum(['once', 'reproduced']),
+  outcome: z.enum(['blocked', 'worked-around', 'resolved']),
+  nextVersion: z.string().min(1).max(64),
+  agent: z.string().min(1).max(64),
+}
+
+const agentFeedbackReportSchema = z.discriminatedUnion('schemaVersion', [
+  z
+    .object({
+      ...agentFeedbackReportFields,
+      schemaVersion: z.literal(5),
+    })
+    .strict(),
+  z
+    .object({
+      ...agentFeedbackReportFields,
+      schemaVersion: z.literal(6),
+      agentVersion: z.string().min(1).max(64),
+      model: z.string().min(1).max(100),
+      reasoningEffort: z.enum([
+        'none',
+        'minimal',
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+        'max',
+        'unknown',
+      ]),
+    })
+    .strict(),
+])
 
 async function readFeedbackInput(input: FeedbackInput): Promise<string> {
   const abortController = new AbortController()
@@ -138,13 +162,15 @@ export function agentFeedbackReviewUrl(encodedReport: string): string {
     typeof report !== 'object' ||
     report === null ||
     !('schemaVersion' in report) ||
-    report.schemaVersion !== 5
+    (report.schemaVersion !== 5 && report.schemaVersion !== 6)
   ) {
-    throw new Error('The report must use agent feedback schema version 5.')
+    throw new Error('The report must use agent feedback schema version 5 or 6.')
   }
 
   if (!agentFeedbackReportSchema.safeParse(report).success) {
-    throw new Error('The report must match agent feedback schema version 5.')
+    throw new Error(
+      `The report must match agent feedback schema version ${report.schemaVersion}.`
+    )
   }
 
   return `${AGENT_FEEDBACK_REVIEW_URL}${encodedReport}`
