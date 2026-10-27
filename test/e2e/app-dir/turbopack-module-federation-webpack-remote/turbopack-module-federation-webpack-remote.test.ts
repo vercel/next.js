@@ -1,6 +1,6 @@
 import { join } from 'path'
 import type { Server } from 'http'
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { findPort, retry, startStaticServer } from 'next-test-utils'
 
 const webpack = require('next/dist/compiled/webpack/webpack')
@@ -45,7 +45,12 @@ async function buildRemote(context: string, outputPath: string) {
   })
 }
 
-describe('turbopack module federation with a webpack remote', () => {
+const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
+// This test launches a local webpack server, which deployed fixtures cannot reach.
+const describeTurbopack =
+  isTurbopack && !isNextDeploy ? describe : describe.skip
+
+describeTurbopack('turbopack module federation with a webpack remote', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
