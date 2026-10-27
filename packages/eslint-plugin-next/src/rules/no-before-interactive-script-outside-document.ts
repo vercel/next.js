@@ -26,11 +26,6 @@ export default defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        // This rule shouldn't fire in `app/`
-        if (isInAppDir(context)) {
-          return
-        }
-
         if (!scriptImportName) {
           return
         }
@@ -48,6 +43,11 @@ export default defineRule({
           !strategy.value ||
           strategy.value.value !== 'beforeInteractive'
         ) {
+          return
+        }
+
+        // This rule shouldn't fire in `app/`
+        if (isInAppDir(context)) {
           return
         }
 
