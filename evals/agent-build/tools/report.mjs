@@ -99,7 +99,12 @@ const points = models
   })
   .filter(Boolean)
 
-if (points.length >= 2) {
+if (points.length === 0) {
+  console.log()
+  console.log(
+    '_The accuracy against cost chart appears after the first scored run._'
+  )
+} else {
   const log = (v) => Math.log10(Math.max(v, 0.01))
   const lo = Math.min(...points.map((p) => log(p.cost)))
   const hi = Math.max(...points.map((p) => log(p.cost)))
@@ -114,6 +119,10 @@ if (points.length >= 2) {
     `    x-axis "${usd(Math.min(...points.map((p) => p.cost)))}" --> "${usd(Math.max(...points.map((p) => p.cost)))} per task"`
   )
   console.log('    y-axis "0% pass@1" --> "100% pass@1"')
+  console.log('    quadrant-1 Accurate, expensive')
+  console.log('    quadrant-2 Accurate, cheap')
+  console.log('    quadrant-3 Inaccurate, cheap')
+  console.log('    quadrant-4 Inaccurate, expensive')
   for (const p of points) {
     console.log(
       `    ${p.model.replace(' · ', ' ')}: [${x(p.cost).toFixed(2)}, ${y(p.accuracy).toFixed(2)}]`
