@@ -1,0 +1,2426 @@
+{
+  "development-success": {
+    "mode": "development",
+    "group": "success",
+    "body": "lifecycle.test.mjs.txt",
+    "bodySHA256": "a15b91d4d15586581d42b7779e43bb9ce305dd7ca2f474ab9fd90e156c560e18",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": true,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 0
+  },
+  "production-success": {
+    "mode": "production",
+    "group": "success",
+    "body": "lifecycle.test.mjs.txt",
+    "bodySHA256": "a15b91d4d15586581d42b7779e43bb9ce305dd7ca2f474ab9fd90e156c560e18",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": true,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 0
+  },
+  "development-failure": {
+    "mode": "development",
+    "group": "failure",
+    "body": "lifecycle.test.mjs.txt",
+    "bodySHA256": "a15b91d4d15586581d42b7779e43bb9ce305dd7ca2f474ab9fd90e156c560e18",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": false,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "failed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 1
+  },
+  "production-failure": {
+    "mode": "production",
+    "group": "failure",
+    "body": "lifecycle.test.mjs.txt",
+    "bodySHA256": "a15b91d4d15586581d42b7779e43bb9ce305dd7ca2f474ab9fd90e156c560e18",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": false,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "failed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 1
+  },
+  "development-retry": {
+    "mode": "development",
+    "group": "retry",
+    "body": "retry.test.mjs.txt",
+    "bodySHA256": "ac126fdb53033dc19f3a183f3308210035d28e9959f326f97743a64073330504",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": true,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 0
+  },
+  "production-retry": {
+    "mode": "production",
+    "group": "retry",
+    "body": "retry.test.mjs.txt",
+    "bodySHA256": "ac126fdb53033dc19f3a183f3308210035d28e9959f326f97743a64073330504",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": {},
+          "matched": {},
+          "unmatched": {}
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": true,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 0
+  },
+  "development-counters": {
+    "mode": "development",
+    "group": "counters",
+    "body": "counters.test.mjs.txt",
+    "bodySHA256": "32f4ec5e2ae75da4c92ca47723aca7bc978ac6220aed896751478a071c8cea99",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 0,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 0,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 2,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 2,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 2,
+          "unmatched": 0
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": true,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 0
+  },
+  "production-counters": {
+    "mode": "production",
+    "group": "counters",
+    "body": "counters.test.mjs.txt",
+    "bodySHA256": "32f4ec5e2ae75da4c92ca47723aca7bc978ac6220aed896751478a071c8cea99",
+    "rows": [
+      {
+        "phase": "collection",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-all",
+        "sameGlobalState": true,
+        "ownSnapshot": false,
+        "snapshotPresent": false,
+        "descriptor": null,
+        "sameActualSnapshot": null,
+        "constructorName": null,
+        "counters": null,
+        "local": null
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 0,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 0,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "first-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "before-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-enter",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 1,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "second-body-after-snapshot",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 2,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-each",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 2,
+          "unmatched": 0
+        },
+        "local": {
+          "sameState": false,
+          "snapshotPresent": true,
+          "sameSnapshot": true
+        }
+      },
+      {
+        "phase": "after-all",
+        "sameGlobalState": true,
+        "ownSnapshot": true,
+        "snapshotPresent": true,
+        "descriptor": {
+          "enumerable": true,
+          "configurable": true,
+          "writable": true,
+          "valueType": "object"
+        },
+        "sameActualSnapshot": true,
+        "constructorName": "SnapshotState",
+        "counters": {
+          "added": 0,
+          "matched": 2,
+          "unmatched": 0
+        },
+        "local": null
+      }
+    ],
+    "standard": {
+      "success": true,
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 2,
+        "total": 2,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "files": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ]
+    },
+    "status": 0
+  }
+}

@@ -641,3 +641,58 @@ it.each(['object', 'fulfilled'])(
   },
   125000
 )
+
+it('publishes the real snapshot state only at actual attempt start and preserves its lifetime', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'snapshot-state-exposure.cjs'), process.cwd(), '--source'],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    controls: 7,
+    actualSDKReadIdentity: true,
+    noCollectionOrBeforeAllInjection: true,
+    realCounterAndRetryBehavior: true,
+    rawSetupFailureAndUndefined: true,
+    cleanupGuardsAndGlobalRestoration: true,
+  })
+}, 20000)
+
+it.each(['development', 'production'])(
+  'exposes actual snapshot state across public %s lifecycle, failure and retry',
+  async (mode) => {
+    const { mkdtemp, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-snapshot-state-public-')
+    )
+    try {
+      const { stdout, stderr } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'snapshot-state-public.mjs'),
+          'source',
+          process.cwd(),
+          join(directory, 'observed'),
+          mode,
+        ],
+        { timeout: 180000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch((error) => {
+        throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+      })
+      expect(stderr).toBe('')
+      expect(JSON.parse(stdout)).toEqual({
+        profiles: 4,
+        cases: 8,
+        observations: 48,
+        exactGenuineStateAndSnapshotCounters: true,
+        sourceAndInlineSnapshotsUnchanged: true,
+        allOwnersJoined: true,
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  185000
+)

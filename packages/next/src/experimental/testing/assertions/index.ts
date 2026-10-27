@@ -3275,6 +3275,11 @@ export async function createAssertionRuntime(options: {
       if (prepared) localExpectations.set(context.testId, prepared)
       snapshotTests.delete(context.testId)
       snapshots.clearTest(options.testPath, context.testId)
+      setState<
+        ReturnType<typeof getState> & {
+          snapshotState: ReturnType<SnapshotClient['getSnapshotState']>
+        }
+      >({ snapshotState: snapshots.getSnapshotState(options.testPath) }, expect)
     }
     function resetTestState() {
       setState(
