@@ -38,7 +38,7 @@ A hard task puts several sites of the same error in one realistic app, gives eac
 
 ### 3. Write a short instruction
 
-Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction): concise, with clear outcomes. Write it as the user would report it: the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The approved competency prompts are 20 to 50 words. The first versions of our two pilots were checklists of over 250 words, and every model passed them.
+Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction): concise, with clear outcomes. Write it as the user would report it: the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The approved competency prompts are 20 to 50 words. A checklist of every requirement hands the agent the answer, and every model passes it.
 
 Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the instruction.
 
