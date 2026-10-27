@@ -46,6 +46,8 @@ function onlyReactElement(
   return list.concat(child)
 }
 
+const VALID_HEAD_TAGS = ['title', 'meta', 'base', 'link', 'style', 'script', 'noscript']
+
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
@@ -139,6 +141,13 @@ function reduceComponents(
         } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
           warnOnce(
             `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
+        } else if (
+          typeof c.type === 'string' &&
+          !VALID_HEAD_TAGS.includes(c.type)
+        ) {
+          warnOnce(
+            `<${c.type}> is not allowed in next/head. The only valid head elements are: ${VALID_HEAD_TAGS.join(', ')}.`
           )
         }
       }
