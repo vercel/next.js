@@ -3553,7 +3553,12 @@ impl TaskIdWithOptionalCount for (TaskId, u32) {
 struct RetryTimeout;
 
 const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
+/// The number of times a lost-follower job is retried before it reports a missing edge. Small in
+/// tests, so they don't have to spin for a minute.
+#[cfg(not(test))]
 const MAX_RETRIES: u16 = 60000;
+#[cfg(test)]
+const MAX_RETRIES: u16 = 100;
 
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
 /// Returns an error if the function was not able to complete and the timeout was reached.
@@ -3825,5 +3830,130 @@ mod tests {
                 .is_empty()
         );
         assert!(AggregatedDataUpdate::new().optimize().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod lost_follower_tests {
+    use std::sync::Arc;
+
+    use smallvec::smallvec;
+    use turbo_tasks::{TaskId, TurboTasks, backend::TransientTaskType};
+
+    use super::{AggregationUpdateJob, AggregationUpdateQueue, MAX_RETRIES};
+    use crate::{
+        backend::{
+            BackendOptions, TaskDataCategory, TurboTasksBackend, operation::ExecuteContext,
+            storage_schema::TaskStorageAccessors,
+        },
+        data::AggregationNumber,
+        noop_backing_storage,
+    };
+
+    fn create_turbo_tasks() -> Arc<TurboTasks<TurboTasksBackend>> {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                dependency_tracking: false,
+                active_tracking: false,
+                storage_mode: None,
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ))
+    }
+
+    /// Creates a task that is never executed, with the given aggregation number.
+    fn create_task(
+        backend: &TurboTasksBackend,
+        ctx: &mut ExecuteContext<'_>,
+        aggregation_number: u32,
+    ) -> TaskId {
+        let task_id = backend.create_transient_task(TransientTaskType::Once(Box::pin(async {
+            unreachable!("the task is never executed")
+        })));
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        task.set_aggregation_number(AggregationNumber {
+            base: aggregation_number,
+            distance: 0,
+            effective: aggregation_number,
+        });
+        task_id
+    }
+
+    fn has_follower(ctx: &mut ExecuteContext<'_>, upper: TaskId, follower: TaskId) -> bool {
+        let upper = ctx.task(upper, TaskDataCategory::All);
+        upper.iter_followers().any(|(&id, _)| id == follower)
+    }
+
+    /// A removal can overtake its matching add when the add is still queued behind other work in
+    /// another queue. The removal has to wait for the add, however long the other queue takes,
+    /// instead of reporting a missing edge after a fixed number of retries.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn lost_follower_waits_for_an_add_that_another_queue_still_holds() {
+        let tt = create_turbo_tasks();
+        let backend = tt.backend();
+        let mut ctx = backend.execute_context(&tt);
+
+        // Followers have a higher aggregation number than their uppers, so they become follower
+        // edges.
+        let upper = create_task(backend, &mut ctx, 20);
+        let follower = create_task(backend, &mut ctx, 30);
+        let other_upper = create_task(backend, &mut ctx, 20);
+        let other_follower = create_task(backend, &mut ctx, 30);
+
+        // Another operation's queue: busy with earlier work, then the add.
+        let mut adding_queue = AggregationUpdateQueue::new();
+        adding_queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+            upper_id: other_upper,
+            new_follower_ids: smallvec![other_follower],
+        });
+        adding_queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+            upper_id: upper,
+            new_follower_ids: smallvec![follower],
+        });
+        assert!(!adding_queue.process(&mut ctx));
+        assert!(!has_follower(&mut ctx, upper, follower));
+
+        // The removal overtakes the add, and keeps missing the edge for longer than `MAX_RETRIES`
+        // retries while the other queue is still busy.
+        let mut removing_queue = AggregationUpdateQueue::new();
+        removing_queue.push(AggregationUpdateJob::InnerOfUpperLostFollower {
+            upper_id: upper,
+            lost_follower_id: follower,
+            retry: 0,
+        });
+        for _ in 0..(MAX_RETRIES as usize + 10) {
+            assert!(!removing_queue.process(&mut ctx));
+        }
+
+        // The add arrives, then the removal completes.
+        adding_queue.execute(&mut ctx);
+        assert!(has_follower(&mut ctx, upper, follower));
+        removing_queue.execute(&mut ctx);
+        assert!(!has_follower(&mut ctx, upper, follower));
+        assert!(has_follower(&mut ctx, other_upper, other_follower));
+    }
+
+    /// When no queue is processing work anymore, the matching add can't arrive, so a removal of
+    /// an edge that doesn't exist still reports the inconsistent graph.
+    #[tokio::test(flavor = "multi_thread")]
+    #[should_panic(expected = "is not able to remove follower")]
+    async fn lost_follower_without_matching_add_panics() {
+        let tt = create_turbo_tasks();
+        let backend = tt.backend();
+        let mut ctx = backend.execute_context(&tt);
+
+        let upper = create_task(backend, &mut ctx, 20);
+        let follower = create_task(backend, &mut ctx, 30);
+
+        let mut removing_queue = AggregationUpdateQueue::new();
+        removing_queue.push(AggregationUpdateJob::InnerOfUpperLostFollower {
+            upper_id: upper,
+            lost_follower_id: follower,
+            retry: 0,
+        });
+        removing_queue.execute(&mut ctx);
     }
 }
