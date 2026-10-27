@@ -93,10 +93,15 @@ requests; see #100756 for the shape.
    relabeled.
 3. **Validation**: a table of untouched, reference, and known-bad results,
    then one line for lint and formatting.
-4. **Calibration**: the grid and chart from
-   `node evals/agent-build/tools/report.mjs <jobs-dir>`, with the framework
-   version, Harbor revision, task version, and attempt policy on one line.
-   Say "in progress" or "not run" rather than leaving it out.
+4. **Calibration**: the output of
+   `node evals/agent-build/tools/report.mjs <jobs-dir>`, pasted unchanged. It
+   has the same parts as a SelfBench result: a headline naming the most
+   accurate setting and the cheapest one on the cost frontier, a settings
+   table (model, harness, reasoning, accuracy, cost per task), a pass/fail
+   grid per task, and accuracy against cost. Follow it with one sentence on
+   what the result means for the task (separates models, or saturated), and
+   one line with the framework version, Harbor revision, task version, and
+   attempt policy. Say "in progress" or "not run" rather than leaving it out.
 
 Bump the `version` in `task.toml` whenever the instruction, fixture, or
 verifier changes, so older trials are never compared with newer ones.

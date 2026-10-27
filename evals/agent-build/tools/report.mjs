@@ -1,50 +1,65 @@
-// Turn a calibrate.sh jobs directory into the Calibration section of an eval
-// pull request: a pass/fail grid per task and setting with cost and duration,
-// and a Mermaid chart GitHub renders inline. Transcripts stay in the jobs
-// directory; link it from the Versions section.
+// Render a calibrate.sh jobs directory in the same shape as SelfBench
+// results: a headline, a settings table (model, harness, reasoning, accuracy,
+// cost per task, frontier), a pass/fail grid per task, and accuracy against
+// cost as a Mermaid chart GitHub renders inline. Accuracy and cost count only
+// scored cells; runner errors are discarded, not failures.
 //
-//   node evals/agent-build/tools/report.mjs <jobs-dir> [--title "..."]
+//   node evals/agent-build/tools/report.mjs <jobs-dir>
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-const [jobsArg, ...rest] = process.argv.slice(2)
+const jobsArg = process.argv[2]
 if (!jobsArg) {
-  console.error('usage: report.mjs <jobs-dir> [--title "..."]')
+  console.error('usage: report.mjs <jobs-dir>')
   process.exit(2)
 }
 const jobs = resolve(jobsArg)
-const titleIndex = rest.indexOf('--title')
-const title = titleIndex >= 0 ? rest[titleIndex + 1] : 'Pass@1 by model'
+const read = (file) => JSON.parse(readFileSync(file, 'utf8'))
+
+// "claude-opus-5.5" -> "Claude Opus 5.5", "gpt-6.1-sol" -> "GPT-6.1 Sol"
+const UPPER = new Set(['gpt', 'glm'])
+const label = (model) =>
+  model
+    .split('/')
+    .pop()
+    .split('-')
+    .map((w) =>
+      UPPER.has(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)
+    )
+    .join(' ')
+    .replace(/^GPT /, 'GPT-')
 
 const cells = []
 for (const name of readdirSync(jobs)) {
   if (name.startsWith('_')) continue // runs set aside by hand
-  const file = join(jobs, name, 'result.json')
-  if (!existsSync(file)) continue
-  const result = JSON.parse(readFileSync(file, 'utf8'))
-  const [task, agent, model] = name.split('__')
-  if (!task || !agent || !model) continue
+  const dir = join(jobs, name)
+  if (!existsSync(join(dir, 'result.json'))) continue
+  const result = read(join(dir, 'result.json'))
+  const agent = read(join(dir, 'config.json')).agents?.[0] ?? {}
+  const task = name.split('__')[0]
+  const model = agent.model_name ?? name.split('__')[2]
+  const kwargs = agent.kwargs ?? {}
+  const reasoning = kwargs.reasoning_effort ?? kwargs.effort ?? 'default'
   const evaluation = Object.values(result.stats?.evals ?? {})[0] ?? {}
-  const finished = Boolean(result.finished_at)
-  const errored = (evaluation.n_errors ?? 0) > 0
   const reward = evaluation.metrics?.[0]?.mean
+  const minutes = result.finished_at
+    ? (new Date(result.finished_at) - new Date(result.started_at)) / 60000
+    : null
   cells.push({
     task,
-    agent,
-    model: model.replace(/-/, '/'),
-    state: !finished
+    id: `${model}|${agent.name}|${reasoning}`,
+    model,
+    harness: agent.name,
+    reasoning,
+    state: !result.finished_at
       ? 'running'
-      : errored
+      : (evaluation.n_errors ?? 0) > 0
         ? 'discarded'
         : reward >= 1
-          ? '1/1'
-          : '0/1',
+          ? 'pass'
+          : 'fail',
     cost: result.stats?.cost_usd ?? null,
-    seconds: finished
-      ? Math.round(
-          (new Date(result.finished_at) - new Date(result.started_at)) / 1000
-        )
-      : null,
+    minutes,
   })
 }
 
@@ -54,63 +69,112 @@ if (cells.length === 0) {
 }
 
 const tasks = [...new Set(cells.map((c) => c.task))].sort()
-const settings = [...new Set(cells.map((c) => `${c.agent}|${c.model}`))]
+const scored = (c) => c.state === 'pass' || c.state === 'fail'
+const settings = [...new Set(cells.map((c) => c.id))].map((id) => {
+  const all = cells.filter((c) => c.id === id)
+  const mine = all.filter(scored)
+  const passed = mine.filter((c) => c.state === 'pass').length
+  const costs = mine.map((c) => c.cost).filter((c) => c != null)
+  return {
+    ...all[0],
+    label: label(all[0].model),
+    scored: mine.length,
+    passed,
+    accuracy: mine.length ? (100 * passed) / mine.length : null,
+    costPerTask: costs.length
+      ? costs.reduce((a, b) => a + b, 0) / costs.length
+      : null,
+  }
+})
+const ranked = settings
+  .filter((s) => s.accuracy != null)
+  .sort((a, b) => b.accuracy - a.accuracy || a.costPerTask - b.costPerTask)
 
-const cell = (c) => {
-  if (!c) return 'not run'
-  if (c.state === 'running') return 'running'
-  const meta = []
-  if (c.cost != null) meta.push(`$${c.cost.toFixed(2)}`)
-  if (c.seconds != null) meta.push(`${Math.round(c.seconds / 60)}m`)
-  return `${c.state}${meta.length ? ` (${meta.join(', ')})` : ''}`
+// Pareto frontier: no other setting is at least as accurate and cheaper.
+for (const s of ranked) {
+  s.onFrontier = !ranked.some(
+    (o) =>
+      o !== s &&
+      o.accuracy >= s.accuracy &&
+      o.costPerTask <= s.costPerTask &&
+      (o.accuracy > s.accuracy || o.costPerTask < s.costPerTask)
+  )
+}
+
+const pct = (v) => `${v.toFixed(1)}%`
+const usd = (v) => (v == null ? '' : `$${v.toFixed(2)}`)
+
+if (ranked.length) {
+  const best = ranked[0]
+  const cheap = ranked
+    .filter((s) => s.onFrontier && s !== best)
+    .sort((a, b) => a.costPerTask - b.costPerTask)[0]
+  let line = `Most accurate: ${best.label}, ${pct(best.accuracy)} at ${usd(best.costPerTask)} per task.`
+  if (cheap) {
+    line += ` Best for less: ${cheap.label}, ${pct(cheap.accuracy)} at ${usd(cheap.costPerTask)}.`
+  }
+  console.log(
+    `${line} ${ranked.length} of ${settings.length} settings scored on ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} so far.`
+  )
+  console.log()
 }
 
 console.log(
-  '| Agent | Model | ' + tasks.map((t) => `\`${t}\``).join(' | ') + ' |'
+  '| Model | Harness | Reasoning | Accuracy | Cost per task | Frontier |'
 )
-console.log('| --- | --- | ' + tasks.map(() => '---:').join(' | ') + ' |')
-for (const setting of settings) {
-  const [agent, model] = setting.split('|')
-  const row = tasks.map((t) =>
-    cell(
-      cells.find((c) => c.task === t && c.agent === agent && c.model === model)
-    )
-  )
-  console.log(`| ${agent} | \`${model}\` | ${row.join(' | ')} |`)
-}
-
-const passRate = (predicate) => {
-  const scored = cells.filter(
-    (c) => predicate(c) && (c.state === '1/1' || c.state === '0/1')
-  )
-  if (scored.length === 0) return null
-  return Math.round(
-    (100 * scored.filter((c) => c.state === '1/1').length) / scored.length
+console.log('| --- | --- | --- | ---: | ---: | :---: |')
+for (const s of [...ranked, ...settings.filter((s) => s.accuracy == null)]) {
+  const acc =
+    s.accuracy == null
+      ? 'pending'
+      : `${pct(s.accuracy)} (${s.passed}/${s.scored})`
+  console.log(
+    `| ${s.label} | ${s.harness} | ${s.reasoning} | ${acc} | ${usd(s.costPerTask)} | ${s.onFrontier ? '●' : ''} |`
   )
 }
 
-const labels = settings.map((s) => s.split('|')[1].split('/').pop())
-const rates = settings.map((s) => {
-  const [agent, model] = s.split('|')
-  return passRate((c) => c.agent === agent && c.model === model)
-})
-if (rates.some((r) => r !== null)) {
+// Whether each setting passed each task.
+const order = [...ranked, ...settings.filter((s) => s.accuracy == null)]
+const mark = (c) => {
+  if (!c) return ''
+  if (c.state === 'running') return '⏳'
+  if (c.state === 'discarded') return '— runner error'
+  const time = c.minutes == null ? '' : `, ${Math.round(c.minutes)}m`
+  return `${c.state === 'pass' ? '✅' : '❌'} ${usd(c.cost)}${time}`
+}
+console.log()
+console.log('| Task | ' + order.map((s) => s.label).join(' | ') + ' |')
+console.log('| --- | ' + order.map(() => ':---:').join(' | ') + ' |')
+for (const task of tasks) {
+  const row = order.map((s) =>
+    mark(cells.find((c) => c.task === task && c.id === s.id))
+  )
+  console.log(`| \`${task}\` | ${row.join(' | ')} |`)
+}
+
+// Accuracy against cost per task, cost on a log scale over the observed range.
+if (ranked.length >= 2) {
+  const logs = ranked.map((s) => Math.log10(Math.max(s.costPerTask, 0.01)))
+  const lo = Math.min(...logs)
+  const hi = Math.max(...logs)
+  const x = (v) =>
+    hi === lo
+      ? 0.5
+      : 0.06 + (0.88 * (Math.log10(Math.max(v, 0.01)) - lo)) / (hi - lo)
+  const y = (v) => Math.min(0.96, Math.max(0.04, v / 100))
+  const costs = ranked.map((s) => s.costPerTask)
   console.log()
   console.log('```mermaid')
-  console.log('xychart-beta')
-  console.log(`    title "${title}"`)
-  console.log(`    x-axis [${labels.map((l) => `"${l}"`).join(', ')}]`)
-  console.log('    y-axis "pass@1 (%)" 0 --> 100')
-  console.log(`    bar [${rates.map((r) => r ?? 0).join(', ')}]`)
+  console.log('quadrantChart')
+  console.log('    title Accuracy vs cost per task')
+  console.log(
+    `    x-axis "${usd(Math.min(...costs))} per task" --> "${usd(Math.max(...costs))} per task"`
+  )
+  console.log('    y-axis "0% accuracy" --> "100% accuracy"')
+  for (const s of ranked) {
+    console.log(
+      `    ${s.label}: [${x(s.costPerTask).toFixed(2)}, ${y(s.accuracy).toFixed(2)}]`
+    )
+  }
   console.log('```')
 }
-
-const discarded = cells.filter((c) => c.state === 'discarded')
-const running = cells.filter((c) => c.state === 'running')
-const notes = []
-if (discarded.length)
-  notes.push(
-    `${discarded.length} discarded (runner or harness error, not a model result)`
-  )
-if (running.length) notes.push(`${running.length} still running`)
-if (notes.length) console.log(`\n${notes.join('; ')}.`)
