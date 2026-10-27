@@ -275,7 +275,10 @@ if (phase !== 'child') {
         ].includes(mode)
       assert.equal(
         atRoot,
-        logical || mode.startsWith('finish-') || mode === 'pending-undefined'
+        logical ||
+          (success && requested) ||
+          mode.startsWith('finish-') ||
+          mode === 'pending-undefined'
           ? 1
           : 0
       )

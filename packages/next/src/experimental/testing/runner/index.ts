@@ -1185,9 +1185,8 @@ function initializeFile(
                           test.errors.length === 0
                       )
                     )
-                  return (
-                    actual.cases.some((test) => test.errors.length) &&
-                    !actual.cases.some(
+                  if (actual.cases.some((test) => test.errors.length))
+                    return !actual.cases.some(
                       (test) =>
                         test.status === 'cancelled' ||
                         test.errors.some(
@@ -1197,6 +1196,14 @@ function initializeFile(
                               test.attempt.id
                             )
                         )
+                    )
+                  return (
+                    actual.cases.some((test) => test.status === 'passed') &&
+                    actual.cases.every(
+                      (test) =>
+                        (test.status === 'passed' ||
+                          test.status === 'skipped') &&
+                        test.errors.length === 0
                     )
                   )
                 }
@@ -1211,7 +1218,7 @@ function initializeFile(
                         partial:
                           options.testNamePattern !== undefined ||
                           hasFocusedTests(collector.root),
-                        // The existing beforeEach failure policy stays incomplete.
+                        // The final runner state still owns snapshot completeness.
                         complete: false,
                       }
                     )

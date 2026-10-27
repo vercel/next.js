@@ -21807,3 +21807,108 @@ describe('actual readonly snapshot completion after settled afterAll', () => {
     130000
   )
 })
+
+describe('actual readonly snapshot completion for passed files', () => {
+  it.each([
+    'obsolete',
+    'none',
+    'none-omitted',
+    'skip-first',
+    'filtered',
+    'focused',
+    'omitted',
+    'empty',
+    'all-skipped',
+    'body',
+    'beforeAll',
+    'afterEach',
+    'cleanup-same-obsolete',
+    'finish-undefined',
+    'pending-finish',
+    'pending-abort',
+    'abort-before-run',
+  ])(
+    'retains actual SDK/root/physical ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-readonly-passing-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'read-only-passing-snapshot.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualFile: true,
+          actualSnapshotFinishOnce: true,
+          rootEvents: 1,
+          snapshotBytesUnchanged: true,
+          rawErrorFieldsUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+
+  it.each([
+    'istanbul-passing-plain-original-report-true',
+    'istanbul-passing-plain-original-report-false',
+    'istanbul-passing-plain-removed-formatted-report-true',
+    'istanbul-passing-filtered-removed-formatted-report-true',
+    'istanbul-passing-focused-removed-formatted-report-true',
+    'istanbul-passing-skip-first-removed-formatted-report-true',
+    'istanbul-passing-no-obsolete-report-true',
+  ])(
+    'matches genuine standard reports and actual root errors for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-readonly-passing-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'readonly-passing-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualOrdinaryPassedCase: true,
+          actualOrderedModuleErrors: true,
+          actualOrderedRootErrors: true,
+          completeCaseReportAndMap: true,
+          completeCoverageFiles: true,
+          snapshotBytesUnchanged: true,
+          rawFrameEqualityQualified: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
