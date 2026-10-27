@@ -1271,7 +1271,7 @@ describe('Prerender', () => {
             retry(async () => {
               const html = await renderViaHTTP(next.url, '/temp/hello')
               expect(html).toMatch(
-                /getStaticPaths is required for dynamic SSG pages and is missing for/
+                /`getStaticPaths` is required for dynamic SSG pages and is missing for/
               )
             })
         )

@@ -608,7 +608,7 @@ export async function renderToHTMLImpl(
 
   if (isSSG && pageIsDynamic && !getStaticPaths) {
     throw new Error(
-      `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
+      `\`getStaticPaths\` is required for dynamic SSG pages and is missing for \`${pathname}\`.` +
         `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
     )
   }
