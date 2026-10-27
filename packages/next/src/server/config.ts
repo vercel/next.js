@@ -469,9 +469,6 @@ function assignDefaultsAndValidate(
   }
 
   if (result.experimental.goRoutes) {
-    // Native compiler sessions are process-local; Go's own build cache persists.
-    result.experimental.turbopackFileSystemCacheForDev = false
-    result.experimental.turbopackFileSystemCacheForBuild = false
     if (result.output) {
       throw new Error(
         'experimental.goRoutes does not support standalone or static export output'

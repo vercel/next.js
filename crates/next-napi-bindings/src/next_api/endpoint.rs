@@ -94,7 +94,8 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            Some(EndpointOutputPaths::NotFound) | None => Self {
+            Some(EndpointOutputPaths::NativeFailed { .. } | EndpointOutputPaths::NotFound)
+            | None => Self {
                 r#type: "none".to_string(),
                 ..Default::default()
             },
@@ -184,7 +185,10 @@ pub async fn endpoint_write_to_disk(
                     written, issues, ..
                 } = &*read;
 
-                if let Some(EndpointOutputPaths::Native { build, .. }) = written.as_deref()
+                if let Some(
+                    EndpointOutputPaths::Native { build, .. }
+                    | EndpointOutputPaths::NativeFailed { build },
+                ) = written.as_deref()
                     && !build.is_current()?
                 {
                     let systems = endpoint_native_file_systems_operation(endpoint_op)
