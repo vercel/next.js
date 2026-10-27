@@ -59,10 +59,16 @@ for (const name of readdirSync(jobs)) {
   const regradeFile = join(jobs, '_regraded', name, 'result.json')
   const regrade = existsSync(regradeFile) ? read(regradeFile) : null
   const regradeEval = Object.values(regrade?.stats?.evals ?? {})[0]
-  const reward =
-    regrade?.finished_at && regradeEval
-      ? regradeEval.metrics?.[0]?.mean
-      : evaluation.metrics?.[0]?.mean
+  // Use the regrade only when it produced a valid score; a regrade that hit a
+  // sandbox or verifier error keeps the original reward.
+  const regradeScored =
+    regrade?.finished_at &&
+    regradeEval &&
+    !runnerError(regradeEval) &&
+    Number.isFinite(regradeEval.metrics?.[0]?.mean)
+  const reward = regradeScored
+    ? regradeEval.metrics[0].mean
+    : evaluation.metrics?.[0]?.mean
   // Confirmation reruns of a valid failure (calibrate.sh --confirm).
   const confirms = [1, 2]
     .map((n) => join(jobs, '_confirm', `${name}__confirm-${n}`, 'result.json'))
