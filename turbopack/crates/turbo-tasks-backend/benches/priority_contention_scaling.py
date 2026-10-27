@@ -8,7 +8,10 @@ process may run on (CPU quotas, e.g. of containers, can limit them further), so 
 number of workers. The script only captures data: there is no before/after comparison and no
 plotting (Criterion runs with `--noplot`). To compare commits, run it once per commit.
 
-Linux only (uses `os.sched_setaffinity`, `/proc/stat` and `/sys/devices/system/cpu`). Only the
+Best on Linux (uses `os.sched_setaffinity`, `/proc/stat` and `/sys/devices/system/cpu`). Where
+CPU affinity is unavailable (e.g. macOS), the script instead sets `TOKIO_WORKER_THREADS` and
+`TURBO_TASKS_AVAILABLE_PARALLELISM` to each count. That limits the worker count, but the process
+may still run on all CPUs, so the results are not directly comparable to pinned runs. Only the
 Python 3 standard library is required.
 
 Usage (from anywhere in the repository):
@@ -21,15 +24,18 @@ CPU selection: the CPUs available to this process (`sched_getaffinity`) are orde
 CPU per physical core first (by package, core and CPU id), then their SMT siblings. A run with
 `n` CPUs uses the first `n` of that order. The default counts are 1, 2, 4, ... below the number
 of available CPUs, plus that number. The topology is the one the OS reports; in a VM it may not
-match the host.
+match the host. Without CPU affinity the counts are taken from `os.cpu_count()` and nothing is
+ordered.
 
 CSV columns (one row per pass x CPU count x benchmark variant):
 
-    pass, cpus, cpu_list, variant,
+    pass, cpus, cpu_list, limit, variant,
     median_ns, median_ci_lower_ns, median_ci_upper_ns, mean_ns, ci_confidence_level,
     steal_pct, git_commit, git_dirty, timestamp_utc
 
-`cpus` is the number of allowed logical CPUs (not a measured worker count). `median_*` and
+`cpus` is the number of allowed logical CPUs (not a measured worker count). `limit` is how it was
+applied: `affinity` (CPU pinning, `cpu_list` names the CPUs) or `workers` (the env vars above,
+`cpu_list` is empty). `median_*` and
 `mean_ns` are Criterion's estimates of the time per iteration. `steal_pct` is the share of steal
 time in all CPU time of the whole machine (all CPUs, `/proc/stat`) during the run; it is empty
 when unavailable. High steal (e.g. on shared VMs) makes the results unreliable. Rows are
@@ -57,6 +63,7 @@ CSV_COLUMNS = [
     "pass",
     "cpus",
     "cpu_list",
+    "limit",
     "variant",
     "median_ns",
     "median_ci_lower_ns",
@@ -274,6 +281,10 @@ def git_info() -> tuple[str, str]:
     return commit, dirty
 
 
+def can_pin_cpus() -> bool:
+    return hasattr(os, "sched_setaffinity") and hasattr(os, "sched_getaffinity")
+
+
 def check_environment(env: dict) -> None:
     set_vars = [name for name in OVERRIDE_ENV_VARS if name in env]
     if set_vars:
@@ -297,9 +308,22 @@ def open_csv(path: pathlib.Path, force: bool):
     return handle, writer
 
 
-def run_bench(executable: str, cpus: Sequence[int], criterion_home: pathlib.Path, log_path: pathlib.Path) -> None:
-    """Runs the benchmark group restricted to `cpus`, with its output in `log_path`."""
+def run_bench(
+    executable: str,
+    cpus: Optional[Sequence[int]],
+    workers: int,
+    criterion_home: pathlib.Path,
+    log_path: pathlib.Path,
+) -> None:
+    """Runs the benchmark group with its output in `log_path`.
+
+    Restricted to `cpus` when given, otherwise to `workers` workers through the env vars."""
     env = dict(os.environ, CRITERION_HOME=str(criterion_home))
+    preexec_fn = None
+    if cpus is not None:
+        preexec_fn = lambda: os.sched_setaffinity(0, cpus)
+    else:
+        env.update({name: str(workers) for name in OVERRIDE_ENV_VARS})
     with log_path.open("w") as log:
         try:
             process = subprocess.Popen(
@@ -307,7 +331,7 @@ def run_bench(executable: str, cpus: Sequence[int], criterion_home: pathlib.Path
                 env=env,
                 stdout=log,
                 stderr=subprocess.STDOUT,
-                preexec_fn=lambda: os.sched_setaffinity(0, cpus),
+                preexec_fn=preexec_fn,
             )
         except (OSError, subprocess.SubprocessError) as error:
             raise ScalingError(f"could not start {executable}: {error}") from None
@@ -353,22 +377,33 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 def main(argv: Sequence[str]) -> int:
     args = parse_args(argv)
-    if not hasattr(os, "sched_setaffinity"):
-        raise ScalingError("this script needs Linux (os.sched_setaffinity)")
     check_environment(os.environ)
 
-    order, topology_ok = order_cpus(os.sched_getaffinity(0), pathlib.Path("/sys/devices/system/cpu"))
-    if not topology_ok:
-        print("warning: CPU topology unavailable, using numeric CPU order", file=sys.stderr)
-    if args.cpu_counts is not None:
-        counts = parse_cpu_counts(args.cpu_counts, len(order))
+    pin = can_pin_cpus()
+    if pin:
+        order, topology_ok = order_cpus(os.sched_getaffinity(0), pathlib.Path("/sys/devices/system/cpu"))
+        if not topology_ok:
+            print("warning: CPU topology unavailable, using numeric CPU order", file=sys.stderr)
+        available = len(order)
     else:
-        counts = cpu_counts(len(order))
-    print(f"CPU order: {' '.join(map(str, order))}")
+        print(
+            "warning: CPU affinity unavailable, limiting workers with "
+            f"{' and '.join(OVERRIDE_ENV_VARS)} instead (the process may still use all CPUs)",
+            file=sys.stderr,
+        )
+        order = None
+        available = os.cpu_count() or 1
+    if args.cpu_counts is not None:
+        counts = parse_cpu_counts(args.cpu_counts, available)
+    else:
+        counts = cpu_counts(available)
+    if order is not None:
+        print(f"CPU order: {' '.join(map(str, order))}")
     print(f"CPU counts: {','.join(map(str, counts))}")
     if args.dry_run:
         for count in counts:
-            print(f"  {count}: {' '.join(map(str, order[:count]))}")
+            plan = " ".join(map(str, order[:count])) if order is not None else f"workers={count}"
+            print(f"  {count}: {plan}")
         return 0
 
     work_dir = args.work_dir or args.output.with_name(args.output.name + ".d")
@@ -389,7 +424,7 @@ def main(argv: Sequence[str]) -> int:
     try:
         for pass_index in range(1, args.passes + 1):
             for count in counts:
-                cpus = order[:count]
+                cpus = order[:count] if order is not None else None
                 run_dir = work_dir / run_id / f"pass{pass_index}-cpus{count}"
                 try:
                     run_dir.mkdir(parents=True)
@@ -397,7 +432,7 @@ def main(argv: Sequence[str]) -> int:
                     raise ScalingError(f"could not create {run_dir}: {error}") from None
                 print(f"pass {pass_index}/{args.passes}, {count} CPUs ...", file=sys.stderr)
                 before = read_cpu_ticks()
-                run_bench(executable, cpus, run_dir / "criterion", run_dir / "bench.log")
+                run_bench(executable, cpus, count, run_dir / "criterion", run_dir / "bench.log")
                 steal = steal_pct(before, read_cpu_ticks())
                 timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
                 for variant, values in sorted(read_estimates(run_dir / "criterion").items()):
@@ -405,7 +440,8 @@ def main(argv: Sequence[str]) -> int:
                         {
                             "pass": pass_index,
                             "cpus": count,
-                            "cpu_list": " ".join(map(str, cpus)),
+                            "cpu_list": " ".join(map(str, cpus)) if cpus is not None else "",
+                            "limit": "affinity" if cpus is not None else "workers",
                             "variant": variant,
                             **values,
                             "steal_pct": "" if steal is None else f"{steal:.3f}",
