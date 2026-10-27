@@ -285,7 +285,7 @@ fn front_and_back_growth() {
 #[test]
 fn front_growth_reuses_capacity() {
     let block = usize::BITS;
-    let mut set = Bitset::new();
+    let mut set: Bitset = Bitset::new();
     let mut expected = BTreeSet::new();
     for bit in [100 * block + 3, 101 * block] {
         set.insert(bit);
@@ -529,7 +529,7 @@ fn union_with_into_empty_is_exact() {
 
 #[test]
 fn union_with_empty_source_keeps_storage() {
-    let mut removed = Bitset::new();
+    let mut removed: Bitset = Bitset::new();
     removed.insert(5_000);
     removed.remove(5_000);
     let sources = [Bitset::new(), Bitset::with_len(500), removed];
@@ -754,7 +754,7 @@ fn front_growth_beyond_the_capacity_keeps_all_bits() {
             50 * block - 1,
         ),
     ] {
-        let mut set = Bitset::new();
+        let mut set: Bitset = Bitset::new();
         let mut expected = BTreeSet::new();
         for &bit in existing {
             set.insert(bit);

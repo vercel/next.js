@@ -9113,11 +9113,13 @@ dependencies = [
 name = "turbo-bitset"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.6",
  "bincode",
  "codspeed-criterion-compat",
  "rand 0.10.1",
  "rustc-hash 2.1.1",
  "shrink-to-fit",
+ "smallvec",
  "turbo-bincode",
  "turbo-tasks-hash",
 ]
