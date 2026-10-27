@@ -100,6 +100,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver('/foo#bar')).toBe('https://example.com/foo/#bar')
       expect(resolver('/foo/#bar')).toBe('https://example.com/foo/#bar')
       expect(resolver('/foo#bar?baz')).toBe('https://example.com/foo/#bar?baz')
+      expect(resolver('/foo#a.b')).toBe('https://example.com/foo/#a.b')
       expect(resolver(new URL('https://example.com/foo#bar'))).toBe(
         'https://example.com/foo/#bar'
       )
