@@ -67,6 +67,54 @@ Prove that the task measures its contract before interpreting model results:
 
 Do not call a task hard until its grader and framework version are valid.
 
+## Run portable pilot tasks
+
+Keep the existing regression suite on `agent-eval`. New harder tasks may also
+use the open-source Harbor task format during the pilot so their application,
+prompt, hidden verifier, and reference patch can run independently of this
+repository.
+
+A portable task archive must declare its image through
+`[environment].docker_image`, pin that image by digest, include a minimal
+`environment/docker-compose.yaml`, and pass `harbor lint`. Compose mode pulls
+the pinned image inside Vercel Sandbox and avoids copying large task images
+through Vercel Container Registry.
+
+Run with an approved measurement project's `VERCEL_OIDC_TOKEN` and a dedicated,
+budget-capped `AI_GATEWAY_API_KEY` in one local, ignored env file. The OIDC
+token authorizes Sandbox; the Gateway key authorizes model calls and applies
+the project spend limit. Vercel Compose tasks currently require public network
+mode, so do not reuse a general-purpose model credential. Do not copy either
+value into a task or result artifact.
+
+```bash
+python -m venv .harbor
+.harbor/bin/pip install \
+  'harbor[vercel] @ git+https://github.com/harbor-framework/harbor.git@e77a18bfeed53f907f335b9132d87006e01b3dfd'
+.harbor/bin/harbor lint /path/to/task
+
+.harbor/bin/harbor run \
+  --path /path/to/task \
+  --agent codex \
+  --model openai/gpt-6.1-sol \
+  --effort medium \
+  --env vercel \
+  --env-file /path/to/local.env \
+  --base-url https://ai-gateway.vercel.sh/v1 \
+  --api-key-name AI_GATEWAY_API_KEY \
+  --n-attempts 1 \
+  --jobs-dir /path/to/results
+```
+
+Keep the agent and verifier isolated. Store the task revision, runner version,
+model configuration, transcript, patch, verifier output, cost, and duration in
+the result directory. Treat setup, image, sandbox, network, and model transport
+errors as infrastructure failures and retry them without changing pass@1.
+
+The Vercel credentials are runner details, not part of the task contract. A
+task remains portable when its environment is pinned and the same prompt and
+verifier can run through another supported Harbor environment.
+
 ## Calibrate capability separation
 
 Run a fixed frontier and weaker-model cohort with recorded agent and model
