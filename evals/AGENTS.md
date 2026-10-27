@@ -1,6 +1,6 @@
-# Harder eval authoring and publication
+# Eval authoring and publication
 
-Follow `evals/HARDER_EVALS.md` when adding or reclassifying a harder eval. Every
+Follow `evals/EVAL_CURATION.md` when adding or reclassifying an eval. Every
 candidate must measure an agent-solvable Next.js capability and appear in
 exactly one lifecycle suite. New and unresolved candidates start in `audit`
 with `"publish": false`.
