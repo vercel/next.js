@@ -69,6 +69,73 @@ describe('FileSystemCache (isrMemory 0)', () => {
     maxMemoryCacheSize: 0, // disable memory cache
   })
 
+  it.each([
+    { name: 'complete PPR page', isFallback: false, postponed: undefined },
+    { name: 'postponed PPR page', isFallback: false, postponed: 'postponed' },
+    { name: 'PPR fallback', isFallback: true, postponed: undefined },
+  ])('round-trips a $name through disk', async ({ isFallback, postponed }) => {
+    const serverDistDir = await fs.mkdtemp(join(tmpdir(), 'next-ppr-disk-'))
+    try {
+      const createCache = () =>
+        new FileSystemCache({
+          _requestHeaders: {},
+          flushToDisk: true,
+          fs: nodeFs,
+          serverDistDir,
+          revalidatedTags: [],
+          maxMemoryCacheSize: 0,
+        })
+
+      const key = getRouteCacheKey('/p/example', {
+        kind: RouteKind.APP_PAGE,
+        sourceRoute: '/p/[slug]/page',
+      })
+      const context = {
+        isFallback,
+        isRoutePPREnabled: true,
+      }
+      const rscData =
+        !isFallback && postponed === undefined
+          ? Buffer.from('complete RSC payload')
+          : undefined
+
+      await createCache().set(
+        key,
+        {
+          kind: CachedRouteKind.APP_PAGE,
+          html: '<p>cached page</p>',
+          rscData,
+          postponed,
+          headers: {},
+          status: 200,
+          segmentData: undefined,
+        },
+        context
+      )
+
+      const result = await createCache().get(key, {
+        kind: IncrementalCacheKind.APP_PAGE,
+        ...context,
+      })
+
+      expect(result?.value).toMatchObject({
+        kind: CachedRouteKind.APP_PAGE,
+        html: '<p>cached page</p>',
+        rscData,
+        postponed,
+      })
+      if (rscData === undefined) {
+        await expect(
+          fs.stat(join(serverDistDir, `${key}.rsc`))
+        ).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      }
+    } finally {
+      await fs.rm(serverDistDir, { recursive: true, force: true })
+    }
+  })
+
   it('should cache fetch', async () => {
     await fsCache.set(
       'fetch-cache',
