@@ -51,31 +51,27 @@ async function getChromeDevtoolsWorkspace(
     const distDir = path.join(root, configDistDir)
     const cacheBaseDir = getStorageDirectory(distDir)
 
-    if (cacheBaseDir === undefined) {
+    const cachedUUIDPath = path.join(
+      cacheBaseDir,
+      'chrome-devtools-workspace-uuid'
+    )
+    try {
+      workspaceUUID = await fs.promises.readFile(cachedUUIDPath, 'utf8')
+    } catch {
+      // TODO: Why does this need to be v4 and not v5?
+      // With v5 we could base it off of the `distDir` and `root` which would
+      // allow us to persist the workspace across .next wipes.
       workspaceUUID = randomUUID()
-    } else {
-      const cachedUUIDPath = path.join(
-        cacheBaseDir,
-        'chrome-devtools-workspace-uuid'
-      )
-      try {
-        workspaceUUID = await fs.promises.readFile(cachedUUIDPath, 'utf8')
-      } catch {
-        // TODO: Why does this need to be v4 and not v5?
-        // With v5 we could base it off of the `distDir` and `root` which would
-        // allow us to persist the workspace across .next wipes.
-        workspaceUUID = randomUUID()
 
-        try {
-          await fs.promises.writeFile(cachedUUIDPath, workspaceUUID, 'utf8')
-        } catch (cause) {
-          console.warn(
-            new Error(
-              'Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload.',
-              { cause }
-            )
+      try {
+        await fs.promises.writeFile(cachedUUIDPath, workspaceUUID, 'utf8')
+      } catch (cause) {
+        console.warn(
+          new Error(
+            'Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload.',
+            { cause }
           )
-        }
+        )
       }
     }
   }

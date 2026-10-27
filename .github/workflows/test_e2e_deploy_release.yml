@@ -347,6 +347,7 @@ jobs:
     if: >-
       ${{
         always() &&
+        github.event_name == 'release' &&
         github.event.inputs.deployScriptPath == '' &&
         github.repository_owner == 'vercel' &&
         !startsWith(needs.setup.outputs.next-version, 'http')

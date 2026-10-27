@@ -569,6 +569,12 @@ export class NextDeployInstance extends NextInstance {
         ? projectEnv.TURBOPACK_TEST_TOKEN
         : projectEnv.TEST_TOKEN
 
+    // revalidatePath/revalidateTag invalidate at project scope, so CI jobs
+    // that must not share a revalidation scope set VERCEL_TEST_PROJECT to a
+    // dedicated project. Unset keeps the shared default.
+    const TEST_PROJECT_NAME =
+      process.env.VERCEL_TEST_PROJECT?.trim() || projectEnv.TEST_PROJECT_NAME
+
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
@@ -611,7 +617,7 @@ export class NextDeployInstance extends NextInstance {
     // link the project
     const linkRes = await execa(
       'vercel',
-      ['link', '-p', projectEnv.TEST_PROJECT_NAME, '--yes', ...vercelFlags],
+      ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
       {
         cwd: this.testDir,
         env: vercelEnv,
