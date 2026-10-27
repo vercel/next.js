@@ -38,11 +38,12 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, ValueToString)]
-#[value_to_string("emit {request} {namespace}")]
+#[derive(Hash, Debug)]
 pub struct EmitReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    request: ResolvedVc<Request>,
+    parent_module: ResolvedVc<Box<dyn Module>>,
+    /// `None` denotes an explicit null target: emit the originating module.
+    request: Option<ResolvedVc<Request>>,
     annotations: ImportAnnotations,
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
@@ -55,7 +56,8 @@ pub struct EmitReference {
 impl EmitReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: ResolvedVc<Request>,
+        parent_module: ResolvedVc<Box<dyn Module>>,
+        request: Option<ResolvedVc<Request>>,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
@@ -66,6 +68,7 @@ impl EmitReference {
     ) -> Self {
         EmitReference {
             origin,
+            parent_module,
             request,
             issue_source,
             annotations,
@@ -103,9 +106,17 @@ impl ModuleReference for EmitReference {
             );
         }
 
+        let Some(request) = self.request else {
+            if self.annotations.transition().is_some() {
+                bail!("Transitions are not supported with a null emit target");
+            }
+            // Keep the module identity instead of resolving a processed filename on disk.
+            return Ok(*ModuleResolveResult::module(self.parent_module));
+        };
+
         esm_resolve(
             *origin,
-            *self.request,
+            *request,
             EcmaScriptModulesReferenceSubType::Emit,
             self.error_mode,
             Some(self.issue_source),
@@ -125,6 +136,18 @@ impl ModuleReference for EmitReference {
             import: Default::default(),
             export: self.export_usage.clone(),
         }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for EmitReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        let target = match self.request {
+            Some(request) => (*request.to_string().await?).clone(),
+            None => rcstr!("<self>"),
+        };
+        Ok(Vc::cell(format!("emit {target} {}", self.namespace).into()))
     }
 }
 

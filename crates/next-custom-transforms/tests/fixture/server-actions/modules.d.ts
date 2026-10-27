@@ -61,7 +61,7 @@ declare function __turbopack_emit__(opts: {
   }
 }): void
 declare function __turbopack_emit__(
-  req: string,
+  req: string | null,
   opts: {
     namespace: string
     data: any

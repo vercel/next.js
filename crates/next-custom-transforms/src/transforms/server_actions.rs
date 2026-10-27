@@ -3266,12 +3266,19 @@ fn emit_server_action(
 ) -> Vec<Stmt> {
     if mode == ServerActionsMode::Turbopack {
         let emit = quote_ident!(unresolved_ctxt, "__turbopack_emit__");
-        let req: Expr = format!(
-            "./{}{}",
-            PathBuf::from(file_name).file_name().unwrap().display(),
-            file_query.as_deref().unwrap_or(""),
-        )
-        .into();
+        let req: Expr = if is_react_server_layer {
+            // Processed filenames (e.g. MDX) may not exist on disk. Emit this module directly.
+            Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))
+        } else {
+            // Client emits can live in per-export data: proxies, so their target is the action
+            // file rather than the proxy module containing this call.
+            format!(
+                "./{}{}",
+                PathBuf::from(file_name).file_name().unwrap().display(),
+                file_query.as_deref().unwrap_or(""),
+            )
+            .into()
+        };
         let data: Expr = format!("{action_id}\0{export}\0{file_name}").into();
 
         if is_react_server_layer {

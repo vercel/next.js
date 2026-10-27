@@ -8,7 +8,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function my_fn() {
     return $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, []);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
-__turbopack_emit__("./item.js", {
+__turbopack_emit__(null, {
     namespace: process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
     data: "803128060c414d59f8552e4788b846c0d2b7f74743\0$$RSC_SERVER_CACHE_0\0/app/item.js"
 });

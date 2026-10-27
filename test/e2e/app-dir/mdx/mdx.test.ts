@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
   describe(`mdx ${type}`, () => {
@@ -20,6 +21,15 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
     })
 
     describe('app directory', () => {
+      it('should invoke an inline server action from MDX', async () => {
+        const browser = await next.browser('/actions')
+        await browser.elementById('submit-mdx-action').click()
+        await retry(async () => {
+          expect(await browser.url()).toContain('/import?from=mdx-action')
+        })
+        expect(await browser.elementByCss('h1').text()).toBe('This is a title')
+      })
+
       it('should work in initial html', async () => {
         const $ = await next.render$('/')
         expect($('h1').text()).toBe('Hello World')

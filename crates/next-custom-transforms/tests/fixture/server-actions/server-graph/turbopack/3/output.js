@@ -8,7 +8,7 @@ ensureServerEntryExports([
     myAction
 ]);
 registerServerReference(myAction, "70e10665baac148856374b2789aceb970f66fec33e", null);
-__turbopack_emit__("./item.js", {
+__turbopack_emit__(null, {
     namespace: process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
     data: "70e10665baac148856374b2789aceb970f66fec33e\0myAction\0/app/item.js"
 });
