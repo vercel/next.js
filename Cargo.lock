@@ -9179,6 +9179,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "arrayvec 0.7.6",
  "async-trait",
  "auto-hash-map",
  "bincode",

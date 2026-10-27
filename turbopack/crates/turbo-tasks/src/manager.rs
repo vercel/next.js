@@ -430,7 +430,7 @@ impl Display for ReadTracking {
     }
 }
 
-#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum TaskPriority {
     #[default]
     Initial,
