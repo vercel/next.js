@@ -21,6 +21,7 @@ describe('adapter-config export', () => {
       'app/isr-route/route.ts',
       'app/isr-route/[slug]/route.ts',
       'app/revalidating-sitemap/sitemap.xml/route.ts',
+      'app/tagged-sitemap/sitemap.xml/route.ts',
       'app/edge-app/page.tsx',
       'pages/api/edge-pages.ts',
       'pages/api/node-pages.ts',

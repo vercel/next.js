@@ -319,6 +319,29 @@ describe('adapter-config', () => {
       revalidatingSitemapAppRoute?.id
     )
 
+    // Without time-based revalidation, custom cache tags still allow
+    // on-demand revalidation, so it must not become a static file either
+    const taggedSitemapStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/tagged-sitemap/sitemap.xml'
+    )
+    expect(taggedSitemapStaticFile).toBeUndefined()
+
+    const taggedSitemapPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/tagged-sitemap/sitemap.xml'
+    )
+    expect(taggedSitemapPrerender?.fallback?.initialRevalidate).toBe(false)
+    expect(
+      taggedSitemapPrerender?.fallback?.initialHeaders?.['x-next-cache-tags']
+    ).toContain('adapter-config:tagged-sitemap')
+
+    const taggedSitemapAppRoute = outputs.appRoutes.find(
+      (item) => item.pathname === '/docs/tagged-sitemap/sitemap.xml'
+    )
+    expect(taggedSitemapAppRoute).toBeDefined()
+    expect(taggedSitemapPrerender?.parentOutputId).toBe(
+      taggedSitemapAppRoute?.id
+    )
+
     for (const prerenderOutput of prerenderOutputs) {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()

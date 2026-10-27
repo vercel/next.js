@@ -43,6 +43,8 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_CACHE_IMPLICIT_TAG_ID,
+  NEXT_CACHE_TAGS_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
@@ -1144,10 +1146,23 @@ export async function handleBuildComplete({
 
       // A metadata pathname like /robots.txt or /sitemap.xml can come from a
       // static file or from a route handler. Only fully static prerenders can
-      // be emitted as static files, otherwise revalidation would be dropped.
-      const isStaticMetadataPrerender = (pathname: string) =>
-        isStaticMetadataFile(pathname) &&
-        prerenderManifest.routes[pathname]?.initialRevalidateSeconds === false
+      // be emitted as static files, otherwise time-based or on-demand
+      // revalidation would be dropped. Implicit path tags are ignored since
+      // every prerender has them.
+      const isStaticMetadataPrerender = (pathname: string) => {
+        const prerender = prerenderManifest.routes[pathname]
+        if (
+          !isStaticMetadataFile(pathname) ||
+          prerender?.initialRevalidateSeconds !== false
+        ) {
+          return false
+        }
+        const cacheTags =
+          prerender.initialHeaders?.[NEXT_CACHE_TAGS_HEADER]?.split(',') ?? []
+        return cacheTags.every(
+          (tag) => !tag || tag.startsWith(NEXT_CACHE_IMPLICIT_TAG_ID)
+        )
+      }
 
       if (appPageKeys) {
         for (const page of orderAppPageKeysByEntry(appPageKeys)) {
