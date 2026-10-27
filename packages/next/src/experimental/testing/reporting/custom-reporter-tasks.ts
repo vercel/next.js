@@ -1,3 +1,4 @@
+import type { SnapshotPreparationFailure } from '../execution/snapshot-preparation'
 import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import {
   isRunErrorDiagnostic,
@@ -15,6 +16,11 @@ export interface CustomReporterCompletion extends Results {
   events: ResultEvent[]
   status: 'passed' | 'failed' | 'cancelled'
   recordedReporterErrors?: SerializedDiagnostic[]
+  /** Parent-associated actual phase occurrences and their delivered error slots. */
+  snapshotPreparationFailures?: readonly {
+    failure: SnapshotPreparationFailure
+    diagnosticEventIndex?: number
+  }[]
 }
 
 type State = 'passed' | 'failed' | 'skipped' | 'pending'
@@ -300,4 +306,46 @@ export function createCustomReporterModules(
       )
     return module
   })
+}
+
+/** This changes only rendered run reason; physical failure/publication remains owned. */
+export function hasOnlySnapshotPreparationRunFailures(
+  completion: CustomReporterCompletion
+) {
+  const preparations = completion.snapshotPreparationFailures ?? []
+  const ids = new Set(
+    preparations
+      .filter((record) => record.failure.source === 'run')
+      .map((record) => record.failure.entryId)
+  )
+  const errors = new Set(
+    preparations.flatMap((record) =>
+      record.diagnosticEventIndex === undefined
+        ? []
+        : [record.diagnosticEventIndex]
+    )
+  )
+  return (
+    completion.status === 'failed' &&
+    ids.size > 0 &&
+    completion.files.length === completion.entries.length &&
+    completion.files.every(
+      (file) =>
+        file.status === 'passed' ||
+        file.status === 'skipped' ||
+        (file.status === 'failed' && ids.has(file.entryId))
+    ) &&
+    completion.cases.every(
+      (test) => test.status !== 'failed' && test.status !== 'cancelled'
+    ) &&
+    completion.suites.every(
+      (suite) => suite.status !== 'failed' && suite.status !== 'cancelled'
+    ) &&
+    completion.events.every(
+      (event, index) =>
+        event.type !== 'diagnostic' ||
+        event.diagnostic.severity !== 'error' ||
+        errors.has(index)
+    )
+  )
 }

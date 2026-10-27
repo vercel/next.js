@@ -1,3 +1,7 @@
+import {
+  assertSnapshotPreparationFailure,
+  type SnapshotPreparationFailure,
+} from './execution/snapshot-preparation'
 import type { RuntimeModuleCompletion } from './execution/completed-module'
 import type { IstanbulSourcePlan } from './coverage/istanbul-types'
 import { isDeepStrictEqual } from 'util'
@@ -65,6 +69,7 @@ export type WatchProcessRequest =
       operation: 'run'
       /** Exact positive request from the actual isolated one-shot V8 owner. */
       captureOneShotV8CollectionRestoration?: true
+      preparePublicSnapshots?: true
       /** Private actual scheduler occurrence; no authored callback acknowledgement. */
       captureModuleQueued?: true
       captureTaskResults?: boolean
@@ -120,6 +125,10 @@ export type WatchProcessResult =
     }
 
 export type WatchProcessMessage =
+  | {
+      type: 'snapshot-preparation-failure'
+      failure: SnapshotPreparationFailure
+    }
   | { type: 'result'; value: WatchProcessResult }
   | { type: 'error'; message: string; queueFailure?: SerializedDiagnostic }
   | { type: 'event'; event: ResultEvent }
@@ -286,6 +295,7 @@ export async function runWatchProcess(
     onEvent?: (event: ResultEvent) => void
     /** Canonical parent-selected file, issued before its actual compilation. */
     onModuleQueued?: (entry: TestEntry) => void
+    onSnapshotPreparationFailure?: (failure: SnapshotPreparationFailure) => void
     /** Direct parent facts, released only after real generation cleanup. */
     onCompletedModules?: (facts: readonly RuntimeModuleCompletion[]) => void
     /** Parent-validated actual config module files; never child-provided watch paths. */
@@ -311,6 +321,24 @@ export async function runWatchProcess(
   )
     throw new Error(
       'V8 restoration capture requires its actual isolated one-shot owner.'
+    )
+  if (
+    (options.onSnapshotPreparationFailure &&
+      (request.operation !== 'run' ||
+        request.preparePublicSnapshots !== true)) ||
+    (request.operation === 'run' &&
+      request.preparePublicSnapshots !== undefined &&
+      (request.preparePublicSnapshots !== true ||
+        !options.onSnapshotPreparationFailure ||
+        request.isolatedProfile !== true ||
+        request.watchCoverage ||
+        request.userCancellation ||
+        request.collectOnly ||
+        request.coverage ||
+        Object.keys(request.customCoverageRequests ?? {}).length))
+  )
+    throw new Error(
+      'Snapshot preparation requires its positive one-shot parent observer.'
     )
   if (
     (options.onModuleQueued &&
@@ -611,6 +639,7 @@ export async function runWatchProcess(
         : []
     )
     const observedQueuedEntries = new Set<string>()
+    const observedPreparationEntries = new Set<string>()
     const launchedFiles = new Map<string, { runId: string; revision: string }>()
     let observedCaseStart = false
     const compilationFailures = new Set<string>()
@@ -636,6 +665,11 @@ export async function runWatchProcess(
     }
     const customSuiteEntries = new Set<string>()
     const broker = brokerModule?.createExecutionBrokerHost({
+      ...(request.operation === 'run' &&
+      request.preparePublicSnapshots === true &&
+      options.onSnapshotPreparationFailure
+        ? { preparePublicSnapshots: true as const }
+        : {}),
       signal: options.signal,
       ...(request.operation === 'run' &&
       request.captureOneShotV8CollectionRestoration === true
@@ -977,6 +1011,34 @@ export async function runWatchProcess(
           cancel()
           return
         }
+        if (value?.type === 'snapshot-preparation-failure') {
+          try {
+            const preparationFailure = value.failure
+            if (
+              request.operation !== 'run' ||
+              request.preparePublicSnapshots !== true ||
+              !options.onSnapshotPreparationFailure ||
+              !selectedFiles.has(preparationFailure.entryId) ||
+              observedPreparationEntries.has(preparationFailure.entryId) ||
+              !runId ||
+              !collectionRevisions.has(preparationFailure.entryId)
+            )
+              throw new Error(
+                'Unrequested or repeated supervisor snapshot preparation failure.'
+              )
+            assertSnapshotPreparationFailure(preparationFailure, {
+              runId,
+              entryId: preparationFailure.entryId,
+              revision: collectionRevisions.get(preparationFailure.entryId)!,
+            })
+            observedPreparationEntries.add(preparationFailure.entryId)
+            options.onSnapshotPreparationFailure(preparationFailure)
+          } catch (error) {
+            fail(error)
+            cancel()
+          }
+          return
+        }
         if (value?.type === 'module-queued') {
           try {
             const entry = queuedEntries.get(value.entryId)
@@ -1027,6 +1089,7 @@ export async function runWatchProcess(
               if (
                 request.operation === 'run' &&
                 (request.collectOnly ||
+                  request.preparePublicSnapshots === true ||
                   options.userCancelSignal ||
                   request.updateSnapshots ||
                   request.standardCoverageOptions ||
@@ -1414,6 +1477,7 @@ export async function runWatchProcess(
         !options.signal.aborted &&
         request.operation === 'run' &&
         request.updateSnapshots &&
+        observedPreparationEntries.size === 0 &&
         !options.userCancelSignal?.aborted &&
         message?.type === 'result' &&
         message.value.operation === 'run' &&

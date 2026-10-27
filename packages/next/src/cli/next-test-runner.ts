@@ -910,7 +910,39 @@ export async function nextTestRunner(
             process.stdout.isTTY === true &&
             process.env.TERM !== 'dumb',
     }
+    const preparePublicSnapshots =
+      !options.watch &&
+      !options.list &&
+      !options.cache &&
+      options.shard === undefined &&
+      apiPort === undefined &&
+      options.testNamePattern === undefined &&
+      projects[0]?.testNamePattern === undefined &&
+      !inspect &&
+      !options.inspectBrk &&
+      !options.coverage &&
+      !customProjects.length &&
+      !standardCoverageOptions &&
+      projects.length === 1 &&
+      projects[0].entries.length === 1 &&
+      projects[0].isolate !== false &&
+      !projects[0].typecheck?.enabled &&
+      projects[0].profile.environment === 'node' &&
+      projects[0].profile.route === undefined &&
+      projects[0].profile.browserClient === undefined &&
+      (!projects[0].executionEnvironment ||
+        projects[0].executionEnvironment.name === 'node') &&
+      projects[0].entries.every(
+        (entry) =>
+          !entry.typecheck &&
+          /\.(?:js|mjs)$/.test(entry.file) &&
+          (!entry.executionEnvironment ||
+            entry.executionEnvironment.name === 'node')
+      ) &&
+      reporters.includes('json') &&
+      reporters.every((name) => name === 'json' || isCustomResultReporter(name))
     const machine = createMachineReporter({
+      collect: preparePublicSnapshots,
       projectDir,
       reporters,
       outputFile: options.outputFile,
@@ -1074,6 +1106,13 @@ export async function nextTestRunner(
       oneShotExecutionActive = true
       try {
         summary = await runTests(projectDir, projects, {
+          ...(preparePublicSnapshots
+            ? {
+                preparePublicSnapshots: true as const,
+                onSnapshotPreparationFailure:
+                  machine.onSnapshotPreparationFailure,
+              }
+            : {}),
           ...(standardCoverageOptions &&
           standardCoverageOptions.provider === undefined
             ? { captureOneShotV8CollectionRestoration: true as const }

@@ -1,3 +1,4 @@
+import type { SnapshotPreparationFailure } from './snapshot-preparation'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import type {
   CompiledTestArtifact,
@@ -20,6 +21,7 @@ export interface WorkerInput {
     | 'onIstanbulCoverage'
     | 'onCustomCoverage'
     | 'onCustomCoverageSuite'
+    | 'onSnapshotPreparationFailure'
   >
   customCoverageSuite?: true
   /** Issued only by the parent which owns the separate scheduling signal. */
@@ -28,6 +30,10 @@ export interface WorkerInput {
 }
 
 export type WorkerMessage =
+  | {
+      type: 'snapshot-preparation-failure'
+      failure: SnapshotPreparationFailure
+    }
   | { type: 'event'; event: ResultEvent }
   | {
       type: 'user-cancellation-finalized'

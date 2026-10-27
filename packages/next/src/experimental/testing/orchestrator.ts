@@ -1,3 +1,7 @@
+import {
+  type SnapshotPreparationFailure,
+  assertSnapshotPreparationFailure,
+} from './execution/snapshot-preparation'
 import type { RuntimeModuleCompletion } from './execution/completed-module'
 import type {
   IstanbulSourcePlan,
@@ -80,6 +84,13 @@ interface PreparedTest {
 export interface RunTestsOptions {
   /** Private actual one-shot owner; never inferred from cancellation or artifacts. */
   captureOneShotV8CollectionRestoration?: true
+  /** Positive one-shot phase request; no public configuration field. */
+  preparePublicSnapshots?: true
+  /** Forwarders own only their IPC write; the outer reporter observes synchronously. */
+  onSnapshotPreparationFailure?: (
+    failure: SnapshotPreparationFailure,
+    deliveredDiagnostic?: Extract<ResultEvent, { type: 'diagnostic' }>
+  ) => void | Promise<void>
   /** Private reporter request for actual collected-file observations. */
   captureModuleCollected?: true
   /** Actual selected-file scheduling; never a collected task snapshot. */
@@ -149,6 +160,39 @@ export async function runTests(
   projects: DiscoveredTestProject[],
   options: RunTestsOptions
 ) {
+  if (
+    (options.preparePublicSnapshots !== undefined &&
+      options.preparePublicSnapshots !== true) ||
+    (options.preparePublicSnapshots === true) !==
+      (typeof options.onSnapshotPreparationFailure === 'function') ||
+    (options.preparePublicSnapshots === true &&
+      (projects.length !== 1 ||
+        projects[0].entries.length !== 1 ||
+        options.collectOnly ||
+        options.userCancelSignal ||
+        options.coverage ||
+        Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+        projects.some(
+          (project) =>
+            project.isolate === false ||
+            project.typecheck?.enabled ||
+            project.profile.environment !== 'node' ||
+            project.profile.route !== undefined ||
+            project.profile.browserClient !== undefined ||
+            (project.executionEnvironment &&
+              project.executionEnvironment.name !== 'node') ||
+            project.entries.some(
+              (entry) =>
+                entry.typecheck ||
+                !/\.(?:js|mjs)$/.test(entry.file) ||
+                (entry.executionEnvironment &&
+                  entry.executionEnvironment.name !== 'node')
+            )
+        )))
+  )
+    throw new Error(
+      'Public snapshot preparation requires its one-shot isolated ordinary Node JavaScript owner.'
+    )
   if (
     options.captureModuleCollected !== undefined &&
     (options.captureModuleCollected !== true ||
@@ -579,10 +623,16 @@ export async function runTests(
   if (options.signal.aborted) cancel()
   else options.signal.addEventListener('abort', cancel, { once: true })
   let reporterFailure: unknown
+  const preparationDispatches: Promise<void>[] = []
+  const preparationReporterFailures: unknown[] | undefined =
+    options.preparePublicSnapshots === true ? [] : undefined
   let reporterFailed = false
   function failReporter(error: unknown) {
+    if (preparationReporterFailures) {
+      preparationReporterFailures.push(error)
+      if (!reporterFailed) reporterFailure = error
+    } else reporterFailure ??= error
     reporterFailed = true
-    reporterFailure ??= error
     controller.abort(error)
   }
   const reporter = createTestReporter({
@@ -617,7 +667,10 @@ export async function runTests(
     timestamp: Date.now(),
   })
 
-  function onEvent(event: ResultEvent) {
+  function onEvent(
+    event: ResultEvent,
+    preparationDelivery?: { returned?: unknown }
+  ) {
     if (event.type === 'file-start') startedFiles.add(event.entry.id)
     if (event.type === 'case-end') {
       let attempts = attemptsByFile.get(event.entryId)
@@ -635,7 +688,8 @@ export async function runTests(
     }
     if (reporterFailed) return
     try {
-      options.onEvent?.(event)
+      const returned = options.onEvent?.(event)
+      if (preparationDelivery) preparationDelivery.returned = returned
       reporter.onEvent(event)
     } catch (error) {
       // Stop producers but let their finally blocks close workers and leases.
@@ -865,6 +919,13 @@ export async function runTests(
         options.execute ?? (await import('./execution/execute.js')).execute
       executing = true
       const result = await execute(artifact, {
+        ...(options.preparePublicSnapshots === true
+          ? {
+              preparePublicSnapshots: true as const,
+              onSnapshotPreparationFailure:
+                options.onSnapshotPreparationFailure,
+            }
+          : {}),
         captureTaskResults: options.captureTaskResults,
         ...(options.captureModuleCollected === true
           ? { captureModuleCollected: true as const }
@@ -1295,6 +1356,9 @@ export async function runTests(
           ...(options.captureOneShotV8CollectionRestoration === true
             ? { captureOneShotV8CollectionRestoration: true as const }
             : {}),
+          ...(options.preparePublicSnapshots === true
+            ? { preparePublicSnapshots: true as const }
+            : {}),
           ...(options.onModuleQueued
             ? { captureModuleQueued: true as const }
             : {}),
@@ -1376,6 +1440,66 @@ export async function runTests(
             : {}),
           onCustomCoverageSuite: options.onCustomCoverageSuite,
           onModuleQueued: options.onModuleQueued,
+          ...(options.preparePublicSnapshots === true
+            ? {
+                onSnapshotPreparationFailure(
+                  failure: SnapshotPreparationFailure
+                ) {
+                  const mapped: SnapshotPreparationFailure = {
+                    ...failure,
+                    runId,
+                  }
+                  assertSnapshotPreparationFailure(mapped, {
+                    runId,
+                    entryId: failure.entryId,
+                    revision: failure.revision,
+                  })
+                  let delivered:
+                    | Extract<ResultEvent, { type: 'diagnostic' }>
+                    | undefined
+                  if (failure.outcome.kind === 'error') {
+                    delivered = {
+                      ...envelope(),
+                      type: 'diagnostic',
+                      diagnostic: failure.outcome.diagnostic,
+                    }
+                    const receipt: { returned?: unknown } = {}
+                    onEvent(delivered, receipt)
+                    if (reporterFailed) return
+                    if (receipt.returned !== undefined) {
+                      preparationDispatches.push(
+                        Promise.resolve(receipt.returned).then(
+                          () =>
+                            failReporter(
+                              new Error(
+                                'Snapshot diagnostic delivery requires a synchronous observer.'
+                              )
+                            ),
+                          (error: unknown) => failReporter(error)
+                        )
+                      )
+                      return
+                    }
+                  }
+                  const returned = options.onSnapshotPreparationFailure!(
+                    mapped,
+                    delivered
+                  )
+                  if (returned !== undefined)
+                    preparationDispatches.push(
+                      Promise.resolve(returned).then(
+                        () =>
+                          failReporter(
+                            new Error(
+                              'Snapshot reporter association requires a synchronous observer.'
+                            )
+                          ),
+                        (error: unknown) => failReporter(error)
+                      )
+                    )
+                },
+              }
+            : {}),
           onEvent(event) {
             if (
               event.type === 'file-start' &&
@@ -2070,6 +2194,7 @@ export async function runTests(
       }
     }
   } finally {
+    if (preparationDispatches.length) await Promise.all(preparationDispatches)
     if (
       options.standardCoverageOptions &&
       !istanbul &&
@@ -2156,6 +2281,11 @@ export async function runTests(
       failReporter(error)
     }
   }
+  if (preparationReporterFailures && preparationReporterFailures.length > 1)
+    throw new AggregateError(
+      preparationReporterFailures,
+      'Test reporter delivery occurrences failed.'
+    )
   if (reporterFailed) throw reporterFailure
   if (completedModules && !controller.signal.aborted && !unsafeCleanup)
     options.onCompletedModules!(completedModules)

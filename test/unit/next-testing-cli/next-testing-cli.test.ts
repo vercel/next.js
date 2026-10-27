@@ -11629,3 +11629,50 @@ describe('root file parallelism configuration', () => {
     }
   })
 })
+
+describe('qualified public snapshot preparation CLI forwarding', () => {
+  it.each([
+    { reporter: ['json'], expected: true },
+    { reporter: ['json', './reporter.mjs'], expected: true },
+    { reporter: undefined, expected: false },
+    { reporter: ['default'], expected: false },
+    { reporter: ['default', 'json'], expected: false },
+    { reporter: ['junit'], expected: false },
+    { reporter: ['junit', 'json'], expected: false },
+    { reporter: ['verbose', 'json'], expected: false },
+    { reporter: ['tap', 'json'], expected: false },
+    { reporter: ['./reporter.mjs'], expected: false },
+  ])(
+    'forwards the phase role only for measured sinks $reporter',
+    async ({ reporter, expected }) => {
+      const directory = await mkdtemp(
+        path.join(os.tmpdir(), 'next-snapshot-cli-role-')
+      )
+      try {
+        const output = path.join(directory, 'observed.json')
+        await new Promise<void>((resolve, reject) =>
+          execFile(
+            process.execPath,
+            [
+              path.join(__dirname, 'snapshot-preparation-admission.mjs'),
+              JSON.stringify(reporter ?? null),
+              String(expected),
+              output,
+            ],
+            { timeout: 35000, encoding: 'utf8' },
+            (error) => (error ? reject(error) : resolve())
+          )
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          expected,
+          actualCLIForwarded: true,
+          execPath: process.execPath,
+          version: process.version,
+        })
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})

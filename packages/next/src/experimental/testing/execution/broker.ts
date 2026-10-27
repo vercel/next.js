@@ -1,3 +1,8 @@
+import {
+  assertPublicSnapshotPreparationRole,
+  assertSnapshotPreparationFailure,
+  type SnapshotPreparationFailure,
+} from './snapshot-preparation'
 import { isTestCI } from '../config-environment'
 import type { CompiledCoverageSource } from '../coverage/types'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
@@ -42,6 +47,7 @@ type SerializableOptions = Omit<
   | 'onCustomCoverage'
   | 'onCustomCoverageSuite'
   | 'onSnapshotUpdates'
+  | 'onSnapshotPreparationFailure'
 >
 
 export type ExecutionBrokerRequest =
@@ -74,6 +80,12 @@ export type ExecutionBrokerRequest =
   | { type: 'execution-broker-request'; id: string; action: 'cancel' }
 
 export type ExecutionBrokerResponse =
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'snapshot-preparation-failure'
+      failure: SnapshotPreparationFailure
+    }
   | {
       type: 'execution-broker-response'
       id: string
@@ -134,6 +146,8 @@ export interface BrowserApplicationOwnership {
 
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
+  /** Positive parent one-shot authorization, never child-issued. */
+  preparePublicSnapshots?: true
   signal: AbortSignal
   /** Positive actual one-shot owner; compiler children cannot opt themselves in. */
   captureOneShotV8CollectionRestoration?: true
@@ -476,6 +490,16 @@ export function createExecutionBrokerHost(options: {
             !options.captureCompletedModuleResult
           )
             throw new Error('Unrequested private module completion capture.')
+          if (
+            (message.options.preparePublicSnapshots !== undefined &&
+              message.options.preparePublicSnapshots !== true) ||
+            (message.options.preparePublicSnapshots === true) !==
+              (options.preparePublicSnapshots === true)
+          )
+            throw new Error(
+              'Snapshot preparation requires its positive one-shot parent owner.'
+            )
+          assertPublicSnapshotPreparationRole(message.artifact, message.options)
           executing = true
           const result = await executeBrokerFile(
             message.artifact,
@@ -494,6 +518,19 @@ export function createExecutionBrokerHost(options: {
                   event,
                 }).catch(() => {})
               },
+              ...(message.options.preparePublicSnapshots === true
+                ? {
+                    onSnapshotPreparationFailure: (
+                      failure: SnapshotPreparationFailure
+                    ) =>
+                      publish({
+                        type: 'execution-broker-response',
+                        id: message.id,
+                        action: 'snapshot-preparation-failure',
+                        failure,
+                      }),
+                  }
+                : {}),
               ...(message.options.customCoverage && options.allowCoverage
                 ? {
                     ...(options.onCustomCoverageSuite
@@ -679,6 +716,8 @@ export function createExecutionBrokerClient(options: {
     onCoverage?: ExecuteTestOptions['onCoverage']
     onIstanbulCoverage?: ExecuteTestOptions['onIstanbulCoverage']
     onCustomCoverage?: ExecuteTestOptions['onCustomCoverage']
+    onSnapshotPreparationFailure?: ExecuteTestOptions['onSnapshotPreparationFailure']
+    snapshotPreparationObserved?: boolean
     coverage: Promise<void>
   }
   type Pending = PendingBase &
@@ -705,6 +744,13 @@ export function createExecutionBrokerClient(options: {
 
   const execute: ExecuteTest = (artifact, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
+    if (
+      (executionOptions.preparePublicSnapshots === true) !==
+      (typeof executionOptions.onSnapshotPreparationFailure === 'function')
+    )
+      return Promise.reject(
+        new Error('Snapshot preparation requires its actual private consumer.')
+      )
     if (
       (executionOptions.coverage?.kind === 'node-istanbul') !==
         (typeof executionOptions.onIstanbulCoverage === 'function') ||
@@ -743,6 +789,7 @@ export function createExecutionBrokerClient(options: {
       onCustomCoverage: _onCustomCoverage,
       onCustomCoverageSuite: _onCustomCoverageSuite,
       onSnapshotUpdates: _onSnapshotUpdates,
+      onSnapshotPreparationFailure: _onSnapshotPreparationFailure,
       ...serializable
     } = executionOptions
     return new Promise<TestExecutionResult>((resolve, reject) => {
@@ -775,6 +822,20 @@ export function createExecutionBrokerClient(options: {
           ? { onIstanbulCoverage: executionOptions.onIstanbulCoverage }
           : {}),
         onCustomCoverage: executionOptions.onCustomCoverage,
+        ...(executionOptions.preparePublicSnapshots === true
+          ? {
+              onSnapshotPreparationFailure(
+                failure: SnapshotPreparationFailure
+              ) {
+                assertSnapshotPreparationFailure(failure, {
+                  runId: executionOptions.runId,
+                  entryId: artifact.entryId,
+                  revision: artifact.revision,
+                })
+                return executionOptions.onSnapshotPreparationFailure!(failure)
+              },
+            }
+          : {}),
         coverage: Promise.resolve(),
       }
       pending.set(id, request)
@@ -870,7 +931,9 @@ export function createExecutionBrokerClient(options: {
           value.onCustomCoverage ||
           value.onCustomCoverageSuite ||
           value.onCoverage ||
-          value.onIstanbulCoverage
+          value.onIstanbulCoverage ||
+          value.preparePublicSnapshots !== undefined ||
+          value.onSnapshotPreparationFailure
       )
     )
       return Promise.reject(
@@ -889,6 +952,7 @@ export function createExecutionBrokerClient(options: {
         onCustomCoverage: _onCustomCoverage,
         onCustomCoverageSuite: _onCustomCoverageSuite,
         onSnapshotUpdates: _onSnapshotUpdates,
+        onSnapshotPreparationFailure: _onSnapshotPreparationFailure,
         ...value
       }) => value
     )
@@ -1026,11 +1090,52 @@ export function createExecutionBrokerClient(options: {
           })
         return true
       }
+      if (message.action === 'snapshot-preparation-failure') {
+        if (
+          request.kind !== 'file' ||
+          !request.onSnapshotPreparationFailure ||
+          request.snapshotPreparationObserved
+        )
+          throw new Error(
+            'Unrequested or repeated broker snapshot preparation failure.'
+          )
+        request.snapshotPreparationObserved = true
+        const retainFailure = (error: unknown) => {
+          request.failure = request.failure
+            ? {
+                error: new AggregateError(
+                  [request.failure.error, error],
+                  'Test reporting occurrences failed.'
+                ),
+              }
+            : { error }
+        }
+        try {
+          // Start the real forwarding write synchronously in the event FIFO.
+          const written = request.onSnapshotPreparationFailure(message.failure)
+          if (written !== undefined) {
+            const observed = Promise.resolve(written).catch(retainFailure)
+            request.coverage = Promise.all([request.coverage, observed]).then(
+              () => {}
+            )
+          }
+        } catch (error) {
+          retainFailure(error)
+        }
+        return true
+      }
       if (message.action === 'event') {
         try {
           request.onEvent(message.event)
         } catch (error) {
-          request.failure ??= { error }
+          if (request.onSnapshotPreparationFailure && request.failure)
+            request.failure = {
+              error: new AggregateError(
+                [request.failure.error, error],
+                'Test reporting occurrences failed.'
+              ),
+            }
+          else request.failure ??= { error }
           request.onAbort()
         }
         return true

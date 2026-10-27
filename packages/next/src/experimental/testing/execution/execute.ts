@@ -1,4 +1,8 @@
 import {
+  assertPublicSnapshotPreparationRole,
+  assertSnapshotPreparationFailure,
+} from './snapshot-preparation'
+import {
   assertCustomCoverageRequest,
   assertCustomCoverageCompletion,
   captureCustomCoverageClosure,
@@ -55,6 +59,14 @@ export async function executeWithEnvironment(
   onWorkerLaunched?: () => void
 ): Promise<TestExecutionResult> {
   const started = performance.now()
+  assertPublicSnapshotPreparationRole(artifact, options)
+  if (
+    (options.preparePublicSnapshots === true) !==
+    (typeof options.onSnapshotPreparationFailure === 'function')
+  )
+    throw new Error(
+      'Public snapshot preparation requires its actual parent failure consumer.'
+    )
   if (
     options.includeTaskLocation !== undefined &&
     typeof options.includeTaskLocation !== 'boolean'
@@ -151,6 +163,7 @@ export async function executeWithEnvironment(
     onCustomCoverage,
     onCustomCoverageSuite,
     onSnapshotUpdates,
+    onSnapshotPreparationFailure,
     userCancelSignal,
     signal,
     ...workerOptions
@@ -231,6 +244,9 @@ export async function executeWithEnvironment(
   let coverage: AnyTestCoverageCompletion | undefined
   let customCoverage: CustomCoverageCompletion | undefined
   let customSuite: Promise<void> | undefined
+  let observedSnapshotPreparationFailure = false
+  let snapshotPreparationHandoff: Promise<void> | undefined
+  let snapshotPreparationHandoffFailure: { error: unknown } | undefined
   const exit = await withFileCacheDirectory(async (directory) => {
     const input: WorkerInput = {
       artifact,
@@ -278,7 +294,34 @@ export async function executeWithEnvironment(
         const message = value as WorkerMessage
         if (userCancellationFinalized)
           throw new Error('Test worker returned facts after finalization.')
-        if (message.type === 'event') {
+        if (message.type === 'snapshot-preparation-failure') {
+          if (
+            options.preparePublicSnapshots !== true ||
+            !onSnapshotPreparationFailure ||
+            observedSnapshotPreparationFailure ||
+            result
+          )
+            throw new Error(
+              'Unrequested or repeated snapshot preparation failure.'
+            )
+          assertSnapshotPreparationFailure(message.failure, {
+            runId: options.runId,
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+          })
+          observedSnapshotPreparationFailure = true
+          try {
+            const written = onSnapshotPreparationFailure(message.failure)
+            if (written !== undefined)
+              snapshotPreparationHandoff = Promise.resolve(written).catch(
+                (error: unknown) => {
+                  snapshotPreparationHandoffFailure = { error }
+                }
+              )
+          } catch (error) {
+            snapshotPreparationHandoffFailure = { error }
+          }
+        } else if (message.type === 'event') {
           if (
             message.event.version !== 1 ||
             message.event.runId !== options.runId ||
@@ -288,6 +331,14 @@ export async function executeWithEnvironment(
             message.event.revision !== artifact.revision
           )
             throw new Error('Mismatched test worker event')
+          if (
+            observedSnapshotPreparationFailure &&
+            message.event.type !== 'diagnostic' &&
+            message.event.type !== 'output'
+          )
+            throw new Error(
+              'Test worker returned execution facts after snapshot preparation failed.'
+            )
           if (
             options.collectOnly &&
             message.event.type !== 'diagnostic' &&
@@ -443,6 +494,12 @@ export async function executeWithEnvironment(
     await userCancellationSend
     return { ...processExit, userCancellationFinalized }
   }).catch(async (error) => {
+    if (snapshotPreparationHandoff) await snapshotPreparationHandoff
+    if (snapshotPreparationHandoffFailure)
+      throw new AggregateError(
+        [error, snapshotPreparationHandoffFailure.error],
+        'Test worker cleanup and snapshot preparation handoff failed.'
+      )
     try {
       await customSuite
     } catch (suiteError) {
@@ -454,6 +511,9 @@ export async function executeWithEnvironment(
     throw error
   })
   await customSuite
+  if (snapshotPreparationHandoff) await snapshotPreparationHandoff
+  if (snapshotPreparationHandoffFailure)
+    throw snapshotPreparationHandoffFailure.error
   const orderlyUserCancellation =
     exit.userCancellationFinalized &&
     userCancelSignal?.aborted &&
@@ -516,6 +576,7 @@ export async function executeWithEnvironment(
   // This code runs only after the actual process and its file resources close.
   if (
     options.updateSnapshots &&
+    !observedSnapshotPreparationFailure &&
     snapshotUpdates !== undefined &&
     (result?.status === 'passed' ||
       (result?.status === 'failed' &&

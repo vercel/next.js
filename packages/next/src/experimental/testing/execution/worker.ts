@@ -1,3 +1,8 @@
+import {
+  assertPublicSnapshotPreparationRole,
+  captureSnapshotPreparationFailure,
+  type SnapshotPreparationFailure,
+} from './snapshot-preparation'
 import { assertUnexecutedCaseResult } from '../reporting/unexecuted-cases'
 import { createReporterTaskUpdates } from '../reporting/task-updates'
 import { captureReporterTaskTree } from '../reporting/live-tasks'
@@ -195,7 +200,8 @@ async function run({
       type: 'event',
       event: {
         ...payload,
-        ...(options.captureModuleCollected === true &&
+        ...((options.captureModuleCollected === true ||
+          options.preparePublicSnapshots === true) &&
         (payload.type === 'file-collected' || payload.type === 'task-update')
           ? {
               taskTree: {
@@ -250,19 +256,21 @@ async function run({
     suiteId: string
     index: number
   }[] = []
-  const taskUpdates = options.captureTaskResults
-    ? createReporterTaskUpdates<CaseResult>({
-        getTaskLocation: (task) => file?.getPublishedTaskLocation(task),
-        onUpdate: (update) =>
-          event({
-            type: 'task-update',
-            entryId: artifact.entryId,
-            revision: artifact.revision,
-            ...update,
-            caseResults: update.caseResults,
-          }),
-      })
-    : undefined
+  assertPublicSnapshotPreparationRole(artifact, options)
+  const taskUpdates =
+    options.captureTaskResults || options.preparePublicSnapshots === true
+      ? createReporterTaskUpdates<CaseResult>({
+          getTaskLocation: (task) => file?.getPublishedTaskLocation(task),
+          onUpdate: (update) =>
+            event({
+              type: 'task-update',
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+              ...update,
+              caseResults: update.caseResults,
+            }),
+        })
+      : undefined
   const unhandledRejections = new Set<unknown>()
   const lateFailures = createLateFailureSink<unknown>((error) =>
     diagnostic(
@@ -335,6 +343,50 @@ async function run({
     lateFailures.report(reason)
   }
   let status: ResultStatus = 'failed'
+  let failedCollectionObserved = false
+  let sentPreparationFailure = false
+  const readPreparationFailure = () => {
+    if (options.preparePublicSnapshots !== true || !file) return undefined
+    const observed = file.getSnapshotPreparationFailure?.()
+    if (!observed) return undefined
+    if (
+      observed.version !== 1 ||
+      observed.phase !== 'snapshot-preparation' ||
+      observed.invocation !== 0 ||
+      (observed.source !== 'run' && observed.source !== 'failed-collection') ||
+      typeof observed.propagatedThroughRun !== 'boolean' ||
+      !Object.getOwnPropertyDescriptor(observed, 'error') ||
+      !('value' in Object.getOwnPropertyDescriptor(observed, 'error')!)
+    )
+      throw new Error('Actual snapshot preparation observation is unavailable.')
+    return observed
+  }
+  const publishPreparationFailure = async (
+    observed: NonNullable<ReturnType<typeof readPreparationFailure>>
+  ) => {
+    if (sentPreparationFailure)
+      throw new Error('Snapshot preparation was already published.')
+    let failure: SnapshotPreparationFailure
+    try {
+      failure = captureSnapshotPreparationFailure(
+        observed.error,
+        {
+          runId: options.runId,
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+        },
+        observed.source
+      )
+      await send({ type: 'snapshot-preparation-failure', failure })
+    } catch (error) {
+      throw new AggregateError(
+        [observed.error, error],
+        'Snapshot preparation and its actual handoff failed.'
+      )
+    }
+    sentPreparationFailure = true
+    return failure
+  }
   let coverageCollector:
     | Awaited<ReturnType<typeof import('../coverage/collector').startCoverage>>
     | Awaited<
@@ -800,6 +852,9 @@ async function run({
         : undefined
     file = entry.testRunner.initializeTestFile({
       publicTaskSelection: true,
+      ...(options.preparePublicSnapshots === true
+        ? { preparePublicSnapshots: true }
+        : {}),
       ...(artifact.kind === 'node' &&
       artifact.profile.environment === 'node' &&
       artifact.profile.route === undefined &&
@@ -821,7 +876,8 @@ async function run({
       artifact.profile.mode === 'development'
         ? { omitFailedCollectionSnapshotSummary: true }
         : {}),
-      ...(options.captureModuleCollected === true
+      ...(options.captureModuleCollected === true ||
+      options.preparePublicSnapshots === true
         ? {
             onCollectionFailure: async (actualFile) => {
               await event({
@@ -835,6 +891,7 @@ async function run({
                 ),
               })
               taskUpdates!.collected(actualFile)
+              failedCollectionObserved = true
             },
           }
         : {}),
@@ -907,6 +964,14 @@ async function run({
     })
     releaseNativeAssertionRecords = () =>
       file?.releaseNativeBodyRejectionRecords?.()
+    if (
+      options.preparePublicSnapshots === true &&
+      (typeof file.getSnapshotPreparationFailure !== 'function' ||
+        typeof file.prepareSnapshotsAfterFailedCollection !== 'function')
+    )
+      throw new Error(
+        'The emitted file does not own actual public snapshot preparation.'
+      )
     if (
       options.updateSnapshots &&
       typeof file.takeSnapshotUpdates !== 'function'
@@ -1006,14 +1071,42 @@ async function run({
       })
     }
     if (options.captureCompletedModuleResult) moduleFailurePhase = 'collection'
-    await file.collect(async () => {
-      // Both loaders belong to the emitted runtime. Setup hooks, matchers and
-      // module state must reach the very same collector as the spec.
-      controller.signal.throwIfAborted()
-      await entry.loadSetupModules?.(options.sequence?.setupFiles ?? 'list')
-      controller.signal.throwIfAborted()
-      await entry.loadTestModule()
-    })
+    try {
+      await file.collect(async () => {
+        // Both loaders belong to the emitted runtime. Setup hooks, matchers and
+        // module state must reach the very same collector as the spec.
+        controller.signal.throwIfAborted()
+        await entry.loadSetupModules?.(options.sequence?.setupFiles ?? 'list')
+        controller.signal.throwIfAborted()
+        await entry.loadTestModule()
+      })
+    } catch (loadError) {
+      if (
+        options.preparePublicSnapshots === true &&
+        failedCollectionObserved &&
+        !controller.signal.aborted
+      ) {
+        try {
+          await file.prepareSnapshotsAfterFailedCollection!()
+        } catch (preparationError) {
+          const observed = readPreparationFailure()
+          if (!observed || observed.source !== 'failed-collection')
+            throw new AggregateError(
+              [loadError, preparationError],
+              'Collection and snapshot preparation ownership failed.'
+            )
+          try {
+            await publishPreparationFailure(observed)
+          } catch (handoffError) {
+            throw new AggregateError(
+              [loadError, handoffError],
+              'Collection and snapshot preparation handoff failed.'
+            )
+          }
+        }
+      }
+      throw loadError
+    }
     moduleFailurePhase = undefined
     controller.signal.throwIfAborted()
     if (options.collectOnly) {
@@ -1287,8 +1380,24 @@ async function run({
       !controller.signal.aborted &&
       !lateFailures.has(error)
     if (!deferCollectionFailure) coverageComplete = false
+    let preparationPropagation = false
+    if (
+      options.preparePublicSnapshots === true &&
+      !sentPreparationFailure &&
+      !controller.signal.aborted
+    ) {
+      const observed = readPreparationFailure()
+      if (observed && observed.source === 'run') {
+        const failure = await publishPreparationFailure(observed)
+        // This bit comes only from the fresh actual run carrier, never equality
+        // of the Error/undefined reason with an independent later failure.
+        preparationPropagation = observed.propagatedThroughRun
+        if (preparationPropagation && failure.outcome.kind === 'undefined')
+          status = 'passed'
+      }
+    }
     if (controller.signal.aborted) status = 'cancelled'
-    else if (!lateFailures.has(error))
+    else if (!preparationPropagation && !lateFailures.has(error))
       await diagnostic(
         error,
         phase,

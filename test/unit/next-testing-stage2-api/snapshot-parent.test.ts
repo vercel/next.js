@@ -1,3 +1,4 @@
+import { retry } from 'next-test-utils'
 import {
   mkdtemp,
   mkdir,
@@ -562,3 +563,264 @@ it.each(['development', 'production'] as const)(
     }
   }
 )
+
+describe('actual snapshot preparation parent handoff', () => {
+  let directory: string
+  let artifact: CompiledTestArtifact
+  let options: ExecuteTestOptions
+  let cacheDirectory: string | undefined
+  const shared = new Error('owned reused preparation handoff failure')
+  const actualExit = { reason: 'exit' as const, code: 0, signal: null }
+  beforeEach(async () => {
+    directory = await mkdtemp(join(tmpdir(), 'next-preparation-handoff-'))
+    const profile = {
+      id: 'owned',
+      mode: 'development' as const,
+      environment: 'node' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const entry = {
+      id: 'owned:file',
+      file: join(directory, 'owned.case.mjs'),
+      profile,
+    }
+    artifact = {
+      version: 2,
+      kind: 'node',
+      entryId: entry.id,
+      profile,
+      revision: 'owned-revision',
+      rootDir: directory,
+      entryPath: 'owned.js',
+      files: [],
+      diagnostics: [],
+    }
+    options = {
+      runId: 'owned-run',
+      projectDir: directory,
+      entry,
+      setupFiles: [],
+      updateSnapshots: true,
+      testTimeout: 1000,
+      hookTimeout: 1000,
+      fileTimeout: 5000,
+      signal: new AbortController().signal,
+      onEvent() {},
+      preparePublicSnapshots: true,
+      onSnapshotPreparationFailure() {},
+    }
+    cacheDirectory = undefined
+    runWorker.mockReset()
+  })
+  afterEach(async () => {
+    runWorker.mockReset()
+    await rm(directory, { recursive: true, force: true })
+    if (cacheDirectory)
+      await rm(cacheDirectory, { recursive: true, force: true })
+  })
+  async function fact() {
+    const { captureSnapshotPreparationFailure } = await import(
+      'next/dist/experimental/testing/execution/snapshot-preparation'
+    )
+    return captureSnapshotPreparationFailure(
+      undefined,
+      {
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+      },
+      'run'
+    )
+  }
+  it('joins actual asynchronous handoff after worker and cache closure without publishing snapshots', async () => {
+    const failure = await fact()
+    let release!: () => void, reached!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const started = new Promise<void>((resolve) => {
+      reached = resolve
+    })
+    const callback = jest.fn(() => {
+      reached()
+      return gate
+    })
+    options.onSnapshotPreparationFailure = callback
+    runWorker.mockImplementation(async (_worker, workerOptions) => {
+      cacheDirectory = (workerOptions.input as WorkerInput).cacheScope.directory
+      expect((workerOptions.input as WorkerInput).options).not.toHaveProperty(
+        'onSnapshotPreparationFailure'
+      )
+      workerOptions.onMessage({ type: 'snapshot-preparation-failure', failure })
+      workerOptions.onMessage({
+        type: 'complete',
+        result: { entryId: artifact.entryId, status: 'passed', durationMs: 1 },
+        snapshotUpdates: [],
+      })
+      return actualExit
+    })
+    const publish = jest.fn()
+    let settled = false
+    const running = executeWithEnvironment(
+      artifact,
+      options,
+      process.env,
+      publish
+    ).finally(() => {
+      settled = true
+    })
+    await started
+    await retry(async () => {
+      await expect(stat(cacheDirectory!)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    })
+    expect(settled).toBe(false)
+    expect(publish).not.toHaveBeenCalled()
+    release()
+    expect(await running).toMatchObject({ status: 'passed' })
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(publish).not.toHaveBeenCalled()
+  })
+  it.each([
+    'throw-undefined',
+    'reject-undefined',
+    'same-run',
+    'distinct-run',
+    'post-event',
+    'repeat',
+  ] as const)(
+    'retains independent preparation handoff failures and execution vetoes for %s',
+    async (mode) => {
+      const failure = await fact()
+      const independent = new Error('owned actual worker closure failure')
+      const callback = jest.fn(() => {
+        // eslint-disable-next-line no-throw-literal -- Actual undefined handoff rejection is a required boundary.
+        if (mode === 'throw-undefined') throw undefined
+        if (mode === 'post-event') return
+        return Promise.reject(mode === 'reject-undefined' ? undefined : shared)
+      })
+      options.onSnapshotPreparationFailure = callback
+      runWorker.mockImplementation(async (_worker, workerOptions) => {
+        cacheDirectory = (workerOptions.input as WorkerInput).cacheScope
+          .directory
+        workerOptions.onMessage({
+          type: 'snapshot-preparation-failure',
+          failure,
+        })
+        if (mode === 'repeat')
+          workerOptions.onMessage({
+            type: 'snapshot-preparation-failure',
+            failure,
+          })
+        if (mode === 'post-event')
+          workerOptions.onMessage({
+            type: 'event',
+            event: {
+              version: 1,
+              runId: options.runId,
+              timestamp: 1,
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+              type: 'snapshot-summary',
+              summary: {},
+            },
+          })
+        if (mode === 'same-run') throw shared
+        if (mode === 'distinct-run') throw independent
+        workerOptions.onMessage({
+          type: 'complete',
+          result: {
+            entryId: artifact.entryId,
+            status: 'passed',
+            durationMs: 1,
+          },
+          snapshotUpdates: [],
+        })
+        return actualExit
+      })
+      const publish = jest.fn()
+      let rejected = false,
+        caught: unknown
+      try {
+        await executeWithEnvironment(artifact, options, process.env, publish)
+      } catch (error) {
+        rejected = true
+        caught = error
+      }
+      expect(rejected).toBe(true)
+      if (mode === 'throw-undefined' || mode === 'reject-undefined')
+        expect(caught).toBe(undefined)
+      else if (mode === 'same-run' || mode === 'distinct-run') {
+        expect(caught).toBeInstanceOf(AggregateError)
+        expect((caught as AggregateError).errors).toEqual([
+          mode === 'same-run' ? shared : independent,
+          shared,
+        ])
+      } else if (mode === 'repeat') {
+        expect((caught as AggregateError).errors[0].message).toMatch(
+          /repeated snapshot preparation/
+        )
+        expect((caught as AggregateError).errors[1]).toBe(shared)
+      } else
+        expect((caught as Error).message).toMatch(
+          /execution facts after snapshot preparation/
+        )
+      expect(callback).toHaveBeenCalledTimes(1)
+      expect(publish).not.toHaveBeenCalled()
+      await expect(stat(cacheDirectory!)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    }
+  )
+  it.each(['missing', 'unrequested', 'nontrue'] as const)(
+    'refuses invalid actual parent consumer pairing %s before launch',
+    async (mode) => {
+      if (mode === 'missing') delete options.onSnapshotPreparationFailure
+      if (mode === 'unrequested') delete options.preparePublicSnapshots
+      if (mode === 'nontrue')
+        Object.assign(options, { preparePublicSnapshots: 'true' })
+      await expect(
+        executeWithEnvironment(artifact, options, process.env)
+      ).rejects.toThrow(/actual parent failure consumer|requires isolated/)
+      expect(runWorker).not.toHaveBeenCalled()
+    }
+  )
+  it.each([false, true])(
+    'preserves ordinary snapshot transaction callbacks for empty=%s',
+    async (empty) => {
+      delete options.preparePublicSnapshots
+      delete options.onSnapshotPreparationFailure
+      const updates = empty
+        ? []
+        : [
+            {
+              path: join(directory, '__snapshots__', 'owned.case.mjs.snap'),
+              content: 'new',
+              previousContent: undefined,
+            },
+          ]
+      runWorker.mockImplementation(async (_worker, workerOptions) => {
+        cacheDirectory = (workerOptions.input as WorkerInput).cacheScope
+          .directory
+        workerOptions.onMessage({
+          type: 'complete',
+          result: {
+            entryId: artifact.entryId,
+            status: 'passed',
+            durationMs: 1,
+          },
+          snapshotUpdates: updates,
+        })
+        return actualExit
+      })
+      const publish = jest.fn()
+      expect(
+        await executeWithEnvironment(artifact, options, process.env, publish)
+      ).toMatchObject({ status: 'passed' })
+      expect(publish).toHaveBeenCalledTimes(1)
+      expect(publish).toHaveBeenCalledWith(options.entry.file, updates)
+    }
+  )
+})

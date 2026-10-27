@@ -433,6 +433,12 @@ export interface BrowserViewport {
 export interface ExecuteTestOptions {
   /** Issued only by the actual one-shot CLI owner for bounded V8 restoration. */
   captureOneShotV8CollectionRestoration?: true
+  /** Private isolated one-shot snapshot preparation, never a public config key. */
+  preparePublicSnapshots?: true
+  /** Actual private preparation occurrence; forwarded independently of task facts. */
+  onSnapshotPreparationFailure?: (
+    failure: import('./execution/snapshot-preparation').SnapshotPreparationFailure
+  ) => void | Promise<void>
   /** Private opt-in actual fulfilled module timing and selection provenance. */
   captureCompletedModuleResult?: true
   /** Opt-in live reporter snapshots from actual logical-case producers. */

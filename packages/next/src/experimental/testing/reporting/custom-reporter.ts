@@ -1,3 +1,4 @@
+import type { SnapshotPreparationFailure } from '../execution/snapshot-preparation'
 import { resolve as resolvePath, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { realpath } from 'node:fs/promises'
@@ -124,6 +125,8 @@ export async function openCustomReporters(options: {
   let consoleQueue = Promise.resolve()
   const queuedWrites: Promise<void>[] = []
   const collectedWrites: Promise<void>[] = []
+  const preparationWrites: Promise<void>[] = []
+  const preparedEntries = new Set<string>()
   let consoleFailure: unknown
   const observedModules = new Set<string>()
   const retainConsoleFailure = (error: unknown) => {
@@ -323,7 +326,11 @@ export async function openCustomReporters(options: {
         ? handledFailure
         : undefined
     return (disposal ??= (async () => {
-      await Promise.all([...queuedWrites, ...collectedWrites])
+      await Promise.all([
+        ...queuedWrites,
+        ...collectedWrites,
+        ...preparationWrites,
+      ])
       await consoleQueue
       closing = true
       const cleanupErrors: unknown[] = []
@@ -464,8 +471,28 @@ export async function openCustomReporters(options: {
         await request({ type: 'reporter-errors' }, true)
         return structuredClone(reporterErrors)
       },
+      onSnapshotPreparationFailure(
+        preparationFailure: SnapshotPreparationFailure
+      ) {
+        if (preparedEntries.has(preparationFailure.entryId))
+          throw new Error(
+            'Duplicate snapshot preparation reporter association.'
+          )
+        preparedEntries.add(preparationFailure.entryId)
+        preparationWrites.push(
+          send({
+            type: 'snapshot-preparation-failure',
+            entryId: preparationFailure.entryId,
+          }).catch(retainConsoleFailure)
+        )
+      },
       onEvent(event: ResultEvent, completion?: CustomReporterCompletion) {
         if (options.signal?.aborted) return
+        if (
+          (event.type === 'file-end' || event.type === 'module-complete') &&
+          preparedEntries.has(event.entryId)
+        )
+          return
         if (event.type === 'module-complete') {
           if (!completion)
             throw new Error('Live module reporter requires actual file facts.')
@@ -555,7 +582,11 @@ export async function openCustomReporters(options: {
           .catch(retainConsoleFailure)
       },
       async finish(completion: CustomReporterCompletion) {
-        await Promise.all([...queuedWrites, ...collectedWrites])
+        await Promise.all([
+          ...queuedWrites,
+          ...collectedWrites,
+          ...preparationWrites,
+        ])
         await consoleQueue
         if (options.signal?.aborted) {
           await settleCancellation()

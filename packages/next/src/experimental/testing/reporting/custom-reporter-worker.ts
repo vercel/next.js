@@ -14,6 +14,7 @@ import { extname, isAbsolute, sep } from 'node:path'
 import { register } from 'node:module'
 import {
   createCustomReporterModules,
+  hasOnlySnapshotPreparationRunFailures,
   type CustomReporterCompletion,
 } from './custom-reporter-tasks'
 import { serializeDiagnostic } from './diagnostics'
@@ -53,6 +54,7 @@ const queuedCallbacks: Promise<void>[] = []
 const collectedCallbacks: Promise<void>[] = []
 const collectedEntryIds = new Set<string>()
 const failedCollectedEntryIds = new Set<string>()
+const preparedEntryIds = new Set<string>()
 const queuedEntryIds = new Set<string>()
 const send = (value: object) =>
   new Promise<void>((resolve, reject) =>
@@ -452,6 +454,24 @@ async function handle(message: any) {
       await send({ type: 'custom-reporter-result' })
       return
     }
+    if (
+      message.type === 'snapshot-preparation-failure' &&
+      initialized &&
+      !finished
+    ) {
+      if (
+        watching ||
+        typeof message.entryId !== 'string' ||
+        preparedEntryIds.has(message.entryId) ||
+        completedModules.has(message.entryId) ||
+        !live.get(message.entryId)
+      )
+        throw new Error(
+          'Snapshot preparation requires one actual received reporter File.'
+        )
+      preparedEntryIds.add(message.entryId)
+      return
+    }
     if (message.type === 'module-end' && initialized && !finished) {
       if (
         !reporters.some((reporter) => reporter.onTestModuleEnd) &&
@@ -495,13 +515,29 @@ async function handle(message: any) {
       const completion: CustomReporterCompletion = message.completion
       if (watching) watchEntryIds = completion.files.map((file) => file.entryId)
       const modules = createCustomReporterModules(root, completion).map(
-        (module) => completedModules.get(module.id) ?? module
+        (module) =>
+          preparedEntryIds.has(module.id)
+            ? (live.get(module.id) ?? module)
+            : (completedModules.get(module.id) ?? module)
       )
-      const errors = completion.events.flatMap((event) =>
+      const preparationErrors = new Map(
+        (completion.snapshotPreparationFailures ?? []).flatMap((record) =>
+          record.diagnosticEventIndex !== undefined &&
+          record.failure.outcome.kind === 'error'
+            ? [
+                [
+                  record.diagnosticEventIndex,
+                  record.failure.outcome.reportedError,
+                ] as const,
+              ]
+            : []
+        )
+      )
+      const errors = completion.events.flatMap((event, index) =>
         event.type === 'diagnostic' &&
         (!event.entryId || isRunErrorDiagnostic(event.diagnostic)) &&
         event.diagnostic.severity === 'error'
-          ? [reportedRunError(event.diagnostic)]
+          ? [preparationErrors.get(index) ?? reportedRunError(event.diagnostic)]
           : []
       )
       try {
@@ -510,7 +546,8 @@ async function handle(message: any) {
           [...errors, ...(completion.recordedReporterErrors ?? [])],
           completion.status === 'cancelled'
             ? 'interrupted'
-            : hasOnlyBrowserCleanupRunFailures(completion)
+            : hasOnlyBrowserCleanupRunFailures(completion) ||
+                hasOnlySnapshotPreparationRunFailures(completion)
               ? 'passed'
               : completion.status
         )

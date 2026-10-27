@@ -1,3 +1,7 @@
+import {
+  assertSnapshotPreparationFailure,
+  type SnapshotPreparationFailure,
+} from '../execution/snapshot-preparation'
 import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import { isRunErrorDiagnostic, isBrowserCleanupRunError } from './run-errors'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
@@ -315,6 +319,28 @@ export function createMachineReporter(options: {
     }))
   }
   let retainedFiles: ClosedMachineFileRecord[] = []
+  const snapshotPreparationFailures = new Map<
+    string,
+    {
+      failure: SnapshotPreparationFailure
+      collected: ReporterTaskSnapshot
+      diagnosticEventIndex?: number
+    }
+  >()
+  const preparationCompletion = () =>
+    [...snapshotPreparationFailures.values()].map(
+      ({ failure, diagnosticEventIndex }) => ({ failure, diagnosticEventIndex })
+    )
+  // The evidence collector clones its inputs. This local receipt associates the
+  // exact synchronous diagnostic dispatch with that collector's ordered slot.
+  let receivedEventCount = 0
+  let preparationCollectorFailed = false
+  let lastDeliveredDiagnostic:
+    | {
+        event: Extract<ResultEvent, { type: 'diagnostic' }>
+        index: number
+      }
+    | undefined
   let unexecutedEntries: TestEntry[] = []
   let retainedSpecificationOrder: readonly string[] | undefined
   function json(fileMessage: 'task' | 'formatted' = 'task') {
@@ -348,6 +374,33 @@ export function createMachineReporter(options: {
       ...retained.flatMap((record) => record.result.cases),
     ]
     const unexecutedCases = new Set(cases.filter(assertUnexecutedCaseResult))
+    const preparedDeclarations: {
+      entryId: string
+      task: ReporterTaskSnapshot
+      ancestors: string[]
+    }[] = []
+    for (const [entryId, record] of snapshotPreparationFailures) {
+      const visit = (task: ReporterTaskSnapshot, ancestors: string[]) => {
+        if (task.type === 'test')
+          preparedDeclarations.push({ entryId, task, ancestors })
+        else
+          for (const child of task.tasks ?? [])
+            visit(
+              child,
+              task !== record.collected && task.type === 'suite'
+                ? [...ancestors, task.name]
+                : ancestors
+            )
+      }
+      visit(record.collected, [])
+    }
+    const preparationDiagnostics = new Set(
+      [...snapshotPreparationFailures.values()].flatMap((record) =>
+        record.diagnosticEventIndex === undefined
+          ? []
+          : [currentEvents[record.diagnosticEventIndex]]
+      )
+    )
     const suiteResults = [
       ...current.suites,
       ...retained.flatMap((record) => record.result.suites),
@@ -463,8 +516,51 @@ export function createMachineReporter(options: {
           : []
       })
     )
+    for (const [entryId, record] of snapshotPreparationFailures) {
+      if (
+        record.failure.source === 'run' &&
+        files.find((file) => file.entryId === entryId)?.status !==
+          'cancelled' &&
+        !events.some(
+          (event) =>
+            event.type === 'diagnostic' &&
+            event.entryId === entryId &&
+            event.diagnostic.severity === 'error'
+        ) &&
+        !cases.some(
+          (test) =>
+            test.entryId === entryId &&
+            (test.status === 'failed' || test.status === 'cancelled')
+        ) &&
+        !suiteResults.some(
+          (suite) =>
+            suite.entryId === entryId &&
+            (suite.status === 'failed' || suite.status === 'cancelled')
+        )
+      )
+        unhandledOnlyFiles.add(entryId)
+    }
     const suites = new Map<string, 'passed' | 'failed' | 'pending'>()
     for (const { entry } of entries) {
+      const prepared = snapshotPreparationFailures.get(entry.id)
+      if (prepared) {
+        const visit = (task: ReporterTaskSnapshot) => {
+          if (task.type === 'test') return
+          suites.set(
+            JSON.stringify([entry.id, task.id]),
+            task.result?.state === 'fail'
+              ? 'failed'
+              : task.mode === 'todo' ||
+                  task.result?.state === 'run' ||
+                  task.result?.state === 'queued'
+                ? 'pending'
+                : 'passed'
+          )
+          task.tasks?.forEach(visit)
+        }
+        visit(prepared.collected)
+        continue
+      }
       const completedSuites = suiteResults.filter(
         (suite) => suite.entryId === entry.id
       )
@@ -526,16 +622,20 @@ export function createMachineReporter(options: {
       numPendingTestSuites: [...suites.values()].filter(
         (status) => status === 'pending'
       ).length,
-      numTotalTests: cases.length,
+      numTotalTests: cases.length + preparedDeclarations.length,
       numPassedTests: summary.cases.passed,
       numFailedTests: summary.cases.failed + summary.cases.cancelled,
-      numPendingTests: cases.filter(
-        (test) =>
-          test.status === 'skipped' &&
-          test.mode !== 'todo' &&
-          !unexecutedCases.has(test)
-      ).length,
-      numTodoTests: cases.filter((test) => test.mode === 'todo').length,
+      numPendingTests:
+        cases.filter(
+          (test) =>
+            test.status === 'skipped' &&
+            test.mode !== 'todo' &&
+            !unexecutedCases.has(test)
+        ).length +
+        preparedDeclarations.filter(({ task }) => task.mode === 'skip').length,
+      numTodoTests:
+        cases.filter((test) => test.mode === 'todo').length +
+        preparedDeclarations.filter(({ task }) => task.mode === 'todo').length,
       snapshot,
       startTime: events.find((event) => event.type === 'run-start')?.timestamp,
       success:
@@ -551,6 +651,7 @@ export function createMachineReporter(options: {
               (event) =>
                 event.type !== 'diagnostic' ||
                 event.diagnostic.severity !== 'error' ||
+                preparationDiagnostics.has(event) ||
                 (event.entryId !== undefined &&
                   unhandledOnlyFiles.has(event.entryId) &&
                   isRunErrorDiagnostic(event.diagnostic))
@@ -583,87 +684,114 @@ export function createMachineReporter(options: {
             : [error]
         )
         return {
-          assertionResults: orderTestDeclarations(
-            entry.id,
-            cases.filter((test) => test.entryId === entry.id),
-            (test) => test.caseId
-          ).map((test) => ({
-            ancestorTitles: test.ancestors?.map((suite) => suite.name) ?? [],
-            fullName: [
-              ...(test.ancestors?.map((suite) => suite.name) ?? []),
-              test.testName ?? test.name,
-            ].join(' '),
-            status: unexecutedCases.has(test)
-              ? 'pending'
-              : test.mode === 'todo'
-                ? 'todo'
-                : test.status === 'cancelled'
-                  ? test.bail
-                    ? 'pending'
-                    : 'failed'
-                  : test.status,
-            title: test.testName ?? test.name,
-            ...(test.bail || unexecutedCases.has(test)
-              ? {}
-              : test.mode === 'skip' || test.mode === 'todo'
-                ? test.pending
-                  ? { duration: test.durationMs }
-                  : {}
-                : { duration: test.durationMs }),
-            failureMessages: events.flatMap((event) =>
-              !test.pending &&
-              event.type === 'case-end' &&
-              event.entryId === test.entryId &&
-              event.caseId === test.caseId
-                ? event.errors.flatMap((error) => {
-                    // Vitest flattens one AggregateError level in task errors.
-                    // The full tree remains in next.events for diagnostics.
-                    const errors =
-                      error.name === 'AggregateError' && error.errors
-                        ? error.errors
-                        : [error]
-                    return errors.map((childError) => {
-                      // The target uses the bare message when no stack exists.
-                      if (!childError.stack) return childError.message
-                      // Helper trimming belongs to human presentation. Vitest's
-                      // JSON reporter retains the complete saved helper stack.
-                      if (childError.stack.includes('__VITEST_HELPER__'))
-                        return childError.stack
-                      const message = formatDiagnostic(
-                        childError,
-                        options.projectDir
-                      )
-                      // The reference JSON reporter uses the saved stack;
-                      // async assertions can retain its original Error heading.
-                      const heading = childError.stack.split('\n', 1)[0]
-                      return heading
-                        ? message.replace(/^[^\n]*/, () => heading)
-                        : message
+          assertionResults: [
+            ...orderTestDeclarations(
+              entry.id,
+              cases.filter((test) => test.entryId === entry.id),
+              (test) => test.caseId
+            ).map((test) => ({
+              ancestorTitles: test.ancestors?.map((suite) => suite.name) ?? [],
+              fullName: [
+                ...(test.ancestors?.map((suite) => suite.name) ?? []),
+                test.testName ?? test.name,
+              ].join(' '),
+              status: unexecutedCases.has(test)
+                ? 'pending'
+                : test.mode === 'todo'
+                  ? 'todo'
+                  : test.status === 'cancelled'
+                    ? test.bail
+                      ? 'pending'
+                      : 'failed'
+                    : test.status,
+              title: test.testName ?? test.name,
+              ...(test.bail || unexecutedCases.has(test)
+                ? {}
+                : test.mode === 'skip' || test.mode === 'todo'
+                  ? test.pending
+                    ? { duration: test.durationMs }
+                    : {}
+                  : { duration: test.durationMs }),
+              failureMessages: events.flatMap((event) =>
+                !test.pending &&
+                event.type === 'case-end' &&
+                event.entryId === test.entryId &&
+                event.caseId === test.caseId
+                  ? event.errors.flatMap((error) => {
+                      // Vitest flattens one AggregateError level in task errors.
+                      // The full tree remains in next.events for diagnostics.
+                      const errors =
+                        error.name === 'AggregateError' && error.errors
+                          ? error.errors
+                          : [error]
+                      return errors.map((childError) => {
+                        // The target uses the bare message when no stack exists.
+                        if (!childError.stack) return childError.message
+                        // Helper trimming belongs to human presentation. Vitest's
+                        // JSON reporter retains the complete saved helper stack.
+                        if (childError.stack.includes('__VITEST_HELPER__'))
+                          return childError.stack
+                        const message = formatDiagnostic(
+                          childError,
+                          options.projectDir
+                        )
+                        // The reference JSON reporter uses the saved stack;
+                        // async assertions can retain its original Error heading.
+                        const heading = childError.stack.split('\n', 1)[0]
+                        return heading
+                          ? message.replace(/^[^\n]*/, () => heading)
+                          : message
+                      })
                     })
-                  })
-                : []
-            ),
-            location: test.location
-              ? { line: test.location.line, column: test.location.column }
-              : undefined,
-            meta:
-              [...events]
-                .reverse()
-                .find(
-                  (
-                    event
-                  ): event is Extract<ResultEvent, { type: 'case-end' }> =>
-                    event.type === 'case-end' &&
-                    event.entryId === test.entryId &&
-                    event.caseId === test.caseId
-                )?.meta ??
-              test.meta ??
-              {},
-            tags: test.tags ?? [],
-            benchmarks: [],
-          })),
-          startTime: timestamp,
-          endTime: timestamp + (file?.durationMs ?? 0),
+                  : []
+              ),
+              location: test.location
+                ? { line: test.location.line, column: test.location.column }
+                : undefined,
+              meta:
+                [...events]
+                  .reverse()
+                  .find(
+                    (
+                      event
+                    ): event is Extract<ResultEvent, { type: 'case-end' }> =>
+                      event.type === 'case-end' &&
+                      event.entryId === test.entryId &&
+                      event.caseId === test.caseId
+                  )?.meta ??
+                test.meta ??
+                {},
+              tags: test.tags ?? [],
+              benchmarks: [],
+            })),
+            ...preparedDeclarations
+              .filter((item) => item.entryId === entry.id)
+              .map(({ task, ancestors }) => ({
+                ancestorTitles: ancestors,
+                fullName: task.name
+                  ? [...ancestors, task.name].join(' ')
+                  : ancestors.join(' '),
+                status:
+                  task.mode === 'todo'
+                    ? 'todo'
+                    : task.mode === 'skip'
+                      ? 'skipped'
+                      : 'pending',
+                title: task.name,
+                duration: undefined,
+                failureMessages: [],
+                ...(task.location ? { location: task.location } : {}),
+                meta: task.meta,
+                tags: task.tags,
+                benchmarks: [],
+              })),
+          ],
+          startTime: snapshotPreparationFailures.has(entry.id)
+            ? initialTimestamp
+            : timestamp,
+          endTime: snapshotPreparationFailures.has(entry.id)
+            ? initialTimestamp
+            : timestamp + (file?.durationMs ?? 0),
           status:
             emptyIds.has(entry.id) ||
             file?.status === 'passed' ||
@@ -789,6 +917,100 @@ export function createMachineReporter(options: {
     get captureModuleQueued() {
       return custom?.captureModuleQueued === true
     },
+    onSnapshotPreparationFailure(
+      failure: SnapshotPreparationFailure,
+      deliveredDiagnostic?: Extract<ResultEvent, { type: 'diagnostic' }>
+    ) {
+      if (
+        !initialized ||
+        !collector ||
+        preparationCollectorFailed ||
+        snapshotPreparationFailures.has(failure.entryId) ||
+        retainedFiles.length ||
+        options.reporters.some(
+          (name) =>
+            name !== 'default' &&
+            name !== 'json' &&
+            !isCustomResultReporter(name)
+        )
+      )
+        throw new Error(
+          'Snapshot preparation reporting requires its actual one-shot collected file.'
+        )
+      const events = collector.getEvents()
+      const collected = events.filter(
+        (event): event is Extract<ResultEvent, { type: 'file-collected' }> =>
+          event.type === 'file-collected' && event.entryId === failure.entryId
+      )
+      if (collected.length !== 1)
+        throw new Error(
+          'Snapshot preparation lacks one actual received Collected file.'
+        )
+      const actual = collected[0]
+      assertSnapshotPreparationFailure(failure, {
+        runId: actual.runId,
+        entryId: actual.entryId,
+        revision: actual.revision,
+      })
+      if (
+        events.some(
+          (event) =>
+            'entryId' in event &&
+            event.entryId === failure.entryId &&
+            [
+              'case-start',
+              'case-end',
+              'suite-end',
+              'file-end',
+              'module-complete',
+            ].includes(event.type)
+        )
+      )
+        throw new Error(
+          'Snapshot preparation follows actual execution or completion.'
+        )
+      if (failure.source === 'run') {
+        const hasResult = (task: ReporterTaskSnapshot): boolean =>
+          task.result !== undefined || (task.tasks?.some(hasResult) ?? false)
+        if (hasResult(actual.taskTree))
+          throw new Error(
+            'Snapshot preparation has unqualified preexisting task results.'
+          )
+      } else if (
+        actual.taskTree.result?.state !== 'fail' ||
+        actual.taskTree.tasks?.length
+      )
+        throw new Error(
+          'Snapshot preparation lacks its actual failed collection.'
+        )
+      let diagnosticEventIndex: number | undefined
+      if (failure.outcome.kind === 'error') {
+        diagnosticEventIndex =
+          deliveredDiagnostic &&
+          lastDeliveredDiagnostic?.event === deliveredDiagnostic
+            ? lastDeliveredDiagnostic.index
+            : -1
+        if (
+          !deliveredDiagnostic ||
+          diagnosticEventIndex < 0 ||
+          deliveredDiagnostic.runId !== failure.runId ||
+          deliveredDiagnostic.entryId !== undefined ||
+          deliveredDiagnostic.diagnostic !== failure.outcome.diagnostic
+        )
+          throw new Error(
+            'Snapshot preparation lacks its actual delivered run error.'
+          )
+      } else if (deliveredDiagnostic !== undefined)
+        throw new Error(
+          'Undefined snapshot preparation cannot invent a run diagnostic.'
+        )
+      snapshotPreparationFailures.set(failure.entryId, {
+        failure,
+        collected: actual.taskTree,
+        diagnosticEventIndex,
+      })
+      custom?.onSnapshotPreparationFailure(failure)
+    },
     onModuleQueued(entry: TestEntry) {
       if (!initialized)
         throw new Error(
@@ -810,7 +1032,33 @@ export function createMachineReporter(options: {
         throw new Error(
           'Custom reporters must initialize before execution events.'
         )
-      collector?.onEvent(event)
+      lastDeliveredDiagnostic = undefined
+      if (
+        'entryId' in event &&
+        typeof event.entryId === 'string' &&
+        snapshotPreparationFailures.has(event.entryId) &&
+        [
+          'case-start',
+          'case-end',
+          'suite-end',
+          'file-collected',
+          'task-update',
+          'test-annotation',
+          'test-artifact',
+          'snapshot-summary',
+          'module-complete',
+        ].includes(event.type)
+      )
+        throw new Error(
+          'Execution facts follow actual failed snapshot preparation.'
+        )
+      try {
+        collector?.onEvent(event)
+      } catch (error) {
+        preparationCollectorFailed = true
+        throw error
+      }
+      const eventIndex = receivedEventCount++
       if (
         !options.replayTaskResults ||
         !custom?.captureTaskResults ||
@@ -844,6 +1092,8 @@ export function createMachineReporter(options: {
             : undefined
         )
       for (const reporter of liveReporters) reporter.onEvent(event)
+      if (event.type === 'diagnostic')
+        lastDeliveredDiagnostic = { event, index: eventIndex }
     },
     async replayFile(taskTree: ReporterTaskSnapshot) {
       if (!custom?.captureTaskResults) return
@@ -1035,6 +1285,9 @@ export function createMachineReporter(options: {
             events,
             status,
             recordedReporterErrors: options.recordedReporterErrors,
+            ...(snapshotPreparationFailures.size
+              ? { snapshotPreparationFailures: preparationCompletion() }
+              : {}),
           })
         } catch (error) {
           customError = error

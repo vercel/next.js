@@ -131,6 +131,33 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
         ? { userCancelSignal: userCancellation.signal }
         : {}),
       collectOnly: request.collectOnly,
+      ...(request.preparePublicSnapshots === true
+        ? {
+            preparePublicSnapshots: true as const,
+            onSnapshotPreparationFailure(
+              failure: import('./execution/snapshot-preparation').SnapshotPreparationFailure
+            ) {
+              if (
+                request.isolatedProfile !== true ||
+                request.watchCoverage ||
+                request.userCancellation
+              )
+                throw new Error(
+                  'Snapshot preparation forwarding requires its actual one-shot parent.'
+                )
+              return new Promise<void>((resolve, reject) => {
+                if (!process.connected)
+                  return reject(
+                    new Error('Test watch coordinator disconnected.')
+                  )
+                process.send!(
+                  { type: 'snapshot-preparation-failure', failure },
+                  (error: Error | null) => (error ? reject(error) : resolve())
+                )
+              })
+            },
+          }
+        : {}),
       captureTaskResults: request.captureTaskResults,
       ...(request.captureModuleCollected === true
         ? { captureModuleCollected: true as const }

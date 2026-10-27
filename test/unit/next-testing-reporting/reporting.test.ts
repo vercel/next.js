@@ -7903,3 +7903,162 @@ describe('actual interrupted execution JSON publication', () => {
     }
   )
 })
+
+it.each([
+  'error',
+  'getters',
+  'throwing-getter',
+  'undefined',
+  'shared',
+  'unsupported',
+  'invalid',
+] as const)(
+  'captures one actual snapshot preparation error and validates its private owner for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-capture-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-capture.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        singleActualCapture: true,
+        explicitUndefined: true,
+        originalErrorUnchanged: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'error',
+  'undefined',
+  'copy-event',
+  'missing-event',
+  'foreign-owner',
+  'event-before-case',
+  'late-diagnostic',
+  'duplicate',
+  'post-case',
+  'post-tree',
+  'post-snapshot',
+  'independent-file-error',
+  'reentrant-event',
+  'nested',
+] as const)(
+  'associates actual failed snapshot preparation with synchronous delivered reporting for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-reporting-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-reporting.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualPreparationFailed: true,
+        bodyInvocations: 0,
+        actualReceivedEventAssociation: true,
+        contradictionsRejected: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'sync',
+  'undefined',
+  'on-event-throw',
+  'on-event-throw-undefined',
+  'on-event-reject',
+  'on-event-reject-undefined',
+  'on-event-fulfill',
+  'consumer-throw',
+  'consumer-throw-undefined',
+  'consumer-reject',
+  'consumer-reject-undefined',
+  'consumer-fulfill',
+  'missing',
+] as const)(
+  'owns synchronous snapshot preparation diagnostic forwarding and independent observer failure for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-forwarding-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-forwarding.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualForwardingOwnerMappedOnce: true,
+        physicalMockOwnerJoined: mode !== 'missing',
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    [
+      'all-skip-dir',
+      'load-failure-dir',
+      'passing-dir',
+      'empty-dir',
+      'empty-pass-dir',
+      'undefined-snapshot-read',
+      'same-error-load-and-read',
+    ].map((profile) => ({ mode, profile }))
+  )
+)(
+  'preserves actual one-shot public snapshot preparation JSON for $mode $profile',
+  async ({ mode, profile }) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-public-snapshot-json-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'public-snapshot-preparation.mjs'),
+          profile,
+          mode,
+          output,
+        ],
+        { timeout: 130000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        profile,
+        mode,
+        completeReferenceReportEqual: true,
+        unchangedAuthorRowsEqual: true,
+        allPhysicalOwnersJoined: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  140000
+)
