@@ -6,6 +6,10 @@
 //! allocate the empty blocks below them. Like a `Vec`, the storage grows with amortized growth,
 //! at the front as well as at the back.
 //!
+//! The blocks are stored in a [`BlockStorage`]: a `Vec<usize>` by default, or a
+//! `SmallVec<[usize; N]>` or `ArrayVec<usize, N>` to keep small sets inline, e.g.
+//! `Bitset<SmallVec<[usize; 2]>>`.
+//!
 //! Every operation is a simple loop over machine words. That makes unions and subset checks fast
 //! when the bits span a limited range, at the cost of using one bit of memory per index in that
 //! range.
@@ -15,6 +19,7 @@
 //! persisted while dense ones are copied in bulk.
 
 mod encode;
+mod storage;
 
 use std::{
     fmt,
@@ -23,6 +28,8 @@ use std::{
 };
 
 use shrink_to_fit::ShrinkToFit;
+
+pub use crate::storage::BlockStorage;
 
 /// Number of bits per storage block.
 const BLOCK_BITS: usize = usize::BITS as usize;
@@ -36,13 +43,23 @@ const CHUNK_BLOCKS: usize = 4;
 ///
 /// The storage grows at the front or the back when a bit outside of the current range is
 /// inserted. Equality and hashing only depend on which bits are set, not on the storage range.
-#[derive(Clone, Default)]
-pub struct Bitset {
+///
+/// `S` is the storage of the blocks, see [`BlockStorage`]. With a storage of limited size (an
+/// `ArrayVec`), every operation that needs more blocks than the storage holds panics, and decoding
+/// such a set returns an error.
+#[derive(Clone)]
+pub struct Bitset<S: BlockStorage = Vec<usize>> {
     /// The index of the first stored block, i.e. the first stored bit is
     /// `offset * usize::BITS`.
     offset: usize,
     /// The stored blocks. Bit `i` of block `j` is the bit `(offset + j) * usize::BITS + i`.
-    blocks: Vec<usize>,
+    blocks: S,
+}
+
+impl<S: BlockStorage> Default for Bitset<S> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// The number of blocks that hold the bits `0..bits`.
@@ -50,41 +67,48 @@ fn blocks_for(bits: u32) -> usize {
     (bits as usize).div_ceil(BLOCK_BITS)
 }
 
-impl Bitset {
+impl<S: BlockStorage> Bitset<S> {
     /// Creates an empty set without allocating.
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             offset: 0,
-            blocks: Vec::new(),
+            blocks: S::new(),
         }
     }
 
     /// Creates an empty set that stores the blocks for the bits `0..bits`, so that inserting any of
     /// them doesn't grow the storage.
     ///
-    /// The storage holds exactly these blocks, in an allocation without spare capacity.
+    /// If the storage allocates, it holds exactly these blocks, without spare capacity. Panics if
+    /// the storage can't hold that many blocks.
     pub fn with_len(bits: u32) -> Self {
-        Self {
-            offset: 0,
-            blocks: vec![0; blocks_for(bits)],
-        }
+        let len = blocks_for(bits);
+        let mut blocks = S::with_capacity(len);
+        blocks.resize(len);
+        Self { offset: 0, blocks }
     }
 
     /// Creates an empty set with capacity for the blocks of `bits` bits, but without storing any
     /// block yet.
     ///
     /// The stored range starts at the first inserted bit. Inserts don't reallocate as long as the
-    /// stored range fits into the capacity, e.g. when all inserted bits are below `bits`.
+    /// stored range fits into the capacity, e.g. when all inserted bits are below `bits`. Panics if
+    /// the storage can't hold that many blocks.
     pub fn with_capacity(bits: u32) -> Self {
         Self {
             offset: 0,
-            blocks: Vec::with_capacity(blocks_for(bits)),
+            blocks: S::with_capacity(blocks_for(bits)),
         }
     }
 
     /// The stored blocks.
     fn blocks(&self) -> &[usize] {
-        &self.blocks
+        self.blocks.as_slice()
+    }
+
+    /// The stored blocks, mutably.
+    fn blocks_mut(&mut self) -> &mut [usize] {
+        self.blocks.as_mut_slice()
     }
 
     /// The index of the block after the last stored block.
@@ -104,45 +128,69 @@ impl Bitset {
         (self.offset + first, &blocks[first..=last])
     }
 
+    /// Drops the leading and trailing zero blocks from the storage, keeping its capacity.
+    fn trim_storage(&mut self) {
+        let blocks = self.blocks();
+        let Some(first) = blocks.iter().position(|&b| b != 0) else {
+            self.blocks.clear();
+            self.offset = 0;
+            return;
+        };
+        let last = blocks.iter().rposition(|&b| b != 0).unwrap_or(first);
+        self.blocks.truncate(last + 1);
+        self.blocks.remove_prefix(first);
+        self.offset += first;
+    }
+
     /// The position of `block` in the stored blocks, if it is stored.
     ///
     /// A block below the offset wraps around to a huge position, so a single comparison against
     /// the length checks both ends of the range.
     fn position(&self, block: usize) -> Option<usize> {
         let position = block.wrapping_sub(self.offset);
-        (position < self.blocks.len()).then_some(position)
+        (position < self.blocks().len()).then_some(position)
     }
 
     /// Makes sure that the blocks `start..end` are stored, keeping all existing bits.
     ///
-    /// Growth at the back uses the amortized growth of the `Vec`. Growth at the front is amortized
-    /// the same way: the existing blocks are moved so that the stored range ends at the end of the
-    /// capacity, which leaves all spare capacity in front of them. Further growth at the front then
-    /// only uses that headroom, without moving the blocks again, until it is used up. If the new
-    /// range doesn't fit into the capacity, the storage is reallocated with at least twice the
-    /// capacity, copying the existing blocks once, directly to their new position.
+    /// Growth at the back uses the amortized growth of the storage. Growth at the front is
+    /// amortized the same way: the existing blocks are moved so that the stored range ends at the
+    /// end of the capacity, which leaves all spare capacity in front of them. Further growth at the
+    /// front then only uses that headroom, without moving the blocks again, until it is used up. If
+    /// the new range doesn't fit into the capacity, the storage is reallocated with at least twice
+    /// the capacity (but at most the storage's maximum length), copying the existing blocks once,
+    /// directly to their new position.
+    ///
+    /// If the new range exceeds the storage's maximum length, which the zero blocks left by the
+    /// front growth can cause with a storage of limited size, the zero blocks at both ends of the
+    /// storage are dropped first. Panics if the storage still can't hold the new range.
     #[cold]
     fn ensure_blocks(&mut self, start: usize, end: usize) {
         debug_assert!(start < end);
-        let len = self.blocks.len();
+        let mut len = self.blocks().len();
+        if len > 0 && end.max(self.offset + len) - start.min(self.offset) > S::max_len() {
+            self.trim_storage();
+            len = self.blocks().len();
+        }
         if len == 0 {
+            self.blocks.resize(end - start);
             self.offset = start;
-            self.blocks.resize(end - start, 0);
             return;
         }
         let new_start = start.min(self.offset);
         let new_end = end.max(self.offset + len);
         if new_start == self.offset {
             // Only grow at the back.
-            self.blocks.resize(new_end - new_start, 0);
+            self.blocks.resize(new_end - new_start);
             return;
         }
         let new_len = new_end - new_start;
         let capacity = if new_len <= self.blocks.capacity() {
             self.blocks.capacity()
         } else {
-            // The same amortized growth as `Vec::reserve`.
-            new_len.max(self.blocks.capacity() * 2)
+            // The same amortized growth as `Vec::reserve`, limited to what the storage can hold. A
+            // range beyond that keeps `new_len`, so allocating the storage panics.
+            new_len.max((self.blocks.capacity() * 2).min(S::max_len()))
         };
         // End the stored range at the end of the capacity, but don't go below block 0. This is at
         // most `new_start`, as the capacity holds the new range.
@@ -151,14 +199,15 @@ impl Bitset {
         let shift = self.offset - new_start;
         if capacity == self.blocks.capacity() {
             // Move the existing blocks up within the capacity and clear the blocks before them.
-            self.blocks.resize(new_len, 0);
-            self.blocks.copy_within(..len, shift);
-            self.blocks[..shift].fill(0);
+            self.blocks.resize(new_len);
+            let blocks = self.blocks_mut();
+            blocks.copy_within(..len, shift);
+            blocks[..shift].fill(0);
         } else {
-            let mut blocks = Vec::with_capacity(capacity);
-            blocks.resize(shift, 0);
-            blocks.extend_from_slice(&self.blocks);
-            blocks.resize(new_len, 0);
+            let mut blocks = S::with_capacity(capacity);
+            blocks.resize(shift);
+            blocks.extend_from_slice(self.blocks());
+            blocks.resize(new_len);
             self.blocks = blocks;
         }
         self.offset = new_start;
@@ -176,7 +225,7 @@ impl Bitset {
             }
         };
         let mask = 1 << (bit % BLOCK_BITS);
-        let block = &mut self.blocks[position];
+        let block = &mut self.blocks_mut()[position];
         let added = *block & mask == 0;
         *block |= mask;
         added
@@ -191,7 +240,7 @@ impl Bitset {
             return false;
         };
         let mask = 1 << (bit % BLOCK_BITS);
-        let block = &mut self.blocks[position];
+        let block = &mut self.blocks_mut()[position];
         let removed = *block & mask != 0;
         *block &= !mask;
         removed
@@ -201,7 +250,7 @@ impl Bitset {
     pub fn contains(&self, bit: u32) -> bool {
         let bit = bit as usize;
         match self.position(bit / BLOCK_BITS) {
-            Some(position) => self.blocks[position] & (1 << (bit % BLOCK_BITS)) != 0,
+            Some(position) => self.blocks()[position] & (1 << (bit % BLOCK_BITS)) != 0,
             None => false,
         }
     }
@@ -236,10 +285,12 @@ impl Bitset {
     ///
     /// If the set stores no blocks (e.g. a new set), this copies the blocks of `other` without its
     /// leading and trailing zero blocks, so it doesn't need a check for the empty set and a
-    /// separate `clone()` before it. The copy uses the reserved capacity if it fits, otherwise it
-    /// allocates exactly the copied blocks.
+    /// separate `clone()` before it. The copy uses the reserved capacity if it fits, otherwise a
+    /// heap-allocating storage allocates exactly the copied blocks.
+    ///
+    /// Panics if the storage can't hold the blocks of the union.
     pub fn union_with(&mut self, other: &Self) -> bool {
-        if self.blocks.is_empty() {
+        if self.blocks().is_empty() {
             let (other_offset, other_blocks) = other.trimmed();
             if other_blocks.is_empty() {
                 return false;
@@ -253,9 +304,10 @@ impl Bitset {
             // The stored range of `other` lies within the set's range, so its blocks can be added
             // without trimming or growing.
             let start = other.offset - self.offset;
+            let other_blocks = other.blocks();
             return or_blocks(
-                &mut self.blocks[start..start + other.blocks.len()],
-                &other.blocks,
+                &mut self.blocks_mut()[start..start + other_blocks.len()],
+                other_blocks,
             );
         }
         let (other_offset, other_blocks) = other.trimmed();
@@ -269,7 +321,7 @@ impl Bitset {
         }
         let start = other_offset - self.offset;
         or_blocks(
-            &mut self.blocks[start..start + other_blocks.len()],
+            &mut self.blocks_mut()[start..start + other_blocks.len()],
             other_blocks,
         )
     }
@@ -364,18 +416,19 @@ impl Bitset {
         }
         (
             start,
-            &self.blocks[start - self.offset..end - self.offset],
-            &other.blocks[start - other.offset..end - other.offset],
+            &self.blocks()[start - self.offset..end - self.offset],
+            &other.blocks()[start - other.offset..end - other.offset],
         )
     }
 
     /// Returns the set of bits that are in both sets.
     pub fn intersection(&self, other: &Self) -> Self {
         let (start, a, b) = self.overlap(other);
-        let blocks: Vec<usize> = a.iter().zip(b).map(|(&a, &b)| a & b).collect();
-        if blocks.is_empty() {
+        if a.is_empty() {
             return Self::new();
         }
+        // The overlap is at most as long as the stored blocks of the set, so it fits into `S`.
+        let blocks: S = a.iter().zip(b).map(|(&a, &b)| a & b).collect();
         Self {
             offset: start,
             blocks,
@@ -390,7 +443,7 @@ impl Bitset {
             return result;
         }
         let position = start - self.offset;
-        for (block, &other_block) in result.blocks[position..].iter_mut().zip(b) {
+        for (block, &other_block) in result.blocks_mut()[position..].iter_mut().zip(b) {
             *block &= !other_block;
         }
         result
@@ -412,39 +465,43 @@ impl Bitset {
     }
 }
 
-impl BitAnd for &Bitset {
-    type Output = Bitset;
+impl<S: BlockStorage> BitAnd for &Bitset<S> {
+    type Output = Bitset<S>;
 
-    fn bitand(self, rhs: Self) -> Bitset {
+    fn bitand(self, rhs: Self) -> Bitset<S> {
         self.intersection(rhs)
     }
 }
 
-impl Sub for &Bitset {
-    type Output = Bitset;
+impl<S: BlockStorage> Sub for &Bitset<S> {
+    type Output = Bitset<S>;
 
-    fn sub(self, rhs: Self) -> Bitset {
+    fn sub(self, rhs: Self) -> Bitset<S> {
         self.difference(rhs)
     }
 }
 
-impl ShrinkToFit for Bitset {
+impl<S: BlockStorage> ShrinkToFit for Bitset<S> {
     /// Drops the leading and trailing zero blocks of the storage and releases its spare capacity.
+    ///
+    /// This only changes the set if the storage can get smaller (see
+    /// [`BlockStorage::shrunk_capacity`]), so e.g. an `ArrayVec` storage is never touched.
     fn shrink_to_fit(&mut self) {
-        let Some(first) = self.blocks.iter().position(|&b| b != 0) else {
+        let (_, trimmed) = self.trimmed();
+        if S::shrunk_capacity(trimmed.len()) >= self.blocks.capacity() {
+            return;
+        }
+        if trimmed.is_empty() {
             *self = Self::new();
             return;
-        };
-        let last = self.blocks.iter().rposition(|&b| b != 0).unwrap_or(first);
-        self.blocks.truncate(last + 1);
-        self.blocks.drain(..first);
-        self.offset += first;
+        }
+        self.trim_storage();
         self.blocks.shrink_to_fit();
     }
 }
 
-impl BitOrAssign<&Bitset> for Bitset {
-    fn bitor_assign(&mut self, rhs: &Bitset) {
+impl<S: BlockStorage> BitOrAssign<&Bitset<S>> for Bitset<S> {
+    fn bitor_assign(&mut self, rhs: &Bitset<S>) {
         self.union_with(rhs);
     }
 }
@@ -461,7 +518,7 @@ fn or_blocks(blocks: &mut [usize], other: &[usize]) -> bool {
     added != 0
 }
 
-impl Extend<u32> for Bitset {
+impl<S: BlockStorage> Extend<u32> for Bitset<S> {
     /// Inserts every bit of `iter`. The storage grows with amortized growth at both ends, so the
     /// order of the bits doesn't matter.
     fn extend<T: IntoIterator<Item = u32>>(&mut self, iter: T) {
@@ -471,7 +528,7 @@ impl Extend<u32> for Bitset {
     }
 }
 
-impl FromIterator<u32> for Bitset {
+impl<S: BlockStorage> FromIterator<u32> for Bitset<S> {
     fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
         let mut set = Self::new();
         set.extend(iter);
@@ -479,27 +536,27 @@ impl FromIterator<u32> for Bitset {
     }
 }
 
-impl PartialEq for Bitset {
+impl<S: BlockStorage> PartialEq for Bitset<S> {
     fn eq(&self, other: &Self) -> bool {
         self.trimmed() == other.trimmed()
     }
 }
 
-impl Eq for Bitset {}
+impl<S: BlockStorage> Eq for Bitset<S> {}
 
-impl Hash for Bitset {
+impl<S: BlockStorage> Hash for Bitset<S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.trimmed().hash(state);
     }
 }
 
-impl fmt::Debug for Bitset {
+impl<S: BlockStorage> fmt::Debug for Bitset<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.iter()).finish()
     }
 }
 
-impl<'a> IntoIterator for &'a Bitset {
+impl<'a, S: BlockStorage> IntoIterator for &'a Bitset<S> {
     type Item = u32;
     type IntoIter = Iter<'a>;
 
@@ -522,6 +579,7 @@ pub struct Iter<'a> {
 impl Iterator for Iter<'_> {
     type Item = u32;
 
+    #[inline]
     fn next(&mut self) -> Option<u32> {
         while self.current == 0 {
             let (&first, rest) = self.blocks.split_first()?;
@@ -536,5 +594,7 @@ impl Iterator for Iter<'_> {
     }
 }
 
+#[cfg(test)]
+mod storage_tests;
 #[cfg(test)]
 mod tests;

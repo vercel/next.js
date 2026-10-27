@@ -9,8 +9,10 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+arrayvec = { workspace = true }
 bincode = { workspace = true }
 shrink-to-fit = { workspace = true }
+smallvec = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

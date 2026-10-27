@@ -27,6 +27,10 @@
 //!
 //! With fixed-width integers (used to hash values instead of storing them) the bitmap form is
 //! always used. The decoder accepts both forms with any config.
+//!
+//! The encoding doesn't depend on the [`BlockStorage`], so a set can be decoded into a different
+//! storage than it was encoded from. Decoding a set that needs more blocks than the storage can
+//! hold returns an error.
 
 use bincode::{
     Decode, Encode,
@@ -40,7 +44,7 @@ use bincode::{
     impl_borrow_decode,
 };
 
-use crate::{BLOCK_BITS, Bitset};
+use crate::{BLOCK_BITS, Bitset, BlockStorage};
 
 /// Number of bytes per storage block.
 const BLOCK_BYTES: usize = BLOCK_BITS / 8;
@@ -163,7 +167,7 @@ fn write_list_items<E: Encoder>(
     Ok(())
 }
 
-impl Bitset {
+impl<S: BlockStorage> Bitset<S> {
     /// The trimmed byte range of the set, or `None` if it is empty.
     fn byte_range(&self) -> Option<ByteRange<'_>> {
         let (first_block, blocks) = self.trimmed();
@@ -179,7 +183,7 @@ impl Bitset {
     }
 }
 
-impl Encode for Bitset {
+impl<S: BlockStorage> Encode for Bitset<S> {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         let Some(range) = self.byte_range() else {
             return 0i64.encode(encoder);
@@ -203,7 +207,7 @@ impl Encode for Bitset {
     }
 }
 
-impl<Context> Decode<Context> for Bitset {
+impl<Context, S: BlockStorage> Decode<Context> for Bitset<S> {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
         let len = i64::decode(decoder)?;
         match len {
@@ -214,39 +218,51 @@ impl<Context> Decode<Context> for Bitset {
     }
 }
 
-impl_borrow_decode!(Bitset);
+impl_borrow_decode!(Bitset<S>, S: BlockStorage);
 
 /// Allocates the zeroed storage for the bytes `byte_offset..byte_offset + len`, claiming its size
 /// from the decoder's limit first. Returns the index of the first block and the storage.
-fn allocate<D: Decoder>(
+fn allocate<D: Decoder, S: BlockStorage>(
     decoder: &mut D,
     byte_offset: u64,
     len: u64,
-) -> Result<(usize, Vec<usize>), DecodeError> {
+) -> Result<(usize, S), DecodeError> {
     if len > MAX_BYTES || byte_offset + len > MAX_BYTES {
         return Err(DecodeError::Other("Bitset extends beyond the u32 range"));
     }
     let block_bytes = BLOCK_BYTES as u64;
     let first_block = byte_offset / block_bytes;
     let block_count = ((byte_offset + len).div_ceil(block_bytes) - first_block) as usize;
+    if block_count > S::max_len() {
+        return Err(DecodeError::Other("Bitset doesn't fit into its storage"));
+    }
     decoder.claim_bytes_read(block_count * BLOCK_BYTES)?;
-    Ok((first_block as usize, vec![0; block_count]))
+    let mut blocks = S::with_capacity(block_count);
+    blocks.resize(block_count);
+    Ok((first_block as usize, blocks))
 }
 
-fn decode_bitmap<D: Decoder>(decoder: &mut D, len: u64) -> Result<Bitset, DecodeError> {
+fn decode_bitmap<D: Decoder, S: BlockStorage>(
+    decoder: &mut D,
+    len: u64,
+) -> Result<Bitset<S>, DecodeError> {
     let byte_offset = u32::decode(decoder)? as u64;
-    let (first_block, mut blocks) = allocate(decoder, byte_offset, len)?;
+    let (first_block, mut blocks) = allocate::<_, S>(decoder, byte_offset, len)?;
     // Read the payload straight into the storage's bytes.
     let start = (byte_offset - first_block as u64 * BLOCK_BYTES as u64) as usize;
-    // SAFETY: The slice covers exactly the memory of `blocks` and borrows it mutably for its
+    let block_slice = blocks.as_mut_slice();
+    // SAFETY: The slice covers exactly the memory of `block_slice` and borrows it mutably for its
     // lifetime. `u8` has no alignment requirements, and every byte pattern is a valid `usize`.
     let bytes = unsafe {
-        std::slice::from_raw_parts_mut(blocks.as_mut_ptr().cast::<u8>(), size_of_val(&*blocks))
+        std::slice::from_raw_parts_mut(
+            block_slice.as_mut_ptr().cast::<u8>(),
+            size_of_val(&*block_slice),
+        )
     };
     decoder
         .reader()
         .read(&mut bytes[start..start + len as usize])?;
-    le_blocks_to_native(&mut blocks, cfg!(target_endian = "big"));
+    le_blocks_to_native(blocks.as_mut_slice(), cfg!(target_endian = "big"));
     Ok(Bitset {
         offset: first_block,
         blocks,
@@ -264,12 +280,12 @@ fn le_blocks_to_native(blocks: &mut [usize], big_endian_target: bool) {
 }
 
 /// Sets bits in a preallocated storage, keeping the bits of the current block in a register.
-struct ListBuilder {
+struct ListBuilder<S> {
     /// The first bit of the storage.
     base: u64,
     /// The end of the bits that may be set (exclusive), relative to `base`.
     end: u64,
-    blocks: Vec<usize>,
+    blocks: S,
     /// The index of the current block and its bits, not yet stored in `blocks`.
     index: usize,
     word: usize,
@@ -277,7 +293,7 @@ struct ListBuilder {
     last: u64,
 }
 
-impl ListBuilder {
+impl<S: BlockStorage> ListBuilder<S> {
     /// Sets the bit `last + difference`, which must be within the storage.
     fn push(&mut self, difference: u64) -> Result<(), DecodeError> {
         let bit = self.last + difference;
@@ -286,7 +302,7 @@ impl ListBuilder {
         }
         let index = (bit / BLOCK_BITS as u64) as usize;
         if index != self.index {
-            self.blocks[self.index] |= self.word;
+            self.blocks.as_mut_slice()[self.index] |= self.word;
             self.index = index;
             self.word = 0;
         }
@@ -295,8 +311,8 @@ impl ListBuilder {
         Ok(())
     }
 
-    fn finish(mut self) -> Vec<usize> {
-        self.blocks[self.index] |= self.word;
+    fn finish(mut self) -> S {
+        self.blocks.as_mut_slice()[self.index] |= self.word;
         self.blocks
     }
 }
@@ -310,7 +326,10 @@ fn decode_difference<D: Decoder>(decoder: &mut D) -> Result<u64, DecodeError> {
     Ok(difference as u64)
 }
 
-fn decode_list<D: Decoder>(decoder: &mut D, count: u64) -> Result<Bitset, DecodeError> {
+fn decode_list<D: Decoder, S: BlockStorage>(
+    decoder: &mut D,
+    count: u64,
+) -> Result<Bitset<S>, DecodeError> {
     if count > 1 << 32 {
         return Err(DecodeError::Other(
             "Bitset list has more items than the u32 range",
@@ -324,7 +343,7 @@ fn decode_list<D: Decoder>(decoder: &mut D, count: u64) -> Result<Bitset, Decode
     }
     let first = u32::decode(decoder)? as u64;
     let byte_offset = first / 8;
-    let (first_block, blocks) = allocate(decoder, byte_offset, len)?;
+    let (first_block, blocks) = allocate::<_, S>(decoder, byte_offset, len)?;
     let base = (first_block * BLOCK_BITS) as u64;
     let mut builder = ListBuilder {
         base,
