@@ -1,5 +1,9 @@
 const path = require('node:path')
 const fs = require('node:fs')
+const { Module } = require('node:module')
+
+const virtualModule = new Module('virtual', module)
+virtualModule.loaded = true
 
 const loader = async function (content) {
   this.async()

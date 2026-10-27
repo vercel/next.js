@@ -578,6 +578,7 @@ const transform = async (
           if (!loadedModule) continue
           hasCachedBuildDependencies ||= loadedModule.children.length > 0
           for (const child of loadedModule.children) {
+            if (!child.filename) continue
             if (!buildDependencies.has(child.filename)) {
               buildDependencies.add(child.filename)
               pendingBuildDependencies.push(child.filename)
