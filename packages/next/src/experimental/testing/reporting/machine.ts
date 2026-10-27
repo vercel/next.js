@@ -98,9 +98,13 @@ export function parseResultReporters(
 function xml(value: unknown): string {
   return (
     stripVTControlCharacters(String(value))
-      // XML 1.0 cannot represent these controls, including in CDATA.
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+      // Remove the pinned BMP exclusions and unpaired high surrogates without
+      // consuming a neighboring character or an escaped entity delimiter.
+      .replace(
+        // eslint-disable-next-line no-control-regex
+        /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u0084\u0086-\u009f\ufdd0-\ufdef\ufffd-\uffff]|[\ud800-\udbff](?![\udc00-\udfff])/g,
+        ''
+      )
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

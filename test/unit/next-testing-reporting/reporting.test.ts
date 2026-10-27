@@ -8216,3 +8216,26 @@ it('uses actual final Browser root error data without suppressing independent fa
     liveAndCompletionSelectorsAgree: true,
   })
 }, 20000)
+
+it('publishes valid JUnit BMP/high-surrogate fields without copying the reference entity-delimiter defect', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-character-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-character-handling.mjs'), output],
+      { timeout: 30000, encoding: 'utf8' }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      genuineValidRowsExact: 11,
+      all19SourceRowsValidXML: true,
+      knownReferenceDefectNotCopied: true,
+      physicalNamesAndEventsUnchanged: true,
+      sdkAbsent: false,
+      version: process.version,
+      execPath: process.execPath,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
