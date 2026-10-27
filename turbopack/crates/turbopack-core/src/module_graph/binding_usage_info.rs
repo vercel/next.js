@@ -1,14 +1,18 @@
-use std::{cmp::Reverse, collections::hash_map::Entry};
+use std::{
+    cmp::Reverse,
+    collections::hash_map::Entry,
+    hash::{Hash, Hasher},
+};
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
-    chunk::chunking_context::UnusedReferences,
+    chunk::{ChunkingType, chunking_context::UnusedReferences},
     module::Module,
     module_graph::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
@@ -165,6 +169,81 @@ pub async fn compute_binding_usage_info(
             None
         };
 
+        let entries = graph_ref
+            .all_chunk_group_entry_modules()
+            .collect::<Vec<_>>();
+
+        // A chunk group root (the graph's static entries, plus the target of any
+        // chunk-group-creating edge — `Async` / `Isolated` / `Shared`) is always evaluated by the
+        // chunker as its group's entry, so the root module's *own* module-evaluation part must
+        // never be tree-shaken away. Otherwise a side-effect-free root would be chunked (as a chunk
+        // group entry) but have its evaluation part pruned here, leaving that part without a module
+        // id -> `ModuleId not found` at chunk time. This notably happens for a `use client` module
+        // that is a pure, side-effect-free re-export: it is reached via an `Isolated`
+        // client-reference edge and chunked into the app-client group, but its evaluation is
+        // inferred side-effect free.
+        //
+        // We protect only *intra-module* evaluation edges of a root module (the split-module
+        // wiring `M <part> -> M <internal part N>` and `M -> M <internal part N>`), so the root's
+        // own evaluation stays intact. The root's evaluation edges to *other* side-effect-free
+        // modules remain trimmable. To tell these apart we compute a per-node "module family" key:
+        // the asset ident with the tree-shake `parts` removed. A module and all its own parts share
+        // a family; a different module does not. We then keep intra-family evaluation edges
+        // whenever the family belongs to a chunk group root.
+        //
+        // Both `node_family` and `root_families` are computed here, *before* the main traversal,
+        // and only read (never mutated) inside it. This is required for correctness: the trimming
+        // decision for a root's intra-module evaluation edge must see the *complete* set of roots.
+        // A root reached both via a chunk-group edge and via an earlier-discovered parallel edge
+        // could otherwise have its own evaluation edge visited (and wrongly trimmed) before the
+        // chunk-group edge that marks it a root — and the evaluation-trim branch never un-trims.
+        // They are also only needed when we actually trim, so skip the work entirely otherwise
+        // (`compute_binding_usage_info` also runs in dev with `remove_unused_imports = false`).
+        let (node_family, root_families) = if remove_unused_imports {
+            // Per-node "module family" key: the asset ident with the tree-shake `parts` removed.
+            let node_family = graph_ref
+                .iter_nodes()
+                .map(async |node| {
+                    let ident = node.ident().await?;
+                    let mut family = (*ident).clone();
+                    family.parts.clear();
+                    let mut hasher = rustc_hash::FxHasher::default();
+                    family.hash(&mut hasher);
+                    Ok((node, hasher.finish()))
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .collect::<FxHashMap<_, _>>();
+
+            // Families of chunk group roots: the graph's static entries, plus the targets of every
+            // chunk-group-creating edge (`Async` / `Isolated` / `Shared`). `graph_ref` here is the
+            // untrimmed graph (binding usage is not attached until after this computation), so this
+            // pre-pass reaches every such edge regardless of side-effect inference.
+            let mut root_families: FxHashSet<u64> = entries
+                .iter()
+                .filter_map(|m| node_family.get(m).copied())
+                .collect();
+            graph_ref.traverse_edges_unordered(|parent, target| {
+                if let Some((_, ref_data)) = parent
+                    && matches!(
+                        ref_data.chunking_type,
+                        ChunkingType::Async
+                            | ChunkingType::Isolated { .. }
+                            | ChunkingType::Shared { .. }
+                    )
+                    && let Some(&family) = node_family.get(&target)
+                {
+                    root_families.insert(family);
+                }
+                Ok(())
+            })?;
+
+            (node_family, root_families)
+        } else {
+            (FxHashMap::default(), FxHashSet::default())
+        };
+
         // Visit modules in reverse postorder. In an acyclic graph, this processes each module only
         // after all modules importing it, i.e. once, with its final usage. Cycles still rely on the
         // fixed point and may revisit modules in or after them. This avoids order-dependent
@@ -194,7 +273,16 @@ pub async fn compute_binding_usage_info(
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
                     // and Named/All references
+                    //
+                    // Exception: never trim an intra-module evaluation edge of a chunk group root
+                    // module — its own evaluation must run when its group loads.
+                    let is_root_own_evaluation =
+                        match (node_family.get(&parent), node_family.get(&target)) {
+                            (Some(pf), Some(tf)) => pf == tf && root_families.contains(pf),
+                            _ => false,
+                        };
                     if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
+                        && !is_root_own_evaluation
                         && side_effect_free_modules
                             .as_ref()
                             .expect("this must be present if `remove_unused_imports` is true")
