@@ -1489,7 +1489,13 @@ async fn prepare_node_test(
     let mut prepared = prepare_test_module(project, path, id, context, true).await?;
     if let Some(entry) = project.await?.test_entry {
         let entry = entry.await?;
-        if project.next_mode().await?.is_development()
+        let development = project.next_mode().await?.is_development();
+        let production_builtins = project.next_mode().await?.is_production()
+            && !entry.browser_client
+            && entry.route.is_none()
+            && !entry.import_coverage_roles
+            && static_mock_plan(path).await?.is_empty();
+        if (development || production_builtins)
             && &*entry.environment == "node"
             && entry.setup_files.is_empty()
             && entry.snapshot_serializers.is_empty()
@@ -1498,14 +1504,24 @@ async fn prepare_node_test(
             && !entry.dependency_plan
             && !prepared.module_reset
         {
-            prepared.context = crate::testing_external_modules::native_external_context(
-                project.project_path().owned().await?,
-                prepared.context,
-                prepared.source,
-                prepared.registration,
-                &entry.id,
-            )
-            .await?;
+            prepared.context = if production_builtins {
+                crate::testing_external_modules::native_builtin_context(
+                    project.project_path().owned().await?,
+                    prepared.context,
+                    prepared.source,
+                    &entry.id,
+                )
+                .await?
+            } else {
+                crate::testing_external_modules::native_external_context(
+                    project.project_path().owned().await?,
+                    prepared.context,
+                    prepared.source,
+                    prepared.registration,
+                    &entry.id,
+                )
+                .await?
+            };
         }
     }
     Ok(prepared)

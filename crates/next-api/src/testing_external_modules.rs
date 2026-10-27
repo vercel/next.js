@@ -162,7 +162,22 @@ pub(crate) async fn native_external_context(
     id: &str,
 ) -> Result<ResolvedVc<ModuleAssetContext>> {
     Ok(
-        prepare_native_external_context(root, context, source, registration, id, None)
+        prepare_native_external_context(root, context, source, registration, id, None, false)
+            .await?
+            .context,
+    )
+}
+
+/// Ordinary production Node tests retain native builtin ESM namespace identity.
+/// Package externals keep their existing compilation and loading behavior.
+pub(crate) async fn native_builtin_context(
+    root: FileSystemPath,
+    context: ResolvedVc<ModuleAssetContext>,
+    source: ResolvedVc<Box<dyn Source>>,
+    id: &str,
+) -> Result<ResolvedVc<ModuleAssetContext>> {
+    Ok(
+        prepare_native_external_context(root, context, source, None, id, None, true)
             .await?
             .context,
     )
@@ -176,7 +191,16 @@ pub(crate) async fn runtime_native_external_context(
     path: &FileSystemPath,
     requests: &[String],
 ) -> Result<NativeExternalPreparation> {
-    prepare_native_external_context(root, context, source, None, id, Some((path, requests))).await
+    prepare_native_external_context(
+        root,
+        context,
+        source,
+        None,
+        id,
+        Some((path, requests)),
+        false,
+    )
+    .await
 }
 
 async fn prepare_native_external_context(
@@ -186,6 +210,7 @@ async fn prepare_native_external_context(
     registration: Option<ResolvedVc<Box<dyn Module>>>,
     id: &str,
     runtime_requests: Option<(&FileSystemPath, &[String])>,
+    builtins_only: bool,
 ) -> Result<NativeExternalPreparation> {
     let framework = get_next_package(root.clone()).await?;
     let spec = context
@@ -336,7 +361,7 @@ async fn prepare_native_external_context(
                     .unwrap_or(&native_request),
             )
             .is_ok();
-        if native_uri && !builtin {
+        if (native_uri || builtins_only) && !builtin {
             continue;
         }
         let builtin_name = builtin.then(|| {

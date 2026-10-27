@@ -7260,6 +7260,25 @@ it('retains runtime window observations in actual development and production Nod
   })
 }, 160000)
 
+for (const mode of ['development', 'production'] as const) {
+  it(`preserves native builtin namespace identity in ordinary ${mode} Node tests`, () => {
+    const { execFileSync } = require('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'external-package-integration.cjs'),
+        'builtin-control',
+        mode,
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+    const actual = JSON.parse(result)
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.cases).toHaveLength(2)
+    expect(actual.rows).toHaveLength(2)
+  }, 140000)
+}
+
 for (const [group, count] of [
   ['external', 3],
   ['external-control', 2],
