@@ -432,6 +432,14 @@ declare function spyOn<
 	T extends object,
 	K extends keyof any
 >(object: T, key: SpyOnMethodKey<T, K>): Mock<SpyOnMethod<T, K>>;
+/** @internal Next-only synchronous actual restoration occurrences. */
+declare function createMockRestorationObservation(): Readonly<{
+	run<T>(callback: () => T): T;
+	take(): readonly (Readonly<{
+		restore: () => unknown;
+		mock: MockInstance;
+	}> & (Readonly<{ status: "fulfilled"; value: unknown }> | Readonly<{ status: "rejected"; reason: unknown }>))[] | undefined;
+}>;
 declare function restoreAllMocks(): void;
 declare function clearAllMocks(): void;
 declare function resetAllMocks(): void;
@@ -469,13 +477,14 @@ type index_d_PartiallyMockedFunctionDeep<T extends Procedure | Constructable> = 
 type index_d_Procedure = Procedure;
 declare const index_d_clearAllMocks: typeof clearAllMocks;
 declare const index_d_createMockInstance: typeof createMockInstance;
+declare const index_d_createMockRestorationObservation: typeof createMockRestorationObservation;
 declare const index_d_fn: typeof fn;
 declare const index_d_isMockFunction: typeof isMockFunction;
 declare const index_d_resetAllMocks: typeof resetAllMocks;
 declare const index_d_restoreAllMocks: typeof restoreAllMocks;
 declare const index_d_spyOn: typeof spyOn;
 declare namespace index_d {
-  export { index_d_clearAllMocks as clearAllMocks, index_d_createMockInstance as createMockInstance, index_d_fn as fn, index_d_isMockFunction as isMockFunction, index_d_resetAllMocks as resetAllMocks, index_d_restoreAllMocks as restoreAllMocks, index_d_spyOn as spyOn };
+  export { index_d_clearAllMocks as clearAllMocks, index_d_createMockInstance as createMockInstance, index_d_createMockRestorationObservation as createMockRestorationObservation, index_d_fn as fn, index_d_isMockFunction as isMockFunction, index_d_resetAllMocks as resetAllMocks, index_d_restoreAllMocks as restoreAllMocks, index_d_spyOn as spyOn };
   export type { index_d_Constructable as Constructable, index_d_MaybeMocked as MaybeMocked, index_d_MaybeMockedConstructor as MaybeMockedConstructor, index_d_MaybeMockedDeep as MaybeMockedDeep, index_d_MaybePartiallyMocked as MaybePartiallyMocked, index_d_MaybePartiallyMockedDeep as MaybePartiallyMockedDeep, index_d_Mock as Mock, index_d_MockContext as MockContext, index_d_MockInstance as MockInstance, index_d_MockInstanceOption as MockInstanceOption, index_d_MockParameters as MockParameters, index_d_MockProcedureContext as MockProcedureContext, index_d_MockResult as MockResult, index_d_MockResultIncomplete as MockResultIncomplete, index_d_MockResultReturn as MockResultReturn, index_d_MockResultThrow as MockResultThrow, index_d_MockReturnType as MockReturnType, index_d_MockSettledResult as MockSettledResult, index_d_MockSettledResultFulfilled as MockSettledResultFulfilled, index_d_MockSettledResultIncomplete as MockSettledResultIncomplete, index_d_MockSettledResultRejected as MockSettledResultRejected, index_d_Mocked as Mocked, index_d_MockedClass as MockedClass, index_d_MockedFunction as MockedFunction, index_d_MockedFunctionDeep as MockedFunctionDeep, index_d_MockedObject as MockedObject, index_d_MockedObjectDeep as MockedObjectDeep, index_d_PartialMock as PartialMock, index_d_PartiallyMockedFunction as PartiallyMockedFunction, index_d_PartiallyMockedFunctionDeep as PartiallyMockedFunctionDeep, index_d_Procedure as Procedure };
 }
 

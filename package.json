@@ -361,7 +361,8 @@
       "@vitest/snapshot@5.0.4": "patches/@vitest__snapshot@5.0.4.patch",
       "@sinonjs/fake-timers@15.4.0": "patches/@sinonjs__fake-timers@15.4.0.patch",
       "chai@6.3.0": "patches/chai@6.3.0.patch",
-      "@vitest/expect@5.0.4": "patches/@vitest__expect@5.0.4.patch"
+      "@vitest/expect@5.0.4": "patches/@vitest__expect@5.0.4.patch",
+      "@vitest/spy@5.0.4": "patches/@vitest__spy@5.0.4.patch"
     }
   }
 }

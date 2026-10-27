@@ -21274,3 +21274,41 @@ describe('actual settled V8 declaration collection occurrences', () => {
     }
   }, 130000)
 })
+
+describe('actual private mock restoration primitive', () => {
+  it.each(['node', 'browser'])(
+    'preserves exact restoration calls and inactive public shape for %s',
+    async (realm) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-restore-primitive-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'mock-restoration-primitive.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            realm,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          realm,
+          passed: 10,
+          actualRestoreRegistry: true,
+          noFileDisposalAuthorization: true,
+          publicMockKeysUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})

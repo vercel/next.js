@@ -53,6 +53,9 @@ patchedDependencies:
   '@vitest/snapshot@5.0.4':
     hash: 19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a
     path: patches/@vitest__snapshot@5.0.4.patch
+  '@vitest/spy@5.0.4':
+    hash: 93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6
+    path: patches/@vitest__spy@5.0.4.patch
   chai@6.3.0:
     hash: 1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1
     path: patches/chai@6.3.0.patch
@@ -1469,7 +1472,7 @@ importers:
         version: 5.0.4(patch_hash=19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a)
       '@vitest/spy':
         specifier: 5.0.4
-        version: 5.0.4
+        version: 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
       '@vitest/utils':
         specifier: 5.0.4
         version: 5.0.4
@@ -24121,7 +24124,7 @@ snapshots:
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@vitest/spy': 5.0.4
+      '@vitest/spy': 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
       '@vitest/utils': 5.0.4
       chai: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
       tinyrainbow: 3.2.0
@@ -24151,7 +24154,7 @@ snapshots:
   '@vitest/mocker@5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
-      '@vitest/spy': 5.0.4
+      '@vitest/spy': 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
@@ -24161,7 +24164,7 @@ snapshots:
   '@vitest/mocker@5.0.4(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
-      '@vitest/spy': 5.0.4
+      '@vitest/spy': 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
@@ -24190,7 +24193,7 @@ snapshots:
     dependencies:
       tinyspy: 3.0.2
 
-  '@vitest/spy@5.0.4': {}
+  '@vitest/spy@5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)': {}
 
   '@vitest/utils@2.0.5':
     dependencies:
