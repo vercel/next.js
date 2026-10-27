@@ -245,6 +245,7 @@
     "@vitest/istanbul-lib-report": "1.0.2",
     "@vitest/istanbul-lib-source-maps": "1.0.2",
     "@vitest/mocker": "5.0.4",
+    "@vitest/pretty-format": "5.0.4",
     "@vitest/snapshot": "5.0.4",
     "@vitest/spy": "5.0.4",
     "@vitest/utils": "5.0.4",

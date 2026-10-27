@@ -60,4 +60,9 @@ interface TestError extends SerializedError {
 
 declare function processError(_err: any, diffOptions?: DiffOptions, seen?: WeakSet<WeakKey>): TestError;
 
-export { processError };
+declare function processTaskError(
+  error: unknown,
+  copies: ReadonlyMap<object, object>
+): ReturnType<typeof processError>
+
+export { processError, processTaskError };
