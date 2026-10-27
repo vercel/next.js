@@ -1,3 +1,5 @@
+pub mod fixed_width;
+mod len_prefixed;
 #[doc(hidden)]
 pub mod macro_helpers;
 pub mod serde_self_describing;
@@ -13,6 +15,8 @@ use bincode::{
 };
 use turbo_tasks_hash::DeterministicHasher;
 
+pub use crate::len_prefixed::encode_len_prefixed;
+
 pub const TURBO_BINCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();
 /// Same as standard config, but since we aren't encoding we don't benefit from varint
 /// optimizations.
@@ -21,7 +25,7 @@ pub const TURBO_BINCODE_HASH_CONFIG: bincode::config::Configuration<
     bincode::config::Fixint,
     bincode::config::NoLimit,
 > = TURBO_BINCODE_CONFIG.with_fixed_int_encoding();
-pub type TurboBincodeBuffer = SmallVec<[u8; 16]>;
+pub type TurboBincodeBuffer = Vec<u8>;
 pub type TurboBincodeEncoder<'a> =
     EncoderImpl<TurboBincodeWriter<'a>, bincode::config::Configuration>;
 pub type TurboBincodeDecoder<'a> =
@@ -37,10 +41,10 @@ pub fn new_turbo_bincode_decoder(buffer: &[u8]) -> TurboBincodeDecoder<'_> {
     DecoderImpl::new(TurboBincodeReader::new(buffer), TURBO_BINCODE_CONFIG, ())
 }
 
-/// Encode the value into a new [`SmallVec`] using a [`TurboBincodeEncoder`].
+/// Encode the value into a new [`TurboBincodeBuffer`] using a [`TurboBincodeEncoder`].
 ///
 /// Note: If you can re-use a buffer, you should. That will always be cheaper than creating a new
-/// [`SmallVec`].
+/// [`TurboBincodeBuffer`].
 pub fn turbo_bincode_encode<T: Encode>(value: &T) -> Result<TurboBincodeBuffer, EncodeError> {
     let mut buffer = TurboBincodeBuffer::new();
     turbo_bincode_encode_into(value, &mut buffer)?;
@@ -82,6 +86,7 @@ impl<'a> TurboBincodeWriter<'a> {
 }
 
 impl Writer for TurboBincodeWriter<'_> {
+    #[inline(always)]
     fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
         self.buffer.extend_from_slice(bytes);
         Ok(())
