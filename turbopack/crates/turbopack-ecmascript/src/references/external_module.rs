@@ -39,7 +39,7 @@ use crate::{
     references::async_module::{AsyncModule, OptionAsyncModule},
     runtime_functions::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXTERNAL_IMPORT,
-        TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_LOAD_SCRIPT,
+        TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_LOAD_BY_URL,
     },
     utils::StringifyJs,
 };
@@ -190,14 +190,14 @@ impl CachedExternalModule {
                     // First load the URL
                     writeln!(
                         code,
-                        "  await {TURBOPACK_LOAD_SCRIPT}({});",
+                        "  await {TURBOPACK_LOAD_BY_URL}({}, true);",
                         StringifyJs(url)
                     )?;
 
                     // Then get the variable from global with existence check
                     writeln!(
                         code,
-                        "  if (typeof global[{}] === 'undefined') {{",
+                        "  if (!Object.prototype.hasOwnProperty.call(globalThis, {})) {{",
                         StringifyJs(variable_name)
                     )?;
                     writeln!(
@@ -208,7 +208,7 @@ impl CachedExternalModule {
                         StringifyJs(url)
                     )?;
                     writeln!(code, "  }}")?;
-                    writeln!(code, "  mod = global[{}];", StringifyJs(variable_name))?;
+                    writeln!(code, "  mod = globalThis[{}];", StringifyJs(variable_name))?;
 
                     // Catch and re-throw errors with more context
                     writeln!(code, "}} catch (error) {{")?;
