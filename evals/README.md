@@ -3,10 +3,9 @@
 Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertions. We run the prompt through a coding agent in a sandbox and check what it wrote.
 
 The existing suite protects known behavior and measures how version-matched
-context changes the result. As tasks become saturated, new competency evals
-must continue to separate meaningful Next.js capability. Read
-[Curating advanced Next.js evals](HARDER_EVALS.md) before adding an advanced
-task.
+context changes the result. As tasks become saturated, new evals must continue
+to separate meaningful Next.js capability. Read
+[Curating Next.js evals](EVAL_CURATION.md) before adding a candidate.
 
 ## How it works
 
@@ -28,9 +27,9 @@ External contributors can run the same evals in local Docker with their own API 
 
 ## Writing an eval
 
-For a new advanced competency task, define its measurement question, task
-contract, calibration plan, and intended visibility using
-[the advanced-eval guide](HARDER_EVALS.md).
+For a new candidate, define its measurement question, task contract,
+calibration plan, and intended visibility using
+[the eval-curation guide](EVAL_CURATION.md).
 
 Copy an existing fixture. Take the next free number — gaps are fine.
 

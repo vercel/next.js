@@ -1,11 +1,11 @@
-# Curating advanced Next.js evals
+# Curating Next.js evals
 
-Advanced evals measure realistic Next.js work that current agents do not solve
-reliably. They keep the competency suite useful as older tasks become
-saturated.
+This guide defines how a candidate becomes an accepted Next.js eval. The goal
+is to find realistic, deterministic tasks that continue to measure meaningful
+capability as older tasks become saturated.
 
-Advanced describes validated capability separation. It does not mean a longer
-prompt, a larger repository, or a more complicated grader.
+A useful candidate demonstrates validated capability separation. It is not
+defined by prompt length, repository size, or grader complexity.
 
 ## Keep the measurement in scope
 
@@ -19,8 +19,8 @@ change. Route other questions to the systems that own them:
 | What changed in cost, speed, or shipped output?                        | Performance        |
 | Did bundled docs, `AGENTS.md`, or a Skill improve the same task?       | Context experiment |
 
-A candidate belongs in the advanced suite only when the agent has a valid action
-to take and the result measures a Next.js capability.
+A candidate belongs in the Agent Build measurement only when the agent has a
+valid action to take and the result measures a Next.js capability.
 
 ## Find candidates
 
@@ -69,10 +69,11 @@ Do not call a task hard until its grader and framework version are valid.
 
 ## Run portable pilot tasks
 
-Keep the existing regression suite on `agent-eval`. New advanced tasks may also
-use the open-source Harbor task format during the pilot so their application,
-prompt, hidden verifier, and reference patch can run independently of this
-repository.
+Keep the existing `regression`, `competency`, and `audit` suites on
+`agent-eval`. New candidates may also use the open-source Harbor task format
+during the pilot so their application, prompt, hidden verifier, and reference
+patch can run independently of this repository. Migrating existing suites to a
+shared runner is separate future work.
 
 A portable task archive must declare its image through
 `[environment].docker_image`, pin that image by digest, and pass
@@ -147,11 +148,11 @@ weaker models over multiple runs or framework versions.
 
 ## Set visibility and cadence
 
-New advanced tasks stay unpublished by default. Publish only after reviewing
+New tasks stay unpublished by default. Publish only after reviewing
 the task contract, grader, calibration, ownership, and maintenance plan. Keep
 private or held-out checks out of public fixtures and result artifacts.
 
-Run the advanced competency suite when Next.js, its tasks, agents, or models
-change. Run saturated regression tasks through their cheaper, more frequent
-cadence. Record policy changes such as pass@4 to pass@1 as a new measurement
-baseline rather than one continuous score history.
+Run the competency suite when Next.js, its tasks, agents, or models change. Run
+saturated regression tasks through their cheaper, more frequent cadence.
+Record policy changes such as pass@4 to pass@1 as a new measurement baseline
+rather than one continuous score history.
