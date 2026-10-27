@@ -125,11 +125,8 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                     bail!("Module entry membership not found");
                 };
 
-                if current_membership.is_zero() {
-                    // Initial visit, clone instead of merging
-                    *current_membership = parent_membership.clone();
-                    Ok(GraphTraversalAction::Continue)
-                } else if current_membership.union_with(parent_membership) {
+                // On the initial visit, `union_with` copies the parent's membership.
+                if current_membership.union_with(parent_membership) {
                     // Added bits from parent, continue traversal because changed
                     Ok(GraphTraversalAction::Continue)
                 } else {
