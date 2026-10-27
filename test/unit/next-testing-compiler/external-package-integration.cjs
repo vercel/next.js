@@ -691,14 +691,18 @@ const deadline = setTimeout(() => {
       cases.map((test) => test.failureMessages),
       Array.from({ length: expectedCount }, () => [])
     )
-    const versionedGolden = `pristine-rows-node${Number(process.versions.node.split('.')[0])}.json`
+    const versionedGoldens = [
+      `pristine-rows-node${process.versions.node}.json`,
+      `pristine-rows-node${Number(process.versions.node.split('.')[0])}.json`,
+      'pristine-rows.json',
+    ]
     const referenceRows = JSON.parse(
       fs.readFileSync(
         path.join(
           source,
-          fs.existsSync(path.join(source, versionedGolden))
-            ? versionedGolden
-            : 'pristine-rows.json'
+          versionedGoldens.find((name) =>
+            fs.existsSync(path.join(source, name))
+          )
         ),
         'utf8'
       )
