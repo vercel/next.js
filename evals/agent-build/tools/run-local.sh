@@ -90,7 +90,12 @@ rm -rf "$RUN/verifier" && cp -R "$TASK/environment/fixture" "$RUN/verifier"
 cp -R "$RUN/app/node_modules" "$RUN/verifier/node_modules" 2>/dev/null || true
 (cd "$RUN/verifier" && git init -q && git add -A && git -c user.email=evals@vercel.com -c user.name=Evals commit -qm baseline)
 
-lsof -ti :"$PORT" | xargs kill -9 2>/dev/null
+# Never kill a process we did not start. The verifier owns the server it
+# spawns and stops it in its own cleanup trap.
+if lsof -ti :"$PORT" >/dev/null 2>&1; then
+  echo "port $PORT is in use; pass a free port as the third argument"
+  exit 2
+fi
 EVAL_LOCAL=1 \
 EVAL_APP_ROOT="$RUN/verifier" \
 EVAL_TESTS_DIR="$RUN/tests" \
@@ -99,7 +104,9 @@ EVAL_PATCH="$RUN/agent.patch" \
 EVAL_BASE_GIT="$RUN/base.git" \
 EVAL_PORT="$PORT" \
 bash "$RUN/tests/test.sh" > "$RUN/logs/test.log" 2>&1
-lsof -ti :"$PORT" | xargs kill -9 2>/dev/null
+if lsof -ti :"$PORT" >/dev/null 2>&1; then
+  echo "warning: the verifier left a process on port $PORT; stop it before rerunning"
+fi
 
 reward=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$RUN/logs/reward.json','utf8')).reward)" 2>/dev/null || echo "missing")
 if [ "$reward" != "1" ]; then

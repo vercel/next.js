@@ -33,8 +33,10 @@ if [ "${1:-}" = "--summary" ]; then
   for result in "$jobs"/*/result.json; do
     [ -f "$result" ] || continue
     node -e '
-      const r = require(process.argv[1]);
-      const name = require("path").basename(require("path").dirname(process.argv[1]));
+      const path = require("path");
+      const file = path.resolve(process.argv[1]);
+      const r = require(file);
+      const name = path.basename(path.dirname(file));
       const [task, agent, model] = name.split("__");
       const ev = Object.values(r.stats?.evals ?? {})[0] ?? {};
       const mean = ev.metrics?.[0]?.mean;
