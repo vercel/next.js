@@ -1,14 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getMiddlewareSpans } from './trace-recorder'
-
-export const USER_TRACE_ID = '0af7651916cd43dd8448eb211c80319c'
-export const USER_SPAN_ID = 'b7ad6b7169203331'
+import { getActiveTraceId } from './trace-recorder'
 
 // Shared by `proxy.ts` (Node.js runtime) and `middleware.ts` (Edge runtime).
 export function handler(request: NextRequest) {
-  // The middleware's span and its ancestors started in this process, for the
-  // test to print the request's span tree.
-  const spans = getMiddlewareSpans()
+  // The middleware's trace, for the test to collect the request's spans.
+  const traceId = getActiveTraceId()
   const { pathname } = request.nextUrl
 
   let response: NextResponse
@@ -26,8 +22,11 @@ export function handler(request: NextRequest) {
       request: { headers },
     })
   } else if (pathname === '/user-traceparent') {
+    // The test chooses the traceparent the middleware sets (a new one per
+    // request).
     const headers = new Headers(request.headers)
-    headers.set('traceparent', `00-${USER_TRACE_ID}-${USER_SPAN_ID}-01`)
+    headers.set('traceparent', request.headers.get('x-test-traceparent')!)
+    headers.delete('x-test-traceparent')
     response = NextResponse.rewrite(new URL('/headers-echo', request.url), {
       request: { headers },
     })
@@ -35,6 +34,8 @@ export function handler(request: NextRequest) {
     response = NextResponse.next()
   }
 
-  response.headers.set('x-mw-spans', JSON.stringify(spans))
+  if (traceId) {
+    response.headers.set('x-mw-trace-id', traceId)
+  }
   return response
 }

@@ -1,19 +1,28 @@
+/* eslint jest/no-standalone-expect: ["error", { "additionalTestBlockFunctions": ["traceTest"] }] */
+import { randomBytes } from 'crypto'
 import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
+import type { NextInstance } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { isOneTimeSpan, printSpanTree, type TreeSpan } from 'otel-span-tree'
+import {
+  isOneTimeSpan,
+  printSpanTree,
+  type KnownTraceContext,
+} from 'otel-span-tree'
+import { collectSpans } from 'otel-span-capture'
 
-const INCOMING = {
-  name: 'incoming',
-  traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
-  spanId: '00f067aa0ba902b7',
+// A new trace context for a request, so the spans collected for its trace
+// are only that request's (also when a test is retried).
+function newTraceContext(name: string): KnownTraceContext {
+  return {
+    name,
+    traceId: randomBytes(16).toString('hex'),
+    spanId: randomBytes(8).toString('hex'),
+  }
 }
-// The traceparent `middleware-impl.ts` sets for `/user-traceparent`.
-const SET_BY_MIDDLEWARE = {
-  name: 'set by middleware',
-  traceId: '0af7651916cd43dd8448eb211c80319c',
-  spanId: 'b7ad6b7169203331',
+
+function toTraceparent({ traceId, spanId }: KnownTraceContext) {
+  return `00-${traceId}-${spanId}-01`
 }
-const INCOMING_TRACEPARENT = `00-${INCOMING.traceId}-${INCOMING.spanId}-01`
 
 const MATCHER = [
   '/page',
@@ -66,34 +75,68 @@ const DEPENDENCIES = {
   '@opentelemetry/sdk-trace-base': '2.12.0',
 }
 
-// The span tree of a request, from the spans the middleware reported in its
-// response headers and the render reported in the body. One-time spans (see
-// `isOneTimeSpan`) are omitted unless `includeOneTimeSpans` is set.
+// Collecting the spans from the runtime logs takes a while when deployed.
+const TEST_TIMEOUT = isNextDeploy ? 240_000 : undefined
+
+// A test that collects the spans of a request.
+function traceTest(name: string, fn: () => Promise<void>) {
+  it(name, fn, TEST_TIMEOUT)
+}
+
+// How far back to read the runtime logs when deployed (they are filtered by
+// trace, so this only needs to cover the request and clock differences).
+const LOGS_WINDOW_MS = 10 * 60_000
+
+// The span tree of a request, from the spans collected after the response
+// (see `collectSpans`): the spans of the middleware's trace (reported in a
+// response header) and the render's trace (reported in the body), once the
+// middleware span, the render's request span and (deployed, for middleware
+// without an incoming `traceparent`) the inserted `Next.request` root have
+// ended. Pass the incoming trace context and the one the middleware sets as
+// `known`, and `incoming` when the request has a `traceparent`. One-time spans
+// (see `isOneTimeSpan`) are omitted unless `includeOneTimeSpans` is set.
 async function getSpanTree(
+  next: NextInstance,
   res: Response,
   body: Body,
-  { includeOneTimeSpans = false } = {}
+  {
+    includeOneTimeSpans = false,
+    known = [],
+    incoming = false,
+  }: {
+    includeOneTimeSpans?: boolean
+    known?: KnownTraceContext[]
+    incoming?: boolean
+  } = {}
 ) {
-  const spans = new Map<string, TreeSpan>()
-  const add = (list: TreeSpan[]) => {
-    for (const span of list) {
-      spans.set(span.id, span)
+  const traceIds = new Set<string>()
+  const expected: string[] = []
+  const middlewareTraceId = res.headers.get('x-mw-trace-id')
+  if (middlewareTraceId) {
+    traceIds.add(middlewareTraceId)
+    expected.push('Middleware.execute')
+    if (isNextDeploy && !incoming) {
+      expected.push('Next.request')
     }
   }
-  add(JSON.parse(res.headers.get('x-mw-spans') ?? '[]'))
-  if (body === 'html') {
-    add(
-      JSON.parse(
-        cheerio
-          .load(await res.text())('#spans')
-          .text()
-      )
-    )
-  } else if (body === 'json') {
-    add((await res.json()).spans)
+  if (body !== 'none') {
+    const renderTraceId =
+      body === 'html'
+        ? cheerio
+            .load(await res.text())('#trace-id')
+            .text()
+        : (await res.json()).traceId
+    expect(renderTraceId).toMatch(/^[0-9a-f]{32}$/)
+    traceIds.add(renderTraceId)
+    expected.push('BaseServer.handleRequest')
   }
-  return printSpanTree([...spans.values()], {
-    known: [INCOMING, SET_BY_MIDDLEWARE],
+  const spans = await collectSpans(next, {
+    traceIds: [...traceIds],
+    expected,
+    since: new Date(Date.now() - LOGS_WINDOW_MS),
+  })
+  return printSpanTree(spans, {
+    known,
     omit: includeOneTimeSpans ? undefined : isOneTimeSpan,
   })
 }
@@ -104,266 +147,99 @@ function expectNoInternalHeaders(res: Response) {
   }
 }
 
-// Pages render differently with Cache Components (also between dev and
-// start), so page span trees have a snapshot per render mode.
-const renderMode = !process.env.__NEXT_CACHE_COMPONENTS
-  ? 'default'
-  : isNextDev
-    ? 'cache components, dev'
-    : 'cache components'
-
-// Deployments are built with the adapter (`NEXT_ENABLE_ADAPTER=1`, as in PR
-// CI) or without it (`NEXT_ENABLE_ADAPTER=0`, also run by the release deploy
-// tests). Without the adapter, the render's spans have the self-hosted shape
-// (an unnamed request span, `findPageComponents`, and `instrumentation.ts`
-// registered at startup) while the platform still invokes the middleware and
-// the render separately. That shape was observed with the default render mode
-// only (the release deploy tests don't run with Cache Components), so
-// deployments with Cache Components keep the adapter's snapshots.
-const isNonAdapterDeploy =
-  isNextDeploy &&
-  process.env.NEXT_ENABLE_ADAPTER !== '1' &&
-  renderMode === 'default'
+// The environment a test runs in, which selects its span tree snapshot: how
+// the app runs (`start`, `dev`, or `deploy`, deployed with the adapter or
+// without it, `(no adapter)`), the bundler (Turbopack, or ` (webpack)`),
+// whether Cache Components are enabled, and the middleware entry (`proxy` for
+// Node.js middleware, `middleware` for Edge middleware). The span trees differ
+// between them: e.g. pages render differently with Cache Components (also
+// between dev and start); deployed, the platform invokes the middleware and
+// the render separately, with the adapter the render's request span is named
+// after its entrypoint (e.g. `GET /page/page`), without it the render's spans
+// have the self-hosted shape, and with Cache Components pages are rendered in
+// a `POST` resume request. Environments without a snapshot fall through to an
+// empty one, which fails and prints the tree (e.g. in CI).
+function getTestEnv(isTurbopack: boolean, middlewareExport: string) {
+  const mode = isNextDeploy
+    ? process.env.NEXT_ENABLE_ADAPTER === '1'
+      ? 'deploy'
+      : 'deploy (no adapter)'
+    : `${isNextDev ? 'dev' : 'start'}${isTurbopack ? '' : ' (webpack)'}`
+  const cacheComponents = process.env.__NEXT_CACHE_COMPONENTS
+    ? ', cache components'
+    : ''
+  return `${mode}${cacheComponents}, ${middlewareExport}`
+}
 
 // The trace of every request is asserted as a span tree snapshot (see
 // `printSpanTree`). There is no collector (so the suite also works when
-// deployed): the app reports the spans itself (see `trace-recorder.ts`). The
-// middleware reports its span, its ancestors, and the descendants of the
-// topmost of them started so far; the render its request span, that span's
-// ancestors, and the descendants started before the page or route handler
-// reports. Spans started in another process (e.g. next-server's
-// spans for Edge middleware, or the platform's when deployed) show up as
-// `[remote]` parents. Deployed apps have their own snapshots: the platform
-// invokes the middleware and the render separately, and with the adapter the
-// render's request span is named after its entrypoint (e.g. `GET /page/page`).
-// Without the adapter, deployed renders have their own snapshots too (see
-// `isNonAdapterDeploy`). With Cache Components, deployed pages are rendered in
-// a `POST` resume request.
+// deployed): the app writes span lifecycle events to the console (see
+// `trace-recorder.ts`), and the test collects the finished spans of the
+// request's traces after the response, from the server output or, when
+// deployed, the runtime logs (see `collectSpans`). Parents that weren't
+// collected (e.g. the platform's spans when deployed) show up as `[remote]`.
+// Spans that don't cover all spans below them are badged (see
+// `printSpanTree`): self-hosted, next-server's middleware-invoke request span
+// ends before the render it is the parent of.
 describe.each(VARIANTS)(
   'otel-middleware-trace - $name',
   ({ file, exportName }) => {
-    // When self-hosted, Node.js middleware runs in the server process, so its
-    // parent (next-server's middleware-invoke `handleRequest` span) was started
-    // in the same process. The Edge sandbox only sees that span's context.
-    const isNodeMiddleware = exportName === 'proxy'
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       overrideFiles: {
         [file]: middlewareEntry(exportName),
       },
       dependencies: DEPENDENCIES,
     })
+    const env = getTestEnv(isTurbopack, exportName)
 
     // The first request, so the tree includes the one-time spans (e.g.
     // `instrumentation.ts` registration) of the first request an instance serves.
-    it('traces a page rendered after NextResponse.next()', async () => {
+    traceTest('traces a page rendered after NextResponse.next()', async () => {
       const res = await next.fetch('/page')
       expect(res.status).toBe(200)
       expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html', { includeOneTimeSpans: true })
-      if (isNextDeploy) {
-        // Deployed with the adapter, the render and Node.js middleware functions
-        // each register instrumentation in their first request: under the
-        // render's request span and under the middleware span. Without the
-        // adapter, only the middleware does: the render registers it at startup
-        // (see `traces instrumentation registration in the triggering request`).
-        if (isNonAdapterDeploy) {
-          if (isNodeMiddleware) {
-            expect(tree).toMatchInlineSnapshot(`
-             "[trace A] GET (Next.request) {http.target=/page}
-             ├─ GET (BaseServer.handleRequest) {http.target=/page}
-             │  ├─ prepare route module (RouteModule.prepare)
-             │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-             │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-             │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-             │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-             │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-             │     └─ load route module (LoadComponents.loadRouteModule)
-             └─ middleware GET (Middleware.execute) {http.target=/page}
-                ├─ load instrumentation module (Instrumentation.loadModule)
-                └─ register instrumentation (Instrumentation.register)"
-            `)
-          } else {
-            expect(tree).toMatchInlineSnapshot(`
-             "[trace A] GET (Next.request) {http.target=/page}
-             ├─ GET (BaseServer.handleRequest) {http.target=/page}
-             │  ├─ prepare route module (RouteModule.prepare)
-             │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-             │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-             │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-             │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-             │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-             │     └─ load route module (LoadComponents.loadRouteModule)
-             └─ middleware GET (Middleware.execute) {http.target=/page}"
-            `)
-          }
-        } else if (renderMode === 'default') {
-          if (isNodeMiddleware) {
-            expect(tree).toMatchInlineSnapshot(`
-             "[trace A] GET (Next.request) {http.target=/page}
-             ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
-             │  ├─ load instrumentation module (Instrumentation.loadModule)
-             │  ├─ prepare route module (RouteModule.prepare)
-             │  ├─ register instrumentation (Instrumentation.register)
-             │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-             │     ├─ build component tree (NextNodeServer.createComponentTree)
-             │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-             │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-             └─ middleware GET (Middleware.execute) {http.target=/page}
-                ├─ load instrumentation module (Instrumentation.loadModule)
-                └─ register instrumentation (Instrumentation.register)"
-            `)
-          } else {
-            expect(tree).toMatchInlineSnapshot(`
-             "[trace A] GET (Next.request) {http.target=/page}
-             ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
-             │  ├─ load instrumentation module (Instrumentation.loadModule)
-             │  ├─ prepare route module (RouteModule.prepare)
-             │  ├─ register instrumentation (Instrumentation.register)
-             │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-             │     ├─ build component tree (NextNodeServer.createComponentTree)
-             │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-             │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-             │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-             └─ middleware GET (Middleware.execute) {http.target=/page}"
-            `)
-          }
-        } else if (isNodeMiddleware) {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/page}
-           ├─ middleware GET (Middleware.execute) {http.target=/page}
-           │  ├─ load instrumentation module (Instrumentation.loadModule)
-           │  └─ register instrumentation (Instrumentation.register)
-           └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
-              ├─ load instrumentation module (Instrumentation.loadModule)
-              ├─ prepare route module (RouteModule.prepare)
-              ├─ register instrumentation (Instrumentation.register)
-              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
-          `)
-        } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/page}
-           ├─ middleware GET (Middleware.execute) {http.target=/page}
-           └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
-              ├─ load instrumentation module (Instrumentation.loadModule)
-              ├─ prepare route module (RouteModule.prepare)
-              ├─ register instrumentation (Instrumentation.register)
-              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
-          `)
-        }
-      } else if (renderMode === 'cache components, dev') {
+      const tree = await getSpanTree(next, res, 'html', {
+        includeOneTimeSpans: true,
+      })
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-         │  │  └─ start response (NextNodeServer.startResponse)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/page}"
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+           ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+           │  ├─ NextNodeServer.clientComponentLoading
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           │  │  └─ start response (NextNodeServer.startResponse)
+           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+           │     └─ load route module (LoadComponents.loadRouteModule)
+           └─ middleware GET (Middleware.execute) {http.target=/page}"
         `)
-      } else if (renderMode === 'cache components') {
+      } else if (
+        [
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/page}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-         │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-         │  │  └─ load route module (LoadComponents.loadRouteModule)
-         │  └─ start response (NextNodeServer.startResponse)
-         └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/page}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
-      }
-    })
-
-    it('traces a route handler executed after NextResponse.next()', async () => {
-      const res = await next.fetch('/route-handler')
-      expect(res.status).toBe(200)
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'json')
-      if (isNonAdapterDeploy) {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (Next.request) {http.target=/route-handler}
-         ├─ GET (BaseServer.handleRequest) {http.target=/route-handler}
-         │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/route-handler}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
-        `)
-      } else if (isNextDeploy) {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (Next.request) {http.target=/route-handler}
-         ├─ GET /route-handler/route (BaseServer.handleRequest) {http.target=/route-handler}
-         │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-         │  └─ prepare route module (RouteModule.prepare)
-         └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/route-handler, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/route-handler}
-         │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/route-handler}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
-        `)
-      }
-    })
-
-    it('traces a rewritten page', async () => {
-      const res = await next.fetch('/rewrite')
-      expect(res.status).toBe(200)
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (isNextDeploy) {
-        if (isNonAdapterDeploy) {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/rewrite}
-           ├─ GET (BaseServer.handleRequest) {http.target=/rewrite}
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+           ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+           │  ├─ NextNodeServer.clientComponentLoading
            │  ├─ prepare route module (RouteModule.prepare)
            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
@@ -371,144 +247,266 @@ describe.each(VARIANTS)(
            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+           │  │  └─ load route module (LoadComponents.loadRouteModule)
+           │  └─ start response (NextNodeServer.startResponse)
+           └─ middleware GET (Middleware.execute) {http.target=/page}"
+        `)
+      } else if (
+        [
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+           ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+           │  ├─ NextNodeServer.clientComponentLoading
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           │  │  └─ start response (NextNodeServer.startResponse)
+           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+           │     └─ load route module (LoadComponents.loadRouteModule)
+           └─ middleware GET (Middleware.execute) {http.target=/page}"
+        `)
+      } else {
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
+      }
+    })
+
+    traceTest(
+      'traces a route handler executed after NextResponse.next()',
+      async () => {
+        const res = await next.fetch('/route-handler')
+        expect(res.status).toBe(200)
+        expectNoInternalHeaders(res)
+        const tree = await getSpanTree(next, res, 'json')
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/route-handler, http.status_code=200} [error: doesn't cover descendants]
+             ├─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
+             │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
+             │  ├─ prepare route module (RouteModule.prepare)
+             │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/route-handler}
+             │  │  └─ load route module (LoadComponents.loadRouteModule)
+             │  └─ start response (NextNodeServer.startResponse)
+             └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
+          `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
+      }
+    )
+
+    traceTest('traces a rewritten page', async () => {
+      const res = await next.fetch('/rewrite')
+      expect(res.status).toBe(200)
+      expectNoInternalHeaders(res)
+      const tree = await getSpanTree(next, res, 'html')
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200} [error: doesn't cover descendants]
+           ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
+           │  ├─ NextNodeServer.clientComponentLoading
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           │  │  └─ start response (NextNodeServer.startResponse)
            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
            │     └─ load route module (LoadComponents.loadRouteModule)
            └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
-          `)
-        } else if (renderMode === 'default') {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/rewrite}
-           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/rewrite}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
-          `)
-        } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/rewrite}
-           ├─ middleware GET (Middleware.execute) {http.target=/rewrite}
-           └─ POST /page/page (BaseServer.handleRequest) {http.target=/rewrite}
-              ├─ prepare route module (RouteModule.prepare)
-              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
-          `)
-        }
-      } else if (renderMode === 'cache components, dev') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-         │  │  └─ start response (NextNodeServer.startResponse)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
         `)
-      } else if (renderMode === 'cache components') {
+      } else if (
+        [
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/rewrite}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-         │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-         │  │  └─ load route module (LoadComponents.loadRouteModule)
-         │  └─ start response (NextNodeServer.startResponse)
-         └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200} [error: doesn't cover descendants]
+           ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
+           │  ├─ NextNodeServer.clientComponentLoading
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+           │  │  └─ load route module (LoadComponents.loadRouteModule)
+           │  └─ start response (NextNodeServer.startResponse)
+           └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
+        `)
+      } else if (
+        [
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200} [error: doesn't cover descendants]
+           ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
+           │  ├─ NextNodeServer.clientComponentLoading
+           │  ├─ prepare route module (RouteModule.prepare)
+           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+           │  │  └─ start response (NextNodeServer.startResponse)
+           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+           │     └─ load route module (LoadComponents.loadRouteModule)
+           └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
         `)
       } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/rewrite}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
-        `)
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
       }
     })
 
-    it('traces a middleware redirect', async () => {
+    traceTest('traces a middleware redirect', async () => {
       const res = await next.fetch('/redirect', { redirect: 'manual' })
       expect(res.status).toBe(307)
       expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'none')
-      if (isNextDeploy) {
+      const tree = await getSpanTree(next, res, 'none')
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (Next.request) {http.target=/redirect}
-         └─ middleware GET (Middleware.execute) {http.target=/redirect}"
-        `)
-      } else if (isNodeMiddleware) {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/redirect}
-         └─ middleware GET (Middleware.execute) {http.target=/redirect}"
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/redirect, http.status_code=200}
+           └─ middleware GET (Middleware.execute) {http.target=/redirect}"
         `)
       } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ middleware GET (Middleware.execute) {http.target=/redirect}"
-        `)
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
       }
     })
 
-    it('traces a direct middleware response', async () => {
+    traceTest('traces a direct middleware response', async () => {
       const res = await next.fetch('/direct')
       expect(res.status).toBe(200)
       expect(await res.clone().text()).toBe('direct response from middleware')
       expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'none')
-      if (isNextDeploy) {
+      const tree = await getSpanTree(next, res, 'none')
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (Next.request) {http.target=/direct}
-         └─ middleware GET (Middleware.execute) {http.target=/direct}"
-        `)
-      } else if (isNodeMiddleware) {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/direct}
-         └─ middleware GET (Middleware.execute) {http.target=/direct}"
+           "[trace A] GET (BaseServer.handleRequest) {http.target=/direct, http.status_code=200}
+           └─ middleware GET (Middleware.execute) {http.target=/direct}"
         `)
       } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ middleware GET (Middleware.execute) {http.target=/direct}"
-        `)
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
       }
     })
 
-    it('traces a request the middleware does not match', async () => {
+    traceTest('traces a request the middleware does not match', async () => {
       const res = await next.fetch('/unmatched')
       expect(res.status).toBe(200)
-      expect(res.headers.get('x-mw-spans')).toBeNull()
+      expect(res.headers.get('x-mw-trace-id')).toBeNull()
       expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (isNextDeploy) {
-        if (isNonAdapterDeploy) {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (BaseServer.handleRequest) {http.target=/unmatched}
+      const tree = await getSpanTree(next, res, 'html')
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace A] GET /unmatched (BaseServer.handleRequest) {http.target=/unmatched, http.route=/unmatched, next.route=/unmatched, http.status_code=200}
+           ├─ NextNodeServer.clientComponentLoading
+           ├─ prepare route module (RouteModule.prepare)
+           ├─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
+           │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  ├─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)
+           │  └─ start response (NextNodeServer.startResponse)
+           └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/unmatched}
+              └─ load route module (LoadComponents.loadRouteModule)"
+        `)
+      } else if (
+        [
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace A] GET /unmatched (BaseServer.handleRequest) {http.target=/unmatched, http.route=/unmatched, next.route=/unmatched, http.status_code=200}
+           ├─ NextNodeServer.clientComponentLoading
            ├─ prepare route module (RouteModule.prepare)
            ├─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
            │  ├─ build component tree (NextNodeServer.createComponentTree)
@@ -516,617 +514,498 @@ describe.each(VARIANTS)(
            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
            │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
            │  └─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)
+           ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/unmatched}
+           │  └─ load route module (LoadComponents.loadRouteModule)
+           └─ start response (NextNodeServer.startResponse)"
+        `)
+      } else if (
+        [
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace A] GET /unmatched (BaseServer.handleRequest) {http.target=/unmatched, http.route=/unmatched, next.route=/unmatched, http.status_code=200}
+           ├─ NextNodeServer.clientComponentLoading
+           ├─ prepare route module (RouteModule.prepare)
+           ├─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
+           │  ├─ build component tree (NextNodeServer.createComponentTree)
+           │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+           │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+           │  ├─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)
+           │  └─ start response (NextNodeServer.startResponse)
            └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/unmatched}
               └─ load route module (LoadComponents.loadRouteModule)"
-          `)
-        } else if (renderMode === 'default') {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET /unmatched/page (BaseServer.handleRequest) {http.target=/unmatched}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)"
-          `)
-        } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] POST /unmatched/page (BaseServer.handleRequest) {http.target=/unmatched}
-           ├─ prepare route module (RouteModule.prepare)
-           └─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
-              ├─ build component tree (NextNodeServer.createComponentTree)
-              │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)"
-          `)
-        }
-      } else if (renderMode === 'cache components, dev') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/unmatched, http.status_code=200}
-         ├─ prepare route module (RouteModule.prepare)
-         ├─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
-         │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  ├─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)
-         │  └─ start response (NextNodeServer.startResponse)
-         └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/unmatched}
-            └─ load route module (LoadComponents.loadRouteModule)"
-        `)
-      } else if (renderMode === 'cache components') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/unmatched}
-         ├─ prepare route module (RouteModule.prepare)
-         ├─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
-         │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  └─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)
-         ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/unmatched}
-         │  └─ load route module (LoadComponents.loadRouteModule)
-         └─ start response (NextNodeServer.startResponse)"
         `)
       } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/unmatched}
-         ├─ prepare route module (RouteModule.prepare)
-         ├─ render route (app) /unmatched (AppRender.getBodyResult) {next.route=/unmatched}
-         │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  └─ generateMetadata /unmatched/page (ResolveMetadata.generateMetadata)
-         └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/unmatched}
-            └─ load route module (LoadComponents.loadRouteModule)"
-        `)
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
       }
     })
 
-    it('traces /page with an incoming traceparent', async () => {
+    traceTest('traces /page with an incoming traceparent', async () => {
+      const incoming = newTraceContext('incoming')
       const res = await next.fetch('/page', {
-        headers: { traceparent: INCOMING_TRACEPARENT },
+        headers: { traceparent: toTraceparent(incoming) },
       })
       expect(res.status).toBe(200)
       expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (isNextDeploy) {
-        if (isNonAdapterDeploy) {
-          expect(tree).toMatchInlineSnapshot(`
+      const tree = await getSpanTree(next, res, 'html', {
+        known: [incoming],
+        incoming: true,
+      })
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
            "[trace incoming] [incoming traceparent]
-           ├─ GET (BaseServer.handleRequest) {http.target=/page}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-           │     └─ load route module (LoadComponents.loadRouteModule)
-           └─ middleware GET (Middleware.execute) {http.target=/page}"
-          `)
-        } else if (renderMode === 'default') {
-          expect(tree).toMatchInlineSnapshot(`
+           └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+              ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+              │  ├─ NextNodeServer.clientComponentLoading
+              │  ├─ prepare route module (RouteModule.prepare)
+              │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+              │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+              │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+              │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+              │  │  └─ start response (NextNodeServer.startResponse)
+              │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+              │     └─ load route module (LoadComponents.loadRouteModule)
+              └─ middleware GET (Middleware.execute) {http.target=/page}"
+        `)
+      } else if (
+        [
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
            "[trace incoming] [incoming traceparent]
-           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/page}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           └─ middleware GET (Middleware.execute) {http.target=/page}"
+           └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+              ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+              │  ├─ NextNodeServer.clientComponentLoading
+              │  ├─ prepare route module (RouteModule.prepare)
+              │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+              │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+              │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+              │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+              │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+              │  │  └─ load route module (LoadComponents.loadRouteModule)
+              │  └─ start response (NextNodeServer.startResponse)
+              └─ middleware GET (Middleware.execute) {http.target=/page}"
+        `)
+      } else if (
+        [
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace incoming] [incoming traceparent]
+           └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+              ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+              │  ├─ NextNodeServer.clientComponentLoading
+              │  ├─ prepare route module (RouteModule.prepare)
+              │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+              │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+              │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+              │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+              │  │  └─ start response (NextNodeServer.startResponse)
+              │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+              │     └─ load route module (LoadComponents.loadRouteModule)
+              └─ middleware GET (Middleware.execute) {http.target=/page}"
+        `)
+      } else {
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
+      }
+    })
+
+    traceTest(
+      'traces /route-handler with an incoming traceparent',
+      async () => {
+        const incoming = newTraceContext('incoming')
+        const res = await next.fetch('/route-handler', {
+          headers: { traceparent: toTraceparent(incoming) },
+        })
+        expect(res.status).toBe(200)
+        expectNoInternalHeaders(res)
+        const tree = await getSpanTree(next, res, 'json', {
+          known: [incoming],
+          incoming: true,
+        })
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace incoming] [incoming traceparent]
+             └─ GET (BaseServer.handleRequest) {http.target=/route-handler, http.status_code=200} [error: doesn't cover descendants]
+                ├─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
+                │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
+                │  ├─ prepare route module (RouteModule.prepare)
+                │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/route-handler}
+                │  │  └─ load route module (LoadComponents.loadRouteModule)
+                │  └─ start response (NextNodeServer.startResponse)
+                └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
           `)
         } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace incoming] [incoming traceparent]
-           ├─ middleware GET (Middleware.execute) {http.target=/page}
-           └─ POST /page/page (BaseServer.handleRequest) {http.target=/page}
-              ├─ prepare route module (RouteModule.prepare)
-              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
-          `)
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
         }
-      } else if (renderMode === 'cache components, dev') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  │  └─ start response (NextNodeServer.startResponse)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
-      } else if (renderMode === 'cache components') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/page}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │  │  └─ load route module (LoadComponents.loadRouteModule)
-            │  └─ start response (NextNodeServer.startResponse)
-            └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/page}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
       }
-    })
+    )
 
-    it('traces /route-handler with an incoming traceparent', async () => {
-      const res = await next.fetch('/route-handler', {
-        headers: { traceparent: INCOMING_TRACEPARENT },
-      })
-      expect(res.status).toBe(200)
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'json')
-      if (isNonAdapterDeploy) {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         ├─ GET (BaseServer.handleRequest) {http.target=/route-handler}
-         │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/route-handler}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
-        `)
-      } else if (isNextDeploy) {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         ├─ GET /route-handler/route (BaseServer.handleRequest) {http.target=/route-handler}
-         │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-         │  └─ prepare route module (RouteModule.prepare)
-         └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/route-handler, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/route-handler}
-            │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler) {next.route=/route-handler}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/route-handler}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/route-handler}"
-        `)
-      }
-    })
-
-    it('traces /rewrite with an incoming traceparent', async () => {
+    traceTest('traces /rewrite with an incoming traceparent', async () => {
+      const incoming = newTraceContext('incoming')
       const res = await next.fetch('/rewrite', {
-        headers: { traceparent: INCOMING_TRACEPARENT },
+        headers: { traceparent: toTraceparent(incoming) },
       })
       expect(res.status).toBe(200)
       expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (isNextDeploy) {
-        if (isNonAdapterDeploy) {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace incoming] [incoming traceparent]
-           ├─ GET (BaseServer.handleRequest) {http.target=/rewrite}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-           │     └─ load route module (LoadComponents.loadRouteModule)
-           └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
-          `)
-        } else if (renderMode === 'default') {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace incoming] [incoming traceparent]
-           ├─ GET /page/page (BaseServer.handleRequest) {http.target=/rewrite}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-           └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
-          `)
-        } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace incoming] [incoming traceparent]
-           ├─ middleware GET (Middleware.execute) {http.target=/rewrite}
-           └─ POST /page/page (BaseServer.handleRequest) {http.target=/rewrite}
-              ├─ prepare route module (RouteModule.prepare)
-              └─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)"
-          `)
-        }
-      } else if (renderMode === 'cache components, dev') {
+      const tree = await getSpanTree(next, res, 'html', {
+        known: [incoming],
+        incoming: true,
+      })
+      if (
+        [
+          'start, middleware',
+          'start, proxy',
+          'start (webpack), middleware',
+          'start (webpack), proxy',
+          'dev, middleware',
+          'dev, proxy',
+          'dev (webpack), middleware',
+          'dev (webpack), proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  │  └─ start response (NextNodeServer.startResponse)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
+           "[trace incoming] [incoming traceparent]
+           └─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200} [error: doesn't cover descendants]
+              ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
+              │  ├─ NextNodeServer.clientComponentLoading
+              │  ├─ prepare route module (RouteModule.prepare)
+              │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+              │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+              │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+              │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+              │  │  └─ start response (NextNodeServer.startResponse)
+              │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+              │     └─ load route module (LoadComponents.loadRouteModule)
+              └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
         `)
-      } else if (renderMode === 'cache components') {
+      } else if (
+        [
+          'start, cache components, middleware',
+          'start, cache components, proxy',
+        ].includes(env)
+      ) {
         expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/rewrite}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │  │  └─ load route module (LoadComponents.loadRouteModule)
-            │  └─ start response (NextNodeServer.startResponse)
-            └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
+           "[trace incoming] [incoming traceparent]
+           └─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200} [error: doesn't cover descendants]
+              ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
+              │  ├─ NextNodeServer.clientComponentLoading
+              │  ├─ prepare route module (RouteModule.prepare)
+              │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+              │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+              │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+              │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+              │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+              │  │  └─ load route module (LoadComponents.loadRouteModule)
+              │  └─ start response (NextNodeServer.startResponse)
+              └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
+        `)
+      } else if (
+        [
+          'dev, cache components, middleware',
+          'dev, cache components, proxy',
+        ].includes(env)
+      ) {
+        expect(tree).toMatchInlineSnapshot(`
+           "[trace incoming] [incoming traceparent]
+           └─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200} [error: doesn't cover descendants]
+              ├─ GET /page (BaseServer.handleRequest) {http.target=/rewrite, http.route=/page, next.route=/page, http.status_code=200}
+              │  ├─ NextNodeServer.clientComponentLoading
+              │  ├─ prepare route module (RouteModule.prepare)
+              │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+              │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+              │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+              │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+              │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+              │  │  └─ start response (NextNodeServer.startResponse)
+              │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+              │     └─ load route module (LoadComponents.loadRouteModule)
+              └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
         `)
       } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace incoming] [incoming traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/rewrite, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/rewrite}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/rewrite}"
-        `)
+        // Not observed yet (filled from CI).
+        expect(tree).toMatchInlineSnapshot()
       }
     })
 
-    it('still applies request header overrides set by middleware', async () => {
-      const res = await next.fetch('/user-overrides', {
-        headers: { 'x-delete-me': 'please', 'x-keep-me': 'kept' },
-      })
-      expect(res.status).toBe(200)
-      const html = await res.clone().text()
-      const headers = JSON.parse(cheerio.load(html)('#headers').text())
-      expect(headers['x-user-added']).toBe('added-by-middleware')
-      expect(headers['x-keep-me']).toBe('kept')
-      expect(headers['x-delete-me']).toBeUndefined()
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (isNextDeploy) {
-        if (isNonAdapterDeploy) {
+    traceTest(
+      'still applies request header overrides set by middleware',
+      async () => {
+        const res = await next.fetch('/user-overrides', {
+          headers: { 'x-delete-me': 'please', 'x-keep-me': 'kept' },
+        })
+        expect(res.status).toBe(200)
+        const html = await res.clone().text()
+        const headers = JSON.parse(cheerio.load(html)('#headers').text())
+        expect(headers['x-user-added']).toBe('added-by-middleware')
+        expect(headers['x-keep-me']).toBe('kept')
+        expect(headers['x-delete-me']).toBeUndefined()
+        expectNoInternalHeaders(res)
+        const tree = await getSpanTree(next, res, 'html')
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+          ].includes(env)
+        ) {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/user-overrides}
-           ├─ GET (BaseServer.handleRequest) {http.target=/user-overrides}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-           │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-           │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-           │  │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-           │     └─ load route module (LoadComponents.loadRouteModule)
-           └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200} [error: doesn't cover descendants]
+             ├─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+             │  ├─ NextNodeServer.clientComponentLoading
+             │  ├─ prepare route module (RouteModule.prepare)
+             │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+             │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+             │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+             │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+             │  │  └─ start response (NextNodeServer.startResponse)
+             │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+             │     └─ load route module (LoadComponents.loadRouteModule)
+             └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
           `)
-        } else if (renderMode === 'default') {
+        } else if (
+          [
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+          ].includes(env)
+        ) {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/user-overrides}
-           ├─ GET /headers-echo/page (BaseServer.handleRequest) {http.target=/user-overrides}
-           │  ├─ prepare route module (RouteModule.prepare)
-           │  └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-           │     ├─ build component tree (NextNodeServer.createComponentTree)
-           │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-           │     ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-           │     └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-           └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200} [error: doesn't cover descendants]
+             ├─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+             │  ├─ NextNodeServer.clientComponentLoading
+             │  ├─ prepare route module (RouteModule.prepare)
+             │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+             │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+             │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+             │  │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+             │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+             │  │  └─ load route module (LoadComponents.loadRouteModule)
+             │  └─ start response (NextNodeServer.startResponse)
+             └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
+          `)
+        } else if (
+          [
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200} [error: doesn't cover descendants]
+             ├─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-overrides, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+             │  ├─ NextNodeServer.clientComponentLoading
+             │  ├─ prepare route module (RouteModule.prepare)
+             │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+             │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+             │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+             │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+             │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+             │  │  └─ start response (NextNodeServer.startResponse)
+             │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+             │     └─ load route module (LoadComponents.loadRouteModule)
+             └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
           `)
         } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/user-overrides}
-           ├─ middleware GET (Middleware.execute) {http.target=/user-overrides}
-           └─ POST /headers-echo/page (BaseServer.handleRequest) {http.target=/user-overrides}
-              ├─ prepare route module (RouteModule.prepare)
-              └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /layout (ResolveMetadata.generateMetadata)"
-          `)
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
         }
-      } else if (renderMode === 'cache components, dev') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-         │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  │  └─ start response (NextNodeServer.startResponse)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
-        `)
-      } else if (renderMode === 'cache components') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/user-overrides}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-         │  │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-         │  │  └─ load route module (LoadComponents.loadRouteModule)
-         │  └─ start response (NextNodeServer.startResponse)
-         └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] GET (BaseServer.handleRequest) {http.target=/user-overrides, http.status_code=200}
-         ├─ GET (BaseServer.handleRequest) {http.target=/user-overrides}
-         │  ├─ prepare route module (RouteModule.prepare)
-         │  ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-         │  │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-         │  │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-         │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-         │     └─ load route module (LoadComponents.loadRouteModule)
-         └─ middleware GET (Middleware.execute) {http.target=/user-overrides}"
-        `)
       }
-    })
+    )
 
     // A traceparent the middleware explicitly sets is respected: the render
     // continues it instead of being a sibling of the middleware span.
-    it('respects a traceparent explicitly set by middleware', async () => {
-      const res = await next.fetch('/user-traceparent')
-      expect(res.status).toBe(200)
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (isNextDeploy) {
-        if (isNonAdapterDeploy) {
+    traceTest(
+      'respects a traceparent explicitly set by middleware',
+      async () => {
+        const setByMiddleware = newTraceContext('set by middleware')
+        const res = await next.fetch('/user-traceparent', {
+          headers: { 'x-test-traceparent': toTraceparent(setByMiddleware) },
+        })
+        expect(res.status).toBe(200)
+        expectNoInternalHeaders(res)
+        const tree = await getSpanTree(next, res, 'html', {
+          known: [setByMiddleware],
+        })
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+          ].includes(env)
+        ) {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/user-traceparent}
-           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-           [trace set by middleware] [set by middleware traceparent]
-           └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-              ├─ prepare route module (RouteModule.prepare)
-              ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-              │  ├─ build component tree (NextNodeServer.createComponentTree)
-              │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-              │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-                 └─ load route module (LoadComponents.loadRouteModule)"
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
+             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+             [trace set by middleware] [set by middleware traceparent]
+             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+                ├─ NextNodeServer.clientComponentLoading
+                ├─ prepare route module (RouteModule.prepare)
+                ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  └─ start response (NextNodeServer.startResponse)
+                └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+                   └─ load route module (LoadComponents.loadRouteModule)"
           `)
-        } else if (renderMode === 'default') {
+        } else if (
+          [
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+          ].includes(env)
+        ) {
           expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/user-traceparent}
-           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-           [trace set by middleware] [set by middleware traceparent]
-           └─ GET /headers-echo/page (BaseServer.handleRequest) {http.target=/user-traceparent}
-              ├─ prepare route module (RouteModule.prepare)
-              └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /layout (ResolveMetadata.generateMetadata)"
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
+             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+             [trace set by middleware] [set by middleware traceparent]
+             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+                ├─ NextNodeServer.clientComponentLoading
+                ├─ prepare route module (RouteModule.prepare)
+                ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+                │  └─ load route module (LoadComponents.loadRouteModule)
+                └─ start response (NextNodeServer.startResponse)"
+          `)
+        } else if (
+          [
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
+             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+             [trace set by middleware] [set by middleware traceparent]
+             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+                ├─ NextNodeServer.clientComponentLoading
+                ├─ prepare route module (RouteModule.prepare)
+                ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  └─ start response (NextNodeServer.startResponse)
+                └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+                   └─ load route module (LoadComponents.loadRouteModule)"
           `)
         } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (Next.request) {http.target=/user-traceparent}
-           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-           [trace set by middleware] [set by middleware traceparent]
-           └─ POST /headers-echo/page (BaseServer.handleRequest) {http.target=/user-traceparent}
-              ├─ prepare route module (RouteModule.prepare)
-              └─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-                 ├─ build component tree (NextNodeServer.createComponentTree)
-                 │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-                 ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-                 └─ generateMetadata /layout (ResolveMetadata.generateMetadata)"
-          `)
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
         }
-      } else if (isNodeMiddleware) {
-        if (renderMode === 'cache components, dev') {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-           [trace set by middleware] [set by middleware traceparent]
-           └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
-              ├─ prepare route module (RouteModule.prepare)
-              ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-              │  ├─ build component tree (NextNodeServer.createComponentTree)
-              │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-              │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              │  └─ start response (NextNodeServer.startResponse)
-              └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-                 └─ load route module (LoadComponents.loadRouteModule)"
-          `)
-        } else if (renderMode === 'cache components') {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-           [trace set by middleware] [set by middleware traceparent]
-           └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-              ├─ prepare route module (RouteModule.prepare)
-              ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-              │  ├─ build component tree (NextNodeServer.createComponentTree)
-              │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-              │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-              │  └─ load route module (LoadComponents.loadRouteModule)
-              └─ start response (NextNodeServer.startResponse)"
-          `)
-        } else {
-          expect(tree).toMatchInlineSnapshot(`
-           "[trace A] GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-           └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-           [trace set by middleware] [set by middleware traceparent]
-           └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-              ├─ prepare route module (RouteModule.prepare)
-              ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-              │  ├─ build component tree (NextNodeServer.createComponentTree)
-              │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-              │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-              │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-              └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-                 └─ load route module (LoadComponents.loadRouteModule)"
-          `)
-        }
-      } else if (renderMode === 'cache components, dev') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-         [trace set by middleware] [set by middleware traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
-            ├─ prepare route module (RouteModule.prepare)
-            ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-            │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-            │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  └─ start response (NextNodeServer.startResponse)
-            └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-               └─ load route module (LoadComponents.loadRouteModule)"
-        `)
-      } else if (renderMode === 'cache components') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-         [trace set by middleware] [set by middleware traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-            ├─ prepare route module (RouteModule.prepare)
-            ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-            │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-            │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-            │  └─ load route module (LoadComponents.loadRouteModule)
-            └─ start response (NextNodeServer.startResponse)"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
-         [trace set by middleware] [set by middleware traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-            ├─ prepare route module (RouteModule.prepare)
-            ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-            │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-            │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-               └─ load route module (LoadComponents.loadRouteModule)"
-        `)
       }
-    })
+    )
 
     // The `instrumentation.ts` lifecycle spans (`load instrumentation module`,
     // `register instrumentation`) of the instance serving the request, with
-    // their ancestors.
-    it('traces instrumentation registration in the triggering request', async () => {
-      const res = await next.fetch('/instrumentation-spans')
-      expect(res.status).toBe(200)
-      const tree = printSpanTree((await res.json()).spans, {
-        known: [INCOMING, SET_BY_MIDDLEWARE],
-      })
-      if (isNextDeploy && !isNonAdapterDeploy) {
-        // Functions deployed with the adapter register instrumentation lazily,
-        // in the first request they handle: the lifecycle spans are children of
-        // that request's span (a route or page entrypoint) or of the middleware
-        // span (a Node.js middleware entrypoint). The function serving this
-        // route handler also serves `/route-handler`, which an earlier test
-        // requested first.
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ GET /route-handler (BaseServer.handleRequest) {http.target=/route-handler, http.route=/route-handler, next.route=/route-handler, http.status_code=200}
-            ├─ load instrumentation module (Instrumentation.loadModule)
-            └─ register instrumentation (Instrumentation.register)"
-        `)
-      } else {
-        // `next start` / `next dev` register instrumentation at startup,
-        // outside of any request, so the lifecycle spans are roots. So does the
-        // render of a deployment without the adapter (observed in the release
-        // deploy tests).
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] load instrumentation module (Instrumentation.loadModule)
-         [trace B] register instrumentation (Instrumentation.register)"
-        `)
+    // the rest of their traces.
+    traceTest(
+      'traces instrumentation registration in the triggering request',
+      async () => {
+        const res = await next.fetch('/instrumentation-spans')
+        expect(res.status).toBe(200)
+        const { traceIds } = await res.json()
+        expect(traceIds.length).toBeGreaterThan(0)
+        const spans = await collectSpans(next, {
+          traceIds,
+          expected: ['Instrumentation.loadModule', 'Instrumentation.register'],
+          since: new Date(Date.now() - LOGS_WINDOW_MS),
+        })
+        const tree = printSpanTree(spans)
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] load instrumentation module (Instrumentation.loadModule)
+             [trace B] register instrumentation (Instrumentation.register)"
+          `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
       }
-    })
+    )
   }
 )
 
@@ -1139,8 +1018,7 @@ describe.each(VARIANTS)(
 ;(isNextDeploy ? describe.skip : describe).each(VARIANTS)(
   'otel-middleware-trace - custom server with $name',
   ({ file, exportName }) => {
-    const isNodeMiddleware = exportName === 'proxy'
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       overrideFiles: {
         [file]: middlewareEntry(exportName),
@@ -1153,154 +1031,219 @@ describe.each(VARIANTS)(
         NODE_ENV: isNextDev ? 'development' : 'production',
       },
     })
+    const env = getTestEnv(isTurbopack, exportName)
 
-    it('traces a page rendered after NextResponse.next() in the host span trace', async () => {
-      const res = await next.fetch('/page')
-      expect(res.status).toBe(200)
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      if (renderMode === 'cache components, dev') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] custom-server-request
-         └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  │  └─ start response (NextNodeServer.startResponse)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
-      } else if (renderMode === 'cache components') {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] custom-server-request
-         └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/page}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │  │  └─ load route module (LoadComponents.loadRouteModule)
-            │  └─ start response (NextNodeServer.startResponse)
-            └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
-      } else {
-        expect(tree).toMatchInlineSnapshot(`
-         "[trace A] custom-server-request
-         └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200}
-            ├─ GET (BaseServer.handleRequest) {http.target=/page}
-            │  ├─ prepare route module (RouteModule.prepare)
-            │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
-            │  │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
-            │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
-            │     └─ load route module (LoadComponents.loadRouteModule)
-            └─ middleware GET (Middleware.execute) {http.target=/page}"
-        `)
+    traceTest(
+      'traces a page rendered after NextResponse.next() in the host span trace',
+      async () => {
+        const res = await next.fetch('/page')
+        expect(res.status).toBe(200)
+        expectNoInternalHeaders(res)
+        const tree = await getSpanTree(next, res, 'html')
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] custom-server-request {http.route=/page}
+             └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+                ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+                │  ├─ NextNodeServer.clientComponentLoading
+                │  ├─ prepare route module (RouteModule.prepare)
+                │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+                │  │  └─ start response (NextNodeServer.startResponse)
+                │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+                │     └─ load route module (LoadComponents.loadRouteModule)
+                └─ middleware GET (Middleware.execute) {http.target=/page}"
+          `)
+        } else if (
+          [
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] custom-server-request {http.route=/page}
+             └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+                ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+                │  ├─ NextNodeServer.clientComponentLoading
+                │  ├─ prepare route module (RouteModule.prepare)
+                │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  │  └─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+                │  ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+                │  │  └─ load route module (LoadComponents.loadRouteModule)
+                │  └─ start response (NextNodeServer.startResponse)
+                └─ middleware GET (Middleware.execute) {http.target=/page}"
+          `)
+        } else if (
+          [
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] custom-server-request {http.route=/page}
+             └─ GET (BaseServer.handleRequest) {http.target=/page, http.status_code=200} [error: doesn't cover descendants]
+                ├─ GET /page (BaseServer.handleRequest) {http.target=/page, http.route=/page, next.route=/page, http.status_code=200}
+                │  ├─ NextNodeServer.clientComponentLoading
+                │  ├─ prepare route module (RouteModule.prepare)
+                │  ├─ render route (app) /page (AppRender.getBodyResult) {next.route=/page}
+                │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  │  ├─ generateMetadata /page/page (ResolveMetadata.generateMetadata)
+                │  │  └─ start response (NextNodeServer.startResponse)
+                │  └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/page}
+                │     └─ load route module (LoadComponents.loadRouteModule)
+                └─ middleware GET (Middleware.execute) {http.target=/page}"
+          `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
       }
-    })
+    )
 
-    it('forwards trace headers to the render with an incoming tracestate', async () => {
-      const res = await next.fetch('/user-overrides', {
-        headers: {
-          traceparent: INCOMING_TRACEPARENT,
-          tracestate: 'incoming=1',
-        },
-      })
-      expect(res.status).toBe(200)
-      const echoed = JSON.parse(
-        cheerio
-          .load(await res.text())('#headers')
-          .text()
-      )
-      // The active host span wins over the incoming `traceparent`, so the
-      // render continues the host span's trace, whose context has no
-      // `tracestate`: the incoming one must not be paired with it.
-      expect(echoed.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/)
-      expect(echoed.traceparent).not.toContain(INCOMING.traceId)
-      expect(echoed.tracestate).toBeUndefined()
-    })
+    traceTest(
+      'forwards trace headers to the render with an incoming tracestate',
+      async () => {
+        const incoming = newTraceContext('incoming')
+        const res = await next.fetch('/user-overrides', {
+          headers: {
+            traceparent: toTraceparent(incoming),
+            tracestate: 'incoming=1',
+          },
+        })
+        expect(res.status).toBe(200)
+        const echoed = JSON.parse(
+          cheerio
+            .load(await res.text())('#headers')
+            .text()
+        )
+        // The active host span wins over the incoming `traceparent`, so the
+        // render continues the host span's trace, whose context has no
+        // `tracestate`: the incoming one must not be paired with it.
+        expect(echoed.traceparent).toMatch(
+          /^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/
+        )
+        expect(echoed.traceparent).not.toContain(incoming.traceId)
+        expect(echoed.tracestate).toBeUndefined()
+      }
+    )
 
-    it('respects a traceparent explicitly set by middleware over the host span', async () => {
-      const res = await next.fetch('/user-traceparent')
-      expect(res.status).toBe(200)
-      expectNoInternalHeaders(res)
-      const tree = await getSpanTree(res, 'html')
-      // The middleware stays in the host span trace (the Edge sandbox only
-      // sees the context of next-server's middleware-invoke span); the render
-      // continues the trace the middleware set.
-      const [middlewareTree, renderTree] = tree.split(
-        /\n(?=\[trace set by middleware\])/
-      )
-      if (isNodeMiddleware) {
-        expect(middlewareTree).toMatchInlineSnapshot(`
-         "[trace A] custom-server-request
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-            └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}"
-        `)
-      } else {
-        expect(middlewareTree).toMatchInlineSnapshot(`
-         "[trace A] [remote]
-         └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}"
-        `)
+    traceTest(
+      'respects a traceparent explicitly set by middleware over the host span',
+      async () => {
+        const setByMiddleware = newTraceContext('set by middleware')
+        const res = await next.fetch('/user-traceparent', {
+          headers: { 'x-test-traceparent': toTraceparent(setByMiddleware) },
+        })
+        expect(res.status).toBe(200)
+        expectNoInternalHeaders(res)
+        const tree = await getSpanTree(next, res, 'html', {
+          known: [setByMiddleware],
+        })
+        if (
+          [
+            'start, middleware',
+            'start, proxy',
+            'start (webpack), middleware',
+            'start (webpack), proxy',
+            'dev, middleware',
+            'dev, proxy',
+            'dev (webpack), middleware',
+            'dev (webpack), proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] custom-server-request {http.route=/headers-echo}
+             └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
+                └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+             [trace set by middleware] [set by middleware traceparent]
+             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+                ├─ NextNodeServer.clientComponentLoading
+                ├─ prepare route module (RouteModule.prepare)
+                ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  └─ start response (NextNodeServer.startResponse)
+                └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+                   └─ load route module (LoadComponents.loadRouteModule)"
+          `)
+        } else if (
+          [
+            'start, cache components, middleware',
+            'start, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] custom-server-request {http.route=/headers-echo}
+             └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
+                └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+             [trace set by middleware] [set by middleware traceparent]
+             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+                ├─ NextNodeServer.clientComponentLoading
+                ├─ prepare route module (RouteModule.prepare)
+                ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+                │  └─ load route module (LoadComponents.loadRouteModule)
+                └─ start response (NextNodeServer.startResponse)"
+          `)
+        } else if (
+          [
+            'dev, cache components, middleware',
+            'dev, cache components, proxy',
+          ].includes(env)
+        ) {
+          expect(tree).toMatchInlineSnapshot(`
+             "[trace A] custom-server-request {http.route=/headers-echo}
+             └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
+                └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+             [trace set by middleware] [set by middleware traceparent]
+             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
+                ├─ NextNodeServer.clientComponentLoading
+                ├─ prepare route module (RouteModule.prepare)
+                ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
+                │  ├─ build component tree (NextNodeServer.createComponentTree)
+                │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
+                │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
+                │  └─ start response (NextNodeServer.startResponse)
+                └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
+                   └─ load route module (LoadComponents.loadRouteModule)"
+          `)
+        } else {
+          // Not observed yet (filled from CI).
+          expect(tree).toMatchInlineSnapshot()
+        }
       }
-      if (renderMode === 'cache components, dev') {
-        expect(renderTree).toMatchInlineSnapshot(`
-         "[trace set by middleware] [set by middleware traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent, http.status_code=200}
-            ├─ prepare route module (RouteModule.prepare)
-            ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-            │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-            │  ├─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            │  └─ start response (NextNodeServer.startResponse)
-            └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-               └─ load route module (LoadComponents.loadRouteModule)"
-        `)
-      } else if (renderMode === 'cache components') {
-        expect(renderTree).toMatchInlineSnapshot(`
-         "[trace set by middleware] [set by middleware traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-            ├─ prepare route module (RouteModule.prepare)
-            ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-            │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-            │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            ├─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-            │  └─ load route module (LoadComponents.loadRouteModule)
-            └─ start response (NextNodeServer.startResponse)"
-        `)
-      } else {
-        expect(renderTree).toMatchInlineSnapshot(`
-         "[trace set by middleware] [set by middleware traceparent]
-         └─ GET (BaseServer.handleRequest) {http.target=/user-traceparent}
-            ├─ prepare route module (RouteModule.prepare)
-            ├─ render route (app) /headers-echo (AppRender.getBodyResult) {next.route=/headers-echo}
-            │  ├─ build component tree (NextNodeServer.createComponentTree)
-            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
-            │  ├─ generateMetadata /headers-echo/page (ResolveMetadata.generateMetadata)
-            │  └─ generateMetadata /layout (ResolveMetadata.generateMetadata)
-            └─ resolve page components (NextNodeServer.findPageComponents) {next.route=/headers-echo}
-               └─ load route module (LoadComponents.loadRouteModule)"
-        `)
-      }
-    })
+    )
   }
 )
