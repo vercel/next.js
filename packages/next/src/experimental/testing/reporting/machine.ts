@@ -830,16 +830,53 @@ export function createMachineReporter(options: {
   function junit() {
     const report = json('formatted')
     const events = collector!.getEvents()
+    const current = collector!.getResults()
+    const currentIds = new Set(current.entries.map(({ entry }) => entry.id))
     const suites = report.testResults.map((file) => {
-      const entry = collector!
-        .getResults()
-        .entries.find((item) => item.entry.file === file.name)!
+      const active = current.entries.filter(
+        (item) => item.entry.file === file.name
+      )
+      const retained = retainedFiles.filter(
+        (record) =>
+          !currentIds.has(record.result.entry.entry.id) &&
+          record.result.entry.entry.file === file.name
+      )
+      const owner =
+        active.length + retained.length === 1
+          ? (active[0]?.entry ?? retained[0].result.entry.entry)
+          : undefined
+      let duration: string | number = (file.endTime - file.startTime) / 1000
+      if (owner) {
+        const physical = active.length
+          ? current.files.find((result) => result.entryId === owner.id)
+          : retained[0].result.file
+        const roots = (
+          active.length ? current.suites : retained[0].result.suites
+        ).filter(
+          (suite) => suite.entryId === owner.id && suite.suiteId === owner.id
+        )
+        const root = roots.length === 1 ? roots[0] : undefined
+        if (
+          !snapshotPreparationFailures.has(owner.id) &&
+          (physical?.status === 'passed' || physical?.status === 'failed') &&
+          root?.mode === 'run' &&
+          (root.status === 'passed' || root.status === 'failed') &&
+          Number.isFinite(root.durationMs) &&
+          root.durationMs >= 0
+        )
+          duration = (root.durationMs / 1000).toLocaleString('en-US', {
+            useGrouping: false,
+            maximumFractionDigits: 10,
+          })
+      }
       const output = (stream: 'stdout' | 'stderr') =>
         events
           .filter(
             (event) =>
               event.type === 'output' &&
-              event.entryId === entry.entry.id &&
+              owner !== undefined &&
+              currentIds.has(owner.id) &&
+              event.entryId === owner.id &&
               event.stream === stream
           )
           .map((event) => (event.type === 'output' ? event.text : ''))
@@ -870,7 +907,7 @@ export function createMachineReporter(options: {
           `<testcase name="[file error]"><error message="${xml(file.message || 'File execution failed')}">${xml(file.message)}</error></testcase>`
         )
       }
-      return `<testsuite name="${xml(filename)}" timestamp="${xml(new Date().toISOString())}" hostname="${xml(hostname())}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${(file.endTime - file.startTime) / 1000}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
+      return `<testsuite name="${xml(filename)}" timestamp="${xml(new Date().toISOString())}" hostname="${xml(hostname())}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${duration}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
     })
     const browserCleanupErrors = events.flatMap((event) =>
       event.type === 'diagnostic' &&

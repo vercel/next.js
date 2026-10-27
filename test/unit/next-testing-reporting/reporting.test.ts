@@ -8266,3 +8266,31 @@ it('uses actual project-relative JUnit file metadata and render clock without ch
     await rm(directory, { recursive: true, force: true })
   }
 }, 35000)
+
+it('uses actual completed root-suite JUnit duration while preserving physical and missing-owner timing', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-duration-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-file-duration.mjs'), output],
+      {
+        timeout: 30000,
+        encoding: 'utf8',
+      }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      durationControls: 18,
+      actualLogicalRootDuration: true,
+      actualRetainedCurrentOutputOwned: true,
+      absentAndAmbiguousOutputNotGuessed: true,
+      fractionalFormattingExact: true,
+      currentAndRetainedOwned: true,
+      ambiguousMissingCancelledFallbackHeld: true,
+      physicalResultsEventsJSONAndCaseTimesHeld: true,
+      sdkAbsent: false,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
