@@ -2,7 +2,7 @@
 
 Each script is applied to the untouched fixture during grader review and must
 receive reward 0. The comment at the top of each script names the check that
-rejects it. Together they cover every branch of the error page applied at the
+catches it. Together they cover every branch of the error page applied at the
 wrong site, plus the opt-outs the feedback reports show agents reaching for.
 
 | Script                     | Shortcut                                                              | Rejected by                                                   |

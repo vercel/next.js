@@ -62,8 +62,20 @@ for task in "$@"; do
     IFS='|' read -r agent model effort options api_format <<< "$row"
     job="${name}__${agent}__${model//\//-}"
     if [ -f "$JOBS/$job/result.json" ]; then
-      echo "== skip $job (result exists)"
-      continue
+      if node -e '
+        const r = require(require("path").resolve(process.argv[1]));
+        const ev = Object.values(r.stats?.evals ?? {})[0] ?? {};
+        const reward = ev.metrics?.[0]?.mean;
+        process.exit(r.finished_at && (ev.n_errors ?? 0) === 0 && Number.isFinite(reward) ? 0 : 1);
+      ' "$JOBS/$job/result.json"; then
+        echo "== skip $job (valid scored result exists)"
+        continue
+      fi
+
+      discarded="$JOBS/_discarded/$job-$(date -u +%Y%m%dT%H%M%SZ)"
+      mkdir -p "$JOBS/_discarded"
+      mv "$JOBS/$job" "$discarded"
+      echo "== retry $job (discarded invalid result at $discarded)"
     fi
     echo "== $job"
     args=(run --path "$task" --agent "$agent" --model "$model" --env vercel

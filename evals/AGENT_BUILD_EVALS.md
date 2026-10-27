@@ -1,12 +1,14 @@
 # Curate Next.js Agent Build evals
 
-Agent Build evals measure whether an agent can make a correct Next.js code change on work that still separates model capability. Tasks live in `evals/agent-build` in the Harbor task format; the grading contract is independent of the runner so the set can move to the shared `vercel/evals` repository unchanged. The existing `agent-eval` fixtures in `evals/evals` keep running the `regression` and `competency` suites and keep their published history; new tasks do not enter that pipeline, and the `regression`, `competency`, and `audit` labels do not apply to them.
+Agent Build evals measure whether an agent can make a correct Next.js code change on work that still separates model capability. Tasks live in `evals/agent-build` in the Harbor task format. The existing `agent-eval` fixtures in `evals/evals` keep running the `regression` and `competency` suites and keep their published history; new tasks do not enter that pipeline, and the `regression`, `competency`, and `audit` labels do not apply to them.
+
+This directory owns the Next.js task definitions and grading contracts. The scripts in `evals/agent-build/tools` are temporary pilot adapters for validating and calibrating these first tasks. Shared execution, credentials, budgets, evidence, and reporting belong in the Vercel-owned eval layer built from Vercel Bench and Harbor; landing a task here does not establish that platform contract or promise that the task will move there unchanged.
 
 See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credentials, and local validation.
 
 ## Choose a capability
 
-Start from observed agent behavior: repeated agent feedback, migrations, release changes, and fixes from real applications. Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first; a bigger fixture for a capability the suite already measures is not a harder eval.
+Start from observed agent behavior: repeated agent feedback, migrations, release changes, and fixes from real applications. Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first; a larger fixture for a capability the suite already measures is not a harder eval.
 
 Route other questions to the measurement that owns them:
 
@@ -71,15 +73,15 @@ Each of these let a wrong repair through until the check changed:
 - **Disable redirects when checking status codes.** A streamed redirect is a 200 with the redirect inside the body.
 - **Pin vendored dependencies.** Compare `lib/vendor/*` with the git baseline so the agent cannot edit the library instead of working around it.
 - **Compare timestamps with the prerendered value.** Two requests within one second produce the same second-resolution stamp.
-- **State the dependency policy in the instruction and enforce it first.** The verifier has no network and installs the committed lockfile, so an agent that adds a dev dependency to write its own tests fails `tsc` for a reason it was never told. Say so in the instruction and reject dependency changes in the source check with that message, before any other gate.
+- **State the dependency policy in the instruction and enforce it first.** The verifier has no network and installs the committed lockfile, so an agent that adds a dev dependency to write its own tests fails `tsc` for a reason it was never told. Say so in the instruction and fail dependency changes in the source check with that message, before any other gate.
 
 ## Calibrate
 
-Run a fixed frontier and weaker-model cohort with `evals/agent-build/tools/calibrate.sh`. The first valid attempt is the pass@1 score. Retry setup, image, sandbox, network, and model transport errors; they are not model failures. Rerun a scored failure to learn whether it is stable, and record that separately. Confirmations never change the score. One cohort is directional; retention needs repeated independent runs.
+Run a fixed frontier and weaker-model cohort with `evals/agent-build/tools/calibrate.sh`. The first valid attempt is the pass@1 score. Retry setup, image, sandbox, network, and model transport errors; they are not model failures. Rerun a scored failure to learn whether it is stable, and record that separately. Confirmations never change the score. One cohort is directional; repeated independent runs are needed before publishing a stable rate.
 
-Retain a task while frontier models stay below 90% because of repeatable capability failures. Revise or drop it when failures come from the task, verifier, runner, or infrastructure. Remove it from the curated set once frontier models saturate it; a regression guard is a separate decision. Weaker-model separation supports a decision but does not qualify a frontier-saturated task.
+Calibration decides whether a candidate belongs in this harder-task set. Keep it when valid attempts expose repeatable capability failures in the intended cohort. Revise it when failures come from the task, verifier, runner, or infrastructure. Remove it from this set when the intended cohort consistently solves it. Removal does not reclassify or move the task into another suite; any separate regression coverage is an independent decision in its own format and change.
 
-Public tasks support reproducibility and regression. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals; that is a separate decision.
+Public tasks support review and reproducibility. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals; that is a separate decision.
 
 ## Pull request format
 
@@ -89,7 +91,7 @@ requests; see #100756 for the shape.
 
 1. One sentence on what the change adds.
 2. **Tasks**: a table of task, what the agent has to get right, and source
-   findings. No suite label; a task that proves too easy is removed, not
+   findings. No suite label; a task that does not separate the intended cohort is removed, not
    relabeled.
 3. **Validation**: a table of untouched, reference, and known-bad results,
    then one line for lint and formatting.
