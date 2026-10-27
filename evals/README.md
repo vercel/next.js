@@ -2,10 +2,10 @@
 
 Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertions. We run the prompt through a coding agent in a sandbox and check what it wrote.
 
-The existing suite protects known behavior and measures how version-matched
-context changes the result. As tasks become saturated, new evals must continue
-to separate meaningful Next.js capability. Read
-[Curating Next.js evals](EVAL_CURATION.md) before adding a candidate.
+The existing fixtures continue to use `agent-eval`. They preserve published
+history and run the `competency` and `regression` suites. New Agent Build tasks
+use Harbor on Vercel Sandbox. Follow
+[Author and calibrate new Next.js evals](EVAL_CURATION.md) for new work.
 
 ## How it works
 
@@ -25,13 +25,13 @@ vc env pull   # writes .env.local to repo root
 
 External contributors can run the same evals in local Docker with their own API key — see [Running without Vercel sandbox access](#running-without-vercel-sandbox-access).
 
-## Writing an eval
+## Existing agent-eval format
 
-For a new candidate, define its measurement question, task contract,
-calibration plan, and intended visibility using
-[the eval-curation guide](EVAL_CURATION.md).
+Use this format when maintaining an existing fixture. New Agent Build tasks use
+the Harbor format in [the eval curation guide](EVAL_CURATION.md).
 
-Copy an existing fixture. Take the next free number — gaps are fine.
+To split or replace an existing fixture, copy it and take the next free number.
+Gaps are fine.
 
 ```bash
 cp -r evals/evals/agent-034-async-cookies evals/evals/agent-042-your-thing
@@ -108,15 +108,14 @@ pnpm eval --suite regression
 pnpm eval --suite competency --dry
 ```
 
-- `audit` is the starting point for new or unverified evals.
 - `competency` contains verified evals that distinguish model capability.
 - `regression` contains evals that reach at least 90% valid pass@1 across
   frontier and weaker models over multiple runs or versions.
 
-Every eval under active measurement must appear in exactly one suite. A suite
-still runs both `baseline` and `agents-md`. Set `publish: false` in
-`eval.config.json` while an eval is being audited, when its results should stay
-internal, or when it belongs in another measurement system.
+Every public agent-eval fixture must appear in exactly one suite. A suite still
+runs both `baseline` and `agents-md`. Keep an existing fixture outside the
+named suites and set `publish: false` while it is under review, when its results
+should stay internal, or when it belongs in another measurement system.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 
@@ -143,7 +142,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 `pnpm eval` packs `packages/next/dist/` into a tarball and ships that to the sandbox. It does not build. If you changed `packages/next/src/**` or `docs/**`, run `pnpm --filter=next build` first or the sandbox will see stale code. If you only changed fixture files, no rebuild is needed.
 
-## Workflow
+## Bundled docs workflow
 
 1. **Write the fixture.** `PROMPT.md` describes a user-facing problem. `EVAL.ts` asserts the API you expect the agent to reach for.
 
@@ -163,6 +162,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ```
 evals/
+├── EVAL_CURATION.md   # authoring workflow for new Harbor tasks
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)

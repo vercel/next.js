@@ -1,102 +1,133 @@
-# Curating Next.js evals
+# Author and calibrate new Next.js evals
 
-This guide defines how a candidate becomes an accepted Next.js eval. The goal
-is to find realistic, deterministic tasks that continue to measure meaningful
-capability as older tasks become saturated.
+New Next.js Agent Build evals use the open-source
+[Harbor](https://github.com/harbor-framework/harbor) task format and run on
+Vercel Sandbox. Harbor packages the prompt, application, reference solution,
+and hidden verifier into a portable, versioned task.
 
-A useful candidate demonstrates validated capability separation. It is not
-defined by prompt length, repository size, or grader complexity.
+The existing `agent-eval` fixtures stay in this repository during the
+transition. They preserve published history and continue to run the current
+`regression` and `competency` suites. Use them to understand the Next.js
+capabilities we already measure. Use Harbor for new tasks.
 
-## Keep the measurement in scope
+The existing `competency` and `regression` labels apply only to the current
+agent-eval fixtures. A new Harbor task is validated and calibrated before it
+joins the new maintained set. It does not need a label from the old suites.
+The shared eval runner can support both formats later without changing their
+historical results.
 
-This suite measures Agent Build: whether an agent can produce a correct Next.js
-change. Route other questions to the systems that own them:
+## Choose the measurement
+
+Agent Build evals measure whether an agent can make a correct Next.js code
+change. Route other questions to the measurement that owns them.
 
 | Question                                                               | Measurement        |
 | ---------------------------------------------------------------------- | ------------------ |
+| Can the agent produce a correct Next.js change?                        | Agent Build        |
 | Does the agent discover and choose Next.js?                            | Product choice     |
-| Can the agent authenticate, build, deploy, and use a real application? | Agent Journey      |
+| Can the agent authenticate, build, deploy, and use a live application? | Agent Journey      |
 | What changed in cost, speed, or shipped output?                        | Performance        |
 | Did bundled docs, `AGENTS.md`, or a Skill improve the same task?       | Context experiment |
 
-A candidate belongs in the Agent Build measurement only when the agent has a
-valid action to take and the result measures a Next.js capability.
+Keep a candidate in Agent Build only when the agent has a code change to make
+and the verifier can measure a Next.js capability.
 
-## Find candidates
+## Find candidates from observed work
 
-Start from observed behavior rather than an invented puzzle. Useful sources
+Start with behavior that agents encounter in real Next.js work. Good sources
 include:
 
-- recurring, reviewed agent failures;
-- difficult framework changes, migrations, and release work;
-- real repository tasks and merged fixes;
-- repeated support or documentation gaps; and
-- existing evals whose valid failures still separate model capability.
+- Reviewed agent failures that happen more than once
+- Framework changes, migrations, and release work
+- Tasks derived from real repositories and merged fixes
+- Repeated support or documentation gaps
+- Existing evals that still produce valid capability failures
 
-A source is evidence, not automatic admission. Route pure framework bugs to
-framework regression tests, preference questions to product-choice studies,
-and environment failures to the owning infrastructure.
+The source provides evidence, but it does not determine acceptance. Route a
+framework bug to framework tests, an environment failure to the owning
+infrastructure, and a preference question to product-choice measurement.
 
 ## Define the task contract
 
-Before implementation, establish:
+Record the following information before implementing the task:
 
-1. the Next.js capability and why it matters;
-2. a realistic prompt that states the user's goal without naming the solution;
-3. a reproducible starting application and framework version;
-4. deterministic checks for the requested behavior rather than one preferred
-   patch;
-5. a reference solution and representative incorrect solutions used to review
-   the grader;
-6. the expected runtime, cost, owner, and maintenance trigger; and
-7. whether the task and its results may be public or must stay held out.
+1. The Next.js capability and why it matters
+2. A realistic prompt that describes the goal without naming the solution
+3. A reproducible application and framework version
+4. Checks that verify behavior without requiring one exact patch
+5. A reference solution and representative incorrect solutions
+6. Expected runtime, cost, owner, and maintenance trigger
+7. Whether the task, checks, and results can be public
 
-Keep solutions, hidden checks, and verifier-only material out of the agent's
-context. Keep the task contract independent from one runner so the task remains
-portable.
+Keep the reference solution and verifier-only files outside the agent's
+context. Keep the contract independent from Harbor so another runner can
+execute the same prompt and checks later.
 
-## Validate the task
+## Create a Harbor task
 
-Prove that the task measures its contract before interpreting model results:
+A Harbor task keeps the agent environment and verifier separate. A typical
+task contains these files:
 
-1. Confirm the starting fixture fails for the intended reason.
-2. Confirm the reference solution passes.
-3. Confirm representative incorrect solutions fail.
-4. Ask a framework owner to review the expected behavior and grader.
-5. Separate task, grader, harness, model, and infrastructure failures.
+```text
+task-name/
+├── task.toml
+├── instruction.md
+├── environment/
+│   ├── Dockerfile
+│   └── docker-compose.yaml
+├── solution/
+│   ├── gold.patch
+│   └── solve.sh
+└── tests/
+    ├── Dockerfile
+    ├── docker-compose.yaml
+    ├── test.patch
+    └── test.sh
+```
 
-Do not call a task hard until its grader and framework version are valid.
+Use `task.toml` to pin the source revision, environment image, resources, and
+timeouts. Pin each image by digest. Set `verifier.environment_mode` to
+`separate` so the agent cannot inspect hidden checks or the reference solution.
 
-## Run portable pilot tasks
+The minimal `docker-compose.yaml` files let Harbor pull the pinned images
+inside Vercel Sandbox. This avoids copying large images through Vercel
+Container Registry.
 
-Keep the existing `regression`, `competency`, and `audit` suites on
-`agent-eval`. New candidates may also use the open-source Harbor task format
-during the pilot so their application, prompt, hidden verifier, and reference
-patch can run independently of this repository. Migrating existing suites to a
-shared runner is separate future work.
+```yaml
+services:
+  main: {}
+```
 
-A portable task archive must declare its image through
-`[environment].docker_image`, pin that image by digest, and pass
-`harbor lint`. Include a minimal `docker-compose.yaml` in each environment
-directory: `environment/` for the agent and `tests/` when the task uses a
-separate verifier image. Compose mode pulls the pinned images inside Vercel
-Sandbox and avoids copying large task images through Vercel Container
-Registry.
+## Validate the task before model runs
 
-Run with an approved measurement project's `VERCEL_OIDC_TOKEN` and a dedicated
-`AI_GATEWAY_API_KEY` with its own spend limit in one local, ignored env file.
-The OIDC token authorizes Sandbox; the Gateway key authorizes model calls and
-applies its key-level limit. A Vercel project budget does not apply to API key
-requests. Vercel Compose tasks currently require public network mode, so do not
-reuse a general-purpose model credential. Do not copy either value into a task
-or result artifact.
+Prove that the task measures its contract before interpreting a score.
+
+1. Confirm that the starting application fails for the intended reason.
+2. Confirm that the reference solution passes.
+3. Confirm that representative incorrect solutions fail.
+4. Ask a framework owner to review the expected behavior and verifier.
+5. Run `harbor lint` and fix every task-format error.
+
+Classify failures as task, verifier, runner, model, or infrastructure failures.
+Only valid model attempts contribute to pass@1.
+
+## Run a task on Vercel Sandbox
+
+Install the pinned Harbor revision in a local virtual environment.
 
 ```bash
 python -m venv .harbor
 .harbor/bin/pip install \
   'harbor[vercel] @ git+https://github.com/harbor-framework/harbor.git@e77a18bfeed53f907f335b9132d87006e01b3dfd'
 .harbor/bin/harbor lint /path/to/task
+```
 
+Use an approved measurement project's `VERCEL_OIDC_TOKEN` for Vercel Sandbox.
+Use a dedicated `AI_GATEWAY_API_KEY` with its own spend limit for model calls.
+Store both values in one ignored local file. A Vercel project budget does not
+limit requests made with an AI Gateway API key.
+
+```bash
 .harbor/bin/harbor run \
   --path /path/to/task \
   --agent codex \
@@ -110,49 +141,63 @@ python -m venv .harbor
   --jobs-dir /path/to/results
 ```
 
-Keep the agent and verifier isolated. Store the task revision, runner version,
-model configuration, transcript, patch, verifier output, cost, and duration in
-the result directory. Treat setup, image, sandbox, network, and model transport
-errors as infrastructure failures and retry them without changing pass@1.
-
-The Vercel credentials are runner details, not part of the task contract. A
-task remains portable when its environment is pinned and the same prompt and
-verifier can run through another supported Harbor environment.
+Vercel Compose tasks currently require public network access. Use a dedicated
+model key, and never copy credentials into a task or result artifact.
 
 ## Calibrate capability separation
 
-Run a fixed frontier and weaker-model cohort with recorded agent and model
-versions. Score the first valid attempt as pass@1. Discard and retry
-infrastructure failures. If a model fails, confirmation attempts may help
-distinguish a stable capability gap from run-to-run variation, but they never
-change the pass@1 score.
+Run the same task with a fixed frontier and weaker-model cohort. Record the
+agent, model, runner, task, and framework versions for every attempt.
 
-Retain the prompt, output, transcript, evaluator output, failure
-classification, framework revision, task revision, runner, treatment, cost,
-and duration for each result.
+Score the first valid attempt as pass@1. Discard setup, image, sandbox,
+network, and model transport errors, then retry the attempt. When a model
+fails, run confirmation attempts to learn whether the failure is stable.
+Confirmation attempts add context but never change the first valid score.
 
-## Decide what enters the suite
+Match the number of attempts to the claim. One valid attempt per model is a
+directional calibration result. Use repeated independent attempts before
+claiming a stable success rate or saturation. When reproducing an external
+benchmark, use the attempt count and aggregation method declared by that
+benchmark instead of applying the local pass@1 policy to it.
 
-Record one decision after review and calibration:
+Keep the transcript, patch, verifier output, failure classification, token
+usage, cost, and duration with each result.
 
-- **Keep:** the task has a valid grader, useful capability separation, known
-  cost, and a maintainer. Add it to `competency`.
-- **Fix:** the capability matters, but the prompt, fixture, grader, environment,
-  or evidence needs another review cycle. Keep it in `audit` and unpublished.
-- **Drop or reroute:** the task is redundant, invalid, impractical to maintain,
-  or answers a different measurement question.
+## Report results in the pull request
 
-Tasks can move as models and Next.js change. Move a competency task to
-`regression` after it reaches at least 90% valid pass@1 across frontier and
-weaker models over multiple runs or framework versions.
+Start the pull request title with `eval:` and name the capability being added or
+changed.
 
-## Set visibility and cadence
+Keep the result summary in the pull request and the complete trial records in
+Harbor. Upload the job privately and link it so reviewers can inspect the
+transcript, patch, verifier output, token usage, and cost.
 
-New tasks stay unpublished by default. Publish only after reviewing
-the task contract, grader, calibration, ownership, and maintenance plan. Keep
-private or held-out checks out of public fixtures and result artifacts.
+Use one compact table based on Harbor's job and trial results:
 
-Run the competency suite when Next.js, its tasks, agents, or models change. Run
-saturated regression tasks through their cheaper, more frequent cadence.
-Record policy changes such as pass@4 to pass@1 as a new measurement baseline
-rather than one continuous score history.
+| Task | Agent and model | Passed / valid | Pass rate | Average duration | Average tokens | Average cost | Job |
+| ---- | --------------- | -------------- | --------- | ---------------- | -------------- | ------------ | --- |
+
+State the task, framework, Harbor, agent, and model versions, the configured
+attempt count, which verifier was used, and what the reported cost includes.
+Call single-attempt results directional. List discarded infrastructure attempts
+and confirmation runs below the table without changing the scored result. Do
+not paste full trajectories into the pull request description.
+
+## Decide whether to keep the task
+
+Every new task is run during authoring. Use its validation and calibration
+results to make one decision.
+
+- **Keep**: The verifier is valid, results show useful capability separation,
+  cost is understood, and the task has an owner. Add it to the maintained
+  Harbor eval set.
+- **Revise**: The capability matters, but the prompt, fixture, verifier,
+  environment, or evidence needs another review cycle.
+- **Drop or reroute**: The task is redundant, invalid, impractical to maintain,
+  or belongs to another measurement.
+
+New Harbor tasks do not enter the existing `competency` or `regression` suites
+during authoring. Keep tasks and results unpublished until the team reviews
+their contract, evidence, ownership, and maintenance plan. Record changes such
+as pass@4 to pass@1 as a new measurement baseline instead of combining
+incompatible score histories.
