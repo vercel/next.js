@@ -18,7 +18,7 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, atomic::AtomicUsize},
     time::SystemTime,
 };
 
@@ -256,6 +256,9 @@ pub struct TurboTasksBackend {
     /// Coordinates the operation/snapshot/GC interleaving protocol. See
     /// [`SnapshotCoordinator`] for details.
     snapshot_coord: SnapshotCoordinator,
+    /// Number of aggregation update queues that are processing work, not counting queues that
+    /// only wait for the matching add of a lost follower. See `AggregationUpdateQueue::process`.
+    active_aggregation_update_queues: AtomicUsize,
     /// Serializes calls to `snapshot_and_persist` (and `gc_for_testing`). The coordinator's
     /// `begin_exclusion` asserts that exclusive phases don't overlap; this mutex
     /// enforces that contract for our callers (background loop and
@@ -370,6 +373,7 @@ impl TurboTasksBackend {
                 small_preallocation,
             }),
             snapshot_coord: SnapshotCoordinator::new(),
+            active_aggregation_update_queues: AtomicUsize::new(0),
             snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),

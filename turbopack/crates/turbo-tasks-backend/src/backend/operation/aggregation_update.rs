@@ -893,6 +893,14 @@ pub struct AggregationUpdateQueue {
     /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
     optimizations_executed: usize,
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    /// Lost-follower jobs that are still waiting for their matching add after `MAX_RETRIES`
+    /// retries. They are only retried once everything else in this queue is done. See
+    /// `AggregationUpdateQueue::can_wait_for_matching_add`.
+    waiting: VecDeque<AggregationUpdateJobItem>,
+    /// Whether this queue is counted in `ExecuteContext::active_aggregation_update_queues`.
+    active: bool,
+    /// Set by `execute_until_rebalance`: the balance work stays queued without running.
+    stops_at_rebalance: bool,
     #[cfg(feature = "trace_aggregation_update_stats")]
     pub stats: AggregationUpdateQueueStats,
 }
@@ -909,6 +917,9 @@ impl AggregationUpdateQueue {
             optimize_queue: FxRingSet::default(),
             optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
+            waiting: VecDeque::new(),
+            active: false,
+            stops_at_rebalance: false,
             #[cfg(feature = "trace_aggregation_update_stats")]
             stats: AggregationUpdateQueueStats::default(),
         }
@@ -935,6 +946,9 @@ impl AggregationUpdateQueue {
             optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            waiting,
+            active: _,
+            stops_at_rebalance: _,
             #[cfg(feature = "trace_aggregation_update_stats")]
                 stats: _,
         } = self;
@@ -944,6 +958,19 @@ impl AggregationUpdateQueue {
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
             && scheduled_tasks.is_empty()
+            && waiting.is_empty()
+    }
+
+    /// Returns true, when the queue has work that runs before the lost-follower jobs in `waiting`
+    /// are retried.
+    fn has_pending_work(&self) -> bool {
+        !self.jobs.is_empty()
+            || !self.aggregation_number_updates.is_empty()
+            || (!self.stops_at_rebalance
+                && !(self.find_and_schedule.is_empty()
+                    && self.balance_queue.is_empty()
+                    && self.optimize_queue.is_empty()
+                    && self.scheduled_tasks.is_empty()))
     }
 
     /// Pushes a job to the queue.
@@ -1120,10 +1147,17 @@ impl AggregationUpdateQueue {
         ctx: &mut ExecuteContext<'_>,
     ) -> Vec<(TaskId, TaskId)> {
         // `process` runs `jobs` and `aggregation_number_updates` before every other queue, so
-        // nothing below them has run yet when both are empty.
-        while !(self.jobs.is_empty() && self.aggregation_number_updates.is_empty()) {
+        // nothing below them has run yet when both are empty. Lost-follower jobs that wait for
+        // their matching add still have to complete before the rebalance boundary.
+        self.stops_at_rebalance = true;
+        while !(self.jobs.is_empty()
+            && self.aggregation_number_updates.is_empty()
+            && self.waiting.is_empty())
+        {
             self.process(ctx);
         }
+        self.set_active(ctx, false);
+        self.stops_at_rebalance = false;
         assert!(
             self.find_and_schedule.is_empty() && self.scheduled_tasks.is_empty(),
             "GC deletion must not schedule task executions, but {} find_and_schedule and {} \
@@ -1163,6 +1197,37 @@ impl AggregationUpdateQueue {
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
     fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
+        if self.has_pending_work() {
+            // A queue with pending work may hold the add that a lost-follower job in another queue
+            // is waiting for, so it counts as active while it works.
+            self.set_active(ctx, true);
+            return self.process_pending(ctx);
+        }
+        // Only lost-follower jobs that wait for their matching add are left, if any. This queue
+        // can't deliver those adds anymore, so it stops counting as active.
+        self.set_active(ctx, false);
+        let Some(job) = self.waiting.pop_front() else {
+            return self.is_empty();
+        };
+        // Retry it through the regular job processing. It returns to `waiting` when it still
+        // can't find its edges.
+        self.jobs.push_back(job);
+        self.process_pending(ctx);
+        false
+    }
+
+    /// Updates whether this queue is counted in
+    /// `ExecuteContext::active_aggregation_update_queues`.
+    fn set_active(&mut self, ctx: &ExecuteContext<'_>, active: bool) {
+        if self.active != active {
+            self.active = active;
+            ctx.update_active_aggregation_update_queues(active);
+        }
+    }
+
+    /// Executes a single step of the pending work, which is everything but the lost-follower jobs
+    /// in `waiting`. Returns true, when there is no pending work.
+    fn process_pending(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             let job: AggregationUpdateJobGuard = job.entered();
             match job.job {
@@ -2053,8 +2118,8 @@ impl AggregationUpdateQueue {
 
         // STEP 17
         if result.is_err() {
-            retry += 1;
-            if retry > MAX_RETRIES {
+            retry = retry.saturating_add(1);
+            if retry > MAX_RETRIES && !self.can_wait_for_matching_add(ctx) {
                 let lost_follower_description = ctx
                     .task(lost_follower_id, TaskDataCategory::Data)
                     .get_task_description();
@@ -2067,11 +2132,14 @@ impl AggregationUpdateQueue {
                      {upper_description} as it doesn't exist as upper or follower edges",
                 );
             }
-            self.push(AggregationUpdateJob::InnerOfUpperLostFollower {
-                upper_id,
-                lost_follower_id,
+            self.push_retry(
+                AggregationUpdateJob::InnerOfUpperLostFollower {
+                    upper_id,
+                    lost_follower_id,
+                    retry,
+                },
                 retry,
-            });
+            );
         }
     }
 
@@ -2240,8 +2308,8 @@ impl AggregationUpdateQueue {
 
         // STEP 17
         if result.is_err() {
-            retry += 1;
-            if retry > MAX_RETRIES {
+            retry = retry.saturating_add(1);
+            if retry > MAX_RETRIES && !self.can_wait_for_matching_add(ctx) {
                 let lost_follower_description = ctx
                     .task(lost_follower_id, TaskDataCategory::Data)
                     .get_task_description();
@@ -2262,11 +2330,14 @@ impl AggregationUpdateQueue {
                      they don't exist as upper or follower edges",
                 );
             }
-            self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
-                upper_ids,
-                lost_follower_id,
+            self.push_retry(
+                AggregationUpdateJob::InnerOfUppersLostFollower {
+                    upper_ids,
+                    lost_follower_id,
+                    retry,
+                },
                 retry,
-            });
+            );
         }
     }
 
@@ -2436,8 +2507,8 @@ impl AggregationUpdateQueue {
 
         // STEP 17
         if result.is_err() {
-            retry += 1;
-            if retry > MAX_RETRIES {
+            retry = retry.saturating_add(1);
+            if retry > MAX_RETRIES && !self.can_wait_for_matching_add(ctx) {
                 let upper_description = ctx
                     .task(upper_id, TaskDataCategory::Data)
                     .get_task_description();
@@ -2458,11 +2529,45 @@ impl AggregationUpdateQueue {
                      don't exist as upper or follower edges",
                 )
             }
-            self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
-                upper_id,
-                lost_follower_ids,
+            self.push_retry(
+                AggregationUpdateJob::InnerOfUpperLostFollowers {
+                    upper_id,
+                    lost_follower_ids,
+                    retry,
+                },
                 retry,
-            });
+            );
+        }
+    }
+
+    /// Whether a lost-follower job whose matching add hasn't arrived after `MAX_RETRIES` retries
+    /// should keep waiting for it, instead of reporting an inconsistent graph.
+    ///
+    /// The add is still on its way while this queue or any other queue is processing work. It can
+    /// be queued behind a lot of other work, e.g. the re-balancing of all edges of an aggregating
+    /// task with many followers after its aggregation number changed, so a busy graph can delay it
+    /// for longer than any fixed number of retries. Once no queue is processing work anymore, the
+    /// add can't arrive and the edge is missing for real.
+    fn can_wait_for_matching_add(&self, ctx: &ExecuteContext<'_>) -> bool {
+        self.has_pending_work() || ctx.active_aggregation_update_queues() > 0
+    }
+
+    /// Re-enqueues a lost-follower job that couldn't find its edges.
+    ///
+    /// After `MAX_RETRIES` retries the job moves to `waiting`, which is only processed once
+    /// everything else in this queue is done, so the job doesn't keep the rest of the queue (which
+    /// may deliver the add) from making progress.
+    fn push_retry(&mut self, job: AggregationUpdateJob, retry: u16) {
+        let job = AggregationUpdateJobItem::new(job);
+        if retry > MAX_RETRIES {
+            if !self.active {
+                // This queue has nothing else to do. Pause instead of spinning on the locks of
+                // tasks that the queue delivering the add needs.
+                std::thread::sleep(WAITING_RETRY_INTERVAL);
+            }
+            self.waiting.push_back(job);
+        } else {
+            self.jobs.push_back(job);
         }
     }
 
@@ -3553,12 +3658,16 @@ impl TaskIdWithOptionalCount for (TaskId, u32) {
 struct RetryTimeout;
 
 const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
-/// The number of times a lost-follower job is retried before it reports a missing edge. Small in
-/// tests, so they don't have to spin for a minute.
+/// The number of times a lost-follower job is retried while spinning before it waits for its
+/// matching add in `AggregationUpdateQueue::waiting` instead. Small in tests, so they don't have
+/// to spin for a minute.
 #[cfg(not(test))]
 const MAX_RETRIES: u16 = 60000;
 #[cfg(test)]
 const MAX_RETRIES: u16 = 100;
+/// How long a queue that has nothing else to do pauses between retries of a waiting lost-follower
+/// job.
+const WAITING_RETRY_INTERVAL: Duration = Duration::from_millis(1);
 
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
 /// Returns an error if the function was not able to complete and the timeout was reached.
@@ -3574,7 +3683,14 @@ const MAX_RETRIES: u16 = 100;
 /// successful, the update is added to the end of the queue again. This is important as the "add"
 /// update might even be in the current thread and in the same queue. If that's the case yielding
 /// won't help and the update need to be requeued.
+///
+/// After `MAX_RETRIES` retries the update stops spinning: it is tried once per call, and the
+/// queue keeps it in `AggregationUpdateQueue::waiting` until the add arrives. See
+/// `AggregationUpdateQueue::can_wait_for_matching_add`.
 fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
+    if retry > MAX_RETRIES {
+        retry = 0;
+    }
     let mut time: Option<Instant> = None;
     loop {
         match f() {
