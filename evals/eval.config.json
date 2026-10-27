@@ -1,4 +1,10 @@
 {
+  "agent-026-no-serial-await": {
+    "publish": false
+  },
+  "agent-030-app-router-migration-hard": {
+    "publish": false
+  },
   "agent-046-adopt-partial-prefetching": {
     "skills": ["next-partial-prefetching-adoption"],
     "publish": false,
