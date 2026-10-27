@@ -10,7 +10,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function my_fn() {
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 __turbopack_emit__("./item.js", {
     namespace: process.env.NEXT_RUNTIME === 'nodejs' ? 'next/server-actions/rsc-nodejs' : 'next/server-actions/rsc-edge',
-    data: "803128060c414d59f8552e4788b846c0d2b7f74743|$$RSC_SERVER_CACHE_0"
+    data: "803128060c414d59f8552e4788b846c0d2b7f74743\0$$RSC_SERVER_CACHE_0\0/app/item.js"
 });
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "my_fn"
