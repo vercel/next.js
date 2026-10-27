@@ -16,12 +16,15 @@ export function interceptHttpGet(originalFetch: Fetch): () => void {
     const response = await handleProxyFetch(originalFetch, request)
     // Native passthrough preserves compressed bytes, headers, and redirects.
     // Fetch would decode the body while retaining the upstream headers.
-    if (response) {
+    if (response !== null) {
       // Proxy responses contain decoded bodies. Handlers may return a fetched
       // response or modify its body while retaining the upstream headers.
       // Let the HTTP layer frame the body using its actual size.
-      response.headers.delete('content-encoding')
-      response.headers.delete('content-length')
+      // HEAD responses have no body; their headers describe the representation.
+      if (request.method !== 'HEAD') {
+        response.headers.delete('content-encoding')
+        response.headers.delete('content-length')
+      }
       controller.respondWith(response)
     }
   })

@@ -46,6 +46,15 @@ describe('testmode', () => {
           return new Response(`middleware-${testData}`)
         }
         if (new URL(request.url).pathname === '/compressed') {
+          if (testData === 'head-response') {
+            return new Response(null, {
+              headers: {
+                'content-type': 'text/plain',
+                'content-encoding': 'gzip',
+                'content-length': '1234',
+              },
+            })
+          }
           if (testData === 'fetch-response') {
             return fetch(request)
           }
@@ -116,6 +125,24 @@ describe('testmode', () => {
         upstream.close((error) => (error ? reject(error) : resolve()))
       )
     })
+
+    it.each(['fetch-response', 'head-response'])(
+      'should preserve representation headers on a HEAD %s',
+      async (testData) => {
+        const url = `/api/compressed-http?method=HEAD&url=${encodeURIComponent(`${upstreamUrl}?case=1`)}`
+        const response = await fetchForTest(url, testData)
+        expect(response.status).toBe(200)
+        const result = await response.json()
+        expect(result.body).toBe('')
+        expect(result.headers['content-type']).toBe('text/plain')
+        expect(result.headers['content-encoding']).toBe('gzip')
+        expect(result.headers['content-length']).toBe(
+          testData === 'head-response'
+            ? '1234'
+            : String(gzipSync(cases[1].plain).length)
+        )
+      }
+    )
 
     describe.each(['without test context', 'with proxy continue'])(
       '%s',
