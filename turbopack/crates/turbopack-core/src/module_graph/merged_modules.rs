@@ -314,7 +314,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // Initial visit, clone instead of merging
                         *current_merged_groups = parent_merged_groups.clone();
                         GraphTraversalAction::Continue
-                    } else if !parent_merged_groups.is_subset(current_merged_groups) {
+                    } else if parent_merged_groups.has_bits_not_in(current_merged_groups) {
                         // Add bits from parent, and continue traversal because changed
                         *current_merged_groups |= &*parent_merged_groups;
                         GraphTraversalAction::Continue
