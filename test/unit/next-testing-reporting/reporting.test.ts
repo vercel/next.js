@@ -7788,3 +7788,118 @@ it.each([
   },
   35000
 )
+
+describe('actual interrupted execution JSON publication', () => {
+  it.each([undefined, false, 0, 'true', true] as const)(
+    'omits only an exact actual interrupted JSON fact: %s',
+    async (fact) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-sigint-json-'))
+      const outputFile = join(root, 'results.json')
+      const previous = '{"previous":"valid-completed-report"}\n'
+      await writeFile(outputFile, previous)
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...result(0, 'passed') })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'cancelled',
+          durationMs: 1,
+        })
+        emit({ type: 'run-end', status: 'cancelled', durationMs: 1 })
+        const retained = machine.getJson()
+        await machine.finish({
+          omitInterruptedExecutionJson: fact,
+        } as unknown as NonNullable<Parameters<typeof machine.finish>[0]>)
+        if (fact === true)
+          expect(await readFile(outputFile, 'utf8')).toBe(previous)
+        else
+          expect(JSON.parse(await readFile(outputFile, 'utf8'))).toEqual(
+            retained
+          )
+        expect(machine.getJson()).toEqual(retained)
+      } finally {
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('leaves an absent interrupted JSON target absent after real run-end evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-sigint-json-absent-'))
+    const outputFile = join(root, 'results.json')
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile,
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    try {
+      await expect(
+        machine.finish({ omitInterruptedExecutionJson: true })
+      ).rejects.toThrow('authoritative run cleanup')
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'cancelled',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'cancelled', durationMs: 1 })
+      await machine.finish({ omitInterruptedExecutionJson: true })
+      await expect(readFile(outputFile)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['junit', 'blob'] as const)(
+    'retains existing %s publication despite an unrelated JSON omission fact',
+    async (reporter) => {
+      const execute = async (omit: boolean) => {
+        const writes: string[] = []
+        const machine = createMachineReporter({
+          projectDir: '/project',
+          reporters: [reporter],
+          write: (text) => writes.push(text),
+        })
+        const emit = (event: object) =>
+          machine.onEvent({ ...envelope, ...event } as ResultEvent)
+        try {
+          emit({ type: 'run-start' })
+          emit({ type: 'file-start', entry })
+          emit({ type: 'case-end', ...result(0, 'passed') })
+          emit({
+            type: 'file-end',
+            entryId: entry.id,
+            status: 'cancelled',
+            durationMs: 1,
+          })
+          emit({ type: 'run-end', status: 'cancelled', durationMs: 1 })
+          await machine.finish(
+            omit ? { omitInterruptedExecutionJson: true } : undefined
+          )
+          return writes
+        } finally {
+          await machine.dispose()
+        }
+      }
+      const expected = await execute(false)
+      expect(expected.length).toBeGreaterThan(0)
+      expect(await execute(true)).toEqual(expected)
+    }
+  )
+})

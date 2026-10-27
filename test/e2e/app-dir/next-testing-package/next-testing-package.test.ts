@@ -750,4 +750,35 @@ describe('next-testing-package', () => {
       }
     }, 750000)
   }
+  if (isNextDev && isTurbopack) {
+    it('preserves JSON targets after actual SIGINT during one-shot execution', async () => {
+      const temporary = await mkdtemp(join(tmpdir(), 'next-sigint-json-'))
+      try {
+        const evidence = join(temporary, 'evidence')
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'verify-interrupted-json-publication.mjs'),
+            next.testDir,
+            evidence,
+          ],
+          { timeout: 600000, maxBuffer: 1024 * 1024 }
+        )
+        const verified = JSON.parse(
+          await readFile(join(evidence, 'verified.json'), 'utf8')
+        )
+        expect(verified.profiles).toBe(6)
+        expect(verified.nodeProfiles).toBe(4)
+        expect(verified.browserProfiles).toBe(2)
+        expect(verified.actualSigintDuringOneShotExecution).toBe(true)
+        expect(verified.allInterruptedJsonTargetsExact).toBe(true)
+        expect(verified.actualPendingNativeClickAndNoFulfilledTail).toBe(true)
+        expect(verified.noCustomFinalPublication).toBe(true)
+        expect(verified.allOwnersClosed).toBe(true)
+        expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)
+      } finally {
+        await rm(temporary, { recursive: true, force: true })
+      }
+    }, 630000)
+  }
 })

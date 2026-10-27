@@ -151,14 +151,19 @@ async function execute(mode, control) {
     const [code, signal] = await closed
     assert.equal(code, 130, stdout + stderr)
     assert.equal(signal, null)
-    const report = JSON.parse(await readFile(reportFile, 'utf8'))
-    assert.equal(report.next.summary.status, 'cancelled')
-    assert.equal(
-      report.next.events.filter((event) => event.type === 'run-end').at(-1)
-        .status,
-      'cancelled'
-    )
-    assert.equal(report.numTotalTests, 1)
+    let report
+    if (control === 'api') {
+      report = JSON.parse(await readFile(reportFile, 'utf8'))
+      assert.equal(report.next.summary.status, 'cancelled')
+      assert.equal(
+        report.next.events.filter((event) => event.type === 'run-end').at(-1)
+          .status,
+        'cancelled'
+      )
+      assert.equal(report.numTotalTests, 1)
+    } else {
+      await assert.rejects(readFile(reportFile, 'utf8'), { code: 'ENOENT' })
+    }
     const trace = (await readFile(traceFile, 'utf8')).trim().split('\n')
     // Global setup is coordinator-owned; worker teardown is a separate async
     // owner. Cancellation waits for both without ordering their IPC delivery.

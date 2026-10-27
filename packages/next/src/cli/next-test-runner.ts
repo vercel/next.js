@@ -403,6 +403,8 @@ export async function nextTestRunner(
       }
     | undefined
   const controller = new AbortController()
+  let oneShotExecutionActive = false
+  let interruptedExecutionJson = false
   let standardCoverageSignalExit = false
   let sigintReason: Error | undefined
   async function publishPendingCoverage(
@@ -433,6 +435,8 @@ export async function nextTestRunner(
   }
   const cancel = () => controller.abort(new Error('Test run interrupted.'))
   const interrupt = () => {
+    if (oneShotExecutionActive && !controller.signal.aborted)
+      interruptedExecutionJson = true
     if (!standardCoverageSignalExit) return cancel()
     if (controller.signal.aborted) return
     sigintReason = new Error('Test run interrupted.')
@@ -1066,97 +1070,104 @@ export async function nextTestRunner(
         '../experimental/testing/orchestrator.js'
       )
       customExecutionStarted = customProjects.length > 0
-      const summary = await runTests(projectDir, projects, {
-        ...(machine.captureModuleCollected
-          ? { captureModuleCollected: true as const }
-          : {}),
-        ...(machine.captureModuleQueued
-          ? { onModuleQueued: machine.onModuleQueued }
-          : {}),
-        captureTaskResults: machine.captureTaskResults,
-        ...(resultCache
-          ? {
-              onCompletedModules(facts) {
-                const project = projects[0]
-                const selected = new Map(
-                  project.entries.map((entry) => [entry.id, entry])
-                )
-                pendingCacheUpdates = facts.flatMap((completion) => {
-                  const entry = selected.get(completion.entryId)
-                  if (
-                    !entry ||
-                    completion.kind !== 'fulfilled' ||
-                    completion.finalState === null
+      let summary: Awaited<ReturnType<typeof runTests>>
+      oneShotExecutionActive = true
+      try {
+        summary = await runTests(projectDir, projects, {
+          ...(machine.captureModuleCollected
+            ? { captureModuleCollected: true as const }
+            : {}),
+          ...(machine.captureModuleQueued
+            ? { onModuleQueued: machine.onModuleQueued }
+            : {}),
+          captureTaskResults: machine.captureTaskResults,
+          ...(resultCache
+            ? {
+                onCompletedModules(facts) {
+                  const project = projects[0]
+                  const selected = new Map(
+                    project.entries.map((entry) => [entry.id, entry])
                   )
-                    return []
-                  return [
-                    {
-                      projectName: project.displayName ?? '',
-                      file: entry.file,
-                      failed: completion.finalState === 'fail',
-                      duration: completion.durationMs,
-                      partial:
-                        completion.containsOnly ||
-                        !!options.testNamePattern ||
-                        !!project.testNamePattern,
-                    },
-                  ]
-                })
-              },
-            }
-          : {}),
-        ...(configuration.compilerTransformNames.length
-          ? { compilerTransforms: configuration.compilerTransforms(projects) }
-          : {}),
-        signal: controller.signal,
-        write: (text) => {
-          if (human) terminal.write(text)
-        },
-        reporter,
-        onEvent(event) {
-          discoveryApi?.onEvent(event)
-          machine.onEvent(event)
-        },
-        specificationOrder: specificationOrder.filter((id) =>
-          entries.some((entry) => entry.id === id)
-        ),
-        updateSnapshots: options.update ?? false,
-        snapshotUpdateMode: options.update
-          ? 'all'
-          : process.env.CI
-            ? 'none'
-            : 'new',
-        testNamePattern: options.testNamePattern,
-        coverage: options.coverage ?? false,
-        standardCoverageOptions,
-        coverageInputs: configuration.compilerInputsForProjects(projects),
-        ...(customProjects.length
-          ? {
-              customCoverageRequests,
-              onCustomCoverageSuite: async (fact: CustomCoverageFact) => {
-                const owners = [...projectsForCustomCoverage].filter(
-                  ([, ownedEntries]) =>
-                    ownedEntries.includes(fact.completion.entryId)
-                )
-                if (owners.length !== 1)
-                  throw new Error(
-                    'Custom coverage suite has no unique project owner.'
+                  pendingCacheUpdates = facts.flatMap((completion) => {
+                    const entry = selected.get(completion.entryId)
+                    if (
+                      !entry ||
+                      completion.kind !== 'fulfilled' ||
+                      completion.finalState === null
+                    )
+                      return []
+                    return [
+                      {
+                        projectName: project.displayName ?? '',
+                        file: entry.file,
+                        failed: completion.finalState === 'fail',
+                        duration: completion.durationMs,
+                        partial:
+                          completion.containsOnly ||
+                          !!options.testNamePattern ||
+                          !!project.testNamePattern,
+                      },
+                    ]
+                  })
+                },
+              }
+            : {}),
+          ...(configuration.compilerTransformNames.length
+            ? { compilerTransforms: configuration.compilerTransforms(projects) }
+            : {}),
+          signal: controller.signal,
+          write: (text) => {
+            if (human) terminal.write(text)
+          },
+          reporter,
+          onEvent(event) {
+            if (event.type === 'run-end') oneShotExecutionActive = false
+            discoveryApi?.onEvent(event)
+            machine.onEvent(event)
+          },
+          specificationOrder: specificationOrder.filter((id) =>
+            entries.some((entry) => entry.id === id)
+          ),
+          updateSnapshots: options.update ?? false,
+          snapshotUpdateMode: options.update
+            ? 'all'
+            : process.env.CI
+              ? 'none'
+              : 'new',
+          testNamePattern: options.testNamePattern,
+          coverage: options.coverage ?? false,
+          standardCoverageOptions,
+          coverageInputs: configuration.compilerInputsForProjects(projects),
+          ...(customProjects.length
+            ? {
+                customCoverageRequests,
+                onCustomCoverageSuite: async (fact: CustomCoverageFact) => {
+                  const owners = [...projectsForCustomCoverage].filter(
+                    ([, ownedEntries]) =>
+                      ownedEntries.includes(fact.completion.entryId)
                   )
-                await customSessions.get(owners[0][0])!.afterSuite(fact)
-              },
-            }
-          : {}),
-        ...(coverageFlags.coverage === false
-          ? { customCoverageDisabled: true as const }
-          : {}),
-        inspect,
-        ...(inspectBrk ? { inspectBrk: true } : {}),
-        maxWorkers,
-        isolateProjects: true,
-        passWithNoTests: projects.every(
-          (project) => project.passWithNoTests === true
-        ),
-      })
+                  if (owners.length !== 1)
+                    throw new Error(
+                      'Custom coverage suite has no unique project owner.'
+                    )
+                  await customSessions.get(owners[0][0])!.afterSuite(fact)
+                },
+              }
+            : {}),
+          ...(coverageFlags.coverage === false
+            ? { customCoverageDisabled: true as const }
+            : {}),
+          inspect,
+          ...(inspectBrk ? { inspectBrk: true } : {}),
+          maxWorkers,
+          isolateProjects: true,
+          passWithNoTests: projects.every(
+            (project) => project.passWithNoTests === true
+          ),
+        })
+      } finally {
+        oneShotExecutionActive = false
+      }
       customWritersClosed = !summary.unsafeCleanup
       await discoveryApi?.dispose()
       discoveryApi = undefined
@@ -1219,9 +1230,16 @@ export async function nextTestRunner(
       }
       try {
         await machine.finish(
-          preparedCoverageMap === undefined
-            ? undefined
-            : { preparedCoverageMap }
+          interruptedExecutionJson
+            ? {
+                ...(preparedCoverageMap === undefined
+                  ? {}
+                  : { preparedCoverageMap }),
+                omitInterruptedExecutionJson: true,
+              }
+            : preparedCoverageMap === undefined
+              ? undefined
+              : { preparedCoverageMap }
         )
       } catch (error) {
         if (pendingCoverage) resultCompletionError = error

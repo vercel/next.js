@@ -1,0 +1,6 @@
+import { test } from 'vitest'
+import { writeFileSync } from 'node:fs'
+test('actual body active at SIGINT', async () => {
+  writeFileSync(process.env.NEXT_TEST_JSON_BODY_GATE, 'entered\n')
+  await new Promise(() => {})
+}, 30000)

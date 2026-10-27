@@ -1,0 +1,62 @@
+{
+  "reference": "Vitest 5.0.4",
+  "scope": "actual process SIGINT during active one-shot execution; Browser uses custom reporter and actual pending native click",
+  "sourceSHA256": {
+    "node-active.test.mjs.txt": "be4125cf285ccecc851df3a182359467d50bd535e0cd4b9f497075a6abef3ecd",
+    "browser-pending.test.mjs.txt": "dd5044b6b0dbfb89cbc4307cf2e6c8e52ee851b7e3d960554cdb03ccd9d1125a"
+  },
+  "profiles": [
+    {
+      "label": "node-development-absent",
+      "runtime": "node",
+      "mode": "development",
+      "target": "absent",
+      "exit": 130,
+      "noInterruptedJsonPublished": true
+    },
+    {
+      "label": "node-development-prior",
+      "runtime": "node",
+      "mode": "development",
+      "target": "prior",
+      "exit": 130,
+      "noInterruptedJsonPublished": true
+    },
+    {
+      "label": "node-production-absent",
+      "runtime": "node",
+      "mode": "production",
+      "target": "absent",
+      "exit": 130,
+      "noInterruptedJsonPublished": true
+    },
+    {
+      "label": "node-production-prior",
+      "runtime": "node",
+      "mode": "production",
+      "target": "prior",
+      "exit": 130,
+      "noInterruptedJsonPublished": true
+    },
+    {
+      "label": "browser-development-absent",
+      "runtime": "browser",
+      "mode": "development",
+      "target": "absent",
+      "exit": 130,
+      "noInterruptedJsonPublished": true
+    },
+    {
+      "label": "browser-production-absent",
+      "runtime": "browser",
+      "mode": "production",
+      "target": "absent",
+      "exit": 130,
+      "noInterruptedJsonPublished": true
+    }
+  ],
+  "immediateGenuineForkJoinClaim": false,
+  "genuineRawEvidenceRetainedExternally": true,
+  "otherSignalsAndCancellationAPIsQualified": false,
+  "jsonOnlyBrowserNativeExecutionQualified": false
+}

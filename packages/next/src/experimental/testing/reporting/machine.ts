@@ -950,9 +950,11 @@ export function createMachineReporter(options: {
     async finish({
       signal,
       preparedCoverageMap,
+      omitInterruptedExecutionJson,
     }: {
       signal?: AbortSignal
       preparedCoverageMap?: PreparedCoverageMap
+      omitInterruptedExecutionJson?: true
     } = {}) {
       signal?.throwIfAborted()
       if (!enabled) return
@@ -987,6 +989,8 @@ export function createMachineReporter(options: {
           )
           continue
         }
+        if (reporter === 'json' && omitInterruptedExecutionJson === true)
+          continue
         const publish = async (errorsForBlob: SerializedDiagnostic[]) => {
           const content =
             reporter === 'junit'
