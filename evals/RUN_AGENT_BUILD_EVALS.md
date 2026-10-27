@@ -157,6 +157,8 @@ evals/agent-build/tools/calibrate.sh --summary /path/to/jobs
 
 Agent harnesses differ in how they build the inference URL. Codex and OpenCode take the gateway's OpenAI-compatible base `https://ai-gateway.vercel.sh/v1`; Claude Code's SDK appends `/v1/messages` itself, so its row passes `base_url=https://ai-gateway.vercel.sh` as an agent option, or every call returns a 404 that Claude Code reports as `model_not_found`.
 
+`node evals/agent-build/tools/report.mjs <jobs-dir>` turns the jobs directory into the Calibration section of the pull request: a grid of tasks by agent and model with pass@1, cost, and duration per cell, plus a Mermaid bar chart that GitHub renders inline. Transcripts and verifier output stay in the jobs directory; link it from the Versions section.
+
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 
 ## Run optional context treatments
