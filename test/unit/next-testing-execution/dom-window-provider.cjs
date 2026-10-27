@@ -28,7 +28,7 @@ async function main() {
           ownKeys: target => Reflect.ownKeys(target).filter(key => !hidden.has(key)),
           getOwnPropertyDescriptor: (target,key) => hidden.has(key) ? undefined : Reflect.getOwnPropertyDescriptor(target,key),
           getPrototypeOf: () => null,
-          get: (target,key) => Reflect.get(target,key,target),
+          get: (target,key) => key === 'deferredWindowValue' ? Reflect.apply(Reflect.getOwnPropertyDescriptor(target,key).get,target,[]) : Reflect.get(target,key,target),
         });
         Object.defineProperty(this, 'window', {value:proxy});
       }
