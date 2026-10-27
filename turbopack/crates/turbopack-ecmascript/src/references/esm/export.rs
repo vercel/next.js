@@ -659,9 +659,7 @@ async fn compact_reference_target(
         import_source: ImportSource::Module { asset },
         ..
     }) = referenced_asset
-        .prepare_binding(chunking_context, None, scope_hoisting_context)
-        .await?
-        .get_ident(chunking_context)
+        .get_ident(chunking_context, None, scope_hoisting_context)
         .await?
     else {
         return Ok(None);
@@ -781,13 +779,11 @@ async fn build_compact_reexports(
             export: Some(imported_key),
             import_source: ImportSource::Module { asset },
         }) = referenced_asset
-            .prepare_binding(
+            .get_ident(
                 chunking_context,
                 Some(imported_name.clone()),
                 scope_hoisting_context,
             )
-            .await?
-            .get_ident(chunking_context)
             .await?
         else {
             // Scope-hoisted into a local binding, an external, or a namespace re-export: none of
@@ -1071,7 +1067,7 @@ impl EsmExports {
 
         let mut getters = Vec::new();
         // The keys this module's exports are emitted under. Consumers resolve the same map for this
-        // module (see `ReferencedAsset::prepare_binding`), so both sides always agree.
+        // module (see `ReferencedAsset::get_ident`), so both sides always agree.
         let mangled_names = mangled_export_names(*module, chunking_context).await?;
         let flat_group = if scope_hoisting_context.module().is_some() {
             *flat_export_group(*module, chunking_context).await?
@@ -1177,9 +1173,7 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .prepare_binding(chunking_context, Some(name.clone()), scope_hoisting_context)
-                        .await?
-                        .get_ident(chunking_context)
+                        .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
@@ -1244,9 +1238,7 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .prepare_binding(chunking_context, None, scope_hoisting_context)
-                        .await?
-                        .get_ident(chunking_context)
+                        .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);

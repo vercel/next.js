@@ -1,4 +1,14 @@
 import { Worker } from 'node:worker_threads'
+import * as preserved from './mixed-preserved'
+import {
+  someLongExportName as mixedFirst,
+  a as mixedFirstShort,
+  liveValue as mixedLiveValue,
+} from './mixed-first'
+import {
+  someLongExportName as mixedSecond,
+  a as mixedSecondShort,
+} from './mixed-second'
 import {
   someLongExportName,
   anotherLongExportName,
@@ -11,6 +21,50 @@ import {
   liveValue,
   increment,
 } from './second'
+
+it('should keep one observable namespace without deoptimizing its flat peers', async () => {
+  const lazy = await import(
+    /* turbopackExports: ["namespace", "read", "update"] */ './mixed-lazy'
+  )
+  expect(lazy.namespace()).toBe(preserved)
+  expect(Object.keys(preserved).sort()).toEqual([
+    'increment',
+    'liveValue',
+    'someLongExportName',
+  ])
+  expect([mixedFirst, mixedSecond, mixedFirstShort, mixedSecondShort]).toEqual([
+    'first',
+    'second',
+    'first-short',
+    'second-short',
+  ])
+  expect(lazy.read()).toEqual([
+    'preserved',
+    'first',
+    'second',
+    'first-short',
+    'second-short',
+    0,
+    0,
+  ])
+  lazy.update()
+  expect(preserved.liveValue).toBe(1)
+  expect(mixedLiveValue).toBe(1)
+  expect(lazy.read()).toEqual([
+    'preserved',
+    'first',
+    'second',
+    'first-short',
+    'second-short',
+    1,
+    1,
+  ])
+  const again = await import(
+    /* turbopackExports: ["namespace", "read", "update"] */ './mixed-lazy'
+  )
+  expect(again.namespace()).toBe(preserved)
+  expect(preserved).not.toHaveProperty('a')
+})
 
 it('should be correct with scope hoisting enabled', () => {
   expect(someLongExportName).toBe('shared-1')

@@ -2,5 +2,5 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/lazy.js"],"sourcesContent":["import { sameLongExportName as first, a as firstShort } from './first'\nimport { sameLongExportName as second, a as secondShort } from './second'\n\nexport const read = () => [first, second, firstShort, secondShort]\n"],"names":["read"],"mappings":"AAAA;AACA;;;AAEO,MAAMA,OAAO,IAAM;QAAC,oOAAK;QAAE,sPAAM;QAAE,oOAAU;QAAE,qOAAW;KAAC"}}]
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/lazy.js"],"sourcesContent":["import { sameLongExportName as first, a as firstShort } from './first'\nimport { sameLongExportName as second, a as secondShort } from './second'\nimport { sameLongExportName as third, a as thirdShort } from './third'\n\nexport const read = () => [\n  first,\n  second,\n  third,\n  firstShort,\n  secondShort,\n  thirdShort,\n]\n"],"names":["read"],"mappings":"AAAA;AACA;;;;AAGO,MAAMA,OAAO,IAAM;QACxB,qPAAK;QACL,qOAAM;QACN,qOAAK;QACL,oOAAU;QACV,qOAAW;QACX,qOAAU;KACX"}}]
 }

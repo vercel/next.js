@@ -1,5 +1,7 @@
-import { sameLongExportName as first, a as firstShort } from './first'
-import * as second from './second'
+import * as first from './first'
+import { sameLongExportName as second, a as secondShort } from './second'
+import { sameLongExportName as third, a as thirdShort } from './third'
 
-console.log(first, firstShort, Object.keys(second), second)
+// The factory entry keeps its namespace; the other two members share a flat table.
+console.log(Object.keys(first), first, second, third, secondShort, thirdShort)
 import('./lazy').then(({ read }) => console.log(read()))

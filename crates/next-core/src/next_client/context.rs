@@ -604,7 +604,6 @@ pub async fn get_client_chunking_context(
     .chunk_load_retry(NEXT_CHUNK_LOAD_RETRY)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .merged_modules(merged_modules.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .worker_asset_prefix(worker_asset_prefix.owned().await?)
@@ -659,8 +658,10 @@ pub async fn get_client_chunking_context(
                 },
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
-            .module_merging(*scope_hoisting.await?)
             .shared_runtime(*shared_runtime.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(Vc::upcast(builder.build()))
