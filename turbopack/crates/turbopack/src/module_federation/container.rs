@@ -2,6 +2,7 @@ use anyhow::Result;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
+use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::module_federation::config::ModuleFederationConfig;
 
@@ -20,12 +21,12 @@ pub async fn module_federation_container_source(
         let imports = expose
             .imports
             .iter()
-            .map(|request| format!("import({})", serde_json::to_string(request).unwrap()))
+            .map(|request| format!("import({})", StringifyJs(request)))
             .collect::<Vec<_>>()
             .join(", ");
         module_entries.push(format!(
             "{}: () => Promise.all([{}]).then((modules) => () => modules[modules.length - 1])",
-            serde_json::to_string(&expose.request)?,
+            StringifyJs(&expose.request),
             imports
         ));
     }
@@ -44,14 +45,13 @@ pub async fn module_federation_container_source(
     eager: {eager}
   }};"#,
             index = registrations.len(),
-            key = serde_json::to_string(&shared.share_key)?,
-            version = serde_json::to_string(version)?,
-            import = serde_json::to_string(import)?,
-            name = serde_json::to_string(name)?,
+            key = StringifyJs(&shared.share_key),
+            version = StringifyJs(version),
+            import = StringifyJs(import),
+            name = StringifyJs(name),
             eager = shared.eager,
         ));
     }
-    let name_json = serde_json::to_string(name)?;
     let source = format!(
         r#"
 const moduleMap = {{
@@ -81,6 +81,7 @@ export {{ get, init }};
 "#,
         module_entries = module_entries.join(",\n  "),
         registrations = registrations.join("\n"),
+        name_json = StringifyJs(name),
     );
     Ok(ResolvedVc::upcast(
         VirtualSource::new(

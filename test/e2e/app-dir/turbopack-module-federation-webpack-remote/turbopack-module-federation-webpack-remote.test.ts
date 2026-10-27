@@ -31,6 +31,7 @@ async function buildRemote(
             name: worker ? 'workerCatalog' : 'catalog',
             filename: 'remoteEntry.js',
             exposes: {
+              './component': './component.js',
               './message': './message.js',
             },
             shared: {
@@ -102,6 +103,9 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
     await retry(async () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
         'hello from Turbopack host sharing'
+      )
+      expect(await browser.elementByCss('#remote-react-component').text()).toBe(
+        'next/dynamic from webpack remote'
       )
       expect(await browser.elementByCss('#worker-message').text()).toBe(
         'hello from Turbopack host sharing'

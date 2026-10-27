@@ -8,7 +8,7 @@ function createIsolatedRuntime(runtimePath, sourcePath, chunkPath, moduleId) {
   const createRuntime = eval('require')(runtimePath)
   fs.writeFileSync(
     chunkPath,
-    `module.exports = [${JSON.stringify(moduleId)}, function (context, module) { module.exports = context.S }];\n`
+    `module.exports = [${JSON.stringify(moduleId)}, function (context, module) { module.exports = context.R }];\n`
   )
   const runtime = createRuntime(sourcePath)
   runtime.c(chunkPath)

@@ -454,7 +454,7 @@ function resolvePathFromModule(
     .exports as Exports
   return exported?.default ?? exported
 }
-browserContextPrototype.R = resolvePathFromModule
+browserContextPrototype.S = resolvePathFromModule
 
 /**
  * no-op for browser
