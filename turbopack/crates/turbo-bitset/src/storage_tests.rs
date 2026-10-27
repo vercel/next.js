@@ -14,8 +14,10 @@ use crate::{Bitset, BlockStorage};
 const STANDARD: Configuration = config::standard();
 const BLOCK_BITS: u32 = usize::BITS;
 
-/// The `ArrayVec` capacity of the shared suite, which bounds the spans of its inputs.
-const ARRAY_BLOCKS: usize = 300;
+/// The `ArrayVec` capacity of the shared suite, which bounds the spans of its inputs. It is derived
+/// from a bit range (300 blocks for 64-bit blocks) so that it holds the highest bit of the shared
+/// inputs, 10 000, for any `usize` width.
+const ARRAY_BLOCKS: usize = 19_200usize.div_ceil(usize::BITS as usize);
 /// The inline capacity of the `SmallVec` storage, small so that most inputs spill to the heap.
 const INLINE_BLOCKS: usize = 2;
 
