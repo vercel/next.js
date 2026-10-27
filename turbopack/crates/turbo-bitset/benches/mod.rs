@@ -512,6 +512,34 @@ pub fn bench(c: &mut Criterion) {
     }
     group.finish();
 
+    // The first visit of a graph traversal: a union into a new set, compared with the clone it
+    // replaces.
+    let mut group = c.benchmark_group("bitset/union_into_empty");
+    for input in &inputs {
+        let b = bitset(&input.bits);
+        group.bench_function(BenchmarkId::new("union_with", &input.name), |bencher| {
+            bencher.iter_batched_ref(
+                Bitset::new,
+                |a| {
+                    black_box(a.union_with(black_box(&b)));
+                    black_box(&*a);
+                },
+                BatchSize::SmallInput,
+            )
+        });
+        group.bench_function(BenchmarkId::new("clone", &input.name), |bencher| {
+            bencher.iter_batched_ref(
+                Bitset::new,
+                |a| {
+                    *a = black_box(&b).clone();
+                    black_box(&*a);
+                },
+                BatchSize::SmallInput,
+            )
+        });
+    }
+    group.finish();
+
     // The operations of production chunking on two sets of the same size.
     let pair = |i: &Input| (bitset(&i.bits), bitset(&i.other_bits));
     let fixed_pair = |i: &Input| (fixed(&i.bits), fixed(&i.other_bits));

@@ -491,6 +491,149 @@ fn union_with_returns_whether_changed() {
     }
 }
 
+/// `other` as the trimmed copy that a union into an empty set stores: the offset and blocks
+/// from its lowest to its highest non-zero block.
+fn trimmed(other: &Bitset) -> (usize, Vec<usize>) {
+    let first = other.blocks.iter().position(|&b| b != 0).unwrap();
+    let last = other.blocks.iter().rposition(|&b| b != 0).unwrap();
+    (other.offset + first, other.blocks[first..=last].to_vec())
+}
+
+#[test]
+fn union_with_into_empty_is_exact() {
+    let block = usize::BITS as usize;
+    // Trimmed lengths of 1 to 3 blocks catch rounding up of small allocations.
+    for len in [1, 2, 3, 5, 17] {
+        for (start, padding) in [(0, 0), (0, 2), (4, 0), (3, 1), (1_000, 3)] {
+            let first = start + padding;
+            // Bits in the first and last of the `len` blocks, zero blocks around them.
+            let mut blocks = vec![0; padding + len + padding];
+            blocks[padding] = 1 << 3;
+            blocks[padding + len - 1] |= 1 << (block - 1);
+            let other = with_storage(start, blocks);
+            let bits = bits_of(start, &other.blocks);
+
+            let mut set = Bitset::new();
+            assert!(
+                set.union_with(&other),
+                "len {len}, start {start}, padding {padding}"
+            );
+            check(&set, &bits);
+            assert_eq!(set, other);
+            assert_eq!(set.offset, first);
+            assert_eq!((set.offset, set.blocks.clone()), trimmed(&other));
+            assert_eq!(set.blocks.len(), len);
+            assert_eq!(
+                set.blocks.capacity(),
+                len,
+                "exact allocation for {len} blocks"
+            );
+            // A second union adds nothing.
+            assert!(!set.union_with(&other));
+            check(&set, &bits);
+        }
+    }
+}
+
+#[test]
+fn union_with_empty_source_keeps_storage() {
+    let mut removed = Bitset::new();
+    removed.insert(5_000);
+    removed.remove(5_000);
+    let sources = [Bitset::new(), Bitset::with_len(500), removed];
+    for source in &sources {
+        assert!(source.is_zero());
+        let mut set = Bitset::new();
+        assert!(!set.union_with(source));
+        assert!(set.is_zero());
+        assert_eq!(set.blocks.len(), 0);
+        assert_eq!(set.blocks.capacity(), 0);
+
+        let mut reserved = Bitset::with_capacity(1_000);
+        let before = storage(&reserved);
+        assert!(!reserved.union_with(source));
+        assert!(reserved.is_zero());
+        assert_eq!(reserved.blocks.len(), 0);
+        assert_eq!(storage(&reserved), before);
+    }
+}
+
+#[test]
+fn union_with_into_reserved_reuses_allocation() {
+    let block = usize::BITS;
+    for bits in [
+        &[0][..],
+        &[5, 70],
+        &[block * 3, block * 19 + 1],
+        &[block * 10],
+    ] {
+        let (other, expected) = from_bits(bits);
+        let mut set = Bitset::with_capacity(block * 20);
+        let before = storage(&set);
+        assert!(set.union_with(&other), "{bits:?}");
+        check(&set, &expected);
+        assert_eq!(storage(&set), before, "{bits:?} reallocated");
+    }
+}
+
+#[test]
+fn union_with_into_zero_blocks() {
+    // The set stores zero blocks, so it takes the general path.
+    for bits in [&[][..], &[3], &[3, 999], &[900, 5_000]] {
+        let (other, expected) = from_bits(bits);
+        let mut set = Bitset::with_len(1_000);
+        assert_eq!(set.union_with(&other), !bits.is_empty(), "{bits:?}");
+        check(&set, &expected);
+    }
+}
+
+#[test]
+fn union_with_matches_reference() {
+    // Random sets (often empty, or with zero blocks around their bits) compared with a union
+    // of `BTreeSet`s.
+    let mut rng = SmallRng::seed_from_u64(11);
+    for _ in 0..1_000 {
+        let universe = rng.random_range(1..3_000);
+        let random_set = |rng: &mut SmallRng| {
+            let count = if rng.random_bool(0.3) {
+                0
+            } else {
+                rng.random_range(1..30)
+            };
+            let bits = (0..count)
+                .map(|_| rng.random_range(0..universe))
+                .collect::<BTreeSet<u32>>();
+            let mut set = match rng.random_range(0..3) {
+                0 => Bitset::new(),
+                1 => Bitset::with_capacity(rng.random_range(0..universe)),
+                _ => Bitset::with_len(rng.random_range(0..universe)),
+            };
+            set.extend(bits.iter().copied());
+            if rng.random_bool(0.2) {
+                // Bits that leave zero blocks behind.
+                let extra = rng.random_range(0..universe);
+                if set.insert(extra) {
+                    set.remove(extra);
+                }
+            }
+            (set, bits)
+        };
+        let (mut set, set_bits) = random_set(&mut rng);
+        let (other, other_bits) = random_set(&mut rng);
+        let expected = set_bits
+            .union(&other_bits)
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let changed = !other_bits.is_subset(&set_bits);
+        assert_eq!(
+            set.union_with(&other),
+            changed,
+            "{set_bits:?} ∪ {other_bits:?}"
+        );
+        check(&set, &expected);
+    }
+}
+
 #[test]
 fn equality_and_hash_ignore_layout() {
     // Same bits, built so that the storage has different offsets and capacities.

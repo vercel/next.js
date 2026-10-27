@@ -234,7 +234,22 @@ impl Bitset {
     ///
     /// This takes a single pass over the blocks of `other`, so `if set.union_with(&other)` is
     /// cheaper than checking `other.is_subset(&set)` before adding the bits.
+    ///
+    /// If the set stores no blocks (e.g. a new set), this copies the blocks of `other` without its
+    /// leading and trailing zero blocks, so it doesn't need a check for the empty set and a
+    /// separate `clone()` before it. The copy uses the reserved capacity if it fits, otherwise it
+    /// allocates exactly the copied blocks.
     pub fn union_with(&mut self, other: &Self) -> bool {
+        if self.blocks.is_empty() {
+            let (other_offset, other_blocks) = other.trimmed();
+            if other_blocks.is_empty() {
+                return false;
+            }
+            self.offset = other_offset;
+            self.blocks.reserve_exact(other_blocks.len());
+            self.blocks.extend_from_slice(other_blocks);
+            return true;
+        }
         if other.offset >= self.offset && other.end() <= self.end() {
             // The stored range of `other` lies within the set's range, so its blocks can be added
             // without trimming or growing.
