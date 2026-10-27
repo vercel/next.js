@@ -1,16 +1,14 @@
-//! Measures the in-memory storage and serialized size of `Bitset` and `RoaringBitmap` for the
-//! inputs of the benchmarks (see `benches/common/inputs.rs`).
+//! Measures the in-memory storage and serialized size of `Bitset` for the inputs of the benchmarks
+//! (see `benches/common/inputs.rs`).
 //!
 //! Storage is measured with a counting global allocator: the bytes requested from the allocator
 //! by the set (its heap allocations), plus `size_of` the set itself. Allocator bookkeeping and
 //! size-class rounding are not included.
 //!
 //! Serialized sizes are measured by actually encoding (and decoding again) with the writer, reader
-//! and config Turbopack persists with (`turbo_bincode`, bincode's standard config):
-//! - `Bitset` with its own encoding (the trimmed bitmap bytes, or the delta-encoded list of bits if
-//!   that is below 80% of the bitmap's size).
-//! - `RoaringBitmap` through its serde implementation (the portable Roaring format as a
-//!   length-prefixed byte string), how Turbopack persisted these sets before `Bitset`.
+//! and config Turbopack persists with (`turbo_bincode`, bincode's standard config), using
+//! `Bitset`'s own encoding (the trimmed bitmap bytes, or the delta-encoded list of bits if that is
+//! below 80% of the bitmap's size).
 //!
 //! Run with `cargo run --release -p turbo-bitset --example sizes`. Prints CSV.
 
@@ -26,11 +24,7 @@ use std::{
 };
 
 use rand::seq::SliceRandom;
-use roaring::RoaringBitmap;
-use turbo_bincode::{
-    TURBO_BINCODE_CONFIG, TurboBincodeBuffer, TurboBincodeReader, TurboBincodeWriter,
-    turbo_bincode_decode, turbo_bincode_encode,
-};
+use turbo_bincode::{TURBO_BINCODE_CONFIG, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_bitset::Bitset;
 
 use self::inputs::{SmallRng, inputs, rng};
@@ -87,29 +81,10 @@ fn shuffled(rng: &mut SmallRng, bits: &[u32]) -> Vec<u32> {
     bits
 }
 
-/// Encodes through serde with the writer and config Turbopack persists with.
-fn encode_roaring(set: &RoaringBitmap) -> TurboBincodeBuffer {
-    let mut buffer = TurboBincodeBuffer::new();
-    bincode::serde::encode_into_writer(
-        set,
-        TurboBincodeWriter::new(&mut buffer),
-        TURBO_BINCODE_CONFIG,
-    )
-    .unwrap();
-    buffer
-}
-
-/// Decodes through serde with the reader and config Turbopack persists with.
-fn decode_roaring(bytes: &[u8]) -> RoaringBitmap {
-    bincode::serde::decode_from_reader(TurboBincodeReader::new(bytes), TURBO_BINCODE_CONFIG)
-        .unwrap()
-}
-
 fn main() {
     println!(
-        "input,universe,bits,density_ppm,bitset_sorted,bitset_random,roaring_sorted,\
-         roaring_random,bitset_words,bitset_ser,bitset_form,roaring_portable,roaring_ser,\
-         roaring_ser_optimized"
+        "input,universe,bits,density_ppm,bitset_sorted,bitset_random,bitset_words,bitset_ser,\
+         bitset_form"
     );
     let mut rng = rng(7);
     for input in inputs() {
@@ -125,18 +100,8 @@ fn main() {
             }
             set
         });
-        let (roaring_sorted, roaring_sorted_bytes) =
-            storage(|| RoaringBitmap::from_sorted_iter(bits.iter().copied()).unwrap());
-        let (roaring_random, roaring_random_bytes) = storage(|| {
-            let mut set = RoaringBitmap::new();
-            for &bit in &random_order {
-                set.insert(bit);
-            }
-            set
-        });
         assert_eq!(bitset_sorted, bitset_random);
-        assert_eq!(roaring_sorted, roaring_random);
-        assert!(bitset_sorted.iter().eq(roaring_sorted.iter()));
+        assert!(bitset_sorted.iter().eq(bits.iter().copied()));
 
         // The block-aligned word range of the set: from the lowest to the highest word.
         let words = match (bits.first(), bits.last()) {
@@ -156,32 +121,15 @@ fn main() {
             _ => "bitmap",
         };
 
-        // The portable Roaring format, and the same through bincode's serde support.
-        let mut portable = Vec::new();
-        roaring_sorted.serialize_into(&mut portable).unwrap();
-        assert_eq!(portable.len(), roaring_sorted.serialized_size());
-        let roaring_ser = encode_roaring(&roaring_sorted);
-        assert_eq!(decode_roaring(&roaring_ser), roaring_sorted);
-        let mut optimized = roaring_sorted.clone();
-        optimized.optimize();
-        let optimized_ser = encode_roaring(&optimized);
-        assert_eq!(decode_roaring(&optimized_ser), roaring_sorted);
-
         println!(
-            "{},{},{},{},{bitset_sorted_bytes},{bitset_random_bytes},{roaring_sorted_bytes},\
-             {roaring_random_bytes},{words},{},{bitset_form},{},{},{}",
+            "{},{},{},{},{bitset_sorted_bytes},{bitset_random_bytes},{words},{},{bitset_form}",
             input.name,
             input.universe,
             bits.len(),
             bits.len() as u64 * 1_000_000 / input.universe as u64,
             bitset_ser.len(),
-            portable.len(),
-            roaring_ser.len(),
-            optimized_ser.len(),
         );
         check_freed(bitset_sorted, bitset_sorted_bytes);
         check_freed(bitset_random, bitset_random_bytes);
-        check_freed(roaring_sorted, roaring_sorted_bytes);
-        check_freed(roaring_random, roaring_random_bytes);
     }
 }

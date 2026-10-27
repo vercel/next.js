@@ -14,12 +14,8 @@ shrink-to-fit = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-fixedbitset = { workspace = true }
 # The benchmark inputs are drawn from a seeded generator.
 rand = { workspace = true }
-# The benchmarks and the `sizes` example compare with `RoaringBitmap`, including its
-# serialization through serde.
-roaring = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
 # The benchmarks and the `sizes` example encode, decode and hash like Turbopack does.
 turbo-bincode = { workspace = true }
