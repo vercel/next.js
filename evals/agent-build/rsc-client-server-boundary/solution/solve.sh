@@ -40,12 +40,16 @@ EOF
 cat > app/teams/page.tsx <<'EOF'
 import { teamDirectory } from '../lib/team-catalog'
 import { TeamPicker } from './team-picker'
+import { TeamSummary } from './team-summary'
 
 export default function TeamsPage() {
+  const pinnedTeam = teamDirectory.find((team) => team.id === 'orbit')!
+
   return (
     <main>
       <h1>Team directory</h1>
       <p data-testid="team-count">{teamDirectory.length} active teams</p>
+      <TeamSummary team={pinnedTeam} />
       <TeamPicker teams={teamDirectory} />
     </main>
   )
@@ -81,6 +85,27 @@ export function TeamPicker({ teams }: { teams: Team[] }) {
       <p data-testid="selected-team">
         {selected.name} uses the {selected.plan} plan.
       </p>
+    </section>
+  )
+}
+EOF
+
+cat > app/teams/team-summary.tsx <<'EOF'
+'use client'
+
+import { useState } from 'react'
+import type { Team } from '../lib/team-catalog'
+
+export function TeamSummary({ team }: { team: Team }) {
+  const [showPlan, setShowPlan] = useState(false)
+
+  return (
+    <section aria-label="Pinned team">
+      <p>Pinned: {team.name}</p>
+      <button onClick={() => setShowPlan((value) => !value)}>
+        {showPlan ? 'Hide pinned plan' : 'Show pinned plan'}
+      </button>
+      {showPlan ? <p data-testid="pinned-plan">{team.plan}</p> : null}
     </section>
   )
 }

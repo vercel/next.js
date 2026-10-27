@@ -45,4 +45,65 @@ export function ActivityClock() {
 }
 EOF
 
+cat > app/activity/deployment-feed.tsx <<'EOF'
+'use client'
+
+import { useEffect, useState } from 'react'
+
+const deployments = [
+  { name: 'Dashboard', status: 'Ready' },
+  { name: 'Docs', status: 'Building' },
+  { name: 'Marketing', status: 'Ready' },
+] as const
+
+export function DeploymentFeed() {
+  const [showBuilding, setShowBuilding] = useState(false)
+  const [checkedAt, setCheckedAt] = useState<number | null>(null)
+  const visibleDeployments = showBuilding
+    ? deployments.filter((deployment) => deployment.status === 'Building')
+    : deployments
+
+  useEffect(() => {
+    const update = () => setCheckedAt(Date.now())
+    update()
+    const interval = window.setInterval(update, 1000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  return (
+    <section aria-label="Recent deployments">
+      <h2>Recent deployments</h2>
+      <p>
+        Last checked{' '}
+        {checkedAt === null ? (
+          <span data-testid="feed-placeholder">
+            Waiting for browser activity…
+          </span>
+        ) : (
+          <time
+            data-testid="feed-time"
+            data-timestamp={checkedAt}
+            dateTime={new Date(checkedAt).toISOString()}
+          >
+            {new Date(checkedAt).toLocaleTimeString('en-US', {
+              hour12: false,
+            })}
+          </time>
+        )}
+      </p>
+      <button onClick={() => setShowBuilding((value) => !value)}>
+        {showBuilding ? 'Show all deployments' : 'Show building only'}
+      </button>
+      <ul>
+        {visibleDeployments.map((deployment) => (
+          <li key={deployment.name}>
+            {deployment.name}: {deployment.status}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+EOF
+
 npm run typecheck

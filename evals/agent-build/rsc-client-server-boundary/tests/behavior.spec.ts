@@ -13,9 +13,13 @@ test('the server page and client picker keep their behavior', async ({
     page.getByRole('heading', { name: 'Team directory' })
   ).toBeVisible()
   await expect(page.getByText('3 active teams')).toBeVisible()
+  await expect(page.getByText('Pinned: Orbit')).toBeVisible()
   await expect(page.getByTestId('selected-team')).toHaveText(
     'Acme uses the enterprise plan.'
   )
+
+  await page.getByRole('button', { name: 'Show pinned plan' }).click()
+  await expect(page.getByTestId('pinned-plan')).toHaveText('enterprise')
 
   await page.getByRole('combobox', { name: 'Team' }).selectOption('northstar')
   await expect(page.getByTestId('selected-team')).toHaveText(

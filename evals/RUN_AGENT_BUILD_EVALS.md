@@ -83,7 +83,16 @@ Run each model once for pass@1 and store the complete Harbor job outside the tas
   --base-url https://ai-gateway.vercel.sh/v1 \
   --api-key-name AI_GATEWAY_API_KEY \
   --n-attempts 1 \
+  --max-retries 2 \
   --jobs-dir /path/to/results
 ```
 
-Retry infrastructure failures. Keep a scored model failure at 0/1 when confirmation attempts later pass, and record those confirmations separately.
+`--max-retries` retries runner exceptions such as sandbox allocation or transport failures. It does not rerun a completed attempt whose verifier returns `0`. Keep that scored model failure at 0/1 when confirmation attempts later pass, and record those confirmations separately.
+
+## Run optional context treatments
+
+Harbor runs the base task as committed. Context treatments belong to the suite adapter and are optional.
+
+For a Next.js bundled-docs experiment, run the same task twice. The base run uses the committed fixture. The treated run uses a generated copy that adds the standard `AGENTS.md` instruction and matching `CLAUDE.md` reference before Harbor starts the agent. Keep the prompt, application, verifier, model, effort, and runtime identical.
+
+Do not commit the generated copy as a second task. Store `base` or `agents-md` with each result. Suites for other frameworks can omit this comparison or define a treatment that matches their own documentation system.

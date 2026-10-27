@@ -14,7 +14,15 @@ test('the prerendered response keeps useful deterministic UI', async ({
   expect(html).toContain('Production is healthy.')
   expect(html).toContain('Updated at')
   expect(html).toContain('Waiting for browser clock…')
+  expect(html).toContain('Recent deployments')
+  expect(html).toContain('Waiting for browser activity…')
+  expect(html).toContain('Dashboard')
+  expect(html).toContain('Docs')
+  expect(html).toContain('Marketing')
+  expect(html).toContain('Ready')
+  expect(html).toContain('Building')
   expect(html).not.toContain('data-testid="live-time"')
+  expect(html).not.toContain('data-testid="feed-time"')
 })
 
 test('client navigation keeps the route instant', async ({ page }) => {
@@ -29,9 +37,10 @@ test('client navigation keeps the route instant', async ({ page }) => {
   })
 
   await expect(page.getByTestId('live-time')).toBeVisible()
+  await expect(page.getByTestId('feed-time')).toBeVisible()
 })
 
-test('the browser clock updates and the controls stay interactive', async ({
+test('the browser times update and the controls stay interactive', async ({
   page,
 }) => {
   await page.goto(baseURL + '/activity')
@@ -52,4 +61,17 @@ test('the browser clock updates and the controls stay interactive', async ({
   await expect(
     page.getByRole('button', { name: 'Refresh view (1)' })
   ).toBeVisible()
+
+  const feedTime = page.getByTestId('feed-time')
+  const firstFeedTime = Number(await feedTime.getAttribute('data-timestamp'))
+  await expect
+    .poll(async () => Number(await feedTime.getAttribute('data-timestamp')), {
+      timeout: 3000,
+    })
+    .toBeGreaterThan(firstFeedTime)
+
+  await page.getByRole('button', { name: 'Show building only' }).click()
+  await expect(page.getByText('Docs: Building')).toBeVisible()
+  await expect(page.getByText('Dashboard: Ready')).toHaveCount(0)
+  await expect(page.getByText('Marketing: Ready')).toHaveCount(0)
 })

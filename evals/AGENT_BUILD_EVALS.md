@@ -59,6 +59,16 @@ The reference repair proves that the task is solvable. It does not define the on
 
 Harbor is the current interchange format for these parts. Keep runner commands, credential setup, and Vercel-specific workarounds in [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) so the contract can be translated without changing what a task measures.
 
+## Keep context treatments optional
+
+Calibrate every task against its base environment. Add a context treatment only when the run is measuring whether extra guidance changes the result.
+
+Next.js can pair the base environment with an `AGENTS.md` treatment to measure the effect of its bundled documentation. Another framework may use no treatment, a Skill, or a different source of context. The Agent Build task format does not require any of them.
+
+Define treatments in the suite or runner configuration instead of the task. A treatment may add context files, but it must keep the task instruction, starting application, verifier, model, and runtime unchanged. Record the treatment with each result so base and treated runs remain comparable.
+
+Treatment results answer a separate question from task difficulty. A task does not enter or leave the curated set because one treatment helped it.
+
 ## Prevent contamination
 
 A verifier can be hidden from the agent during a run while still being public to future model training. Public tasks provide reproducible examples and may support future regression checks, but they cannot support a leakage-resistant headline score on their own.
