@@ -28,7 +28,6 @@ import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 import type { AppPageModule } from './route-modules/app-page/module'
@@ -1266,6 +1265,47 @@ export default class NextNodeServer extends BaseServer<
     return !(res instanceof NodeNextResponse) ? new NodeNextResponse(res) : res
   }
 
+  /** @internal */
+  public async getProxyFastPathHandler() {
+    if (
+      this.dev ||
+      this.minimalMode ||
+      this.nextConfig.i18n ||
+      this.nextConfig.basePath ||
+      this.nextConfig.trailingSlash ||
+      this.nextConfig.skipProxyUrlNormalize ||
+      this.getMiddlewareManifest()?.middleware?.['/']
+    ) {
+      return null
+    }
+    await this.prepare()
+    const nodeMiddleware = await this.loadNodeMiddleware()
+    if (!nodeMiddleware) return null
+    const matchers:
+      | Parameters<typeof getMiddlewareRouteMatcher>[0]
+      | undefined = nodeMiddleware.config?.matchers
+    if (matchers?.some((matcher) => matcher.has || matcher.missing)) return null
+    return (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsed: NextUrlWithParsedQuery
+    ) => {
+      this.setForwardedHeaders(req.headers, req)
+      addRequestMeta(
+        req,
+        'initProtocol',
+        req.headers['x-forwarded-proto']?.includes('https') ? 'https' : 'http'
+      )
+      return this.runMiddleware({
+        request: this.normalizeReq(req),
+        response: this.normalizeRes(res),
+        parsedUrl: parsed,
+        parsed,
+        nodeMiddleware,
+      })
+    }
+  }
+
   public getRequestHandler(): NodeRequestHandler {
     const handler = this.makeRequestHandler()
     if (this.serverOptions.experimentalTestProxy) {
@@ -1676,8 +1716,9 @@ export default class NextNodeServer extends BaseServer<
   protected async runMiddleware(params: {
     request: NodeNextRequest
     response: NodeNextResponse
-    parsedUrl: ParsedUrl
+    parsedUrl: NextUrlWithParsedQuery
     parsed: NextUrlWithParsedQuery
+    nodeMiddleware?: any
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {
@@ -1725,19 +1766,18 @@ export default class NextNodeServer extends BaseServer<
       params?: { [key: string]: string | string[] }
     } = {}
 
-    const middleware = await this.getMiddleware()
-    if (!middleware) {
-      return { finished: false }
+    let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> = null
+    if (!params.nodeMiddleware) {
+      const middleware = await this.getMiddleware()
+      if (!middleware || !(await this.hasMiddleware(middleware.page))) {
+        return { finished: false }
+      }
+      await this.ensureMiddleware(params.request.url)
+      middlewareInfo = this.getEdgeFunctionInfo({
+        page: middleware.page,
+        middleware: true,
+      })
     }
-    if (!(await this.hasMiddleware(middleware.page))) {
-      return { finished: false }
-    }
-
-    await this.ensureMiddleware(params.request.url)
-    const middlewareInfo = this.getEdgeFunctionInfo({
-      page: middleware.page,
-      middleware: true,
-    })
 
     const method = (params.request.method || 'GET').toUpperCase()
     const requestData = {
@@ -1770,7 +1810,8 @@ export default class NextNodeServer extends BaseServer<
     // we decide we want to
     if (!middlewareInfo) {
       let middlewareModule
-      middlewareModule = await this.loadNodeMiddleware()
+      middlewareModule =
+        params.nodeMiddleware || (await this.loadNodeMiddleware())
 
       if (!middlewareModule) {
         throw new MiddlewareNotFoundError()

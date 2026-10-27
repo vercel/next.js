@@ -382,6 +382,12 @@ export class NextServer implements NextWrapperServer {
     return { config, compileMode: undefined }
   }
 
+  /** @internal */
+  public async getProxyFastPathHandler() {
+    const server = await this.getServer()
+    return server.getProxyFastPathHandler()
+  }
+
   private async getServer() {
     if (!this.serverPromise) {
       this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (result) => {

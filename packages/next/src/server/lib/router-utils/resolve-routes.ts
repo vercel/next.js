@@ -7,14 +7,14 @@ import type { Redirect } from '../../../types'
 import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
+import type { NextServer } from '../../next'
 
 import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
-import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
+import { ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
-import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import {
@@ -60,6 +60,12 @@ export function getResolveRoutes(
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
   ensureMiddleware?: (url?: string) => Promise<void>
 ) {
+  let initializedServer:
+    | Awaited<ReturnType<RenderServer['initialize']>>
+    | undefined
+  let proxyHandler:
+    | Awaited<ReturnType<NextServer['getProxyFastPathHandler']>>
+    | undefined
   let clientHashes: Record<string, string> | undefined = undefined
   if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
     try {
@@ -126,7 +132,6 @@ export function getResolveRoutes(
     req: IncomingMessage
     res: ServerResponse
     isUpgradeReq: boolean
-    signal: AbortSignal
     invokedOutputs?: Set<string>
   }): Promise<{
     finished: boolean
@@ -604,8 +609,11 @@ export function getResolveRoutes(
               await ensureMiddleware(req.url)
             }
 
-            const serverResult =
-              await renderServer?.initialize(renderServerOpts)
+            if (opts.dev || !initializedServer) {
+              initializedServer =
+                await renderServer?.initialize(renderServerOpts)
+            }
+            const serverResult = initializedServer
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)
@@ -629,7 +637,22 @@ export function getResolveRoutes(
             let bodyStream: ReadableStream | undefined = undefined
             try {
               try {
-                await serverResult.requestHandler(req, res, parsedUrl)
+                if (proxyHandler === undefined && !opts.dev) {
+                  proxyHandler =
+                    await serverResult.server.getProxyFastPathHandler()
+                }
+                if (
+                  proxyHandler &&
+                  !isUpgradeReq &&
+                  !getRequestMeta(req, 'isNextDataReq') &&
+                  !parsedUrl.pathname?.startsWith('/_next/') &&
+                  (req.method === 'GET' || req.method === 'HEAD')
+                ) {
+                  const result = await proxyHandler(req, res, parsedUrl)
+                  if ('response' in result) middlewareRes = result.response
+                } else {
+                  await serverResult.requestHandler(req, res, parsedUrl)
+                }
               } catch (err: any) {
                 if (!('result' in err) || !('response' in err.result)) {
                   throw err
@@ -637,8 +660,17 @@ export function getResolveRoutes(
                 middlewareRes = err.result.response as Response
                 rewriteLocaleWasInferred =
                   err.result.rewriteLocaleWasInferred === true
+              } finally {
+                if (opts.dev) {
+                  addRequestMeta(
+                    req,
+                    'devRequestTimingMiddlewareEnd',
+                    process.hrtime.bigint()
+                  )
+                }
+              }
+              if (middlewareRes) {
                 res.statusCode = middlewareRes.status
-
                 if (middlewareRes.body) {
                   bodyStream = middlewareRes.body
                 } else if (middlewareRes.status) {
@@ -648,14 +680,6 @@ export function getResolveRoutes(
                       controller.close()
                     },
                   })
-                }
-              } finally {
-                if (opts.dev) {
-                  addRequestMeta(
-                    req,
-                    'devRequestTimingMiddlewareEnd',
-                    process.hrtime.bigint()
-                  )
                 }
               }
             } catch (e) {
@@ -680,9 +704,21 @@ export function getResolveRoutes(
               }
             }
 
-            const middlewareHeaders = toNodeOutgoingHttpHeaders(
-              middlewareRes.headers
-            ) as Record<string, string | string[] | undefined>
+            const middlewareHeaders: Record<
+              string,
+              string | string[] | undefined
+            > = {}
+            middlewareRes.headers.forEach((value, key) => {
+              if (!ipcForbiddenHeaders.includes(key)) {
+                middlewareHeaders[key] = value
+              }
+            })
+            // runMiddleware has already split compound cookies.
+            if (middlewareRes.headers.has('set-cookie')) {
+              const cookies = middlewareRes.headers.getSetCookie()
+              middlewareHeaders['set-cookie'] =
+                cookies.length === 1 ? cookies[0] : cookies
+            }
 
             debug('middleware res', middlewareRes.status, middlewareHeaders)
 
@@ -729,9 +765,7 @@ export function getResolveRoutes(
             }
             delete middlewareHeaders['x-middleware-next']
 
-            for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
-            })) {
+            for (const [key, value] of Object.entries(middlewareHeaders)) {
               if (
                 [
                   'content-length',
