@@ -31,59 +31,45 @@ code {
   font-size: 0.9em;
 }
 
-.messages {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.actions {
   margin-bottom: 24px;
 }
 
-.message {
-  max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-
-.message p {
-  margin: 0;
-}
-
-.message.user {
-  align-self: flex-end;
+button {
+  padding: 10px 16px;
+  font: inherit;
   color: #fff;
   background: #111;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
-.message.assistant {
-  align-self: flex-start;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+button.secondary {
+  color: #111;
+  background: #eee;
 }
 
-.message .tool,
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .pending {
   color: #666;
-  font-size: 0.875rem;
-}
-
-.message.assistant:has(.triage) {
-  max-width: 100%;
-  width: 100%;
 }
 
 .triage {
   width: 100%;
-  margin: 4px 0 8px;
   border-collapse: collapse;
   font-size: 0.875rem;
-  white-space: normal;
+  background: #fff;
+  border: 1px solid #e5e5e5;
 }
 
 .triage th,
 .triage td {
-  padding: 8px;
+  padding: 10px 12px;
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid #eee;
@@ -115,46 +101,15 @@ code {
   color: #b00020;
 }
 
-.suggestion {
-  margin-bottom: 12px;
+.result {
+  margin: 16px 0 0;
+  line-height: 1.5;
 }
 
 .error {
+  margin-top: 16px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: 8px;
   color: #b00020;
   background: #fdecee;
-}
-
-form {
-  display: flex;
-  gap: 8px;
-}
-
-input {
-  flex: 1;
-  padding: 10px 14px;
-  font: inherit;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-button {
-  padding: 10px 16px;
-  font: inherit;
-  color: #fff;
-  background: #111;
-  border: 0;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-button[type="button"] {
-  color: #111;
-  background: #eee;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }

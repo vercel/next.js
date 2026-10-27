@@ -1,4 +1,4 @@
-import { Chat } from "./chat";
+import { Triage } from "./triage";
 
 export default function Page() {
   return (
@@ -10,7 +10,7 @@ export default function Page() {
         <code>agent/</code> and is served from <code>/eve/v1/*</code> on this
         origin.
       </p>
-      <Chat />
+      <Triage />
     </main>
   );
 }
