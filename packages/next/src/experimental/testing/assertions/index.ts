@@ -321,6 +321,8 @@ export async function createAssertionRuntime(options: {
   getCurrentFileFixtures?: () => AssertionCollection | undefined
   getCurrentScopeAncestors?: () => readonly string[]
   snapshotOptions?: SnapshotStateOptions
+  /** Actual public file preparation; internal callers retain eager setup. */
+  deferSnapshotPreparation?: true
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
   mapSnapshotLocation?: SnapshotStateOptions['snapshotEnvironment']['processStackTrace']
@@ -341,6 +343,10 @@ export async function createAssertionRuntime(options: {
   chai.use(JestAsymmetricMatchers)
   chai.use(MockPlugin)
 
+  const deferredSnapshotPreparation = options.deferSnapshotPreparation === true
+  const snapshotPromiseConstructor = deferredSnapshotPreparation
+    ? Promise
+    : undefined
   const snapshots = new SnapshotClient({
     isEqual: (received, expected) =>
       equals(received, expected, [iterableEquality, subsetEquality]),
@@ -353,16 +359,53 @@ export async function createAssertionRuntime(options: {
     snapshotOptions.snapshotEnvironment,
     snapshotOptions.updateSnapshot !== 'none'
   )
+  let disposed = false
+  let snapshotPrepared = false
+  let snapshotPreparation: Promise<void> | undefined
+  let snapshotPreparationSettled = false
+  function prepareSnapshots(): Promise<void> {
+    if (disposed)
+      throw new Error('Cannot prepare snapshots after assertion disposal.')
+    if (options.collectOnly)
+      throw new Error('Collection-only assertions cannot prepare snapshots.')
+    if (snapshotPreparation) return snapshotPreparation
+    const Constructor = snapshotPromiseConstructor!
+    let resolvePreparation!: (value: void | PromiseLike<void>) => void
+    let rejectPreparation!: (reason: unknown) => void
+    const preparation = new Constructor<void>((resolve, reject) => {
+      resolvePreparation = resolve
+      rejectPreparation = reject
+    })
+    // Publish the owner before the real environment callback can reenter.
+    snapshotPreparation = preparation
+    void (async () => {
+      try {
+        await snapshots.setup(options.testPath, {
+          ...snapshotOptions,
+          snapshotEnvironment: stagedSnapshots.environment,
+        })
+        snapshotPrepared = true
+        resolvePreparation()
+      } catch (error) {
+        rejectPreparation(error)
+      } finally {
+        snapshotPreparationSettled = true
+      }
+    })()
+    return preparation
+  }
   try {
     if (options.mapSnapshotLocation) {
       stagedSnapshots.environment.processStackTrace =
         options.mapSnapshotLocation
     }
-    if (!options.collectOnly)
+    if (!options.collectOnly && !deferredSnapshotPreparation) {
       await snapshots.setup(options.testPath, {
         ...snapshotOptions,
         snapshotEnvironment: stagedSnapshots.environment,
       })
+      snapshotPrepared = true
+    }
   } catch (error) {
     closeAssertionFile()
     runtimeActive = false
@@ -442,7 +485,6 @@ export async function createAssertionRuntime(options: {
   const suspendedScopes = new Set<AssertionScope>()
   let snapshotSelection: { partial: boolean; complete: boolean } | undefined
   let snapshotResult: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
-  let disposed = false
   function current() {
     // Consult origin accessors even after disposal: C records late work here,
     // including when user code retained a direct assertion/spy function.
@@ -3941,6 +3983,7 @@ export async function createAssertionRuntime(options: {
       registerVitestAssertionTaskRuntime(task, scope.task)
       return taskExpectation(task)
     },
+    ...(deferredSnapshotPreparation ? { prepareSnapshots } : {}),
     beginCollection: (context: AssertionCollection) =>
       beginScope(context, 'collection'),
     beginAttempt: (context: AssertionAttempt) => beginScope(context, 'attempt'),
@@ -3953,7 +3996,8 @@ export async function createAssertionRuntime(options: {
     ) {
       for (const test of cases) {
         if (test.status === 'skipped' || test.status === 'cancelled')
-          snapshots.skipTest(options.testPath, test.name)
+          if (!deferredSnapshotPreparation || snapshotPrepared)
+            snapshots.skipTest(options.testPath, test.name)
       }
       snapshotSelection = selection
     },
@@ -3993,7 +4037,10 @@ export async function createAssertionRuntime(options: {
       }
       let result: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
       try {
-        if (!options.collectOnly) {
+        if (
+          !options.collectOnly &&
+          (!deferredSnapshotPreparation || snapshotPrepared)
+        ) {
           const state = snapshots.getSnapshotState(options.testPath)
           if (!snapshotSelection || !snapshotSelection.complete) {
             // Unselected/skipped test keys are marked checked by the runner.
@@ -4078,6 +4125,36 @@ export async function createAssertionRuntime(options: {
         throw new AggregateError(errors, 'Test assertion file cleanup failed')
       return result
     },
+  }
+  if (deferredSnapshotPreparation) {
+    const finishFile = runtime.finishFile
+    let finishing: ReturnType<typeof finishFile> | undefined
+    runtime.finishFile = () => {
+      if (
+        (fileAssertionLifetime || options.observeNativeUnhandledAssertions
+          ? [...scopes.values()].some((scope) => !scope.finalized)
+          : scopes.size) ||
+        suspendedScopes.size
+      )
+        return finishFile()
+      if (finishing) return finishing
+      finishing = (async () => {
+        if (snapshotPreparation && !snapshotPreparationSettled) {
+          try {
+            await snapshotPreparation
+          } catch {
+            // The actual prepare caller owns this occurrence; finish joins it.
+          }
+        }
+        try {
+          return await finishFile()
+        } catch (error) {
+          if (!disposed) finishing = undefined
+          throw error
+        }
+      })()
+      return finishing
+    }
   }
   chaiCallbackDispatches.set(runtime, callChaiPluginCallback)
   return runtime

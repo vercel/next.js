@@ -7708,3 +7708,83 @@ it.each([
   },
   35000
 )
+
+it.each([
+  'default',
+  'truthy',
+  'runtime-join',
+  'runtime-active',
+  'runtime-undefined',
+  'failed-join',
+  'failed-error',
+  'failed-undefined',
+  'run-join',
+  'run-error',
+  'run-undefined',
+  'skip',
+  'skip-retained',
+  'empty',
+  'match',
+  'observer-error',
+  'observer-undefined',
+  'legacy-undefined',
+  'dispose-same',
+  'dispose-undefined',
+  'success-dispose-error',
+  'invalid-profile',
+] as const)(
+  'owns actual deferred snapshot preparation and disposal for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-owner-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-owned.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        exactSnapshotBytesHeld: true,
+        actualPhaseAndDisposalJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'runtime',
+  'runtime-undefined',
+  'file',
+  'file-undefined',
+  'runtime-constructor',
+  'file-constructor',
+  'runtime-turn',
+  'file-turn',
+] as const)(
+  'publishes the snapshot setup owner before synchronous resolver reentry for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-reentry-owner-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-reentry.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        resolutions: 1,
+        reads: 1,
+        sameOwnedPromise: true,
+        exactBytes: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)

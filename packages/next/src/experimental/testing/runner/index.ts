@@ -146,6 +146,8 @@ export interface TestFileOptions {
   publicTaskSelection?: true
   /** Actual public file preparation; private standalone callers retain their semantics. */
   prepareEmptyPublicFile?: true
+  /** Real public snapshot setup is owned by the file's run preparation. */
+  preparePublicSnapshots?: true
   /** Actual finalized public task modes, independent of private declaration data. */
   finalizePublicTaskModes?: true
   /** Explicit Istanbul host capture of one settled actual module-load failure. */
@@ -317,6 +319,7 @@ function initializeFile(
   {
     publicTaskSelection,
     prepareEmptyPublicFile,
+    preparePublicSnapshots,
     finalizePublicTaskModes,
     onCollectionFailure,
     captureCollectionCoverage,
@@ -357,6 +360,10 @@ function initializeFile(
     throw new Error('An active shared worker owns this realm.')
   if (activeFile)
     throw new Error('A test file is already active in this realm.')
+  if (preparePublicSnapshots === true && (collectOnly || worker))
+    throw new Error(
+      'Public snapshot preparation requires an isolated executable file.'
+    )
   if (typeof updateSnapshots !== 'boolean')
     throw new TypeError('updateSnapshots must be a boolean.')
   const updateMode = resolveSnapshotUpdateMode({
@@ -484,6 +491,15 @@ function initializeFile(
   let collectionFailed = false
   let runStarted = false
   let snapshotExecutionComplete = false
+  let snapshotCollectionFailed = false
+  let snapshotPreparation: Promise<void> | undefined
+  const snapshotPromiseConstructor =
+    preparePublicSnapshots === true ? Promise : undefined
+  let snapshotPreparationSettled = false
+  let snapshotPreparationSource: 'run' | 'failed-collection' | undefined
+  let snapshotPreparationFailure:
+    | { error: unknown; carrier: object; propagatedThroughRun: boolean }
+    | undefined
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
   let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
   let disposalSucceeded = false
@@ -511,7 +527,54 @@ function initializeFile(
     !lateErrors.length
   const canPublishSnapshots = () =>
     updateMode !== 'none' && hasCompletedBodyExecution()
-  return {
+  function prepareOwnedSnapshots(source: 'run' | 'failed-collection') {
+    if (snapshotPreparation) {
+      if (snapshotPreparationSource !== source)
+        throw new Error('Snapshot preparation belongs to another file phase.')
+      return snapshotPreparation
+    }
+    const prepare = fileAssertions?.prepareSnapshots
+    if (typeof prepare !== 'function')
+      throw new Error('The actual deferred snapshot runtime is unavailable.')
+    const Constructor = snapshotPromiseConstructor!
+    let resolvePreparation!: (value: void | PromiseLike<void>) => void
+    let rejectPreparation!: (reason: unknown) => void
+    const preparation = new Constructor<void>((resolve, reject) => {
+      resolvePreparation = resolve
+      rejectPreparation = reject
+    })
+    snapshotPreparationSource = source
+    snapshotPreparation = preparation
+    let operation: Promise<void>
+    try {
+      operation = prepare()
+    } catch (error) {
+      // A synchronous owner guard is not an actual setup failure.
+      snapshotPreparation = undefined
+      snapshotPreparationSource = undefined
+      rejectPreparation(error)
+      void preparation.catch(() => {})
+      throw error
+    }
+    void (async () => {
+      try {
+        await operation
+        resolvePreparation()
+      } catch (error) {
+        const carrier = {}
+        snapshotPreparationFailure = {
+          error,
+          carrier,
+          propagatedThroughRun: false,
+        }
+        rejectPreparation(source === 'run' ? carrier : error)
+      } finally {
+        snapshotPreparationSettled = true
+      }
+    })()
+    return preparation
+  }
+  const initializedFile = {
     enableBrowserPublicTaskQueues() {
       if (state !== 'initialized')
         throw new Error(
@@ -519,6 +582,39 @@ function initializeFile(
         )
       browserPublicTaskQueues = true
     },
+    ...(preparePublicSnapshots === true
+      ? {
+          prepareSnapshotsAfterFailedCollection() {
+            if (
+              state !== 'finished' ||
+              !snapshotCollectionFailed ||
+              collectionObservationFailed
+            )
+              throw new Error(
+                'Snapshot preparation requires the actual completed failed collection.'
+              )
+            return prepareOwnedSnapshots('failed-collection')
+          },
+          getSnapshotPreparationFailure() {
+            if (
+              !snapshotPreparationFailure ||
+              !snapshotPreparationSettled ||
+              state === 'running' ||
+              state === 'collecting'
+            )
+              return undefined
+            return Object.freeze({
+              version: 1 as const,
+              phase: 'snapshot-preparation' as const,
+              invocation: 0 as const,
+              source: snapshotPreparationSource!,
+              error: snapshotPreparationFailure.error,
+              propagatedThroughRun:
+                snapshotPreparationFailure.propagatedThroughRun,
+            })
+          },
+        }
+      : {}),
     api: collector.api,
     filePath,
     getPublishedTaskLocation,
@@ -536,6 +632,9 @@ function initializeFile(
       try {
         assertions = await createAssertionRuntime({
           testPath: filePath,
+          ...(preparePublicSnapshots === true
+            ? { deferSnapshotPreparation: true as const }
+            : {}),
           observeNativeUnhandledAssertions:
             snapshotBodyFailures && onUnhandledRejection !== undefined,
           observePublicTaskQueues: browserPublicTaskQueues,
@@ -690,6 +789,7 @@ function initializeFile(
         state = 'collected'
       } catch (error) {
         collectionFailed = true
+        if (preparePublicSnapshots === true) snapshotCollectionFailed = true
         if (!onCollectionFailure) {
           state = 'finished'
           worker?.fail(error, fileId)
@@ -781,6 +881,19 @@ function initializeFile(
           collector.root,
           {
             ...executionOptions,
+            ...(preparePublicSnapshots === true
+              ? {
+                  prepareSnapshots(actualFile: File) {
+                    if (
+                      actualFile.mode === 'skip' ||
+                      options.signal.aborted ||
+                      options.userCancelSignal?.aborted
+                    )
+                      return undefined
+                    return prepareOwnedSnapshots('run')
+                  },
+                }
+              : {}),
             ...(prepareEmptyPublicFile === true
               ? { prepareEmptyPublicFile: true as const }
               : {}),
@@ -1103,6 +1216,14 @@ function initializeFile(
         }
         return result
       } catch (error) {
+        if (
+          snapshotPreparationFailure &&
+          snapshotPreparationFailure.carrier === error
+        ) {
+          snapshotPreparationFailure.propagatedThroughRun = true
+          worker?.fail(snapshotPreparationFailure.error, fileId)
+          throw snapshotPreparationFailure.error
+        }
         worker?.fail(error, fileId)
         throw error
       } finally {
@@ -1297,4 +1418,24 @@ function initializeFile(
       return fileAssertions?.takeSnapshotUpdates() ?? []
     },
   }
+  if (preparePublicSnapshots === true) {
+    const dispose = initializedFile.dispose
+    let disposing: ReturnType<typeof dispose> | undefined
+    initializedFile.dispose = (options) => {
+      if (state === 'running' || state === 'collecting') return dispose(options)
+      if (disposing) return disposing
+      disposing = (async () => {
+        if (snapshotPreparation && !snapshotPreparationSettled) {
+          try {
+            await snapshotPreparation
+          } catch {
+            // The actual phase caller retains the failure; disposal owns its join.
+          }
+        }
+        return dispose(options)
+      })()
+      return disposing
+    }
+  }
+  return initializedFile
 }

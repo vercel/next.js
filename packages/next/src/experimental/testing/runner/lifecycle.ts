@@ -224,6 +224,8 @@ export interface CompletedModuleResult {
 export interface RunnerOptions {
   /** Public finalized skip/todo modes; private standalone selection is unchanged. */
   finalizePublicTaskModes?: true
+  /** The actual assertion snapshot owner, before any file resources execute. */
+  prepareSnapshots?(file: File): void | Promise<void>
   /** Actual empty public File failure, before authored file resources or hooks. */
   prepareEmptyPublicFile?: true
   /** Internal scheduling hint capture; never publication or baseline authority. */
@@ -2977,6 +2979,7 @@ export async function runCollected(
         errors: [serializeTaskError(filePreparationFailure.error)],
       }
     }
+    if (options.prepareSnapshots) await options.prepareSnapshots(collectedFile)
     if (!filePreparationFailure)
       await fixtureScope.run(async () => {
         fixtureAssertions =
