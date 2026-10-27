@@ -92,11 +92,22 @@ Prove the task measures its contract before reading any model result:
 
 `tests/bad-solutions/` holds one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision. They are the grader's test suite: a bad repair that scores 1 means the grader is wrong, and an untouched fixture that scores 1 means the task is wrong.
 
-### 6. Calibrate
+### 6. Calibrate and decide
 
-Run a fixed frontier and weaker-model cohort with `evals/agent-build/tools/calibrate.sh`. The first valid attempt is the pass@1 score. Retry setup, image, sandbox, network, and model transport errors; they are not model failures. Rerun a scored failure to learn whether it is stable, and record that separately. Confirmations never change the score. One cohort is directional; repeated independent runs are needed before publishing a stable rate.
+Run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
 
-Calibration decides whether a candidate belongs in this harder-task set. Keep it when valid attempts expose repeatable capability failures in the intended cohort. Revise it when failures come from the task, verifier, runner, or infrastructure. Remove it from this set when the intended cohort consistently solves it; the working bar is frontier models below 90% valid pass@1, the same line that separates `regression` from `competency` in `evals/README.md`. Removal does not reclassify or move the task into another suite; any separate regression coverage is an independent decision in its own format and change.
+1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors; an agent that runs out of time is a failure.
+2. **Confirm failures.** Rerun each valid failure twice with `calibrate.sh --confirm` and record whether it repeats. Confirmations never change the score; they show whether a failure is stable.
+3. **Read every failure** before trusting it, and fix the grader when the instruction did not ask for what it checks.
+4. **Keep the task** only if all of these hold:
+   - It represents a real user or agent failure.
+   - More than one correct implementation is possible, and the verifier accepts them.
+   - The verifier tests behavior, not the reference patch.
+   - It separates models: frontier models below 90% valid pass@1, with failures that repeat.
+   - The result is reproducible enough to maintain.
+5. **Decide.** Accepted tasks join the harder suite. Revise or drop the rest. Saturated tasks stay in the existing regression suite; this step never migrates or redesigns them.
+
+One cohort is directional; repeated independent runs are needed before publishing a stable rate. Prove a new task format with a few strong tasks before expanding a suite.
 
 Public tasks support review and reproducibility. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals; that is a separate decision.
 

@@ -23,6 +23,11 @@
 # writes the new jobs under <jobs-dir>/_regraded; report.mjs prefers them.
 # A change to the instruction or fixture needs new runs instead.
 #
+# To learn whether a failure is stable, confirm it:
+#   evals/agent-build/tools/calibrate.sh --confirm <env-file> <jobs-dir> <task-dir>...
+# reruns every valid failure twice under <jobs-dir>/_confirm. Confirmations
+# never change the pass@1 score; the report shows how many repeated.
+#
 # Summarize with:
 #   evals/agent-build/tools/calibrate.sh --summary <jobs-dir>
 set -uo pipefail
@@ -66,10 +71,11 @@ if [ "${1:-}" = "--summary" ]; then
 fi
 
 REGRADE=''
-if [ "${1:-}" = "--regrade" ]; then
-  REGRADE=1
-  shift
-fi
+CONFIRM=''
+case "${1:-}" in
+  --regrade) REGRADE=1; shift ;;
+  --confirm) CONFIRM=1; shift ;;
+esac
 
 ENV_FILE=$1
 JOBS=$2
@@ -127,6 +133,54 @@ if [ -n "$REGRADE" ]; then
           -o "$JOBS/_regraded" --job-name "$(basename "$job")") \
         > "$JOBS/_regraded/$(basename "$job").log" 2>&1 ||
         echo "   harbor exited non-zero; see $JOBS/_regraded/$(basename "$job").log"
+    done
+  done
+  exit 0
+fi
+
+if [ -n "$CONFIRM" ]; then
+  mkdir -p "$JOBS/_confirm"
+  for task in "$@"; do
+    name=$(basename "$task")
+    base_task=$(cd "$task" && pwd)
+    for job in "$JOBS/$name"__*/; do
+      job=${job%/}
+      # A valid failure: finished, no runner error, reward 0 (after a regrade
+      # when one exists).
+      node -e '
+        const fs = require("fs"), path = require("path")
+        const [file, regraded] = process.argv.slice(1)
+        const pick = fs.existsSync(regraded) ? regraded : file
+        const r = JSON.parse(fs.readFileSync(pick, "utf8"))
+        const ev = Object.values(r.stats?.evals ?? {})[0] ?? {}
+        const runnerError = Object.keys(ev.exception_stats ?? {}).some((n) => n !== "AgentTimeoutError")
+        process.exit(r.finished_at && !runnerError && ev.metrics?.[0]?.mean === 0 ? 0 : 1)
+      ' "$job/result.json" "$JOBS/_regraded/$(basename "$job")/result.json" 2>/dev/null || continue
+      verifier=$base_task
+      case "$job" in *__agents-md) TREATMENT=agents-md verifier=$(treat "$base_task") ;; esac
+      agent=$(node -e 'console.log(require(process.argv[1]).agents[0].name)' "$job/config.json")
+      model=$(node -e 'console.log(require(process.argv[1]).agents[0].model_name)' "$job/config.json")
+      for row in "${COHORT[@]}"; do
+        IFS='|' read -r r_agent r_model effort options api_format <<< "$row"
+        [ "$r_agent" = "$agent" ] && [ "$r_model" = "$model" ] || continue
+        for attempt in 1 2; do
+          confirm="$(basename "$job")__confirm-$attempt"
+          [ -f "$JOBS/_confirm/$confirm/result.json" ] && continue
+          echo "== confirm $confirm"
+          args=(run --path "$verifier" --agent "$agent" --model "$model" --env vercel
+            --env-file "$ENV_FILE" --api-key-name AI_GATEWAY_API_KEY
+            --n-attempts 1 --max-retries 2 --jobs-dir "$JOBS/_confirm" --job-name "$confirm")
+          case "$options" in *base_url=*) ;; *) args+=(--base-url https://ai-gateway.vercel.sh/v1) ;; esac
+          [ -n "$effort" ] && args+=(--effort "$effort")
+          [ -n "$api_format" ] && args+=(--api-format "$api_format")
+          if [ -n "$options" ]; then
+            IFS=',' read -ra pairs <<< "$options"
+            for pair in "${pairs[@]}"; do args+=(--agent-kwarg "$pair"); done
+          fi
+          "$HARBOR" "${args[@]}" > "$JOBS/_confirm/$confirm.log" 2>&1 ||
+            echo "   harbor exited non-zero; see $JOBS/_confirm/$confirm.log"
+        done
+      done
     done
   done
   exit 0

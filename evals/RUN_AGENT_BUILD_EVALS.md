@@ -134,6 +134,8 @@ The script passes `--max-retries 2`, which retries runner exceptions such as san
 
 When only a verifier changed after runs were scored, regrade instead of rerunning: `calibrate.sh --regrade <env-file> <jobs-dir> <task-dir>...` runs Harbor's [`harbor job regrade`](https://docs.harborframework.com/jobs/regrade) on each finished job with the current verifier, on the recorded patch and without agent cost, and writes the results under `<jobs-dir>/_regraded`, which the report prefers. A change to the instruction or fixture needs new runs.
 
+To learn whether a failure is stable, `calibrate.sh --confirm <env-file> <jobs-dir> <task-dir>...` reruns every valid failure twice under `<jobs-dir>/_confirm`. Confirmations never change the pass@1 score; the report shows how many repeated next to each failure.
+
 ## Run optional context treatments
 
 Harbor runs the base task as committed. `TREATMENT=agents-md evals/agent-build/tools/calibrate.sh ...` runs a generated copy whose fixture also has the standard Next.js `AGENTS.md`, the same text as the `agent-eval` `agents-md` variant, and a `CLAUDE.md` that imports it. The instruction, verifier, model, effort, and runtime stay identical, jobs get an `__agents-md` suffix, and the report labels those rows `· AGENTS.md`. Never commit the generated copy as a second task. Suites for other frameworks can omit the treatment or define one for their own documentation.

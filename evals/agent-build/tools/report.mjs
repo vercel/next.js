@@ -63,7 +63,17 @@ for (const name of readdirSync(jobs)) {
     regrade?.finished_at && regradeEval
       ? regradeEval.metrics?.[0]?.mean
       : evaluation.metrics?.[0]?.mean
+  // Confirmation reruns of a valid failure (calibrate.sh --confirm).
+  const confirms = [1, 2]
+    .map((n) => join(jobs, '_confirm', `${name}__confirm-${n}`, 'result.json'))
+    .filter((file) => existsSync(file))
+    .map((file) => read(file))
+    .filter((r) => r.finished_at)
+    .map((r) => Object.values(r.stats?.evals ?? {})[0] ?? {})
+    .filter((ev) => !runnerError(ev))
   runs.push({
+    confirmed: confirms.length,
+    repeated: confirms.filter((ev) => !(ev.metrics?.[0]?.mean >= 1)).length,
     task: name.split('__')[0],
     model: label(agent.model_name ?? name.split('__')[2]),
     harness: HARNESS[agent.name] ?? agent.name,
@@ -173,7 +183,9 @@ const mark = (r) =>
     : r.state === 'pass'
       ? '✅'
       : r.state === 'fail'
-        ? '❌'
+        ? r.confirmed
+          ? `❌ (${r.repeated}/${r.confirmed} repeat)`
+          : '❌'
         : r.state === 'running'
           ? '⏳'
           : '—'
@@ -221,7 +233,7 @@ if (all.base.scored || all.docs.scored) {
 }
 console.log()
 console.log(
-  'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, ⏳ running, · not started, — runner error, rerun.'
+  'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, with how many confirmation reruns repeated the failure, ⏳ running, · not started, — runner error, rerun.'
 )
 
 // Accuracy against cost per run, one point per model and treatment, cost on a
