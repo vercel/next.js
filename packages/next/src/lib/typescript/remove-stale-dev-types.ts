@@ -5,23 +5,13 @@ import path from 'path'
 import * as Log from '../../build/output/log'
 
 /**
- * Removes the route types a previous `next dev` session wrote to
- * `{distDirRoot}/dev/types`.
+ * Optimistically removes the types managed by `next dev`
+ * (`{distDirRoot}/dev/types`), unless we can tell that a `next dev` session is
+ * running.
  *
- * tsconfig includes both `{distDirRoot}/types` and `{distDirRoot}/dev/types` to avoid
- * config churn between dev and build. Once `next dev` has stopped, its types are
- * no longer updated, so after a route is moved or deleted they reference files
- * that no longer exist and fail type checking (e.g. a `tsc` run after
- * `next typegen`, or the TypeScript CLI type check of `next build`). `next dev`
- * regenerates them on startup, so removing them loses nothing.
- *
- * The types of a running `next dev` server are kept up to date by that server,
- * so they are left in place. Running servers are detected through the dev
- * lockfile (`experimental.lockDistDir`). The lock is held while removing the
- * types, so a `next dev` starting concurrently waits instead of writing types
- * that are then removed. Without a lockfile (`lockDistDir` disabled, or WASM
- * bindings, which can't lock) a running server can't be detected and the types
- * are removed regardless; that server writes them again on the next change.
+ * We do this because tsconfig includes both sets of types, and without
+ * `next dev` running its types become stale. The types of `next build` and
+ * `next dev` merge, so just deleting the dev types works.
  *
  * Must be called after the SWC bindings are loaded.
  */
@@ -39,7 +29,7 @@ export async function removeStaleDevTypes({
     return
   }
 
-  let lockfile: import('../../build/lockfile').Lockfile | undefined
+  let lockfile
   try {
     if (lockDistDir) {
       // Lazily required: the lockfile loads the SWC bindings module.
@@ -60,11 +50,9 @@ export async function removeStaleDevTypes({
     Log.warn(
       `Failed to remove stale development types in ${devTypesDir}: ${
         err instanceof Error ? err.message : String(err)
-      }`
+      }. This may lead to unexpected type checking errors.`
     )
   } finally {
-    await lockfile?.unlock().catch(() => {
-      // The operating system releases the lock when the process exits.
-    })
+    await lockfile?.unlock()
   }
 }
