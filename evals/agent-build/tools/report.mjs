@@ -1,6 +1,7 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
 // request: one table, a row per model with a base / AGENTS.md column per task,
-// the totals across tasks (Base, + AGENTS.md, Delta) and cost per run, as in
+// the totals across tasks (Base, + AGENTS.md, Delta), then price per million
+// tokens, tokens, cost, and time per run, as in
 // the agent-eval result PRs, then accuracy against cost as a Mermaid chart
 // GitHub renders inline.
 //
@@ -76,6 +77,8 @@ for (const name of readdirSync(jobs)) {
           ? 'pass'
           : 'fail',
     cost: result.stats?.cost_usd ?? null,
+    tokensIn: result.stats?.n_input_tokens ?? null,
+    tokensOut: result.stats?.n_output_tokens ?? null,
     minutes: result.finished_at
       ? (new Date(result.finished_at) - new Date(result.started_at)) / 60000
       : null,
@@ -87,6 +90,22 @@ const tasks = taskArgs.length
   : [...new Set(runs.map((r) => r.task))].sort()
 const scored = (r) => r.state === 'pass' || r.state === 'fail'
 const pct = (p, n) => (n ? `${Math.round((100 * p) / n)}%` : '')
+const count = (v) =>
+  v == null
+    ? ''
+    : v >= 1e6
+      ? `${(v / 1e6).toFixed(1)}M`
+      : v >= 1e3
+        ? `${Math.round(v / 1e3)}k`
+        : String(Math.round(v))
+const tokens = (i, o) => (i == null ? '' : `${count(i)} in / ${count(o)} out`)
+const duration = (m) => (m == null ? '' : `${Math.round(m)} min`)
+// Effective price per million tokens: what the runs cost divided by the
+// tokens they used, so cached input is already reflected in the rate.
+const perMillion = (cost, i, o) =>
+  cost == null || i == null || i + (o ?? 0) === 0
+    ? ''
+    : `$${((1e6 * cost) / (i + (o ?? 0))).toFixed(2)}`
 const usd = (v) => (v == null ? '' : `$${v.toFixed(2)}`)
 const mean = (xs) =>
   xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null
@@ -122,7 +141,19 @@ const models = cohort.map((c, order) => {
     .filter(scored)
     .map((r) => r.cost)
     .filter((x) => x != null)
-  return { ...c, order, base, docs, cost: mean(modelCosts) }
+  const scoredRuns = mine.filter(scored)
+  const avg = (key) =>
+    mean(scoredRuns.map((r) => r[key]).filter((x) => x != null))
+  return {
+    ...c,
+    order,
+    base,
+    docs,
+    cost: mean(modelCosts),
+    tokensIn: avg('tokensIn'),
+    tokensOut: avg('tokensOut'),
+    minutes: avg('minutes'),
+  }
 })
 const rate = (t) => (t.scored ? t.passed / t.scored : -1)
 models.sort(
@@ -152,12 +183,12 @@ const mark = (r) =>
 console.log(
   '| Model | Harness | ' +
     tasks.map((t) => `\`${t}\``).join(' | ') +
-    ' | Base | + AGENTS.md | Delta | Cost per run |'
+    ' | Base | + AGENTS.md | Delta | Price per 1M tokens | Tokens per run | Cost per run | Time per run |'
 )
 console.log(
   '| --- | --- | ' +
     tasks.map(() => ':---:').join(' | ') +
-    ' | ---: | ---: | ---: | ---: |'
+    ' | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
 )
 for (const m of models) {
   const perTask = tasks.map((task) => {
@@ -168,13 +199,16 @@ for (const m of models) {
     return `${mark(find('base'))} / ${mark(find('agents-md'))}`
   })
   console.log(
-    `| ${m.model} | ${m.harness} | ${perTask.join(' | ')} | ${cell(m.base)} | ${cell(m.docs)} | ${delta(m.base, m.docs)} | ${usd(m.cost)} |`
+    `| ${m.model} | ${m.harness} | ${perTask.join(' | ')} | ${cell(m.base)} | ${cell(m.docs)} | ${delta(m.base, m.docs)} | ${perMillion(m.cost, m.tokensIn, m.tokensOut)} | ${tokens(m.tokensIn, m.tokensOut)} | ${usd(m.cost)} | ${duration(m.minutes)} |`
   )
 }
 const all = {
   base: tally(runs.filter((r) => r.treatment === 'base')),
   docs: tally(runs.filter((r) => r.treatment === 'agents-md')),
 }
+const allScored = runs.filter(scored)
+const allAvg = (key) =>
+  mean(allScored.map((r) => r[key]).filter((x) => x != null))
 const allCosts = runs
   .filter(scored)
   .map((r) => r.cost)
@@ -182,7 +216,7 @@ const allCosts = runs
 const bold = (v) => (v ? `**${v}**` : '')
 if (all.base.scored || all.docs.scored) {
   console.log(
-    `| **All models** | | ${tasks.map(() => '').join(' | ')} | ${bold(cell(all.base))} | ${bold(cell(all.docs))} | ${bold(delta(all.base, all.docs))} | ${bold(usd(mean(allCosts)))} |`
+    `| **All models** | | ${tasks.map(() => '').join(' | ')} | ${bold(cell(all.base))} | ${bold(cell(all.docs))} | ${bold(delta(all.base, all.docs))} | ${bold(perMillion(mean(allCosts), allAvg('tokensIn'), allAvg('tokensOut')))} | ${bold(tokens(allAvg('tokensIn'), allAvg('tokensOut')))} | ${bold(usd(mean(allCosts)))} | ${bold(duration(allAvg('minutes')))} |`
   )
 }
 console.log()
