@@ -1,0 +1,3 @@
+The deployment activity page fails its production build after Cache Components reports that the live clock reads the current time during prerendering.
+
+Keep Cache Components enabled and keep /activity instant. Its heading, deployment status, “Updated at” label, and Waiting for browser clock… fallback must be available in the prerendered page. After hydration, replace the fallback with the browser's current time and keep it updating without navigation. Preserve the interactive refresh counter. Do not suppress the warning or opt the route out of prerendering. Verify the result with a production build.

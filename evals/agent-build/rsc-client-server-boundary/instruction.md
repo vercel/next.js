@@ -1,0 +1,3 @@
+The team directory no longer builds because its interactive picker imports a shared module that also owns server-only signing behavior.
+
+Restore the /teams page and /api/teams/[team] route without removing the Client Component. The page must render the active-team count, and selecting another team must update its name and plan without navigation. The route must return the matching team and a server-generated signature for known IDs, while unknown IDs remain a 404. Keep the signing secret and Node.js crypto usage behind an explicit server-only boundary, and do not expose either to the client bundle.

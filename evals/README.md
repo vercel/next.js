@@ -6,7 +6,7 @@ The point: find places where agents get Next.js wrong because their training dat
 
 Existing fixtures use `agent-eval` and preserve the published result history.
 New Agent Build candidates use Harbor on Vercel Sandbox. Follow
-[Author harder Next.js eval candidates](HARDER_EVALS.md) for new work.
+[Curate Next.js Agent Build evals](AGENT_BUILD_EVALS.md) for new work.
 
 ## How it works
 
@@ -28,8 +28,8 @@ External contributors can run the same evals in local Docker with their own API 
 
 ## Existing agent-eval format
 
-Use this format when maintaining an existing fixture. New Agent Build tasks use
-the Harbor format in [the harder-evals guide](HARDER_EVALS.md).
+Use this format when maintaining an existing fixture. New Agent Build tasks use the portable contract in
+[the Agent Build guide](AGENT_BUILD_EVALS.md).
 
 To split or replace an existing fixture, copy it and take the next free number.
 Gaps are fine.
@@ -163,8 +163,9 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ```
 evals/
-├── HARDER_EVALS.md  # authoring workflow for new Harbor tasks
-├── harder/          # new Harbor tasks
+├── AGENT_BUILD_EVALS.md      # selection and authoring contract
+├── RUN_AGENT_BUILD_EVALS.md  # current Harbor and Sandbox adapter
+├── agent-build/               # new Agent Build task candidates
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
