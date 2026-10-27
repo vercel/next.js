@@ -85,41 +85,23 @@ pub async fn outputs_hash(outputs: Vc<OutputAssets>, hash_salt: Vc<RcStr>) -> Re
 }
 
 #[turbo_tasks::function]
-pub async fn endpoint_entry_modules(
-    base_module_graph: Vc<ModuleGraph>,
-    endpoint: Vc<Box<dyn Endpoint>>,
-) -> Result<Vc<Modules>> {
+pub async fn endpoint_entry_modules(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<Modules>> {
     let entries = endpoint.entries().await?;
-    let additional_entries = endpoint.additional_entries(base_module_graph).await?;
-    let modules = entries
-        .chunk_group_modules()
-        .chain(additional_entries.chunk_group_modules())
-        .collect::<FxIndexSet<_>>();
+    let modules = entries.chunk_group_modules().collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
 }
 
 #[turbo_tasks::function]
-pub async fn endpoints_entry_modules(
-    base_module_graph: Vc<ModuleGraph>,
-    endpoints: Vc<Endpoints>,
-) -> Result<Vc<Modules>> {
+pub async fn endpoints_entry_modules(endpoints: Vc<Endpoints>) -> Result<Vc<Modules>> {
     let endpoints = endpoints.await?;
-    let entries_and_additional_entries = endpoints
+    let entries = endpoints
         .iter()
-        .map(async |endpoint| {
-            let entries = endpoint.entries();
-            let additional_entries = endpoint.additional_entries(base_module_graph);
-            Ok((entries.await?, additional_entries.await?))
-        })
+        .map(|endpoint| endpoint.entries())
         .try_join()
         .await?;
-    let modules = entries_and_additional_entries
+    let modules = entries
         .iter()
-        .flat_map(|(entries, additional_entries)| {
-            entries
-                .chunk_group_modules()
-                .chain(additional_entries.chunk_group_modules())
-        })
+        .flat_map(|entries| entries.chunk_group_modules())
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
 }
@@ -194,9 +176,7 @@ impl Asset for RoutesHashesManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let hash_salt = no_hash_salt();
-        let module_graphs = self.project.whole_app_module_graphs().await?;
-        let base_module_graph = *module_graphs.base;
-        let full_module_graph = *module_graphs.full;
+        let module_graph = self.project.whole_app_module_graph();
 
         let mut entrypoint_hashes = FxIndexMap::default();
 
@@ -206,8 +186,8 @@ impl Asset for RoutesHashesManifestAsset {
             let entry = if let &[entry] = &primary.as_slice() {
                 (
                     sources_hash(
-                        full_module_graph,
-                        endpoint_entry_modules(base_module_graph, *entry.endpoint),
+                        module_graph,
+                        endpoint_entry_modules(*entry.endpoint),
                         hash_salt,
                     ),
                     outputs_hash(endpoint_outputs(*entry.endpoint), hash_salt),
@@ -215,11 +195,7 @@ impl Asset for RoutesHashesManifestAsset {
             } else {
                 let endpoints = Vc::cell(primary.iter().map(|entry| entry.endpoint).collect());
                 (
-                    sources_hash(
-                        full_module_graph,
-                        endpoints_entry_modules(base_module_graph, endpoints),
-                        hash_salt,
-                    ),
+                    sources_hash(module_graph, endpoints_entry_modules(endpoints), hash_salt),
                     outputs_hash(endpoints_outputs(endpoints), hash_salt),
                 )
             };

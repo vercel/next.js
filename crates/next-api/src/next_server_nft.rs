@@ -17,7 +17,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     module::{Module, Modules},
-    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
+    module_graph::{GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::CommonJsReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
@@ -193,6 +193,7 @@ impl Asset for ServerNftJsonAsset {
                 GraphEntries::new(vec![], self.entries().owned().await?).resolved_cell(),
                 true,
                 false,
+                GraphCollectingMode::CompleteGraph,
             )],
             None,
         )

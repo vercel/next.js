@@ -9625,6 +9625,7 @@ dependencies = [
  "either",
  "erased-serde",
  "fixedbitset",
+ "futures",
  "indexmap 2.14.0",
  "itertools 0.10.5",
  "num-bigint",
