@@ -8,8 +8,8 @@ export default function Page() {
         <p className="eyebrow">Next.js + eve</p>
         <h1>Issue triage</h1>
         <p className="subtitle">
-          The agent lives in <code>agent/</code> and is served from{" "}
-          <code>/eve/v1/*</code> on this origin.
+          A decision model triages every issue. Only the unsure ones go to a
+          reviewer agent.
         </p>
       </header>
       <Triage issues={sampleIssues} />

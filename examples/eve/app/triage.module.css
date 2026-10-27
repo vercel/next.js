@@ -4,27 +4,12 @@
   gap: 20px;
 }
 
-/* ---------- Info row ---------- */
-
-.info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.line {
-  margin: 0;
-  max-width: 440px;
-  font-size: 15px;
-  line-height: 1.45;
-  color: var(--gray);
-}
+/* ---------- Pipeline ---------- */
 
 .pipeline {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .stageWrap {

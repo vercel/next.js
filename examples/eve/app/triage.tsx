@@ -64,27 +64,21 @@ export function Triage({ issues }: { issues: Issue[] }) {
 
   return (
     <div className={styles.console}>
-      <div className={styles.info}>
-        <p className={styles.line}>
-          The agent calls one workflow. A decision model answers for every
-          issue, and only the issues it isn&apos;t sure about get a reviewer.
-        </p>
-        <div className={styles.pipeline}>
-          {PIPELINE.map((stage, index) => (
-            <div key={stage.label} className={styles.stageWrap}>
-              {index > 0 ? (
-                <span
-                  className={`${styles.connector} ${stages[index] !== "pending" ? styles.connectorOn : ""}`}
-                />
-              ) : null}
-              <span className={`${styles.stage} ${styles[stages[index]]}`}>
-                <span className={styles.stageKind}>{stage.kind}</span>
-                <span className={styles.stageLabel}>{stage.label}</span>
-                <span className={styles.stageDetail}>{stage.detail}</span>
-              </span>
-            </div>
-          ))}
-        </div>
+      <div className={styles.pipeline}>
+        {PIPELINE.map((stage, index) => (
+          <div key={stage.label} className={styles.stageWrap}>
+            {index > 0 ? (
+              <span
+                className={`${styles.connector} ${stages[index] !== "pending" ? styles.connectorOn : ""}`}
+              />
+            ) : null}
+            <span className={`${styles.stage} ${styles[stages[index]]}`}>
+              <span className={styles.stageKind}>{stage.kind}</span>
+              <span className={styles.stageLabel}>{stage.label}</span>
+              <span className={styles.stageDetail}>{stage.detail}</span>
+            </span>
+          </div>
+        ))}
       </div>
 
       <div className={styles.main}>
