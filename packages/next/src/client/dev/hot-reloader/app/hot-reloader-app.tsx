@@ -66,6 +66,22 @@ const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
   ? new TurbopackHmr()
   : null
 
+// The HMR socket opens before hydration starts, so a server component change
+// can arrive before the router has committed its first render. Refreshing then
+// would update `Router` before React has mounted it and hydrate the new server
+// output against HTML from before the change. Such refreshes wait here until
+// `HotReload`, which renders inside the router, has mounted.
+let isRouterMounted = false
+let refreshesWaitingForMount: Array<() => void> = []
+
+function whenRouterMounted(refresh: () => void) {
+  if (isRouterMounted) {
+    refresh()
+  } else {
+    refreshesWaitingForMount.push(refresh)
+  }
+}
+
 let pendingHotUpdateWebpack = Promise.resolve()
 let resolvePendingHotUpdateWebpack: () => void = () => {}
 function setPendingHotUpdateWebpack() {
@@ -443,9 +459,11 @@ export function processMessage(
         return window.location.reload()
       }
 
-      startTransition(() => {
-        publicAppRouterInstance.hmrRefresh()
-        dispatcher.onRefresh()
+      whenRouterMounted(() => {
+        startTransition(() => {
+          publicAppRouterInstance.hmrRefresh()
+          dispatcher.onRefresh()
+        })
       })
 
       if (process.env.__NEXT_TEST_MODE) {
@@ -471,9 +489,11 @@ export function processMessage(
         return window.location.reload()
       }
 
-      startTransition(() => {
-        publicAppRouterInstance.hmrRefresh()
-        dispatcher.onRefresh()
+      whenRouterMounted(() => {
+        startTransition(() => {
+          publicAppRouterInstance.hmrRefresh()
+          dispatcher.onRefresh()
+        })
       })
 
       return
@@ -494,7 +514,8 @@ export function processMessage(
     case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
       turbopackHmr?.onPageAddRemove()
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return publicAppRouterInstance.hmrRefresh()
+      whenRouterMounted(() => publicAppRouterInstance.hmrRefresh())
+      return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = message
@@ -615,6 +636,18 @@ export default function HotReload({
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
+  useEffect(() => {
+    isRouterMounted = true
+    const refreshes = refreshesWaitingForMount
+    refreshesWaitingForMount = []
+    for (const refresh of refreshes) {
+      refresh()
+    }
+    return () => {
+      isRouterMounted = false
+    }
+  }, [])
+
   useWebSocketPing(webSocket)
 
   // We don't want access of the pathname for the dev tools to trigger a dynamic
