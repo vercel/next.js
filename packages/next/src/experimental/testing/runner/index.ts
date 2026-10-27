@@ -429,6 +429,19 @@ function initializeFile(
   let reportedLateErrors = 0
   let completedModuleResult: CompletedModuleResult | undefined
   let operationObservation: RunnerOperationObservation | undefined
+  function canFinishEmptyReadOnlyPublicFile(options: RunnerOptions): boolean {
+    return (
+      prepareEmptyPublicFile === true &&
+      collector.root.children.length === 0 &&
+      options.passWithNoTests === true &&
+      collector.root.hooks.beforeAll.length === 0 &&
+      collector.root.hooks.afterAll.length === 0 &&
+      collector.root.hooks.beforeEach.length === 0 &&
+      collector.root.hooks.afterEach.length === 0 &&
+      collector.root.around.aroundAll.length === 0 &&
+      collector.root.around.aroundEach.length === 0
+    )
+  }
   let nativeBodyObservation:
     | {
         source: 'node-await-body'
@@ -1217,7 +1230,9 @@ function initializeFile(
                       )
                     )
                   return (
-                    actual.cases.some((test) => test.status === 'passed') &&
+                    (actual.cases.some((test) => test.status === 'passed') ||
+                      (actual.cases.length === 0 &&
+                        canFinishEmptyReadOnlyPublicFile(options))) &&
                     actual.cases.every(
                       (test) =>
                         (test.status === 'passed' ||
@@ -1308,7 +1323,9 @@ function initializeFile(
           settledReadOnlySnapshotFailure !== undefined &&
           result.errors.length === 1 &&
           result.errors[0] === settledReadOnlySnapshotFailure &&
-          result.cases.some((test) => test.status === 'passed') &&
+          (result.cases.some((test) => test.status === 'passed') ||
+            (result.cases.length === 0 &&
+              canFinishEmptyReadOnlyPublicFile(options))) &&
           result.cases.every(
             (test) =>
               (test.status === 'passed' || test.status === 'skipped') &&

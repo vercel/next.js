@@ -1,0 +1,3216 @@
+{
+  "reference": "Official unpatched Vitest/coverage-v8/coverage-istanbul5.0.4",
+  "scope": "Actual literal empty imported module; passWithNoTests true,0real cases, SDK obsolete root carrier. Complete JSON/maps/summary/LCOV after only fixture paths/clocks; raw frames/task getter unqualified.",
+  "rows": [
+    {
+      "name": "istanbul-empty-empty-import-no-obsolete-report-true",
+      "exitCode": 0,
+      "reportOnFailure": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {},
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "passed",
+          "tests": [],
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "passed",
+              "tests": [],
+              "errors": []
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:5,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      }
+    },
+    {
+      "name": "istanbul-empty-empty-import-original-report-false",
+      "exitCode": 1,
+      "reportOnFailure": false,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "tests": [],
+          "errors": [
+            {
+              "name": "Error",
+              "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "failed",
+              "tests": [],
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {}
+    },
+    {
+      "name": "istanbul-empty-empty-import-original-report-true",
+      "exitCode": 1,
+      "reportOnFailure": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "tests": [],
+          "errors": [
+            {
+              "name": "Error",
+              "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "failed",
+              "tests": [],
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:5,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      }
+    },
+    {
+      "name": "istanbul-empty-empty-import-removed-report-true",
+      "exitCode": 1,
+      "reportOnFailure": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
+      },
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "tests": [],
+          "errors": [
+            {
+              "name": "Error",
+              "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "failed",
+              "tests": [],
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:5,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      }
+    },
+    {
+      "name": "v8-empty-empty-import-no-obsolete-report-true",
+      "exitCode": 0,
+      "reportOnFailure": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {},
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "passed",
+          "tests": [],
+          "errors": []
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "passed",
+              "tests": [],
+              "errors": []
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:5,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      }
+    },
+    {
+      "name": "v8-empty-empty-import-original-report-false",
+      "exitCode": 1,
+      "reportOnFailure": false,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "tests": [],
+          "errors": [
+            {
+              "name": "Error",
+              "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "failed",
+              "tests": [],
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {}
+    },
+    {
+      "name": "v8-empty-empty-import-original-report-true",
+      "exitCode": 1,
+      "reportOnFailure": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "tests": [],
+          "errors": [
+            {
+              "name": "Error",
+              "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "failed",
+              "tests": [],
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:5,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      }
+    },
+    {
+      "name": "v8-empty-empty-import-removed-report-true",
+      "exitCode": 1,
+      "reportOnFailure": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {choose} from './subject.mjs'\nchoose(true)\n",
+          "sha256": "02c46d170860785044b77fa37a4570654b006123ebaa2d80745972fee481ca01"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
+      },
+      "flags": [],
+      "json": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": false,
+        "testResults": [
+          {
+            "assertionResults": [],
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "state": "failed",
+          "tests": [],
+          "errors": [
+            {
+              "name": "Error",
+              "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "state": "failed",
+              "tests": [],
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "path": "<fixture>/subject.mjs",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 5,
+                  "column": 27
+                },
+                "end": {
+                  "line": 5,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 5,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 5,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                },
+                "line": 5
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 3,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 33.33
+            },
+            "functions": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "statements": {
+              "total": 4,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:5,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      }
+    }
+  ]
+}

@@ -141,6 +141,26 @@ async function run({
     artifact,
     options
   )
+  const prepareReadOnlyEmptyPublicFile =
+    v8ReadOnlySnapshots ||
+    (options.coverage?.kind === 'node-istanbul' &&
+      options.snapshotUpdateMode === 'none' &&
+      artifact.kind === 'node' &&
+      artifact.profile.mode === 'development' &&
+      artifact.profile.environment === 'node' &&
+      artifact.profile.route === undefined &&
+      artifact.profile.browserClient === undefined &&
+      !artifact.cohort &&
+      !artifact.moduleMocking &&
+      !artifact.moduleCache &&
+      !artifact.dynamicModuleMocking &&
+      !artifact.sourceDependencies &&
+      !artifact.nativeTsConfigInputs &&
+      !options.customCoverage &&
+      !options.collectOnly &&
+      /\.(?:mjs|js)$/.test(options.entry.file) &&
+      (!options.entry.executionEnvironment ||
+        options.entry.executionEnvironment.name === 'node'))
   type CollectionRestoration = Readonly<{
     collectionError: unknown
     disposalError: unknown
@@ -863,6 +883,9 @@ async function run({
         : {}),
       ...(v8ReadOnlySnapshots
         ? { finishReadOnlySnapshots: true as const }
+        : {}),
+      ...(prepareReadOnlyEmptyPublicFile
+        ? { prepareEmptyPublicFile: true as const }
         : {}),
       ...(artifact.kind === 'node' &&
       artifact.profile.environment === 'node' &&

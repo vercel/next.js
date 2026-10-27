@@ -22180,3 +22180,132 @@ describe('actual one-shot V8 readonly completion owner and suite slots', () => {
       ).rejects.toThrow('actual read-only one-shot owner')
   })
 })
+
+describe('actual readonly snapshot completion for literal public empty files', () => {
+  it.each([
+    'v8:obsolete',
+    'v8:none',
+    'v8:omitted-public',
+    'v8:nontrue-public',
+    'v8:false-public',
+    'v8:omitted-runtime',
+    'v8:pass-false',
+    'v8:nested-skip',
+    'v8:case-skip',
+    'v8:beforeAll',
+    'v8:aroundAll',
+    'v8:finish-undefined',
+    'v8:pending-finish',
+    'v8:pending-undefined',
+    'v8:pending-abort',
+    'v8:cleanup-same-error',
+    'v8:cleanup-undefined',
+    'v8:abort-before-run',
+    'istanbul:obsolete',
+    'istanbul:none',
+    'istanbul:omitted-public',
+    'istanbul:nontrue-public',
+    'istanbul:false-public',
+    'istanbul:omitted-runtime',
+    'istanbul:pass-false',
+    'istanbul:nested-skip',
+    'istanbul:case-skip',
+    'istanbul:beforeAll',
+    'istanbul:aroundAll',
+    'istanbul:finish-undefined',
+    'istanbul:pending-finish',
+    'istanbul:pending-undefined',
+    'istanbul:pending-abort',
+    'istanbul:cleanup-same-error',
+    'istanbul:cleanup-undefined',
+    'istanbul:abort-before-run',
+  ])(
+    'retains actual empty/root/physical ownership for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-readonly-empty-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'read-only-empty-snapshot.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          actualRootEvents: 1,
+          actualBodies: 0,
+          actualSDKFinishOnce: true,
+          freshCarrierOnly: true,
+          allPhysicalVetoesRetained: true,
+          snapshotBytesUnchanged: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+  it.each([
+    'istanbul-empty-empty-import-no-obsolete-report-true',
+    'istanbul-empty-empty-import-original-report-false',
+    'istanbul-empty-empty-import-original-report-true',
+    'istanbul-empty-empty-import-removed-report-true',
+    'v8-empty-empty-import-no-obsolete-report-true',
+    'v8-empty-empty-import-original-report-false',
+    'v8-empty-empty-import-original-report-true',
+    'v8-empty-empty-import-removed-report-true',
+  ])(
+    'matches unchanged genuine0case reports and root errors for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-readonly-empty-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'readonly-empty-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: {
+              ...process.env,
+              CI: '1',
+              TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+            },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualZeroCases: true,
+          actualOrderedModuleErrors: true,
+          actualOrderedRootErrors: true,
+          completeCaseReportAndMap: true,
+          completeCoverageFiles: true,
+          snapshotBytesUnchanged: true,
+          rawFrameEqualityQualified: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
