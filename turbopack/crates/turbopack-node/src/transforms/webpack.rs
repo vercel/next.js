@@ -798,6 +798,7 @@ pub enum RequestMessage {
     ResolveLoader {
         lookup_paths: Vec<RcStr>,
         request: RcStr,
+        resolved_path: RcStr,
     },
     #[serde(rename_all = "camelCase")]
     Resolve {
@@ -1065,6 +1066,7 @@ impl EvaluateContext for WebpackLoaderContext {
             RequestMessage::ResolveLoader {
                 lookup_paths,
                 request,
+                resolved_path,
             } => {
                 let (paths, parsed_request) = if Path::new(&*request).has_root() {
                     let path = loader_path(&self.cwd, &request).await?;
@@ -1089,24 +1091,38 @@ impl EvaluateContext for WebpackLoaderContext {
                         Request::parse(Pattern::Constant(RcStr::from(sys_to_unix(&request)))),
                     )
                 };
-                for path in paths {
-                    let resolved = resolve(
-                        path,
-                        ReferenceType::Undefined,
-                        parsed_request,
-                        node_cjs_resolve_options(),
-                    );
-                    if let Some(source) = resolved.await?.first_source() {
-                        let path = to_sys_path(source.ident().await?.path.clone())
-                            .await?
-                            .context("resolved loader path is not on a disk filesystem")?;
-                        let path = path
-                            .to_str()
-                            .context("resolved loader path is not valid UTF-8")?;
-                        return Ok(ResponseMessage::Resolve { path: path.into() });
+                // Node chooses the file using its active conditions and runtime flags. Track
+                // all conditional branches so changing exports invalidates the evaluation
+                // without having to reproduce Node's version-dependent condition set.
+                let mut options = node_cjs_resolve_options().owned().await?;
+                for field in &mut options.into_package {
+                    if let ResolveIntoPackage::ExportsField {
+                        conditions,
+                        unspecified_conditions,
+                    } = field
+                    {
+                        conditions.clear();
+                        *unspecified_conditions = ConditionValue::Unknown;
                     }
                 }
-                bail!("Unable to resolve loader {request:?} in {lookup_paths:?}");
+                for field in &mut options.in_package {
+                    if let ResolveInPackage::ImportsField {
+                        conditions,
+                        unspecified_conditions,
+                    } = field
+                    {
+                        conditions.clear();
+                        *unspecified_conditions = ConditionValue::Unknown;
+                    }
+                }
+                let options = options.cell();
+                for path in paths {
+                    resolve(path, ReferenceType::Undefined, parsed_request, options).await?;
+                }
+                build_dependency_path(&self.cwd, &resolved_path).await?;
+                Ok(ResponseMessage::Resolve {
+                    path: resolved_path,
+                })
             }
             RequestMessage::Resolve {
                 options: webpack_options,

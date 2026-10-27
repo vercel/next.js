@@ -37,6 +37,7 @@ export type IpcRequestMessage =
       type: 'resolveLoader'
       lookupPaths: string[]
       request: string
+      resolvedPath: string
     }
   | {
       type: 'resolve'
