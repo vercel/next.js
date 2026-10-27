@@ -14,16 +14,23 @@ const repo = fs.realpathSync(repoArg),
   here = path.dirname(fileURLToPath(import.meta.url))
 assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
-assert(family === undefined || family === 'renamed' || family === 'array')
+assert(
+  family === undefined ||
+    family === 'renamed' ||
+    family === 'array' ||
+    family === 'whole-array'
+)
 const pristine = JSON.parse(
   fs.readFileSync(
     path.join(
       here,
-      family === 'array'
-        ? 'cjs-array-defaults-pristine.json'
-        : family === 'renamed'
-          ? 'cjs-renamed-defaults-pristine.json'
-          : 'cjs-async-defaults-pristine.json'
+      family === 'whole-array'
+        ? 'cjs-whole-array-defaults-pristine.json'
+        : family === 'array'
+          ? 'cjs-array-defaults-pristine.json'
+          : family === 'renamed'
+            ? 'cjs-renamed-defaults-pristine.json'
+            : 'cjs-async-defaults-pristine.json'
     )
   )
 )
@@ -42,9 +49,11 @@ const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const body = fs.readFileSync(
   path.join(
     here,
-    family === 'array'
-      ? 'cjs-array-defaults-fixtures/contract.test.mjs.txt'
-      : 'cjs-async-defaults-fixtures/contract.test.mjs.txt'
+    family === 'whole-array'
+      ? 'cjs-whole-array-defaults-fixtures/contract.test.mjs.txt'
+      : family === 'array'
+        ? 'cjs-array-defaults-fixtures/contract.test.mjs.txt'
+        : 'cjs-async-defaults-fixtures/contract.test.mjs.txt'
   )
 )
 assert.equal(sha(body), pristine.authoredBodySHA256)
@@ -129,7 +138,12 @@ try {
       failureMessages: test.failureMessages,
     }))
   )
-  const rowPrefix = family === 'array' ? 'CJS280:' : 'CJS223:'
+  const rowPrefix =
+    family === 'whole-array'
+      ? 'CJS288:'
+      : family === 'array'
+        ? 'CJS280:'
+        : 'CJS223:'
   const rows = report.next.events
     .filter((event) => event.type === 'output')
     .flatMap((event) => event.text.split('\n'))

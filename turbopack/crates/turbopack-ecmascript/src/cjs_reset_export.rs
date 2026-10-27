@@ -358,7 +358,12 @@ fn own_hidden_function_default_definition(
 fn callable_parameter(pattern: &Pat, allow_destructuring_defaults: bool) -> bool {
     match pattern {
         Pat::Ident(_) => true,
-        Pat::Assign(default) => matches!(&*default.left, Pat::Ident(_)),
+        Pat::Assign(default) => {
+            matches!(&*default.left, Pat::Ident(_))
+                || allow_destructuring_defaults
+                    && matches!(&*default.left, Pat::Array(_))
+                    && callable_parameter(&default.left, true)
+        }
         Pat::Rest(rest) => matches!(&*rest.arg, Pat::Ident(_)),
         Pat::Object(object) => object.props.iter().all(|property| match property {
             ObjectPatProp::Assign(property) => {
@@ -1501,7 +1506,7 @@ mod tests {
                     &format!("module.exports = {function} named({parameters}) {{ return 1 }}"),
                     if matches!(
                         parameters,
-                        "{value = 1}" | "{source: value = 1}" | "[value = 1]"
+                        "{value = 1}" | "{source: value = 1}" | "[value = 1]" | "[value] = []"
                     ) {
                         CommonJsResetExportShape::NamedFunctionExpression
                     } else {
@@ -1513,7 +1518,7 @@ mod tests {
                 &format!("module.exports = ({parameters}) => 1"),
                 if matches!(
                     parameters,
-                    "{value = 1}" | "{source: value = 1}" | "[value = 1]"
+                    "{value = 1}" | "{source: value = 1}" | "[value = 1]" | "[value] = []"
                 ) {
                     CommonJsResetExportShape::ArrowFunctionExpression
                 } else {
@@ -1567,6 +1572,52 @@ mod tests {
             "[[value] = []]",
             "[value = module.exports]",
             "[value = exports.value]",
+        ] {
+            check(
+                &format!("module.exports = function named({parameters}) {{ return value }}"),
+                CommonJsResetExportShape::Unsupported,
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_whole_flat_array_parameter_defaults() {
+        for parameters in [
+            "[value] = []",
+            "[value = 1] = []",
+            "[, value = 1] = []",
+            "[first = 1, value = first] = []",
+        ] {
+            for function in ["function", "async function", "function*", "async function*"] {
+                check(
+                    &format!("module.exports = {function}({parameters}) {{ return value }}"),
+                    CommonJsResetExportShape::AnonymousFunctionExpression,
+                );
+                check(
+                    &format!("module.exports = {function} named({parameters}) {{ return value }}"),
+                    CommonJsResetExportShape::NamedFunctionExpression,
+                );
+                check(
+                    &format!(
+                        "{function} callable({parameters}) {{ return value }}; module.exports = \
+                         callable"
+                    ),
+                    CommonJsResetExportShape::FunctionBinding,
+                );
+            }
+            for prefix in ["", "async "] {
+                check(
+                    &format!("module.exports = {prefix}({parameters}) => value"),
+                    CommonJsResetExportShape::ArrowFunctionExpression,
+                );
+            }
+        }
+        for parameters in [
+            "[[value]] = []",
+            "[{value}] = []",
+            "[...value] = []",
+            "[value] = module.exports",
+            "[value] = exports.value",
         ] {
             check(
                 &format!("module.exports = function named({parameters}) {{ return value }}"),
