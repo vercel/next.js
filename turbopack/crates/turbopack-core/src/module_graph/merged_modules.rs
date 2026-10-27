@@ -310,11 +310,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         bail!("unreachable except for eventual consistency");
                     };
 
-                    if current_merged_groups.is_zero() {
-                        // Initial visit, clone instead of merging
-                        *current_merged_groups = parent_merged_groups.clone();
-                        GraphTraversalAction::Continue
-                    } else if current_merged_groups.union_with(parent_merged_groups) {
+                    // On the initial visit, `union_with` copies the parent's bitmap.
+                    if current_merged_groups.union_with(parent_merged_groups) {
                         // Added bits from parent, continue traversal because changed
                         GraphTraversalAction::Continue
                     } else {
