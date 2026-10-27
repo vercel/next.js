@@ -24,6 +24,27 @@ const describeTurbopack =
     : describe.skip
 
 const buildScript = join(__dirname, 'build-rspack.mjs')
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number)
+const useCompatibleNode =
+  process.env.NEXT_TEST_FORCE_RSPACK_NODE === '1' ||
+  !(
+    (nodeMajor === 20 && nodeMinor >= 19) ||
+    (nodeMajor === 22 && nodeMinor >= 12) ||
+    nodeMajor >= 23
+  )
+const compatibleNodePackage =
+  process.platform === 'linux' && ['x64', 'arm64'].includes(process.arch)
+    ? `node-linux-${process.arch}`
+    : process.platform === 'win32' && process.arch === 'x64'
+      ? 'node-win-x64'
+      : undefined
+const rspackDependencies = {
+  '@rspack/core': '2.0.4',
+  '@module-federation/runtime-tools': '2.9.0',
+  ...(useCompatibleNode && compatibleNodePackage
+    ? { [compatibleNodePackage]: '20.19.5' }
+    : {}),
+}
 
 async function buildRspack(
   testDir: string,
@@ -35,8 +56,22 @@ async function buildRspack(
 ) {
   const target = join(testDir, 'build-rspack.mjs')
   await writeFile(target, await readFile(buildScript))
+  if (useCompatibleNode && !compatibleNodePackage) {
+    throw new Error(
+      `Rspack 2.0.4 needs Node 20.19+; no test binary is configured for ${process.platform}/${process.arch}`
+    )
+  }
+  const nodeExecutable = useCompatibleNode
+    ? join(
+        testDir,
+        'node_modules',
+        compatibleNodePackage!,
+        'bin',
+        process.platform === 'win32' ? 'node.exe' : 'node'
+      )
+    : process.execPath
   await execa(
-    'node',
+    nodeExecutable,
     [target, kind, context, output, url, worker ? 'worker' : 'browser'],
     { cwd: testDir }
   )
@@ -45,10 +80,7 @@ async function buildRspack(
 describeTurbopack('Turbopack host and Rspack v2 remote', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, '../turbopack-module-federation-webpack-remote'),
-    dependencies: {
-      '@rspack/core': '2.0.4',
-      '@module-federation/runtime-tools': '2.9.0',
-    },
+    dependencies: rspackDependencies,
     skipStart: true,
     skipDeployment: true,
   })
@@ -214,10 +246,7 @@ export { remoteShared }
 describeTurbopack('Rspack v2 host and Turbopack remote', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, '../turbopack-module-federation-next-remote'),
-    dependencies: {
-      '@rspack/core': '2.0.4',
-      '@module-federation/runtime-tools': '2.9.0',
-    },
+    dependencies: rspackDependencies,
     skipStart: true,
     skipDeployment: true,
   })
