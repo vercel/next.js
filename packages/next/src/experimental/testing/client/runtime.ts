@@ -1,6 +1,7 @@
 import { captureReporterTaskTree } from '../reporting/live-tasks'
 import { createReporterTaskUpdates } from '../reporting/task-updates'
 import type { RuntimeModuleCompletion } from '../execution/completed-module'
+import type { RunnerFailure } from '../runner/lifecycle'
 import {
   initializeTestFile,
   getConsoleTask,
@@ -98,7 +99,14 @@ export async function startClientTest(
     nativeReply: Promise<void> | undefined,
     transportFailure: unknown
   const nativeReplies = new Set<Promise<void>>()
-  const pendingFailures: unknown[] = []
+  type SuiteErrorOwner = NonNullable<
+    Extract<ClientPayload, { type: 'failure' }>['suiteError']
+  >
+  const pendingFailures: { error: unknown; suiteError?: SuiteErrorOwner }[] = []
+  const reportedSuiteFailures: {
+    failure: RunnerFailure
+    owner: SuiteErrorOwner
+  }[] = []
   const browserCleanupFailures: {
     origin: 'worker-fixture-cleanup' | 'component-cleanup' | 'keyboard-cleanup'
     error: { name: unknown; message: unknown; stack: unknown }
@@ -232,9 +240,15 @@ export async function startClientTest(
     })
   }
   function report(reason: unknown) {
+    recordFailure(reason)
+  }
+  function recordFailure(reason: unknown, suiteError?: SuiteErrorOwner) {
     if (failures.has(reason)) return
     failures.add(reason)
-    pendingFailures.push(reason)
+    pendingFailures.push({
+      error: reason,
+      ...(suiteError ? { suiteError } : {}),
+    })
     if (terminalPublished)
       void send({ type: 'failure', error: processError(reason) }).catch(
         () => {}
@@ -565,6 +579,11 @@ export async function startClientTest(
               }
             : undefined,
         onSuiteEnd(result, task) {
+          for (const [index, failure] of result.errors.entries())
+            reportedSuiteFailures.push({
+              failure,
+              owner: { suiteId: result.suiteId, index },
+            })
           taskUpdates?.suiteEnd(task)
           void send({
             type: 'suite-end',
@@ -597,7 +616,15 @@ export async function startClientTest(
       caseCount = finalCases.length
       interrupted =
         runResult.interrupted || userCancellation?.signal.aborted === true
-      for (const failure of runResult.errors) report(failure.error)
+      for (const failure of runResult.errors) {
+        const owners = reportedSuiteFailures.filter(
+          (item) => item.failure === failure
+        )
+        recordFailure(
+          failure.error,
+          owners.length === 1 ? owners[0].owner : undefined
+        )
+      }
       status =
         (!interrupted || userCancellation?.signal.aborted) &&
         !runResult.errors.length &&
@@ -755,7 +782,7 @@ export async function startClientTest(
       status = 'failed'
       updates = []
     }
-    for (const error of pendingFailures) {
+    for (const { error, suiteError } of pendingFailures) {
       const failure = processError(error)
       if (unavailableModule && unavailableModule.error === error)
         moduleCompletion = {
@@ -767,7 +794,11 @@ export async function startClientTest(
           phase: unavailableModule.phase,
           failure,
         }
-      await send({ type: 'failure', error: failure })
+      await send({
+        type: 'failure',
+        error: failure,
+        ...(suiteError ? { suiteError } : {}),
+      })
     }
     for (const failure of browserCleanupFailures)
       await send({ type: 'failure', ...failure })

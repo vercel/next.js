@@ -179,6 +179,8 @@ export type ClientMessage = ClientIdentity & { sequence: number } & (
     | {
         type: 'failure'
         error: unknown
+        /** Exact earlier suite failure; never an Error-value association. */
+        suiteError?: { suiteId: string; index: number }
         origin?:
           | 'worker-fixture-cleanup'
           | 'component-cleanup'

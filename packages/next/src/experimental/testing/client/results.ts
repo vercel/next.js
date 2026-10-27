@@ -98,11 +98,15 @@ export function createClientResultCollector(
       runId: options.runId,
       timestamp: Date.now(),
     } as ResultEvent)
-  const fileFailure = (error: unknown) =>
+  const fileFailure = (
+    error: unknown,
+    suiteError?: Extract<ResultEvent, { type: 'diagnostic' }>['suiteError']
+  ) =>
     event({
       type: 'diagnostic',
       entryId: artifact.entryId,
       revision: artifact.revision,
+      ...(suiteError ? { suiteError } : {}),
       diagnostic: diagnostic(error),
     })
   type CaseState = {
@@ -132,6 +136,7 @@ export function createClientResultCollector(
     string,
     { status: string; blockedDescendants: boolean; errors: RunnerFailure[] }
   >()
+  const reportedSuiteFailureSlots = new Set<string>()
   const blockedCases = new Set<string>()
   const blockedSuites = new Set<string>()
   let active: string | undefined,
@@ -791,6 +796,21 @@ export function createClientResultCollector(
         errors: result.errors.map((failure) => diagnostic(failure.error)),
       })
     } else if (message.type === 'failure') {
+      const owner = message.suiteError
+      if (owner !== undefined) {
+        if (
+          message.origin !== undefined ||
+          !record(owner) ||
+          !string(owner.suiteId) ||
+          !integer(owner.index) ||
+          !suites.get(owner.suiteId)?.errors[owner.index]
+        )
+          throw new Error('Invalid Browser Mode reported suite failure.')
+        const slot = JSON.stringify([owner.suiteId, owner.index])
+        if (reportedSuiteFailureSlots.has(slot))
+          throw new Error('Repeated Browser Mode reported suite failure.')
+        reportedSuiteFailureSlots.add(slot)
+      }
       if (
         message.origin !== undefined &&
         message.origin !== 'worker-fixture-cleanup' &&
@@ -819,7 +839,7 @@ export function createClientResultCollector(
                   : 'browser-keyboard-cleanup',
           },
         })
-      else fileFailure(message.error)
+      else fileFailure(message.error, owner)
     } else if (message.type === 'complete') {
       if (message.moduleCompletion !== undefined) {
         if (!options.captureCompletedModuleResult)

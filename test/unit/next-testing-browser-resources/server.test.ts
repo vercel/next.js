@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import {
   copyFile,
   mkdir,
@@ -5551,3 +5552,52 @@ it.each(['fulfilled', 'rejected', 'native-reject', 'legacy'])(
     })
   }
 )
+
+it.each([
+  'exact',
+  'foreign-failure',
+  'multiple-owners',
+  'prior-global',
+  'shared-stages',
+  'changed-fields',
+  'no-suite',
+  'distinct-slots',
+  'unhandled-promise',
+])('retains exact Browser suite-error producer occurrences: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'suite-error-producer.cjs'), mode],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toMatchObject({
+    mode,
+    actualRunnerFailureIdentityOnly: true,
+    independentCleanupOriginsHeld: true,
+  })
+})
+
+it.each([
+  'valid',
+  'legacy',
+  'changed-name',
+  'changed-stack',
+  'shared-stages',
+  'future',
+  'unknown',
+  'negative',
+  'fractional',
+  'absent-slot',
+  'repeated',
+  'cleanup-owner',
+])('retains exact Browser suite-error consumer slots: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'suite-error-consumer.cjs'), mode],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toMatchObject({
+    mode,
+    exactPrecedingSuiteSlotOnly: true,
+    allDiagnosticOccurrencesRetained: true,
+  })
+})
