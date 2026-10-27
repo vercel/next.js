@@ -1035,11 +1035,11 @@ describe('app-dir action handling', () => {
           if (isTurbopack) {
             // The import trace for the other bundlers is truncated and not particularly interesting
             expect(source).toMatchInlineSnapshot(`
-             "./app/client-error/actions-lib.js (3:1)
+             "./app/client-error/actions-lib.js (7:1)
              Error: Expression expected
-               1 | export const value = 123
-               2 |
-             > 3 | }}}
+               5 | export const value = 123
+               6 |
+             > 7 | }}}
                  | ^
 
              Parsing ecmascript source code failed
