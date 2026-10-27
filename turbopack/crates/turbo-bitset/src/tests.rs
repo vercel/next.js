@@ -14,7 +14,6 @@ use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use roaring::RoaringBitmap;
 use rustc_hash::FxBuildHasher;
 use shrink_to_fit::ShrinkToFit;
-use smallvec::smallvec;
 
 use crate::Bitset;
 
@@ -152,10 +151,7 @@ fn from_bits(bits: &[u32]) -> (Bitset, BTreeSet<u32>) {
 
 /// A set storing the given block range, including leading or trailing zero blocks.
 fn with_storage(offset: usize, blocks: Vec<usize>) -> Bitset {
-    Bitset {
-        offset,
-        blocks: blocks.into(),
-    }
+    Bitset { offset, blocks }
 }
 
 /// The bits of a block range, starting at block `offset`.
@@ -539,10 +535,7 @@ fn equal_sets_with_different_storage_ranges() {
         let bit = bit - offset * block;
         blocks[bit / block] |= 1 << (bit % block);
     }
-    let wide = Bitset {
-        offset,
-        blocks: blocks.into(),
-    };
+    let wide = Bitset { offset, blocks };
     check(&wide, &[3_000, 3_001].into());
     assert_eq!(a, wide);
     assert_eq!(hash(&a), hash(&wide));
@@ -553,7 +546,7 @@ fn equal_sets_with_different_storage_ranges() {
     // An empty set with allocated storage equals the default empty set.
     let empty_wide = Bitset {
         offset: 10,
-        blocks: smallvec![0; 3],
+        blocks: vec![0; 3],
     };
     check(&empty_wide, &BTreeSet::new());
     assert_eq!(empty_wide, Bitset::new());
@@ -632,7 +625,7 @@ fn front_growth_beyond_the_capacity_keeps_all_bits() {
             set.insert(bit);
             expected.insert(bit);
         }
-        set.blocks.shrink_to_fit();
+        set.blocks = set.blocks.into_boxed_slice().into_vec();
         let capacity = set.blocks.capacity();
         assert_eq!(capacity, set.blocks.len());
         assert!(set.insert(new));
@@ -671,7 +664,7 @@ fn front_growth_leaves_headroom() {
     // A reallocation at the front leaves headroom too: the range ends at the end of the new
     // capacity.
     let mut set = [500 * block, 501 * block].into_iter().collect::<Bitset>();
-    set.blocks.shrink_to_fit();
+    set.blocks = set.blocks.into_boxed_slice().into_vec();
     let capacity = set.blocks.capacity();
     assert!(set.insert(499 * block));
     assert!(set.blocks.capacity() >= 2 * capacity);

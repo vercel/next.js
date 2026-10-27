@@ -6,9 +6,6 @@
 //! allocate the empty blocks below them. Like a `Vec`, the storage grows with amortized growth,
 //! at the front as well as at the back.
 //!
-//! The blocks are stored in a [`SmallVec`], which keeps up to `INLINE` blocks inline without a heap
-//! allocation (see [`Bitset`]). The default, `Bitset<0>`, always stores its blocks on the heap.
-//!
 //! Compared to a `RoaringBitmap`, which is optimized for compact storage, every operation is a
 //! simple loop over machine words. That makes unions and subset checks fast when the bits span a
 //! limited range, at the cost of using one bit of memory per index in that range.
@@ -27,7 +24,6 @@ use std::{
 
 use roaring::RoaringBitmap;
 use shrink_to_fit::ShrinkToFit;
-use smallvec::SmallVec;
 
 /// Number of bits per storage block.
 const BLOCK_BITS: usize = usize::BITS as usize;
@@ -41,16 +37,13 @@ const CHUNK_BLOCKS: usize = 4;
 ///
 /// The storage grows at the front or the back when a bit outside of the current range is
 /// inserted. Equality and hashing only depend on which bits are set, not on the storage range.
-///
-/// `INLINE` is the number of `usize` blocks stored inline, without a heap allocation. A set with
-/// more blocks stores all of them on the heap. The default of 0 has the size of a `Vec`.
 #[derive(Clone, Default)]
-pub struct Bitset<const INLINE: usize = 0> {
+pub struct Bitset {
     /// The index of the first stored block, i.e. the first stored bit is
     /// `offset * usize::BITS`.
     offset: usize,
     /// The stored blocks. Bit `i` of block `j` is the bit `(offset + j) * usize::BITS + i`.
-    blocks: SmallVec<[usize; INLINE]>,
+    blocks: Vec<usize>,
 }
 
 /// The number of blocks that hold the bits `0..bits`.
@@ -58,24 +51,23 @@ fn blocks_for(bits: u32) -> usize {
     (bits as usize).div_ceil(BLOCK_BITS)
 }
 
-impl<const INLINE: usize> Bitset<INLINE> {
+impl Bitset {
     /// Creates an empty set without allocating.
     pub const fn new() -> Self {
         Self {
             offset: 0,
-            blocks: SmallVec::new_const(),
+            blocks: Vec::new(),
         }
     }
 
     /// Creates an empty set that stores the blocks for the bits `0..bits`, so that inserting any of
     /// them doesn't grow the storage.
     ///
-    /// The storage holds exactly these blocks: they are stored inline if they fit, otherwise in a
-    /// heap allocation without spare capacity.
+    /// The storage holds exactly these blocks, in an allocation without spare capacity.
     pub fn with_len(bits: u32) -> Self {
         Self {
             offset: 0,
-            blocks: SmallVec::from_elem(0, blocks_for(bits)),
+            blocks: vec![0; blocks_for(bits)],
         }
     }
 
@@ -87,7 +79,7 @@ impl<const INLINE: usize> Bitset<INLINE> {
     pub fn with_capacity(bits: u32) -> Self {
         Self {
             offset: 0,
-            blocks: SmallVec::with_capacity(blocks_for(bits)),
+            blocks: Vec::with_capacity(blocks_for(bits)),
         }
     }
 
@@ -124,12 +116,12 @@ impl<const INLINE: usize> Bitset<INLINE> {
 
     /// Makes sure that the blocks `start..end` are stored, keeping all existing bits.
     ///
-    /// Growth at the back uses the amortized growth of the `SmallVec`. Growth at the front is
-    /// amortized the same way: the existing blocks are moved so that the stored range ends at the
-    /// end of the capacity, which leaves all spare capacity in front of them. Further growth at the
-    /// front then only uses that headroom, without moving the blocks again, until it is used up. If
-    /// the new range doesn't fit into the capacity, the storage is reallocated with at least twice
-    /// the capacity, copying the existing blocks once, directly to their new position.
+    /// Growth at the back uses the amortized growth of the `Vec`. Growth at the front is amortized
+    /// the same way: the existing blocks are moved so that the stored range ends at the end of the
+    /// capacity, which leaves all spare capacity in front of them. Further growth at the front then
+    /// only uses that headroom, without moving the blocks again, until it is used up. If the new
+    /// range doesn't fit into the capacity, the storage is reallocated with at least twice the
+    /// capacity, copying the existing blocks once, directly to their new position.
     #[cold]
     fn ensure_blocks(&mut self, start: usize, end: usize) {
         debug_assert!(start < end);
@@ -150,7 +142,7 @@ impl<const INLINE: usize> Bitset<INLINE> {
         let capacity = if new_len <= self.blocks.capacity() {
             self.blocks.capacity()
         } else {
-            // The same amortized growth as `SmallVec::reserve`.
+            // The same amortized growth as `Vec::reserve`.
             new_len.max(self.blocks.capacity() * 2)
         };
         // End the stored range at the end of the capacity, but don't go below block 0. This is at
@@ -164,7 +156,7 @@ impl<const INLINE: usize> Bitset<INLINE> {
             self.blocks.copy_within(..len, shift);
             self.blocks[..shift].fill(0);
         } else {
-            let mut blocks = SmallVec::with_capacity(capacity);
+            let mut blocks = Vec::with_capacity(capacity);
             blocks.resize(shift, 0);
             blocks.extend_from_slice(&self.blocks);
             blocks.resize(new_len, 0);
@@ -422,7 +414,7 @@ impl<const INLINE: usize> Bitset<INLINE> {
     /// Returns the set of bits that are in both sets.
     pub fn intersection(&self, other: &Self) -> Self {
         let (start, a, b) = self.overlap(other);
-        let blocks: SmallVec<[usize; INLINE]> = a.iter().zip(b).map(|(&a, &b)| a & b).collect();
+        let blocks: Vec<usize> = a.iter().zip(b).map(|(&a, &b)| a & b).collect();
         if blocks.is_empty() {
             return Self::new();
         }
@@ -462,25 +454,24 @@ impl<const INLINE: usize> Bitset<INLINE> {
     }
 }
 
-impl<const INLINE: usize> BitAnd for &Bitset<INLINE> {
-    type Output = Bitset<INLINE>;
+impl BitAnd for &Bitset {
+    type Output = Bitset;
 
-    fn bitand(self, rhs: Self) -> Bitset<INLINE> {
+    fn bitand(self, rhs: Self) -> Bitset {
         self.intersection(rhs)
     }
 }
 
-impl<const INLINE: usize> Sub for &Bitset<INLINE> {
-    type Output = Bitset<INLINE>;
+impl Sub for &Bitset {
+    type Output = Bitset;
 
-    fn sub(self, rhs: Self) -> Bitset<INLINE> {
+    fn sub(self, rhs: Self) -> Bitset {
         self.difference(rhs)
     }
 }
 
-impl<const INLINE: usize> ShrinkToFit for Bitset<INLINE> {
-    /// Drops the leading and trailing zero blocks of the storage and releases its spare capacity,
-    /// which moves the blocks inline if they fit.
+impl ShrinkToFit for Bitset {
+    /// Drops the leading and trailing zero blocks of the storage and releases its spare capacity.
     fn shrink_to_fit(&mut self) {
         let Some(first) = self.blocks.iter().position(|&b| b != 0) else {
             *self = Self::new();
@@ -494,8 +485,8 @@ impl<const INLINE: usize> ShrinkToFit for Bitset<INLINE> {
     }
 }
 
-impl<const INLINE: usize> BitOrAssign<&Bitset<INLINE>> for Bitset<INLINE> {
-    fn bitor_assign(&mut self, rhs: &Bitset<INLINE>) {
+impl BitOrAssign<&Bitset> for Bitset {
+    fn bitor_assign(&mut self, rhs: &Bitset) {
         self.union_with(rhs);
     }
 }
@@ -512,7 +503,7 @@ fn or_blocks(blocks: &mut [usize], other: &[usize]) -> bool {
     added != 0
 }
 
-impl<const INLINE: usize> Extend<u32> for Bitset<INLINE> {
+impl Extend<u32> for Bitset {
     /// Inserts every bit of `iter`. The storage grows with amortized growth at both ends, so the
     /// order of the bits doesn't matter.
     fn extend<T: IntoIterator<Item = u32>>(&mut self, iter: T) {
@@ -522,7 +513,7 @@ impl<const INLINE: usize> Extend<u32> for Bitset<INLINE> {
     }
 }
 
-impl<const INLINE: usize> FromIterator<u32> for Bitset<INLINE> {
+impl FromIterator<u32> for Bitset {
     fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
         let mut set = Self::new();
         set.extend(iter);
@@ -530,27 +521,27 @@ impl<const INLINE: usize> FromIterator<u32> for Bitset<INLINE> {
     }
 }
 
-impl<const INLINE: usize> PartialEq for Bitset<INLINE> {
+impl PartialEq for Bitset {
     fn eq(&self, other: &Self) -> bool {
         self.trimmed() == other.trimmed()
     }
 }
 
-impl<const INLINE: usize> Eq for Bitset<INLINE> {}
+impl Eq for Bitset {}
 
-impl<const INLINE: usize> Hash for Bitset<INLINE> {
+impl Hash for Bitset {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.trimmed().hash(state);
     }
 }
 
-impl<const INLINE: usize> fmt::Debug for Bitset<INLINE> {
+impl fmt::Debug for Bitset {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.iter()).finish()
     }
 }
 
-impl<'a, const INLINE: usize> IntoIterator for &'a Bitset<INLINE> {
+impl<'a> IntoIterator for &'a Bitset {
     type Item = u32;
     type IntoIter = Iter<'a>;
 

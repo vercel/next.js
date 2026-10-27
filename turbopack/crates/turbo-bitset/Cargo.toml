@@ -12,7 +12,6 @@ workspace = true
 bincode = { workspace = true }
 roaring = { workspace = true }
 shrink-to-fit = { workspace = true }
-smallvec = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
