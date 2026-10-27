@@ -140,8 +140,9 @@ One paragraph: the question this change answers and the outcome.
 | Task | Capability | Source findings | Class |
 | ---- | ---------- | --------------- | ----- |
 
-One row per task added, changed, or removed. Class is the suite it is a
-candidate for, or `removed` with the reason.
+Describe the resulting state, not the history: one row per task the pull
+request leaves in place, and the suite each is a candidate for. Mention a
+removal in one sentence under the table, with its reason, not as a row.
 
 ## Validation
 
