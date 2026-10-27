@@ -1,3 +1,3 @@
-module.exports = function () {
-  throw new Error('Node condition fallback must not be selected')
+module.exports = function (source) {
+  return `fallback:${source.trim()}`
 }

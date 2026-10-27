@@ -1,3 +1,3 @@
 module.exports = function (source) {
-  return `export default ${JSON.stringify(`sync:${source.trim()}`)}`
+  return `sync:${source.trim()}`
 }
