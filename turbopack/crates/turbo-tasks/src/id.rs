@@ -9,10 +9,11 @@ use bincode::{
     Decode, Encode,
     de::Decoder,
     enc::Encoder,
-    error::{DecodeError, EncodeError},
+    error::{DecodeError, EncodeError, IntegerType},
     impl_borrow_decode,
 };
 use serde::{Deserialize, Serialize, de::Visitor};
+use turbo_bincode::fixed_width;
 
 use crate::{TaskPersistence, registry};
 
@@ -139,7 +140,7 @@ define_id!(
     TaskId: u32,
     // Capped below `u32::MAX` so the id fits in 31 bits when packed into `RawVc`.
     max = TASK_ID_MAX,
-    derive(Deserialize, Decode),
+    derive(Deserialize),
     serde(transparent),
 );
 define_id!(
@@ -148,7 +149,8 @@ define_id!(
     max = crate::CellId::MAX_VALUE_TYPE_ID,
 );
 define_id!(FunctionId: u16);
-define_id!(TraitTypeId: u16);
+// There are fewer than 100 traits, so a `u8` leaves plenty of headroom and encodes in 1 byte.
+define_id!(TraitTypeId: u8);
 define_id!(
     LocalTaskId: u32,
     derive(Debug, Serialize, Deserialize, Encode, Decode),
@@ -163,8 +165,8 @@ define_id!(
         leak. This value may overflow and re-use old values.",
 );
 
-// Preserve transparent serde and the derived NonZero<u32> bincode format, but reject references
-// to transient tasks. RawVc packs TaskId into its own integer and checks that path separately.
+// Preserve transparent serde, but reject references to transient tasks. RawVc packs TaskId into its
+// own integer and checks that path separately.
 impl Serialize for TaskId {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         debug_assert!(
@@ -175,12 +177,24 @@ impl Serialize for TaskId {
     }
 }
 
+// Task ids are allocated sequentially and quickly exceed 2^16, where a varint takes 5 bytes. Encode
+// them at their natural width instead.
 impl Encode for TaskId {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient TaskId must not be encoded");
-        self.id.encode(encoder)
+        fixed_width::encode(encoder, self.id.get())
     }
 }
+
+impl<Context> Decode<Context> for TaskId {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Self::new(fixed_width::decode(decoder)?).ok_or(DecodeError::NonZeroTypeIsZero {
+            non_zero_type: IntegerType::U32,
+        })
+    }
+}
+
+impl_borrow_decode!(TaskId);
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -218,7 +232,7 @@ macro_rules! make_registered_serializable {
             where
                 S: serde::Serializer,
             {
-                serializer.serialize_u16(self.id.into())
+                serializer.serialize_u16(self.id.get().into())
             }
         }
 
@@ -239,7 +253,7 @@ macro_rules! make_registered_serializable {
                     where
                         E: serde::de::Error,
                     {
-                        match Self::Value::new(v) {
+                        match <$primitive>::try_from(v).ok().and_then(Self::Value::new) {
                             Some(value) => {
                                 if let Some(error) = $validate_type_id(value) {
                                     Err(E::custom(error))
@@ -247,7 +261,10 @@ macro_rules! make_registered_serializable {
                                     Ok(value)
                                 }
                             }
-                            None => Err(E::unknown_variant(&format!("{v}"), &["a non zero u16"])),
+                            None => Err(E::unknown_variant(
+                                &format!("{v}"),
+                                &[concat!("a non zero ", stringify!($primitive))],
+                            )),
                         }
                     }
                 }
@@ -267,15 +284,14 @@ macro_rules! make_registered_serializable {
 
         impl Encode for $ty {
             fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-                <NonZero<$primitive> as Encode>::encode(&self.id, encoder)
+                fixed_width::encode(encoder, self.id.get())
             }
         }
 
         impl<Context> Decode<Context> for $ty {
             fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-                let value = Self {
-                    id: NonZero::<$primitive>::decode(decoder)?,
-                };
+                let value = Self::new(fixed_width::decode(decoder)?)
+                    .ok_or(DecodeError::Other(concat!("zero ", stringify!($ty))))?;
                 if let Some(error) = $validate_type_id(value) {
                     Err(DecodeError::OtherString(error.to_string()))
                 } else {
@@ -288,6 +304,9 @@ macro_rules! make_registered_serializable {
     };
 }
 
+// Registry ids are assigned in sorted name order, so their size is unrelated to how often they are
+// used. There are well over 250 value types and functions, where a varint grows to 3 bytes, so
+// encode them at their natural width.
 make_registered_serializable!(
     ValueTypeId,
     u16,
@@ -296,7 +315,7 @@ make_registered_serializable!(
 );
 make_registered_serializable!(
     TraitTypeId,
-    u16,
+    u8,
     registry::get_trait,
     registry::validate_trait_type_id,
 );

@@ -8,8 +8,15 @@ use std::{
 };
 
 use anyhow::Result;
-use bincode::{Decode, Encode, enc::Encoder, error::EncodeError};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError, IntegerType},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize};
+use turbo_bincode::fixed_width;
 
 use crate::{
     ReadCellOptions, ReadConsistency, ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId,
@@ -36,8 +43,29 @@ use crate::{
 /// bits 21..=0  (22 bits): cell index
 /// ```
 /// Because the `ValueTypeId` is always `>= 1`, the type is trivially non-zero
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellId(NonZeroU32);
+
+// The `ValueTypeId` occupies the high bits, so the packed word is always `>= 2^22` and a varint
+// would always take 5 bytes.
+impl Encode for CellId {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        fixed_width::encode(encoder, self.raw())
+    }
+}
+
+impl<Context> Decode<Context> for CellId {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let raw: u32 = fixed_width::decode(decoder)?;
+        if raw >> CELL_INDEX_BITS == 0 {
+            return Err(DecodeError::Other("CellId has a zero ValueTypeId"));
+        }
+        // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
+        Ok(unsafe { Self::from_raw(raw) })
+    }
+}
+
+impl_borrow_decode!(CellId);
 
 /// Number of low bits used for the cell index.
 const CELL_INDEX_BITS: u32 = 22;
@@ -143,11 +171,11 @@ impl Display for CellId {
 /// ```
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub struct RawVc(NonZeroU64);
 
 // RawVc serializes its packed integer directly, so TaskId's guards cannot check embedded task
-// ids. Keep the original serde newtype shape and bincode format while rejecting transient values.
+// ids. Keep the original serde newtype shape while rejecting transient values.
 impl Serialize for RawVc {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         debug_assert!(
@@ -158,12 +186,26 @@ impl Serialize for RawVc {
     }
 }
 
+// Encoded `RawVc`s are almost always `TaskCell`s, whose high bits hold a `CellId`, so a varint
+// would take 9 bytes. `OperationVc` (always `TaskOutput`) stores a bare `TaskId`, not a `RawVc`.
 impl Encode for RawVc {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
-        self.0.encode(encoder)
+        fixed_width::encode(encoder, self.bits())
     }
 }
+
+impl<Context> Decode<Context> for RawVc {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        NonZeroU64::new(fixed_width::decode(decoder)?)
+            .map(RawVc)
+            .ok_or(DecodeError::NonZeroTypeIsZero {
+                non_zero_type: IntegerType::U64,
+            })
+    }
+}
+
+impl_borrow_decode!(RawVc);
 
 /// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
