@@ -2,6 +2,24 @@
 
 Run Next.js Agent Build eval candidates with Harbor on Vercel Sandbox. The authoring and grading contract lives in [Curate Next.js Agent Build evals](./AGENT_BUILD_EVALS.md); this file contains the current runner adapter and can change without redefining the tasks.
 
+## Old and new side by side
+
+The existing `agent-eval` fixtures and the Harbor tasks answer the same question with different plumbing. Use this table to translate between them; the `agent-eval` column is documented in [`evals/README.md`](./README.md).
+
+| Concern            | `agent-eval` fixture (`evals/evals/*`)           | Harbor task (`evals/agent-build/*`)                                              |
+| ------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Prompt             | `PROMPT.md`                                      | `instruction.md`                                                                 |
+| Starting app       | Fixture root                                     | `environment/fixture/`, built by `environment/Dockerfile` with a git baseline    |
+| Checks             | `EVAL.ts`, Vitest in the agent's sandbox         | `tests/test.sh` plus Node and Playwright checks in a separate verifier container |
+| Semantic criteria  | `toSatisfyCriterion` with a pinned judge model   | None yet; see the authoring guide for when a judge is justified                  |
+| Settings           | `eval.config.json`, `eval.suites.json`           | `task.toml`                                                                      |
+| Reference solution | None                                             | `solution/solve.sh` copying `solution/files/`                                    |
+| Known-bad repairs  | None                                             | `tests/bad-solutions/`                                                           |
+| Runner             | `run-evals.js` over `@vercel/agent-eval`         | `harbor run` on Vercel Sandbox; `tools/calibrate.sh` for cohorts                 |
+| Context treatment  | `baseline` and `agents-md` variants, always both | Optional, defined by the runner, off by default                                  |
+| Local validation   | `pnpm eval <name> --dry`                         | `tools/run-local.sh`                                                             |
+| Publication        | `next-evals-oss` and nextjs.org/evals            | Not published; a separate decision after calibration                             |
+
 ## Harbor task layout
 
 Each candidate uses Harbor's task format:

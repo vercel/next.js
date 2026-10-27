@@ -46,6 +46,20 @@ Prove the task measures its contract before reading any model result:
 
 `tests/bad-solutions/` holds one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision. They are the grader's test suite: a bad repair that scores 1 means the grader is wrong, and an untouched fixture that scores 1 means the task is wrong.
 
+### Choose the kind of check
+
+Use the first row that can prove the requirement, and stop there:
+
+| Check                                    | Use when                                                      | Example                                             |
+| ---------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| Tests on files, build output, HTTP, logs | The outcome is observable                                     | Prerendered shell contents, status codes, log lines |
+| Scripted browser                         | It needs a browser and we wrote the page                      | `instant()` navigation, filtering through the URL   |
+| QA agent in a browser                    | The agent's build decides what the UI looks like              | "Add login and deploy it"                           |
+| Judge model with a written rubric        | A semantic requirement none of the above can express          | "details wait for navigation behind a boundary"     |
+| Trajectory review                        | Detecting shortcuts or a broken task; never part of the score | Editing tests, hard-coding answers, reading graders |
+
+A judge grades only the criteria that need it, on top of every deterministic gate. Pin the model, commit the rubric, report its result as its own labeled number in `reward.json` rather than folding it into the pass, and spot-check its verdicts until its accuracy is known. The current tasks have no judge because every requirement in them is observable; that is a property of these tasks, not a rule for the suite. Harbor's `harbor-rewardkit` is the supported way to add one.
+
 ### Grade what the error message cannot tell the agent
 
 Each of these let a wrong repair through until the check changed:
