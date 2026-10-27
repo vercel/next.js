@@ -158,6 +158,47 @@ return NextResponse.next({
 
 This forwards `newHeaders` upstream to the target page, route, or server action, and does not expose them to the client. While this pattern is useful for passing data upstream, it should be used with caution because the headers containing this data may be forwarded to external services.
 
+### Composing multiple request-header updates
+
+If authentication, localization, and other Proxy helpers need to forward different request headers, have the helpers update one shared `Headers` object and return a single `NextResponse.next({ request: { headers } })`. Returning separate `NextResponse` objects from each helper does not merge their forwarded headers.
+
+Create an explicit allow-list of headers to forward. Overwrite or remove client-supplied values for any header that carries trusted identity or authorization data:
+
+```ts
+import { type NextRequest, NextResponse } from 'next/server'
+
+// These are application-specific helpers; implement them using your own
+// session validation and locale-resolution logic.
+function addAuthHeaders(request: NextRequest, headers: Headers) {
+  const session = validateSession(request)
+  headers.delete('x-user-id')
+
+  if (session) {
+    headers.set('x-user-id', session.userId)
+  }
+}
+
+function addLocaleHeaders(request: NextRequest, headers: Headers) {
+  headers.set('x-locale', resolveLocale(request))
+}
+
+export function proxy(request: NextRequest) {
+  // Start with an allow-list instead of forwarding every incoming header.
+  const headers = new Headers()
+  const acceptLanguage = request.headers.get('accept-language')
+  if (acceptLanguage) {
+    headers.set('accept-language', acceptLanguage)
+  }
+
+  addAuthHeaders(request, headers)
+  addLocaleHeaders(request, headers)
+
+  return NextResponse.next({ request: { headers } })
+}
+```
+
+The helpers share the same header collection, so later updates preserve earlier ones. Keep the forwarded set minimal, and do not use this pattern to bypass authorization checks in the destination route or Server Action.
+
 In contrast, `NextResponse.next({ headers })` is a shorthand for sending headers from proxy to the client. This is **NOT** good practice and should be avoided. Among other reasons because setting response headers like `Content-Type`, can override framework expectations (for example, the `Content-Type` used by Server Actions), leading to failed submissions or broken streaming responses.
 
 ```ts
