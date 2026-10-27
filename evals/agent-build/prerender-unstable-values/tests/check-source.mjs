@@ -71,14 +71,18 @@ if (vendorNow !== vendorBaseline) {
   fail('lib/vendor/customer-sdk.ts is a dependency and must not be edited.')
 }
 
-// 4. The footer still derives the year rather than hardcoding it.
-const footerSources = files
-  .filter(([path]) => /footer/i.test(path) || path === 'app/layout.tsx')
-  .map(([, contents]) => contents)
-  .join('\n')
-if (/\b20\d\d\b/.test(footerSources)) {
-  fail('The footer year must be derived from the current date, not hardcoded.')
-}
-if (!/\bDate\b/.test(footerSources)) {
-  fail('The footer must still compute the year from the current date.')
+// 4. The footer year is computed, not typed in. A standalone literal of a year
+//    around today anywhere in the app's source fails; full dates such as the
+//    incident seed data and numbers such as a 2000 ms timeout do not, and the
+//    vendored SDK is excluded. Where and how the year is computed is left to
+//    the agent.
+const thisYear = new Date().getFullYear()
+const yearLiteral = new RegExp(
+  `(?<![\\d-])(?:${thisYear - 1}|${thisYear}|${thisYear + 1})(?![\\d-])`
+)
+for (const [path, contents] of files) {
+  if (path.startsWith('lib/vendor/') || path.startsWith('tests/')) continue
+  if (yearLiteral.test(contents)) {
+    fail(`The footer year must be computed, not hardcoded. (${path})`)
+  }
 }

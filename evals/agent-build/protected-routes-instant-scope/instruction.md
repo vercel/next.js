@@ -2,6 +2,6 @@ Since we moved Ledger to Cache Components, clicking between Overview, Invoices a
 
 Signed-out visitors also get a 200 page saying "Sign in required", but our uptime checks and mobile app need a real HTTP redirect to `/login`.
 
-Please make workspace navigation instant again and redirect signed-out or expired sessions to `/login`. People must only ever see their own team's data, everything else should keep working as it does now, and the production server shouldn't log prerender errors.
+Please make workspace navigation instant again, so the workspace frame and page heading show immediately, and redirect signed-out or expired sessions to `/login`. Keep Cache Components on, and keep the marketing pages and `/login` static. People must only ever see their own team's data, and everything else, including the invoice status filter, should keep working as it does now. The production build and type check must pass, and the production server shouldn't log prerender or validation errors.
 
 `lib/vendor/` is a third-party SDK we don't edit, and CI installs the committed lockfile offline, so don't change dependencies.

@@ -44,11 +44,15 @@ for (const name of readdirSync(jobs)) {
   const result = read(join(dir, 'result.json'))
   const model = read(join(dir, 'config.json')).agents?.[0]?.model_name
   const evaluation = Object.values(result.stats?.evals ?? {})[0] ?? {}
-  // A regrade with a fixed verifier (tools/regrade.sh) replaces Harbor's reward.
-  const regrade = existsSync(join(dir, 'regrade.json'))
-    ? read(join(dir, 'regrade.json'))
-    : null
-  const reward = regrade?.reward ?? evaluation.metrics?.[0]?.mean
+  // A `calibrate.sh --regrade` result replaces the reward; cost stays the
+  // original run's, since a regrade runs no agent.
+  const regradeFile = join(jobs, '_regraded', name, 'result.json')
+  const regrade = existsSync(regradeFile) ? read(regradeFile) : null
+  const regradeEval = Object.values(regrade?.stats?.evals ?? {})[0]
+  const reward =
+    regrade?.finished_at && regradeEval
+      ? regradeEval.metrics?.[0]?.mean
+      : evaluation.metrics?.[0]?.mean
   cells.push({
     task: name.split('__')[0],
     model:

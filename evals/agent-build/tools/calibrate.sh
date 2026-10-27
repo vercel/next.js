@@ -14,7 +14,16 @@
 # instruction, verifier, and runtime are unchanged. The default is base.
 #
 # Each (task, agent, model, treatment) becomes its own Harbor job under
-# <jobs-dir>, so a cell can be rerun or regraded alone. Summarize with:
+# <jobs-dir>, so a cell can be rerun or regraded alone.
+#
+# When only a verifier changed, regrade instead of rerunning:
+#   evals/agent-build/tools/calibrate.sh --regrade <env-file> <jobs-dir> <task-dir>...
+# runs `harbor job regrade` on every finished job of those tasks with the
+# current verifier, on the recorded patches and without agent cost, and
+# writes the new jobs under <jobs-dir>/_regraded; report.mjs prefers them.
+# A change to the instruction or fixture needs new runs instead.
+#
+# Summarize with:
 #   evals/agent-build/tools/calibrate.sh --summary <jobs-dir>
 set -uo pipefail
 
@@ -56,6 +65,12 @@ if [ "${1:-}" = "--summary" ]; then
   exit 0
 fi
 
+REGRADE=''
+if [ "${1:-}" = "--regrade" ]; then
+  REGRADE=1
+  shift
+fi
+
 ENV_FILE=$1
 JOBS=$2
 shift 2
@@ -85,6 +100,29 @@ case "$TREATMENT" in
   agents-md) suffix='__agents-md' ;;
   *) echo "unknown TREATMENT: $TREATMENT" >&2; exit 2 ;;
 esac
+
+if [ -n "$REGRADE" ]; then
+  mkdir -p "$JOBS/_regraded"
+  for task in "$@"; do
+    name=$(basename "$task")
+    base_task=$(cd "$task" && pwd)
+    for job in "$JOBS/$name"__*/; do
+      job=${job%/}
+      [ -f "$job/result.json" ] || continue
+      node -e 'process.exit(require(process.argv[1]).finished_at ? 0 : 1)' "$job/result.json" || continue
+      verifier=$base_task
+      case "$job" in *__agents-md) TREATMENT=agents-md verifier=$(treat "$base_task") ;; esac
+      echo "== regrade $(basename "$job")"
+      rm -rf "$JOBS/_regraded/$(basename "$job")"
+      (set -a && . "$ENV_FILE" && set +a &&
+        "$HARBOR" job regrade "$job" -p "$verifier" -e vercel \
+          -o "$JOBS/_regraded" --job-name "$(basename "$job")") \
+        > "$JOBS/_regraded/$(basename "$job").log" 2>&1 ||
+        echo "   harbor exited non-zero; see $JOBS/_regraded/$(basename "$job").log"
+    done
+  done
+  exit 0
+fi
 
 for task in "$@"; do
   name=$(basename "$task")

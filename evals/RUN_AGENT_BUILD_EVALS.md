@@ -26,12 +26,13 @@ Tasks use the published [Harbor task format](https://docs.harborframework.com/ta
 
 ### How to read a task
 
-1. `instruction.md`: the only thing the agent sees.
-2. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings.
-3. `environment/fixture/`: the broken app. `environment/Dockerfile` installs it from the lockfile and commits a git baseline the patch is diffed against.
-4. `tests/test.sh`: the gates in order: `check-source.mjs` for the stated constraints, typecheck and build, the behavioral checks, then the server log.
-5. `solution/`: the reference repair as files under `solution/files/`, copied by `solve.sh`. Read it after the verifier, so the checks are judged on their own.
-6. `tests/bad-solutions/`: one script per shortcut, with the gate that catches it in the header and a README table.
+1. `README.md`: why the task is hard and how each gate verifies it.
+2. `instruction.md`: the only thing the agent sees.
+3. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings.
+4. `environment/fixture/`: the broken app. `environment/Dockerfile` installs it from the lockfile and commits a git baseline the patch is diffed against.
+5. `tests/test.sh`: the gates in order: `check-source.mjs` for the stated constraints, typecheck and build, the behavioral checks, then the server log.
+6. `solution/`: the reference repair as files under `solution/files/`, copied by `solve.sh`. Read it after the verifier, so the checks are judged on their own.
+7. `tests/bad-solutions/`: one script per shortcut, with the gate that catches it in the header and a README table.
 
 ### What our tasks add to Harbor
 
@@ -131,7 +132,7 @@ Agent harnesses differ in how they build the inference URL. Codex and OpenCode t
 
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 
-When a verifier fix lands after runs were scored, and the instruction and fixture did not change, regrade instead of rerunning: `evals/agent-build/tools/regrade.sh <task-dir> <jobs-dir>` applies each run's collected patch to a fresh fixture, grades it with the current verifier, and writes `regrade.json`, which the report uses in place of Harbor's reward. A change to the instruction or fixture needs new runs.
+When only a verifier changed after runs were scored, regrade instead of rerunning: `calibrate.sh --regrade <env-file> <jobs-dir> <task-dir>...` runs Harbor's [`harbor job regrade`](https://docs.harborframework.com/jobs/regrade) on each finished job with the current verifier, on the recorded patch and without agent cost, and writes the results under `<jobs-dir>/_regraded`, which the report prefers. A change to the instruction or fixture needs new runs.
 
 ## Run optional context treatments
 

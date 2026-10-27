@@ -8,6 +8,8 @@ See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credenti
 
 ## Add a task
 
+Terminal-Bench, Harbor's own benchmark, publishes the bar these steps follow: its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task; the steps below add only what is specific to Next.js.
+
 Every task goes through the same steps: find a capability, build it around a decision, write a short instruction, grade behavior, validate the grader, then calibrate. A task that skips a step is not ready for review.
 
 ### 1. Find a capability
@@ -17,6 +19,8 @@ Look for work where agents fail on real applications, in this order:
 - **Agent Feedback reports** in the Maintainer Agent store. Read the reports behind a finding, not the cluster summary: they say what the agent tried, what the overlay suggested, and what finally worked.
 - **Competency tasks that still separate models** (`evals/eval.suites.json`). A harder variant of a capability where weaker models already fail is a better bet than a new topic.
 - **GitHub issues and merged pull requests** that change how an application has to be written, such as a new API, a migration, or a behavior change. A merged change gives a realistic starting point and a known-good result, which is how SelfBench builds its tasks. Grade the behavior the change produces, not the tests that came with it: tests written for one patch import its files and mock its functions, so a correct repair with another structure fails.
+
+Agent Feedback cases are easy to recreate in a small fixture, but a small fixture also makes them easy to find and brute-force. For realistic scale, start from a pinned app in [`vercel/next-benchmarks`](https://github.com/vercel/next-benchmarks): each records its upstream commit, so copy it at that commit and bump the task version when it moves. Adopting a feature across a real app, such as turning on Cache Components, puts many of these cases in one task.
 
 Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first; a larger fixture for a capability the suite already measures is not a harder eval.
 
@@ -38,11 +42,11 @@ A hard task puts several sites of the same error in one realistic app, gives eac
 
 ### 3. Write a short instruction
 
-Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction): concise, with clear outcomes. Write it as the user would report it: the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The approved competency prompts are 20 to 50 words. A checklist of every requirement hands the agent the answer, and every model passes it.
+Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction): concise, with clear outcomes. Write it as the user would report it: the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The instruction must still state everything the verifier checks, with nothing left to guess, including requirements a user would take for granted, such as a passing type check or an unchanged feature. The approved competency prompts are 20 to 50 words. A checklist of every requirement hands the agent the answer, and every model passes it.
 
-Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the instruction.
+Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. Each task's `README.md` has a **Difficulty explanation**, why the task is hard for agents and for which reports, and a **Verification explanation**, which gate checks what, as Terminal-Bench asks. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the instruction.
 
-Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner, not the task. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
+Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner, not the task. For Next.js, with and without `AGENTS.md` are two real user conditions, not docs versus no docs: `create-next-app` adds `AGENTS.md` by default, older apps usually lack it, and the bundled docs are in `node_modules/next/dist/docs` in both runs. The comparison measures whether pointing the agent at the docs changes the result; with `AGENTS.md` is the product claim, and without it shows how often agents find the docs on their own. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
 
 ### 4. Grade behavior
 
@@ -56,11 +60,13 @@ Use the first row that can prove the requirement, and stop there:
 | Judge model with a written rubric        | A semantic requirement none of the above can express          | "details wait for navigation behind a boundary"     |
 | Trajectory review                        | Detecting shortcuts or a broken task; never part of the score | Editing tests, hard-coding answers, reading graders |
 
-A judge grades only the criteria that need it, on top of every deterministic gate. Pin the model, commit the rubric, report its result as its own labeled number in `reward.json` rather than folding it into the pass, and spot-check its verdicts until its accuracy is known. The current tasks have no judge because every requirement in them is observable; that is a property of these tasks, not a rule for the suite. Harbor's `harbor-rewardkit` is the supported way to add one.
+Terminal-Bench allows a model judge only in rare cases where it is shown to essentially never err, with a documented reason a program could not check the requirement. A judge grades only the criteria that need it, on top of every deterministic gate. Pin the model, commit the rubric, report its result as its own labeled number in `reward.json` rather than folding it into the pass, and spot-check its verdicts until its accuracy is known. The current tasks have no judge because every requirement in them is observable; that is a property of these tasks, not a rule for the suite. Harbor's `harbor-rewardkit` is the supported way to add one.
 
 Source checks cover only the constraints the instruction states and behavior cannot show, such as an unchanged vendored SDK or dependency set. Do not ban an opt-out in the source; make the behavior it breaks fail.
 
 #### Grading lessons
+
+Read every failure before trusting it. In the first runs of the pilot tasks, three checks rejected correct repairs because they tested something the instruction did not state: server wording for live times, a start-time element in the static HTML, and markup around a Suspense placeholder. Fix the check, or state the requirement and bump the version, then regrade.
 
 Each of these let a wrong repair through until the check changed:
 
@@ -81,7 +87,8 @@ Prove the task measures its contract before reading any model result:
 2. The untouched fixture scores 0 for the intended reason.
 3. The reference repair scores 1.
 4. Every script in `tests/bad-solutions/` scores 0 at the check its header names.
-5. A framework owner reviews the prompt and verifier together.
+5. The reference repair scores 1 on repeated runs. A verifier that flakes on a correct solution is wrong; the pilot tasks are graded 8 extra times each.
+6. A framework owner reviews the prompt and verifier together.
 
 `tests/bad-solutions/` holds one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision. They are the grader's test suite: a bad repair that scores 1 means the grader is wrong, and an untouched fixture that scores 1 means the task is wrong.
 

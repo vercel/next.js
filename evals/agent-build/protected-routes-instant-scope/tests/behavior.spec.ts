@@ -50,7 +50,6 @@ test('every workspace route has a shell with the frame and no customer data', as
     expect(html).not.toContain('Analytical Engines')
     expect(html).not.toContain('Bletchley')
   }
-  expect(shell('app/invoices')).toContain('aria-label="Filter"')
 })
 
 test('signed-out visitors get a real HTTP redirect to the login page', async ({
