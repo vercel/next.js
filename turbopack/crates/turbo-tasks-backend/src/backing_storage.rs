@@ -1,6 +1,5 @@
 use std::cmp::max;
 
-use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
 };
@@ -16,9 +15,9 @@ pub enum SnapshotItem {
     Put {
         task_id: TaskId,
         /// Serialized task meta data, if modified
-        meta: Option<TurboBincodeBuffer>,
+        meta: Option<Box<[u8]>>,
         /// Serialized task data, if modified
-        data: Option<TurboBincodeBuffer>,
+        data: Option<Box<[u8]>>,
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
         /// Cache size statistics captured when the item was encoded.
