@@ -660,12 +660,14 @@ async fn compact_reference_target(
         import_source: ImportSource::Module { asset },
         ..
     }) = referenced_asset
-        .get_ident(
+        .prepare_binding(
             chunking_context,
             module_merging,
             None,
             scope_hoisting_context,
         )
+        .await?
+        .get_ident(chunking_context)
         .await?
     else {
         return Ok(None);
@@ -788,12 +790,14 @@ async fn build_compact_reexports(
             export: Some(imported_key),
             import_source: ImportSource::Module { asset },
         }) = referenced_asset
-            .get_ident(
+            .prepare_binding(
                 chunking_context,
                 module_merging,
                 Some(imported_name.clone()),
                 scope_hoisting_context,
             )
+            .await?
+            .get_ident(chunking_context)
             .await?
         else {
             // Scope-hoisted into a local binding, an external, or a namespace re-export: none of
@@ -1185,7 +1189,9 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(chunking_context, module_merging, Some(name.clone()), scope_hoisting_context)
+                        .prepare_binding(chunking_context, module_merging, Some(name.clone()), scope_hoisting_context)
+                        .await?
+                        .get_ident(chunking_context)
                         .await?
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
@@ -1250,12 +1256,14 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(
+                        .prepare_binding(
                             chunking_context,
                             module_merging,
                             None,
                             scope_hoisting_context,
                         )
+                        .await?
+                        .get_ident(chunking_context)
                         .await?
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);

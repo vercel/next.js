@@ -292,6 +292,27 @@ export function generateStaticParams() {
         expect(second).toEqual(first)
       })
 
+      it('codeHash is independent of scope hoisting', async () => {
+        expect((await next.build()).exitCode).toBe(0)
+        const before = await getCodeHashes(next)
+        expect(before.some((entry) => typeof entry.codeHash === 'string')).toBe(
+          true
+        )
+
+        await next.patchFile(
+          'next.config.js',
+          (config) =>
+            config.replace(
+              'experimental: {',
+              'experimental: { turbopackScopeHoisting: false,'
+            ),
+          async () => {
+            expect((await next.build()).exitCode).toBe(0)
+            expect(await getCodeHashes(next)).toEqual(before)
+          }
+        )
+      })
+
       it("changes when the action's own code changes", async () => {
         await next.build()
         const before = await getCodeHashes(next, ['app/use-cache/page'])

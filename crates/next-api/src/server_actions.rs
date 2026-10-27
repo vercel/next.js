@@ -1206,10 +1206,10 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_module_merging_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        bail!(
-            "is_module_merging_enabled should not be called in UseCacheContentHashChunkingContext"
-        )
+    fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
+        // Hash individual factories, independently of which modules the rest of the build
+        // places in a scope-hoisting group. Code generation must not request that analysis.
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
