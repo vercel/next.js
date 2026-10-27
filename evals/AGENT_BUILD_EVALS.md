@@ -85,15 +85,15 @@ Public tasks support reproducibility and regression. A leakage-resistant headlin
 
 Every pull request whose primary purpose is an eval task, suite, runner, or measurement automation uses the same shape, so results read the same across pull requests and copy into the team channel without rewriting. The title starts with `eval:` and names the outcome: `eval: resolve and classify the audit suite`, not `eval: eval updates`.
 
-Keep every section, writing "Not run" or "None" where nothing happened, so a reader can tell "did not happen" from "forgot to say". Describe the resulting state, not the history; mention a removal in one sentence under the Tasks table.
+Keep every section, writing "Not run" or "None" where nothing happened, so a reader can tell "did not happen" from "forgot to say". Describe the resulting state, not the history; mention a removal in one sentence under the Tasks table. Harbor tasks carry no suite label, so the Tasks table has no class column; a task that turns out too easy is removed, not relabeled.
 
 ```markdown
 One paragraph: the question this change answers and the outcome.
 
 ## Tasks
 
-| Task | Capability | Source findings | Class |
-| ---- | ---------- | --------------- | ----- |
+| Task | Capability | Source findings |
+| ---- | ---------- | --------------- |
 
 ## Validation
 
