@@ -1,4 +1,8 @@
 import {
+  captureJUnitSuiteTask,
+  assertJUnitSuiteRole,
+} from '../reporting/junit-suites'
+import {
   assertPublicSnapshotPreparationRole,
   captureSnapshotPreparationFailure,
   type SnapshotPreparationFailure,
@@ -282,6 +286,7 @@ async function run({
     index: number
   }[] = []
   assertPublicSnapshotPreparationRole(artifact, options)
+  assertJUnitSuiteRole(artifact, options)
   const taskUpdates =
     options.captureTaskResults || options.preparePublicSnapshots === true
       ? createReporterTaskUpdates<CaseResult>({
@@ -1266,11 +1271,20 @@ async function run({
                 suiteId: suiteResult.suiteId,
                 index,
               })
+          const serializedErrors = suiteResult.errors.map(runnerFailure)
+          const reportedTask =
+            options.captureJUnitSuiteTasks === true
+              ? captureJUnitSuiteTask(task, {
+                  ...suiteResult,
+                  errors: serializedErrors,
+                })
+              : undefined
           const completion = event({
             type: 'suite-end',
             ...suiteResult,
             revision: artifact.revision,
-            errors: suiteResult.errors.map(runnerFailure),
+            errors: serializedErrors,
+            ...(reportedTask ? { reportedTask } : {}),
           })
           return taskUpdates
             ? completion.then(() => taskUpdates.suiteEnd(task))

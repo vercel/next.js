@@ -1,4 +1,8 @@
 import {
+  assertJUnitSuiteObservation,
+  formatJUnitSuiteError,
+} from './junit-suites'
+import {
   assertSnapshotPreparationFailure,
   type SnapshotPreparationFailure,
 } from '../execution/snapshot-preparation'
@@ -273,6 +277,7 @@ function isRetainedSuiteError(
 }
 
 export function createMachineReporter(options: {
+  captureJUnitSuiteTasks?: true
   projectDir: string
   reporters: readonly ResultReporter[]
   outputFile?: string
@@ -884,6 +889,42 @@ export function createMachineReporter(options: {
       const filename = relative(options.projectDir, file.name)
         .split(sep)
         .join('/')
+      const suiteTasks =
+        options.captureJUnitSuiteTasks === true && owner && active.length === 1
+          ? current.suites.filter(
+              (suite) =>
+                suite.entryId === owner.id &&
+                suite.reportedTask &&
+                events.some(
+                  (event) =>
+                    event.type === 'suite-end' &&
+                    event.entryId === owner.id &&
+                    event.suiteId === suite.suiteId &&
+                    event.runId === active[0].runId &&
+                    event.revision === active[0].revision
+                )
+            )
+          : []
+      const representedSuiteIds = new Set(
+        suiteTasks.map((suite) => suite.suiteId)
+      )
+      const independentFileError =
+        owner &&
+        (current.suites.some(
+          (suite) =>
+            suite.entryId === owner.id &&
+            suite.errors.length &&
+            !representedSuiteIds.has(suite.suiteId)
+        ) ||
+          events.some(
+            (event) =>
+              event.type === 'diagnostic' &&
+              event.entryId === owner.id &&
+              event.diagnostic.severity === 'error' &&
+              (!event.suiteError ||
+                !representedSuiteIds.has(event.suiteError.suiteId) ||
+                !isReportedSuiteError(event, events))
+          ))
       const tests = file.assertionResults.map((test) => {
         const failure =
           test.status === 'failed' && test.failureMessages.length
@@ -898,16 +939,29 @@ export function createMachineReporter(options: {
         const name = [...test.ancestorTitles, test.title].join(' > ')
         return `<testcase classname="${xml(filename)}" name="${xml(name)}" time="${(test.duration ?? 0) / 1000}">${failure}${skipped}</testcase>`
       })
+      for (const suite of suiteTasks) {
+        const task = suite.reportedTask!
+        const failures = task.errors
+          .map(
+            (error, index) =>
+              `<failure message="${xml(error.message)}" type="${xml(error.name)}">${xml(formatJUnitSuiteError(error, suite.errors[index], options.projectDir))}</failure>`
+          )
+          .join('')
+        tests.push(
+          `<testcase classname="${xml(filename)}" name="${xml(task.name)}" time="${(task.durationMs / 1000).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 10 })}">${failures}</testcase>`
+        )
+      }
       if (
-        file.message ||
-        (file.status === 'failed' &&
-          !file.assertionResults.some((test) => test.status === 'failed'))
+        (file.message ||
+          (file.status === 'failed' &&
+            !file.assertionResults.some((test) => test.status === 'failed'))) &&
+        (!suiteTasks.length || independentFileError)
       ) {
         tests.push(
           `<testcase name="[file error]"><error message="${xml(file.message || 'File execution failed')}">${xml(file.message)}</error></testcase>`
         )
       }
-      return `<testsuite name="${xml(filename)}" timestamp="${xml(new Date().toISOString())}" hostname="${xml(hostname())}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length}" errors="${tests.length - file.assertionResults.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${duration}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
+      return `<testsuite name="${xml(filename)}" timestamp="${xml(new Date().toISOString())}" hostname="${xml(hostname())}" tests="${tests.length}" failures="${file.assertionResults.filter((test) => test.status === 'failed').length + suiteTasks.length}" errors="${tests.length - file.assertionResults.length - suiteTasks.length}" skipped="${file.assertionResults.filter((test) => test.status === 'skipped' || test.status === 'todo').length}" time="${duration}">${tests.join('')}<system-out>${xml(output('stdout'))}</system-out><system-err>${xml(output('stderr'))}</system-err></testsuite>`
     })
     const browserCleanupErrors = events.flatMap((event) =>
       event.type === 'diagnostic' &&
@@ -1075,6 +1129,26 @@ export function createMachineReporter(options: {
           'Custom reporters must initialize before execution events.'
         )
       lastDeliveredDiagnostic = undefined
+      if (event.type === 'suite-end')
+        assertJUnitSuiteObservation(
+          event,
+          options.captureJUnitSuiteTasks === true
+        )
+      if (event.type === 'suite-end' && event.reportedTask) {
+        const owners =
+          collector
+            ?.getResults()
+            .entries.filter(
+              (start) =>
+                start.entry.id === event.entryId &&
+                start.runId === event.runId &&
+                start.revision === event.revision
+            ) ?? []
+        if (owners.length !== 1 || event.revision === undefined)
+          throw new Error(
+            'JUnit suite observation has no actual started file owner.'
+          )
+      }
       if (
         'entryId' in event &&
         typeof event.entryId === 'string' &&

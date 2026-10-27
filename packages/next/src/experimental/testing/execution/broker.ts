@@ -149,6 +149,7 @@ export interface BrowserApplicationOwnership {
 
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
+  captureJUnitSuiteTasks?: true
   /** Positive parent one-shot authorization, never child-issued. */
   preparePublicSnapshots?: true
   signal: AbortSignal
@@ -514,6 +515,15 @@ export function createExecutionBrokerHost(options: {
           )
             throw new Error(
               'Snapshot preparation requires its positive one-shot parent owner.'
+            )
+          if (
+            (message.options.captureJUnitSuiteTasks !== undefined &&
+              message.options.captureJUnitSuiteTasks !== true) ||
+            (message.options.captureJUnitSuiteTasks === true) !==
+              (options.captureJUnitSuiteTasks === true)
+          )
+            throw new Error(
+              'JUnit suite observation requires its positive parent owner.'
             )
           assertPublicSnapshotPreparationRole(message.artifact, message.options)
           executing = true
@@ -948,6 +958,7 @@ export function createExecutionBrokerClient(options: {
           value.onCustomCoverageSuite ||
           value.onCoverage ||
           value.onIstanbulCoverage ||
+          value.captureJUnitSuiteTasks !== undefined ||
           value.preparePublicSnapshots !== undefined ||
           value.onSnapshotPreparationFailure
       )

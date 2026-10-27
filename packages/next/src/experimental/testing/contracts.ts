@@ -431,6 +431,8 @@ export interface BrowserViewport {
 }
 
 export interface ExecuteTestOptions {
+  /** Private one-shot JUnit observation of actual cached suite failures. */
+  captureJUnitSuiteTasks?: true
   /** Issued only by the actual one-shot CLI owner for bounded V8 restoration. */
   captureOneShotV8CollectionRestoration?: true
   /** Private isolated one-shot snapshot preparation, never a public config key. */

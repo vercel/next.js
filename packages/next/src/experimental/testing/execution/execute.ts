@@ -1,4 +1,8 @@
 import {
+  assertJUnitSuiteRole,
+  assertJUnitSuiteObservation,
+} from '../reporting/junit-suites'
+import {
   assertPublicSnapshotPreparationRole,
   assertSnapshotPreparationFailure,
 } from './snapshot-preparation'
@@ -60,6 +64,7 @@ export async function executeWithEnvironment(
   onWorkerLaunched?: () => void
 ): Promise<TestExecutionResult> {
   const started = performance.now()
+  assertJUnitSuiteRole(artifact, options)
   assertPublicSnapshotPreparationRole(artifact, options)
   if (
     (options.preparePublicSnapshots === true) !==
@@ -337,6 +342,11 @@ export async function executeWithEnvironment(
             message.event.revision !== artifact.revision
           )
             throw new Error('Mismatched test worker event')
+          if (message.event.type === 'suite-end')
+            assertJUnitSuiteObservation(
+              message.event,
+              options.captureJUnitSuiteTasks === true
+            )
           if (
             observedSnapshotPreparationFailure &&
             message.event.type !== 'diagnostic' &&

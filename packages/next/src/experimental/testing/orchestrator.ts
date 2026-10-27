@@ -85,6 +85,8 @@ interface PreparedTest {
 }
 
 export interface RunTestsOptions {
+  /** Private one-shot observation; never enables full authored task capture. */
+  captureJUnitSuiteTasks?: true
   /** Private actual one-shot owner; never inferred from cancellation or artifacts. */
   captureOneShotV8CollectionRestoration?: true
   /** Positive one-shot phase request; no public configuration field. */
@@ -165,6 +167,36 @@ export async function runTests(
   projects: DiscoveredTestProject[],
   options: RunTestsOptions
 ) {
+  if (
+    options.captureJUnitSuiteTasks !== undefined &&
+    (options.captureJUnitSuiteTasks !== true ||
+      options.collectOnly ||
+      options.userCancelSignal ||
+      options.coverage ||
+      Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+      projects.length !== 1 ||
+      projects[0].entries.length !== 1 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.typecheck ||
+              !/\.(?:js|mjs)$/.test(entry.file) ||
+              (entry.executionEnvironment &&
+                entry.executionEnvironment.name !== 'node')
+          )
+      ))
+  )
+    throw new Error(
+      'JUnit suite observation requires its isolated one-shot Node JavaScript owner.'
+    )
   if (
     (options.preparePublicSnapshots !== undefined &&
       options.preparePublicSnapshots !== true) ||
@@ -927,6 +959,9 @@ export async function runTests(
         options.execute ?? (await import('./execution/execute.js')).execute
       executing = true
       const result = await execute(artifact, {
+        ...(options.captureJUnitSuiteTasks === true
+          ? { captureJUnitSuiteTasks: true as const }
+          : {}),
         ...(options.preparePublicSnapshots === true
           ? {
               preparePublicSnapshots: true as const,
@@ -1371,6 +1406,9 @@ export async function runTests(
       const completion = await runWatchProcess(
         {
           operation: 'run',
+          ...(options.captureJUnitSuiteTasks === true
+            ? { captureJUnitSuiteTasks: true as const }
+            : {}),
           ...(options.captureOneShotV8CollectionRestoration === true
             ? { captureOneShotV8CollectionRestoration: true as const }
             : {}),

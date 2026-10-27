@@ -67,6 +67,7 @@ export type WatchProcessRequest =
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
   | {
       operation: 'run'
+      captureJUnitSuiteTasks?: true
       /** Exact positive request from the actual isolated one-shot V8 owner. */
       captureOneShotV8CollectionRestoration?: true
       preparePublicSnapshots?: true
@@ -323,6 +324,20 @@ export async function runWatchProcess(
   )
     throw new Error(
       'V8 restoration capture requires its actual isolated one-shot owner.'
+    )
+  if (
+    request.operation === 'run' &&
+    request.captureJUnitSuiteTasks !== undefined &&
+    (request.captureJUnitSuiteTasks !== true ||
+      request.isolatedProfile !== true ||
+      request.watchCoverage ||
+      request.userCancellation ||
+      request.collectOnly ||
+      request.coverage ||
+      Object.keys(request.customCoverageRequests ?? {}).length)
+  )
+    throw new Error(
+      'JUnit suite observation requires its positive one-shot parent owner.'
     )
   if (
     (options.onSnapshotPreparationFailure &&
@@ -683,6 +698,9 @@ export async function runWatchProcess(
     }
     const customSuiteEntries = new Set<string>()
     const broker = brokerModule?.createExecutionBrokerHost({
+      ...(request.operation === 'run' && request.captureJUnitSuiteTasks === true
+        ? { captureJUnitSuiteTasks: true as const }
+        : {}),
       ...(request.operation === 'run' &&
       request.preparePublicSnapshots === true &&
       options.onSnapshotPreparationFailure

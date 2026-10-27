@@ -101,6 +101,8 @@ export interface SuiteResult {
   status: ResultStatus
   durationMs: number
   errors: SerializedDiagnostic[]
+  /** Actual cached suite result, present only for its requested JUnit owner. */
+  reportedTask?: import('./junit-suites').ReportedJUnitSuiteTask
 }
 
 export interface FileResult {

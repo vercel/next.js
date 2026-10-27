@@ -946,7 +946,41 @@ export async function nextTestRunner(
           reporters.every(
             (name) => name === 'json' || isCustomResultReporter(name)
           ))
+    const captureJUnitSuiteTasks =
+      reporters.length === 1 &&
+      reporters[0] === 'junit' &&
+      !options.watch &&
+      !options.list &&
+      !options.cache &&
+      options.shard === undefined &&
+      apiPort === undefined &&
+      options.testNamePattern === undefined &&
+      projects[0]?.testNamePattern === undefined &&
+      !inspect &&
+      !options.inspectBrk &&
+      !options.coverage &&
+      !customProjects.length &&
+      !standardCoverageOptions &&
+      projects.length === 1 &&
+      projects[0].entries.length === 1 &&
+      projects[0].isolate !== false &&
+      !projects[0].typecheck?.enabled &&
+      projects[0].profile.environment === 'node' &&
+      projects[0].profile.route === undefined &&
+      projects[0].profile.browserClient === undefined &&
+      (!projects[0].executionEnvironment ||
+        projects[0].executionEnvironment.name === 'node') &&
+      projects[0].entries.every(
+        (entry) =>
+          !entry.typecheck &&
+          /\.(?:js|mjs)$/.test(entry.file) &&
+          (!entry.executionEnvironment ||
+            entry.executionEnvironment.name === 'node')
+      )
     const machine = createMachineReporter({
+      ...(captureJUnitSuiteTasks
+        ? { captureJUnitSuiteTasks: true as const }
+        : {}),
       collect: preparePublicSnapshots,
       projectDir,
       reporters,
@@ -1111,6 +1145,9 @@ export async function nextTestRunner(
       oneShotExecutionActive = true
       try {
         summary = await runTests(projectDir, projects, {
+          ...(captureJUnitSuiteTasks
+            ? { captureJUnitSuiteTasks: true as const }
+            : {}),
           ...(preparePublicSnapshots
             ? {
                 preparePublicSnapshots: true as const,

@@ -8294,3 +8294,54 @@ it('uses actual completed root-suite JUnit duration while preserving physical an
     await rm(directory, { recursive: true, force: true })
   }
 }, 35000)
+
+it('preserves actual JUnit suite cardinality without observable task reads or unowned facts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-suites-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-suite-occurrences.mjs'), output],
+      { timeout: 30000, encoding: 'utf8' }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      status: 'passed',
+      installed: false,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
+
+it.each([
+  ['development', 'root-two-errors'],
+  ['development', 'nested-two-errors'],
+  ['development', 'root-same-object'],
+  ['production', 'root-two-errors'],
+  ['production', 'nested-two-errors'],
+  ['production', 'root-same-object'],
+  ['development', 'error-getters'],
+  ['development', 'task-meta-getter'],
+])(
+  'reports actual JUnit suite/error occurrences without adding getter effects (%s %s)',
+  async (mode, profile) => {
+    const directory = await mkdtemp(join(tmpdir(), 'next-junit-suite-public-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'junit-suite-public.mjs'), mode, profile, directory],
+        { timeout: 125000, encoding: 'utf8' }
+      )
+      expect(
+        JSON.parse(await readFile(join(directory, 'observed.json'), 'utf8'))
+      ).toMatchObject({
+        status: 'passed',
+        fullXMLParityQualified: false,
+        stackFramePresentationRemainsOpen: true,
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  150000
+)
