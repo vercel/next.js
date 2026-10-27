@@ -4208,6 +4208,10 @@ async function renderToStream(
         )
 
         const fizzOptions = {
+          // HTML-limited clients cannot run scripts to reveal outlined content.
+          progressiveChunkSize: renderOpts.serveStreamingMetadata
+            ? undefined
+            : Infinity,
           onError: htmlRendererErrorHandler,
           onAllReady: finishHtmlRender,
           nonce,
@@ -4350,6 +4354,10 @@ async function renderToStream(
         )
 
         const fizzOptions = {
+          // HTML-limited clients cannot run scripts to reveal outlined content.
+          progressiveChunkSize: renderOpts.serveStreamingMetadata
+            ? undefined
+            : Infinity,
           onError: htmlRendererErrorHandler,
           nonce,
           onHeaders: (headers: Headers) => {
