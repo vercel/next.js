@@ -90,6 +90,12 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
     let executionRejected = false
     let executionFailure: unknown
     const result = await runTests(request.projectDir, request.projects, {
+      ...(request.captureOneShotV8CollectionRestoration === true &&
+      request.isolatedProfile === true &&
+      request.watchCoverage !== true &&
+      request.userCancellation === undefined
+        ? { captureOneShotV8CollectionRestoration: true as const }
+        : {}),
       ...(request.captureModuleQueued === true
         ? {
             onModuleQueued(entry) {

@@ -15,6 +15,7 @@ import type {
 import type { ResultEvent, SerializedDiagnostic } from '../reporting/events'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
+import { captureNodeV8CollectionRestorationCoverage } from './coverage'
 import {
   executeCohortWithEnvironment,
   CohortExecutionClosedError,
@@ -134,6 +135,8 @@ export interface BrowserApplicationOwnership {
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
   signal: AbortSignal
+  /** Positive actual one-shot owner; compiler children cannot opt themselves in. */
+  captureOneShotV8CollectionRestoration?: true
   /** Parent-only capture; completion never grants compiler-child rights. */
   captureCompletedModuleResult?: true
   /** Parent-owned scheduling request, independent of the generation lifetime. */
@@ -458,6 +461,16 @@ export function createExecutionBrokerHost(options: {
               )
             : undefined
           if (options.userCancelSignal?.aborted && (await notExecuted())) return
+          if (
+            message.options.captureOneShotV8CollectionRestoration !==
+              undefined &&
+            (options.captureOneShotV8CollectionRestoration !== true ||
+              !captureNodeV8CollectionRestorationCoverage(
+                message.artifact,
+                message.options
+              ))
+          )
+            throw new Error('Unrequested one-shot V8 restoration capture.')
           if (
             message.options.captureCompletedModuleResult &&
             !options.captureCompletedModuleResult

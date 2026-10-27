@@ -431,6 +431,8 @@ export interface BrowserViewport {
 }
 
 export interface ExecuteTestOptions {
+  /** Issued only by the actual one-shot CLI owner for bounded V8 restoration. */
+  captureOneShotV8CollectionRestoration?: true
   /** Private opt-in actual fulfilled module timing and selection provenance. */
   captureCompletedModuleResult?: true
   /** Opt-in live reporter snapshots from actual logical-case producers. */

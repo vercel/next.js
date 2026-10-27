@@ -21312,3 +21312,234 @@ describe('actual private mock restoration primitive', () => {
     40000
   )
 })
+
+describe('actual assertion-finish restoration occurrences', () => {
+  it.each([
+    'plain',
+    'unrequested',
+    'override',
+    'reset',
+    'clear',
+    'missing-sdk',
+    'malformed-sdk',
+    'file-plain',
+    'file-unrequested',
+    'file-undefined-cleanup',
+    'file-mixed-same-error',
+    'successful-file-omitted',
+    'successful-file-requested',
+    'eligibility-true',
+    'eligibility-false',
+    'eligibility-truthy',
+    'eligibility-throw',
+    'eligibility-same-error',
+    'eligibility-malformed',
+    'unrequested-eligibility-getter',
+  ])(
+    'preserves actual restoration and independent cleanup ownership: %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-restoration-finish-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'mock-restoration-finish.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({ mode, rawErrorFieldsUnchanged: true })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})
+
+describe('actual one-shot V8 restoration owner', () => {
+  it('requires exact positive ownership in addition to the existing isolated V8 profile', async () => {
+    const { captureNodeV8CollectionRestorationCoverage } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    const profile = {
+      id: 'restoration-owner',
+      mode: 'development' as const,
+      environment: 'node' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      profile,
+      entryId: 'entry',
+      revision: 'actual',
+      rootDir: '/restoration-owner',
+      entryPath: 'entry.js',
+      files: [],
+      diagnostics: [],
+      coverage: { version: 1, scripts: [], sources: {} },
+    }
+    const request = {
+      entry: {
+        id: 'entry',
+        file: '/restoration-owner/entry.test.mjs',
+        profile,
+      },
+      coverage: { version: 1 as const, kind: 'node-line' as const },
+    }
+    expect(captureNodeV8CollectionRestorationCoverage(artifact, request)).toBe(
+      false
+    )
+    for (const value of [undefined, false, 'true', 1, {}])
+      expect(
+        Reflect.apply(captureNodeV8CollectionRestorationCoverage, undefined, [
+          artifact,
+          { ...request, captureOneShotV8CollectionRestoration: value },
+        ])
+      ).toBe(false)
+    const owned = {
+      ...request,
+      captureOneShotV8CollectionRestoration: true as const,
+    }
+    expect(captureNodeV8CollectionRestorationCoverage(artifact, owned)).toBe(
+      true
+    )
+    expect(
+      captureNodeV8CollectionRestorationCoverage(
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        owned
+      )
+    ).toBe(false)
+    expect(
+      captureNodeV8CollectionRestorationCoverage(artifact, {
+        ...owned,
+        collectOnly: true,
+      })
+    ).toBe(false)
+    expect(
+      captureNodeV8CollectionRestorationCoverage(artifact, {
+        ...owned,
+        entry: { ...request.entry, file: '/restoration-owner/entry.test.ts' },
+      })
+    ).toBe(false)
+    expect(
+      Object.hasOwn(request, 'captureOneShotV8CollectionRestoration')
+    ).toBe(false)
+  })
+})
+
+describe('actual one-shot V8 load and restoration publication', () => {
+  it.each([
+    'setup-import-mixed-disposal',
+    'setup-import-mixed-disposal-report-false',
+  ])(
+    'matches the unchanged genuine complete maps and no-case projection: %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-v8-restoration-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-restoration-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPublicCLI: true,
+          actualSettledCollectionFailure: true,
+          actualSettledRestorationFailure: true,
+          actualJSONCoverageMap: true,
+          noCaseStartsInvented: true,
+          completeMapsSummaryLCOV: true,
+          exactExistingSnapshots: true,
+          allOwnersJoined: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual compiled V8 restoration continuation', () => {
+  it.each([
+    'plain',
+    'unrequested',
+    'missing-getter',
+    'mismatched-pair',
+    'duplicate-slot',
+    'mismatched-slot',
+    'post-file-cleanup',
+    'pending-load',
+    'parent-abort',
+  ])(
+    'retains exact stage and physical ownership: %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-v8-restoration-private-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-restoration-private.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            ...(mode === 'plain' ? [] : ['--fault=' + mode]),
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject(
+          mode === 'plain'
+            ? {
+                actualCompiledRestorationPair: true,
+                originalDisposeThrows: true,
+                originalTwoDiagnosticSlots: true,
+                allOwnersJoined: true,
+              }
+            : {
+                fault: mode,
+                actualOriginalFailuresRetained: mode !== 'pending-load',
+                strictIncompleteCapture: true,
+                allOwnersJoined: true,
+              }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})

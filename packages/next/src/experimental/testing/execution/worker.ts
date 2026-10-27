@@ -39,7 +39,10 @@ import { createLateFailureSink } from './late-failures'
 import { browserOutputDirectory } from './browser-output'
 import { assertArtifactProfile } from './artifact-profile'
 import { assertCompiledSetup } from './setup'
-import { captureNodeV8CollectionCoverage } from './coverage'
+import {
+  captureNodeV8CollectionCoverage,
+  captureNodeV8CollectionRestorationCoverage,
+} from './coverage'
 import { openTestEnvironment } from '../environments/runtime'
 import { installTestConsole } from './console'
 import {
@@ -124,6 +127,59 @@ async function run({
     artifact,
     options
   )
+  const v8CollectionRestoration = captureNodeV8CollectionRestorationCoverage(
+    artifact,
+    options
+  )
+  type CollectionRestoration = Readonly<{
+    collectionError: unknown
+    disposalError: unknown
+  }>
+  const restorationDescriptor = Object.getOwnPropertyDescriptor
+  const restorationKeys = Reflect.ownKeys
+  const restorationFrozen = Object.isFrozen
+  const restorationApply = Reflect.apply
+  let observedCollectionRestoration: CollectionRestoration | undefined
+  let provisionalRestorationFailure:
+    | {
+        error: unknown
+        index: number
+        diagnostic: ReturnType<typeof serializeDiagnostic>
+      }
+    | undefined
+  const readCollectionRestoration = (): CollectionRestoration | undefined => {
+    if (!v8CollectionRestoration || !file) return undefined
+    try {
+      const method = restorationDescriptor(
+        file,
+        'getCompletedCollectionRestorationFailure'
+      )
+      const value =
+        method && 'value' in method && typeof method.value === 'function'
+          ? restorationApply(method.value, file, [])
+          : undefined
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        !restorationFrozen(value) ||
+        restorationKeys(value).length !== 2
+      )
+        return undefined
+      const collection = restorationDescriptor(value, 'collectionError')
+      const disposal = restorationDescriptor(value, 'disposalError')
+      if (
+        !collection ||
+        !('value' in collection) ||
+        !disposal ||
+        !('value' in disposal)
+      )
+        return undefined
+      return value as CollectionRestoration
+    } catch {
+      return undefined
+    }
+  }
   const moduleFailures = options.captureCompletedModuleResult
     ? new Map<unknown, ReturnType<typeof serializeDiagnostic>>()
     : undefined
@@ -164,12 +220,11 @@ async function run({
       ...(unhandled ? { unhandled } : {}),
     }
     moduleFailures?.set(error, failure)
-    if (fileErrorIndex !== undefined)
-      provisionalCollectionFailure = {
-        error,
-        index: fileErrorIndex,
-        diagnostic: failure,
-      }
+    if (fileErrorIndex !== undefined) {
+      const observed = { error, index: fileErrorIndex, diagnostic: failure }
+      if (phase === 'collection') provisionalCollectionFailure = observed
+      else if (phase === 'cleanup') provisionalRestorationFailure = observed
+    }
     return event({
       type: 'diagnostic',
       entryId: artifact.entryId,
@@ -789,6 +844,9 @@ async function run({
       ...(v8CollectionCoverage
         ? { captureSettledCollectionDeclarations: true }
         : {}),
+      ...(v8CollectionRestoration
+        ? { captureCollectionRestoration: true }
+        : {}),
       ...(artifact.kind === 'node' && artifact.profile.environment === 'node'
         ? {
             onUnhandledRejection(
@@ -1270,9 +1328,24 @@ async function run({
     } catch (error) {
       moduleHostCleanupComplete = false
       snapshotHostComplete = false
-      coverageComplete = false
+      const observed = readCollectionRestoration()
+      const deferRestoration =
+        observed !== undefined &&
+        provisionalCollectionFailure !== undefined &&
+        observed.collectionError === provisionalCollectionFailure.error &&
+        observed.disposalError === error &&
+        !controller.signal.aborted &&
+        !lateFailures.has(error)
+      if (!deferRestoration) coverageComplete = false
+      else observedCollectionRestoration = observed
       status = 'failed'
-      if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
+      if (!lateFailures.has(error))
+        await diagnostic(
+          error,
+          'cleanup',
+          undefined,
+          deferRestoration ? 1 : undefined
+        )
     }
     try {
       // Obsolete read-only snapshots can fail disposal after the primitive
@@ -1401,7 +1474,27 @@ async function run({
             diagnostic: ReturnType<typeof serializeDiagnostic>
           }[]
         | undefined
-      if (
+      if (provisionalRestorationFailure && v8CollectionRestoration) {
+        const observed = readCollectionRestoration()
+        if (
+          !observed ||
+          observed !== observedCollectionRestoration ||
+          !provisionalCollectionFailure ||
+          observed.collectionError !== provisionalCollectionFailure.error ||
+          observed.disposalError !== provisionalRestorationFailure.error ||
+          provisionalCollectionFailure.index !== 0 ||
+          provisionalRestorationFailure.index !== 1 ||
+          provisionalCoverageFailures.length ||
+          reportedFileErrors.length ||
+          reportedSuiteErrors.length
+        )
+          coverageComplete = false
+        else
+          settledFileErrors = [
+            { index: 0, diagnostic: provisionalCollectionFailure.diagnostic },
+            { index: 1, diagnostic: provisionalRestorationFailure.diagnostic },
+          ]
+      } else if (
         provisionalCollectionFailure &&
         (options.coverage.kind === 'node-istanbul' || v8CollectionCoverage)
       ) {

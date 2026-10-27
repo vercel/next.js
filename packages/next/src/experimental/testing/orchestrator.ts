@@ -68,6 +68,8 @@ import {
   type SnapshotUpdateMode,
 } from './assertions/snapshots'
 
+import { captureNodeV8CollectionCoverage } from './execution/coverage'
+
 interface PreparedTest {
   entry: TestEntry
   artifact: CompiledTestArtifact
@@ -76,6 +78,8 @@ interface PreparedTest {
 }
 
 export interface RunTestsOptions {
+  /** Private actual one-shot owner; never inferred from cancellation or artifacts. */
+  captureOneShotV8CollectionRestoration?: true
   /** Private reporter request for actual collected-file observations. */
   captureModuleCollected?: true
   /** Actual selected-file scheduling; never a collected task snapshot. */
@@ -986,6 +990,13 @@ export async function runTests(
           : {}),
         ...(!istanbul && (coverageReport || options.standardCoverageOptions)
           ? {
+              ...(options.captureOneShotV8CollectionRestoration === true &&
+              captureNodeV8CollectionCoverage(artifact, {
+                entry,
+                coverage: { version: 1, kind: 'node-line' },
+              })
+                ? { captureOneShotV8CollectionRestoration: true as const }
+                : {}),
               coverage: {
                 version: 1 as const,
                 kind: artifact.profile.browserClient
@@ -1281,6 +1292,9 @@ export async function runTests(
       const completion = await runWatchProcess(
         {
           operation: 'run',
+          ...(options.captureOneShotV8CollectionRestoration === true
+            ? { captureOneShotV8CollectionRestoration: true as const }
+            : {}),
           ...(options.onModuleQueued
             ? { captureModuleQueued: true as const }
             : {}),

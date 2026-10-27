@@ -1910,3 +1910,85 @@ it.each([
     execute.mockRestore()
   }
 })
+
+describe('actual one-shot V8 restoration broker owner', () => {
+  it.each(['owned', 'omitted', 'unowned', 'nontrue', 'typed', 'production'])(
+    'retains explicit parent authorization and omitted shapes: %s',
+    async (kind) => {
+      const execution = await import(
+        'next/dist/experimental/testing/execution/execute'
+      )
+      const spy = jest
+        .spyOn(execution, 'executeWithEnvironment')
+        .mockResolvedValue(result)
+      const delivered = deferred<void>(),
+        messages: ExecutionBrokerResponse[] = []
+      const host = createExecutionBrokerHost({
+        signal: options.signal,
+        allowCoverage: true,
+        ...(kind === 'unowned'
+          ? {}
+          : { captureOneShotV8CollectionRestoration: true as const }),
+        async send(message) {
+          messages.push(message)
+          if (message.action === 'result' || message.action === 'error')
+            delivered.resolve()
+        },
+      })
+      const currentProfile =
+        kind === 'production'
+          ? { ...profile, mode: 'production' as const }
+          : profile
+      const currentEntry = {
+        ...entry,
+        file: kind === 'typed' ? '/project/file.ts' : '/project/file.mjs',
+        profile: currentProfile,
+      }
+      const executionOptions = {
+        ...options,
+        entry: currentEntry,
+        coverage: { version: 1 as const, kind: 'node-line' as const },
+        ...(kind === 'omitted'
+          ? {}
+          : {
+              captureOneShotV8CollectionRestoration:
+                kind === 'nontrue' ? 'true' : true,
+            }),
+      } as unknown as ExecuteTestOptions
+      try {
+        host.handle({
+          type: 'execution-broker-request',
+          action: 'execute',
+          id: 'restoration-owner-' + kind,
+          artifact: { ...artifact, profile: currentProfile },
+          options: executionOptions,
+          env: { ...process.env },
+        })
+        await delivered.promise
+        const terminal = messages.find(
+          (message) => message.action === 'result' || message.action === 'error'
+        )!
+        if (kind === 'owned' || kind === 'omitted') {
+          expect(terminal.action).toBe('result')
+          expect(spy).toHaveBeenCalledTimes(1)
+          expect(
+            Object.hasOwn(
+              spy.mock.calls[0][1],
+              'captureOneShotV8CollectionRestoration'
+            )
+          ).toBe(kind === 'owned')
+        } else {
+          expect(terminal.action).toBe('error')
+          if (terminal.action === 'error')
+            expect(terminal.error.message).toContain(
+              'Unrequested one-shot V8 restoration capture'
+            )
+          expect(spy).not.toHaveBeenCalled()
+        }
+      } finally {
+        await host.close().catch(() => {})
+        spy.mockRestore()
+      }
+    }
+  )
+})

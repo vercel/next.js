@@ -31,6 +31,7 @@ import {
   assertCoverageCompletion,
   createCoverageAttemptTracker,
   captureNodeV8CollectionCoverage,
+  captureNodeV8CollectionRestorationCoverage,
 } from './coverage'
 import {
   commitSnapshotUpdates,
@@ -167,6 +168,10 @@ export async function executeWithEnvironment(
     artifact,
     options
   )
+  const v8CollectionRestoration = captureNodeV8CollectionRestorationCoverage(
+    artifact,
+    options
+  )
   const attempts = createCoverageAttemptTracker({
     deferSettledSuiteErrors: options.coverage?.kind === 'node-istanbul',
     ...(options.coverage?.kind === 'node-istanbul' || v8CollectionCoverage
@@ -174,7 +179,9 @@ export async function executeWithEnvironment(
           deferSettledFileErrors:
             options.coverage?.kind === 'node-istanbul'
               ? true
-              : ('collection-only' as const),
+              : v8CollectionRestoration
+                ? ('collection-restoration' as const)
+                : ('collection-only' as const),
           fileErrorOwner: {
             runId: options.runId,
             entryId: artifact.entryId,

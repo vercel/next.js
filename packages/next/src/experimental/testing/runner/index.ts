@@ -154,6 +154,8 @@ export interface TestFileOptions {
   captureCollectionCoverage?: true
   /** Actual V8 collection capture also observes settled declaration failures. */
   captureSettledCollectionDeclarations?: true
+  /** Actual isolated V8 completed collection/restoration observation only. */
+  captureCollectionRestoration?: true
   /** Actual Node execution omits statistics for a file that never ran. */
   omitFailedCollectionSnapshotSummary?: true
   fileId: string
@@ -324,6 +326,7 @@ function initializeFile(
     onCollectionFailure,
     captureCollectionCoverage,
     captureSettledCollectionDeclarations,
+    captureCollectionRestoration,
     omitFailedCollectionSnapshotSummary,
     fileId,
     filePath,
@@ -502,6 +505,17 @@ function initializeFile(
     | undefined
   let completedCoverageFailures: readonly RunnerFailure[] | undefined
   let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
+  let settledCollectionLoadOnly = false
+  let completedCollectionRestoration:
+    | Readonly<{ collectionError: unknown; disposalError: unknown }>
+    | undefined
+  const captureRestoration =
+    captureCollectionCoverage === true && captureCollectionRestoration === true
+  const restorationDescriptor = Object.getOwnPropertyDescriptor
+  const restorationKeys = Reflect.ownKeys
+  const restorationFrozen = Object.isFrozen
+  const restorationFreeze = Object.freeze
+  const restorationApply = Reflect.apply
   let disposalSucceeded = false
   let collectionObservationFailed = false
   let ownedWorkerDisposalFailure: { readonly error: unknown } | undefined
@@ -651,6 +665,18 @@ function initializeFile(
             snapshotBodyFailures &&
             onUnhandledRejection !== undefined,
           captureCoverageCompletion: () => captureCoverageCompletion,
+          ...(captureRestoration
+            ? {
+                captureCollectionRestoration: true,
+                shouldCaptureCollectionRestoration: () =>
+                  settledCollectionLoadOnly &&
+                  settledCollectionFailure !== undefined &&
+                  collectionFailed &&
+                  !collectionObservationFailed &&
+                  !runStarted &&
+                  operationObservation === undefined,
+              }
+            : {}),
           collectOnly,
           resourceLifetime,
           fakeTimers,
@@ -764,8 +790,10 @@ function initializeFile(
                 (errors.length === 2 &&
                   declarationFailure &&
                   errors[1] === declarationFailure.error))
-            )
+            ) {
               settledCollectionFailure = Object.freeze({ error })
+              settledCollectionLoadOnly = errors.length === 1
+            }
             throw error
           }
         })
@@ -1310,6 +1338,26 @@ function initializeFile(
     captureOwnedBeforeWorkerInvocation() {
       return ownedBeforeWorkerInvocation
     },
+    ...(captureRestoration
+      ? {
+          getCompletedCollectionRestorationFailure() {
+            if (
+              state !== 'disposed' ||
+              disposalSucceeded ||
+              !completedCollectionRestoration ||
+              !collectionFailed ||
+              operationObservation !== undefined ||
+              (worker &&
+                (!worker.disposalSucceeded || worker.failures.length)) ||
+              runSignal?.aborted ||
+              lateErrors.length ||
+              fileAssertions?.hasCompleteNativeBodyRejections() !== true
+            )
+              return undefined
+            return completedCollectionRestoration
+          },
+        }
+      : {}),
     async dispose(disposal?: {
       beforeOwnedWorkerDispose?: () => unknown | Promise<unknown>
     }) {
@@ -1323,6 +1371,7 @@ function initializeFile(
       const errors: unknown[] = []
       let result
       let workerDisposalFailure: { readonly error: unknown } | undefined
+      let restorationFinishFailure: { readonly error: unknown } | undefined
       const beforeWorkerDispose = !worker
         ? disposal?.beforeOwnedWorkerDispose
         : undefined
@@ -1356,6 +1405,89 @@ function initializeFile(
         result = await assertions?.finishFile()
       } catch (error) {
         errors.push(error)
+        if (captureRestoration && settledCollectionLoadOnly && fileAssertions) {
+          try {
+            const method = restorationDescriptor(
+              fileAssertions,
+              'getCompletedMockRestorationFailure'
+            )
+            const observed =
+              method && 'value' in method && typeof method.value === 'function'
+                ? restorationApply(method.value, fileAssertions, [])
+                : undefined
+            if (
+              observed &&
+              typeof observed === 'object' &&
+              !Array.isArray(observed) &&
+              restorationFrozen(observed) &&
+              restorationKeys(observed).length === 2
+            ) {
+              const cause = restorationDescriptor(observed, 'error')
+              const occurrences = restorationDescriptor(observed, 'occurrences')
+              if (
+                cause &&
+                'value' in cause &&
+                cause.value === error &&
+                occurrences &&
+                'value' in occurrences &&
+                Array.isArray(occurrences.value) &&
+                restorationFrozen(occurrences.value) &&
+                (() => {
+                  const length = restorationDescriptor(
+                    occurrences.value,
+                    'length'
+                  )
+                  if (
+                    !length ||
+                    !('value' in length) ||
+                    !Number.isSafeInteger(length.value) ||
+                    length.value < 1
+                  )
+                    return false
+                  for (let index = 0; index < length.value; index++) {
+                    const item = restorationDescriptor(
+                      occurrences.value,
+                      String(index)
+                    )
+                    if (
+                      !item ||
+                      !('value' in item) ||
+                      !item.value ||
+                      typeof item.value !== 'object' ||
+                      !restorationFrozen(item.value) ||
+                      restorationKeys(item.value).length !== 2
+                    )
+                      return false
+                    const slot = restorationDescriptor(item.value, 'index')
+                    const calls = restorationDescriptor(item.value, 'calls')
+                    if (
+                      !slot ||
+                      !('value' in slot) ||
+                      slot.value !== index ||
+                      !calls ||
+                      !('value' in calls) ||
+                      !Array.isArray(calls.value) ||
+                      !restorationFrozen(calls.value)
+                    )
+                      return false
+                    const count = restorationDescriptor(calls.value, 'length')
+                    if (
+                      !count ||
+                      !('value' in count) ||
+                      !Number.isSafeInteger(count.value) ||
+                      count.value < 1
+                    )
+                      return false
+                  }
+                  return true
+                })()
+              )
+                restorationFinishFailure = { error }
+            }
+          } catch {
+            // Missing private completion never replaces the actual cleanup error.
+          }
+        }
       } finally {
         assertions = undefined
         activeFile = undefined
@@ -1379,6 +1511,27 @@ function initializeFile(
       )
       if (worker) for (const error of errors) worker.fail(error, fileId)
       if (errors.length === 1) {
+        if (
+          captureRestoration &&
+          settledCollectionLoadOnly &&
+          settledCollectionFailure &&
+          restorationFinishFailure !== undefined &&
+          restorationFinishFailure.error === errors[0] &&
+          collectionFailed &&
+          operationObservation === undefined &&
+          !runSignal?.aborted &&
+          !lateErrors.length &&
+          fileAssertions?.hasCompleteNativeBodyRejections() === true
+        ) {
+          try {
+            completedCollectionRestoration = restorationFreeze({
+              collectionError: settledCollectionFailure.error,
+              disposalError: errors[0],
+            })
+          } catch {
+            // Incomplete private bookkeeping retains the actual disposal throw.
+          }
+        }
         if (workerDisposalFailure?.error === errors[0])
           ownedWorkerDisposalFailure = workerDisposalFailure
         throw errors[0]

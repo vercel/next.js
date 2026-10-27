@@ -289,6 +289,10 @@ export async function createAssertionRuntime(options: {
   observeNativeBeforeEachCleanupAssertions?: boolean
   /** Actual bundle-local file run option, known after collection. */
   captureCoverageCompletion?: () => boolean
+  /** Actual isolated V8 failed-collection restoration observation only. */
+  captureCollectionRestoration?: true
+  /** Actual File load/run state, consulted only by the explicit private role. */
+  shouldCaptureCollectionRestoration?: () => boolean
   resourceLifetime?: 'attempt' | 'file'
   fakeTimers?: import('./utilities').FakeTimerOptions
   runtimeConfig?: import('./utilities').RuntimeOptions
@@ -2677,16 +2681,166 @@ export async function createAssertionRuntime(options: {
   }
 
   function guardMockMutators(mock: MockInstance) {
+    let restoreMethod: Function | undefined
     for (const property of Object.keys(mock)) {
       if (!/^mock[A-Z]/.test(property) && property !== 'withImplementation')
         continue
       const method = Reflect.get(mock, property)
       if (typeof method !== 'function') continue
-      Reflect.set(mock, property, guardMockMutation(method))
+      const guarded = guardMockMutation(method)
+      Reflect.set(mock, property, guarded)
+      if (property === 'mockRestore') restoreMethod = guarded
+    }
+    return restoreMethod
+  }
+
+  type OwnedFileMock = {
+    mock: MockInstance
+    restore: boolean
+    ordinarySpy?: boolean
+    restoreMethod?: Function
+  }
+  type RestorationCall = NonNullable<
+    ReturnType<
+      ReturnType<typeof spies.createMockRestorationObservation>['take']
+    >
+  >[number]
+  type RestorationObservation = {
+    run(callback: () => unknown): unknown
+    take(): unknown
+  }
+  type RestorationContext = {
+    owners: Map<MockInstance, Function>
+    failures: Map<number, readonly RestorationCall[]>
+    invalid: boolean
+  }
+  const restorationFactory =
+    options.captureCollectionRestoration === true
+      ? spies.createMockRestorationObservation
+      : undefined
+  const restorationEligibility =
+    options.captureCollectionRestoration === true
+      ? options.shouldCaptureCollectionRestoration
+      : undefined
+  const restorationDescriptor = Object.getOwnPropertyDescriptor
+  const restorationKeys = Reflect.ownKeys
+  const restorationFrozen = Object.isFrozen
+  const restorationFreeze = Object.freeze
+  const restorationApply = Reflect.apply
+  const RestorationMap = Map
+  const restorationMapGet = Map.prototype.get
+  const restorationMapSet = Map.prototype.set
+  const restorationMapHas = Map.prototype.has
+  const restorationMapSize = Object.getOwnPropertyDescriptor(
+    Map.prototype,
+    'size'
+  )!.get!
+  const restoreGet = <K, V>(map: Map<K, V>, key: K): V | undefined =>
+    restorationApply(restorationMapGet, map, [key])
+  const restoreSet = <K, V>(map: Map<K, V>, key: K, value: V): void => {
+    restorationApply(restorationMapSet, map, [key, value])
+  }
+  const restoreHas = <K, V>(map: Map<K, V>, key: K): boolean =>
+    restorationApply(restorationMapHas, map, [key])
+  const restoreSize = <K, V>(map: Map<K, V>): number =>
+    restorationApply(restorationMapSize, map, [])
+  let completedMockRestorationFailure:
+    | Readonly<{
+        error: unknown
+        occurrences: readonly Readonly<{
+          index: number
+          calls: readonly RestorationCall[]
+        }>[]
+      }>
+    | undefined
+
+  function restorationData(value: object, key: PropertyKey) {
+    const descriptor = restorationDescriptor(value, key)
+    return descriptor && 'value' in descriptor ? descriptor : undefined
+  }
+  function startRestorationObservation(): RestorationObservation | undefined {
+    if (typeof restorationFactory !== 'function') return undefined
+    try {
+      const handle = restorationFactory()
+      const run = restorationData(handle, 'run')
+      const take = restorationData(handle, 'take')
+      if (
+        !restorationFrozen(handle) ||
+        restorationKeys(handle).length !== 2 ||
+        typeof run?.value !== 'function' ||
+        typeof take?.value !== 'function'
+      )
+        return undefined
+      return {
+        run(callback) {
+          return restorationApply(run.value, handle, [callback])
+        },
+        take() {
+          return restorationApply(take.value, handle, [])
+        },
+      }
+    } catch {
+      return undefined
+    }
+  }
+  function completedRestorationCalls(
+    observation: RestorationObservation | undefined,
+    context: RestorationContext,
+    error: unknown,
+    expectedMock?: MockInstance
+  ): readonly RestorationCall[] | undefined {
+    try {
+      const calls = observation?.take()
+      if (!calls || !Array.isArray(calls) || !restorationFrozen(calls))
+        return undefined
+      const length = restorationData(calls, 'length')?.value
+      if (
+        !Number.isSafeInteger(length) ||
+        length < 1 ||
+        length > restoreSize(context.owners) ||
+        (expectedMock && length !== 1)
+      )
+        return undefined
+      const observed = new Set<object>()
+      const mocks = new Set<MockInstance>()
+      const restorers = new Set<Function>()
+      for (let index = 0; index < length; index++) {
+        const call = restorationData(calls, String(index))?.value
+        if (
+          !call ||
+          typeof call !== 'object' ||
+          !restorationFrozen(call) ||
+          restorationKeys(call).length !== 4 ||
+          observed.has(call)
+        )
+          return undefined
+        const mock = restorationData(call, 'mock')?.value
+        const restore = restorationData(call, 'restore')?.value
+        const status = restorationData(call, 'status')?.value
+        if (
+          !restoreHas(context.owners, mock) ||
+          (expectedMock && mock !== expectedMock) ||
+          typeof restore !== 'function' ||
+          mocks.has(mock) ||
+          restorers.has(restore) ||
+          (index === length - 1
+            ? status !== 'rejected' ||
+              !restorationData(call, 'reason') ||
+              restorationData(call, 'reason')!.value !== error
+            : status !== 'fulfilled' || !restorationData(call, 'value'))
+        )
+          return undefined
+        observed.add(call)
+        mocks.add(mock)
+        restorers.add(restore)
+      }
+      return calls
+    } catch {
+      return undefined
     }
   }
 
-  const fileMocks = new Set<{ mock: MockInstance; restore: boolean }>()
+  const fileMocks = new Set<OwnedFileMock>()
   const fileSerializers = new Set<Parameters<typeof addSerializer>[0]>()
   function removeSerializers(owned: Set<Parameters<typeof addSerializer>[0]>) {
     const serializers = getSerializers()
@@ -2696,15 +2850,46 @@ export async function createAssertionRuntime(options: {
     }
     owned.clear()
   }
-  function drainMocks(mocks: typeof fileMocks): unknown[] {
+  function drainMocks(
+    mocks: typeof fileMocks,
+    restoration?: { context: RestorationContext; offset: number }
+  ): unknown[] {
     const errors: unknown[] = []
     try {
-      for (const { mock, restore } of mocks) {
+      for (const owned of mocks) {
+        const { mock, restore } = owned
         if (restore) {
+          let observation: RestorationObservation | undefined
           try {
-            mutateMocks(() => mock.mockRestore())
+            if (restoration) {
+              const method = mock.mockRestore
+              if (owned.ordinarySpy && owned.restoreMethod === method) {
+                restoreSet(restoration.context.owners, mock, method)
+                observation = startRestorationObservation()
+              }
+              const invoke = () =>
+                mutateMocks(() => restorationApply(method, mock, []))
+              if (observation) observation.run(invoke)
+              else invoke()
+            } else mutateMocks(() => mock.mockRestore())
           } catch (error) {
+            const index = errors.length
             errors.push(error)
+            if (restoration) {
+              const calls = completedRestorationCalls(
+                observation,
+                restoration.context,
+                error,
+                mock
+              )
+              if (calls)
+                restoreSet(
+                  restoration.context.failures,
+                  restoration.offset + index,
+                  calls
+                )
+              else restoration.context.invalid = true
+            }
           }
         }
         try {
@@ -2720,27 +2905,33 @@ export async function createAssertionRuntime(options: {
   }
 
   const registeredMocks = new WeakSet<MockInstance>()
-  function registerMock(mock: MockInstance, restore: boolean, file = false) {
+  function registerMock(
+    mock: MockInstance,
+    restore: boolean,
+    file = false,
+    ordinarySpy = false
+  ) {
     // Setup/hook spies live through the cases and are restored at file disposal.
     // A case only restores the spies created by that case.
     if (!registeredMocks.has(mock)) {
       registeredMocks.add(mock)
-      guardMockMutators(mock)
+      const restoreMethod = guardMockMutators(mock)
       const active = file ? undefined : originatingScope()
       if (!file && !fileOwned && active?.kind === 'attempt')
         active.mocks.add({ mock, restore })
-      else fileMocks.add({ mock, restore })
+      else fileMocks.add({ mock, restore, ordinarySpy, restoreMethod })
     }
   }
 
   function trackMock<T extends (...args: any[]) => MockInstance>(
     method: T,
-    restore: boolean
+    restore: boolean,
+    ordinarySpy = false
   ): T {
     return ((...args: Parameters<T>) => {
       requireScopeAccess()
       const mock = Reflect.apply(method, undefined, args) as MockInstance
-      registerMock(mock, restore)
+      registerMock(mock, restore, false, ordinarySpy)
       return mock
     }) as T
   }
@@ -2795,7 +2986,7 @@ export async function createAssertionRuntime(options: {
     mockObject,
     ...spies,
     fn: trackMock(spies.fn, false),
-    spyOn: trackMock(spies.spyOn, true),
+    spyOn: trackMock(spies.spyOn, true, true),
     createMockInstance: trackMock(spies.createMockInstance, true),
     clearAllMocks() {
       requireScopeAccess()
@@ -4019,6 +4210,13 @@ export async function createAssertionRuntime(options: {
         ? updates
         : []
     },
+    ...(options.captureCollectionRestoration === true
+      ? {
+          getCompletedMockRestorationFailure() {
+            return completedMockRestorationFailure
+          },
+        }
+      : {}),
     async finishFile() {
       if (
         (fileAssertionLifetime || options.observeNativeUnhandledAssertions
@@ -4073,7 +4271,37 @@ export async function createAssertionRuntime(options: {
       } catch (error) {
         errors.push(error)
       }
-      errors.push(...drainMocks(fileMocks))
+      let restorationEligible = options.captureCollectionRestoration === true
+      if (restorationEligible && restorationEligibility !== undefined) {
+        if (typeof restorationEligibility !== 'function') {
+          errors.push(
+            new TypeError('Invalid restoration eligibility observer.')
+          )
+          restorationEligible = false
+        } else {
+          try {
+            restorationEligible = restorationEligibility() === true
+          } catch (error) {
+            errors.push(error)
+            restorationEligible = false
+          }
+        }
+      }
+      const restoration: RestorationContext | undefined = restorationEligible
+        ? {
+            owners: new RestorationMap(),
+            failures: new RestorationMap(),
+            invalid: false,
+          }
+        : undefined
+      errors.push(
+        ...drainMocks(
+          fileMocks,
+          restoration
+            ? { context: restoration, offset: errors.length }
+            : undefined
+        )
+      )
       removeSerializers(fileSerializers)
       if (
         ownedShould &&
@@ -4097,10 +4325,26 @@ export async function createAssertionRuntime(options: {
       equalityTesters.length = 0
       // Drain our own resources before global fallback helpers, which can stop
       // on a user-overridden mock method. Each fallback is attempted separately.
+      let restorationFallback: RestorationObservation | undefined
       try {
-        mutateMocks(() => spies.restoreAllMocks())
+        if (restoration) {
+          restorationFallback = startRestorationObservation()
+          const invoke = () => mutateMocks(() => spies.restoreAllMocks())
+          if (restorationFallback) restorationFallback.run(invoke)
+          else invoke()
+        } else mutateMocks(() => spies.restoreAllMocks())
       } catch (error) {
+        const index = errors.length
         errors.push(error)
+        if (restoration) {
+          const calls = completedRestorationCalls(
+            restorationFallback,
+            restoration,
+            error
+          )
+          if (calls) restoreSet(restoration.failures, index, calls)
+          else restoration.invalid = true
+        }
       }
       try {
         mutateMocks(() => spies.clearAllMocks())
@@ -4121,8 +4365,34 @@ export async function createAssertionRuntime(options: {
       } catch (error) {
         errors.push(error)
       }
-      if (errors.length)
-        throw new AggregateError(errors, 'Test assertion file cleanup failed')
+      if (errors.length) {
+        const error = new AggregateError(
+          errors,
+          'Test assertion file cleanup failed'
+        )
+        try {
+          if (
+            restoration &&
+            !restoration.invalid &&
+            restoreSize(restoration.failures) === errors.length
+          ) {
+            const occurrences = []
+            for (let index = 0; index < errors.length; index++) {
+              const calls = restoreGet(restoration.failures, index)
+              if (!calls) break
+              occurrences[index] = restorationFreeze({ index, calls })
+            }
+            if (occurrences.length === errors.length)
+              completedMockRestorationFailure = restorationFreeze({
+                error,
+                occurrences: restorationFreeze(occurrences),
+              })
+          }
+        } catch {
+          // An incomplete private observation never replaces the cleanup error.
+        }
+        throw error
+      }
       return result
     },
   }

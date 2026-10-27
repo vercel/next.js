@@ -118,12 +118,33 @@ export function captureNodeV8CollectionCoverage(
   )
 }
 
+/** A positive actual one-shot owner is additional to the existing V8 bounds. */
+export function captureNodeV8CollectionRestorationCoverage(
+  artifact: CompiledTestArtifact,
+  options: Pick<
+    ExecuteTestOptions,
+    | 'entry'
+    | 'coverage'
+    | 'customCoverage'
+    | 'collectOnly'
+    | 'captureOneShotV8CollectionRestoration'
+  >
+): boolean {
+  return (
+    options.captureOneShotV8CollectionRestoration === true &&
+    captureNodeV8CollectionCoverage(artifact, options)
+  )
+}
+
 /** Every started retry must finish; skipped/unstarted cases need no interval. */
 export function createCoverageAttemptTracker(
   options: {
     deferNativeRejections?: boolean
     deferSettledSuiteErrors?: boolean
-    deferSettledFileErrors?: boolean | 'collection-only'
+    deferSettledFileErrors?:
+      | boolean
+      | 'collection-only'
+      | 'collection-restoration'
     fileErrorOwner?: { runId: string; entryId: string; revision: string }
   } = {}
 ) {
@@ -174,7 +195,14 @@ export function createCoverageAttemptTracker(
           !receivedCompletion &&
           ((options.deferSettledFileErrors === true &&
             event.diagnostic.phase === 'cleanup') ||
-            event.diagnostic.phase === 'collection') &&
+            event.diagnostic.phase === 'collection' ||
+            (options.deferSettledFileErrors === 'collection-restoration' &&
+              event.diagnostic.phase === 'cleanup' &&
+              event.coverageFileError?.index === 1 &&
+              pendingFileErrors.size === 1 &&
+              pendingFileErrors.get(0)?.phase === 'collection' &&
+              started.size === 0 &&
+              ended.size === 0)) &&
           event.diagnostic.unhandled === undefined &&
           event.coverageFileError &&
           Object.keys(event.coverageFileError).every(
@@ -187,6 +215,13 @@ export function createCoverageAttemptTracker(
           event.revision === options.fileErrorOwner!.revision
         ) {
           const index = event.coverageFileError.index
+          if (
+            options.deferSettledFileErrors === 'collection-restoration' &&
+            ((event.diagnostic.phase === 'collection' &&
+              (index !== 0 || pendingFileErrors.size !== 0)) ||
+              (event.diagnostic.phase === 'cleanup' && index !== 1))
+          )
+            invalid = true
           if (pendingFileErrors.has(index)) invalid = true
           pendingFileErrors.set(index, structuredClone(event.diagnostic))
         } else invalid = true
@@ -273,6 +308,19 @@ export function createCoverageAttemptTracker(
           'Unrequested or repeated settled file-error observation.'
         )
       authorizedFileErrors = true
+      if (
+        options.deferSettledFileErrors === 'collection-restoration' &&
+        (pendingFileErrors.size > 2 ||
+          (pendingFileErrors.size > 0 &&
+            pendingFileErrors.get(0)?.phase !== 'collection') ||
+          (pendingFileErrors.size === 2 &&
+            (pendingFileErrors.get(1)?.phase !== 'cleanup' ||
+              started.size !== 0 ||
+              ended.size !== 0)))
+      )
+        throw new Error(
+          'Invalid completed collection/restoration file-error pair.'
+        )
       const references = value === undefined ? [] : value
       if (!Array.isArray(references))
         throw new Error('Invalid settled file-error references.')

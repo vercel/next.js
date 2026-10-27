@@ -1074,6 +1074,10 @@ export async function nextTestRunner(
       oneShotExecutionActive = true
       try {
         summary = await runTests(projectDir, projects, {
+          ...(standardCoverageOptions &&
+          standardCoverageOptions.provider === undefined
+            ? { captureOneShotV8CollectionRestoration: true as const }
+            : {}),
           ...(machine.captureModuleCollected
             ? { captureModuleCollected: true as const }
             : {}),

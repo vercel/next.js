@@ -63,6 +63,8 @@ export type WatchProcessRequest =
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
   | {
       operation: 'run'
+      /** Exact positive request from the actual isolated one-shot V8 owner. */
+      captureOneShotV8CollectionRestoration?: true
       /** Private actual scheduler occurrence; no authored callback acknowledgement. */
       captureModuleQueued?: true
       captureTaskResults?: boolean
@@ -295,6 +297,21 @@ export async function runWatchProcess(
     report?: boolean
   }
 ): Promise<WatchProcessResult> {
+  if (
+    request.operation === 'run' &&
+    request.captureOneShotV8CollectionRestoration !== undefined &&
+    (request.captureOneShotV8CollectionRestoration !== true ||
+      request.isolatedProfile !== true ||
+      request.watchCoverage === true ||
+      request.userCancellation !== undefined ||
+      options.userCancelSignal !== undefined ||
+      request.collectOnly ||
+      !request.standardCoverageOptions ||
+      request.standardCoverageOptions.provider !== undefined)
+  )
+    throw new Error(
+      'V8 restoration capture requires its actual isolated one-shot owner.'
+    )
   if (
     (options.onModuleQueued &&
       (request.operation !== 'run' || request.captureModuleQueued !== true)) ||
@@ -620,6 +637,10 @@ export async function runWatchProcess(
     const customSuiteEntries = new Set<string>()
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
+      ...(request.operation === 'run' &&
+      request.captureOneShotV8CollectionRestoration === true
+        ? { captureOneShotV8CollectionRestoration: true as const }
+        : {}),
       ...(options.onCompletedModules
         ? { captureCompletedModuleResult: true as const }
         : {}),
