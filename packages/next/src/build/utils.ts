@@ -90,7 +90,6 @@ import type {
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
 
@@ -99,11 +98,18 @@ import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
  * dynamic routes, this normalizes the path to use "-" placeholder.
  * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
  */
-function getTreeViewDisplayPath(pagePath: string): string {
+function getTreeViewDisplayPath(
+  pagePath: string,
+  pageInfo: PageInfo | undefined
+): string {
   const prerenderPathname = getStaticMetadataPrerenderPathname(
     pagePath.startsWith('/') ? pagePath : `/${pagePath}`
   )
-  return prerenderPathname ?? pagePath
+  // Route handlers at metadata paths prerender per param, not to "-".
+  return prerenderPathname &&
+    pageInfo?.ssgPageRoutes?.includes(prerenderPathname)
+    ? prerenderPathname
+    : pagePath
 }
 
 function buildStaticMetadataStaticPaths(page: string): {
@@ -400,7 +406,7 @@ export async function printTreeView(
       const symbol = getTreeViewSymbol(item, pageInfo)
       const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
-      const displayPath = getTreeViewDisplayPath(item)
+      const displayPath = getTreeViewDisplayPath(item, pageInfo)
 
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
@@ -840,6 +846,7 @@ export async function isPageStatic({
   durableUseCacheEntries,
   staticPageGenerationTimeout,
   originalAppPath,
+  isStaticMetadataFileRoute,
   isrFlushToDisk,
   cacheMaxMemorySize,
   nextConfigOutput,
@@ -869,6 +876,11 @@ export async function isPageStatic({
   pageType?: 'pages' | 'app'
   pageRuntime?: ServerRuntime
   originalAppPath?: string
+  /**
+   * Whether the route is generated from a static metadata file (e.g.
+   * `app/[id]/icon.png`) rather than a route handler or metadata function.
+   */
+  isStaticMetadataFileRoute?: boolean
   isrFlushToDisk?: boolean
   cacheMaxMemorySize: number
   cacheHandler?: string
@@ -1031,14 +1043,9 @@ export async function isPageStatic({
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          let pathname = normalizeAppPath(page)
-          if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
-          }
-
           if (
             routeModule.definition.kind === RouteKind.APP_ROUTE &&
-            isStaticMetadataFile(pathname)
+            isStaticMetadataFileRoute
           ) {
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))

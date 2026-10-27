@@ -1761,11 +1761,10 @@ export async function handleBuildComplete({
         prerenderGroupId += 1
       }
 
+      // Static metadata files are never in `dynamicRoutes` (the build strips
+      // them), so any metadata pathname here is a route handler that needs a
+      // normal ISR fallback.
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
-        if (isStaticMetadataFile(dynamicRoute)) {
-          continue
-        }
-
         const {
           fallback,
           fallbackExpire,
