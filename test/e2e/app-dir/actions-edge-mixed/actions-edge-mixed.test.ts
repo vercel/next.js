@@ -23,17 +23,17 @@ describe('actions-edge-mixed', () => {
   if (isNextDev && isTurbopack) {
     // Only relevant for Turbopack, and the other bundlers don't output that edge error.
     it('should only compile for edge when page runtime is set', async () => {
-      await next.browser('/client-error')
+      await next.browser('/node')
       expect(next.cliOutput).not.toContain(
         'which is not supported in the Edge Runtime.'
       )
       const output = next.getCliOutputFromHere()
       await next.patchFile(
-        'app/client-error/page.js',
+        'app/node/page.tsx',
         (origContent) => origContent + `\nexport const runtime = "edge";`,
         async () => {
           await retry(async () => {
-            await next.browser('/client-error')
+            await next.browser('/node')
             expect(output()).toContain(
               'which is not supported in the Edge Runtime.'
             )
