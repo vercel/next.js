@@ -65,9 +65,14 @@ for task in "$@"; do
     fi
     echo "== $job"
     args=(run --path "$task" --agent "$agent" --model "$model" --env vercel
-      --env-file "$ENV_FILE" --base-url https://ai-gateway.vercel.sh/v1
-      --api-key-name AI_GATEWAY_API_KEY --n-attempts 1 --max-retries 2
-      --jobs-dir "$JOBS" --job-name "$job")
+      --env-file "$ENV_FILE" --api-key-name AI_GATEWAY_API_KEY
+      --n-attempts 1 --max-retries 2 --jobs-dir "$JOBS" --job-name "$job")
+    # The global flag wins over a per-agent base_url option, so only pass it
+    # when the row does not bring its own.
+    case "$options" in
+      *base_url=*) ;;
+      *) args+=(--base-url https://ai-gateway.vercel.sh/v1) ;;
+    esac
     [ -n "$effort" ] && args+=(--effort "$effort")
     if [ -n "$options" ]; then
       IFS=',' read -ra pairs <<< "$options"
