@@ -36,9 +36,9 @@ Route other questions to the measurement that owns them:
 
 ### 2. Build the task around a decision, not an error message
 
-A task that an agent can solve from the build error alone does not separate models; every frontier model passes it on the first attempt. The agent-feedback reports show where agents fail: an error page lists several fixes, the agent applies the first one everywhere, and the build goes green while a requirement breaks.
+Start from a working application and a feature request, not from a failing build. A build error names the route and the problem, so the agent can loop on `next build` until it is green; frontier and weaker models alike pass that, and the task measures error-following instead of the decision. Agent Feedback reports describe an error, but turn the report into the feature the user was building, not the broken state.
 
-A hard task puts several sites of the same error in one realistic app, gives each site a different correct fix, and makes the wrong fix fail a requirement the error message never mentions. `prerender-unstable-values` has four `Date.now()` sites behind one error: cache the footer year, capture the fetch time inside the cached function it describes, defer the client clock behind a deterministic fallback, and keep a vendored SDK's clock read out of the prerender. `await connection()` at every site builds and fails.
+Put the decision where nothing warns the agent: content that has to stay in the static HTML, a cache lifetime that has to stay fresh, data that must not leak between users, navigation that has to stay instant. In the first pilots, every task that started from a failing build saturated, and every real failure came from a requirement like these: content deferred to the browser, a stale cache lifetime, a clock read only the production log reported. Let a build error appear only when the agent's own change causes it, and make the shortcuts the error page suggests fail one of those requirements.
 
 ### 3. Write a short instruction
 
