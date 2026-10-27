@@ -13,6 +13,12 @@
 //! - `initial`: each iteration builds the graph from scratch in a fresh `TurboTasks` instance, so
 //!   all tasks are scheduled with the initial priority, like in an initial build.
 //!
+//! These two are stress variants: every warm iteration changes every node, and the bulk of the
+//! aggregation updates go to one root task. The `realistic_warm` and `realistic_initial` variants
+//! (see `priority_contention_realistic.rs`) use the same node budgets with partial invalidation and
+//! cutoff, an irregular shape, hierarchical fan-in and per-task work, to model the invalidation
+//! contention of a warm build with some changed files.
+//!
 //! ```bash
 //! cargo bench -p turbo-tasks-backend --bench mod -- priority_contention
 //! ```
@@ -27,8 +33,10 @@ use criterion::{BenchmarkId, Criterion, Throughput};
 use turbo_tasks::{OperationVc, ResolvedVc, State, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
+use crate::priority_contention_realistic;
+
 /// `(depth, width)` of the benchmarked graphs.
-const SIZES: [(u32, u32); 2] = [(32, 2048), (128, 512)];
+pub(crate) const SIZES: [(u32, u32); 2] = [(32, 2048), (128, 512)];
 
 #[turbo_tasks::value(transparent)]
 struct Input(State<u64>);
@@ -45,7 +53,7 @@ fn second_parent(index: u32, width: u32) -> u32 {
 
 /// Combines the values of a node's parents. Mixing (instead of e.g. adding) keeps a change of the
 /// state from cancelling out in deep graphs, so every node changes whenever the state changes.
-fn mix(a: u64, b: u64) -> u64 {
+pub(crate) fn mix(a: u64, b: u64) -> u64 {
     (a ^ b.rotate_left(29)).wrapping_mul(0x9e37_79b9_7f4a_7c15) ^ a.rotate_right(17)
 }
 
@@ -116,7 +124,7 @@ fn assert_every_node_changes(previous: u64, value: u64, depth: u32, width: u32) 
     }
 }
 
-fn create_tt() -> Arc<TurboTasks<TurboTasksBackend>> {
+pub(crate) fn create_tt() -> Arc<TurboTasks<TurboTasksBackend>> {
     TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
@@ -157,6 +165,10 @@ async fn set_and_read(
 /// To capture how this benchmark scales with the number of CPUs on a machine, run
 /// `priority_contention_scaling.py` next to this file; it writes the results to a CSV file.
 pub fn priority_contention(c: &mut Criterion) {
+    if priority_contention_realistic::diagnostics_enabled() {
+        priority_contention_realistic::run_diagnostics();
+        return;
+    }
     let mut group = c.benchmark_group("turbo_tasks_backend_priority_contention");
     group.sample_size(20);
     group.measurement_time(Duration::from_secs(10));
@@ -221,6 +233,8 @@ pub fn priority_contention(c: &mut Criterion) {
             });
         });
     }
+
+    priority_contention_realistic::bench(&mut group);
 
     group.finish();
 }

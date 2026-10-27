@@ -57,7 +57,12 @@ import sys
 from typing import Iterable, Optional, Sequence
 
 GROUP = "turbo_tasks_backend_priority_contention"
-EXPECTED_VARIANTS = 4
+# The variants of the benchmark group, as `<kind>/<size>`.
+EXPECTED_VARIANTS = tuple(
+    f"{kind}/{size}"
+    for size in ("32x2048", "128x512")
+    for kind in ("warm", "initial", "realistic_warm", "realistic_initial")
+)
 OVERRIDE_ENV_VARS = ("TOKIO_WORKER_THREADS", "TURBO_TASKS_AVAILABLE_PARALLELISM")
 CSV_COLUMNS = [
     "pass",
@@ -199,9 +204,13 @@ def read_estimates(criterion_home: pathlib.Path) -> dict[str, dict]:
     """Reads `<group>/<kind>/<size>/new/estimates.json` for every variant of the group."""
     group_dir = criterion_home / GROUP
     files = sorted(group_dir.glob("*/*/new/estimates.json"))
-    if len(files) != EXPECTED_VARIANTS:
+    found = {"/".join(path.relative_to(group_dir).parts[:2]) for path in files}
+    if found != set(EXPECTED_VARIANTS):
+        missing = sorted(set(EXPECTED_VARIANTS) - found)
+        unexpected = sorted(found - set(EXPECTED_VARIANTS))
         raise ScalingError(
-            f"expected {EXPECTED_VARIANTS} variants in {group_dir}, found {len(files)}"
+            f"expected the {len(EXPECTED_VARIANTS)} variants {', '.join(EXPECTED_VARIANTS)} in "
+            f"{group_dir}; missing: {missing or 'none'}, unexpected: {unexpected or 'none'}"
         )
     estimates = {}
     for path in files:
