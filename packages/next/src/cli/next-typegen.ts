@@ -22,6 +22,7 @@ import {
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
+import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 
 export type NextTypegenOptions = {
   dir?: string
@@ -121,6 +122,13 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
     routeTypesManifest,
     join(distDir, 'types', 'root-params.d.ts')
   )
+
+  // Types left behind by a stopped `next dev` would otherwise fail type checking
+  // after routes are moved or deleted.
+  await removeStaleDevTypes({
+    distDirRoot: distDir,
+    lockDistDir: Boolean(nextConfig.experimental.lockDistDir),
+  })
 
   console.log('✓ Types generated successfully')
 }
