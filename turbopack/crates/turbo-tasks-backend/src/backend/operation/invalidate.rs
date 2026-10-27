@@ -111,6 +111,8 @@ pub(super) fn make_task_dirty_without_scheduling(
 
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
+    #[cfg(feature = "trace_task_dirty")]
+    let task_id = task.id();
     if make_stale
         && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()

@@ -72,7 +72,6 @@ describe('turbopack-portable-build-cache', () => {
     const sameDirExecutions = await tracedBuild()
     expect(executedFunctionNames(sameDirExecutions)).toMatchInlineSnapshot(`
      [
-       "<DiskFileSystem as FileSystem>::metadata",
        "<DiskFileSystem as FileSystem>::raw_read_dir",
        "<DiskFileSystem as FileSystem>::read",
        "<DiskFileSystem as FileSystem>::read_link",
@@ -133,7 +132,6 @@ describe('turbopack-portable-build-cache', () => {
     const movedExecutions = await tracedBuild()
     expect(executedFunctionNames(movedExecutions)).toMatchInlineSnapshot(`
      [
-       "<DiskFileSystem as FileSystem>::metadata",
        "<DiskFileSystem as FileSystem>::raw_read_dir",
        "<DiskFileSystem as FileSystem>::read",
        "<DiskFileSystem as FileSystem>::read_link",
@@ -142,7 +140,6 @@ describe('turbopack-portable-build-cache', () => {
        "<NftJsonAsset as Asset>::content",
        "<ServerNftJsonAsset as Asset>::content",
        "<SourceMapReference as GenerateSourceMap>::generate_source_map",
-       "AssetContent::hash",
        "DiskFileSystem::new_internal",
        "EcmascriptClientReferenceModule::proxy_module",
        "EcmascriptModuleContent::new",
@@ -279,7 +276,6 @@ describe('turbopack-portable-build-cache', () => {
        "parse",
        "parse_actions",
        "project_root_path_operation",
-       "resolve_options",
        "styled_jsx_transform_plugin",
        "uppercase_env_map",
      ]
