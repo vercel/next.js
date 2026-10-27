@@ -16,17 +16,19 @@ set -uo pipefail
 
 HARBOR=${HARBOR:-harbor}
 
-# agent|model|effort|agent options. Frontier first, then the weaker tier.
-# Effort is passed only when set. Agent options are comma-separated key=value
-# pairs passed as --agent-kwarg. Claude Code's SDK appends /v1/messages itself,
-# so it needs the bare gateway host instead of the /v1 base URL below.
+# agent|model|effort|agent options|api format. Frontier first, then the weaker
+# tier. Effort is passed only when set. Agent options are comma-separated
+# key=value pairs passed as --agent-kwarg. Two gateway quirks live here:
+# Claude Code's SDK appends /v1/messages itself, so it needs the bare gateway
+# host; OpenCode picks Google's native API for google/* models, which the
+# gateway does not serve, so those rows force the OpenAI-compatible format.
 COHORT=(
-  "claude-code|anthropic/claude-opus-5.5|high|base_url=https://ai-gateway.vercel.sh"
-  "codex|openai/gpt-6.1-sol|high|"
-  "opencode|google/gemini-4-argon||"
-  "codex|openai/gpt-6-luna|high|"
-  "opencode|google/gemini-3.8-flash||"
-  "opencode|zai/glm-5.2||"
+  "claude-code|anthropic/claude-opus-5.5|high|base_url=https://ai-gateway.vercel.sh|"
+  "codex|openai/gpt-6.1-sol|high||"
+  "opencode|google/gemini-4-argon|||openai_chat_completions"
+  "codex|openai/gpt-6-luna|high||"
+  "opencode|google/gemini-3.8-flash|||openai_chat_completions"
+  "opencode|zai/glm-5.2|||openai_chat_completions"
 )
 
 if [ "${1:-}" = "--summary" ]; then
@@ -57,7 +59,7 @@ mkdir -p "$JOBS"
 for task in "$@"; do
   name=$(basename "$task")
   for row in "${COHORT[@]}"; do
-    IFS='|' read -r agent model effort options <<< "$row"
+    IFS='|' read -r agent model effort options api_format <<< "$row"
     job="${name}__${agent}__${model//\//-}"
     if [ -f "$JOBS/$job/result.json" ]; then
       echo "== skip $job (result exists)"
@@ -74,6 +76,7 @@ for task in "$@"; do
       *) args+=(--base-url https://ai-gateway.vercel.sh/v1) ;;
     esac
     [ -n "$effort" ] && args+=(--effort "$effort")
+    [ -n "$api_format" ] && args+=(--api-format "$api_format")
     if [ -n "$options" ]; then
       IFS=',' read -ra pairs <<< "$options"
       for pair in "${pairs[@]}"; do args+=(--agent-kwarg "$pair"); done
