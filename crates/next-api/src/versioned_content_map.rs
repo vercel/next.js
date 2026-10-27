@@ -276,7 +276,7 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: FileSystemPath,
         section: Option<RcStr>,
-        ty: Vc<SourceMapType>,
+        ty: SourceMapType,
     ) -> Result<Vc<FileContent>> {
         let Some(asset) = &*self.get_asset(path.clone()).await? else {
             return Ok(FileContent::NotFound.cell());

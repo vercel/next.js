@@ -21,7 +21,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::{
-        SourceMapGenerationOptions, SourceMaps,
+        SourceMaps,
         structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
@@ -126,13 +126,7 @@ impl EcmascriptChunkItemContent {
 
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
-        let mut code = CodeBuilder::new(
-            SourceMapGenerationOptions {
-                full: self.source_maps.full.is_some(),
-                partial: self.source_maps.partial.is_some(),
-            },
-            false,
-        );
+        let mut code = CodeBuilder::new(false);
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }

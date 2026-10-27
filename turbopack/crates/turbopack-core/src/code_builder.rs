@@ -81,6 +81,8 @@ pub struct Code {
     full_mappings: Arc<Vec<Mapping>>,
     partial_mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
+    // Synthetic sections impose no constraint; mapped sections must all support the variant.
+    available_source_maps: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -97,6 +99,19 @@ impl PersistedCode {
 }
 
 impl Code {
+    /// Rejects variants that were not generated for every mapped section.
+    pub fn validate_source_map_type(&self, ty: SourceMapType) -> Result<()> {
+        let available = match ty {
+            SourceMapType::Full => self.available_source_maps.full,
+            SourceMapType::Partial => self.available_source_maps.partial,
+        };
+        anyhow::ensure!(
+            available,
+            "Requested {ty:?} source map was not generated for all mapped code"
+        );
+        Ok(())
+    }
+
     pub fn source_code(&self) -> &Rope {
         &self.code
     }
@@ -107,8 +122,12 @@ impl Code {
     }
     pub fn has_source_map_for(&self, ty: SourceMapType) -> bool {
         match ty {
-            SourceMapType::Full => !self.full_mappings.is_empty(),
-            SourceMapType::Partial => !self.partial_mappings.is_empty(),
+            SourceMapType::Full => {
+                self.available_source_maps.full && !self.full_mappings.is_empty()
+            }
+            SourceMapType::Partial => {
+                self.available_source_maps.partial && !self.partial_mappings.is_empty()
+            }
         }
     }
 
@@ -135,6 +154,9 @@ impl Code {
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<Rope> {
         let code = self.await?;
+        if let Some(ty) = emitted_source_map_ty {
+            code.validate_source_map_type(ty)?;
+        }
         let emit_source_map = emitted_source_map_ty.is_some_and(|ty| code.has_source_map_for(ty));
         Ok(if emit_source_map || code.should_generate_debug_id() {
             let mut rope_builder = RopeBuilder::default();
@@ -187,29 +209,32 @@ impl Code {
 /// CodeBuilder provides a mutable container to append source code.
 pub struct CodeBuilder {
     code: RopeBuilder,
-    full_mappings: Option<Vec<Mapping>>,
-    partial_mappings: Option<Vec<Mapping>>,
+    full_mappings: Vec<Mapping>,
+    partial_mappings: Vec<Mapping>,
     should_generate_debug_id: bool,
+    available_source_maps: SourceMapGenerationOptions,
 }
 
 impl Default for CodeBuilder {
     fn default() -> Self {
         Self {
             code: RopeBuilder::default(),
-            full_mappings: Some(Vec::new()),
-            partial_mappings: None,
+            full_mappings: Vec::new(),
+            partial_mappings: Vec::new(),
             should_generate_debug_id: false,
+            available_source_maps: SourceMapGenerationOptions {
+                full: true,
+                partial: true,
+            },
         }
     }
 }
 
 impl CodeBuilder {
-    pub fn new(generation: SourceMapGenerationOptions, should_generate_debug_id: bool) -> Self {
+    pub fn new(should_generate_debug_id: bool) -> Self {
         Self {
-            code: RopeBuilder::default(),
-            full_mappings: generation.full.then(Vec::new),
-            partial_mappings: generation.partial.then(Vec::new),
             should_generate_debug_id,
+            ..Default::default()
         }
     }
 
@@ -230,6 +255,10 @@ impl CodeBuilder {
         code: &Rope,
         source_maps: SourceMaps<M>,
     ) {
+        if source_maps.full.is_some() || source_maps.partial.is_some() {
+            self.available_source_maps.full &= source_maps.full.is_some();
+            self.available_source_maps.partial &= source_maps.partial.is_some();
+        }
         self.push_map(source_maps.full.map(Into::into), SourceMapType::Full);
         self.push_map(source_maps.partial.map(Into::into), SourceMapType::Partial);
         self.code += code;
@@ -240,6 +269,8 @@ impl CodeBuilder {
     ///
     /// This adjusts the source map to be relative to the new code object
     pub fn push_code(&mut self, prebuilt: &Code) {
+        self.available_source_maps.full &= prebuilt.available_source_maps.full;
+        self.available_source_maps.partial &= prebuilt.available_source_maps.partial;
         for (ty, prebuilt_mappings) in [
             (SourceMapType::Full, &prebuilt.full_mappings),
             (SourceMapType::Partial, &prebuilt.partial_mappings),
@@ -257,13 +288,11 @@ impl CodeBuilder {
                 SourceMapType::Full => &mut self.full_mappings,
                 SourceMapType::Partial => &mut self.partial_mappings,
             };
-            if let Some(mappings) = mappings.as_mut() {
-                mappings.extend(
-                    prebuilt_mappings
-                        .iter()
-                        .map(|(index, map)| (index + len, map.clone())),
-                );
-            }
+            mappings.extend(
+                prebuilt_mappings
+                    .iter()
+                    .map(|(index, map)| (index + len, map.clone())),
+            );
         }
 
         self.code += &prebuilt.code;
@@ -280,9 +309,6 @@ impl CodeBuilder {
             SourceMapType::Partial => &mut self.partial_mappings,
         };
 
-        let Some(mappings) = mappings.as_mut() else {
-            return;
-        };
         if map.is_none() && matches!(mappings.last(), None | Some((_, None))) {
             // No reason to push an empty map directly after an empty map
             return;
@@ -297,21 +323,16 @@ impl CodeBuilder {
 
     /// Tests if any code in this CodeBuilder contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        self.full_mappings
-            .as_ref()
-            .is_some_and(|mappings| !mappings.is_empty())
-            || self
-                .partial_mappings
-                .as_ref()
-                .is_some_and(|mappings| !mappings.is_empty())
+        !self.full_mappings.is_empty() || !self.partial_mappings.is_empty()
     }
 
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            full_mappings: Arc::new(self.full_mappings.unwrap_or_default()),
-            partial_mappings: Arc::new(self.partial_mappings.unwrap_or_default()),
+            full_mappings: Arc::new(self.full_mappings),
+            partial_mappings: Arc::new(self.partial_mappings),
             should_generate_debug_id: self.should_generate_debug_id,
+            available_source_maps: self.available_source_maps,
         }
     }
 }
@@ -342,13 +363,7 @@ impl Write for CodeBuilder {
 
 impl From<Code> for CodeBuilder {
     fn from(code: Code) -> Self {
-        let mut builder = CodeBuilder::new(
-            SourceMapGenerationOptions {
-                full: !code.full_mappings.is_empty(),
-                partial: !code.partial_mappings.is_empty(),
-            },
-            code.should_generate_debug_id,
-        );
+        let mut builder = CodeBuilder::new(code.should_generate_debug_id);
         builder.push_code(&code);
         builder
     }
@@ -367,11 +382,11 @@ impl GenerateSourceMap for Code {
     #[turbo_tasks::function]
     pub async fn generate_source_map(
         self: ResolvedVc<Self>,
-        ty: Vc<SourceMapType>,
+        ty: SourceMapType,
     ) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
         Ok(FileContent::Content(File::from(
-            self.await?.generate_source_map_ref(debug_id, *ty.await?),
+            self.await?.generate_source_map_ref(debug_id, ty)?,
         ))
         .cell())
     }
@@ -403,7 +418,12 @@ impl Code {
 impl Code {
     /// Generates a source map from the code's mappings.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
-    pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>, ty: SourceMapType) -> Rope {
+    pub fn generate_source_map_ref(
+        &self,
+        debug_id: Option<RcStr>,
+        ty: SourceMapType,
+    ) -> Result<Rope> {
+        self.validate_source_map_type(ty)?;
         // A debug id should be passed only if the code should generate a debug id, it is however
         // allowed to turn it off to access intermediate states of the code (e.g. for minification)
         debug_assert!(debug_id.is_none() || self.should_generate_debug_id);
@@ -455,9 +475,9 @@ impl Code {
             && sections[0].0.column == 0
             && debug_id.is_none()
         {
-            sections.into_iter().next().unwrap().1
+            Ok(sections.into_iter().next().unwrap().1)
         } else {
-            SourceMap::sections_to_rope(sections, debug_id)
+            Ok(SourceMap::sections_to_rope(sections, debug_id))
         }
     }
 }

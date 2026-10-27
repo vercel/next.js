@@ -70,14 +70,9 @@ impl CssChunk {
 
         let this = self.await?;
 
-        let source_maps = *this
-            .chunking_context
-            .source_map_generation_options()
-            .await?;
-
         // CSS chunks never have debug IDs
-        let mut code = CodeBuilder::new(source_maps, false);
-        let mut body = CodeBuilder::new(source_maps, false);
+        let mut code = CodeBuilder::new(false);
+        let mut body = CodeBuilder::new(false);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let content = &css_item.content().await?;
@@ -153,6 +148,9 @@ impl CssChunk {
             .chunking_context
             .emitted_source_map_type()
             .await?;
+        if let Some(ty) = emitted_ty {
+            code.validate_source_map_type(ty)?;
+        }
         let rope = if emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)) {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
@@ -435,7 +433,7 @@ impl Asset for CssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for CssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 }

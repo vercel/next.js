@@ -30,7 +30,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupKey},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
-    source_map::{OptionSourceMapType, SourceMapGenerationOptions, SourceMapType},
+    source_map::{OptionSourceMapType, SourceMapType},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -143,13 +143,7 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    /// Retains these maps in addition to the emitted map, regardless of setter order.
-    pub fn source_map_generation_options(mut self, generation: SourceMapGenerationOptions) -> Self {
-        self.chunking_context.source_map_generation_options = generation;
-        self
-    }
-
-    /// Selects the emitted map without replacing explicitly requested internal maps.
+    /// Selects the source map variant emitted to disk.
     pub fn emitted_source_map_type(
         mut self,
         emitted_source_map_type: Option<SourceMapType>,
@@ -298,11 +292,7 @@ impl BrowserChunkingContextBuilder {
         Ok(self)
     }
 
-    pub fn build(mut self) -> Vc<BrowserChunkingContext> {
-        let emitted =
-            SourceMapGenerationOptions::from_emitted(self.chunking_context.emitted_source_map_type);
-        self.chunking_context.source_map_generation_options.full |= emitted.full;
-        self.chunking_context.source_map_generation_options.partial |= emitted.partial;
+    pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
 }
@@ -395,7 +385,6 @@ pub struct BrowserChunkingContext {
     asset_content_hashing: ContentHashing,
     /// Whether to generate source maps
     emitted_source_map_type: Option<SourceMapType>,
-    source_map_generation_options: SourceMapGenerationOptions,
     /// Method to use when figuring out the current chunk src
     current_chunk_method: CurrentChunkMethod,
     /// Whether to use manifest chunks for lazy compilation
@@ -470,7 +459,6 @@ impl BrowserChunkingContext {
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 emitted_source_map_type: Some(SourceMapType::Full),
-                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
                 module_id_strategy: None,
@@ -667,10 +655,6 @@ impl BrowserChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for BrowserChunkingContext {
-    #[turbo_tasks::function]
-    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
-        self.source_map_generation_options.cell()
-    }
     #[turbo_tasks::function]
     fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
         Vc::cell(self.emitted_source_map_type)

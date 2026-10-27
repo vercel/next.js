@@ -48,10 +48,6 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
-        let source_maps = *this
-            .chunking_context
-            .source_map_generation_options()
-            .await?;
         let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
@@ -59,7 +55,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             turbobail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
-        let mut code = CodeBuilder::new(source_maps, false);
+        let mut code = CodeBuilder::new(false);
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
@@ -111,7 +107,6 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     asset_context,
                     RuntimeType::Development,
                     this.include_async_module_runtime,
-                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -120,7 +115,6 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     asset_context,
                     RuntimeType::Production,
                     this.include_async_module_runtime,
-                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -152,6 +146,10 @@ impl EcmascriptBuildNodeRuntimeChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
         ))
     }
 }
@@ -215,7 +213,7 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 }

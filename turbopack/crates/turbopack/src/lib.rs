@@ -228,9 +228,17 @@ async fn apply_module_type(
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
         }
         ModuleType::CssModule => ResolvedVc::upcast(
-            EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
-                .to_resolved()
-                .await?,
+            EcmascriptCssModule::new(
+                *source,
+                Vc::upcast(module_asset_context),
+                module_asset_context
+                    .module_options_context()
+                    .await?
+                    .css
+                    .source_map_generation_options,
+            )
+            .to_resolved()
+            .await?,
         ),
 
         ModuleType::Css {
@@ -242,6 +250,11 @@ async fn apply_module_type(
             CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
+                module_asset_context
+                    .module_options_context()
+                    .await?
+                    .css
+                    .source_map_generation_options,
                 *ty,
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),

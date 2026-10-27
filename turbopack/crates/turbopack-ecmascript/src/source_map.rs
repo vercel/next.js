@@ -24,7 +24,7 @@ pub struct InlineSourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for InlineSourceMap {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self, _ty: Vc<SourceMapType>) -> Result<Vc<FileContent>> {
+    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         let source_map = maybe_decode_data_url(&self.source_map);
         if let Some(source_map) =
             resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?

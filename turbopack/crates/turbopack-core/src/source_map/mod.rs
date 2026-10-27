@@ -45,10 +45,10 @@ static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
 #[turbo_tasks::value(shared, task_input)]
 #[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapType {
-    /// Extracts source maps from input files and writes source maps for output files.
+    /// Traces through input source maps to the original sources.
     #[default]
     Full,
-    /// Ignores existing input source maps, but writes source maps for output files.
+    /// Maps to the input files without tracing through their source maps.
     Partial,
 }
 
@@ -60,7 +60,9 @@ pub struct OptionSourceMapType(Option<SourceMapType>);
 #[turbo_tasks::value(shared, task_input)]
 #[derive(Debug, Clone, Copy, Hash, DeterministicHash)]
 pub struct SourceMapGenerationOptions {
+    /// Generates maps that trace through input source maps to the original sources.
     pub full: bool,
+    /// Generates maps to the input files without tracing through their source maps.
     pub partial: bool,
 }
 
@@ -77,7 +79,7 @@ impl SourceMapGenerationOptions {
         }
     }
 
-    pub fn any(self) -> bool {
+    pub fn should_generate_any_source_maps(self) -> bool {
         self.full || self.partial
     }
 }
@@ -95,12 +97,15 @@ impl Default for SourceMapGenerationOptions {
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
+    /// `ty` selects whether to trace through input source maps. Leaf implementations
+    /// may ignore this hint when the same map serves both variants.
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent>;
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent>;
 
     /// Returns an individual section of the larger source map, if found.
+    /// `ty` selects the map variant, as in [`GenerateSourceMap::generate_source_map`].
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, _section: RcStr, _ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn by_section(self: Vc<Self>, _section: RcStr, _ty: SourceMapType) -> Vc<FileContent> {
         FileContent::NotFound.cell()
     }
 }
@@ -694,7 +699,7 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self, _ty: Vc<SourceMapType>) -> Result<Vc<FileContent>> {
+    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }

@@ -228,9 +228,8 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-    /// If true, it reads a sourceMappingURL comment from the end of the file,
-    /// reads and generates a source map.
-    pub extract_source_map: bool,
+    /// Source map variants generated for this module. Full maps also read input source maps.
+    pub source_map_generation_options: SourceMapGenerationOptions,
     /// If true, it stores the last successful parse result in state and keeps using it when
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
@@ -481,10 +480,8 @@ pub trait EcmascriptAnalyzable: Module {
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
     #[turbo_tasks::function]
-    async fn module_content_without_analysis(
-        self: Vc<Self>,
-        source_map_generation_options: SourceMapGenerationOptions,
-    ) -> Result<Vc<EcmascriptModuleContent>>;
+    async fn module_content_without_analysis(self: Vc<Self>)
+    -> Result<Vc<EcmascriptModuleContent>>;
 
     #[turbo_tasks::function]
     async fn module_content_options(
@@ -650,7 +647,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content_without_analysis(
         self: Vc<Self>,
-        source_map_generation_options: SourceMapGenerationOptions,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
@@ -660,7 +656,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             parsed,
             self.ident(),
             this.options.await?.specified_module_type,
-            source_map_generation_options,
+            this.options.await?.source_map_generation_options,
         ))
     }
 
@@ -677,7 +673,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 
         let module_type_result = self.determine_module_type().await?;
         let source_map_generation_options =
-            *chunking_context.source_map_generation_options().await?;
+            self.await?.options.await?.source_map_generation_options;
 
         Ok(EcmascriptModuleContentOptions {
             parsed: Some(parsed),
@@ -1358,10 +1354,7 @@ impl EcmascriptModuleContent {
             let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
             let content = CodeGenResult {
                 program: merged_ast,
-                source_map_generation_options: *options
-                    .chunking_context
-                    .source_map_generation_options()
-                    .await?,
+                source_map_generation_options: options.source_map_generation_options,
                 source_map: CodeGenResultSourceMap::ScopeHoisting {
                     modules_header_width,
                     lookup_table: lookup_table.clone(),
@@ -2371,7 +2364,8 @@ async fn emit_content(
         scope_hoisting_syntax_contexts: _,
     } = content;
 
-    let generate_source_map = source_map_generation_options.any() && source_map.is_some();
+    let generate_source_map =
+        source_map_generation_options.should_generate_any_source_maps() && source_map.is_some();
 
     // Collect identifier names for source maps before emitting
     let source_map_names = if generate_source_map {
@@ -2432,7 +2426,7 @@ async fn emit_content(
     let source_map = if generate_source_map && source_map_generation_options.full {
         let original_source_maps = original_source_map
             .iter()
-            .map(|map| map.generate_source_map(SourceMapType::Full.cell()))
+            .map(|map| map.generate_source_map(SourceMapType::Full))
             .try_join()
             .await?;
         let original_source_maps = original_source_maps
@@ -2670,7 +2664,7 @@ impl Files for CodeGenResultSourceMap {
                 source_map,
                 source_map_generation_options,
             } => {
-                if source_map_generation_options.any() {
+                if source_map_generation_options.should_generate_any_source_maps() {
                     source_map.try_lookup_source_file(pos)
                 } else {
                     Ok(None)

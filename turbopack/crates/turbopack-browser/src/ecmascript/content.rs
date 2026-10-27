@@ -61,10 +61,6 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let source_maps = *this
-            .chunking_context
-            .source_map_generation_options()
-            .await?;
         // Lifetime hack to pull out the var into this scope
         let chunk_path;
         let script_or_path = match *this.chunking_context.current_chunk_method().await? {
@@ -83,10 +79,7 @@ impl EcmascriptBrowserChunkContent {
                 Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
-        let mut code = CodeBuilder::new(
-            source_maps,
-            *this.chunking_context.debug_ids_enabled().await?,
-        );
+        let mut code = CodeBuilder::new(*this.chunking_context.debug_ids_enabled().await?);
 
         let supports_arrow_functions = *this
             .chunking_context
@@ -134,7 +127,7 @@ impl EcmascriptBrowserChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(code, mangle)?;
         }
 
         Ok(code.cell())
@@ -148,6 +141,9 @@ impl EcmascriptBrowserChunkContent {
             .emitted_source_map_type()
             .await?;
         let code = self.code().await?;
+        if let Some(ty) = emitted_ty {
+            code.validate_source_map_type(ty)?;
+        }
         Ok(Vc::cell(
             emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)),
         ))
@@ -208,7 +204,7 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 
@@ -216,7 +212,7 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     async fn by_section(
         self: Vc<Self>,
         section: RcStr,
-        ty: Vc<SourceMapType>,
+        ty: SourceMapType,
     ) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.

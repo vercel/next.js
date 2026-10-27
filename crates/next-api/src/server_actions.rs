@@ -54,7 +54,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
-    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
+    source_map::OptionSourceMapType,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -1166,11 +1166,6 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
             "reference_chunk_source_maps should not be called in \
              UseCacheContentHashChunkingContext"
         )
-    }
-
-    #[turbo_tasks::function]
-    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
-        self.inner.source_map_generation_options()
     }
 
     #[turbo_tasks::function]

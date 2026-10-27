@@ -27,7 +27,7 @@ use crate::{
         OutputAssetsWithReferenced, expand_output_assets,
     },
     reference::ModuleReference,
-    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
+    source_map::OptionSourceMapType,
 };
 
 #[turbo_tasks::task_input]
@@ -319,8 +319,6 @@ pub struct WorkerConfigurationOptions {
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
-    #[turbo_tasks::function]
-    fn source_map_generation_options(self: Vc<Self>) -> Vc<SourceMapGenerationOptions>;
     #[turbo_tasks::function]
     fn emitted_source_map_type(self: Vc<Self>) -> Vc<OptionSourceMapType>;
     #[turbo_tasks::function]

@@ -113,7 +113,7 @@ async fn stylesheet_to_css(
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<CssOutput> {
-    let mut srcmap = if generation.any() {
+    let mut srcmap = if generation.should_generate_any_source_maps() {
         Some(parcel_sourcemap::SourceMap::new(""))
     } else {
         None
@@ -286,6 +286,7 @@ pub async fn finalize_css(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
     origin_source_map: Vc<FileContent>,
+    source_map_generation_options: SourceMapGenerationOptions,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<FinalCssResult>> {
@@ -339,7 +340,7 @@ pub async fn finalize_css(
                 &stylesheet,
                 &code,
                 minify_type,
-                *chunking_context.source_map_generation_options().await?,
+                source_map_generation_options,
                 true,
                 origin_source_map,
                 environment,

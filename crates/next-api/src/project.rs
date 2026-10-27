@@ -1039,7 +1039,7 @@ impl ProjectContainer {
             } else {
                 SourceMapType::Partial
             };
-            Ok(map.get_source_map(file_path, section, ty.cell()))
+            Ok(map.get_source_map(file_path, section, ty))
         } else {
             Ok(FileContent::NotFound.cell())
         }
@@ -1768,7 +1768,6 @@ impl Project {
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_client_minify(self.next_mode()),
             emitted_source_map_type: self.next_config().client_source_maps(self.next_mode()),
-            source_map_generation_options: self.client_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -1811,7 +1810,6 @@ impl Project {
                 environment: self.client_compile_time_info().environment(),
                 minify: self.next_config().turbo_client_minify(self.next_mode()),
                 emitted_source_map_type: self.next_config().client_source_maps(self.next_mode()),
-                source_map_generation_options: self.client_source_map_generation_options(),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             },
@@ -1867,7 +1865,6 @@ impl Project {
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_server_minify(self.next_mode()),
             emitted_source_map_type: self.next_config().server_source_maps(),
-            source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -1917,7 +1914,6 @@ impl Project {
             unused_references: self.unused_references(),
             turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             emitted_source_map_type: self.next_config().server_source_maps(),
-            source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self

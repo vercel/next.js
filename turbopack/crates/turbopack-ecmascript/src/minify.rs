@@ -29,27 +29,29 @@ use tracing::instrument;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::{SourceMapGenerationOptions, SourceMapType, SourceMaps},
+    source_map::{SourceMapType, SourceMaps},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(
-    code: Code,
-    generation: SourceMapGenerationOptions,
-    mangle: Option<MangleType>,
-) -> Result<Code> {
+pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
-    let full_map = generation
-        .full
-        .then(|| code.generate_source_map_ref(None, SourceMapType::Full));
-    let partial_map = generation
-        .partial
-        .then(|| code.generate_source_map_ref(None, SourceMapType::Partial));
-    let source_maps = generation.any();
+    let full_map = code
+        .has_source_map_for(SourceMapType::Full)
+        .then(|| code.generate_source_map_ref(None, SourceMapType::Full))
+        .transpose()?;
+    let partial_map = code
+        .has_source_map_for(SourceMapType::Partial)
+        .then(|| code.generate_source_map_ref(None, SourceMapType::Partial))
+        .transpose()?;
+    let source_maps = code.has_source_map();
 
+    anyhow::ensure!(
+        !source_maps || full_map.is_some() || partial_map.is_some(),
+        "Cannot minify code with incompatible source map variants"
+    );
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
 
@@ -167,11 +169,12 @@ pub fn minify(
             &src_map_buf,
             Some(&original_map),
             true,
+            // The SWC input is synthesized, so its contents would not match the original sources.
             false,
             &source_map_names,
         )
     })?;
-    let mut builder = CodeBuilder::new(generation, generate_debug_id);
+    let mut builder = CodeBuilder::new(generate_debug_id);
     builder.push_source(&src.into(), source_maps);
     Ok(builder.build())
 }

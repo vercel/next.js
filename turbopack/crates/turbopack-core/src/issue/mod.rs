@@ -663,7 +663,7 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let srcmap = generator.generate_source_map(SourceMapType::Full.cell());
+    let srcmap = generator.generate_source_map(SourceMapType::Full);
     let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };

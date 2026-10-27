@@ -94,7 +94,7 @@ pub async fn split_output_asset_into_parts(
         return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
     };
     let source_map = generate_source_map
-        .generate_source_map(SourceMapType::Partial.cell())
+        .generate_source_map(SourceMapType::Partial)
         .await?;
     let Some(source_map) = source_map.as_content() else {
         return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;

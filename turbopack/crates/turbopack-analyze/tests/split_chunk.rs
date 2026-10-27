@@ -15,7 +15,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::{GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps},
+    source_map::{GenerateSourceMap, SourceMapType, SourceMaps},
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,19 +23,18 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
     run_once(&REGISTRATION, async || {
-        let mut code = CodeBuilder::new(
-            SourceMapGenerationOptions {
-                full: false,
-                partial: true,
-            },
-            false,
-        );
+        let mut code = CodeBuilder::new(false);
         code += "Hello world!\n";
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
             SourceMaps {
-                full: None,
+                full: Some(Rope::from(serde_json::to_string(&json!({
+                    "version": 3,
+                    "mappings": "AAAA",
+                    "sources": ["original-source.ts"],
+                    "names": []
+                }))?)),
                 partial: Some(Rope::from(serde_json::to_string_pretty(&json! ({
                     "version": 3,
                     "mappings": "AAAA;AACA",
@@ -49,7 +48,12 @@ async fn split_chunk() {
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
             SourceMaps {
-                full: None,
+                full: Some(Rope::from(serde_json::to_string(&json!({
+                    "version": 3,
+                    "mappings": "AAAA",
+                    "sources": ["original-source.ts"],
+                    "names": []
+                }))?)),
                 partial: Some(Rope::from(serde_json::to_string_pretty(&json! ({
                     "version": 3,
                     "mappings": "AAAA",
@@ -61,6 +65,21 @@ async fn split_chunk() {
         );
         code += "This is the end of the file.\n";
         let code = code.build();
+
+        let mut combined = CodeBuilder::new(false);
+        combined.push_code(&code);
+        let code = combined.build();
+        assert!(
+            code.generate_source_map_ref(None, SourceMapType::Full)?
+                .to_str()?
+                .contains("original-source.ts")
+        );
+        assert!(
+            !code
+                .generate_source_map_ref(None, SourceMapType::Partial)?
+                .to_str()?
+                .contains("original-source.ts")
+        );
 
         let asset = TestAsset {
             code: code.resolved_cell(),
@@ -166,7 +185,61 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    pub fn generate_source_map(&self, ty: SourceMapType) -> Vc<FileContent> {
         self.code.generate_source_map(ty)
     }
+}
+
+#[test]
+fn rejects_missing_source_map_variants() {
+    let mut partial = CodeBuilder::new(false);
+    partial.push_source(
+        &Rope::from("partial"),
+        SourceMaps {
+            full: None,
+            partial: Some(turbopack_core::source_map::SourceMap::empty_rope()),
+        },
+    );
+    let partial = partial.build();
+    assert!(
+        partial
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(
+        partial
+            .generate_source_map_ref(None, SourceMapType::Partial)
+            .is_ok()
+    );
+
+    let mut combined = CodeBuilder::new(false);
+    combined += "synthetic prefix";
+    combined.push_code(&partial);
+    let combined = combined.build();
+    assert!(
+        combined
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+
+    let mut incompatible = CodeBuilder::new(false);
+    incompatible.push_code(&combined);
+    incompatible.push_source(
+        &Rope::from("full"),
+        SourceMaps {
+            full: Some(turbopack_core::source_map::SourceMap::empty_rope()),
+            partial: None,
+        },
+    );
+    let incompatible = incompatible.build();
+    assert!(
+        incompatible
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(
+        incompatible
+            .generate_source_map_ref(None, SourceMapType::Partial)
+            .is_err()
+    );
 }
