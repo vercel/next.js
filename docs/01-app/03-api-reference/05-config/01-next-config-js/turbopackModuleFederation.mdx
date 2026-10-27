@@ -201,7 +201,7 @@ For CDN deployments, configure the same header on the CDN response for the manif
 
 ## Publishing TypeScript declarations
 
-A **producer** that exposes TypeScript modules can opt into the upstream Module Federation type archive and declaration API. Install the optional build-time peer in the producing app:
+A **producer** that exposes TypeScript modules can opt into the upstream Module Federation type archive and declaration API. Install the optional build-time package in the producing app; Next.js does not declare it as a peer dependency:
 
 ```bash
 pnpm add @module-federation/dts-plugin@^2.9.0
