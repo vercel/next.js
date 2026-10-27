@@ -1,0 +1,9 @@
+{
+  "name": "nextjs-harder-eval-verifier",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@next/playwright": "16.4.2",
+    "@playwright/test": "1.55.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "extends": "/app/tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [
+    "/app/next-env.d.ts",
+    "/app/.next/types/**/*.ts",
+    "/app/app/**/*.ts",
+    "/app/app/**/*.tsx",
+    "/tests/typegen-assertions.ts"
+  ],
+  "exclude": ["/app/node_modules"]
+}

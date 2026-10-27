@@ -1,0 +1,3 @@
+Navigating from the projects list to Acme settings triggers a Next.js instant-navigation validation message and waits for request-time viewer data before showing any destination UI.
+
+Keep the existing `export const instant = true` in `app/projects/[project]/settings/page.tsx`. Make the settings heading available immediately on both a direct visit and the client navigation from `/projects`. Show `Loading viewer settings…` while the existing viewer panel loads. Preserve its request-time `x-viewer` behavior and the project navigation, including the “All projects” link. Verify the behavior in a production build.

@@ -1,0 +1,3 @@
+Our `npm run typecheck` command passes after someone has run the development server, but it fails in a fresh CI checkout because `PageProps`, `LayoutProps`, and `RouteContext` cannot be found.
+
+Update the checked-in typecheck workflow in `package.json` so it both regenerates `.next/types/routes.d.ts` from the existing routes and type-checks the application from a clean checkout. Keep the existing `PageProps` use in `app/blog/[slug]/page.tsx`, `LayoutProps` in `app/dashboard/layout.tsx`, and `RouteContext` in `app/api/articles/[id]/route.ts`. Next.js generated route types must remain the source of truth. Do not commit `.next` output or replace the helpers with handwritten declarations. Run the resulting clean-checkout typecheck before finishing.

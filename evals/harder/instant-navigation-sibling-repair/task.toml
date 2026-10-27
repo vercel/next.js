@@ -1,0 +1,48 @@
+schema_version = "1.4"
+artifacts = ["/tmp/agent.patch"]
+
+[task]
+name = "nextjs/instant-navigation-sibling-repair"
+version = "0.1.0"
+authors = [{ name = "Aurora Scharff" }]
+description = "Repair a blocking sibling navigation while preserving useful instant UI and request-time data."
+keywords = ["nextjs", "agent-build", "harder-eval"]
+
+[metadata]
+product = "nextjs"
+measurement = "agent-build"
+capability = "instant-navigation"
+framework = "nextjs"
+framework_version = "16.4.2"
+source = "reviewed-agent-feedback"
+
+[agent]
+user = "agent"
+network_mode = "public"
+timeout_sec = 1500.0
+
+[verifier]
+user = "root"
+environment_mode = "separate"
+network_mode = "no-network"
+timeout_sec = 1500.0
+
+[[verifier.collect]]
+service = "main"
+user = "root"
+timeout_sec = 120.0
+command = "git --git-dir=/opt/eval/base.git --work-tree=/app add -A && git --git-dir=/opt/eval/base.git --work-tree=/app diff --cached --binary HEAD > /tmp/agent.patch"
+
+[environment]
+network_mode = "public"
+build_timeout_sec = 1200.0
+cpus = 4
+memory_mb = 8192
+storage_mb = 12288
+
+[verifier.environment]
+network_mode = "no-network"
+build_timeout_sec = 1800.0
+cpus = 4
+memory_mb = 8192
+storage_mb = 12288

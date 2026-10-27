@@ -1,22 +1,24 @@
 # Eval authoring and publication
 
 Read `evals/README.md` before changing an existing `agent-eval` fixture. Read
-`evals/EVAL_CURATION.md` before creating or reclassifying an eval.
+`evals/HARDER_EVALS.md` before creating a new Agent Build eval.
 
-Keep existing `agent-eval` fixtures operational. Use the Harbor task format for
-new Agent Build evals. The existing fixtures use the `competency` and
-`regression` suites. Do not place a new Harbor task in those suites during
-authoring.
+Keep existing `agent-eval` fixtures operational. They use the `competency` and
+`regression` suites and preserve published history. Put new Agent Build tasks in
+`evals/harder` using the Harbor task format. Do not add them to the legacy
+suites.
 
-Run every new task during authoring. Keep, revise, or drop it based on the
-validation and calibration evidence. New tasks start unpublished. Use the
-first valid model attempt as pass@1. Discard infrastructure failures and retry
-them. Confirmation attempts can explain a model failure, but they do not
-change its score.
+Run every new task during authoring. Verify that the untouched fixture fails,
+the reference solution passes, and representative incorrect solutions fail.
+Use the first valid model attempt as pass@1. Retry infrastructure failures.
+Confirmation attempts can explain a model failure, but they do not change its
+score.
 
-Record the framework, task, runner, agent, model, and treatment versions needed
-to reproduce each result. Keep product-choice studies, end-to-end deployment
+Record the framework, task, runner, agent, and model versions needed to
+reproduce each result. Keep product-choice studies, end-to-end deployment
 journeys, and performance measurements in the systems that own them.
 
-Do not export evals with `"publish": false` to `next-evals-oss` or publish their
-results on nextjs.org/evals.
+The `publish` setting applies only to existing `agent-eval` fixtures. Do not
+export fixtures with `"publish": false` to `next-evals-oss` or publish their
+results on nextjs.org/evals. Harbor tasks in `evals/harder` do not enter that
+publication pipeline.
