@@ -9,7 +9,6 @@ if (!process.env.NEXT_PRIVATE_START_TIME) {
 
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
-import { startServer } from '../server/lib/start-server'
 import {
   getParsedDebugAddress,
   formatDebugAddress,
@@ -41,6 +40,10 @@ export type NextStartOptions = {
  * @param directory The directory to start the server in
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
+  const { startServer } =
+    // eslint-disable-next-line @next/internal/typechecked-require -- generated production startup bundle
+    require('../compiled/next-server/start-server.runtime.prod') as typeof import('../server/lib/start-server')
+
   const dir = getProjectDir(directory)
   warnMissingReactDependencies(dir)
   const hostname = options.hostname

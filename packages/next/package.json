@@ -264,6 +264,7 @@
     "devalue": "2.0.1",
     "domain-browser": "4.19.0",
     "edge-runtime": "4.0.1",
+    "esbuild": "0.25.9",
     "events": "3.3.0",
     "fast-jwt": "6.3.5",
     "find-up": "4.1.0",
