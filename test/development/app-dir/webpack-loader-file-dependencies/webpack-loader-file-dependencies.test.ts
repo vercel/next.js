@@ -69,6 +69,11 @@ describe('webpack-loader-file-dependencies', () => {
     }
   })
 
+  it('resolves loader packages with active Node export conditions', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toContain('build dependency: build-one')
+  })
+
   it('ignores cached CommonJS children without filenames', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toContain('build dependency: build-one')
