@@ -73,6 +73,22 @@ describe('turbopack additional roots', () => {
     expect(await browser.elementByCss('#loader-value').text()).toBe('processed')
   })
 
+  it('runs a webpack loader on a file in an additional root', async () => {
+    const browser = await next.browser('/loader')
+    expect(await browser.elementByCss('#linked-loader-value').text()).toBe(
+      'processed'
+    )
+  })
+
+  it('passes the path of a file in an additional root to PostCSS', async () => {
+    const browser = await next.browser('/postcss')
+    expect(
+      await browser.eval(
+        `getComputedStyle(document.querySelector('#postcss-from'), '::after').content`
+      )
+    ).toBe('"from-exists"')
+  })
+
   it('uses a placeholder for import.meta.url in an additional root', async () => {
     const $ = await next.render$('/root-info')
     expect(JSON.parse($('#server-root-info').text())).toEqual({
