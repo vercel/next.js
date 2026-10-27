@@ -12,27 +12,25 @@ export default defineRule({
     schema: [],
   },
   create(context) {
-    let isNextHead = null
+    const headImportNames = new Set<string>()
+    const scriptImportNames = new Set<string>()
 
     return {
-      ImportDeclaration(node) {
-        if (node.source.value === 'next/head') {
-          isNextHead = node.source.value
-        }
-
-        if (node.source.value !== 'next/script') {
-          return
-        }
+      'ImportDeclaration[source.value="next/head"] > :matches(ImportDefaultSpecifier, ImportSpecifier[imported.name="default"])'(
+        node: any
+      ) {
+        headImportNames.add(node.local.name)
+      },
+      'ImportDeclaration[source.value="next/script"] > :matches(ImportDefaultSpecifier, ImportSpecifier[imported.name="default"])'(
+        node: any
+      ) {
+        scriptImportNames.add(node.local.name)
       },
       JSXElement(node) {
-        if (!isNextHead) {
-          return
-        }
-
         if (
           node.openingElement &&
           node.openingElement.name &&
-          node.openingElement.name.name !== 'Head'
+          !headImportNames.has(node.openingElement.name.name)
         ) {
           return
         }
@@ -41,7 +39,7 @@ export default defineRule({
           (child) =>
             child.openingElement &&
             child.openingElement.name &&
-            child.openingElement.name.name === 'Script'
+            scriptImportNames.has(child.openingElement.name.name)
         )
 
         if (scriptTag) {
