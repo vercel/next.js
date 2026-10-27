@@ -11,7 +11,6 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
-use roaring::RoaringBitmap;
 use rustc_hash::FxBuildHasher;
 use shrink_to_fit::ShrinkToFit;
 
@@ -120,13 +119,6 @@ fn check(set: &Bitset, expected: &BTreeSet<u32>) {
         );
     }
     check_encoding(set, expected);
-    let roaring = set.to_roaring();
-    assert_eq!(
-        roaring.iter().collect::<Vec<_>>(),
-        expected.iter().copied().collect::<Vec<_>>()
-    );
-    // Same internal representation as inserting the bits.
-    assert_eq!(roaring, expected.iter().copied().collect::<RoaringBitmap>());
     // Rebuilding from the bits gives an equal set.
     let rebuilt = expected.iter().copied().collect::<Bitset>();
     assert_eq!(&rebuilt, set);
@@ -1669,42 +1661,6 @@ fn shrink_to_fit() {
     empty.shrink_to_fit();
     assert_eq!(empty.blocks.capacity(), 0);
     check(&empty, &BTreeSet::new());
-}
-
-#[test]
-fn to_roaring() {
-    // Bits spanning several containers, and the highest possible bits. (A set with both bit 0 and
-    // `u32::MAX` would allocate 512 MiB, as the set is meant for bounded ranges.)
-    for bits in [
-        &[0, 1, 63, 64, 65_535, 65_536, 1 << 20][..],
-        &[u32::MAX - 70_000, u32::MAX - 1, u32::MAX],
-    ] {
-        let (set, expected) = from_bits(bits);
-        let roaring = set.to_roaring();
-        assert_eq!(roaring, expected.iter().copied().collect::<RoaringBitmap>());
-    }
-}
-
-#[test]
-fn to_roaring_container_types() {
-    // A dense container (stored as a bitmap by roaring), a sparse one (stored as an array), a
-    // container at exactly the array limit, and a range that starts in the middle of a container.
-    let bits = (0..5_000)
-        .chain(70_000..70_010)
-        .chain((2 << 16)..(2 << 16) + 4_096)
-        .chain((3 << 16) + 1_000..(3 << 16) + 9_000)
-        .collect::<Vec<u32>>();
-    let (set, expected) = from_bits(&bits);
-    check(&set, &expected);
-    let roaring = set.to_roaring();
-    let inserted = bits.iter().copied().collect::<RoaringBitmap>();
-    assert_eq!(roaring, inserted);
-    // The serialization (which `RoaringBitmapWrapper` uses for hashing) is identical too.
-    let mut a = Vec::new();
-    let mut b = Vec::new();
-    roaring.serialize_into(&mut a).unwrap();
-    inserted.serialize_into(&mut b).unwrap();
-    assert_eq!(a, b);
 }
 
 /// A small deterministic linear congruential generator, so the test needs no random number crate.

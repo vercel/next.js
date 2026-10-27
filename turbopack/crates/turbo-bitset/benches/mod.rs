@@ -603,16 +603,6 @@ pub fn bench(c: &mut Criterion) {
         }),
     );
 
-    // Converting into a `RoaringBitmap`, the cost at the output boundary of the algorithms.
-    let mut group = c.benchmark_group("bitset/to_roaring");
-    for input in &inputs {
-        let set = bitset(&input.bits);
-        group.bench_function(BenchmarkId::new("Bitset", &input.name), |b| {
-            b.iter(|| black_box(black_box(&set).to_roaring()))
-        });
-    }
-    group.finish();
-
     // Encoding a set into a new buffer.
     let mut group = c.benchmark_group("bitset/serialize");
     for input in &inputs {
