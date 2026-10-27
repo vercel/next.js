@@ -105,6 +105,11 @@ describe('image-alt-text', () => {
       },
       {
         code: `import Image from 'next/image';
+        export default () => <Image src="/a.png" alt={false} />`,
+        errors: [invalidAlt('Image')],
+      },
+      {
+        code: `import Image from 'next/image';
         export default () => <Image src="/a.png" alt />`,
         errors: [invalidAlt('Image')],
       },

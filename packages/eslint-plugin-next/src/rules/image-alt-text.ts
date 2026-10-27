@@ -103,14 +103,15 @@ function getName(node: ESTree.Identifier | ESTree.Literal) {
   return node.type === 'Identifier' ? node.name : node.value
 }
 
-// `alt`, `alt={undefined}`, `alt={null}`
+// `alt`, `alt={undefined}`, `alt={null}`, `alt={false}`
 function isMissingValue(value) {
   if (value == null) return true
   if (value.type !== 'JSXExpressionContainer') return false
   const { expression } = value
   return (
     (expression.type === 'Identifier' && expression.name === 'undefined') ||
-    (expression.type === 'Literal' && expression.value === null)
+    (expression.type === 'Literal' &&
+      (expression.value === null || expression.value === false))
   )
 }
 
