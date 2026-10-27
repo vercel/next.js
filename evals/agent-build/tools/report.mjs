@@ -119,10 +119,10 @@ if (points.length === 0) {
     `    x-axis "${usd(Math.min(...points.map((p) => p.cost)))}" --> "${usd(Math.max(...points.map((p) => p.cost)))} per task"`
   )
   console.log('    y-axis "0% pass@1" --> "100% pass@1"')
-  console.log('    quadrant-1 Accurate, expensive')
-  console.log('    quadrant-2 Accurate, cheap')
-  console.log('    quadrant-3 Inaccurate, cheap')
-  console.log('    quadrant-4 Inaccurate, expensive')
+  console.log('    quadrant-1 Accurate and expensive')
+  console.log('    quadrant-2 Accurate and cheap')
+  console.log('    quadrant-3 Inaccurate and cheap')
+  console.log('    quadrant-4 Inaccurate and expensive')
   for (const p of points) {
     console.log(
       `    ${p.model.replace(' · ', ' ')}: [${x(p.cost).toFixed(2)}, ${y(p.accuracy).toFixed(2)}]`
