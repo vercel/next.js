@@ -129,9 +129,8 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                     // Initial visit, clone instead of merging
                     *current_membership = parent_membership.clone();
                     Ok(GraphTraversalAction::Continue)
-                } else if parent_membership.has_bits_not_in(current_membership) {
-                    // Add bits from parent, and continue traversal because changed
-                    *current_membership |= &*parent_membership;
+                } else if current_membership.union_with(parent_membership) {
+                    // Added bits from parent, continue traversal because changed
                     Ok(GraphTraversalAction::Continue)
                 } else {
                     // Unchanged, no need to forward to children
@@ -156,7 +155,9 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
             .get(&collecting_module)
             .context("Module entry membership not found")?;
 
-        if collecting_membership.count_ones() > 1 {
+        // Reachable from more than one entry. The iterator is lazy, so this stops at the second
+        // bit instead of counting all of them.
+        if collecting_membership.iter().nth(1).is_some() {
             ModuleIssue::new(
                 *collecting_module.ident().to_resolved().await?,
                 rcstr!("Invalid use of __turbopack_collect__"),
