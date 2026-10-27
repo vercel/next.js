@@ -8,7 +8,7 @@
 /// easy implementation on structs or enums.
 ///
 /// This should eventually be replace by the `auto_traits`, once stabilized:
-/// https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html
+/// <https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html>
 macro_rules! impl_auto_marker_trait {
     ($trait:ident) => {
         $crate::marker_trait::impl_marker_trait!(

@@ -65,7 +65,8 @@ pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
-/// Fields are big-endian to match the existing wire format written by [`MetaFileBuilder`].
+/// Fields are big-endian to match the existing wire format written by
+/// [`MetaFileBuilder`](crate::meta_file_builder::MetaFileBuilder).
 #[repr(C, packed)]
 #[derive(FromBytes, IntoBytes, Immutable, KnownLayout, Clone, Copy)]
 pub(crate) struct EntryHeader {

@@ -98,8 +98,8 @@ impl VersionedContentMap {
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
     /// Lists the aggregate-HMR *entry* chunks under `root` with their
-    /// [`VersionedContent`], sorted by path. Only Node.js chunk-list content is
-    /// returned. Callers scope which
+    /// [`VersionedContent`](turbopack_core::version::VersionedContent), sorted by path. Only
+    /// Node.js chunk-list content is returned. Callers scope which
     /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
     /// subscription passes `server/app` to include App Router entries only).
     ///

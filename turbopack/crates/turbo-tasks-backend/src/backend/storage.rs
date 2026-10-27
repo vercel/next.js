@@ -347,7 +347,7 @@ pub struct Storage {
     /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
     /// This is backed by the TaskCache table in the database.
     ///
-    /// LockOrdering: See the comments on [map].
+    /// LockOrdering: See the comments on [`map`](Self::map).
     pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
 }
 

@@ -94,7 +94,7 @@ pub struct ValueType {
     pub evictability: Evictability,
 
     /// An implementation of
-    /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
+    /// [`VcCellMode::raw_cell`].
     ///
     /// Allows dynamically constructing a cell using the type id. Used inside of
     /// [`TraitRef`][crate::TraitRef] where we have a type id, but not the concrete type `T` of
@@ -146,7 +146,7 @@ impl ValueType {
     /// Construct a `ValueType` for a non-codec persistence mode
     /// ([`ValueTypePersistence::Skip`] / [`ValueTypePersistence::HashOnly`]).
     ///
-    /// Used by [`#[turbo_tasks::value]`][crate::value] for `serialization =
+    /// Used by [`#[turbo_tasks::value]`][macro@crate::value] for `serialization =
     /// "skip"` and `serialization = "hash"`. For `serialization = "auto" |
     /// "custom"` use [`ValueType::persistable`] instead — its codec functions
     /// inline at the call site.
@@ -161,7 +161,7 @@ impl ValueType {
     /// Construct a `ValueType` whose cells round-trip through the persistent
     /// cache via the auto-derived bincode `Encode` / `Decode` impls.
     ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// This is internally used by [`#[turbo_tasks::value]`][macro@crate::value] for
     /// `serialization = "auto"` and `serialization = "custom"`.
     pub const fn persistable<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,

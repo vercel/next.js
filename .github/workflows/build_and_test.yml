@@ -387,7 +387,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: ./scripts/deploy-turbopack-docs.sh
+      afterBuild: ./scripts/check-rustdoc.sh && ./scripts/deploy-turbopack-docs.sh
       stepName: 'rustdoc-check'
     secrets: inherit
 
