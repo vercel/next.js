@@ -75,10 +75,12 @@ prompt, hidden verifier, and reference patch can run independently of this
 repository.
 
 A portable task archive must declare its image through
-`[environment].docker_image`, pin that image by digest, include a minimal
-`environment/docker-compose.yaml`, and pass `harbor lint`. Compose mode pulls
-the pinned image inside Vercel Sandbox and avoids copying large task images
-through Vercel Container Registry.
+`[environment].docker_image`, pin that image by digest, and pass
+`harbor lint`. Include a minimal `docker-compose.yaml` in each environment
+directory: `environment/` for the agent and `tests/` when the task uses a
+separate verifier image. Compose mode pulls the pinned images inside Vercel
+Sandbox and avoids copying large task images through Vercel Container
+Registry.
 
 Run with an approved measurement project's `VERCEL_OIDC_TOKEN` and a dedicated,
 budget-capped `AI_GATEWAY_API_KEY` in one local, ignored env file. The OIDC
