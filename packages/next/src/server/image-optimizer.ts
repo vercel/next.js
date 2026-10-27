@@ -222,11 +222,13 @@ export class ImageOptimizerCache {
     if (url.startsWith('/')) {
       href = url
       isAbsolute = false
-      if (
-        /\/_next\/image($|\/)/.test(
-          decodeURIComponent(parseUrl(url)?.pathname ?? '')
-        )
-      ) {
+      let decodedPathname: string
+      try {
+        decodedPathname = decodeURIComponent(parseUrl(url)?.pathname ?? '')
+      } catch (_error) {
+        return { errorMessage: '"url" parameter is invalid' }
+      }
+      if (/\/_next\/image($|\/)/.test(decodedPathname)) {
         return {
           errorMessage: '"url" parameter cannot be recursive',
         }
