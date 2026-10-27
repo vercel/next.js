@@ -78,7 +78,8 @@ case "${1:-}" in
 esac
 
 ENV_FILE=$1
-JOBS=$2
+mkdir -p "$2"
+JOBS=$(cd "$2" && pwd)
 shift 2
 
 mkdir -p "$JOBS"
