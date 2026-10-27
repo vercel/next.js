@@ -18,6 +18,7 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::module_federation::{
     config::{ModuleFederationConfig, ModuleFederationRemote, ModuleFederationShared},
@@ -48,10 +49,10 @@ async fn provider_registrations(
       eager: {eager}
     }};"#,
             index = registrations.len(),
-            key = serde_json::to_string(&shared.share_key)?,
-            version = serde_json::to_string(&version)?,
-            import = serde_json::to_string(import)?,
-            host_name = serde_json::to_string(host_name)?,
+            key = StringifyJs(&shared.share_key),
+            version = StringifyJs(&version),
+            import = StringifyJs(import),
+            host_name = StringifyJs(host_name),
             eager = shared.eager,
         ));
     }
@@ -64,15 +65,11 @@ async fn module_federation_remote_init_source(
     shared: &[ModuleFederationShared],
     host_name: &str,
 ) -> Result<ResolvedVc<Box<dyn Source>>> {
-    let candidates = serde_json::to_string(
-        &remote
-            .external
-            .iter()
-            .map(|external| (&*external.global, &*external.url))
-            .collect::<Vec<_>>(),
-    )?;
-    let remote_key = serde_json::to_string(&remote.request)?;
-    let share_scope = serde_json::to_string(&remote.share_scope)?;
+    let candidates = remote
+        .external
+        .iter()
+        .map(|external| (&*external.global, &*external.url))
+        .collect::<Vec<_>>();
     let scoped_shared = shared
         .iter()
         .filter(|shared| shared.share_scope == remote.share_scope)
@@ -157,6 +154,9 @@ export async function get(request, fullRequest) {{
   throw error;
 }}
 "#,
+        candidates = StringifyJs(&candidates),
+        remote_key = StringifyJs(&remote.request),
+        share_scope = StringifyJs(&remote.share_scope),
     );
     Ok(ResolvedVc::upcast(
         VirtualSource::new(
@@ -245,16 +245,16 @@ impl ImportMappingReplacement for ModuleFederationRemoteReplacer {
             return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        let exposed_request_json = serde_json::to_string(&exposed_request)?;
-        let full_request = serde_json::to_string(&request)?;
-        let init_request = serde_json::to_string(&this.init_request)?;
         let code = format!(
             r#"
 const {{ get }} = await import({init_request});
 const factory = await get({exposed_request_json}, {full_request});
 const federatedModule = factory();
 __turbopack_export_namespace__(federatedModule);
-"#
+"#,
+            init_request = StringifyJs(&this.init_request),
+            exposed_request_json = StringifyJs(&exposed_request),
+            full_request = StringifyJs(&request),
         );
         let virtual_name = format!(
             ".turbopack-module-federation-remote-{}-{}.js",

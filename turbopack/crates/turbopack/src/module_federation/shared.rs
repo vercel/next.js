@@ -17,6 +17,7 @@ use turbopack_core::{
     },
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::module_federation::config::{ModuleFederationConfig, ModuleFederationShared};
 
@@ -191,10 +192,7 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
             && let Some(import) = &effective_import
         {
             let fallback_request = resolved_fallback_request(&this.project_path, import).await?;
-            let code = format!(
-                "export * from {};",
-                serde_json::to_string(&fallback_request)?
-            );
+            let code = format!("export * from {};", StringifyJs(&fallback_request));
             let mut virtual_name = request.replace('/', "_");
             virtual_name.insert_str(0, ".turbopack-module-federation-shared-");
             virtual_name.push_str(".js");
@@ -245,9 +243,9 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
             .required_version
             .as_ref()
             .or(inferred_required_version.as_ref());
-        let scope = serde_json::to_string(&this.shared.share_scope)?;
-        let key = serde_json::to_string(&effective_key)?;
-        let required_version = serde_json::to_string(&required_version_value)?;
+        let scope = StringifyJs(&this.shared.share_scope);
+        let key = StringifyJs(&effective_key);
+        let required_version = StringifyJs(&required_version_value);
         let initialize_remotes = if this.shared.eager {
             String::new()
         } else {
@@ -257,7 +255,7 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
                 .map(|request| {
                     Ok(format!(
                         "() => import({}).then((remote) => remote.initializeAll())",
-                        serde_json::to_string(request)?
+                        StringifyJs(request)
                     ))
                 })
                 .collect::<Result<Vec<_>>>()?
@@ -273,13 +271,10 @@ impl ImportMappingReplacement for ModuleFederationSharedReplacer {
             None
         };
         let fallback = match fallback_request {
-            Some(request) => format!(
-                "sharedModule = await import({});",
-                serde_json::to_string(&request)?
-            ),
+            Some(request) => format!("sharedModule = await import({});", StringifyJs(&request)),
             None => format!(
                 "throw new Error(`No satisfying shared module for ${{{}}}`);",
-                serde_json::to_string(&effective_key)?
+                StringifyJs(&effective_key)
             ),
         };
         let selected_load = if this.shared.eager {
