@@ -6,9 +6,9 @@
 //! allocate the empty blocks below them. Like a `Vec`, the storage grows with amortized growth,
 //! at the front as well as at the back.
 //!
-//! Compared to a `RoaringBitmap`, which is optimized for compact storage, every operation is a
-//! simple loop over machine words. That makes unions and subset checks fast when the bits span a
-//! limited range, at the cost of using one bit of memory per index in that range.
+//! Every operation is a simple loop over machine words. That makes unions and subset checks fast
+//! when the bits span a limited range, at the cost of using one bit of memory per index in that
+//! range.
 //!
 //! The bincode encoding (see the `encode` module) stores either the trimmed bytes of the range or,
 //! if that is clearly smaller, the delta-encoded list of bits, so sparse sets stay compact when

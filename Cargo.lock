@@ -6055,17 +6055,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "roaring"
-version = "0.11.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18bd8a37d17a58532776dcdf6041ce64929adca78e8489d5cacbafe99229d3e1"
-dependencies = [
- "bytemuck",
- "byteorder",
- "serde",
-]
-
-[[package]]
 name = "rstest"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9068,9 +9057,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "codspeed-criterion-compat",
- "fixedbitset",
  "rand 0.10.1",
- "roaring",
  "rustc-hash 2.1.1",
  "shrink-to-fit",
  "turbo-bincode",

@@ -334,7 +334,6 @@ regex = "1.12.3"
 regress = "0.11.1"
 reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.5"
-roaring = "0.11.5"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
 scattered-collect = "0.10.0"
