@@ -14,14 +14,16 @@ const repo = fs.realpathSync(repoArg),
   here = path.dirname(fileURLToPath(import.meta.url))
 assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
-assert(family === undefined || family === 'renamed')
+assert(family === undefined || family === 'renamed' || family === 'array')
 const pristine = JSON.parse(
   fs.readFileSync(
     path.join(
       here,
-      family === 'renamed'
-        ? 'cjs-renamed-defaults-pristine.json'
-        : 'cjs-async-defaults-pristine.json'
+      family === 'array'
+        ? 'cjs-array-defaults-pristine.json'
+        : family === 'renamed'
+          ? 'cjs-renamed-defaults-pristine.json'
+          : 'cjs-async-defaults-pristine.json'
     )
   )
 )
@@ -38,7 +40,12 @@ const fixture = fs.mkdtempSync(
 )
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const body = fs.readFileSync(
-  path.join(here, 'cjs-async-defaults-fixtures/contract.test.mjs.txt')
+  path.join(
+    here,
+    family === 'array'
+      ? 'cjs-array-defaults-fixtures/contract.test.mjs.txt'
+      : 'cjs-async-defaults-fixtures/contract.test.mjs.txt'
+  )
 )
 assert.equal(sha(body), pristine.authoredBodySHA256)
 const sources = {
@@ -122,11 +129,12 @@ try {
       failureMessages: test.failureMessages,
     }))
   )
+  const rowPrefix = family === 'array' ? 'CJS280:' : 'CJS223:'
   const rows = report.next.events
     .filter((event) => event.type === 'output')
     .flatMap((event) => event.text.split('\n'))
-    .filter((text) => text.startsWith('CJS223:'))
-    .map((text) => JSON.parse(text.slice(7)))
+    .filter((text) => text.startsWith(rowPrefix))
+    .map((text) => JSON.parse(text.slice(rowPrefix.length)))
   assert.equal(owner.status, 0, owner.stderr)
   assert.equal(report.success, true)
   assert.deepEqual(cases, expected.cases)

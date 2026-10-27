@@ -355,21 +355,21 @@ fn own_hidden_function_default_definition(
     fields.into_iter().all(|field| field)
 }
 
-fn callable_parameter(pattern: &Pat, allow_object_defaults: bool) -> bool {
+fn callable_parameter(pattern: &Pat, allow_destructuring_defaults: bool) -> bool {
     match pattern {
         Pat::Ident(_) => true,
         Pat::Assign(default) => matches!(&*default.left, Pat::Ident(_)),
         Pat::Rest(rest) => matches!(&*rest.arg, Pat::Ident(_)),
         Pat::Object(object) => object.props.iter().all(|property| match property {
             ObjectPatProp::Assign(property) => {
-                property.value.is_none() || allow_object_defaults
+                property.value.is_none() || allow_destructuring_defaults
             }
             ObjectPatProp::KeyValue(property) => {
                 matches!(
                     property.key,
                     PropName::Ident(_) | PropName::Str(_) | PropName::Num(_)
                 ) && (matches!(&*property.value, Pat::Ident(_))
-                    || allow_object_defaults
+                    || allow_destructuring_defaults
                         && matches!(&*property.value, Pat::Assign(default) if matches!(&*default.left, Pat::Ident(_))))
             }
             ObjectPatProp::Rest(_) => false,
@@ -377,7 +377,11 @@ fn callable_parameter(pattern: &Pat, allow_object_defaults: bool) -> bool {
         Pat::Array(array) => array.elems.iter().all(|element| {
             element
                 .as_ref()
-                .is_none_or(|element| matches!(element, Pat::Ident(_)))
+                .is_none_or(|element| {
+                    matches!(element, Pat::Ident(_))
+                        || allow_destructuring_defaults
+                            && matches!(element, Pat::Assign(default) if matches!(&*default.left, Pat::Ident(_)))
+                })
         }),
         _ => false,
     }
@@ -894,14 +898,12 @@ mod tests {
             "module.exports = function({value = 1, ...rest}) { return [value, rest] }",
             "module.exports = function({[key]: value = 1}) { return value }",
             "module.exports = function({value = 1} = {}) { return value }",
-            "module.exports = function([value = 1]) { return value }",
             "module.exports = function({value = module.exports}) { return value }",
             "module.exports = function({value = exports.value}) { return value }",
             "module.exports = function named({value: {nested = 1}}) { return nested }",
             "module.exports = function named({value = 1, ...rest}) { return [value, rest] }",
             "module.exports = function named({[key]: value = 1}) { return value }",
             "module.exports = function named({value = 1} = {}) { return value }",
-            "module.exports = function named([value = 1]) { return value }",
             "module.exports = function named({value = module.exports}) { return value }",
             "module.exports = function named({value = exports.value}) { return value }",
         ] {
@@ -1497,7 +1499,10 @@ mod tests {
             for function in ["function", "async function", "function*", "async function*"] {
                 check(
                     &format!("module.exports = {function} named({parameters}) {{ return 1 }}"),
-                    if matches!(parameters, "{value = 1}" | "{source: value = 1}") {
+                    if matches!(
+                        parameters,
+                        "{value = 1}" | "{source: value = 1}" | "[value = 1]"
+                    ) {
                         CommonJsResetExportShape::NamedFunctionExpression
                     } else {
                         CommonJsResetExportShape::Unsupported
@@ -1506,7 +1511,10 @@ mod tests {
             }
             check(
                 &format!("module.exports = ({parameters}) => 1"),
-                if matches!(parameters, "{value = 1}" | "{source: value = 1}") {
+                if matches!(
+                    parameters,
+                    "{value = 1}" | "{source: value = 1}" | "[value = 1]"
+                ) {
                     CommonJsResetExportShape::ArrowFunctionExpression
                 } else {
                     CommonJsResetExportShape::Unsupported
@@ -1522,6 +1530,46 @@ mod tests {
         ] {
             check(
                 &format!("module.exports = function named({{value}}) {{ {body} }}"),
+                CommonJsResetExportShape::Unsupported,
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_flat_array_identifier_defaults() {
+        for parameters in ["[value = 1]", "[, value = 1]", "[first = 1, value = first]"] {
+            for function in ["function", "async function", "function*", "async function*"] {
+                check(
+                    &format!("module.exports = {function}({parameters}) {{ return value }}"),
+                    CommonJsResetExportShape::AnonymousFunctionExpression,
+                );
+                check(
+                    &format!("module.exports = {function} named({parameters}) {{ return value }}"),
+                    CommonJsResetExportShape::NamedFunctionExpression,
+                );
+                check(
+                    &format!(
+                        "{function} callable({parameters}) {{ return value }}; module.exports = \
+                         callable"
+                    ),
+                    CommonJsResetExportShape::FunctionBinding,
+                );
+            }
+            for prefix in ["", "async "] {
+                check(
+                    &format!("module.exports = {prefix}({parameters}) => value"),
+                    CommonJsResetExportShape::ArrowFunctionExpression,
+                );
+            }
+        }
+        for parameters in [
+            "[{value} = {}]",
+            "[[value] = []]",
+            "[value = module.exports]",
+            "[value = exports.value]",
+        ] {
+            check(
+                &format!("module.exports = function named({parameters}) {{ return value }}"),
                 CommonJsResetExportShape::Unsupported,
             );
         }
