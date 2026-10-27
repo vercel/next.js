@@ -932,10 +932,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 }
                 let [source_clusters, target_clusters] =
                     clusters.get_disjoint_mut([source, target]).unwrap();
-                let clusters_changed = source_clusters.has_bits_not_in(target_clusters);
-                if clusters_changed {
-                    *target_clusters |= &*source_clusters;
-                }
+                let clusters_changed = target_clusters.union_with(source_clusters);
                 let changed = (source_priority_route && priority_routes.insert(target as u32))
                     || clusters_changed;
                 if changed {
