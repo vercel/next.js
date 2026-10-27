@@ -35,16 +35,17 @@ Each review form accepts one report draft. For every qualifying feedback candida
 - **Reproduction:** Write 1–4 ordered `steps` of no more than 240 characters each. Include the generic starting state, the relevant Next.js feature or API, and the action that triggers the behavior. Split only actions or conditions whose order matters.
 - **Results:** Write 1–3 independently verifiable `observed` facts of no more than 160 characters each and one precise `expected` result of no more than 200 characters. Split an observation only when each fact can stand alone and may be removed independently. Add a `comparison` of no more than 180 characters only when you observed a control or workaround.
 - **Outcome:** Set `frequency` to `once` or `reproduced`. Set `outcome` to `blocked`, `worked-around`, or `resolved`.
+- **Reporter:** Set `agent` to the coding harness name and `agentVersion` to its version. Set `model` to the model identifier and `reasoningEffort` to `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. Use `unknown` for any value the environment does not expose; do not infer it.
 - **Measurements:** Include measurements such as memory use, duration, extra builds, or repeated attempts only when observed directly. Do not estimate elapsed time, token usage, or tool-call counts.
 - **Privacy:** Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or unrelated product details.
 
 ## Encode the report draft
 
-Create a schema version 5 payload using only useful evidence. Always include `nextVersion` and `agent`, with no more than 64 characters each. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
+Create a schema version 6 payload using only useful evidence. Always include `nextVersion`, `agent`, and `agentVersion`, with no more than 64 characters each; `model`, with no more than 100 characters; and `reasoningEffort`. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
 
 ```json
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "triggerReason": "unexpected-behavior",
   "title": "Persistent Turbopack caching exhausted a worker on a warm build",
   "setup": {
@@ -65,7 +66,10 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
   "frequency": "reproduced",
   "outcome": "worked-around",
   "nextVersion": "<version>",
-  "agent": "<agent name>"
+  "agent": "<coding harness>",
+  "agentVersion": "<harness version or unknown>",
+  "model": "<model identifier or unknown>",
+  "reasoningEffort": "<reasoning effort or unknown>"
 }
 ```
 
