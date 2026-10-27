@@ -1862,8 +1862,42 @@ export default abstract class Server<
     }
   }
 
-  private getRouteDefinitions(): RouteDefinition[] {
-    // Route definitions are rebuilt from the manifests instead of being held
+  private routeDefinitions:
+    | {
+        all: RouteDefinition[]
+        static: RouteDefinition[]
+        sortedDynamic: RouteDefinition[]
+      }
+    | undefined
+
+  /**
+   * The manifests these are built from are read once in the constructor, so
+   * the definitions are built once too. Rebuilding them on every request made
+   * route matching cost grow with the number of routes in the app.
+   */
+  private getRouteDefinitions() {
+    if (this.routeDefinitions === undefined) {
+      const all = this.buildRouteDefinitions()
+      const dynamic: RouteDefinition[] = []
+      const nonDynamic: RouteDefinition[] = []
+      for (const definition of all) {
+        if (isDynamicRoute(definition.pathname)) {
+          dynamic.push(definition)
+        } else {
+          nonDynamic.push(definition)
+        }
+      }
+      this.routeDefinitions = {
+        all,
+        static: nonDynamic,
+        sortedDynamic: this.getSortedRouteDefinitions(dynamic),
+      }
+    }
+    return this.routeDefinitions
+  }
+
+  private buildRouteDefinitions(): RouteDefinition[] {
+    // Route definitions are built from the manifests instead of being held
     // by route matcher providers. This keeps direct BaseServer entrypoints
     // working when requests do not pass through router-server's fsChecker.
     const definitions: RouteDefinition[] = []
@@ -1960,9 +1994,15 @@ export default abstract class Server<
     return pathname
   }
 
+  private readonly routeMatchers = new Map<
+    string,
+    ReturnType<typeof getRouteMatcher>
+  >()
+
   private testRouteDefinition(
     pathname: string,
     definition: RouteDefinition,
+    isDynamic: boolean,
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteMatch | null {
     const matchPathname = this.getRouteMatchPathname(
@@ -1973,10 +2013,13 @@ export default abstract class Server<
 
     if (!matchPathname) return null
 
-    if (isDynamicRoute(definition.pathname)) {
-      const params = getRouteMatcher(getRouteRegex(definition.pathname))(
-        matchPathname
-      )
+    if (isDynamic) {
+      let matcher = this.routeMatchers.get(definition.pathname)
+      if (matcher === undefined) {
+        matcher = getRouteMatcher(getRouteRegex(definition.pathname))
+        this.routeMatchers.set(definition.pathname, matcher)
+      }
+      const params = matcher(matchPathname)
 
       if (!params) return null
 
@@ -2000,7 +2043,7 @@ export default abstract class Server<
     pathname: string,
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteDefinition | undefined {
-    for (const definition of this.getRouteDefinitions()) {
+    for (const definition of this.getRouteDefinitions().all) {
       const matchPathname = this.getRouteMatchPathname(
         pathname,
         definition,
@@ -2018,39 +2061,27 @@ export default abstract class Server<
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteMatch | null {
     const definitions = this.getRouteDefinitions()
-    const dynamicDefinitions: RouteDefinition[] = []
 
-    // Check exact routes first, then sort dynamic routes by specificity. The
+    // Check exact routes first, then dynamic routes sorted by specificity. The
     // old matcher manager provided the same precedence before it was removed.
     if (!isDynamicRoute(pathname)) {
-      for (const definition of definitions) {
-        if (isDynamicRoute(definition.pathname)) {
-          dynamicDefinitions.push(definition)
-          continue
-        }
-
+      for (const definition of definitions.static) {
         const match = this.testRouteDefinition(
           pathname,
           definition,
+          false,
           localeAnalysisResult
         )
 
         if (match) return match
       }
-    } else {
-      for (const definition of definitions) {
-        if (isDynamicRoute(definition.pathname)) {
-          dynamicDefinitions.push(definition)
-        }
-      }
     }
 
-    for (const definition of this.getSortedRouteDefinitions(
-      dynamicDefinitions
-    )) {
+    for (const definition of definitions.sortedDynamic) {
       const match = this.testRouteDefinition(
         pathname,
         definition,
+        true,
         localeAnalysisResult
       )
 
