@@ -111,9 +111,9 @@ and in the same shape as other Next.js pull requests:
 2. **Results**: one line with the Next.js version, attempt policy, and
    treatments, then the output of
    `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged:
-   totals per treatment with average duration and cost, a model table across
-   all tasks (Base, + AGENTS.md, Delta, cost per run), a per-task table, and
-   the accuracy against cost chart,
+   one table with a row per model, a base / AGENTS.md column per task, the
+   totals (Base, + AGENTS.md, Delta) and cost per run, then the accuracy
+   against cost chart,
    and a few sentences on what it means: which failures are real, and whether
    a task separates models or is saturated. Say "still running" or "not run"
    rather than leaving the section out.

@@ -1,8 +1,8 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
-// request, in the same shape as the agent-eval result PRs: totals per
-// treatment, a model table aggregated across tasks (Base, + AGENTS.md,
-// Delta, cost), a per-task table, and accuracy against cost as a Mermaid
-// chart GitHub renders inline.
+// request: one table, a row per model with a base / AGENTS.md column per task,
+// the totals across tasks (Base, + AGENTS.md, Delta) and cost per run, as in
+// the agent-eval result PRs, then accuracy against cost as a Mermaid chart
+// GitHub renders inline.
 //
 // Scores are pass@1 over scored runs. An agent that runs out of time is a
 // failure, as in Harbor's own metrics; any other runner error is discarded
@@ -98,32 +98,6 @@ const tally = (rs) => {
   }
 }
 
-// Totals per treatment.
-const done = runs.filter(scored)
-for (const [treatment, title] of [
-  ['base', 'Base'],
-  ['agents-md', 'With AGENTS.md'],
-]) {
-  const t = tally(runs.filter((r) => r.treatment === treatment))
-  if (t.scored) {
-    console.log(
-      `- ${title}: **${t.passed}/${t.scored} (${pct(t.passed, t.scored)})**`
-    )
-  }
-}
-const minutes = mean(done.map((r) => r.minutes).filter((m) => m != null))
-const costs = done.map((r) => r.cost).filter((c) => c != null)
-if (minutes != null)
-  console.log(`- Average duration: **${minutes.toFixed(1)} min per run**`)
-if (costs.length) {
-  console.log(`- Average cost: **${usd(mean(costs))} per run**`)
-  console.log(
-    `- Total cost so far: **${usd(costs.reduce((a, b) => a + b, 0))}**`
-  )
-}
-const pending = runs.length - done.length
-if (pending) console.log(`- Still running or discarded: ${pending}`)
-
 // Models aggregated across tasks, sorted by base pass rate.
 const models = [
   ...new Map(
@@ -153,42 +127,62 @@ models.sort(
 )
 
 const cell = (t) =>
-  t.scored ? `${t.passed}/${t.scored} (${pct(t.passed, t.scored)})` : 'running'
-const delta = (a, b) =>
-  a.scored && b.scored
-    ? `${Math.round(100 * (b.passed / b.scored - a.passed / a.scored)) >= 0 ? '+' : ''}${Math.round(100 * (b.passed / b.scored - a.passed / a.scored))} pp`
-    : ''
-console.log()
-console.log('| Model | Harness | Base | + AGENTS.md | Delta | Cost per run |')
-console.log('| --- | --- | ---: | ---: | ---: | ---: |')
-for (const m of models) {
-  console.log(
-    `| ${m.model} | ${m.harness} | ${cell(m.base)} | ${cell(m.docs)} | ${delta(m.base, m.docs)} | ${usd(m.cost)} |`
-  )
+  t.scored ? `${t.passed}/${t.scored} (${pct(t.passed, t.scored)})` : ''
+const delta = (a, b) => {
+  if (!a.scored || !b.scored) return ''
+  const pp = Math.round(100 * (b.passed / b.scored - a.passed / a.scored))
+  return `${pp >= 0 ? '+' : ''}${pp} pp`
 }
+const mark = (r) =>
+  !r
+    ? '·'
+    : r.state === 'pass'
+      ? '✅'
+      : r.state === 'fail'
+        ? '❌'
+        : r.state === 'running'
+          ? '⏳'
+          : '—'
 
-// Per task: one row per task and model.
-const mark = (r) => {
-  if (!r) return 'queued'
-  if (r.state === 'running') return 'running'
-  if (r.state === 'discarded') return 'discarded'
-  const time = r.minutes == null ? '' : `, ${Math.round(r.minutes)}m`
-  return `${r.state === 'pass' ? '✅' : '❌'} ${usd(r.cost)}${time}`
-}
-console.log()
-console.log('| Task | Model | Base | + AGENTS.md |')
-console.log('| --- | --- | :---: | :---: |')
-for (const task of tasks) {
-  for (const m of models) {
+// One table: a row per model, a base / AGENTS.md column per task, then the
+// totals across tasks, the AGENTS.md delta, and cost per run.
+console.log(
+  '| Model | Harness | ' +
+    tasks.map((t) => `\`${t}\``).join(' | ') +
+    ' | Base | + AGENTS.md | Delta | Cost per run |'
+)
+console.log(
+  '| --- | --- | ' +
+    tasks.map(() => ':---:').join(' | ') +
+    ' | ---: | ---: | ---: | ---: |'
+)
+for (const m of models) {
+  const perTask = tasks.map((task) => {
     const find = (t) =>
       runs.find(
         (r) => r.task === task && r.model === m.model && r.treatment === t
       )
-    console.log(
-      `| \`${task}\` | ${m.model} | ${mark(find('base'))} | ${mark(find('agents-md'))} |`
-    )
-  }
+    return `${mark(find('base'))} / ${mark(find('agents-md'))}`
+  })
+  console.log(
+    `| ${m.model} | ${m.harness} | ${perTask.join(' | ')} | ${cell(m.base)} | ${cell(m.docs)} | ${delta(m.base, m.docs)} | ${usd(m.cost)} |`
+  )
 }
+const all = {
+  base: tally(runs.filter((r) => r.treatment === 'base')),
+  docs: tally(runs.filter((r) => r.treatment === 'agents-md')),
+}
+const allCosts = runs
+  .filter(scored)
+  .map((r) => r.cost)
+  .filter((c) => c != null)
+console.log(
+  `| **All models** | | ${tasks.map(() => '').join(' | ')} | **${cell(all.base)}** | **${cell(all.docs)}** | **${delta(all.base, all.docs)}** | **${usd(mean(allCosts))}** |`
+)
+console.log()
+console.log(
+  'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, ⏳ running, · not started, — runner error, rerun.'
+)
 
 // Accuracy against cost per run, one point per model and treatment, cost on a
 // log scale across the observed range.
