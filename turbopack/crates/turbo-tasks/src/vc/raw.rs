@@ -50,15 +50,17 @@ pub struct CellId(NonZeroU32);
 // would always take 5 bytes.
 impl Encode for CellId {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        fixed_width::encode(encoder, self.raw())
+        fixed_width::encode_u32(encoder, self.raw())
     }
 }
 
 impl<Context> Decode<Context> for CellId {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let raw: u32 = fixed_width::decode(decoder)?;
+        let raw = fixed_width::decode_u32(decoder)?;
         if raw >> CELL_INDEX_BITS == 0 {
-            return Err(DecodeError::Other("CellId has a zero ValueTypeId"));
+            return Err(DecodeError::NonZeroTypeIsZero {
+                non_zero_type: IntegerType::U32,
+            });
         }
         // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
         Ok(unsafe { Self::from_raw(raw) })
@@ -191,13 +193,13 @@ impl Serialize for RawVc {
 impl Encode for RawVc {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
-        fixed_width::encode(encoder, self.bits())
+        fixed_width::encode_u64(encoder, self.bits())
     }
 }
 
 impl<Context> Decode<Context> for RawVc {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        NonZeroU64::new(fixed_width::decode(decoder)?)
+        NonZeroU64::new(fixed_width::decode_u64(decoder)?)
             .map(RawVc)
             .ok_or(DecodeError::NonZeroTypeIsZero {
                 non_zero_type: IntegerType::U64,

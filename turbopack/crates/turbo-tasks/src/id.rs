@@ -182,13 +182,13 @@ impl Serialize for TaskId {
 impl Encode for TaskId {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient TaskId must not be encoded");
-        fixed_width::encode(encoder, self.id.get())
+        fixed_width::encode_u32(encoder, self.id.get())
     }
 }
 
 impl<Context> Decode<Context> for TaskId {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Self::new(fixed_width::decode(decoder)?).ok_or(DecodeError::NonZeroTypeIsZero {
+        Self::new(fixed_width::decode_u32(decoder)?).ok_or(DecodeError::NonZeroTypeIsZero {
             non_zero_type: IntegerType::U32,
         })
     }
@@ -226,7 +226,14 @@ impl TaskId {
 }
 
 macro_rules! make_registered_serializable {
-    ($ty:ty, $primitive:ty, $get_object:path, $validate_type_id:path $(,)?) => {
+    (
+        $ty:ty,
+        $primitive:ty,
+        $get_object:path,
+        $validate_type_id:path,
+        $encode_primitive:path,
+        $decode_primitive:path $(,)?
+    ) => {
         impl Serialize for $ty {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
@@ -284,13 +291,13 @@ macro_rules! make_registered_serializable {
 
         impl Encode for $ty {
             fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-                fixed_width::encode(encoder, self.id.get())
+                $encode_primitive(encoder, self.id.get())
             }
         }
 
         impl<Context> Decode<Context> for $ty {
             fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-                let value = Self::new(fixed_width::decode(decoder)?)
+                let value = Self::new($decode_primitive(decoder)?)
                     .ok_or(DecodeError::Other(concat!("zero ", stringify!($ty))))?;
                 if let Some(error) = $validate_type_id(value) {
                     Err(DecodeError::OtherString(error.to_string()))
@@ -312,16 +319,22 @@ make_registered_serializable!(
     u16,
     registry::get_value_type,
     registry::validate_value_type_id,
+    fixed_width::encode_u16,
+    fixed_width::decode_u16,
 );
 make_registered_serializable!(
     TraitTypeId,
     u8,
     registry::get_trait,
     registry::validate_trait_type_id,
+    fixed_width::encode_u8,
+    fixed_width::decode_u8,
 );
 make_registered_serializable!(
     FunctionId,
     u16,
     registry::get_native_function,
     registry::validate_function_id,
+    fixed_width::encode_u16,
+    fixed_width::decode_u16,
 );
