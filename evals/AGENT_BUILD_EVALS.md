@@ -85,25 +85,19 @@ Public tasks support review and reproducibility. A leakage-resistant headline sc
 
 ## Pull request format
 
-Title starts with `eval:` and names the outcome. The description is short and
-has the same four parts every time, so results read the same across pull
-requests; see #100756 for the shape.
+Title starts with `eval:` and names the outcome. Keep the description short
+and in the same shape as other Next.js pull requests:
 
-1. One sentence on what the change adds.
-2. **Tasks**: a table of task, what the agent has to get right, and source
-   findings. No suite label; a task that does not separate the intended cohort is removed, not
-   relabeled.
-3. **Validation**: a table of untouched, reference, and known-bad results,
-   then one line for lint and formatting.
-4. **Calibration**: the output of
-   `node evals/agent-build/tools/report.mjs <jobs-dir>`, pasted unchanged. It
-   has the same parts as a SelfBench result: a headline naming the most
-   accurate setting and the cheapest one on the cost frontier, a settings
-   table (model, harness, reasoning, accuracy, cost per task), a pass/fail
-   grid per task, and accuracy against cost. Follow it with one sentence on
-   what the result means for the task (separates models, or saturated), and
-   one line with the framework version, Harbor revision, task version, and
-   attempt policy. Say "in progress" or "not run" rather than leaving it out.
+1. **Summary**: what the change adds and what calibration found, in plain
+   sentences. Then one bullet per task saying what the agent has to get right.
+   No suite label; a task that proves too easy is removed, not relabeled.
+2. **Results**: one line with the Next.js version and attempt policy, the
+   table from `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>`,
+   and a few sentences on what it means: which failures are real, and whether
+   a task separates models or is saturated. Say "still running" or "not run"
+   rather than leaving the section out.
+3. **Verification**: a short list covering lint, untouched and reference
+   scores, known-bad solutions rejected, and formatting.
 
 Bump the `version` in `task.toml` whenever the instruction, fixture, or
 verifier changes, so older trials are never compared with newer ones.

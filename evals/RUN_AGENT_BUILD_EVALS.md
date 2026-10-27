@@ -157,7 +157,7 @@ evals/agent-build/tools/calibrate.sh --summary /path/to/jobs
 
 Agent harnesses differ in how they build the inference URL. Codex and OpenCode take the gateway's OpenAI-compatible base `https://ai-gateway.vercel.sh/v1`; Claude Code's SDK appends `/v1/messages` itself, so its row passes `base_url=https://ai-gateway.vercel.sh` as an agent option, or every call returns a 404 that Claude Code reports as `model_not_found`.
 
-`node evals/agent-build/tools/report.mjs <jobs-dir>` turns the jobs directory into the Calibration section of the pull request, in the shape of a SelfBench result: a headline, a settings table ranked by accuracy with cost per task and the cost frontier, a pass/fail grid per task with cost and duration, and an accuracy-against-cost chart in Mermaid that GitHub renders inline. Accuracy counts only scored cells. An agent that runs out of time is a failure, as in Harbor's own metrics; any other runner error is discarded and the run is repeated. Transcripts and verifier output stay in the jobs directory.
+`node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` prints the Results table for the pull request: one row per model, one column per task, and `1/1`, `0/1`, `running`, `queued`, or `discarded` in each cell. An agent that runs out of time is a failure, as in Harbor's own metrics; any other runner error is discarded and the run is repeated. Transcripts and verifier output stay in the jobs directory.
 
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 
