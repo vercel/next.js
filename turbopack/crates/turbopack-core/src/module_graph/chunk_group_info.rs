@@ -883,10 +883,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         let bitset = module_chunk_groups
                             .get_mut(&node)
                             .context("Module chunk group not found")?;
-                        if chunk_groups.has_bits_not_in(bitset) {
-                            // Add bits from parent, and continue traversal because changed
-                            *bitset |= &chunk_groups;
-
+                        if bitset.union_with(&chunk_groups) {
+                            // Added bits from parent, continue traversal because changed
                             GraphTraversalAction::Continue
                         } else {
                             // Unchanged, no need to forward to children
@@ -914,9 +912,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 // Initial visit, clone instead of merging
                                 *current_chunk_groups = parent_chunk_groups.clone();
                                 GraphTraversalAction::Continue
-                            } else if parent_chunk_groups.has_bits_not_in(current_chunk_groups) {
-                                // Add bits from parent, and continue traversal because changed
-                                *current_chunk_groups |= &*parent_chunk_groups;
+                            } else if current_chunk_groups.union_with(parent_chunk_groups) {
+                                // Added bits from parent, continue traversal because changed
                                 GraphTraversalAction::Continue
                             } else {
                                 // Unchanged, no need to forward to children
