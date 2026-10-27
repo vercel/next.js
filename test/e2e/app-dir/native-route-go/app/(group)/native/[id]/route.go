@@ -38,5 +38,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		"embedded": strings.TrimSpace(string(asset)), "assetCount": len(entries),
 		"proxy": r.Header.Get("X-Proxy-Count"), "pid": os.Getpid(),
 		"repeated": r.Header.Values("X-Repeated"),
+		"path":     r.URL.EscapedPath(), "requestURI": r.RequestURI,
+		"routingHeader": r.Header.Get("X-Test-Go-Routing-Path"),
 	})
 }
