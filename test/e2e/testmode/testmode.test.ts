@@ -1,4 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import { createServer, type Server } from 'node:http'
+import { gzipSync, gunzipSync } from 'node:zlib'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
 const PNG_1X1 = Buffer.from(
@@ -43,6 +45,18 @@ describe('testmode', () => {
         ) {
           return new Response(`middleware-${testData}`)
         }
+        if (new URL(request.url).pathname === '/compressed') {
+          if (testData === 'fetch-response') {
+            return fetch(request)
+          }
+          if (testData === 'modified-response') {
+            const response = await fetch(request)
+            return new Response(`modified:${await response.text()}`, {
+              headers: response.headers,
+            })
+          }
+          return 'continue'
+        }
         return undefined
       },
     })
@@ -60,6 +74,106 @@ describe('testmode', () => {
       },
     })
   }
+
+  describe('compressed HTTP responses', () => {
+    let upstream: Server
+    let upstreamUrl: string
+    const cases = [
+      { name: 'chunked', plain: '{"ok":true}', withLength: false },
+      { name: 'shorter decoded body', plain: '{"ok":true}', withLength: true },
+      {
+        name: 'longer decoded body',
+        plain: 'x'.repeat(2000),
+        withLength: true,
+      },
+    ]
+
+    beforeAll(async () => {
+      upstream = createServer((req, res) => {
+        const index = Number(
+          new URL(req.url!, 'http://localhost').searchParams.get('case')
+        )
+        const { plain, withLength } = cases[index]
+        const body = gzipSync(plain)
+        res.setHeader('content-type', 'text/plain')
+        res.setHeader('content-encoding', 'gzip')
+        if (withLength) res.setHeader('content-length', body.length)
+        res.writeHead(200)
+        res.end(body)
+      })
+      await new Promise<void>((resolve) =>
+        upstream.listen(0, '127.0.0.1', resolve)
+      )
+      const address = upstream.address()
+      if (!address || typeof address === 'string')
+        throw new Error('Missing upstream address')
+      upstreamUrl = `http://127.0.0.1:${address.port}/compressed`
+    })
+
+    afterAll(async () => {
+      upstream.closeAllConnections()
+      await new Promise<void>((resolve, reject) =>
+        upstream.close((error) => (error ? reject(error) : resolve()))
+      )
+    })
+
+    describe.each(['without test context', 'with proxy continue'])(
+      '%s',
+      (context) => {
+        it.each(cases)('preserves $name', async ({ plain, withLength }) => {
+          const index = cases.findIndex(
+            (entry) => entry.plain === plain && entry.withLength === withLength
+          )
+          const url = `/api/compressed-http?url=${encodeURIComponent(`${upstreamUrl}?case=${index}`)}`
+          const response =
+            context === 'without test context'
+              ? await next.fetch(url)
+              : await fetchForTest(url)
+          expect(response.status).toBe(200)
+          const result = await response.json()
+          const body = Buffer.from(result.body, 'base64')
+          expect(result.headers['content-encoding']).toBe('gzip')
+          expect(result.headers['content-length']).toBe(
+            withLength ? String(gzipSync(plain).length) : undefined
+          )
+          expect(body).toEqual(gzipSync(plain))
+          expect(gunzipSync(body).toString()).toBe(plain)
+        })
+      }
+    )
+
+    describe.each(['fetch-response', 'modified-response'])(
+      'with proxy %s',
+      (testData) => {
+        it.each(cases)(
+          'should forward $name with a decoded body and matching headers',
+          async ({ plain, withLength }) => {
+            const index = cases.findIndex(
+              (entry) =>
+                entry.plain === plain && entry.withLength === withLength
+            )
+            const url = `/api/compressed-http?url=${encodeURIComponent(`${upstreamUrl}?case=${index}`)}`
+            const response = await fetchForTest(url, testData)
+            expect(response.status).toBe(200)
+
+            const result = await response.json()
+            const body = Buffer.from(result.body, 'base64')
+            const expected =
+              testData === 'modified-response' ? `modified:${plain}` : plain
+            expect(body.toString()).toBe(expected)
+            expect(result.headers['content-type']).toBe('text/plain')
+            expect(result.headers['content-encoding']).toBeUndefined()
+            // The interceptor may omit the length, but must not retain a stale one.
+            if (result.headers['content-length'] !== undefined) {
+              expect(result.headers['content-length']).toBe(
+                String(Buffer.byteLength(expected))
+              )
+            }
+          }
+        )
+      }
+    )
+  })
 
   describe('app router', () => {
     it('should fetch real data when Next-Test-* headers are not present', async () => {

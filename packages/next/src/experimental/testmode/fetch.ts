@@ -94,14 +94,14 @@ function passthroughFetch(
   return originalFetch(request)
 }
 
-export async function handleFetch(
+export async function handleProxyFetch(
   originalFetch: Fetch,
   request: Request
-): Promise<Response> {
+): Promise<Response | undefined> {
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
-    // Passthrough non-test requests.
-    return passthroughFetch(originalFetch, request)
+    // Let the caller pass through using its original transport.
+    return undefined
   }
 
   const { testData, proxyPort } = testInfo
@@ -131,7 +131,7 @@ export async function handleFetch(
   const { api } = proxyResponse
   switch (api) {
     case 'continue':
-      return passthroughFetch(originalFetch, request)
+      return undefined
     case 'abort':
     case 'unhandled':
       throw new Error(
@@ -145,7 +145,7 @@ export async function handleFetch(
 }
 
 export function interceptFetch(originalFetch: Fetch) {
-  global.fetch = function testFetch(
+  global.fetch = async function testFetch(
     input: FetchInputArg,
     init?: FetchInitArg
   ): Promise<Response> {
@@ -154,7 +154,9 @@ export function interceptFetch(originalFetch: Fetch) {
     if (init?.next?.internal) {
       return originalFetch(input, init)
     }
-    return handleFetch(originalFetch, new Request(input, init))
+    const request = new Request(input, init)
+    const response = await handleProxyFetch(originalFetch, request)
+    return response ?? passthroughFetch(originalFetch, request)
   }
   return () => {
     global.fetch = originalFetch
