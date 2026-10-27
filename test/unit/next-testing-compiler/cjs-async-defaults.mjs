@@ -8,14 +8,22 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
-const [repoArg, outputArg, mode, form, kind] = process.argv.slice(2)
+const [repoArg, outputArg, mode, form, kind, family] = process.argv.slice(2)
 const repo = fs.realpathSync(repoArg),
   output = path.resolve(outputArg),
   here = path.dirname(fileURLToPath(import.meta.url))
 assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
+assert(family === undefined || family === 'renamed')
 const pristine = JSON.parse(
-  fs.readFileSync(path.join(here, 'cjs-async-defaults-pristine.json'))
+  fs.readFileSync(
+    path.join(
+      here,
+      family === 'renamed'
+        ? 'cjs-renamed-defaults-pristine.json'
+        : 'cjs-async-defaults-pristine.json'
+    )
+  )
 )
 assert.equal(pristine.referenceVersion, '5.0.4')
 const expected = pristine.forms[form]

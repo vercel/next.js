@@ -9183,3 +9183,53 @@ it.each(
   },
   130000
 )
+
+it.each(
+  Object.keys(require('./cjs-renamed-defaults-pristine.json').forms).flatMap(
+    (form) =>
+      (['development', 'production'] as const).map((mode) => ({ form, mode }))
+  )
+)(
+  'preserves actual renamed CommonJS object defaults: $form/$mode',
+  ({ form, mode }) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-cjs-renamed-defaults-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'cjs-async-defaults.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          form,
+          'source',
+          'renamed',
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      const checks = JSON.parse(
+        readFileSync(join(output, 'CHECKS.json'), 'utf8')
+      )
+      expect(checks).toMatchObject({
+        form,
+        mode,
+        completeAuthoredCasesAndRows: true,
+        namespaceAndFunctionDescriptors: true,
+        dependencyResetAndHeldValues: true,
+        exactDefaultParameterScope: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+        cases: 3,
+        rows: 3,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
