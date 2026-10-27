@@ -55,7 +55,7 @@ pub trait Claimable {
 /// need a `ConcurrentQueue` allocation.
 const PLAIN_ENTRY_CAPACITY: usize = 4;
 
-/// The lock-free FIFO of the keys of all queued items with one priority.
+/// The lock-free queue of the keys of all queued items with one priority.
 struct SinglePriorityQueue<P, K> {
     priority: P,
     keys: ConcurrentQueue<K>,
@@ -75,7 +75,7 @@ impl<P, K> SinglePriorityQueue<P, K> {
     }
 }
 
-/// The keys of all queued items with one priority, in FIFO order.
+/// The keys of all queued items with one priority.
 enum SinglePriorityEntry<P, K> {
     /// Up to [`PLAIN_ENTRY_CAPACITY`] keys, only accessed under the entry's map shard lock.
     Plain(ArrayVec<K, PLAIN_ENTRY_CAPACITY>),
@@ -94,8 +94,7 @@ impl<P: Clone, K> SinglePriorityEntry<P, K> {
         }
     }
 
-    /// Turns a `Plain` entry into a `Concurrent` one, keeping the FIFO order, and returns its
-    /// queue.
+    /// Turns a `Plain` entry into a `Concurrent` one with the same keys, and returns its queue.
     fn promote(&mut self, priority: &P) -> Arc<SinglePriorityQueue<P, K>> {
         match self {
             Self::Concurrent(queue) => queue.clone(),
@@ -137,13 +136,13 @@ enum EntryChange {
 /// The queue of items that are not scheduled yet.
 ///
 /// The queue relies on there being far fewer distinct priorities queued at the same time than
-/// queued items. Every priority has its own [`SinglePriorityEntry`] of keys in the `entries` map,
-/// in FIFO order, which is the priority order within that priority. An entry starts out `Plain`
-/// (a few inline keys) and is promoted to a lock-free `ConcurrentQueue` (a
-/// [`SinglePriorityQueue`]) once it holds more than [`PLAIN_ENTRY_CAPACITY`] keys, or when a push
-/// makes it the highest priority. The priorities are sorted by the `heap`, under its mutex. The
-/// queue of the highest priority is also published in `current`, outside the mutex, so that the
-/// hot paths don't need the mutex:
+/// queued items. Every priority has its own [`SinglePriorityEntry`] of keys in the `entries` map.
+/// There is no guaranteed order between items with the same priority (e.g. [`Queue::push_many`]
+/// reorders them). An entry starts out `Plain` (a few inline keys) and is promoted to a lock-free
+/// `ConcurrentQueue` (a [`SinglePriorityQueue`]) once it holds more than [`PLAIN_ENTRY_CAPACITY`]
+/// keys, or when a push makes it the highest priority. The priorities are sorted by the `heap`,
+/// under its mutex. The queue of the highest priority is also published in `current`, outside the
+/// mutex, so that the hot paths don't need the mutex:
 /// - A pop takes the next key from the `current` queue without locking. Only when that queue is
 ///   empty, it locks the `heap` to move on to the next lower priority (see [`Queue::pop_locked`]).
 /// - A push with the `current` priority pushes to the `current` queue without locking.
@@ -280,7 +279,7 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
         current.keys.push(key).map_err(|err| err.into_inner())
     }
 
-    /// Pushes `keys` (all with the given priority, in FIFO order) to the priority's entry, creating
+    /// Pushes `keys` (all with the given priority) to the priority's entry, creating
     /// or promoting it if needed. Returns what changed that [`Queue::update_heap`] has to
     /// reflect.
     ///
@@ -377,7 +376,8 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
     /// Queues all `items`, like calling [`Queue::push`] for each of them, but loads `current` only
     /// once, pushes the keys of each priority with a single map lookup, and takes the `heap` mutex
     /// at most once for the whole batch. Each still-queued item that one of the pushes replaced is
-    /// passed to `on_replaced`, in the order of `items`.
+    /// passed to `on_replaced`, in the order of `items`. Items with the same priority aren't
+    /// necessarily queued in the order of `items`.
     ///
     /// `items` must report its exact length, which is used to size an allocation.
     fn push_many(
@@ -412,9 +412,9 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
         if other_items.is_empty() {
             return;
         }
-        // Group the keys by priority, keeping their order within a priority (a stable sort), so
-        // each priority's entry is looked up and locked only once.
-        other_items.sort_by(|(a, _), (b, _)| a.cmp(b));
+        // Group the keys by priority, so each priority's entry is looked up and locked only once.
+        // The order within a priority doesn't matter, so an unstable sort is fine.
+        other_items.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
         let keys: Vec<T::Key> = other_items.iter().map(|&(_, key)| key).collect();
         let mut changes = Vec::new();
         let mut start = 0;
@@ -1100,6 +1100,33 @@ mod tests {
         std::mem::take(&mut *runner.executor.discarded.lock())
     }
 
+    /// Asserts that `actual` consists of the `groups` in order, where the items within a group (of
+    /// the same priority) may come in any order.
+    #[track_caller]
+    fn assert_groups<T: Ord + Clone + Debug>(actual: &[T], groups: &[&[T]]) {
+        let mut rest = actual;
+        for group in groups {
+            assert!(
+                rest.len() >= group.len(),
+                "{actual:?} doesn't consist of the groups {groups:?}"
+            );
+            let (head, tail) = rest.split_at(group.len());
+            let mut head = head.to_vec();
+            let mut group = group.to_vec();
+            head.sort();
+            group.sort();
+            assert_eq!(
+                head, group,
+                "{actual:?} doesn't consist of the groups {groups:?}"
+            );
+            rest = tail;
+        }
+        assert!(
+            rest.is_empty(),
+            "{actual:?} doesn't consist of the groups {groups:?}"
+        );
+    }
+
     /// Queueing a key that is still queued replaces the queued item: only the latest one is
     /// executed (or claimed), exactly once, and the replaced one is discarded.
     #[test]
@@ -1127,7 +1154,7 @@ mod tests {
         runner.schedule(&executed, (2, false), 0);
         runner.schedule(&executed, (1, true), 0);
         assert_eq!(take_discarded(&runner), vec![(1, false)]);
-        assert_eq!(drain(&runner, &executed), vec![(1, true), (2, false)]);
+        assert_groups(&drain(&runner, &executed), &[&[(1, true), (2, false)]]);
         assert!(runner.queue.claimable.is_empty());
         assert!(runner.queue.is_empty());
 
@@ -1148,8 +1175,11 @@ mod tests {
             &executed,
             (0..8).map(|task| (task, if task % 2 == 0 { 0 } else { task })),
         );
-        // Highest priority first, then the default priority items in FIFO order.
-        assert_eq!(drain(&runner, &executed), vec![7, 5, 3, 1, 0, 2, 4, 6]);
+        // Highest priority first, then the default priority items (in any order).
+        assert_groups(
+            &drain(&runner, &executed),
+            &[&[7], &[5], &[3], &[1], &[0, 2, 4, 6]],
+        );
         assert!(runner.queue.is_empty());
         assert!(runner.queue.claimable.is_empty());
     }
@@ -1685,10 +1715,10 @@ mod tests {
         }
     }
 
-    /// Directly exercise `Queue` ordering: items pop highest priority first, and in FIFO order
-    /// within a priority.
+    /// Directly exercise `Queue` ordering: items pop highest priority first (in any order within a
+    /// priority).
     #[test]
-    fn queues_pop_in_priority_then_fifo_order() {
+    fn queues_pop_in_priority_order() {
         let q: Queue<u32, &str> = Queue::new();
         assert!(q.is_empty());
 
@@ -1712,7 +1742,16 @@ mod tests {
         while let Some((_, task)) = q.pop() {
             out.push(task);
         }
-        assert_eq!(out, ["p9-a", "p9-b", "p7", "p5", "p3", "low-a", "low-b"]);
+        assert_groups(
+            &out,
+            &[
+                &["p9-a", "p9-b"],
+                &["p7"],
+                &["p5"],
+                &["p3"],
+                &["low-a", "low-b"],
+            ],
+        );
         assert!(q.is_empty());
         // Only the default priority's queue is left.
         assert_eq!(q.queue_count(), 1);
@@ -1991,7 +2030,7 @@ mod tests {
     }
 
     /// A priority that isn't the highest one starts out with a `Plain` entry, which is promoted to
-    /// a `Concurrent` one by the push that overflows it, keeping the FIFO order.
+    /// a `Concurrent` one by the push that overflows it, keeping all its keys.
     #[test]
     fn test_plain_entry_promoted_on_overflow() {
         let q: Queue<u32, u32> = Queue::new();
@@ -2011,10 +2050,11 @@ mod tests {
         while let Some(item) = q.pop() {
             out.push(item);
         }
-        let mut expected = vec![(9, 100)];
-        expected.extend((1..=PLAIN_ENTRY_CAPACITY as u32).map(|key| (5, key)));
-        expected.push((5, 99));
-        assert_eq!(out, expected);
+        let mut low = (1..=PLAIN_ENTRY_CAPACITY as u32)
+            .map(|key| (5, key))
+            .collect::<Vec<_>>();
+        low.push((5, 99));
+        assert_groups(&out, &[&[(9, 100)], &low]);
     }
 
     /// When the highest priority is retired and the next one is `Plain`, pops don't promote it:
@@ -2030,14 +2070,18 @@ mod tests {
         assert_eq!(retired.priority, 9);
         assert_eq!(q.pop(), Some((9, 100)));
 
-        for key in [1, 2] {
+        let mut popped = Vec::new();
+        for remaining in [1, 0] {
             let locks = q.heap_locks.load(Ordering::Relaxed);
-            assert_eq!(q.pop(), Some((5, key)));
+            let (priority, key) = q.pop().unwrap();
+            assert_eq!(priority, 5);
+            popped.push(key);
             assert_eq!(q.heap_locks.load(Ordering::Relaxed), locks + 1);
             assert!(Arc::ptr_eq(&q.current.load_full(), &retired));
             assert!(retired.keys.is_closed());
-            assert_eq!(entry_state(&q, &5), Some(("plain", 2 - key as usize)));
+            assert_eq!(entry_state(&q, &5), Some(("plain", remaining)));
         }
+        assert_groups(&popped, &[&[1, 2]]);
         assert_eq!(q.pop(), None);
         assert_eq!(entry_state(&q, &5), None);
         assert_eq!(q.current.load().priority, 0);
@@ -2059,10 +2103,12 @@ mod tests {
         assert_eq!(current.priority, 7);
         assert!(!current.keys.is_closed());
         assert_eq!(q.pop(), Some((7, 100)));
-        for key in 1..=10 {
-            assert_eq!(q.pop(), Some((3, key)));
+        let mut low = Vec::new();
+        while let Some(item) = q.pop() {
+            low.push(item);
         }
-        assert_eq!(q.pop(), None);
+        let expected_low: Vec<_> = (1..=10).map(|key| (3, key)).collect();
+        assert_groups(&low, &[&expected_low]);
     }
 
     /// Pushing to a lower priority that already has an entry doesn't take the `heap` lock, both
@@ -2095,9 +2141,9 @@ mod tests {
         assert_eq!(entry_state(&q, &6), Some(("plain", 3)));
     }
 
-    /// `push_many` reports replaced items in input order, keeps the FIFO order within each
-    /// priority, and takes the `heap` lock at most once, also for a batch with several new
-    /// priorities.
+    /// `push_many` reports replaced items in input order, queues every item with its priority
+    /// (in any order within a priority), and takes the `heap` lock at most once, also for a batch
+    /// with several new priorities.
     #[test]
     fn test_push_many_groups_by_priority() {
         let q: Queue<u32, u32> = Queue::new();
@@ -2129,21 +2175,15 @@ mod tests {
         while let Some(item) = q.pop() {
             out.push(item);
         }
-        assert_eq!(
-            out,
-            [
-                (9, 13),
-                (9, 20),
-                (9, 22),
-                (7, 11),
-                (7, 14),
-                (6, 2),
-                (5, 10),
-                (5, 12),
-                (5, 15),
-                (5, 21),
-                (2, 1),
-            ]
+        assert_groups(
+            &out,
+            &[
+                &[(9, 13), (9, 20), (9, 22)],
+                &[(7, 11), (7, 14)],
+                &[(6, 2)],
+                &[(5, 10), (5, 12), (5, 15), (5, 21)],
+                &[(2, 1)],
+            ],
         );
     }
 
@@ -2166,9 +2206,8 @@ mod tests {
         while let Some(item) = q.pop() {
             out.push(item);
         }
-        let mut expected: Vec<_> = (1..=5).map(|key| (-1, key)).collect();
-        expected.push((-2, 100));
-        assert_eq!(out, expected);
+        let low: Vec<_> = (1..=5).map(|key| (-1, key)).collect();
+        assert_groups(&out, &[&low, &[(-2, 100)]]);
         assert_eq!(q.queue_count(), 0);
         let current = q.current.load_full();
         assert!(current.keys.is_closed());
@@ -2205,10 +2244,14 @@ mod tests {
         q.update_heap(&[(5, EntryChange::Created)]);
         assert_eq!(q.current.load().priority, 5);
         assert_eq!(q.queue_count(), 2);
-        for key in 1..=(PLAIN_ENTRY_CAPACITY as u32 + 1) {
-            assert_eq!(q.pop(), Some((5, key)));
+        let mut out = Vec::new();
+        while let Some(item) = q.pop() {
+            out.push(item);
         }
-        assert_eq!(q.pop(), None);
+        let expected: Vec<_> = (1..=(PLAIN_ENTRY_CAPACITY as u32 + 1))
+            .map(|key| (5, key))
+            .collect();
+        assert_groups(&out, &[&expected]);
         assert_eq!(q.queue_count(), 1);
     }
 
@@ -2398,37 +2441,43 @@ mod tests {
 
     /// A key queued again with the default priority after a higher priority push: the replaced
     /// item's stale entry must not take the latest item (the priorities don't match), so the
-    /// latest item keeps its FIFO position in the default priority queue.
+    /// latest item is popped from the default priority's entry, with the default priority.
     #[test]
     fn test_stale_entry_in_other_priority_does_not_take_newer_item() {
-        let (runner, executed) = queueing_runner::<(u32, bool)>();
-        runner.schedule(&executed, (1, false), 10);
-        runner.schedule(&executed, (5, false), 0);
-        runner.schedule(&executed, (1, true), 0);
-        assert_eq!(take_discarded(&runner), vec![(1, false)]);
-        assert_eq!(drain(&runner, &executed), vec![(5, false), (1, true)]);
-        assert!(runner.queue.claimable.is_empty());
-        assert!(runner.queue.is_empty());
+        let q: Queue<u32, (u32, bool)> = Queue::new();
+        assert!(q.push(10, (1, false)).is_none());
+        assert!(q.push(0, (5, false)).is_none());
+        assert_eq!(q.push(0, (1, true)), Some((10, (1, false))));
+        let mut out = Vec::new();
+        while let Some(item) = q.pop() {
+            out.push(item);
+        }
+        assert_groups(&out, &[&[(0, (5, false)), (0, (1, true))]]);
+        assert!(q.claimable.is_empty());
+        assert!(q.is_empty());
     }
 
     /// Claiming leaves a tombstone in a higher priority queue; queueing the same key again with
-    /// the default priority must not let that tombstone take the new item ahead of other default
-    /// priority items.
+    /// the default priority must not let that tombstone take the new item (with the higher
+    /// priority, ahead of other default priority items).
     #[test]
     fn test_claim_then_requeue_with_other_priority() {
-        let (runner, executed) = queueing_runner::<u32>();
-        runner.schedule(&executed, 1, 10);
-        assert!(runner.claim(&executed, &1).is_some());
-        executed.lock().clear();
-        runner.schedule(&executed, 2, 0);
-        runner.schedule(&executed, 1, 0);
-        assert_eq!(drain(&runner, &executed), vec![2, 1]);
-        assert_eq!(runner.queue.queue_count(), 1);
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(10, 1).is_none());
+        assert_eq!(q.claim(&1), Some((10, 1)));
+        assert!(q.push(0, 2).is_none());
+        assert!(q.push(0, 1).is_none());
+        let mut out = Vec::new();
+        while let Some(item) = q.pop() {
+            out.push(item);
+        }
+        assert_groups(&out, &[&[(0, 2), (0, 1)]]);
+        assert_eq!(q.queue_count(), 1);
     }
 
     /// Claiming and queueing the same key again at the same priority: the stale entry may take the
-    /// new item early (equal priority, so only the FIFO position changes), but it still runs
-    /// exactly once.
+    /// new item early (equal priority, so only the order within the priority changes), but it
+    /// still runs exactly once.
     #[test]
     fn test_claim_then_requeue_same_priority() {
         let (runner, executed) = queueing_runner::<u32>();
