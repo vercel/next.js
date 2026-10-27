@@ -306,7 +306,9 @@
       "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
       "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
-      "@vercel/og@0.7.2": "patches/@vercel__og@0.7.2.patch"
+      "@vercel/og@0.7.2": "patches/@vercel__og@0.7.2.patch",
+      "react-dom@19.2.0-canary-0bdb9206-20250818": "patches/react-dom@19.2.0-canary-0bdb9206-20250818.patch",
+      "react-dom@0.0.0-experimental-0bdb9206-20250818": "patches/react-dom@0.0.0-experimental-0bdb9206-20250818.patch"
     }
   }
 }
