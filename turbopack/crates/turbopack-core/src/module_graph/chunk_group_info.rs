@@ -908,11 +908,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 bail!("Module chunk groups not found");
                             };
 
-                            if current_chunk_groups.is_zero() {
-                                // Initial visit, clone instead of merging
-                                *current_chunk_groups = parent_chunk_groups.clone();
-                                GraphTraversalAction::Continue
-                            } else if current_chunk_groups.union_with(parent_chunk_groups) {
+                            // On the initial visit, `union_with` copies the parent's chunk groups.
+                            if current_chunk_groups.union_with(parent_chunk_groups) {
                                 // Added bits from parent, continue traversal because changed
                                 GraphTraversalAction::Continue
                             } else {
