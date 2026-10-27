@@ -1799,14 +1799,23 @@ function getAssetSuffixFromScriptSrc() {
 // CSS-escaped.
 /**
  * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ * External scripts also match equivalent absolute and relative URLs.
  */ function findChunkScripts(url) {
+    var external = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
     var decodedUrl = decodeURI(url);
+    var requested = external ? new URL(url, document.baseURI).href : undefined;
     var scripts = document.head.getElementsByTagName('script');
     var result = [];
     for(var i = 0; i < scripts.length; i++){
         var script = scripts[i];
-        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+        var src = script.getAttribute('src');
+        if (matchesChunkUrl(src, url, decodedUrl)) {
             result.push(script);
+        } else if (requested !== undefined && src !== null) {
+            var existing = new URL(src, document.baseURI).href;
+            if (existing === requested || existing.startsWith(`${requested}?`)) {
+                result.push(script);
+            }
         }
     }
     return result;
@@ -2080,7 +2089,7 @@ var BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                var previousScripts = findChunkScripts(chunkUrl);
+                var previousScripts = findChunkScripts(chunkUrl, resolveOnLoad);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {

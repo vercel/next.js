@@ -97,6 +97,8 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
   afterAll(async () => {
     await new Promise<void>((resolve, reject) => {
       remoteServer.close((error) => (error ? reject(error) : resolve()))
+      // Browser connections can remain open until the Next.js fixture is destroyed.
+      remoteServer.closeAllConnections()
     })
     delete process.env.MF_REMOTE_ORIGIN
     delete process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN

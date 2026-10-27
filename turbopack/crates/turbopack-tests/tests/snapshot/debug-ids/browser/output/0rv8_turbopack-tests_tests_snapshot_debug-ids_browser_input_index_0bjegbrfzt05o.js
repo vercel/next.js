@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="5885813e-75c7-97e6-7e72-9587bc5ac6b6")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="26c61e4a-7df9-d221-5e92-7bc327f7a2b5")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2316,14 +2316,22 @@ function getAssetSuffixFromScriptSrc() {
 // CSS-escaped.
 /**
  * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
- */ function findChunkScripts(url) {
+ * External scripts also match equivalent absolute and relative URLs.
+ */ function findChunkScripts(url, external = false) {
     const decodedUrl = decodeURI(url);
+    const requested = external ? new URL(url, document.baseURI).href : undefined;
     const scripts = document.head.getElementsByTagName('script');
     const result = [];
     for(let i = 0; i < scripts.length; i++){
         const script = scripts[i];
-        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+        const src = script.getAttribute('src');
+        if (matchesChunkUrl(src, url, decodedUrl)) {
             result.push(script);
+        } else if (requested !== undefined && src !== null) {
+            const existing = new URL(src, document.baseURI).href;
+            if (existing === requested || existing.startsWith(`${requested}?`)) {
+                result.push(script);
+            }
         }
     }
     return result;
@@ -2536,7 +2544,7 @@ let BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                const previousScripts = findChunkScripts(chunkUrl);
+                const previousScripts = findChunkScripts(chunkUrl, resolveOnLoad);
                 if (previousScripts.length > 0) {
                     for (const script of previousScripts){
                         script.addEventListener('load', ()=>markChunkLoaded(resolver), {
@@ -2689,5 +2697,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=5885813e-75c7-97e6-7e72-9587bc5ac6b6
+//# debugId=26c61e4a-7df9-d221-5e92-7bc327f7a2b5
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
