@@ -7,6 +7,7 @@ import type { TestEntry } from '../contracts'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import {
   isReportedSuiteError,
+  getActualBrowserRootErrors,
   type CustomReporterCompletion,
 } from './custom-reporter-tasks'
 
@@ -337,8 +338,9 @@ export function createLiveReporterTaskStore(projectDir: string) {
       const root = completion.suites.find(
         (item) => item.entryId === entryId && item.suiteId === entryId
       )
+      const actualErrors = getActualBrowserRootErrors(entryId, completion)
       const errors = [
-        ...(root?.errors ?? []),
+        ...(actualErrors ?? root?.errors ?? []),
         ...completion.events.flatMap((event) =>
           event.type === 'diagnostic' &&
           event.entryId === entryId &&

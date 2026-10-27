@@ -5601,3 +5601,22 @@ it.each([
     allDiagnosticOccurrencesRetained: true,
   })
 })
+
+it('enriches only actual final Browser root error presentation with owned stack facts', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'root-error-stacks.cjs')],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    comparisons: 13,
+    receivedAndCollectedGraphsUnchanged: true,
+    rootPackAndFinalResultOnly: true,
+    absentErrorsPropertyPreserved: true,
+    childSnapshotsUntouched: true,
+    authoredStacksAndRawMetadataHeld: true,
+    actualTopLevelFramesOnly: true,
+    missingCoordinatesNeverInvented: true,
+    mapperFailurePreservesRawError: true,
+  })
+}, 20000)

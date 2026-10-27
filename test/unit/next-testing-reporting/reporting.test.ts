@@ -8197,3 +8197,22 @@ describe('actual piped default snapshot preparation public compatibility', () =>
     150000
   )
 })
+
+it('uses actual final Browser root error data without suppressing independent failures', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'browser-module-raw-errors.cjs')],
+    { timeout: 15000, encoding: 'utf8' }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    comparisons: 44,
+    actualRootPackAndRevisionOnly: true,
+    absentErrorsDistinctFromNoSnapshot: true,
+    emptyArrayCannotPassFailedFile: true,
+    independentOccurrencesAndCompleteComparison: true,
+    nodeAndLegacyFallbackUnchanged: true,
+    receivedFactsUnchanged: true,
+    liveModuleIdentityRetained: true,
+    liveAndCompletionSelectorsAgree: true,
+  })
+}, 20000)

@@ -309,6 +309,57 @@ export function createClientResultCollector(
     }
     return rootSnapshot as unknown as ReporterTaskSnapshot
   }
+  function withFinalRootErrorStacks(
+    tree: ReporterTaskSnapshot,
+    updateIds: readonly string[]
+  ): ReporterTaskSnapshot {
+    const result = tree.result
+    if (
+      tree.id !== artifact.entryId ||
+      !updateIds.includes(tree.id) ||
+      !result ||
+      !['pass', 'fail', 'skip', 'todo'].includes(result.state) ||
+      !result.errors?.length
+    )
+      return tree
+    const errors = result.errors.map((error) => {
+      if (!record(error) || error.stacks) return error
+      const stack = error.stack
+      let frames: NonNullable<SerializedDiagnostic['frames']> = []
+      if (typeof stack === 'string' && stack && mapStack) {
+        try {
+          frames = mapStack(stack)
+        } catch {
+          // Mapping cannot replace the actual raw stack or its failure fields.
+        }
+      }
+      return {
+        ...error,
+        stacks: frames.flatMap((frame) => {
+          const { line, column } = frame
+          if (
+            typeof line !== 'number' ||
+            typeof column !== 'number' ||
+            !Number.isSafeInteger(line) ||
+            !Number.isSafeInteger(column) ||
+            line < 1 ||
+            column < 1
+          )
+            return []
+          return [
+            {
+              method: frame.methodName ?? '',
+              file: frame.file,
+              line,
+              column,
+            },
+          ]
+        }),
+      }
+    })
+    // Parent presentation must not mutate the received graph or other task packs.
+    return { ...tree, result: { ...result, errors } }
+  }
   // Unstarted mode changes remain quarantined until the failed ancestor suite
   // that authorized them arrives. They can never become invented start events.
   const visibleEvents = () =>
@@ -689,7 +740,7 @@ export function createClientResultCollector(
         type: 'task-update',
         entryId: artifact.entryId,
         revision: artifact.revision,
-        taskTree,
+        taskTree: withFinalRootErrorStacks(taskTree, message.taskUpdateIds),
         taskUpdateIds: message.taskUpdateIds,
         caseResults,
       })

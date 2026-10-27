@@ -4,7 +4,7 @@ import {
   isRunErrorDiagnostic,
   hasOnlyBrowserCleanupFailures,
 } from './run-errors'
-import type { TestArtifact, TaskLocation } from '../runner/tasks'
+import type { TestArtifact, TaskLocation, TaskResult } from '../runner/tasks'
 import { relative, sep } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { createTestReporter } from './reporter'
@@ -24,6 +24,9 @@ export interface CustomReporterCompletion extends Results {
 }
 
 type State = 'passed' | 'failed' | 'skipped' | 'pending'
+type TaskError =
+  | NonNullable<TaskResult['errors']>[number]
+  | SerializedDiagnostic
 interface Task {
   type: 'module' | 'suite' | 'test'
   id: string
@@ -38,9 +41,9 @@ interface Task {
   options?: { mode: 'run' | 'skip' | 'todo'; tags?: string[] }
   tags?: string[]
   children?: Collection
-  result?(): { state: State; errors?: SerializedDiagnostic[]; note?: string }
+  result?(): { state: State; errors?: TaskError[]; note?: string }
   state?(): State
-  errors?(): SerializedDiagnostic[]
+  errors?(): TaskError[]
   ok(): boolean
   meta(): NonNullable<CaseResult['meta']>
   annotations?(): unknown[]
@@ -138,6 +141,33 @@ export function isReportedSuiteError(
   )
 }
 
+/** Only its actual accepted final root pack provides Browser module error data. */
+export function getActualBrowserRootErrors(
+  entryId: string,
+  completion: CustomReporterCompletion
+): TaskResult['errors'] {
+  const start = completion.entries.find(({ entry }) => entry.id === entryId)
+  if (
+    start?.entry.profile.browserClient !== true ||
+    start.revision === undefined
+  )
+    return undefined
+  const actualRoot = completion.events.findLast(
+    (event) =>
+      event.type === 'task-update' &&
+      event.runId === start.runId &&
+      event.entryId === entryId &&
+      event.revision === start.revision &&
+      event.taskTree.id === entryId &&
+      event.taskUpdateIds.includes(entryId) &&
+      event.taskTree.result !== undefined &&
+      ['pass', 'fail', 'skip', 'todo'].includes(event.taskTree.result.state)
+  )
+  return actualRoot?.type === 'task-update'
+    ? (actualRoot.taskTree.result!.errors ?? [])
+    : undefined
+}
+
 /** Final task views come from retained producer events, never replayed hooks. */
 export function createCustomReporterModules(
   projectDir: string,
@@ -155,10 +185,11 @@ export function createCustomReporterModules(
     const rootResult = completion.suites.find(
       (suite) => suite.suiteId === entry.id && suite.entryId === entry.id
     )
+    const actualErrors = getActualBrowserRootErrors(entry.id, completion)
     const project = { name: entry.projectName ?? entry.profile.id }
     const rootChildren: Task[] = []
     const fileErrors = [
-      ...(rootResult?.errors ?? []),
+      ...(actualErrors ?? rootResult?.errors ?? []),
       ...completion.events.flatMap((event) =>
         event.type === 'diagnostic' &&
         event.entryId === entry.id &&
