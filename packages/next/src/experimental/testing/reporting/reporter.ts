@@ -1,3 +1,8 @@
+import {
+  assertSnapshotPreparationFailure,
+  type SnapshotPreparationFailure,
+} from '../execution/snapshot-preparation'
+import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import {
   isRunErrorDiagnostic,
@@ -49,6 +54,8 @@ import type {
 } from './events'
 
 export interface TestReporterOptions {
+  /** Private actual one-shot preparation projection; never a public config key. */
+  preparePublicSnapshots?: true
   style?: 'default' | 'verbose' | 'dot'
   write: (text: string) => void
   writeError?: (text: string) => void
@@ -189,6 +196,18 @@ export function createTestReporter(options: TestReporterOptions) {
   let redrawError: { error: unknown } | undefined
   const terminal = options.terminal ?? createTestTerminal(options)
   const diagnostics: Extract<ResultEvent, { type: 'diagnostic' }>[] = []
+  const preparationFailures = new Map<
+    string,
+    {
+      failure: SnapshotPreparationFailure
+      collected: ReporterTaskSnapshot
+      diagnosticIndex?: number
+    }
+  >()
+  let preparationDiagnostic:
+    | { input: Extract<ResultEvent, { type: 'diagnostic' }>; index: number }
+    | undefined
+  let preparationDeliveryFailed = false
   let diagnosticErrors = 0
   let warnings = 0
   let attachments = 0
@@ -273,8 +292,9 @@ export function createTestReporter(options: TestReporterOptions) {
     )
   }
 
-  function stateText(state: ResultCounts, todo = 0): string {
-    const total = state.passed + state.failed + state.skipped + state.cancelled
+  function stateText(state: ResultCounts, todo = 0, pending = 0): string {
+    const total =
+      state.passed + state.failed + state.skipped + state.cancelled + pending
     if (!total) return paint(2, 'no tests')
     return (
       (['failed', 'passed', 'skipped', 'cancelled'] as const)
@@ -327,7 +347,49 @@ export function createTestReporter(options: TestReporterOptions) {
       : result
   }
 
+  function pendingPreparation(entryId: string): boolean {
+    const record = preparationFailures.get(entryId)
+    return (
+      record?.failure.source === 'run' &&
+      ended?.status !== 'cancelled' &&
+      files.get(entryId)?.status !== 'cancelled' &&
+      !diagnostics.some(
+        (event) =>
+          event.entryId === entryId && event.diagnostic.severity === 'error'
+      ) &&
+      ![...cases.values()].some(
+        (test) =>
+          test.entryId === entryId &&
+          (test.status === 'failed' || test.status === 'cancelled')
+      ) &&
+      ![...suites.values()].some(
+        (suite) =>
+          suite.entryId === entryId &&
+          (suite.errors.length > 0 ||
+            suite.status === 'failed' ||
+            suite.status === 'cancelled')
+      )
+    )
+  }
+
+  function pendingDeclarations(): number {
+    let count = 0
+    const visit = (task: ReporterTaskSnapshot) => {
+      if (task.type === 'test') count++
+      else task.tasks?.forEach(visit)
+    }
+    for (const [entryId, record] of preparationFailures)
+      if (
+        record.failure.source === 'run' &&
+        ended?.status !== 'cancelled' &&
+        files.get(entryId)?.status !== 'cancelled'
+      )
+        visit(record.collected)
+    return count
+  }
+
   function printFile(input: FileResult): void {
+    if (pendingPreparation(input.entryId)) return
     const result = displayedFile(input)
     const tests = [...cases.values()].filter(
       (test) => test.entryId === result.entryId
@@ -485,7 +547,7 @@ export function createTestReporter(options: TestReporterOptions) {
       )
       for (const event of unhandledErrors) {
         writeError(
-          `${paint(31, isBrowserCleanupRunError(event.diagnostic) ? 'Cleanup Error' : event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
+          `${paint(31, [...preparationFailures.values()].some((record) => record.diagnosticIndex !== undefined && events[record.diagnosticIndex] === event) ? 'Test Run Error' : isBrowserCleanupRunError(event.diagnostic) ? 'Cleanup Error' : event.diagnostic.unhandled === 'rejection' ? 'Unhandled Rejection' : 'Unhandled Error')} ${paint(2, `[${event.diagnostic.phase}]`)}\n${formatDiagnostic(event.diagnostic, projectDir)}\n\n`
         )
       }
     }
@@ -587,7 +649,7 @@ export function createTestReporter(options: TestReporterOptions) {
     terminal.render(lines)
   }
 
-  function consumeEvent(input: ResultEvent): void {
+  function consumeEvent(input: ResultEvent): number {
     if (input.version !== 1)
       throw new Error('Unsupported test result event version')
     if (runId !== undefined && input.runId !== runId)
@@ -597,6 +659,24 @@ export function createTestReporter(options: TestReporterOptions) {
     const event: ResultEvent = structuredClone(input)
     runId = event.runId
     events.push(event)
+    const eventIndex = events.length - 1
+    if (
+      'entryId' in event &&
+      typeof event.entryId === 'string' &&
+      preparationFailures.has(event.entryId) &&
+      [
+        'case-start',
+        'case-end',
+        'suite-end',
+        'file-collected',
+        'task-update',
+        'test-annotation',
+        'test-artifact',
+        'snapshot-summary',
+        'module-complete',
+      ].includes(event.type)
+    )
+      throw new Error('Execution follows actual failed snapshot preparation.')
     switch (event.type) {
       case 'run-start':
         startedAt = event.timestamp
@@ -747,9 +827,13 @@ export function createTestReporter(options: TestReporterOptions) {
               'Test Files',
               stateText(
                 [...files.values()].reduce((result, file) => {
-                  result[displayedFile(file).status]++
+                  if (!pendingPreparation(file.entryId))
+                    result[displayedFile(file).status]++
                   return result
-                }, counts())
+                }, counts()),
+                0,
+                [...preparationFailures.keys()].filter(pendingPreparation)
+                  .length
               )
             ) +
             row(
@@ -758,7 +842,8 @@ export function createTestReporter(options: TestReporterOptions) {
                 summary.cases,
                 [...cases.values()].filter(
                   (test) => test.status === 'skipped' && test.mode === 'todo'
-                ).length
+                ).length,
+                pendingDeclarations()
               )
             )
         )
@@ -785,16 +870,25 @@ export function createTestReporter(options: TestReporterOptions) {
         break
       }
     }
+    return eventIndex
   }
 
   function onEvent(input: ResultEvent): void {
+    preparationDiagnostic = undefined
     if (redrawError) throw redrawError.error
     try {
       terminal.suspend()
-      consumeEvent(input)
+      const index = consumeEvent(input)
       renderProgress()
       terminal.resume()
+      if (
+        options.preparePublicSnapshots === true &&
+        input.type === 'diagnostic'
+      )
+        preparationDiagnostic = { input, index }
     } catch (error) {
+      preparationDeliveryFailed = true
+      preparationDiagnostic = undefined
       try {
         dispose()
       } catch {}
@@ -807,6 +901,97 @@ export function createTestReporter(options: TestReporterOptions) {
 
   return {
     onEvent,
+    onSnapshotPreparationFailure(
+      failure: SnapshotPreparationFailure,
+      deliveredDiagnostic?: Extract<ResultEvent, { type: 'diagnostic' }>
+    ) {
+      if (
+        options.preparePublicSnapshots !== true ||
+        options.isTTY ||
+        preparationDeliveryFailed ||
+        ended ||
+        preparationFailures.has(failure.entryId)
+      )
+        throw new Error(
+          'Human preparation presentation requires its actual piped one-shot owner.'
+        )
+      const collected = events.filter(
+        (event): event is Extract<ResultEvent, { type: 'file-collected' }> =>
+          event.type === 'file-collected' && event.entryId === failure.entryId
+      )
+      if (collected.length !== 1)
+        throw new Error(
+          'Human preparation lacks one actual received Collected file.'
+        )
+      const actual = collected[0]
+      const start = entries.get(actual.entryId)
+      if (
+        !start ||
+        start.runId !== actual.runId ||
+        start.revision !== actual.revision
+      )
+        throw new Error(
+          'Human preparation lacks its actual matching started revision.'
+        )
+      assertSnapshotPreparationFailure(failure, {
+        runId: actual.runId,
+        entryId: actual.entryId,
+        revision: actual.revision,
+      })
+      assertReporterTaskTree(actual.taskTree, actual.entryId)
+      if (
+        events.some(
+          (event) =>
+            'entryId' in event &&
+            event.entryId === failure.entryId &&
+            [
+              'case-start',
+              'case-end',
+              'suite-end',
+              'file-end',
+              'module-complete',
+            ].includes(event.type)
+        )
+      )
+        throw new Error(
+          'Human preparation follows actual execution or completion.'
+        )
+      if (failure.source === 'run') {
+        const hasResult = (task: ReporterTaskSnapshot): boolean =>
+          task.result !== undefined || (task.tasks?.some(hasResult) ?? false)
+        if (hasResult(actual.taskTree))
+          throw new Error(
+            'Human preparation contains unqualified task results.'
+          )
+      } else if (
+        actual.taskTree.result?.state !== 'fail' ||
+        actual.taskTree.tasks?.length
+      )
+        throw new Error('Human preparation lacks its actual failed collection.')
+      let diagnosticIndex: number | undefined
+      if (failure.outcome.kind === 'error') {
+        if (
+          !deliveredDiagnostic ||
+          preparationDiagnostic?.input !== deliveredDiagnostic ||
+          deliveredDiagnostic.runId !== failure.runId ||
+          deliveredDiagnostic.entryId !== undefined ||
+          deliveredDiagnostic.diagnostic !== failure.outcome.diagnostic
+        )
+          throw new Error(
+            'Human preparation lacks its actual delivered run error.'
+          )
+        diagnosticIndex = preparationDiagnostic.index
+      } else if (deliveredDiagnostic !== undefined)
+        throw new Error(
+          'Undefined human preparation cannot invent a diagnostic.'
+        )
+      preparationDiagnostic = undefined
+      preparationFailures.set(failure.entryId, {
+        failure: structuredClone(failure),
+        collected: actual.taskTree,
+        diagnosticIndex,
+      })
+    },
     dispose,
     getSummary,
     getResults: () =>

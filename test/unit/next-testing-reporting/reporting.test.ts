@@ -8105,3 +8105,95 @@ it.each([
   },
   35000
 )
+
+it.each([
+  'error',
+  'undefined',
+  'nested',
+  'cleanup',
+  'omitted',
+  'tty',
+  'missing-collected',
+  'copied-diagnostic',
+  'reentrant',
+  'write-throw',
+  'late-case',
+] as const)(
+  'projects human actual snapshot preparation without physical result changes for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-human-preparation-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'human-snapshot-preparation.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        realPreparation: true,
+        bodies: 0,
+        physicalEvidenceUnchanged: true,
+        version: process.version,
+        execPath: process.execPath,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+describe('actual piped default snapshot preparation public compatibility', () => {
+  it.each(
+    (['development', 'production'] as const).flatMap((mode) =>
+      [
+        'passing-dir',
+        'all-skip-dir',
+        'load-failure-dir',
+        'empty-dir',
+        'empty-pass-dir',
+        'undefined-snapshot-read',
+        'same-error-load-and-read',
+      ].flatMap((profile) =>
+        ['default', 'default-json'].map((sink) => ({ profile, mode, sink }))
+      )
+    )
+  )(
+    'preserves unchanged $mode $profile body and genuine $sink summary',
+    async ({ profile, mode, sink }) => {
+      const directory = await mkdtemp(
+        join(tmpdir(), 'next-public-default-preparation-')
+      )
+      try {
+        const output = join(directory, 'observed.json')
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'public-default-snapshot-preparation.mjs'),
+            profile,
+            mode,
+            sink,
+            output,
+          ],
+          { timeout: 145000, encoding: 'utf8' }
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          profile,
+          mode,
+          sink,
+          wholeGenuineHumanSummaryEqual: true,
+          completeReferenceJSONEqual: sink === 'default-json',
+          unchangedAuthorRowsEqual: true,
+          allPhysicalOwnersJoined: true,
+          sdkAbsent: false,
+          execPath: process.execPath,
+          version: process.version,
+        })
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    150000
+  )
+})

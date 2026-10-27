@@ -939,8 +939,13 @@ export async function nextTestRunner(
           (!entry.executionEnvironment ||
             entry.executionEnvironment.name === 'node')
       ) &&
-      reporters.includes('json') &&
-      reporters.every((name) => name === 'json' || isCustomResultReporter(name))
+      (reporters.includes('default')
+        ? !isTTY &&
+          reporters.every((name) => name === 'default' || name === 'json')
+        : reporters.includes('json') &&
+          reporters.every(
+            (name) => name === 'json' || isCustomResultReporter(name)
+          ))
     const machine = createMachineReporter({
       collect: preparePublicSnapshots,
       projectDir,

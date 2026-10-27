@@ -637,6 +637,9 @@ export async function runTests(
   }
   const reporter = createTestReporter({
     ...options.reporter,
+    ...(options.preparePublicSnapshots === true
+      ? { preparePublicSnapshots: true as const }
+      : {}),
     projectDir,
     fileCount: projects.reduce(
       (total, project) => total + project.entries.length,
@@ -1497,6 +1500,7 @@ export async function runTests(
                         (error: unknown) => failReporter(error)
                       )
                     )
+                  else reporter.onSnapshotPreparationFailure(mapped, delivered)
                 },
               }
             : {}),

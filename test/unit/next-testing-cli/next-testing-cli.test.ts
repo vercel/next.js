@@ -11634,9 +11634,9 @@ describe('qualified public snapshot preparation CLI forwarding', () => {
   it.each([
     { reporter: ['json'], expected: true },
     { reporter: ['json', './reporter.mjs'], expected: true },
-    { reporter: undefined, expected: false },
-    { reporter: ['default'], expected: false },
-    { reporter: ['default', 'json'], expected: false },
+    { reporter: undefined, expected: true },
+    { reporter: ['default'], expected: true },
+    { reporter: ['default', 'json'], expected: true },
     { reporter: ['junit'], expected: false },
     { reporter: ['junit', 'json'], expected: false },
     { reporter: ['verbose', 'json'], expected: false },
@@ -11656,6 +11656,61 @@ describe('qualified public snapshot preparation CLI forwarding', () => {
             [
               path.join(__dirname, 'snapshot-preparation-admission.mjs'),
               JSON.stringify(reporter ?? null),
+              String(expected),
+              output,
+            ],
+            { timeout: 35000, encoding: 'utf8' },
+            (error) => (error ? reject(error) : resolve())
+          )
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          expected,
+          actualCLIForwarded: true,
+          execPath: process.execPath,
+          version: process.version,
+        })
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})
+
+describe('piped default actual snapshot preparation admission', () => {
+  it.each([
+    { reporter: undefined, tty: false, expected: true },
+    { reporter: ['default'], tty: false, expected: true },
+    { reporter: ['default', 'json'], tty: false, expected: true },
+    {
+      reporter: ['default', 'json', './reporter.mjs'],
+      tty: false,
+      expected: false,
+    },
+    { reporter: ['default', './reporter.mjs'], tty: false, expected: false },
+    { reporter: ['default'], tty: true, expected: false },
+    { reporter: ['default', 'json'], tty: true, expected: false },
+    { reporter: ['json'], tty: true, expected: true },
+    { reporter: ['json', './reporter.mjs'], tty: true, expected: true },
+    { reporter: ['junit', 'json'], tty: false, expected: false },
+    { reporter: ['verbose', 'json'], tty: false, expected: false },
+  ])(
+    'forwards only the measured default sink shape $reporter tty=$tty',
+    async ({ expected, ...specification }) => {
+      const directory = await mkdtemp(
+        path.join(os.tmpdir(), 'next-default-snapshot-role-')
+      )
+      try {
+        const output = path.join(directory, 'observed.json')
+        await new Promise<void>((resolve, reject) =>
+          execFile(
+            process.execPath,
+            [
+              path.join(
+                __dirname,
+                'default-snapshot-preparation-admission.mjs'
+              ),
+              JSON.stringify(specification),
               String(expected),
               output,
             ],
