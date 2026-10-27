@@ -8062,3 +8062,46 @@ it.each(
   },
   140000
 )
+
+it.each([
+  'skipped',
+  'todo',
+  'live',
+  'passed',
+  'failed',
+  'empty',
+  'cancelled',
+  'no-root',
+  'child-only',
+  'foreign-root',
+  'invalid-ancestry',
+  'root-error',
+  'nested-error',
+  'file-error',
+  'warning',
+  'cleanup-failed',
+] as const)(
+  'renders human skipped files only from actual root results while preserving physical ownership for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-human-skipped-file-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'human-skipped-file.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualRootOwned: true,
+        physicalResultsAndEventsHeld: true,
+        presentationOnly: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)

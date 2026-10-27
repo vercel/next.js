@@ -292,6 +292,30 @@ export function createTestReporter(options: TestReporterOptions) {
   }
 
   function displayedFile(result: FileResult): FileResult {
+    const entry = entries.get(result.entryId)?.entry
+    const root = suites.get(JSON.stringify([result.entryId, result.entryId]))
+    if (
+      result.status === 'passed' &&
+      entry?.id === result.entryId &&
+      root?.entryId === result.entryId &&
+      root.suiteId === entry.id &&
+      root.ancestors.length === 0 &&
+      root.status === 'skipped' &&
+      root.errors.length === 0 &&
+      !diagnostics.some(
+        (event) =>
+          event.entryId === result.entryId &&
+          event.diagnostic.severity === 'error'
+      ) &&
+      ![...suites.values()].some(
+        (suite) =>
+          suite.entryId === result.entryId &&
+          (suite.errors.length > 0 ||
+            suite.status === 'failed' ||
+            suite.status === 'cancelled')
+      )
+    )
+      return { ...result, status: 'skipped' }
     return result.status === 'failed' &&
       hasOnlyBrowserCleanupFailures(result.entryId, {
         events: diagnostics,
@@ -520,6 +544,16 @@ export function createTestReporter(options: TestReporterOptions) {
   function renderProgress() {
     if (!options.isTTY || disposed || progressStartedAt === undefined) return
     const summary = getSummary()
+    const displayedFiles = { ...summary.files }
+    for (const file of files.values()) {
+      if (
+        file.status === 'passed' &&
+        displayedFile(file).status === 'skipped'
+      ) {
+        displayedFiles.passed--
+        displayedFiles.skipped++
+      }
+    }
     const active = [...entries.keys()].filter((id) => !files.has(id))
     const lines: string[] = ['']
     if (options.style === 'dot') {
@@ -545,7 +579,7 @@ export function createTestReporter(options: TestReporterOptions) {
     }
     lines.push(
       '',
-      ` Test Files ${liveState(summary.files, Math.max(options.fileCount ?? 0, entries.size))}`,
+      ` Test Files ${liveState(displayedFiles, Math.max(options.fileCount ?? 0, entries.size))}`,
       `      Tests ${liveState(summary.cases, cases.size)}`,
       `   Start at ${new Date(startedAt!).toTimeString().split(' ')[0]}`,
       `   Duration ${formatDuration(Date.now() - progressStartedAt)}`
