@@ -94,6 +94,22 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
+Run a group from `eval.suites.json` with `--suite`:
+
+```bash
+pnpm eval --suite regression
+pnpm eval --suite competency --dry
+```
+
+- `audit` is the starting point for new or unverified evals.
+- `competency` contains verified evals that distinguish model capability.
+- `regression` contains evals that reach at least 90% valid pass@1 across
+  frontier and weaker models over multiple runs or versions.
+
+Every public eval must appear in exactly one suite. A suite still runs both
+`baseline` and `agents-md`. Set `publish: false` in `eval.config.json` when an
+eval belongs in another measurement system.
+
 Use repeated runs when measuring behavior that may vary between agent runs:
 
 ```bash

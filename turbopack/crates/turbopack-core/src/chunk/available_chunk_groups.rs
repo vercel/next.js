@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
-use roaring::RoaringBitmap;
+use turbo_bitset::Bitset;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::module_graph::{
     ModuleGraph,
-    chunk_group_info::{ChunkGroupId, ChunkGroupKey, RoaringBitmapWrapper},
+    chunk_group_info::{ChunkGroupId, ChunkGroupKey},
 };
 
 /// Chunk groups whose content is already available.
@@ -22,7 +22,7 @@ use crate::module_graph::{
 pub struct AvailableChunkGroups {
     /// The module graph whose `ChunkGroupInfo` the indices in `chunk_groups` refer to.
     module_graph: ResolvedVc<ModuleGraph>,
-    chunk_groups: RoaringBitmapWrapper,
+    chunk_groups: Bitset,
 }
 
 impl AvailableChunkGroups {
@@ -39,7 +39,7 @@ impl AvailableChunkGroups {
     }
 
     /// The chunk groups that are available, for `module_graph`.
-    pub fn chunk_groups(&self, module_graph: ResolvedVc<ModuleGraph>) -> &RoaringBitmapWrapper {
+    pub fn chunk_groups(&self, module_graph: ResolvedVc<ModuleGraph>) -> &Bitset {
         self.assert_module_graph(module_graph);
         &self.chunk_groups
     }
@@ -49,7 +49,7 @@ impl AvailableChunkGroups {
 impl AvailableChunkGroups {
     #[turbo_tasks::function]
     pub fn new(module_graph: ResolvedVc<ModuleGraph>, chunk_group: u32) -> Vc<Self> {
-        let mut chunk_groups = RoaringBitmapWrapper::default();
+        let mut chunk_groups = Bitset::new();
         chunk_groups.insert(chunk_group);
         Self {
             module_graph,
@@ -97,7 +97,7 @@ impl AvailableChunkGroups {
         let from = self.module_graph.chunk_group_info().await?;
         let to = module_graph.chunk_group_info().await?;
 
-        let mut translated = RoaringBitmap::new();
+        let mut translated = Bitset::new();
         for id in self.chunk_groups.iter() {
             if let Some(id) =
                 translate_chunk_group(&from.chunk_group_keys, &to.chunk_group_keys, id)
@@ -108,7 +108,7 @@ impl AvailableChunkGroups {
 
         Ok(Self {
             module_graph,
-            chunk_groups: RoaringBitmapWrapper(translated),
+            chunk_groups: translated,
         }
         .cell())
     }

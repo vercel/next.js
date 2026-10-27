@@ -284,7 +284,7 @@ impl TurboBackingStorage {
                                     batch.put(
                                         KeySpace::TaskMeta,
                                         WriteBuffer::Borrowed(key),
-                                        WriteBuffer::SmallVec(meta),
+                                        WriteBuffer::Owned(meta),
                                     )?;
                                     meta_items += 1;
                                 }
@@ -292,7 +292,7 @@ impl TurboBackingStorage {
                                     batch.put(
                                         KeySpace::TaskData,
                                         WriteBuffer::Borrowed(key),
-                                        WriteBuffer::SmallVec(data),
+                                        WriteBuffer::Owned(data),
                                     )?;
                                     data_items += 1;
                                 }
@@ -533,7 +533,7 @@ fn save_infra(
             .put(
                 KeySpace::Infra,
                 WriteBuffer::Borrowed(InfraKey::GcRoots.key().as_ref()),
-                WriteBuffer::SmallVec(roots),
+                WriteBuffer::Owned(roots.into_boxed_slice()),
             )
             .context("Unable to write GC roots")?;
     }
