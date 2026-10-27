@@ -1,0 +1,22 @@
+name: Next.js upgrade
+on:
+  schedule:
+    # Every Monday at 00:00 UTC.
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: next-upgrade-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: __NEXT_UPGRADE_ACTION_REFERENCE__
+        with:
+          harness: codex
+          api-key: ${{ secrets.NEXT_UPGRADE_OPENAI_API_KEY }}

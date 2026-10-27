@@ -1,6 +1,7 @@
 import { constants } from 'fs'
-import { access, stat } from 'fs/promises'
-import { delimiter, resolve } from 'path'
+import { access, stat, mkdtemp, writeFile, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import { delimiter, join, resolve } from 'path'
 import type { Key } from 'readline'
 
 import cliSelect from 'next/dist/compiled/cli-select'
@@ -25,12 +26,24 @@ type UpgradeHarness = {
   path: string
 }
 
-type UpgradePrompt = string | ((useWorktree: boolean | null) => string)
+type UpgradePrompt =
+  | string
+  | ((useWorktree: boolean | null) => string)
+  | {
+      ci: (context: {
+        useWorktree: boolean | null
+        harness: string | null
+      }) => string
+    }
 
 function resolvePrompt(
   prompt: UpgradePrompt,
-  useWorktree: boolean | null
+  useWorktree: boolean | null,
+  harness?: string
 ): string {
+  if (typeof prompt === 'object') {
+    return prompt.ci({ useWorktree, harness: harness ?? null })
+  }
   return typeof prompt === 'string' ? prompt : prompt(useWorktree)
 }
 
@@ -78,9 +91,11 @@ async function chooseOption(
   }
 }
 
-async function chooseWorktree(): Promise<boolean | null | undefined> {
+async function chooseWorktree(
+  task: string
+): Promise<boolean | null | undefined> {
   const choice = await chooseOption(
-    'Open the upgrade in a separate Git worktree?',
+    `Open the ${task} in a separate Git worktree?`,
     { yes: 'Yes', no: 'No' },
     0
   )
@@ -215,7 +230,8 @@ async function chooseHarness(
 
 function copyUpgradePrompt(
   prompt: string,
-  noHarness: boolean
+  noHarness: boolean,
+  task: string
 ): AgentUpgradeHandoffMethod {
   const commands =
     process.platform === 'darwin'
@@ -240,8 +256,8 @@ function copyUpgradePrompt(
     if (!result.error && result.status === 0) {
       Log.info(
         noHarness
-          ? 'No supported coding agent found. The upgrade prompt was copied to your clipboard.'
-          : 'Upgrade prompt copied. Paste it into your coding agent.'
+          ? `No supported coding agent found. The ${task} prompt was copied to your clipboard.`
+          : `${task === 'upgrade' ? 'Upgrade' : 'CI setup'} prompt copied. Paste it into your coding agent.`
       )
       return 'copied_prompt'
     }
@@ -249,14 +265,14 @@ function copyUpgradePrompt(
 
   Log.info(
     noHarness
-      ? 'No supported coding agent found. Copy this upgrade prompt:'
-      : 'Could not access the clipboard. Copy this upgrade prompt:'
+      ? `No supported coding agent found. Copy this ${task} prompt:`
+      : `Could not access the clipboard. Copy this ${task} prompt:`
   )
   Log.bootstrap(prompt)
   return 'printed_prompt'
 }
 
-function launchHarness(
+async function launchHarness(
   harness: UpgradeHarness,
   prompt: string,
   directory: string,
@@ -265,36 +281,47 @@ function launchHarness(
   permissionArgs: readonly string[],
   onSpawn: () => void
 ): Promise<number> {
-  // Windows shell shims cannot carry literal line breaks in an argument.
-  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
-    prompt = prompt.replace(/[\r\n]+/g, ' ')
-  }
+  // Preserve multiline instructions when a Windows shell shim carries argv.
+  let promptDirectory: string | null = null
+  try {
+    if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
+      promptDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-prompt-'))
+      const promptFile = join(promptDirectory, 'PROMPT.md')
+      await writeFile(promptFile, prompt, 'utf8')
+      prompt = `Read and follow the complete instructions in ${JSON.stringify(promptFile)}.`
+    }
 
-  const args = model === null ? [] : ['--model', model]
-  if (effort !== 'default') {
+    const args = model === null ? [] : ['--model', model]
+    if (effort !== 'default') {
+      if (harness.name === 'codex') {
+        args.push('-c', `model_reasoning_effort=${effort}`)
+      } else {
+        args.push('--effort', effort)
+      }
+    }
+
+    // Package installs and upgrade verification need network access in the sandbox.
     if (harness.name === 'codex') {
-      args.push('-c', `model_reasoning_effort=${effort}`)
-    } else {
-      args.push('--effort', effort)
+      args.push('-c', 'sandbox_workspace_write.network_access=true')
+    }
+
+    args.push(...permissionArgs)
+    args.push(prompt)
+    return await runChildProcess(
+      harness.path,
+      args,
+      { cwd: directory, stdio: 'inherit' },
+      onSpawn
+    )
+  } finally {
+    if (promptDirectory !== null) {
+      try {
+        await rm(promptDirectory, { recursive: true, force: true })
+      } catch {
+        Log.warn('Could not remove the temporary coding agent prompt.')
+      }
     }
   }
-
-  // Package installs and upgrade verification need network access in the sandbox.
-  if (harness.name === 'codex') {
-    args.push('-c', 'sandbox_workspace_write.network_access=true')
-  }
-
-  args.push(...permissionArgs)
-  args.push(prompt)
-  return runChildProcess(
-    harness.path,
-    args,
-    {
-      cwd: directory,
-      stdio: 'inherit',
-    },
-    onSpawn
-  )
 }
 
 export async function handoffUpgrade(
@@ -305,18 +332,20 @@ export async function handoffUpgrade(
         method: AgentUpgradeHandoffMethod,
         selectedAgentProduct: string | null
       ) => void)
-    | null
+    | null,
+  task?: 'ci'
 ): Promise<'handed_off' | 'cancelled' | 'failed'> {
+  const taskName = task === 'ci' ? 'CI setup' : 'upgrade'
   // Existing agents keep their session and permissions.
   const existingAgent = await getAgentName()
   if (existingAgent) {
-    Log.bootstrap(resolvePrompt(prompt, null))
+    Log.bootstrap(resolvePrompt(prompt, null, existingAgent))
     onHandoff?.('existing_agent', existingAgent)
     return 'handed_off'
   }
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    Log.info('Copy this upgrade prompt into your coding agent:')
+    Log.info(`Copy this ${taskName} prompt into your coding agent:`)
     Log.bootstrap(resolvePrompt(prompt, null))
     onHandoff?.('printed_prompt', null)
     return 'handed_off'
@@ -326,7 +355,11 @@ export async function handoffUpgrade(
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    const method = copyUpgradePrompt(resolvePrompt(prompt, null), true)
+    const method = copyUpgradePrompt(
+      resolvePrompt(prompt, null),
+      true,
+      taskName
+    )
     onHandoff?.(method, null)
     return 'handed_off'
   }
@@ -365,7 +398,11 @@ export async function handoffUpgrade(
       if (stage === 'harness') {
         const choice = await chooseHarness(installed, harness?.name)
         if (choice === 'copy') {
-          const method = copyUpgradePrompt(resolvePrompt(prompt, null), false)
+          const method = copyUpgradePrompt(
+            resolvePrompt(prompt, null),
+            false,
+            taskName
+          )
           onHandoff?.(method, null)
           return 'handed_off'
         }
@@ -390,7 +427,7 @@ export async function handoffUpgrade(
           ? selectedModelId
           : undefined
         const modelId = await chooseOption(
-          `Which ${getHarnessDisplayName(harness!.name)} model should run the upgrade?`,
+          `Which ${getHarnessDisplayName(harness!.name)} model should run the ${taskName}?`,
           Object.fromEntries(
             models.map(({ id, label, description }) => [
               id,
@@ -424,7 +461,7 @@ export async function handoffUpgrade(
           const efforts = ['default', ...model.efforts]
           const previousEffortIndex = efforts.indexOf(effort ?? 'default')
           const selectedEffort = await chooseOption(
-            'Which reasoning effort should the upgrade use?',
+            `Which reasoning effort should the ${taskName} use?`,
             Object.fromEntries(
               efforts.map((value) => [
                 value,
@@ -486,7 +523,7 @@ export async function handoffUpgrade(
         permissionArgs = useAuto ? autoPermissionArgs! : approvalPermissionArgs
         stage = 'worktree'
       } else {
-        const choice = await chooseWorktree()
+        const choice = await chooseWorktree(taskName)
         if (choice === null) {
           break
         }
@@ -505,7 +542,7 @@ export async function handoffUpgrade(
         try {
           process.exitCode = await launchHarness(
             harness!,
-            resolvePrompt(prompt, useWorktree),
+            resolvePrompt(prompt, useWorktree, agentProduct),
             directory,
             model?.id ?? null,
             effort!,
@@ -521,7 +558,9 @@ export async function handoffUpgrade(
       }
     }
 
-    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+    Log.bootstrap(
+      `  ${dim(task === 'ci' ? 'CI setup cancelled.' : 'Upgrade cancelled.')}\n`
+    )
     process.exitCode = 1
     return 'cancelled'
   } finally {
