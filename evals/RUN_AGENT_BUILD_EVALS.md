@@ -22,56 +22,26 @@ The existing `agent-eval` fixtures and the Harbor tasks answer the same question
 
 ## Harbor task layout
 
-Each candidate uses Harbor's task format:
-
-```text
-evals/agent-build/<task>/
-├── task.toml
-├── instruction.md
-├── environment/
-│   ├── Dockerfile
-│   ├── docker-compose.yaml
-│   └── fixture/
-├── solution/
-│   └── solve.sh
-└── tests/
-    ├── Dockerfile
-    ├── docker-compose.yaml
-    ├── fixture/
-    ├── test.sh
-    └── <behavioral checks>
-```
-
-`instruction.md` is the only task instruction the agent receives. `solution/solve.sh` is available only to the oracle. The verifier runs from `tests/` in a separate environment with no network access. Harbor transfers the agent's patch into that environment for grading.
+Tasks use the published [Harbor task format](https://docs.harborframework.com/tasks/overview); its references for the [instruction](https://docs.harborframework.com/tasks/instruction), [configuration](https://docs.harborframework.com/tasks/configuration), [environment](https://docs.harborframework.com/tasks/environment), [solution](https://docs.harborframework.com/tasks/solution), and [verifier](https://docs.harborframework.com/tasks/verifier) are the source of truth. This section covers only what our tasks add.
 
 ### How to read a task
 
-A Harbor task spreads one eval over more files than an `agent-eval` fixture, so read it in this order:
-
-1. `instruction.md`: the prompt, and the only thing the agent sees. Every requirement the verifier grades is stated here.
-2. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings. The [configuration reference](https://docs.harborframework.com/tasks/configuration) explains each field.
-3. `environment/fixture/`: the broken app the agent starts from. `environment/Dockerfile` installs it from the lockfile and commits a git baseline that the patch is diffed against.
-4. `tests/test.sh`: the gates in order. `check-source.mjs` fails shortcuts, then typecheck and build, then the behavioral checks (`check-routes.mjs` or `behavior.spec.ts`), then for some tasks the server log. The [verifier reference](https://docs.harborframework.com/tasks/verifier) covers the reward file and the separate verifier.
-5. `solution/`: the reference repair, as files under `solution/files/` copied by `solve.sh`. Read it after the verifier, not before, so the checks are judged on their own.
+1. `instruction.md`: the only thing the agent sees.
+2. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings.
+3. `environment/fixture/`: the broken app. `environment/Dockerfile` installs it from the lockfile and commits a git baseline the patch is diffed against.
+4. `tests/test.sh`: the gates in order: `check-source.mjs` for the stated constraints, typecheck and build, the behavioral checks, then the server log.
+5. `solution/`: the reference repair as files under `solution/files/`, copied by `solve.sh`. Read it after the verifier, so the checks are judged on their own.
 6. `tests/bad-solutions/`: one script per shortcut, with the gate that catches it in the header and a README table.
 
-### What Harbor expects
+### What our tasks add to Harbor
 
-These tasks follow the published Harbor task format. That keeps the task content portable, but the future shared layer may add acceptance metadata, adapters, evidence storage, and operational policy around it. Each Harbor rule below links to where it comes from.
+- **A separate, offline verifier.** `[verifier] environment_mode = "separate"` with `network_mode = "no-network"`, so the agent cannot read or edit the checks. The agent's work reaches the verifier only as `/tmp/agent.patch`, collected by `[[verifier.collect]]` and applied to a clean copy of the fixture. Because the verifier installs the committed lockfile offline, every instruction says not to change dependencies, and `check-source.mjs` fails a dependency change before anything else.
+- **`tests/fixture/`** is a byte-identical copy of `environment/fixture/`, because the verifier image needs the baseline too. Copy it again after every fixture edit.
+- **`tests/bad-solutions/`** holds known incorrect repairs. They are review material and never run during a trial.
+- **Compose files on Vercel.** The minimal `docker-compose.yaml` files select Harbor's Vercel Compose path, because Vercel Container Registry rejects the dot in the `next.js` project slug. On Vercel, Compose supports `public` and `no-network`, not `allowlist`.
+- **Pins.** Base images by digest, dependencies through committed lockfiles, and the verifier's browser through `tests/package-lock.json`. `harbor lint --select ALL` enforces them.
 
-- The five parts are `instruction.md`, `task.toml`, `environment/`, `solution/solve.sh`, and `tests/test.sh`. Nothing else is required, and nothing else is read by Harbor ([task overview](https://docs.harborframework.com/tasks/overview)).
-- `tests/test.sh` writes a numeric reward to `/logs/verifier/reward.json` (a JSON object of labeled numbers) or `/logs/verifier/reward.txt` (one number). A valid behavioral failure writes `{"reward": 0}`. Setup, image, sandbox, verifier, and transport failures are infrastructure outcomes and must remain distinguishable so the runner can discard and retry them ([verifier](https://docs.harborframework.com/tasks/verifier)).
-- With a separate verifier (`[verifier] environment_mode = "separate"`), Harbor does not upload `tests/` at run time. `tests/Dockerfile` must copy every check it runs, and the agent's changes only reach it through the paths listed in `artifacts`. Our tasks collect `/tmp/agent.patch` from the agent container and apply it to a clean copy of the fixture ([configuration](https://docs.harborframework.com/tasks/configuration), [verifier](https://docs.harborframework.com/tasks/verifier)).
-- Harbor copies `solution/` to `/solution` and runs `solve.sh` from the task working directory (`/app`). Keep the reference repair as files under `solution/files/` and have `solve.sh` copy them; large heredocs are hard to review and fragile ([solution](https://docs.harborframework.com/tasks/solution)).
-- The verifier has no network, and Harbor's `verifier-network-download` lint rule flags verifiers that download at run time. The committed lockfile is therefore the only source of dependencies, which is why every instruction says the fix must not add dependencies and every `check-source.mjs` fails dependency changes first. On Vercel, Compose tasks support `public` and `no-network` but not `allowlist` (`harbor/environments/vercel/environment.py` in the pinned revision).
-- Pin everything: base images by digest, npm dependencies through the committed lockfiles, and the verifier's browser through `tests/package-lock.json`. `harbor lint --select ALL` enforces the pins; `harbor lint --help` lists every rule.
-- Run `harbor lint --select ALL <task>` before opening a pull request. Only the compose rules need the Docker CLI; every other rule runs anywhere.
-
-Further reading: the [environment reference](https://docs.harborframework.com/tasks/environment) for `/logs`, `/solution`, `/tests`, and prebuilt images; the [instruction reference](https://docs.harborframework.com/tasks/instruction); [running Harbor on Vercel Sandbox](https://vercel.com/kb/guide/run-terminal-bench-harbor-benchmarks-vercel-sandbox); [HarborHub](https://hub.harborframework.com/) for published datasets; and `harbor agent schema <agent>` for the options each harness accepts.
-
-Two conventions are ours, not Harbor's. `tests/bad-solutions/` holds known incorrect repairs with a README that names the check that catches each one; they are review material and never run during a trial. `tests/fixture/` is a byte-identical copy of `environment/fixture/`, because the separate verifier image needs the baseline too. Copy it again after every fixture edit.
-
-The minimal `docker-compose.yaml` files select Harbor's Vercel Compose path. The linked Vercel project is named `next.js`, while Vercel Container Registry does not accept the dot in that legacy project slug. Harbor's native single-container path therefore fails before the task starts. Compose builds the same Dockerfiles inside Vercel Sandbox and avoids that registry path. Keep both files until the runner or project namespace changes.
+See also [running Harbor on Vercel Sandbox](https://vercel.com/kb/guide/run-terminal-bench-harbor-benchmarks-vercel-sandbox), [HarborHub](https://hub.harborframework.com/), and `harbor agent schema <agent>` for each harness's options.
 
 ## Install Harbor
 
@@ -125,7 +95,7 @@ Scripts in `tests/bad-solutions/` locate their helpers relative to themselves an
 Run Harbor's static checks, task review, untouched fixture, and reference repair:
 
 ```bash
-.harbor/bin/harbor lint --select ALL evals/agent-build/<task>
+.harbor/bin/harbor lint --select ALL evals/agent-build/<task>  # needs the Docker CLI
 .harbor/bin/harbor check evals/agent-build/<task> \
   --agent codex \
   --model openai/gpt-6.1-sol \
@@ -157,14 +127,10 @@ evals/agent-build/tools/calibrate.sh --summary /path/to/jobs
 
 Agent harnesses differ in how they build the inference URL. Codex and OpenCode take the gateway's OpenAI-compatible base `https://ai-gateway.vercel.sh/v1`; Claude Code's SDK appends `/v1/messages` itself, so its row passes `base_url=https://ai-gateway.vercel.sh` as an agent option, or every call returns a 404 that Claude Code reports as `model_not_found`.
 
-`node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` prints the Results table for the pull request: one row per model, one column per task, and `1/1`, `0/1`, `running`, `queued`, or `discarded` in each cell. An agent that runs out of time is a failure, as in Harbor's own metrics; any other runner error is discarded and the run is repeated. Transcripts and verifier output stay in the jobs directory.
+`node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` prints the Results section for the pull request: a table with one row per model, one column per task, and `1/1`, `0/1`, `running`, `queued`, or `discarded` in each cell, then an accuracy-against-cost chart in Mermaid that GitHub renders inline. An agent that runs out of time is a failure, as in Harbor's own metrics; any other runner error is discarded and the run is repeated. Transcripts and verifier output stay in the jobs directory.
 
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 
 ## Run optional context treatments
 
-Harbor runs the base task as committed. Context treatments belong to the suite adapter and are optional.
-
-For a Next.js bundled-docs experiment, run the same task twice. The base run uses the committed fixture. The treated run uses a generated copy that adds the standard `AGENTS.md` instruction and matching `CLAUDE.md` reference before Harbor starts the agent. Keep the prompt, application, verifier, model, effort, and runtime identical.
-
-Do not commit the generated copy as a second task. Store `base` or `agents-md` with each result. Suites for other frameworks can omit this comparison or define a treatment that matches their own documentation system.
+Harbor runs the base task as committed. `TREATMENT=agents-md evals/agent-build/tools/calibrate.sh ...` runs a generated copy whose fixture also has the standard Next.js `AGENTS.md`, the same text as the `agent-eval` `agents-md` variant, and a `CLAUDE.md` that imports it. The instruction, verifier, model, effort, and runtime stay identical, jobs get an `__agents-md` suffix, and the report labels those rows `· AGENTS.md`. Never commit the generated copy as a second task. Suites for other frameworks can omit the treatment or define one for their own documentation.

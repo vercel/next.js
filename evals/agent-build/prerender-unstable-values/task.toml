@@ -3,7 +3,7 @@ artifacts = ["/tmp/agent.patch"]
 
 [task]
 name = "nextjs/prerender-unstable-values"
-version = "0.1.1"
+version = "0.2.0"
 authors = [{ name = "Aurora Scharff" }]
 description = "Resolve four unstable-value prerender errors in a Cache Components app, where each site needs a different fix: cache the footer year, cache the fetched-at timestamp with its data, defer a client relative time, and keep a vendored SDK's clock read out of the prerender."
 keywords = [

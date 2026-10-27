@@ -9,12 +9,17 @@
 # attempt per cell so the first valid attempt is the pass@1 score, and let
 # --max-retries rerun only runner exceptions, never a completed attempt.
 #
-# Each (task, agent, model) becomes its own Harbor job under <jobs-dir>, so a
-# cell can be rerun or regraded alone. Summarize with:
+# TREATMENT=agents-md runs a generated copy of each task whose fixture also
+# has the standard Next.js AGENTS.md and a CLAUDE.md that imports it; the
+# instruction, verifier, and runtime are unchanged. The default is base.
+#
+# Each (task, agent, model, treatment) becomes its own Harbor job under
+# <jobs-dir>, so a cell can be rerun or regraded alone. Summarize with:
 #   evals/agent-build/tools/calibrate.sh --summary <jobs-dir>
 set -uo pipefail
 
 HARBOR=${HARBOR:-harbor}
+TREATMENT=${TREATMENT:-base}
 
 # agent|model|effort|agent options|api format. Frontier first, then the weaker
 # tier. Effort is passed only when set. Agent options are comma-separated
@@ -56,17 +61,45 @@ JOBS=$2
 shift 2
 
 mkdir -p "$JOBS"
+# Same text as the agent-eval agents-md variant (evals/lib/setup.ts).
+AGENTS_MD='<!-- BEGIN:nextjs-agent-rules -->
+
+# Next.js: ALWAYS read docs before coding
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
+<!-- END:nextjs-agent-rules -->'
+
+treat() {
+  local task=$1 copy="$JOBS/_tasks/$(basename "$1")-$TREATMENT"
+  rm -rf "$copy" && mkdir -p "$JOBS/_tasks" && cp -R "$task" "$copy"
+  for fixture in "$copy/environment/fixture" "$copy/tests/fixture"; do
+    printf '%s\n' "$AGENTS_MD" > "$fixture/AGENTS.md"
+    printf '@AGENTS.md\n' > "$fixture/CLAUDE.md"
+  done
+  echo "$copy"
+}
+
+case "$TREATMENT" in
+  base) suffix='' ;;
+  agents-md) suffix='__agents-md' ;;
+  *) echo "unknown TREATMENT: $TREATMENT" >&2; exit 2 ;;
+esac
+
 for task in "$@"; do
   name=$(basename "$task")
+  [ "$TREATMENT" = base ] || task=$(treat "$task")
   for row in "${COHORT[@]}"; do
     IFS='|' read -r agent model effort options api_format <<< "$row"
-    job="${name}__${agent}__${model//\//-}"
+    job="${name}__${agent}__${model//\//-}${suffix}"
     if [ -f "$JOBS/$job/result.json" ]; then
       if node -e '
         const r = require(require("path").resolve(process.argv[1]));
         const ev = Object.values(r.stats?.evals ?? {})[0] ?? {};
         const reward = ev.metrics?.[0]?.mean;
-        process.exit(r.finished_at && (ev.n_errors ?? 0) === 0 && Number.isFinite(reward) ? 0 : 1);
+        // An agent timeout is a scored failure; other exceptions are runner errors.
+        const runnerError = Object.keys(ev.exception_stats ?? {}).some((name) => name !== "AgentTimeoutError");
+        process.exit(r.finished_at && !runnerError && Number.isFinite(reward) ? 0 : 1);
       ' "$JOBS/$job/result.json"; then
         echo "== skip $job (valid scored result exists)"
         continue

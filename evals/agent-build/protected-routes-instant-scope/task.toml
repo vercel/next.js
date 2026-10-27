@@ -3,7 +3,7 @@ artifacts = ["/tmp/agent.patch"]
 
 [task]
 name = "nextjs/protected-routes-instant-scope"
-version = "0.1.1"
+version = "0.2.0"
 authors = [{ name = "Aurora Scharff" }]
 description = "Make a session-protected workspace instant under Cache Components without opt-outs: real HTTP redirects for signed-out visitors, a prerendered frame for every workspace route, URL and session reads below Suspense, and a vendored SDK clock read kept out of the prerender."
 keywords = [

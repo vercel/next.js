@@ -1,7 +1,7 @@
 #!/bin/bash
-# Rejected by: check-source.mjs. Opting every page out makes the dev overlay
+# Rejected by: behavior.spec.ts. Opting every page out makes the dev overlay
 # quiet and the build green, but every workspace route stays fully dynamic, so
-# nothing is instant, and the task forbids opt-outs.
+# the build writes no shell and navigation is not instant.
 set -euo pipefail
 SOLUTION_DIR=${SOLUTION_DIR:-/solution}
 cp "$SOLUTION_DIR/files/proxy.ts" proxy.ts

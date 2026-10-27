@@ -1,6 +1,8 @@
 #!/bin/bash
-# Rejected by: check-source.mjs. Rendering the relative wording on the server
-# and silencing the mismatch leaves stale text in the HTML and hides the bug.
+# Rejected by: next build. Reading the clock in the Client Component behind
+# io() without a Suspense boundary blocks the /status prerender. Silencing the
+# mismatch would also leave server wording that the pinned browser clock in
+# behavior.spec.ts rejects.
 set -euo pipefail
 bash "$(dirname "$0")/_three-sites.sh"
 cat > components/relative-time.tsx <<'EOF'

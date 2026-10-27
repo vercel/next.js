@@ -1,5 +1,6 @@
-// Render a calibrate.sh jobs directory as the Results table of a pull
-// request: one row per model, one column per task, pass@1 in each cell.
+// Render a calibrate.sh jobs directory as the Results section of a pull
+// request: one row per model, one column per task, pass@1 in each cell, then
+// accuracy against cost per task as a Mermaid chart GitHub renders inline.
 // An agent that runs out of time is a scored failure, as in Harbor's own
 // metrics; any other runner error is discarded and the run is repeated.
 //
@@ -45,8 +46,11 @@ for (const name of readdirSync(jobs)) {
   const evaluation = Object.values(result.stats?.evals ?? {})[0] ?? {}
   cells.push({
     task: name.split('__')[0],
-    model: label(model ?? name.split('__')[2]),
+    model:
+      label(model ?? name.split('__')[2]) +
+      (name.split('__')[3] === 'agents-md' ? ' · AGENTS.md' : ''),
     started: result.started_at,
+    cost: result.stats?.cost_usd ?? null,
     cell: !result.finished_at
       ? 'running'
       : runnerError(evaluation)
@@ -76,4 +80,44 @@ for (const model of models) {
       cells.find((c) => c.task === task && c.model === model)?.cell ?? 'queued'
   )
   console.log(`| ${model} | ${row.join(' | ')} |`)
+}
+
+// Accuracy against cost per task, over scored cells only. Cost is on a log
+// scale across the observed range so cheap and expensive settings both show.
+const points = models
+  .map((model) => {
+    const scored = cells.filter(
+      (c) => c.model === model && (c.cell === '1/1' || c.cell === '0/1')
+    )
+    const costs = scored.map((c) => c.cost).filter((c) => c != null)
+    if (!scored.length || !costs.length) return null
+    return {
+      model,
+      accuracy: scored.filter((c) => c.cell === '1/1').length / scored.length,
+      cost: costs.reduce((a, b) => a + b, 0) / costs.length,
+    }
+  })
+  .filter(Boolean)
+
+if (points.length >= 2) {
+  const log = (v) => Math.log10(Math.max(v, 0.01))
+  const lo = Math.min(...points.map((p) => log(p.cost)))
+  const hi = Math.max(...points.map((p) => log(p.cost)))
+  const x = (v) => (hi === lo ? 0.5 : 0.05 + (0.9 * (log(v) - lo)) / (hi - lo))
+  const y = (v) => Math.min(0.97, Math.max(0.03, v))
+  const usd = (v) => `$${v.toFixed(2)}`
+  console.log()
+  console.log('```mermaid')
+  console.log('quadrantChart')
+  console.log('    title Accuracy vs cost per task')
+  console.log(
+    `    x-axis "${usd(Math.min(...points.map((p) => p.cost)))}" --> "${usd(Math.max(...points.map((p) => p.cost)))} per task"`
+  )
+  console.log('    y-axis "0% pass@1" --> "100% pass@1"')
+  for (const p of points) {
+    console.log(
+      `    ${p.model.replace(' · ', ' ')}: [${x(p.cost).toFixed(2)}, ${y(p.accuracy).toFixed(2)}]`
+    )
+  }
+  console.log('```')
 }

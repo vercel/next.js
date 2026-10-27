@@ -8,7 +8,7 @@ instant-validation guidance.
 
 | Script                      | Shortcut                                                                    | Rejected by                                           |
 | --------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `instant-false-per-page.sh` | Keeps the layout opt-out and adds `instant = false` to every workspace page | `check-source.mjs`                                    |
+| `instant-false-per-page.sh` | Keeps the layout opt-out and adds `instant = false` to every workspace page | `behavior.spec.ts`: no workspace shells               |
 | `streamed-redirect.sh`      | Correct Suspense structure, but the redirect happens inside the stream      | `behavior.spec.ts`: signed-out visitors get a 200     |
 | `connection-in-layout.sh`   | Removes the opt-out and blocks the layout with `await connection()`         | `next build`: blocking route                          |
 | `conditional-children.sh`   | Renders the sign-in prompt instead of `{children}` when there is no session | `behavior.spec.ts`: page headings missing from shells |

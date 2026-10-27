@@ -108,6 +108,10 @@ test('the prerendered account page is a shell without customer data', async () =
 test('incident start times become live relative times after hydration', async ({
   page,
 }) => {
+  // Pin the browser clock three days after the first incident started, so
+  // wording computed on the server (or kept from it by a suppressed
+  // mismatch) cannot pass for the visitor's own clock.
+  await page.clock.setFixedTime(new Date('2026-10-23T08:12:00.000Z'))
   const issues = await collectHydrationIssues(page)
   await page.goto(baseURL + '/status')
 
@@ -116,6 +120,7 @@ test('incident start times become live relative times after hydration', async ({
   for (let index = 0; index < 3; index++) {
     await expect(times.nth(index)).toHaveText(relativePattern)
   }
+  await expect(times.first()).toHaveText(/\b3\s*(?:days?|d)\b/i)
 
   await page.waitForTimeout(500)
   expect(
