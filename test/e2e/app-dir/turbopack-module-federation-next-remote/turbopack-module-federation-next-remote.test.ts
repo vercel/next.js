@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import type { Server } from 'http'
-import { writeFile } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import execa from 'execa'
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
@@ -145,7 +145,78 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
         'hello from Next.js'
       )
+      expect(await browser.elementByCss('#remote-lazy-message').text()).toBe(
+        'nested lazy from Next.js remote'
+      )
     }, 15_000)
+
+    const manifestResponse = await fetch(
+      `${remoteOrigin}/_next/static/mf-manifest.json`
+    )
+    expect(manifestResponse.status).toBe(200)
+    const manifest = (await manifestResponse.json()) as {
+      id: string
+      metaData: {
+        publicPath: string
+        remoteEntry: { name: string; path: string; type: string }
+      }
+      shared: Array<{ name: string; version: string; singleton: boolean }>
+      remotes: unknown[]
+      exposes: Array<{
+        path: string
+        assets: Record<'js' | 'css', { sync: string[]; async: string[] }>
+      }>
+    }
+    expect(manifest.id).toBe('nextRemote')
+    expect(manifest.metaData).toMatchObject({
+      publicPath: 'auto',
+      remoteEntry: { name: 'nextRemote.js', path: 'nested', type: 'global' },
+    })
+    expect(manifest.shared.map((item) => item.name).sort()).toEqual([
+      'react',
+      'shared-value',
+    ])
+    expect(
+      manifest.shared.find((item) => item.name === 'shared-value')
+    ).toMatchObject({
+      version: '1.0.0',
+      singleton: true,
+    })
+    expect(manifest.remotes).toEqual([])
+    expect(manifest.exposes.map((expose) => expose.path).sort()).toEqual([
+      './component',
+      './composite',
+      './message',
+    ])
+    expect(
+      manifest.exposes.find((expose) => expose.path === './component')?.assets
+        .css.sync.length
+    ).toBeGreaterThan(0)
+    expect(
+      manifest.exposes.find((expose) => expose.path === './message')?.assets.js
+        .async.length
+    ).toBeGreaterThan(0)
+    const composite = manifest.exposes.find(
+      (expose) => expose.path === './composite'
+    )
+    expect(composite?.assets.js.sync.length).toBeGreaterThan(0)
+    expect(composite?.assets.css.sync.length).toBeGreaterThan(0)
+    for (const expose of manifest.exposes) {
+      expect(expose.assets.js.sync.length).toBeGreaterThan(0)
+      for (const type of ['js', 'css'] as const) {
+        for (const file of [
+          ...expose.assets[type].sync,
+          ...expose.assets[type].async,
+        ]) {
+          expect(file).toMatch(/^chunks\/mf\//)
+          expect(file).not.toContain('..')
+          const assetResponse = await fetch(
+            new URL(file, `${remoteOrigin}/_next/static/`)
+          )
+          expect(assetResponse.status).toBe(200)
+        }
+      }
+    }
 
     // The exposed module lives in its own async chunk, fetched from the producer's origin
     // rather than from the host that loaded the remote entry.
@@ -248,4 +319,77 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
       )
     }, 15_000)
   })
+
+  if (isNextDev) {
+    it('updates the manifest assets when an exposed lazy module changes', async () => {
+      await writeFile(
+        join(next.testDir, 'remote/lib/late.js'),
+        "export const late = 'manifest refresh marker'\n"
+      )
+      expect(
+        await readFile(join(next.testDir, 'remote/lib/late.js'), 'utf8')
+      ).toContain('manifest refresh marker')
+      await retry(async () => {
+        const response = await fetch(
+          `${remoteOrigin}/_next/static/mf-manifest.json`,
+          { cache: 'no-store' }
+        )
+        expect(response.status).toBe(200)
+        const manifest = (await response.json()) as {
+          exposes: Array<{
+            path: string
+            assets: { js: { async: string[] } }
+          }>
+        }
+        const chunks = manifest.exposes.find(
+          (expose) => expose.path === './message'
+        )?.assets.js.async
+        expect(chunks?.length).toBeGreaterThan(0)
+        const contents = await Promise.all(
+          chunks!.map(async (file) =>
+            (
+              await fetch(new URL(file, `${remoteOrigin}/_next/static/`), {
+                cache: 'no-store',
+              })
+            ).text()
+          )
+        )
+        expect(contents.join('\n')).toContain('manifest refresh marker')
+      }, 20_000)
+    })
+
+    it('refreshes manifest CSS assets when an exposed style changes', async () => {
+      await writeFile(
+        join(next.testDir, 'remote/lib/component.css'),
+        '.next-remote-component { color: fuchsia; }\n'
+      )
+      await retry(async () => {
+        const response = await fetch(
+          `${remoteOrigin}/_next/static/mf-manifest.json`,
+          { cache: 'no-store' }
+        )
+        expect(response.status).toBe(200)
+        const manifest = (await response.json()) as {
+          exposes: Array<{
+            path: string
+            assets: { css: { sync: string[] } }
+          }>
+        }
+        const chunks = manifest.exposes.find(
+          (expose) => expose.path === './component'
+        )?.assets.css.sync
+        expect(chunks?.length).toBeGreaterThan(0)
+        const contents = await Promise.all(
+          chunks!.map(async (file) =>
+            (
+              await fetch(new URL(file, `${remoteOrigin}/_next/static/`), {
+                cache: 'no-store',
+              })
+            ).text()
+          )
+        )
+        expect(contents.join('\n')).toMatch(/fuchsia|#f0f/i)
+      }, 20_000)
+    })
+  }
 })

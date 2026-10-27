@@ -36,12 +36,14 @@ async fn module_federation_remote_init_source(
     let code = format!(
         r#"
 const candidates = {candidates};
+const manifestEntry = {manifest_entry};
 const remoteName = {remote_name};
 const shareScope = {share_scope};
 
 async function getInstance() {{
   if (typeof window === 'undefined' && typeof importScripts === 'undefined') {{
-    throw new Error(`External script loading is only supported in browser client code: ${{candidates[0]?.[1]}}`);
+    const transport = manifestEntry ? 'Manifest' : 'External script';
+    throw new Error(`${{transport}} loading is only supported in browser client code: ${{manifestEntry || candidates[0]?.[1]}}`);
   }}
   return (await import({runtime_request})).instance;
 }}
@@ -61,6 +63,15 @@ export async function get(request, fullRequest) {{
   }}
   const failures = [];
   const id = `${{remoteName}}${{request === '.' ? '' : '/' + request.replace(/^\.\//, '')}}`;
+  if (manifestEntry) {{
+    try {{
+      const namespace = await instance.loadRemote(id);
+      if (namespace == null) throw new Error(`Remote ${{remoteName}} returned no module for ${{request}}`);
+      return () => namespace;
+    }} catch (error) {{
+      throw new Error(`Failed to load federated module ${{fullRequest}} via manifest: ${{error?.message || error}}`);
+    }}
+  }}
   for (let index = 0; index < candidates.length; index++) {{
     const [entryGlobalName, entry] = candidates[index];
     if (index) {{
@@ -81,6 +92,7 @@ export async function get(request, fullRequest) {{
 }}
 "#,
         candidates = StringifyJs(&candidates),
+        manifest_entry = StringifyJs(&remote.manifest),
         remote_name = StringifyJs(&remote.request),
         share_scope = StringifyJs(&remote.share_scope),
         runtime_request = StringifyJs(FEDERATION_RUNTIME_REQUEST),
