@@ -18,6 +18,10 @@ use smallvec::SmallVec;
 /// the result would exceed [`max_len`] blocks. Collecting more blocks than that from an iterator
 /// (`FromIterator`) panics the same way.
 ///
+/// An `ArrayVec<usize, N>` always has a capacity of exactly `N` blocks, so
+/// [`with_capacity`](BlockStorage::with_capacity) accepts any request up to `N` and panics above
+/// it.
+///
 /// [`shrink_to_fit`]: BlockStorage::shrink_to_fit
 /// [`max_len`]: BlockStorage::max_len
 pub trait BlockStorage: Clone + FromIterator<usize> {
@@ -26,7 +30,8 @@ pub trait BlockStorage: Clone + FromIterator<usize> {
 
     /// Creates an empty storage with capacity for at least `capacity` blocks.
     ///
-    /// The capacity is exact if the storage needs to allocate for it.
+    /// The capacity is exact if the storage needs to allocate for it. A storage with a fixed
+    /// capacity accepts any request up to [`BlockStorage::max_len`] and panics above it.
     fn with_capacity(capacity: usize) -> Self;
 
     /// The maximum number of blocks that the storage can hold.
@@ -67,8 +72,10 @@ pub trait BlockStorage: Clone + FromIterator<usize> {
     fn shrink_to_fit(&mut self);
 }
 
-// The methods are `#[inline]`: the `Vec` implementation isn't generic, so without it its small
-// wrappers would stay out of line in other crates, in the hot paths of every operation.
+// Only the `Vec` implementation is `#[inline]`: it isn't generic, so the attribute makes its small
+// wrappers available for inlining in other crates; without it, some of them stay out of line even
+// with the workspace's thin LTO. The `SmallVec` and `ArrayVec` implementations are generic and
+// therefore instantiated in the calling crate.
 
 impl BlockStorage for Vec<usize> {
     #[inline]
@@ -143,72 +150,58 @@ impl BlockStorage for Vec<usize> {
 }
 
 impl<const N: usize> BlockStorage for SmallVec<[usize; N]> {
-    #[inline]
     fn new() -> Self {
         SmallVec::new()
     }
 
-    #[inline]
     fn with_capacity(capacity: usize) -> Self {
         SmallVec::with_capacity(capacity)
     }
 
-    #[inline]
     fn max_len() -> usize {
         usize::MAX
     }
 
-    #[inline]
     fn capacity(&self) -> usize {
         self.capacity()
     }
 
-    #[inline]
     fn shrunk_capacity(len: usize) -> usize {
         len.max(N)
     }
 
-    #[inline]
     fn as_slice(&self) -> &[usize] {
         self
     }
 
-    #[inline]
     fn as_mut_slice(&mut self) -> &mut [usize] {
         self
     }
 
-    #[inline]
     fn resize(&mut self, len: usize) {
         self.resize(len, 0);
     }
 
-    #[inline]
     fn extend_from_slice(&mut self, blocks: &[usize]) {
         self.extend_from_slice(blocks);
     }
 
-    #[inline]
     fn reserve_exact(&mut self, additional: usize) {
         self.reserve_exact(additional);
     }
 
-    #[inline]
     fn truncate(&mut self, len: usize) {
         self.truncate(len);
     }
 
-    #[inline]
     fn remove_prefix(&mut self, len: usize) {
         self.drain(..len);
     }
 
-    #[inline]
     fn clear(&mut self) {
         self.clear();
     }
 
-    #[inline]
     fn shrink_to_fit(&mut self) {
         self.shrink_to_fit();
     }
@@ -222,12 +215,10 @@ fn array_overflow<const N: usize>(len: usize) -> ! {
 }
 
 impl<const N: usize> BlockStorage for ArrayVec<usize, N> {
-    #[inline]
     fn new() -> Self {
         ArrayVec::new()
     }
 
-    #[inline]
     #[track_caller]
     fn with_capacity(capacity: usize) -> Self {
         if capacity > N {
@@ -236,32 +227,26 @@ impl<const N: usize> BlockStorage for ArrayVec<usize, N> {
         ArrayVec::new()
     }
 
-    #[inline]
     fn max_len() -> usize {
         N
     }
 
-    #[inline]
     fn capacity(&self) -> usize {
         N
     }
 
-    #[inline]
     fn shrunk_capacity(_len: usize) -> usize {
         N
     }
 
-    #[inline]
     fn as_slice(&self) -> &[usize] {
         self
     }
 
-    #[inline]
     fn as_mut_slice(&mut self) -> &mut [usize] {
         self
     }
 
-    #[inline]
     #[track_caller]
     fn resize(&mut self, len: usize) {
         if len > N {
@@ -276,7 +261,6 @@ impl<const N: usize> BlockStorage for ArrayVec<usize, N> {
         }
     }
 
-    #[inline]
     #[track_caller]
     fn extend_from_slice(&mut self, blocks: &[usize]) {
         if self.try_extend_from_slice(blocks).is_err() {
@@ -284,7 +268,6 @@ impl<const N: usize> BlockStorage for ArrayVec<usize, N> {
         }
     }
 
-    #[inline]
     #[track_caller]
     fn reserve_exact(&mut self, additional: usize) {
         if self.len() + additional > N {
@@ -292,21 +275,17 @@ impl<const N: usize> BlockStorage for ArrayVec<usize, N> {
         }
     }
 
-    #[inline]
     fn truncate(&mut self, len: usize) {
         self.truncate(len);
     }
 
-    #[inline]
     fn remove_prefix(&mut self, len: usize) {
         self.drain(..len);
     }
 
-    #[inline]
     fn clear(&mut self) {
         self.clear();
     }
 
-    #[inline]
     fn shrink_to_fit(&mut self) {}
 }

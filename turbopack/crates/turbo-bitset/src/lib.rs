@@ -579,7 +579,6 @@ pub struct Iter<'a> {
 impl Iterator for Iter<'_> {
     type Item = u32;
 
-    #[inline]
     fn next(&mut self) -> Option<u32> {
         while self.current == 0 {
             let (&first, rest) = self.blocks.split_first()?;
