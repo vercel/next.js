@@ -422,9 +422,9 @@ See the [ESLint Plugin](/docs/app/api-reference/config/eslint) page for more inf
 
 ## Set up Absolute Imports and Module Path Aliases
 
-Next.js has in-built support for the `"paths"` and `"baseUrl"` options of `tsconfig.json` and `jsconfig.json` files.
+Next.js supports absolute imports and module path aliases using the `"paths"` option in `tsconfig.json` and `jsconfig.json` files.
 
-These options allow you to alias project directories to absolute paths, making it easier and cleaner to import modules. For example:
+This option allows you to alias project directories to absolute paths, making it easier and cleaner to import modules. For example:
 
 ```jsx
 // Before
@@ -434,33 +434,36 @@ import { Button } from '../../../components/button'
 import { Button } from '@/components/button'
 ```
 
-To configure absolute imports, add the `baseUrl` configuration option to your `tsconfig.json` or `jsconfig.json` file. For example:
+To configure absolute imports from `src/`, add a `"paths"` mapping to your `tsconfig.json` or `jsconfig.json` file:
 
 ```json filename="tsconfig.json or jsconfig.json"
 {
   "compilerOptions": {
-    "baseUrl": "src/"
-  }
-}
-```
-
-In addition to configuring the `baseUrl` path, you can use the `"paths"` option to `"alias"` module paths.
-
-For example, the following configuration maps `@/components/*` to `components/*`:
-
-```json filename="tsconfig.json or jsconfig.json"
-{
-  "compilerOptions": {
-    "baseUrl": "src/",
     "paths": {
-      "@/styles/*": ["styles/*"],
-      "@/components/*": ["components/*"]
+      "*": ["./src/*"]
     }
   }
 }
 ```
 
-Each of the `"paths"` are relative to the `baseUrl` location.
+You can also map specific import prefixes to directories.
+
+For example, the following configuration maps `@/components/*` to `src/components/*`:
+
+```json filename="tsconfig.json or jsconfig.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@/styles/*": ["./src/styles/*"],
+      "@/components/*": ["./src/components/*"]
+    }
+  }
+}
+```
+
+Path targets are relative to the configuration file.
+
+> **Good to know**: TypeScript 6 [deprecates `baseUrl`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html#deprecated---baseurl). Use `"paths"` mappings with explicit relative targets instead.
 
 ## Upgrade your Next.js app
 
