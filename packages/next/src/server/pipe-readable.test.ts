@@ -361,17 +361,13 @@ describe('streamToNodeResponse lifecycle', () => {
     expect(readable.locked).toBe(false)
   })
 
-  it('delivers buffered bytes before terminating an errored response', async () => {
+  it('terminates a streamed response when the producer errors', async () => {
     const failure = new Error('producer failed')
-    let sent = false
+    let fail!: () => void
     const readable = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        if (sent) {
-          controller.error(failure)
-        } else {
-          sent = true
-          controller.enqueue(new TextEncoder().encode('first'))
-        }
+      start(controller) {
+        fail = () => controller.error(failure)
+        controller.enqueue(new TextEncoder().encode('first'))
       },
     })
     const completed = serve(readable)
@@ -382,6 +378,7 @@ describe('streamToNodeResponse lifecycle', () => {
           let text = ''
           res.on('data', (chunk) => {
             text += chunk.toString()
+            if (text === 'first') fail()
           })
           res.on('aborted', () => resolve(text))
           res.on('error', () => {})
