@@ -385,6 +385,10 @@ async fn build_internal(
                         .asset_content_hashing(ContentHashing::Direct { length: 13 })
                         .nested_async_availability(true)
                         .module_merging(scope_hoist);
+                    if scope_hoist {
+                        builder =
+                            builder.merged_modules(module_graph.merged_modules().await?.groups);
+                    }
                 }
             }
 
@@ -432,6 +436,10 @@ async fn build_internal(
                             },
                         )
                         .module_merging(scope_hoist);
+                    if scope_hoist {
+                        builder =
+                            builder.merged_modules(module_graph.merged_modules().await?.groups);
+                    }
                 }
             }
 

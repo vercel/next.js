@@ -274,15 +274,12 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let async_module_options = self.get_async_module().module_options(async_module_info);
-        let module_merging =
-            crate::references::esm::mangle::module_merging_analysis(module_graph, chunking_context)
-                .await?;
-        let content = self.module_content(chunking_context, module_merging, async_module_info);
+        let content = self.module_content(chunking_context, async_module_info);
         Ok(EcmascriptChunkItemContent::new(
             content,
             chunking_context,

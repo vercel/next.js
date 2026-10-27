@@ -27,29 +27,11 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, MergeableModuleExposure},
-    module_graph::{
-        ModuleGraph, binding_usage_info::ModuleExportUsageInfo, merged_modules::MergedModuleGroup,
-    },
+    module_graph::{binding_usage_info::ModuleExportUsageInfo, merged_modules::MergedModuleGroup},
 };
 
 use self::table::shorten_to_unique_names;
-use crate::{
-    ModuleMergingAnalysis,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-};
-
-/// Obtain the existing scope-hoisting analysis at a graph-aware code-generation boundary.
-/// Consumers below read only the keyed entries for their target modules.
-pub(crate) async fn module_merging_analysis(
-    module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<ModuleMergingAnalysis> {
-    if *chunking_context.is_module_merging_enabled().await? {
-        Ok(Some(module_graph.merged_modules().await?.groups))
-    } else {
-        Ok(None)
-    }
-}
+use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
 /// A module's export name mapping: original export name -> the key actually used in the output.
 ///
@@ -82,10 +64,12 @@ pub struct OptionFlatExportGroup(pub Option<ResolvedVc<FlatExportGroup>>);
 pub async fn flat_export_group(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    module_merging: ModuleMergingAnalysis,
 ) -> Result<Vc<OptionFlatExportGroup>> {
-    if let Some(groups) = module_merging
-        && let Some(group) = groups.get(&ResolvedVc::upcast(module)).await?.as_deref()
+    if let Some(group) = chunking_context
+        .merged_modules()
+        .get(&ResolvedVc::upcast(module))
+        .await?
+        .as_deref()
     {
         return Ok(flat_group_exports(**group, chunking_context));
     }
@@ -100,6 +84,8 @@ async fn flat_group_exports(
     let group = group.await?;
     let mut exports_to_name = Vec::new();
     for (index, (module, exposure)) in group.modules.await?.iter().enumerate() {
+        // A shared export table can only be emitted for ECMAScript modules with statically
+        // known ESM exports; other module types need their existing runtime representation.
         let Some(module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
         else {
             return Ok(Vc::cell(None));
@@ -107,21 +93,29 @@ async fn flat_group_exports(
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
             return Ok(Vc::cell(None));
         };
+        // Every member must allow renaming. An internal namespace use still needs a distinct
+        // source-module namespace, which the shared flat table cannot represent.
         if !exports.await?.mangle_export_names || *exposure == MergeableModuleExposure::Internal {
             return Ok(Vc::cell(None));
         }
         let usage = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
+        // Flattening changes both names and namespace identity: it is only safe when all reads
+        // are known named accesses lowered by codegen, not user-observable namespace reads.
         if usage.namespace_object_may_escape
             || matches!(*usage.export_usage.await?, ModuleExportUsageInfo::All)
         {
             return Ok(Vc::cell(None));
         }
         let expanded = exports.expand_exports(*usage.export_usage).await?;
+        // Runtime re-exports discover their names dynamically, so we cannot allocate collision-free
+        // keys for them or rewrite every access to the shared table ahead of time.
         if !expanded.dynamic_exports.is_empty() {
             return Ok(Vc::cell(None));
         }
+        // Only bindings read from outside the group need table entries. Unexposed members use
+        // direct local bindings within the merged factory and require no runtime registration.
         if *exposure == MergeableModuleExposure::External {
             for name in expanded.exports.keys() {
                 exports_to_name.push((
@@ -182,9 +176,8 @@ async fn flat_group_exports(
 pub async fn mangled_export_names(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    module_merging: ModuleMergingAnalysis,
 ) -> Result<Vc<MangledExportNames>> {
-    if let Some(group) = *flat_export_group(*module, chunking_context, module_merging).await? {
+    if let Some(group) = *flat_export_group(*module, chunking_context).await? {
         return Ok(Vc::cell(Some(
             group.await?.names.get(&module).cloned().unwrap_or_default(),
         )));
@@ -255,10 +248,9 @@ pub async fn mangled_export_names(
 pub async fn generated_export_key(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    module_merging: ModuleMergingAnalysis,
     export: &RcStr,
 ) -> Result<RcStr> {
-    let names = mangled_export_names(*module, chunking_context, module_merging).await?;
+    let names = mangled_export_names(*module, chunking_context).await?;
     Ok(names
         .as_ref()
         .and_then(|names| names.get(export))

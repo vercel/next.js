@@ -26,6 +26,7 @@ use turbopack_core::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroupKey,
+        merged_modules::MergedModuleGroups,
     },
     output::{OutputAsset, OutputAssets},
 };
@@ -136,6 +137,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn merged_modules(mut self, merged_modules: ResolvedVc<MergedModuleGroups>) -> Self {
+        self.chunking_context.merged_modules = Some(merged_modules);
+        self
+    }
+
     pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
     where
         T: Upcast<Box<dyn ChunkType>>,
@@ -240,6 +246,7 @@ pub struct NodeJsChunkingContext {
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
     unused_references: Option<ResolvedVc<UnusedReferences>>,
+    merged_modules: Option<ResolvedVc<MergedModuleGroups>>,
     /// The strategy to use for generating source map source uris
     source_map_source_type: SourceMapSourceType,
     /// The chunking configs
@@ -295,6 +302,7 @@ impl NodeJsChunkingContext {
                 module_id_strategy: None,
                 export_usage: None,
                 unused_references: None,
+                merged_modules: None,
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
@@ -817,6 +825,17 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn unused_references(&self) -> Vc<UnusedReferences> {
         if let Some(unused_references) = self.unused_references {
             *unused_references
+        } else {
+            Vc::cell(Default::default())
+        }
+    }
+
+    #[turbo_tasks::function]
+    fn merged_modules(&self) -> Vc<MergedModuleGroups> {
+        if self.enable_module_merging
+            && let Some(merged_modules) = self.merged_modules
+        {
+            *merged_modules
         } else {
             Vc::cell(Default::default())
         }

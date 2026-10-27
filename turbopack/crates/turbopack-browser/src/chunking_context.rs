@@ -28,6 +28,7 @@ use turbopack_core::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::{ChunkGroup, ChunkGroupKey},
+        merged_modules::MergedModuleGroups,
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
@@ -164,6 +165,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
         self.chunking_context.unused_references = Some(unused_references);
+        self
+    }
+
+    pub fn merged_modules(mut self, merged_modules: ResolvedVc<MergedModuleGroups>) -> Self {
+        self.chunking_context.merged_modules = Some(merged_modules);
         self
     }
 
@@ -390,6 +396,7 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
     unused_references: Option<ResolvedVc<UnusedReferences>>,
+    merged_modules: Option<ResolvedVc<MergedModuleGroups>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
@@ -459,6 +466,7 @@ impl BrowserChunkingContext {
                 module_id_strategy: None,
                 export_usage: None,
                 unused_references: None,
+                merged_modules: None,
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
@@ -1328,6 +1336,17 @@ impl ChunkingContext for BrowserChunkingContext {
     fn unused_references(&self) -> Vc<UnusedReferences> {
         if let Some(unused_references) = self.unused_references {
             *unused_references
+        } else {
+            Vc::cell(Default::default())
+        }
+    }
+
+    #[turbo_tasks::function]
+    fn merged_modules(&self) -> Vc<MergedModuleGroups> {
+        if self.enable_module_merging
+            && let Some(merged_modules) = self.merged_modules
+        {
+            *merged_modules
         } else {
             Vc::cell(Default::default())
         }

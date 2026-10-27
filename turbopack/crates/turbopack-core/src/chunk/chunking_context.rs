@@ -20,7 +20,8 @@ use crate::{
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroupKey,
-        module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
+        merged_modules::MergedModuleGroups, module_batches::BatchingConfig,
+        style_groups::StyleGroupsAlgorithm,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
@@ -551,6 +552,10 @@ pub trait ChunkingContext {
 
     #[turbo_tasks::function]
     async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
+
+    /// Scope-hoisting groups keyed by source module. Empty when module merging is disabled.
+    #[turbo_tasks::function]
+    async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleGroups>>;
 
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]

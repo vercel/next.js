@@ -556,6 +556,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 builder = builder.single_chunk().await?;
             }
 
+            if options.scope_hoisting {
+                builder = builder.merged_modules(module_graph.merged_modules().await?.groups);
+            }
+
             if options.remove_unused_imports {
                 builder = builder.unused_references(
                     binding_usage
@@ -602,6 +606,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.scope_hoisting {
+                builder = builder.merged_modules(module_graph.merged_modules().await?.groups);
+            }
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

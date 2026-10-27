@@ -281,13 +281,9 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
 
         // The *key* this is exposed under may be mangled; the local binding keeps its own name.
         // `references::emit_collect` resolves the same key for the read side, so both agree.
-        let module_merging =
-            crate::references::esm::mangle::module_merging_analysis(module_graph, chunking_context)
-                .await?;
         let export = generated_export_key(
             ResolvedVc::upcast(self.to_resolved().await?),
             chunking_context,
-            module_merging,
             &COLLECT_LIST_EXPORT,
         )
         .await?;

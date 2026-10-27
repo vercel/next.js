@@ -10,7 +10,6 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ModuleMergingAnalysis,
     ast_path_trie::{AstPathId, AstPathTrie},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
@@ -38,7 +37,6 @@ impl ExportsInfoBinding {
         &self,
         _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_merging: ModuleMergingAnalysis,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
@@ -52,7 +50,7 @@ impl ExportsInfoBinding {
         // whether export mangling is enabled at all — see the `map` closure below for exactly
         // what each of the three fields means.
         let exports = exports.await?;
-        let mangled_names = mangled_export_names(*module, chunking_context, module_merging).await?;
+        let mangled_names = mangled_export_names(*module, chunking_context).await?;
 
         let props = if let EcmascriptExports::EsmExports(exports) = &*exports {
             exports

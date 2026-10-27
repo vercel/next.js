@@ -15,7 +15,7 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
-    ModuleMergingAnalysis, ScopeHoistingContext,
+    ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
@@ -215,7 +215,6 @@ impl CodeGen {
         &self,
         trie: &AstPathTrie,
         ctx: Vc<Box<dyn ChunkingContext>>,
-        module_merging: ModuleMergingAnalysis,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
@@ -223,18 +222,12 @@ impl CodeGen {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantConditionCodeGen(v) => v.code_generation(trie, ctx).await,
-            Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx, module_merging).await,
+            Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::DynamicExpression(v) => v.code_generation(trie, ctx).await,
-            Self::EsmBindings(v) => {
-                v.code_generation(trie, ctx, module_merging, scope_hoisting_context)
-                    .await
-            }
+            Self::EsmBindings(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(trie, ctx).await,
-            Self::ExportsInfoBinding(v) => {
-                v.code_generation(trie, ctx, module_merging, module, exports)
-                    .await
-            }
+            Self::ExportsInfoBinding(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,
             Self::CjsExportsDropCodeGen(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::IdentReplacement(v) => v.code_generation(trie, ctx).await,
@@ -252,8 +245,7 @@ impl CodeGen {
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ModuleHotReferenceCodeGen(v) => {
-                v.code_generation(trie, ctx, module_merging, scope_hoisting_context)
-                    .await
+                v.code_generation(trie, ctx, scope_hoisting_context).await
             }
             Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(trie, ctx).await,
         }

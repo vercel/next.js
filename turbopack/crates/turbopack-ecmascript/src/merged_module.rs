@@ -114,7 +114,7 @@ impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -126,14 +126,10 @@ impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
             .map(|(m, _)| m.module_content_options(chunking_context, async_module_info))
             .collect::<Vec<_>>();
 
-        let module_merging =
-            crate::references::esm::mangle::module_merging_analysis(module_graph, chunking_context)
-                .await?;
         let content = EcmascriptModuleContent::new_merged(
             modules.clone(),
             options,
             ResolvedVc::deref_vec(entry_points.clone()),
-            module_merging,
         );
 
         // Currently, merged modules never include async modules.
