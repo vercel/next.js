@@ -126,11 +126,59 @@ Run a fixed frontier and weaker-model cohort. Score the first valid attempt as p
 
 One attempt per model provides directional evidence. Use repeated independent runs before claiming a stable pass rate or saturation. Keep the transcript, patch, verifier output, failure classification, token usage, cost, and duration with each result.
 
-Start the pull request title with `eval:`. Keep its description focused on the measured capability and results. Use one table and link the complete job when available:
+### Pull request format
 
-| Task | Agent and model | Passed / valid | Duration | Tokens | Cost | Job |
-| ---- | --------------- | -------------- | -------- | ------ | ---- | --- |
+Every pull request whose primary purpose is an eval task, suite, runner, or measurement automation uses the same shape, so results can be read across pull requests and copied into the team channel without rewriting. The title starts with `eval:` and names the outcome, not the activity: `eval: resolve and classify the audit suite`, not `eval: eval updates`.
 
-State the Next.js, runner, agent, and model versions, the attempt count, and the verifier used. Call single-attempt results directional. List discarded infrastructure attempts and confirmation runs below the table without changing the scored result.
+The description has these sections, in this order. Leave a section in place with "Not run" or "None" rather than deleting it, so a reader can tell the difference between "did not happen" and "forgot to say".
+
+```markdown
+One paragraph: the question this change answers and the outcome.
+
+## Tasks
+
+| Task | Capability | Source findings | Class |
+| ---- | ---------- | --------------- | ----- |
+
+One row per task added, changed, or removed. Class is the suite it is a
+candidate for, or `removed` with the reason.
+
+## Validation
+
+| Task | Untouched | Reference | Known incorrect repairs |
+| ---- | --------- | --------- | ----------------------- |
+
+Each row reads `0 (gate)`, `1`, `n of n rejected at the named gate`. Below
+the table, list the static checks that ran: `harbor lint --select ALL`,
+`harbor check` when it ran, Prettier, ESLint, `git diff --check`.
+
+## Calibration results
+
+Pass@1 against the exact framework package, one column per task:
+
+| Model | Treatment | `task-a` | `task-b` |
+| ----- | --------- | -------: | -------: |
+
+Rows cover the agreed frontier and weaker cohorts, Base and any treatment
+as separate rows. Cells read `1/1`, `0/1`, or `discarded`. Below the
+table: which discarded attempts were infrastructure and why, and what the
+confirmation reruns of each scored failure showed. Confirmations never
+change a cell. Call a single-attempt cohort directional.
+
+## Versions
+
+Framework package, Harbor revision, each agent harness and model version,
+and the `version` from each `task.toml`. Link the job directory or dataset
+so the trials can be regraded.
+
+## Publication
+
+Whether the tasks are public in this repository, and that score publication
+is a separate decision. Note held-out siblings when they exist.
+
+Stacked on #NNNN, when applicable.
+```
+
+Two Harbor conventions make the versions section useful. Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so trials from an older version are never compared with trials from a newer one and a grader-only change can be regraded without a rerun. Pin the agent and verifier images by digest and the agent harness by version in the job, so the versions section can be copied from the job rather than remembered.
 
 Adding a task to `evals/agent-build` does not publish its scores on nextjs.org/evals. Score publication requires a separate decision after the team reviews the task, evidence, ownership, and maintenance cost.
