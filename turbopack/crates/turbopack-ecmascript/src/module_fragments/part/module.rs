@@ -1,13 +1,13 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{ExportUsage, ModulePart},
+    reference::ModuleReferences,
+    resolve::ModulePart,
 };
 
 use crate::{
@@ -320,33 +320,6 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            let export = match &part {
-                ModulePart::Export(export) | ModulePart::PartialExport { export, .. } => {
-                    ExportUsage::named(export.clone())
-                }
-                ModulePart::Evaluation => ExportUsage::evaluation(),
-                _ => ExportUsage::all(),
-            };
-
-            Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
-                    *self.full_module,
-                    part,
-                )),
-                rcstr!("part reference"),
-                export,
-            ))
-        };
-
-        if let ModulePart::Facade = self.part {
-            // Facade depends on evaluation and re-exports
-            let mut references = vec![];
-            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
-            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
-            return Ok(Vc::cell(references));
-        }
-
         let analyze = analyze_ecmascript_module(*self.full_module, Some(self.part.clone()));
 
         Ok(analyze.references())
