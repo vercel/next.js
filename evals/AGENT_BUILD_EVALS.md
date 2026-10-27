@@ -66,12 +66,12 @@ Source checks cover only the constraints the instruction states and behavior can
 
 #### Grading lessons
 
-Read every failure before trusting it. In the first runs of the pilot tasks, three checks rejected correct repairs because they tested something the instruction did not state: server wording for live times, a start-time element in the static HTML, and markup around a Suspense placeholder. Fix the check, or state the requirement and bump the version, then regrade.
+Read every failure before trusting it. In the first runs of the pilot tasks, four checks rejected correct repairs because they tested something the instruction did not state: server wording for live times, a start-time element in the static HTML, and twice the markup around a value instead of its text. Fix the check, or state the requirement and bump the version, then regrade.
 
 Each of these let a wrong repair through until the check changed:
 
 - **A live response is not the static shell.** Playwright's `request` fixture returns the whole streamed document. Read the prerendered HTML the build wrote under `.next/server/app/<route>.html`, and treat a missing file as "no shell".
-- **Strip React's comment nodes first.** `© {year} Pulse` renders as `© <!-- -->2026<!-- --> Pulse`.
+- **Compare visible text, not markup.** `© {year} Pulse` renders as `© <!-- -->2026<!-- --> Pulse`, a Suspense boundary leaves a `<template>` placeholder, and a correct repair may wrap the value in a `<span>` with an inline script. Strip scripts and tags and collapse whitespace before checking content, and read headings from the `<h1>` text.
 - **Read the production server log.** Some unstable-value reads report only at request time, after a green build. Exercise document, RSC, and prefetch requests, then fail on `while prerendering`, `unstable value`, or `Could not validate`.
 - **Use two identities.** Isolation needs a second user whose data must not appear and an expired session that must see nothing.
 - **Disable redirects when checking status codes.** A streamed redirect is a 200 with the redirect inside the body.

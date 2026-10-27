@@ -27,6 +27,24 @@ function clean(html: string): string {
     .replace(/<template[^>]*><\/template>/g, '')
 }
 
+// What a visitor reads: scripts and styles dropped, tags removed, whitespace
+// collapsed. Content checks use this, so markup around a value (a <span>, a
+// Suspense placeholder, an inline script) does not change the result.
+function text(html: string): string {
+  return clean(html)
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+}
+
+// The visible text of every <h1>.
+function headings(html: string): string[] {
+  return [...clean(html).matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) =>
+    text(m[1]).trim()
+  )
+}
+
 function checkedAt(html: string): string {
   const match = html.match(
     /data-testid="checked-at"[\s\S]*?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC)/
@@ -57,27 +75,31 @@ test('the prerendered home page is complete, including the footer year', async (
   request,
 }) => {
   const prerendered = shell('index')
-  expect(prerendered).toContain('Know before your customers do')
-  expect(prerendered, 'the footer year must be in the static shell').toContain(
-    `© ${year} Pulse`
-  )
+  expect(text(prerendered)).toContain('Know before your customers do')
+  expect(
+    text(prerendered),
+    'the footer year must be in the static shell'
+  ).toContain(`© ${year} Pulse`)
 
   const response = await request.get(baseURL + '/')
   expect(response.status()).toBe(200)
-  expect(clean(await response.text())).toContain(`© ${year} Pulse`)
+  expect(text(await response.text())).toContain(`© ${year} Pulse`)
 })
 
 test('the prerendered status page carries the cached checked-at time and absolute start times', async ({
   request,
 }) => {
   const prerendered = shell('status')
-  expect(prerendered).toContain('System status')
-  expect(prerendered).toContain('Elevated latency in eu-central')
-  expect(prerendered).toContain('Intermittent sign-in failures')
-  expect(prerendered).toContain('Delayed delivery for a subset of endpoints')
-  expect(prerendered, 'the footer year must be in the static shell').toContain(
-    `© ${year} Pulse`
+  expect(text(prerendered)).toContain('System status')
+  expect(text(prerendered)).toContain('Elevated latency in eu-central')
+  expect(text(prerendered)).toContain('Intermittent sign-in failures')
+  expect(text(prerendered)).toContain(
+    'Delayed delivery for a subset of endpoints'
   )
+  expect(
+    text(prerendered),
+    'the footer year must be in the static shell'
+  ).toContain(`© ${year} Pulse`)
 
   const stamp = checkedAt(prerendered)
   expect(stamp).toMatch(checkedAtPattern)
@@ -100,10 +122,10 @@ test('the prerendered status page carries the cached checked-at time and absolut
 
 test('the prerendered account page is a shell without customer data', async () => {
   const prerendered = shell('account')
-  expect(prerendered).toContain('Account</h1>')
-  expect(prerendered).toContain(`© ${year} Pulse`)
-  expect(prerendered).not.toContain('Ada Lovelace')
-  expect(prerendered).not.toContain('Grace Hopper')
+  expect(headings(prerendered)).toContain('Account')
+  expect(text(prerendered)).toContain(`© ${year} Pulse`)
+  expect(text(prerendered)).not.toContain('Ada Lovelace')
+  expect(text(prerendered)).not.toContain('Grace Hopper')
 })
 
 test('incident start times become live relative times after hydration', async ({
@@ -155,26 +177,26 @@ test('the account page streams the signed-in customer and isolates visitors', as
   const signedOut = await request.get(baseURL + '/account')
   expect(signedOut.status()).toBe(200)
   const signedOutHtml = clean(await signedOut.text())
-  expect(signedOutHtml).toContain('Account</h1>')
+  expect(headings(signedOutHtml)).toContain('Account')
   expect(signedOutHtml).toContain('data-testid="signed-out"')
-  expect(signedOutHtml).not.toContain('Ada Lovelace')
+  expect(text(signedOutHtml)).not.toContain('Ada Lovelace')
 
   const ada = await request.get(baseURL + '/account', {
     headers: { cookie: 'pulse_customer=ada' },
   })
   expect(ada.status()).toBe(200)
   const adaHtml = clean(await ada.text())
-  expect(adaHtml).toContain('Ada Lovelace')
-  expect(adaHtml).toContain('enterprise')
-  expect(adaHtml).toContain('48')
+  expect(text(adaHtml)).toContain('Ada Lovelace')
+  expect(text(adaHtml)).toContain('enterprise')
+  expect(text(adaHtml)).toContain('48')
 
   const grace = await request.get(baseURL + '/account', {
     headers: { cookie: 'pulse_customer=grace' },
   })
   const graceHtml = clean(await grace.text())
-  expect(graceHtml).toContain('Grace Hopper')
-  expect(graceHtml).toContain('team')
-  expect(graceHtml).not.toContain('Ada Lovelace')
+  expect(text(graceHtml)).toContain('Grace Hopper')
+  expect(text(graceHtml)).toContain('team')
+  expect(text(graceHtml)).not.toContain('Ada Lovelace')
 
   // Prefetch and navigation renders are where a request-time clock read
   // leaks into the server log after the build is green. Issue both so the

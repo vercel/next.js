@@ -14,6 +14,43 @@ function clean(html: string): string {
     .replace(/<template[^>]*><\/template>/g, '')
 }
 
+// What a visitor reads: scripts and styles dropped, tags removed, whitespace
+// collapsed. Content checks use this, so markup around a value (a <span>, a
+// Suspense placeholder, an inline script) does not change the result.
+function text(html: string): string {
+  return clean(html)
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+}
+
+// The visible text of every <h1>.
+function headings(html: string): string[] {
+  return [...clean(html).matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) =>
+    text(m[1]).trim()
+  )
+}
+
+// The visible text of the element carrying a data-testid, nested markup
+// included.
+function testidText(html: string, id: string): string {
+  const source = clean(html)
+  const start = source.indexOf(`data-testid="${id}"`)
+  if (start === -1) return ''
+  const open = source.indexOf('>', start) + 1
+  let depth = 1
+  const tag = /<(\/?)([a-zA-Z][\w-]*)[^>]*?(\/?)>/g
+  tag.lastIndex = open
+  for (let m = tag.exec(source); m; m = tag.exec(source)) {
+    const voidTag = /^(br|img|input|hr|meta|link)$/i.test(m[2]) || m[3] === '/'
+    if (m[1]) depth--
+    else if (!voidTag) depth++
+    if (depth === 0) return text(source.slice(open, m.index)).trim()
+  }
+  return ''
+}
+
 // The prerendered HTML the build wrote. A route without one has no static
 // shell and cannot navigate instantly.
 function shell(name: string): string {
@@ -27,28 +64,34 @@ const alan = { cookie: 'ledger_session=tok_alan' }
 const expired = { cookie: 'ledger_session=tok_expired' }
 
 test('marketing pages stay static', async () => {
-  expect(shell('index')).toContain('Invoices your customers actually pay')
-  expect(shell('pricing')).toContain('Pricing</h1>')
-  expect(shell('login')).toContain('Sign in to Ledger')
+  expect(text(shell('index'))).toContain('Invoices your customers actually pay')
+  expect(headings(shell('pricing'))).toContain('Pricing')
+  expect(text(shell('login'))).toContain('Sign in to Ledger')
 })
 
 test('every workspace route has a shell with the frame and no customer data', async () => {
   const pages = [
-    ['app', 'Overview</h1>'],
-    ['app/invoices', 'Invoices</h1>'],
-    ['app/settings', 'Settings</h1>'],
+    ['app', 'Overview'],
+    ['app/invoices', 'Invoices'],
+    ['app/settings', 'Settings'],
   ]
   for (const [name, heading] of pages) {
     const html = shell(name)
     expect(html, `${name} shell has the workspace frame`).toContain(
       'data-testid="workspace-nav"'
     )
-    expect(html, `${name} shell has its page heading`).toContain(heading)
-    expect(html).not.toContain('Sign in required')
-    expect(html).not.toContain('Ada Lovelace')
-    expect(html).not.toContain('Alan Turing')
-    expect(html).not.toContain('Analytical Engines')
-    expect(html).not.toContain('Bletchley')
+    expect(headings(html), `${name} shell has its page heading`).toContain(
+      heading
+    )
+    for (const value of [
+      'Sign in required',
+      'Ada Lovelace',
+      'Alan Turing',
+      'Analytical Engines',
+      'Bletchley',
+    ]) {
+      expect(text(html)).not.toContain(value)
+    }
   }
 })
 
@@ -69,26 +112,26 @@ test('signed-in visitors see their own workspace', async ({ request }) => {
   const overview = clean(
     await (await request.get(baseURL + '/app', { headers: ada })).text()
   )
-  expect(overview).toContain('Welcome back, Ada Lovelace.')
-  expect(overview).toContain('Analytical Engines')
-  expect(overview).toContain('data-testid="outstanding">$1660<')
-  expect(overview).toContain('data-testid="overdue">1<')
+  expect(text(overview)).toContain('Welcome back, Ada Lovelace.')
+  expect(text(overview)).toContain('Analytical Engines')
+  expect(testidText(overview, 'outstanding')).toBe('$1660')
+  expect(testidText(overview, 'overdue')).toBe('1')
 
   const other = clean(
     await (await request.get(baseURL + '/app', { headers: alan })).text()
   )
-  expect(other).toContain('Welcome back, Alan Turing.')
-  expect(other).toContain('Bletchley')
-  expect(other).toContain('data-testid="outstanding">$300<')
-  expect(other).not.toContain('Ada Lovelace')
+  expect(text(other)).toContain('Welcome back, Alan Turing.')
+  expect(text(other)).toContain('Bletchley')
+  expect(testidText(other, 'outstanding')).toBe('$300')
+  expect(text(other)).not.toContain('Ada Lovelace')
 
   const settings = clean(
     await (
       await request.get(baseURL + '/app/settings', { headers: alan })
     ).text()
   )
-  expect(settings).toContain('data-testid="settings-team">Bletchley<')
-  expect(settings).toContain('INV-2xxx')
+  expect(testidText(settings, 'settings-team')).toBe('Bletchley')
+  expect(text(settings)).toContain('INV-2xxx')
 })
 
 test('expired sessions never see workspace data', async ({ request }) => {
@@ -97,7 +140,7 @@ test('expired sessions never see workspace data', async ({ request }) => {
     maxRedirects: 0,
   })
   const html = clean(await response.text())
-  expect(html).not.toContain('Expired User')
+  expect(text(html)).not.toContain('Expired User')
   expect(html).not.toContain('data-testid="outstanding"')
   if (response.status() === 200) {
     expect(html, 'a streamed response must redirect to login').toContain(
