@@ -176,9 +176,12 @@ const allCosts = runs
   .filter(scored)
   .map((r) => r.cost)
   .filter((c) => c != null)
-console.log(
-  `| **All models** | | ${tasks.map(() => '').join(' | ')} | **${cell(all.base)}** | **${cell(all.docs)}** | **${delta(all.base, all.docs)}** | **${usd(mean(allCosts))}** |`
-)
+const bold = (v) => (v ? `**${v}**` : '')
+if (all.base.scored || all.docs.scored) {
+  console.log(
+    `| **All models** | | ${tasks.map(() => '').join(' | ')} | ${bold(cell(all.base))} | ${bold(cell(all.docs))} | ${bold(delta(all.base, all.docs))} | ${bold(usd(mean(allCosts)))} |`
+  )
+}
 console.log()
 console.log(
   'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, ⏳ running, · not started, — runner error, rerun.'
