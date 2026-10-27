@@ -109,8 +109,11 @@ and in the same shape as other Next.js pull requests:
    sentences. Then one bullet per task saying what the agent has to get right.
    No suite label; a task that proves too easy is removed, not relabeled.
 2. **Results**: one line with the Next.js version, attempt policy, and
-   treatments, the table and chart from
-   `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>`,
+   treatments, then the output of
+   `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged:
+   totals per treatment with average duration and cost, a model table across
+   all tasks (Base, + AGENTS.md, Delta, cost per run), a per-task table, and
+   the accuracy against cost chart,
    and a few sentences on what it means: which failures are real, and whether
    a task separates models or is saturated. Say "still running" or "not run"
    rather than leaving the section out.
