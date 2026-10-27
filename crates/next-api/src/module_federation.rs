@@ -219,7 +219,7 @@ impl ModuleFederationEndpoint {
                 // Replay the exact async chunk group that the entry's dynamic import loader uses.
                 let group = federation_chunking_context.chunk_group_assets(
                     chunkable.ident(),
-                    ChunkGroup::Async(exposed_module),
+                    ChunkGroupKey::Async(exposed_module),
                     module_graph,
                     availability_info.in_async_module(),
                 );
