@@ -1597,8 +1597,6 @@ async fn abort_on_panic<F: Future>(f: F) -> F::Output {
 }
 
 impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
-    const LOWEST_PRIORITY: TaskPriority = TaskPriority::Initial;
-
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
