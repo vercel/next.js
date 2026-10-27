@@ -291,16 +291,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     }, getChunkLoadRetryDelayMs())
   }
 
-  function getExistingScripts(chunkUrl: ChunkUrl): HTMLScriptElement[] {
-    const requested = new URL(chunkUrl, document.baseURI).href
-    return Array.from(document.scripts).filter((script) => {
-      const src = script.getAttribute('src')
-      if (src == null) return false
-      const existing = new URL(src, document.baseURI).href
-      return existing === requested || existing.startsWith(`${requested}?`)
-    })
-  }
-
   /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
