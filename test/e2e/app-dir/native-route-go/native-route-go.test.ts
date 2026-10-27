@@ -367,9 +367,9 @@ describe('native-route-go', () => {
             PORT: String(port),
           }
           delete env.__NEXT_GO_TOKEN
-          delete env.__NEXT_GO_ADAPTER_ROUTING
+          delete env.NEXT_GO_ADAPTER_ROUTING
           if (options.routing !== undefined) {
-            env.__NEXT_GO_ADAPTER_ROUTING = options.routing
+            env.NEXT_GO_ADAPTER_ROUTING = options.routing
           }
           child = spawn(executable, [], {
             cwd: directory,
@@ -395,7 +395,7 @@ describe('native-route-go', () => {
             })
             await closed
             expect(child.exitCode).not.toBe(0)
-            expect(stderr).toContain('invalid __NEXT_GO_ADAPTER_ROUTING')
+            expect(stderr).toContain('invalid NEXT_GO_ADAPTER_ROUTING')
             return
           }
           await retry(async () => {
