@@ -161,7 +161,7 @@ The following JavaScript language features are disabled, and **will not work:**
 In rare cases, your code could contain (or import) some dynamic code evaluation statements which _cannot be reached at runtime_ and which cannot be removed by treeshaking.
 You can relax the check to allow specific files with your Proxy configuration:
 
-```javascript filename="proxy.ts"
+```ts filename="proxy.ts"
 export const config = {
   unstable_allowDynamic: [
     // allows a single file

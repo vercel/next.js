@@ -162,7 +162,7 @@ You can consider a `route` the lowest level routing primitive.
 
 Each `route.js` or `page.js` file takes over all HTTP verbs for that route.
 
-```ts filename="app/page.ts" switcher
+```tsx filename="app/page.tsx" switcher
 export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
@@ -172,7 +172,7 @@ export default function Page() {
 export async function POST(request: Request) {}
 ```
 
-```js filename="app/page.js" switcher
+```jsx filename="app/page.js" switcher
 export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
