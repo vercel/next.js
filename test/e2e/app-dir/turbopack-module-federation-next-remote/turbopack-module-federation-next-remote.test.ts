@@ -25,9 +25,10 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
     skipDeployment: true,
   })
   let remoteServer: ChildProcess
+  let remotePort: number
 
   beforeAll(async () => {
-    const remotePort = await findPort()
+    remotePort = await findPort()
     const remoteDir = join(next.testDir, 'remote')
     await symlink(
       join(next.testDir, 'node_modules'),
@@ -58,8 +59,17 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
     if (response.status !== 200) {
       throw new Error(`Remote server returned status ${response.status}`)
     }
+    const federationResponse = await fetchViaHTTP(
+      remotePort,
+      '/_next/static/chunks/mf/nextRemote.js'
+    )
+    if (federationResponse.status !== 200) {
+      throw new Error(
+        `Federation endpoint returned status ${federationResponse.status}`
+      )
+    }
 
-    process.env.MF_REMOTE_URL = `http://localhost:${remotePort}/_next/static/chunks/nextRemote.js`
+    process.env.MF_REMOTE_URL = `http://localhost:${remotePort}/_next/static/chunks/mf/nextRemote.js`
     await next.start()
   })
 
@@ -68,12 +78,23 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
     delete process.env.MF_REMOTE_URL
   })
 
-  it('loads a module exposed by another Next.js app', async () => {
+  it('loads a tree-shaken module exposed by another Next.js app', async () => {
     const browser = await next.browser('/')
     await retry(async () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
         'hello from Next.js'
       )
     }, 15_000)
+
+    const entry = await fetchViaHTTP(
+      remotePort,
+      '/_next/static/chunks/mf/nextRemote.js'
+    ).then((response) => response.text())
+    if (!isNextDev) {
+      expect(entry).not.toContain(
+        'MODULE_FEDERATION_UNUSED_EXPORT_SHOULD_BE_REMOVED'
+      )
+      expect(entry).not.toContain('remote/lib/message.js')
+    }
   })
 })
