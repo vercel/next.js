@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
 };
 
 use crate::{
-    GoBuildContext, filesystem,
+    GoBuildContext, filesystem_with_poll_interval,
     paths::{paths_refer_to_same_file, relative_output_path, validate_source_path},
 };
 
@@ -212,9 +212,12 @@ impl<'a> Tracker<'a> {
                     format!("Go source outside project/module cache: {}", path.display())
                 })?;
             validate_source_path(Path::new(self.go_context.module_cache.as_str()), path)?;
-            let fs = filesystem(self.go_context.module_cache.clone())
-                .resolve()
-                .await?;
+            let fs = filesystem_with_poll_interval(
+                self.go_context.module_cache.clone(),
+                self.go_context.poll_interval_ms,
+            )
+            .resolve()
+            .await?;
             (
                 FileSystemPath {
                     fs: ResolvedVc::upcast(fs),
@@ -339,10 +342,13 @@ impl<'a> Tracker<'a> {
         if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs) {
             fs.await?.invalidate();
         }
-        filesystem(self.go_context.module_cache.clone())
-            .connect()
-            .await?
-            .invalidate();
+        filesystem_with_poll_interval(
+            self.go_context.module_cache.clone(),
+            self.go_context.poll_interval_ms,
+        )
+        .connect()
+        .await?
+        .invalidate();
         Ok(())
     }
 }

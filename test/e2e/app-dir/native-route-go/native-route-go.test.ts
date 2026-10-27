@@ -15,6 +15,11 @@ describe('native-route-go', () => {
     // Provider deployment requires an adapter that packages Go outputs. This
     // fixture exercises local native processes and adapter build artifacts.
     skipDeployment: true,
+    env: {
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
+      TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
+      TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    },
   })
   const route = 'app/(group)/native/[id]/route.go'
   const helper = 'app/(group)/native/[id]/helper.go'
@@ -180,6 +185,56 @@ describe('native-route-go', () => {
       await retry(async () => {
         expect((await data()).id).toBe('example')
       })
+    })
+    it('repairs a first compilation failure and survives a persistent cache restart', async () => {
+      const path = 'app/first-error/route.go'
+      const source =
+        'package main\nimport "net/http"\nvar Methods = []string{"GET"}\nfunc Handle(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+      await next.patchFile(path, source + '\ninvalid syntax\n')
+      expect((await next.fetch('/first-error')).status).toBe(500)
+      await next.patchFile(path, source)
+      await retry(async () => {
+        expect(await next.render('/first-error')).toBe('first-repaired')
+      })
+      const before = await data()
+      await next.stop()
+      try {
+        const entries = await fs.readdir(
+          join(next.testDir, next.distDir, 'cache', 'turbopack'),
+          { recursive: true, withFileTypes: true }
+        )
+        let cacheSize = 0
+        for (const entry of entries) {
+          if (entry.isFile()) {
+            cacheSize += (
+              await fs.stat(join(entry.parentPath ?? entry.path, entry.name))
+            ).size
+          }
+        }
+        expect(cacheSize).toBeGreaterThan(0)
+      } finally {
+        await next.start()
+      }
+      expect((await data()).id).toBe('example')
+      expect(await next.render('/first-error')).toBe('first-repaired')
+      expect(() => process.kill(before.pid, 0)).toThrow()
+      // Discovery must register watchers again after restoring persistent compiler output.
+      await next.patchFile(
+        path,
+        source.replace('first-repaired', 'after-restart')
+      )
+      await retry(async () => {
+        expect(await next.render('/first-error')).toBe('after-restart')
+      })
+      await next.patchFile(path, source + '\ninvalid syntax\n')
+      await retry(async () => {
+        expect((await next.fetch('/first-error')).status).toBe(500)
+      })
+      await next.patchFile(path, source)
+      await retry(async () => {
+        expect(await next.render('/first-error')).toBe('first-repaired')
+      })
+      await next.deleteFile(path)
     })
     it('caches startup errors and repairs them after an edit', async () => {
       const path = 'app/startup/route.go'

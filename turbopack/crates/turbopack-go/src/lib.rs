@@ -9,23 +9,30 @@ mod process;
 
 use std::{
     collections::BTreeMap,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
         LazyLock,
         atomic::{AtomicUsize, Ordering},
     },
+    time::Duration,
 };
 
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use tokio::{process::Command, sync::Semaphore};
 use tokio_util::sync::CancellationToken;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Invalidator, NonLocalValue, ResolvedVc, TransientInstance, Vc, get_invalidator, turbo_tasks,
+    Completion, Invalidator, NonLocalValue, ResolvedVc, TransientInstance, Vc, get_invalidator,
+    turbo_tasks,
 };
-use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystemPath, Permissions, to_sys_path};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystemPath,
+    Permissions, to_sys_path,
+};
 
 use crate::inputs::{FileInput, Inputs, Tracker, directory};
 pub use crate::paths::{paths_refer_to_same_file, validate_source_path};
@@ -47,11 +54,12 @@ unsafe impl NonLocalValue for Cancellation {}
 /// session. Versioned modules use the normal Go module cache, with downloads disabled during
 /// builds.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode)]
-pub struct GoBuildContext {
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+pub struct GoBuildOptions {
     pub go: RcStr,
     pub goroot: RcStr,
     pub version: RcStr,
+    pub toolchain_fingerprint: Vec<u8>,
     pub goos: RcStr,
     pub goarch: RcStr,
     pub exe_suffix: RcStr,
@@ -60,18 +68,164 @@ pub struct GoBuildContext {
     pub gopath: RcStr,
     pub path: RcStr,
     pub tags: RcStr,
+    /// Poll source/module-cache watchers when native filesystem events are unavailable.
+    pub poll_interval_ms: Option<u64>,
+}
+
+/// Process-local lifecycle state. Root CLI tasks intentionally remain transient; persistent
+/// consumers use a session whose identity contains only the resolved build options.
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+pub struct GoBuildContext {
+    pub options: GoBuildOptions,
+    #[bincode(skip, default = "fresh_cancellation")]
     pub cancellation: TransientInstance<Cancellation>,
 }
 
-// A live build session cannot be restored from a persistent task cache.
-impl<C> Decode<C> for GoBuildContext {
-    fn decode<D: bincode::de::Decoder<Context = C>>(
-        _: &mut D,
-    ) -> std::result::Result<Self, bincode::error::DecodeError> {
-        Err(bincode::error::DecodeError::Other(
-            "Go build sessions are transient",
-        ))
+fn fresh_cancellation() -> TransientInstance<Cancellation> {
+    TransientInstance::new(Cancellation {
+        token: CancellationToken::new(),
+        lists: AtomicUsize::new(0),
+        builds: AtomicUsize::new(0),
+        module_configs: AtomicUsize::new(0),
+    })
+}
+
+impl Deref for GoBuildContext {
+    type Target = GoBuildOptions;
+    fn deref(&self) -> &Self::Target {
+        &self.options
     }
+}
+impl DerefMut for GoBuildContext {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.options
+    }
+}
+
+// Installed toolchains are immutable within a session. Hash their contents once when resolving
+// the host, so restoring an identical SDK copy keeps its identity despite new timestamps/inodes.
+// pkg/mod may hold an independently changing module cache and is deliberately excluded.
+fn toolchain_fingerprint(go: &Path, goroot: &Path) -> Result<Vec<u8>> {
+    let mut digest = Sha256::new();
+    digest.update(std::fs::read(go)?);
+    // GOENV=off disables user configuration, but Go still reads SDK defaults from go.env.
+    // read() follows file symlinks, so the consumed target contents participate too.
+    match std::fs::read(goroot.join("go.env")) {
+        Ok(contents) => {
+            digest.update([1]);
+            digest.update((contents.len() as u64).to_le_bytes());
+            digest.update(contents);
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => digest.update([0]),
+        Err(error) => return Err(error).context("fingerprinting GOROOT/go.env"),
+    }
+    let mut pending = vec![
+        goroot.join("src"),
+        goroot.join("pkg/include"),
+        goroot.join("pkg/tool"),
+    ];
+    let mut visited_directories = std::collections::BTreeSet::new();
+    let mut buffer = [0u8; 64 * 1024];
+    while let Some(path) = pending.pop() {
+        // Follow toolchain symlinks and hash the consumed bytes; the Go installation can
+        // legitimately contain links even though application-source symlinks are unsupported.
+        let metadata = std::fs::metadata(&path)?;
+        let relative = path.strip_prefix(goroot)?.to_string_lossy();
+        digest.update((relative.len() as u64).to_le_bytes());
+        digest.update(relative.as_bytes());
+        if metadata.is_dir() {
+            digest.update([0]);
+            if !visited_directories.insert(std::fs::canonicalize(&path)?) {
+                continue;
+            }
+            let mut entries = std::fs::read_dir(path)?
+                .map(|entry| Ok(entry?.path()))
+                .collect::<Result<Vec<_>>>()?;
+            entries.sort();
+            pending.extend(entries);
+        } else {
+            ensure!(
+                metadata.is_file(),
+                "unsupported Go toolchain input: {}",
+                path.display()
+            );
+            digest.update([1]);
+            digest.update(metadata.len().to_le_bytes());
+            let mut file = std::fs::File::open(path)?;
+            loop {
+                let len = std::io::Read::read(&mut file, &mut buffer)?;
+                if len == 0 {
+                    break;
+                }
+                digest.update(&buffer[..len]);
+            }
+        }
+    }
+    Ok(digest.finalize().to_vec())
+}
+
+#[cfg(test)]
+#[test]
+fn toolchain_identity_survives_sdk_copies_and_excludes_module_caches() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let original = temp.path().join("original");
+    let restored = temp.path().join("restored");
+    let files = [
+        ("bin/go", "go executable"),
+        ("src/runtime/source.go", "runtime source"),
+        ("pkg/include/textflag.h", "assembler header"),
+        ("pkg/tool/host/compile", "compiler"),
+    ];
+    for root in [&original, &restored] {
+        for (path, content) in files {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, content)?;
+        }
+    }
+    let fingerprint = toolchain_fingerprint(&original.join("bin/go"), &original)?;
+    let restored_fingerprint = || toolchain_fingerprint(&restored.join("bin/go"), &restored);
+    assert_eq!(fingerprint, restored_fingerprint()?);
+    let modules = restored.join("pkg/mod/example.com/library@v1.0.0");
+    std::fs::create_dir_all(&modules)?;
+    std::fs::write(modules.join("library.go"), "module cache contents")?;
+    assert_eq!(fingerprint, restored_fingerprint()?);
+    for (path, content) in files {
+        std::fs::write(restored.join(path), format!("{content} changed"))?;
+        assert_ne!(fingerprint, restored_fingerprint()?, "{path}");
+        std::fs::write(restored.join(path), content)?;
+        assert_eq!(fingerprint, restored_fingerprint()?);
+    }
+    let settings = "GOEXPERIMENT=default-experiment\n";
+    std::fs::write(original.join("go.env"), settings)?;
+    let with_settings = toolchain_fingerprint(&original.join("bin/go"), &original)?;
+    assert_ne!(fingerprint, with_settings);
+    let go_env = restored.join("go.env");
+    std::fs::write(&go_env, settings)?;
+    assert_eq!(with_settings, restored_fingerprint()?);
+    std::fs::write(&go_env, "GOEXPERIMENT=changed-experiment\n")?;
+    assert_ne!(with_settings, restored_fingerprint()?);
+    std::fs::write(&go_env, "")?;
+    assert_ne!(
+        fingerprint,
+        restored_fingerprint()?,
+        "an empty go.env is present"
+    );
+    std::fs::remove_file(&go_env)?;
+    assert_eq!(fingerprint, restored_fingerprint()?);
+    #[cfg(unix)]
+    {
+        let target = temp.path().join("sdk-settings");
+        std::fs::write(&target, settings)?;
+        std::os::unix::fs::symlink(&target, &go_env)?;
+        assert_eq!(with_settings, restored_fingerprint()?);
+        std::fs::write(&target, "GOEXPERIMENT=changed-symlink-target\n")?;
+        assert_ne!(with_settings, restored_fingerprint()?);
+        std::fs::remove_file(go_env)?;
+        assert_eq!(fingerprint, restored_fingerprint()?);
+    }
+    Ok(())
 }
 
 impl GoBuildContext {
@@ -149,36 +303,35 @@ impl GoBuildContext {
                 .flat_map(|p| std::env::split_paths(&p).collect::<Vec<_>>()),
         );
         Ok(Self {
-            go: go.to_str().context("non-UTF8 Go executable")?.into(),
-            goroot: goroot.to_str().context("non-UTF8 GOROOT")?.into(),
-            version: version.as_str().into(),
-            goos: env["GOHOSTOS"].as_str().into(),
-            goarch: env["GOHOSTARCH"].as_str().into(),
-            exe_suffix: if env["GOHOSTOS"] == "windows" {
-                rcstr!(".exe")
-            } else {
-                rcstr!("")
+            options: GoBuildOptions {
+                go: go.to_str().context("non-UTF8 Go executable")?.into(),
+                goroot: goroot.to_str().context("non-UTF8 GOROOT")?.into(),
+                version: version.as_str().into(),
+                toolchain_fingerprint: toolchain_fingerprint(&go, &goroot)?,
+                goos: env["GOHOSTOS"].as_str().into(),
+                goarch: env["GOHOSTARCH"].as_str().into(),
+                exe_suffix: if env["GOHOSTOS"] == "windows" {
+                    rcstr!(".exe")
+                } else {
+                    rcstr!("")
+                },
+                cache: paths::resolve_directory(&cache)?
+                    .to_str()
+                    .context("non-UTF8 Go cache")?
+                    .into(),
+                module_cache: std::fs::canonicalize(module_cache)?
+                    .to_str()
+                    .context("non-UTF8 module cache")?
+                    .into(),
+                gopath: env["GOPATH"].as_str().into(),
+                path: std::env::join_paths(path)?
+                    .to_str()
+                    .context("non-UTF8 PATH")?
+                    .into(),
+                tags: tags.into(),
+                poll_interval_ms: None,
             },
-            cache: paths::resolve_directory(&cache)?
-                .to_str()
-                .context("non-UTF8 Go cache")?
-                .into(),
-            module_cache: std::fs::canonicalize(module_cache)?
-                .to_str()
-                .context("non-UTF8 module cache")?
-                .into(),
-            gopath: env["GOPATH"].as_str().into(),
-            path: std::env::join_paths(path)?
-                .to_str()
-                .context("non-UTF8 PATH")?
-                .into(),
-            tags: tags.into(),
-            cancellation: TransientInstance::new(Cancellation {
-                token,
-                lists: AtomicUsize::new(0),
-                builds: AtomicUsize::new(0),
-                module_configs: AtomicUsize::new(0),
-            }),
+            cancellation: fresh_cancellation(),
         })
     }
 
@@ -236,9 +389,9 @@ impl GoBuildContext {
     }
 }
 
-/// A task-value session lets persistent consumers depend on process-local compiler state
-/// without putting a TransientInstance directly in their child task's input tuple.
-#[turbo_tasks::value(serialization = "skip")]
+/// Serializable compiler identity with process-local cancellation and counters. Keep this value
+/// resident so restoring other task data cannot replace an active session's lifecycle state.
+#[turbo_tasks::value(evict = "never")]
 pub struct GoBuildSession {
     pub context: GoBuildContext,
 }
@@ -246,6 +399,23 @@ impl GoBuildSession {
     pub fn new(context: GoBuildContext) -> Vc<Self> {
         Self { context }.cell()
     }
+
+    /// Scope must identify the lifecycle owner consistently across restarts. The caller must
+    /// retain the returned value's context for cancellation, rather than the probe's context.
+    pub fn persistent(scope: RcStr, options: GoBuildOptions) -> Vc<Self> {
+        persistent_session(scope, options)
+    }
+}
+
+#[turbo_tasks::function]
+fn persistent_session(scope: RcStr, options: GoBuildOptions) -> Vc<GoBuildSession> {
+    // Leading-underscore arguments are excluded from task identity by Turbo Tasks.
+    // Keep this namespace in the key even though Go commands do not consume it.
+    let _ = scope;
+    GoBuildSession::new(GoBuildContext {
+        options,
+        cancellation: fresh_cancellation(),
+    })
 }
 
 #[turbo_tasks::function]
@@ -255,7 +425,25 @@ fn shared_session(context: GoBuildContext) -> Vc<GoBuildSession> {
 
 #[turbo_tasks::function(operation, root)]
 pub fn filesystem(path: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("go"), Vc::cell(path))
+    filesystem_with_poll_interval(path, None).connect()
+}
+
+/// Use one configured filesystem identity for module-cache reads, watching and invalidation.
+#[turbo_tasks::function(operation, root)]
+pub fn filesystem_with_poll_interval(
+    path: RcStr,
+    poll_interval_ms: Option<u64>,
+) -> Vc<DiskFileSystem> {
+    DiskFileSystem::new_with_options(
+        rcstr!("go"),
+        Vc::cell(path),
+        Vec::new(),
+        DiskWatcherConfig {
+            poll_interval: poll_interval_ms.map(Duration::from_millis),
+            ..Default::default()
+        },
+        DiskFileSystemMap::empty(),
+    )
 }
 
 #[derive(Deserialize, Default, Debug, PartialEq, Eq)]
@@ -286,6 +474,8 @@ struct Package {
     cgo_files: Vec<String>,
     #[serde(default)]
     s_files: Vec<String>,
+    #[serde(default)]
+    h_files: Vec<String>,
     #[serde(default)]
     syso_files: Vec<String>,
     error: Option<serde_json::Value>,
@@ -363,6 +553,7 @@ fn module_escape(value: &str) -> String {
 struct BuildPlan {
     files: Vec<RcStr>,
     inputs: Inputs,
+    assembly_flags: BTreeMap<RcStr, RcStr>,
     generated: BTreeMap<RcStr, RcStr>,
 }
 
@@ -495,7 +686,7 @@ async fn list(
         .args([
             "-deps",
             "-json=Dir,ImportPath,Name,Standard,Module,GoFiles,IgnoredGoFiles,InvalidGoFiles,\
-             EmbedFiles,EmbedPatterns,Imports,CgoFiles,SFiles,SysoFiles,Error,DepsErrors,\
+             EmbedFiles,EmbedPatterns,Imports,CgoFiles,SFiles,HFiles,SysoFiles,Error,DepsErrors,\
              Incomplete,DepOnly",
             "-e",
             "-mod=readonly",
@@ -531,12 +722,86 @@ fn diagnostic(bytes: &[u8], directory: &Path) -> String {
         .join("\n")
 }
 
+/// Track assembly include candidates conservatively, without interpreting Go's preprocessor
+/// conditions. Its include search starts in the package directory, even for nested headers;
+/// toolchain headers and the generated go_asm.h are resolved by Go when no local file exists.
+async fn observe_assembly_includes(
+    tracker: &mut Tracker<'_>,
+    directory: &Path,
+    assembly: &[String],
+    headers: &[String],
+    goroot: &Path,
+) -> Result<Vec<RcStr>> {
+    static INCLUDES: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r#"(?m)^\s*#\s*include\s+("(?:\\.|[^"\\])*")"#).unwrap()
+    });
+    let mut pending: Vec<_> = assembly
+        .iter()
+        .chain(headers)
+        .map(|name| directory.join(name))
+        .collect();
+    let mut seen = std::collections::BTreeSet::new();
+    while let Some(path) = pending.pop() {
+        if !seen.insert(path.clone()) {
+            continue;
+        }
+        tracker.file(&path).await?;
+        let content = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("reading assembly source: {}", path.display()));
+            }
+        };
+        for capture in INCLUDES.captures_iter(&content) {
+            let name: String = serde_json::from_str(&capture[1])
+                .context("assembly include names must use JSON-compatible quoted strings")?;
+            let mut include = directory.to_owned();
+            for part in Path::new(&name).components() {
+                match part {
+                    std::path::Component::CurDir => {}
+                    std::path::Component::ParentDir => {
+                        // Check before normalizing parent components so a symlink cannot hide
+                        // behind a/../b and change which file Go actually opens.
+                        ensure!(
+                            !std::fs::symlink_metadata(&include)
+                                .is_ok_and(|metadata| metadata.file_type().is_symlink()),
+                            "Go source symlinks are unsupported: {}",
+                            include.display()
+                        );
+                        include.pop();
+                    }
+                    part => include.push(part.as_os_str()),
+                }
+            }
+            if ["src", "pkg/include", "pkg/tool"]
+                .iter()
+                .any(|root| include.starts_with(goroot.join(root)))
+            {
+                // These absolute toolchain includes are guarded by the session fingerprint.
+                continue;
+            }
+            tracker
+                .parents(include.parent().context("assembly include has no parent")?)
+                .await?;
+            pending.push(include);
+        }
+    }
+    Ok(seen
+        .into_iter()
+        .map(|path| path.to_string_lossy().into_owned().into())
+        .collect())
+}
+
 async fn observe_packages(
     tracker: &mut Tracker<'_>,
     packages: &[Package],
     project: &Path,
     module: &str,
-) -> Result<()> {
+    goroot: &Path,
+) -> Result<BTreeMap<RcStr, RcStr>> {
+    let mut assembly_flags = BTreeMap::new();
     for pkg in packages {
         if pkg.standard {
             continue;
@@ -581,8 +846,33 @@ async fn observe_packages(
             .chain(&pkg.embed_files)
             .chain(&pkg.ignored_go_files)
             .chain(&pkg.invalid_go_files)
+            .chain(&pkg.s_files)
+            .chain(&pkg.h_files)
+            .chain(&pkg.syso_files)
         {
             tracker.file(&dir.join(file)).await?;
+        }
+        // Go list reports package headers, but not quoted includes in subdirectories.
+        // Observe these recursively too, including missing paths so a later repair invalidates
+        // discovery. Go still owns preprocessing, assembly selection and compilation.
+        let assembly_inputs =
+            observe_assembly_includes(tracker, dir, &pkg.s_files, &pkg.h_files, goroot).await?;
+        if !pkg.s_files.is_empty() {
+            // Go's own cache omits nested includes from HFiles. Salt only this imported
+            // package's assembler action, so Go cannot reuse an object with stale headers.
+            let inputs: BTreeMap<_, _> = assembly_inputs
+                .into_iter()
+                .map(|path| {
+                    let input = tracker.inputs.files[&path].clone();
+                    (path, input)
+                })
+                .collect();
+            let digest =
+                Sha256::digest(bincode::encode_to_vec(inputs, bincode::config::standard())?);
+            assembly_flags.insert(
+                pkg.import_path.as_str().into(),
+                format!("-D=__TURBOPACK_GO_ASSEMBLY_INPUT_HASH__=0x{digest:x}").into(),
+            );
         }
         // Go embed patterns may gain matches in directories not yet containing a selected file.
         // Observe directory inventories only underneath each pattern's fixed prefix.
@@ -617,10 +907,12 @@ async fn observe_packages(
             }
         }
     }
-    Ok(())
+    Ok(assembly_flags)
 }
 
-#[turbo_tasks::function]
+// Re-register filesystem observations and validate live stamps in every process. Compilation
+// remains persistent: an unchanged build plan restores its executable without invoking Go build.
+#[turbo_tasks::function(session_dependent)]
 async fn discover(
     root: FileSystemPath,
     files: Vec<RcStr>,
@@ -701,7 +993,14 @@ async fn discover(
         let module = config.module.as_ref().map_or("", |m| m.path.as_str());
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let packages = list(&directory, &files, &go_context, &project, &generated).await?;
-        observe_packages(&mut tracker, &packages, &project, module).await?;
+        let assembly_flags = observe_packages(
+            &mut tracker,
+            &packages,
+            &project,
+            module,
+            Path::new(go_context.goroot.as_str()),
+        )
+        .await?;
         // Newly discovered files/directories were not guarded during the first command.
         // Only that registration window needs a second Go scan. For named files importing
         // only standard packages, all mutable inputs were already registered above.
@@ -735,8 +1034,8 @@ async fn discover(
                 continue;
             }
             ensure!(
-                pkg.cgo_files.is_empty() && pkg.s_files.is_empty() && pkg.syso_files.is_empty(),
-                "only pure-Go dependencies are supported: {}",
+                pkg.cgo_files.is_empty(),
+                "CGO dependencies are unsupported: {}",
                 pkg.import_path
             );
             if !pkg.dep_only {
@@ -752,6 +1051,7 @@ async fn discover(
             files: files.clone(),
             generated,
             inputs: tracker.inputs.compiler_inputs(),
+            assembly_flags,
         }))
     }
     .await;
@@ -776,7 +1076,8 @@ async fn discover(
 
 #[turbo_tasks::value(shared)]
 enum Compilation {
-    Success(ResolvedVc<FileContent>),
+    // FileContent persists only its hash; keep the full executable bytes in this task.
+    Success(ResolvedVc<File>),
     Failed(RcStr),
     Retry(Option<Invalidator>),
     Cancelled,
@@ -791,7 +1092,10 @@ async fn compile(
     let go_context = go_session.await?.context.clone();
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
-        _ = go_context.cancellation.token.cancelled() => return Ok(Compilation::Cancelled.cell()),
+        _ = go_context.cancellation.token.cancelled() => {
+            Completion::session_dependent().await?;
+            return Ok(Compilation::Cancelled.cell());
+        },
     };
     let directory = entry_directory(Path::new(project.as_str()), &plan.files)?;
     if !plan.inputs.is_current()? {
@@ -824,11 +1128,20 @@ async fn compile(
         .args(["-mod=readonly", "-buildvcs=false", "-trimpath"])
         .arg(format!("-tags={}", go_context.tags))
         .arg("-o")
-        .arg(&executable)
-        .args(arguments(&plan.files));
+        .arg(&executable);
+    for (package, flags) in &plan.assembly_flags {
+        command.arg(format!("-asmflags={package}={flags}"));
+    }
+    command.args(arguments(&plan.files));
     let report = match process::output(command, &go_context.cancellation.token).await {
-        Err(_) if go_context.is_cancelled() => return Ok(Compilation::Cancelled.cell()),
-        Err(error) => return Ok(Compilation::Failed(format!("{error:#}").into()).cell()),
+        Err(_) if go_context.is_cancelled() => {
+            Completion::session_dependent().await?;
+            return Ok(Compilation::Cancelled.cell());
+        }
+        Err(error) => {
+            Completion::session_dependent().await?;
+            return Ok(Compilation::Failed(format!("{error:#}").into()).cell());
+        }
         Ok(report) => report,
     };
     let after: BTreeMap<_, _> = plan
@@ -842,17 +1155,25 @@ async fn compile(
     }
     let outcome = if report.status.success() {
         Compilation::Success(
-            FileContent::Content(
-                File::from(std::fs::read(&executable)?).with_permissions(Permissions::Executable),
-            )
-            .cell()
-            .to_resolved()
-            .await?,
+            File::from(std::fs::read(&executable)?)
+                .with_permissions(Permissions::Executable)
+                .cell()
+                .to_resolved()
+                .await?,
         )
     } else {
+        // A nonzero exit may reflect transient host/cache failures as well as source errors.
+        // Keep failure memoization within this process, and retry after a restart.
+        Completion::session_dependent().await?;
         Compilation::Failed(diagnostic(&report.stderr, &directory).into())
     };
     Ok(outcome.cell())
+}
+
+// Reconstructing hash-only FileContent after a cache restore must not rerun the compiler.
+#[turbo_tasks::function]
+async fn executable_content(file: ResolvedVc<File>) -> Result<Vc<FileContent>> {
+    Ok(FileContent::Content((*file.await?).clone()).cell())
 }
 
 fn directory_input(path: &RcStr) -> Result<inputs::DirectoryInput> {
@@ -909,7 +1230,9 @@ async fn bundle(
             )
             .await?;
             match &*compiled {
-                Compilation::Success(file) => GoBuildOutcome::Success(*file),
+                Compilation::Success(file) => {
+                    GoBuildOutcome::Success(executable_content(**file).to_resolved().await?)
+                }
                 Compilation::Failed(message) => GoBuildOutcome::Failed(message.clone()),
                 Compilation::Cancelled => GoBuildOutcome::Cancelled,
                 Compilation::Retry(retry) => {

@@ -21,7 +21,8 @@ use turbopack_core::{
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_go::{
-    GoBuildContext, GoBuildOutcome, GoBuildSession, filesystem, go_bundle_with_session,
+    GoBuildContext, GoBuildOutcome, GoBuildSession, filesystem_with_poll_interval,
+    go_bundle_with_session,
 };
 
 use crate::{
@@ -30,8 +31,10 @@ use crate::{
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
-#[derive(Default)]
+#[turbo_tasks::value(evict = "never", eq = "manual")]
 pub(crate) struct GoSessions {
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
     pub context: tokio::sync::Mutex<Option<GoBuildContext>>,
 }
 impl PartialEq for GoSessions {
@@ -40,8 +43,14 @@ impl PartialEq for GoSessions {
     }
 }
 impl Eq for GoSessions {}
-// This lifecycle holder contains host state, not task values.
-unsafe impl turbo_tasks::NonLocalValue for GoSessions {}
+impl GoSessions {
+    pub fn new() -> ResolvedVc<Self> {
+        Self {
+            context: Default::default(),
+        }
+        .resolved_cell()
+    }
+}
 
 #[turbo_tasks::value(shared)]
 pub struct GoRouteEndpoint {
@@ -56,24 +65,24 @@ async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
 }
 
 // Lazily resolve a session toolchain. Go-free projects never execute a Go command.
-#[turbo_tasks::function]
+#[turbo_tasks::function(session_dependent)]
 async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
-    ensure!(
-        !*project.is_persistent_caching_enabled().await?,
-        "route.go does not support Turbopack persistent caching; disable \
-         experimental.turbopackFileSystemCacheForDev/Build"
-    );
     let project_value = project.await?;
     let sessions = project_value
         .go_sessions
-        .as_ref()
-        .context("native Go compilation is not enabled")?;
+        .context("native Go compilation is not enabled")?
+        .await?;
+    let scope = to_sys_path(project.project_root_path().owned().await?)
+        .await?
+        .context("native Go compilation requires a disk filesystem")?;
+    let scope: RcStr = scope.to_str().context("non-UTF8 Go project")?.into();
     let mut session = sessions.context.lock().await;
     if let Some(context) = &*session {
-        return Ok(GoBuildSession::new(context.clone()));
+        return Ok(GoBuildSession::persistent(scope, context.options.clone()));
     }
     let go = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
     let mut context = GoBuildContext::host(Path::new(&go), None, "").await?;
+    context.poll_interval_ms = *project.watch_poll_interval_ms().await?;
     if is_adapter_build(project).await? {
         if let Some(target) = std::env::var_os("NEXT_ADAPTER_VERCEL_GO_TARGET") {
             let target: serde_json::Value = serde_json::from_str(
@@ -96,15 +105,19 @@ async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
             context.exe_suffix = rcstr!("");
         }
     }
+    let persistent = GoBuildSession::persistent(scope, context.options);
+    // The session may have been decoded from the task cache. Its fresh runtime state is the
+    // one used by compiler tasks, and must also be the one cancelled during shutdown.
+    let context = persistent.await?.context.clone();
     if *project.is_watch_enabled().await? {
-        filesystem(context.module_cache.clone())
+        filesystem_with_poll_interval(context.module_cache.clone(), context.poll_interval_ms)
             .connect()
             .await?
             .start_watching()
             .await?;
     }
     *session = Some(context.clone());
-    Ok(GoBuildSession::new(context))
+    Ok(persistent)
 }
 
 #[turbo_tasks::value]
@@ -210,7 +223,10 @@ impl Endpoint for GoRouteEndpoint {
                 return Ok(EndpointOutput {
                     project: this.project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NotFound.resolved_cell(),
+                    output_paths: EndpointOutputPaths::NativeFailed {
+                        build: (*result).clone(),
+                    }
+                    .resolved_cell(),
                 }
                 .cell());
             }

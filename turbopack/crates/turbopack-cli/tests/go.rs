@@ -662,7 +662,7 @@ fn watch_rejects_output_directory_redirection_and_recovers() {
 }
 
 #[test]
-fn rejects_native_application_dependencies() {
+fn accepts_assembly_dependencies_and_rejects_cgo() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
     std::fs::write(
@@ -678,14 +678,18 @@ fn rejects_native_application_dependencies() {
          }\n",
     );
     std::fs::write(native.join("native.go"), "package native\nfunc Run() {}\n").unwrap();
-    // Even unused assembly makes an application dependency unsupported.
     std::fs::write(native.join("native.s"), "").unwrap();
-    rejection(
-        project,
-        &["build", "main.go"],
-        "only pure-Go dependencies are supported: example.com/native/internal/native",
+    let output = cli(project)
+        .args(["build", "main.go", "--go", &tool()])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
     );
-    assert!(!executable(project).exists());
+    assert_eq!(run(&executable(project)).as_deref(), Some(""));
+    std::fs::remove_file(executable(project)).unwrap();
     std::fs::remove_file(native.join("native.s")).unwrap();
     std::fs::write(
         native.join("native.go"),

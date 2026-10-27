@@ -64,12 +64,23 @@ outside the source project through Go's `-overlay` option. Original source paths
 module resolution, `internal` visibility and embedded assets are preserved. A
 virtual generated filename must not already exist in the source directory.
 
-Persistent endpoint tasks can use `GoBuildSession::new` to create a session value
-and pass that value to `go_bundle_with_session`. Reuse the value, just as CLI
-consumers reuse `GoBuildContext`. This keeps transient cancellation state out of
-persistent child-task argument tuples. It does not enable persistent task caching.
-Session owners must still cancel compilation and stop module-cache watchers at
-shutdown. The Next-specific consumer lives in `crates/next-api/src/go_route.rs`.
+Persistent consumers can use `GoBuildSession::persistent` with an owner namespace
+and the probed context's `options`, then pass that value to `go_bundle_with_session`.
+The namespace must be stable across restarts and distinct for independent owners.
+The constructor is keyed by serializable toolchain, environment and target settings;
+cancellation and counters are recreated when its resident session value is decoded.
+A content fingerprint detects installed compiler/source changes between sessions while
+allowing identical SDK copies to reuse cached results. It excludes the module cache.
+
+Acquire the session from a session-dependent task. Retain the returned session's
+`context` for cancellation, including after a warm restore, and recreate module-cache
+watchers in each process. Discovery re-registers filesystem observations each session;
+unchanged compiler plans restore their executable bytes without invoking `go build`.
+When configuring `options.poll_interval_ms`, use `filesystem_with_poll_interval` with
+the same path and interval for module-cache watching and invalidation.
+Session owners must cancel compilation and stop module-cache watchers at shutdown.
+`GoBuildSession::new` remains available for transient consumers. The application
+integration lives outside this crate.
 
 ## How it works
 
@@ -98,8 +109,9 @@ writers: it does not lock sources or provide a transactional snapshot.
   before preparing a module cache.
 - The source project, module cache and writable build cache must satisfy the CLI's
   cache-placement restrictions. Consumed source paths cannot contain symlinks.
-- Task memoization is process-local. Persistent Turbo Tasks caching is unsupported;
-  Go's caches persist independently between sessions.
+- Persistent consumers can cache executable bytes between sessions through the
+  session-valued API above. CLI context arguments remain transient; Go's own build
+  and module caches persist independently.
 - At most two Go actions run concurrently. Each command has a 180-second deadline.
   Cancellation and timeouts terminate its process tree. Compiler subprocess errors
   become failed build outcomes so a watch consumer can recover after input changes.

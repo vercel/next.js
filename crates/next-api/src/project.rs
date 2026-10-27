@@ -429,9 +429,7 @@ struct ProjectFileSystemState {
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
-    #[turbo_tasks(debug_ignore)]
-    #[bincode(skip)]
-    go_sessions: std::sync::Arc<crate::go_route::GoSessions>,
+    go_sessions: ResolvedVc<crate::go_route::GoSessions>,
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
@@ -447,7 +445,7 @@ impl ProjectContainer {
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
         Ok(ProjectContainer {
             name,
-            go_sessions: Default::default(),
+            go_sessions: crate::go_route::GoSessions::new(),
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -976,7 +974,7 @@ impl ProjectContainer {
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
             go_sessions: if *next_config.go_routes().await? {
-                Some(self.go_sessions.clone())
+                Some(self.go_sessions)
             } else {
                 None
             },
@@ -1013,17 +1011,20 @@ impl ProjectContainer {
     }
 
     /// Cancel native compiler actions before stopping Turbo Tasks, then release their watcher.
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(session_dependent)]
     pub async fn shutdown_go(self: Vc<Self>) -> Result<Vc<Completion>> {
         let this = self.await?;
-        let context = this.go_sessions.context.lock().await.take();
+        let context = this.go_sessions.await?.context.lock().await.take();
         if let Some(context) = context {
             context.cancel();
-            turbopack_go::filesystem(context.module_cache)
-                .connect()
-                .await?
-                .stop_watching()
-                .await;
+            turbopack_go::filesystem_with_poll_interval(
+                context.module_cache.clone(),
+                context.poll_interval_ms,
+            )
+            .connect()
+            .await?
+            .stop_watching()
+            .await;
         }
         Ok(Completion::new())
     }
@@ -1059,9 +1060,7 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
-    #[turbo_tasks(debug_ignore)]
-    #[bincode(skip)]
-    pub(crate) go_sessions: Option<std::sync::Arc<crate::go_route::GoSessions>>,
+    pub(crate) go_sessions: Option<ResolvedVc<crate::go_route::GoSessions>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -1340,6 +1339,15 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn is_watch_enabled(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.watch.enable))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn watch_poll_interval_ms(&self) -> Vc<Option<u64>> {
+        Vc::cell(
+            self.watch
+                .poll_interval
+                .map(|interval| interval.as_millis().try_into().unwrap_or(u64::MAX)),
+        )
     }
 
     #[turbo_tasks::function]

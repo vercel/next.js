@@ -429,27 +429,24 @@ export async function handleRouteType({
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
-      if (writtenEndpoint.value.type !== 'native')
-        hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
-      if (dev && writtenEndpoint.value.type !== 'native') {
+      if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
         // after an edit. Subscribing runs `subscribeToClientChanges`, which
         // bumps the `hmrHash` counter on each change; that counter is returned
         // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
         // `getHmrRefreshHash`. Unlike app pages there is no RSC for a connected
-        // browser to refetch, so `createMessage` returns nothing; the
-        // subscription exists only to advance the hash.
+        // browser to refetch, so `createMessage` returns nothing. This also
+        // refreshes native compiler issues when a broken route is repaired.
+        // Subscribe before processIssues can throw on the first compilation.
         hooks?.subscribeToChanges(
           key,
           /** includeIssues= */ true,
           route.endpoint,
           () => undefined,
           (error) => {
-            // This subscription only advances the refresh hash, so there is
-            // nothing to send the browser when it fails. `subscribeToChanges`
+            // There is nothing to send the browser when this subscription
+            // fails. `subscribeToChanges`
             // drops the subscription on error and re-creates it the next time
             // this route is ensured, so just log it.
             console.error(
@@ -460,6 +457,10 @@ export async function handleRouteType({
           }
         )
       }
+
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (writtenEndpoint.value.type !== 'native')
+        hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       const type = writtenEndpoint.value.type
 
