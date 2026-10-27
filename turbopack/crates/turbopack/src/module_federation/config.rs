@@ -173,7 +173,6 @@ pub struct UnnormalizedModuleFederationExposeOptions {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -193,7 +192,6 @@ pub enum UnnormalizedModuleFederationExpose {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -212,7 +210,6 @@ pub enum UnnormalizedModuleFederationExposeArrayItem {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
@@ -231,7 +228,6 @@ pub enum UnnormalizedModuleFederationExposes {
     Deserialize,
     Encode,
     Decode,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
 )]
