@@ -58,13 +58,26 @@ describe('adapter-config dynamic metadata route', () => {
       '/adm-dynamic-sitemap/[slug]/sitemap.xml'
     )
 
+    // Params from generateStaticParams keep their revalidation instead of
+    // being emitted as static files.
+    const prerendered = outputs.prerenders.find(
+      (item) => item.pathname === '/docs/adm-dynamic-sitemap/first/sitemap.xml'
+    )
+    expect(prerendered?.parentOutputId).toBe(
+      '/adm-dynamic-sitemap/[slug]/sitemap.xml'
+    )
+    expect(prerendered?.fallback?.initialRevalidate).toBe(60)
+    expect(
+      outputs.staticFiles.some(
+        (item) =>
+          item.pathname === '/docs/adm-dynamic-sitemap/first/sitemap.xml'
+      )
+    ).toBe(false)
+
     const allPathnames = [
       ...outputs.prerenders.map((item) => item.pathname),
       ...outputs.staticFiles.map((item) => item.pathname),
     ]
-    expect(allPathnames).toContain(
-      '/docs/adm-dynamic-sitemap/first/sitemap.xml'
-    )
     expect(allPathnames).not.toContain(
       '/docs/adm-dynamic-sitemap/-/sitemap.xml'
     )
