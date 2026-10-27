@@ -1901,6 +1901,13 @@ export interface NextConfig {
   }
 
   /**
+   * Custom cache handlers used only during `next build`. Overrides `cacheHandlers`
+   * by cache kind during static path generation and prerendering. These handlers
+   * are not included in the output application.
+   */
+  buildCacheHandlers?: NextConfig['cacheHandlers']
+
+  /**
    * Configure the in-memory cache size in bytes. Defaults to 50 MB.
    * If `cacheMaxMemorySize: 0`, this disables in-memory caching entirely.
    *
@@ -2388,6 +2395,13 @@ export const defaultConfig = Object.freeze({
     remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
+  buildCacheHandlers: Object.fromEntries(
+    Object.entries({
+      default: process.env.NEXT_DEFAULT_BUILD_CACHE_HANDLER_PATH,
+      remote: process.env.NEXT_REMOTE_BUILD_CACHE_HANDLER_PATH,
+      static: process.env.NEXT_STATIC_BUILD_CACHE_HANDLER_PATH,
+    }).filter(([, handler]) => handler !== undefined)
+  ),
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   deprecated: {} as DeprecatedConfig,
   experimental: {

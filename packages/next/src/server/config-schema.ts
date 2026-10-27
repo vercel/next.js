@@ -546,6 +546,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
+    buildCacheHandlers: z.record(z.string(), z.string().optional()).optional(),
     cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheHandlers: z.record(z.string(), z.string().optional()).optional(),

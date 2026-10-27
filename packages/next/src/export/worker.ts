@@ -430,7 +430,10 @@ export async function exportPages(
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
-    cacheHandlers: nextConfig.cacheHandlers,
+    cacheHandlers: {
+      ...nextConfig.cacheHandlers,
+      ...nextConfig.buildCacheHandlers,
+    },
   })
 
   renderOpts.incrementalCache = incrementalCache
