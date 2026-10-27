@@ -54,15 +54,9 @@ impl EcmascriptNodeChunkContent {
 impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(&self) -> Result<Vc<Code>> {
-        let source_maps = *self
-            .chunking_context
-            .source_map_generation_options()
-            .await?;
+        use std::io::Write;
 
-        let mut code = CodeBuilder::new(
-            source_maps,
-            *self.chunking_context.debug_ids_enabled().await?,
-        );
+        let mut code = CodeBuilder::new(*self.chunking_context.debug_ids_enabled().await?);
         let supports_arrow_functions = *self
             .chunking_context
             .environment()
@@ -73,7 +67,7 @@ impl EcmascriptNodeChunkContent {
         let minification =
             ChunkMinification::for_chunking_context(Vc::upcast(*self.chunking_context)).await?;
         let chunk_items = content
-            .chunk_item_code_module_ids_and_paths(minification, source_maps)
+            .chunk_item_code_module_ids_and_paths(minification, false)
             .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
         let strict_chunk_wrapper =
@@ -95,7 +89,7 @@ impl EcmascriptNodeChunkContent {
             code += suffix;
         }
 
-        let code = minification.finish_chunk(code.build(), source_maps)?;
+        let code = minification.finish_chunk(code.build(), false)?;
 
         Ok(code.cell())
     }
@@ -104,7 +98,7 @@ impl EcmascriptNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 }

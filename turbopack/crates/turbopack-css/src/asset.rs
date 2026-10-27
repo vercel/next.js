@@ -14,7 +14,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::{OptionSource, Source},
-    source_map::{GenerateSourceMap, SourceMapType},
+    source_map::{GenerateSourceMap, SourceMapGenerationOptions, SourceMapType},
 };
 
 use crate::{
@@ -46,6 +46,7 @@ pub struct CssModule {
     module_css_debuggable_idents: bool,
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
@@ -55,6 +56,7 @@ impl CssModule {
     pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source_map_generation_options: SourceMapGenerationOptions,
         ty: CssModuleType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
@@ -65,6 +67,7 @@ impl CssModule {
             origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
+            source_map_generation_options,
             import_context,
             ty,
             environment,
@@ -123,8 +126,8 @@ impl ProcessCss for CssModule {
         let this = self.await?;
         let origin_source_map =
             match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
-                Some(gsm) if chunking_context.source_map_generation_options().await?.full => {
-                    gsm.generate_source_map(SourceMapType::Full.cell())
+                Some(gsm) if this.source_map_generation_options.full => {
+                    gsm.generate_source_map(SourceMapType::Full)
                 }
                 Some(_) => FileContent::NotFound.cell(),
                 None => FileContent::NotFound.cell(),
@@ -134,6 +137,7 @@ impl ProcessCss for CssModule {
             chunking_context,
             minify_type,
             origin_source_map,
+            this.source_map_generation_options,
             this.environment.as_deref().copied(),
             this.lightningcss_features,
         ))

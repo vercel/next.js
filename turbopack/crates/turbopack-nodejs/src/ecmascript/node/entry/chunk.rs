@@ -172,7 +172,10 @@ impl EcmascriptBuildNodeEntryChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new_fixed(
             this.path.clone(),
-            this.chunking_context.emitted_source_map_type(),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
             Vc::upcast(self),
         ))
     }
@@ -247,7 +250,7 @@ impl EcmascriptBuildNodeEntryChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 }

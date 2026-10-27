@@ -16,7 +16,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
-    source_map::{SourceMaps, structured::StructuredSourceMap},
+    source_map::{SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -44,6 +44,7 @@ pub struct EcmascriptCssModule {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
@@ -52,11 +53,13 @@ impl EcmascriptCssModule {
     pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source_map_generation_options: SourceMapGenerationOptions,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(EcmascriptCssModule {
             origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
+            source_map_generation_options,
         }))
     }
 }
@@ -330,8 +333,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             )?;
         }
         code += "});\n";
-        let generation = *chunking_context.source_map_generation_options().await?;
-        let map = if generation.any() {
+        let generation = self.await?.source_map_generation_options;
+        let map = if generation.should_generate_any_source_maps() {
             Some(generate_minimal_source_map(
                 turbofmt!("{}", self.ident()).await?.to_string(),
                 code.clone(),

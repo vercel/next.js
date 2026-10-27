@@ -100,7 +100,7 @@ impl EcmascriptModuleEntry {
         } else {
             SourceMapType::Partial
         };
-        let map = &*code.generate_source_map(ty.cell()).await?;
+        let map = &*code.generate_source_map(ty).await?;
         let map = map.as_content().map(|f| f.content().clone());
 
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].

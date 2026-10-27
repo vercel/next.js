@@ -46,6 +46,10 @@ impl EcmascriptBrowserChunk {
             Vc::upcast(*this.chunking_context),
             this.ident_for_path().await?,
             Vc::upcast(self),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
         ))
     }
 }
@@ -190,12 +194,12 @@ impl Asset for EcmascriptBrowserChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.own_content().generate_source_map(ty)
     }
 
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, section: RcStr, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn by_section(self: Vc<Self>, section: RcStr, ty: SourceMapType) -> Vc<FileContent> {
         self.own_content().by_section(section, ty)
     }
 }

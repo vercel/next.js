@@ -188,10 +188,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
     }
 
     #[turbo_tasks::function]
-    fn module_content_without_analysis(
-        &self,
-        _source_map_generation_options: SourceMapGenerationOptions,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
+    fn module_content_without_analysis(&self) -> Result<Vc<EcmascriptModuleContent>> {
         bail!("EcmascriptModuleRenameModule::module_content_without_analysis shouldn't be called");
     }
 

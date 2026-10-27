@@ -51,7 +51,7 @@ impl Asset for CssChunkSourceMapAsset {
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let chunking_context = self.chunk.await?.chunking_context;
         let content = match *chunking_context.emitted_source_map_type().await? {
-            Some(ty) => self.chunk.generate_source_map(ty.cell()),
+            Some(ty) => self.chunk.generate_source_map(ty),
             None => FileContent::NotFound.cell(),
         };
         if content.await?.is_content() {

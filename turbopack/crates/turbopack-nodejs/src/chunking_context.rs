@@ -27,7 +27,7 @@ use turbopack_core::{
         chunk_group_info::ChunkGroupKey,
     },
     output::{OutputAsset, OutputAssets},
-    source_map::{OptionSourceMapType, SourceMapGenerationOptions, SourceMapType},
+    source_map::{OptionSourceMapType, SourceMapType},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -88,13 +88,7 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    /// Retains these maps in addition to the emitted map, regardless of setter order.
-    pub fn source_map_generation_options(mut self, generation: SourceMapGenerationOptions) -> Self {
-        self.chunking_context.source_map_generation_options = generation;
-        self
-    }
-
-    /// Selects the emitted map without replacing explicitly requested internal maps.
+    /// Selects the source map variant emitted to disk.
     pub fn emitted_source_map_type(
         mut self,
         emitted_source_map_type: Option<SourceMapType>,
@@ -197,11 +191,7 @@ impl NodeJsChunkingContextBuilder {
     }
 
     /// Builds the chunking context.
-    pub fn build(mut self) -> Vc<NodeJsChunkingContext> {
-        let emitted =
-            SourceMapGenerationOptions::from_emitted(self.chunking_context.emitted_source_map_type);
-        self.chunking_context.source_map_generation_options.full |= emitted.full;
-        self.chunking_context.source_map_generation_options.partial |= emitted.partial;
+    pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
     }
 }
@@ -255,7 +245,6 @@ pub struct NodeJsChunkingContext {
     minify_before_chunking: bool,
     /// Whether to generate source maps
     emitted_source_map_type: Option<SourceMapType>,
-    source_map_generation_options: SourceMapGenerationOptions,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
@@ -315,7 +304,6 @@ impl NodeJsChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 minify_before_chunking: false,
                 emitted_source_map_type: Some(SourceMapType::Full),
-                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 manifest_chunks: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: None,
@@ -419,10 +407,6 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
-    #[turbo_tasks::function]
-    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
-        self.source_map_generation_options.cell()
-    }
     #[turbo_tasks::function]
     fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
         Vc::cell(self.emitted_source_map_type)

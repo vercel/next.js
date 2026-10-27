@@ -50,11 +50,10 @@ impl EcmascriptBrowserRuntimeChunk {
         let environment = chunking_context.environment();
 
         let output_root_to_root_path = chunking_context.output_root_to_root_path().owned().await?;
-        let source_maps = *chunking_context.source_map_generation_options().await?;
         let asset_context = turbopack::get_runtime_asset_context(environment);
         let runtime_type = *chunking_context.runtime_type().await?;
 
-        let mut code = CodeBuilder::new(source_maps, *chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(*chunking_context.debug_ids_enabled().await?);
 
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
@@ -64,7 +63,6 @@ impl EcmascriptBrowserRuntimeChunk {
                     chunking_context.asset_suffix(),
                     runtime_type,
                     output_root_to_root_path,
-                    source_maps,
                     chunking_context.chunk_loading_global(),
                     chunking_context.cross_origin(),
                     chunking_context.chunk_load_retry(),
@@ -84,7 +82,7 @@ impl EcmascriptBrowserRuntimeChunk {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(code, mangle)?;
         }
 
         Ok(code.cell())
@@ -108,6 +106,10 @@ impl EcmascriptBrowserRuntimeChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
         ))
     }
 }
@@ -173,7 +175,7 @@ impl Asset for EcmascriptBrowserRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserRuntimeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 }

@@ -699,13 +699,13 @@ describe('next analyze', () => {
           ),
         }
         const normal = await next.runCommand(['build'], { env })
-        expect(normal).toMatchObject({ exitCode: 0 })
+        expect(normal).toEqual(expect.objectContaining({ exitCode: 0 }))
         const normalAssets = readBuildAssets()
         expect(
           Object.keys(normalAssets).some((file) => file.endsWith('.css'))
         ).toBe(true)
         const analyzed = await next.runCommand(['build', '--analyze'], { env })
-        expect(analyzed).toMatchObject({ exitCode: 0 })
+        expect(analyzed).toEqual(expect.objectContaining({ exitCode: 0 }))
         expect(readBuildAssets()).toEqual(normalAssets)
 
         const maps = Object.keys(normalAssets)

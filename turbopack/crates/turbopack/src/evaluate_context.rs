@@ -11,6 +11,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_node::execution_context::ExecutionContext;
@@ -111,6 +112,11 @@ pub async fn node_evaluate_asset_context(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 ignore_dynamic_requests,
+                // Evaluator diagnostics need full maps even when emitted maps are partial.
+                source_map_generation_options: SourceMapGenerationOptions {
+                    full: true,
+                    partial: true,
+                },
                 ..Default::default()
             },
             ..Default::default()

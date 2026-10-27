@@ -33,6 +33,10 @@ impl SingleFileEcmascriptOutput {
             *this.chunking_context,
             this.source.ident(),
             Vc::upcast(self),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
         ))
     }
 }
@@ -76,7 +80,7 @@ impl SingleFileEcmascriptOutput {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self, _ty: Vc<SourceMapType>) -> Result<Vc<FileContent>> {
+    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         let FileContent::Content(file) = &*self.source.content().file_content().await? else {
             return Ok(FileContent::NotFound.cell());
         };

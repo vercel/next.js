@@ -57,6 +57,10 @@ impl EcmascriptBuildNodeChunk {
                 .with_modifier(modifier())
                 .into_vc(),
             Vc::upcast(self),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
         ))
     }
 }
@@ -142,7 +146,7 @@ impl Asset for EcmascriptBuildNodeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.own_content().generate_source_map(ty)
     }
 }

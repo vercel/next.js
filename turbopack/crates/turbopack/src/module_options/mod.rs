@@ -336,7 +336,7 @@ impl ModuleOptions {
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            extract_source_map: ecmascript_source_map_generation_options.full,
+            source_map_generation_options: ecmascript_source_map_generation_options,
             keep_last_successful_parse,
             analyze_mode,
             enable_typeof_window_inlining,

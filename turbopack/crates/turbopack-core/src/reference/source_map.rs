@@ -63,7 +63,7 @@ impl ModuleReference for SourceMapReference {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self, _ty: Vc<SourceMapType>) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         let Some(file) = self.get_file().await else {
             return Ok(FileContent::NotFound.cell());
         };

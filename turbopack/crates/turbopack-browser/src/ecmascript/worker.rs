@@ -51,11 +51,6 @@ impl EcmascriptBrowserWorkerEntrypoint {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let source_maps = *this
-            .chunking_context
-            .source_map_generation_options()
-            .await?;
-
         let forwarded_globals = this.forwarded_globals.await?;
         // The shared-runtime worker bootstrap loads a dedicated last `runtime.js`; without it the
         // runtime is inlined into the module/evaluate chunks, so load the chunk list as-is.
@@ -69,7 +64,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let mut code = generate_worker_bootstrap_code(&forwarded_globals, shared_runtime)?;
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(code, mangle)?;
         }
 
         Ok(code.cell())
@@ -93,6 +88,10 @@ impl EcmascriptBrowserWorkerEntrypoint {
             *this.chunking_context,
             self.ident_for_path(),
             Vc::upcast(self),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
         ))
     }
 }
@@ -147,7 +146,7 @@ impl Asset for EcmascriptBrowserWorkerEntrypoint {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
         self.code().generate_source_map(ty)
     }
 }

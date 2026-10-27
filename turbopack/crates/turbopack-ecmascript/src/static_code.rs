@@ -6,7 +6,6 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     reference_type::ReferenceType,
-    source_map::SourceMapGenerationOptions,
 };
 
 use crate::EcmascriptAnalyzable;
@@ -18,7 +17,6 @@ use crate::EcmascriptAnalyzable;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
-    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
@@ -28,7 +26,6 @@ impl StaticEcmascriptCode {
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         asset_path: FileSystemPath,
-        source_map_generation_options: SourceMapGenerationOptions,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
@@ -41,21 +38,15 @@ impl StaticEcmascriptCode {
         let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module) else {
             bail!("asset is not an Ecmascript module")
         };
-        Ok(Self::cell(StaticEcmascriptCode {
-            asset,
-            source_map_generation_options,
-        }))
+        Ok(Self::cell(StaticEcmascriptCode { asset }))
     }
 
     /// Computes the contents of the asset and pushes it to
     /// the code builder, including the source map if available.
     #[turbo_tasks::function]
     pub async fn code(&self) -> Result<Vc<Code>> {
-        let runtime_base_content = self
-            .asset
-            .module_content_without_analysis(self.source_map_generation_options)
-            .await?;
-        let mut code = CodeBuilder::new(self.source_map_generation_options, false);
+        let runtime_base_content = self.asset.module_content_without_analysis().await?;
+        let mut code = CodeBuilder::new(false);
         code.push_source(
             &runtime_base_content.inner_code,
             runtime_base_content.source_maps.clone(),
