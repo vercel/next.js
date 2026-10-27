@@ -114,24 +114,16 @@ The `nop` run must execute the verifier against the untouched fixture and fail f
 
 ## Calibrate models
 
-Run each model once for pass@1 and store the complete Harbor job outside the task definition:
+`evals/agent-build/tools/calibrate.sh` runs the cohort defined at the top of the script, one Harbor job per task, agent, and model, with one attempt each. Jobs land outside the task definition so a cell can be rerun or regraded alone:
 
 ```bash
-.harbor/bin/harbor run \
-  --path evals/agent-build/<task> \
-  --agent codex \
-  --model openai/gpt-6.1-sol \
-  --effort medium \
-  --env vercel \
-  --env-file /path/to/local.env \
-  --base-url https://ai-gateway.vercel.sh/v1 \
-  --api-key-name AI_GATEWAY_API_KEY \
-  --n-attempts 1 \
-  --max-retries 2 \
-  --jobs-dir /path/to/results
+HARBOR=.harbor/bin/harbor evals/agent-build/tools/calibrate.sh \
+  /path/to/local.env /path/to/jobs evals/agent-build/<task> ...
+
+evals/agent-build/tools/calibrate.sh --summary /path/to/jobs
 ```
 
-`--max-retries` retries runner exceptions such as sandbox allocation or transport failures. It does not rerun a completed attempt whose verifier returns `0`. Keep that scored model failure at 0/1 when confirmation attempts later pass, and record those confirmations separately.
+The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 
 ## Run optional context treatments
 

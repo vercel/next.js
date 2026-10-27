@@ -1,41 +1,12 @@
 # Curate Next.js Agent Build evals
 
-Next.js Agent Build candidates measure real framework work that still separates model capability after the existing suite has saturated. New tasks use Harbor today, while their capability and grading contract stays independent from the runner so the set can move to the planned shared eval system.
+Agent Build evals measure whether an agent can make a correct Next.js code change on work that still separates model capability. Tasks live in `evals/agent-build` in the Harbor task format; the grading contract is independent of the runner so the set can move to the shared `vercel/evals` repository unchanged. The existing `agent-eval` fixtures in `evals/evals` keep running the `regression` and `competency` suites and keep their published history; new tasks do not enter that pipeline, and the `regression`, `competency`, and `audit` labels do not apply to them.
 
-The existing `agent-eval` fixtures remain in `evals/evals`. They preserve the published history on nextjs.org/evals and continue to run the `regression` and `competency` suites. New candidates live in `evals/agent-build` and do not enter that publication pipeline.
-
-See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the current Harbor and Vercel Sandbox setup.
-
-## Decide whether to retain a candidate
-
-A new task is a candidate until repeated calibration proves otherwise. Complexity alone does not make a task hard.
-
-Use valid pass@1 results from a fixed frontier and weaker-model cohort:
-
-- Retain a candidate when frontier models stay below 90% because of repeatable capability failures.
-- Revise or drop a candidate when failures come from the task, verifier, runner, or infrastructure.
-- Remove a candidate from the curated set when repeated runs show that frontier models have saturated it. A future regression guard is a separate decision.
-- Treat weaker-model separation as supporting evidence. It does not make a frontier-saturated task suitable for the curated set.
-
-One model cohort provides directional evidence. Admission to the curated Agent Build set needs repeated independent runs, confirmation that scored failures are real, and review by the framework owner.
-
-The `regression`, `competency`, and `audit` labels apply only to the existing `agent-eval` tasks. Do not assign those labels to new tasks in `evals/agent-build` or add new tasks to the legacy publication pipeline.
+See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credentials, and local validation.
 
 ## Choose a capability
 
-Use an Agent Build eval when an agent must make a correct Next.js code change. Start with behavior observed in real work, including repeated agent feedback, framework migrations, release changes, and fixes from real applications.
-
-Prefer capabilities the existing `agent-eval` fixtures do not already measure. Before writing a task, search `evals/evals/*/PROMPT.md` and `EVAL.ts` for the capability; a bigger fixture for a saturated capability is not a harder eval.
-
-### Build tasks around a decision, not an error message
-
-The first candidates in this directory were solvable from the build error alone: the Cache Components clock error and the `server-only` import error each name their fix, and every frontier model passed on the first attempt. The agent-feedback reports show a different failure. Agents read an error page with several branches, pick the branch the overlay lists first, and apply it everywhere. A hard task puts several sites of the same error in one realistic app so that each site needs a different branch, and makes the wrong branch fail a requirement the error message does not mention.
-
-`prerender-unstable-values` is the pattern. Four clock reads trigger the same `blocking-prerender-current-time` error. The footer year must be cached so marketing pages stay static; the "checked at" time must be captured inside the cached data function it describes; the client relative time must be deferred behind a deterministic fallback; and a vendored SDK's clock read must be kept out of the prerender with `io()`, which only shows up in the production server log after the build is green. `await connection()` at every site builds, and fails.
-
-`protected-routes-instant-scope` takes the same approach to `blocking-prerender-dynamic` and instant validation: the overlay suggests `instant = false`, the reports show agents adding it to every segment, and the task forbids it while requiring a real HTTP redirect for signed-out visitors and a prerendered frame for every workspace route.
-
-To find these decisions, read the reports behind a cluster in the Maintainer Agent store, not the summary. The reports say what the agent tried, what the overlay suggested, and what finally worked; the task should make the first two fail.
+Start from observed agent behavior: repeated agent feedback, migrations, release changes, and fixes from real applications. Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first; a bigger fixture for a capability the suite already measures is not a harder eval.
 
 Route other questions to the measurement that owns them:
 
@@ -47,90 +18,59 @@ Route other questions to the measurement that owns them:
 | What changed in cost, speed, or shipped output?                 | Performance        |
 | Did bundled docs, `AGENTS.md`, or a Skill improve the task?     | Context experiment |
 
-Before writing the task, record:
+### Build the task around a decision, not an error message
 
-1. The capability and evidence that it matters
-2. A prompt that describes the goal without naming the solution
-3. The broken starting application and exact Next.js version
-4. Behavioral checks that allow more than one correct implementation
-5. A reference solution and representative incorrect solutions
-6. An owner and the change that should trigger a review
-7. Whether the task must be held out from model training
+A task that an agent can solve from the build error alone does not separate models; every frontier model passes it on the first attempt. The agent-feedback reports show where agents fail: an error page lists several fixes, the agent applies the first one everywhere, and the build goes green while a requirement breaks.
 
-## Keep the task contract portable
+A hard task puts several sites of the same error in one realistic app, gives each site a different correct fix, and makes the wrong fix fail a requirement the error message never mentions. `prerender-unstable-values` has four `Date.now()` sites behind one error: cache the footer year, capture the fetch time inside the cached function it describes, defer the client clock behind a deterministic fallback, and keep a vendored SDK's clock read out of the prerender. `await connection()` at every site builds and fails.
 
-Each task needs five independent parts:
+Read the reports behind a finding in the Maintainer Agent store, not the cluster summary. They say what the agent tried, what the overlay suggested, and what finally worked. The task should make the first two fail.
 
-1. The instruction the agent receives
-2. The broken starting application
-3. One reference repair for oracle validation
-4. A hidden verifier that grades behavior and safety constraints
-5. Runtime, isolation, resource, version, and provenance metadata
+## Define the task
 
-The reference repair proves that the task is solvable. It does not define the only accepted implementation. The verifier must accept reasonable alternative repairs that satisfy the stated contract.
+Each task has five independent parts: the instruction the agent receives, the broken starting application at an exact Next.js version, one reference repair that proves the task is solvable, a hidden verifier that grades behavior and safety constraints, and runtime and provenance metadata. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the stated contract.
 
-Harbor is the current interchange format for these parts. Keep runner commands, credential setup, and Vercel-specific workarounds in [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) so the contract can be translated without changing what a task measures.
+Before implementing, record the capability and the evidence that it matters, the owner and the change that should trigger a review, and whether the task must be held out from model training. Write the prompt as the user would: the goal and every behavior the verifier requires, never the API or the patch.
 
-## Keep context treatments optional
+Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner, not the task. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
 
-Calibrate every task against its base environment. Add a context treatment only when the run is measuring whether extra guidance changes the result.
+## Validate before calibrating
 
-Next.js can pair the base environment with an `AGENTS.md` treatment to measure the effect of its bundled documentation. Another framework may use no treatment, a Skill, or a different source of context. The Agent Build task format does not require any of them.
+Prove the task measures its contract before reading any model result:
 
-Define treatments in the suite or runner configuration instead of the task. A treatment may add context files, but it must keep the task instruction, starting application, verifier, model, and runtime unchanged. Record the treatment with each result so base and treated runs remain comparable.
+1. `harbor lint --select ALL` passes.
+2. The untouched fixture scores 0 for the intended reason.
+3. The reference repair scores 1.
+4. Every script in `tests/bad-solutions/` scores 0 at the check its header names.
+5. A framework owner reviews the prompt and verifier together.
 
-Treatment results answer a separate question from task difficulty. A task does not enter or leave the curated set because one treatment helped it.
-
-## Prevent contamination
-
-A verifier can be hidden from the agent during a run while still being public to future model training. Public tasks provide reproducible examples and may support future regression checks, but they cannot support a leakage-resistant headline score on their own.
-
-When resistance to training contamination matters, create multiple meaningful instances of the same capability. Keep scoring prompts, fixtures, reference solutions, and verifiers in an approved private dataset. Publish the capability definition and aggregate result, record when an instance becomes exposed, and rotate exposed instances out of the held-out score. Superficial renames do not create new instances.
-
-The public tasks in `evals/agent-build` can validate the authoring workflow and seed task families. They enter a held-out score only through independently authored private sibling instances.
-
-## Validate the task
-
-Prove that the task measures its contract before interpreting model results:
-
-1. Lint the task format.
-2. Review the task against the runner's quality rubric.
-3. Run the untouched fixture and confirm that it fails for the intended reason.
-4. Run the reference repair and confirm that it passes.
-5. Confirm that representative incorrect solutions fail.
-6. Ask a framework owner to review the prompt and verifier together.
-
-The prompt must state every behavior the verifier requires without revealing the implementation. The verifier must accept reasonable alternative solutions and check that unrelated behavior still works. Avoid exact symbols, patches, or error messages unless the prompt requires them.
+`tests/bad-solutions/` holds one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision. They are the grader's test suite: a bad repair that scores 1 means the grader is wrong, and an untouched fixture that scores 1 means the task is wrong.
 
 ### Grade what the error message cannot tell the agent
 
-Lessons from validating the first tasks, each of which let a wrong repair through until the check changed:
+Each of these let a wrong repair through until the check changed:
 
-- **A live response is not the static shell.** Playwright's `request` fixture returns the whole streamed document, so a substring check passes whether the content was prerendered or streamed later. Read the prerendered HTML the build wrote under `.next/server/app/<route>.html` to prove what is in the shell, and treat a missing file as "this route has no shell".
-- **Strip React's comment nodes before substring checks.** `© {year} Pulse` renders as `© <!-- -->2026<!-- --> Pulse`.
-- **Read the server log.** Some unstable-value reads report only at request time, after a green build. Start the production server, exercise document, RSC, and prefetch requests, then fail the task if the log contains `while prerendering`, `unstable value`, or `Could not validate`.
-- **Use two identities.** Isolation checks need a second user whose data must not appear, and an expired or invalid session that must see nothing.
-- **Check the status code with redirects disabled.** A streamed redirect is a 200 with a redirect inside the body; uptime checks and non-browser clients only see the 200.
-- **Pin the vendored dependency.** Compare `lib/vendor/*` against the git baseline so the agent cannot edit the library instead of working around it, which is the real-world constraint the reports describe.
-- **Keep timestamp comparisons honest.** Two requests inside the same second produce the same second-resolution timestamp; compare against the prerendered value instead.
+- **A live response is not the static shell.** Playwright's `request` fixture returns the whole streamed document. Read the prerendered HTML the build wrote under `.next/server/app/<route>.html`, and treat a missing file as "no shell".
+- **Strip React's comment nodes first.** `© {year} Pulse` renders as `© <!-- -->2026<!-- --> Pulse`.
+- **Read the production server log.** Some unstable-value reads report only at request time, after a green build. Exercise document, RSC, and prefetch requests, then fail on `while prerendering`, `unstable value`, or `Could not validate`.
+- **Use two identities.** Isolation needs a second user whose data must not appear and an expired session that must see nothing.
+- **Disable redirects when checking status codes.** A streamed redirect is a 200 with the redirect inside the body.
+- **Pin vendored dependencies.** Compare `lib/vendor/*` with the git baseline so the agent cannot edit the library instead of working around it.
+- **Compare timestamps with the prerendered value.** Two requests within one second produce the same second-resolution stamp.
 
-### Keep the known incorrect repairs
+## Calibrate
 
-Every task ships `tests/bad-solutions/`: one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision, with a header naming the check that rejects it. They are the grader's test suite. When a bad repair scores 1, the grader is wrong, not the repair. When the untouched fixture scores 1, the task is wrong.
+Run a fixed frontier and weaker-model cohort with `evals/agent-build/tools/calibrate.sh`. The first valid attempt is the pass@1 score. Retry setup, image, sandbox, network, and model transport errors; they are not model failures. Rerun a scored failure to learn whether it is stable, and record that separately. Confirmations never change the score. One cohort is directional; retention needs repeated independent runs.
 
-Classify each failure as a task, verifier, runner, model, or infrastructure failure. Only valid model attempts contribute to the score.
+Retain a task while frontier models stay below 90% because of repeatable capability failures. Revise or drop it when failures come from the task, verifier, runner, or infrastructure. Remove it from the curated set once frontier models saturate it; a regression guard is a separate decision. Weaker-model separation supports a decision but does not qualify a frontier-saturated task.
 
-## Calibrate and report
+Public tasks support reproducibility and regression. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals; that is a separate decision.
 
-Run a fixed frontier and weaker-model cohort. Score the first valid attempt as pass@1. Retry setup, image, sandbox, network, and model transport errors. When a model fails, use confirmation attempts to understand whether the failure is stable. Confirmations do not change the first valid score.
+## Pull request format
 
-One attempt per model provides directional evidence. Use repeated independent runs before claiming a stable pass rate or saturation. Keep the transcript, patch, verifier output, failure classification, token usage, cost, and duration with each result.
+Every pull request whose primary purpose is an eval task, suite, runner, or measurement automation uses the same shape, so results read the same across pull requests and copy into the team channel without rewriting. The title starts with `eval:` and names the outcome: `eval: resolve and classify the audit suite`, not `eval: eval updates`.
 
-### Pull request format
-
-Every pull request whose primary purpose is an eval task, suite, runner, or measurement automation uses the same shape, so results can be read across pull requests and copied into the team channel without rewriting. The title starts with `eval:` and names the outcome, not the activity: `eval: resolve and classify the audit suite`, not `eval: eval updates`.
-
-The description has these sections, in this order. Leave a section in place with "Not run" or "None" rather than deleting it, so a reader can tell the difference between "did not happen" and "forgot to say".
+Keep every section, writing "Not run" or "None" where nothing happened, so a reader can tell "did not happen" from "forgot to say". Describe the resulting state, not the history; mention a removal in one sentence under the Tasks table.
 
 ```markdown
 One paragraph: the question this change answers and the outcome.
@@ -140,46 +80,33 @@ One paragraph: the question this change answers and the outcome.
 | Task | Capability | Source findings | Class |
 | ---- | ---------- | --------------- | ----- |
 
-Describe the resulting state, not the history: one row per task the pull
-request leaves in place, and the suite each is a candidate for. Mention a
-removal in one sentence under the table, with its reason, not as a row.
-
 ## Validation
 
 | Task | Untouched | Reference | Known incorrect repairs |
 | ---- | --------- | --------- | ----------------------- |
 
-Each row reads `0 (gate)`, `1`, `n of n rejected at the named gate`. Below
-the table, list the static checks that ran: `harbor lint --select ALL`,
-`harbor check` when it ran, Prettier, ESLint, `git diff --check`.
+Rows read `0 (gate)`, `1`, `n of n rejected at the named gate`. Then the
+static checks that ran: harbor lint, harbor check, Prettier, ESLint.
 
 ## Calibration results
-
-Pass@1 against the exact framework package, one column per task:
 
 | Model | Treatment | `task-a` | `task-b` |
 | ----- | --------- | -------: | -------: |
 
-Rows cover the agreed frontier and weaker cohorts, Base and any treatment
-as separate rows. Cells read `1/1`, `0/1`, or `discarded`. Below the
-table: which discarded attempts were infrastructure and why, and what the
-confirmation reruns of each scored failure showed. Confirmations never
-change a cell. Call a single-attempt cohort directional.
+Pass@1 against the exact framework package. Cells read `1/1`, `0/1`, or
+`discarded`. Below: why each discarded attempt was infrastructure, and what
+confirmation reruns of each scored failure showed.
 
 ## Versions
 
-Framework package, Harbor revision, each agent harness and model version,
-and the `version` from each `task.toml`. Link the job directory or dataset
-so the trials can be regraded.
+Framework package, Harbor revision, agent and model versions, the `version`
+in each `task.toml`, and a link to the job directory or dataset.
 
 ## Publication
 
-Whether the tasks are public in this repository, and that score publication
-is a separate decision. Note held-out siblings when they exist.
+Public or held out, and that score publication is a separate decision.
 
 Stacked on #NNNN, when applicable.
 ```
 
-Two Harbor conventions make the versions section useful. Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so trials from an older version are never compared with trials from a newer one and a grader-only change can be regraded without a rerun. Pin the agent and verifier images by digest and the agent harness by version in the job, so the versions section can be copied from the job rather than remembered.
-
-Adding a task to `evals/agent-build` does not publish its scores on nextjs.org/evals. Score publication requires a separate decision after the team reviews the task, evidence, ownership, and maintenance cost.
+Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so older trials are never compared with newer ones and a grader-only change can be regraded without a rerun.
