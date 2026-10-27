@@ -7,8 +7,10 @@ const fs = require('fs')
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
+const { createHash } = require('crypto')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
+const crossSpawn = require('cross-spawn')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const { getBrowserLaunch } = require('./test/lib/browsers/launch')
 const glob = promisify(_glob)
@@ -163,6 +165,13 @@ const nextjsReactPeerVersion = "19.3.1";
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
   .string('test-pattern')
+  .string('suite-list')
+  .describe(
+    'suite-list',
+    'JSON file of {file, testNamePattern?} suite selections'
+  )
+  .string('jest-args')
+  .describe('jest-args', 'JSON array of additional Jest arguments')
   .boolean('timings')
   .boolean('write-timings')
   .number('retries')
@@ -191,7 +200,7 @@ function escapeRegexp(str) {
 }
 
 /**
- * @typedef {{ file: string, excludedCases: string[] }} TestFile
+ * @typedef {{ file: string, excludedCases: string[], testNamePattern?: string }} TestFile
  * @typedef {TestFile & { runNumber: number }} TestRun
  */
 
@@ -360,6 +369,8 @@ let sharedBrowserServer
  * @type {string | undefined}
  */
 let testRunsDirectory
+/** @type {string | undefined} */
+let suiteResultsDirectory
 
 const cleanUpAndExit = async (code) => {
   if (exiting) {
@@ -381,6 +392,9 @@ const cleanUpAndExit = async (code) => {
   }
   if (testRunsDirectory && !process.env.NEXT_TEST_SKIP_CLEANUP) {
     await fsp.rm(testRunsDirectory, { recursive: true, force: true })
+  }
+  if (suiteResultsDirectory) {
+    await fsp.rm(suiteResultsDirectory, { recursive: true, force: true })
   }
   if (process.env.CI) {
     await maybeLogSummary()
@@ -435,6 +449,33 @@ async function main() {
     dry: argv.dry ?? false,
     local: argv.local ?? false,
     printTests: argv.printTests ?? false,
+  }
+  const jestArgs = JSON.parse(argv['jest-args'] ?? '[]')
+  if (
+    !Array.isArray(jestArgs) ||
+    jestArgs.some((arg) => typeof arg !== 'string')
+  ) {
+    throw new Error('--jest-args must be a JSON array of strings')
+  }
+  // A developer's name filter narrows a focused suite; it must not replace
+  // the suite's routing-only selection and enable unrelated assertions.
+  const namePatterns = []
+  const forwardedJestArgs = []
+  for (let index = 0; index < jestArgs.length; index++) {
+    const match =
+      /^(?:--testNamePattern|--test-name-pattern|-t)(?:=(.*))?$/.exec(
+        jestArgs[index]
+      ) ?? /^-t(.+)$/.exec(jestArgs[index])
+    if (match) {
+      const pattern = match[1] ?? jestArgs[++index]
+      if (typeof pattern !== 'string') {
+        throw new Error('A Jest testNamePattern needs a value')
+      }
+      new RegExp(pattern)
+      namePatterns.push(pattern)
+    } else {
+      forwardedJestArgs.push(jestArgs[index])
+    }
   }
   let numRetries = options.retries
   if (!Number.isSafeInteger(options.runCount) || options.runCount < 1) {
@@ -495,6 +536,29 @@ async function main() {
   let tests = argv._.filter((arg) =>
     arg.toString().match(/\.test\.(js|ts|tsx)/)
   ).map((file) => ({ file: file.toString(), excludedCases: [] }))
+  if (argv['suite-list']) {
+    const selections = JSON.parse(
+      await fsp.readFile(argv['suite-list'], 'utf8')
+    )
+    if (
+      !Array.isArray(selections) ||
+      selections.length === 0 ||
+      selections.some(
+        (selection) =>
+          typeof selection.file !== 'string' ||
+          !/\.test\.[jt]sx?$/.test(selection.file) ||
+          (selection.testNamePattern !== undefined &&
+            (typeof selection.testNamePattern !== 'string' ||
+              selection.testNamePattern.length === 0))
+      )
+    ) {
+      throw new Error('--suite-list must contain nonempty suite selections')
+    }
+    for (const selection of selections) {
+      if (selection.testNamePattern) new RegExp(selection.testNamePattern)
+    }
+    tests = selections.map((selection) => ({ ...selection, excludedCases: [] }))
+  }
   let prevTimings
 
   if (tests.length === 0) {
@@ -682,6 +746,11 @@ ${ENDGROUP}`)
   if (options.printTests) {
     await cleanUpAndExit(0)
   }
+  if (argv['suite-list'] && !options.dry) {
+    suiteResultsDirectory = await fsp.mkdtemp(
+      path.join(os.tmpdir(), 'next-suite-results-')
+    )
+  }
 
   if (
     !options.dry &&
@@ -756,6 +825,7 @@ ${ENDGROUP}`)
   )
   let firstError = true
   let hadFailures = false
+  const selectedCounts = { passed: 0, failed: 0, pending: 0 }
 
   /**
    * @param {TestRun} testRun
@@ -795,6 +865,18 @@ ${ENDGROUP}`)
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+      const resultsFile = isTestJob
+        ? `${getTestRunId(testRun)}${RESULTS_EXT}`
+        : suiteResultsDirectory
+          ? path.join(
+              suiteResultsDirectory,
+              `${createHash('sha256').update(testRun.file).digest('hex')}.${testRun.runNumber}.json`
+            )
+          : undefined
+      const includePatterns = [
+        ...(testRun.testNamePattern ? [testRun.testNamePattern] : []),
+        ...namePatterns,
+      ]
 
       const args = [
         ...(process.env.CI ? ['--ci'] : []),
@@ -802,16 +884,16 @@ ${ENDGROUP}`)
         '--forceExit',
         '--no-cache',
         '--verbose',
-        ...(isTestJob
-          ? ['--json', `--outputFile=${getTestRunId(testRun)}${RESULTS_EXT}`]
-          : []),
+        ...(resultsFile ? ['--json', `--outputFile=${resultsFile}`] : []),
+        ...(argv['suite-list'] ? ['--runTestsByPath'] : []),
         testRun.file,
-        ...(testRun.excludedCases.length === 0
+        ...(includePatterns.length === 0 && testRun.excludedCases.length === 0
           ? []
           : [
               '--testNamePattern',
-              `^(?!(?:${testRun.excludedCases.map(escapeRegexp).join('|')})$).`,
+              `^(?!(?:${testRun.excludedCases.map(escapeRegexp).join('|')})$)${includePatterns.map((pattern) => `(?=.*(?:${pattern}))`).join('')}.`,
             ]),
+        ...forwardedJestArgs,
       ]
       const deferNextTestWasm = !!process.env.NEXT_TEST_WASM
       const env = {
@@ -901,14 +983,17 @@ ${ENDGROUP}`)
         return resolve(new Date().getTime() - start)
       }
 
-      const child = spawn(jestPath, args, {
+      const spawnTest = argv['suite-list'] ? crossSpawn : spawn
+      const child = spawnTest(jestPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: {
           ...process.env,
           ...env,
         },
+        // cross-spawn handles .cmd execution and quotes focused regexes on
+        // Windows. Keep the existing launch behavior for other callers.
         // See: https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
-        shell: process.platform === 'win32',
+        shell: argv['suite-list'] ? false : process.platform === 'win32',
       })
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
@@ -917,6 +1002,37 @@ ${ENDGROUP}`)
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
+        if (suiteResultsDirectory && resultsFile) {
+          try {
+            const report = JSON.parse(await fsp.readFile(resultsFile, 'utf8'))
+            const pattern = testRun.testNamePattern
+              ? new RegExp(testRun.testNamePattern)
+              : undefined
+            const assertions = report.testResults.flatMap(
+              (result) => result.assertionResults
+            )
+            const selectedAssertions = assertions.filter(
+              (assertion) => !pattern || pattern.test(assertion.fullName)
+            )
+            // A renamed assertion must not silently turn a focused selection
+            // into an entirely filtered-out, successful Jest run. Registered
+            // but mode-gated tests still count as a valid selection.
+            if (pattern && selectedAssertions.length === 0 && code === 0) {
+              return reject(
+                new Error(
+                  `No test names match the routing selection in ${testRun.file}`
+                )
+              )
+            }
+            for (const assertion of selectedAssertions) {
+              if (assertion.status in selectedCounts) {
+                selectedCounts[assertion.status]++
+              }
+            }
+          } catch (error) {
+            if (code === 0) return reject(error)
+          }
+        }
         const isChildExitWithNonZero = code !== 0 || signal !== null
         if (isChildExitWithNonZero) {
           if (hideOutput) {
@@ -1183,6 +1299,11 @@ ${ENDGROUP}`)
     try {
       fs.closeSync(passedTestsFd)
     } catch {}
+  }
+  if (suiteResultsDirectory) {
+    console.log(
+      `Selected assertions: ${selectedCounts.passed} passed, ${selectedCounts.failed} failed, ${selectedCounts.pending} skipped`
+    )
   }
 
   if (cachedPassedTests.size > 0) {

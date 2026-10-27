@@ -1,0 +1,1030 @@
+[
+  {
+    "id": "H01",
+    "group": "http",
+    "capability": "Request and response payloads",
+    "scope": "Both",
+    "contract": "Route Handlers can read JSON, text/raw webhook payloads, and FormData using Web Request APIs. Pages API Routes expose cookies/query/body, parse by content type, and support disabling bodyParser for raw streams. Exercise payloads through the public listener, including Proxy reading a body before the destination reads it.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/route.mdx",
+      "docs/02-pages/03-building-your-application/01-routing/07-api-routes.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/proxyClientMaxBodySize.mdx"
+    ],
+    "tests": [
+      "test/e2e/api-support/api-support.test.ts",
+      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/production/reading-request-body-in-middleware/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/api-support/api-support.test.ts",
+      "test/production/reading-request-body-in-middleware/index.test.ts"
+    ]
+  },
+  {
+    "id": "H02",
+    "group": "http",
+    "capability": "Distinct body-size limits",
+    "scope": "Both; one experimental option",
+    "contract": "Test each documented limit separately: Pages API bodyParser defaults to 1mb and is configurable; Server Actions default to 1MB and count the raw multipart envelope; experimental proxyClientMaxBodySize defaults to 10MB and truncates the buffered body with a warning, without automatically failing the request. Include below/at/above configured limits and the bodyParser-disabled case. Do not invent an HTTP error status where the docs only specify a limit.",
+    "docs": [
+      "docs/02-pages/03-building-your-application/01-routing/07-api-routes.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/serverActions.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/proxyClientMaxBodySize.mdx"
+    ],
+    "tests": [
+      "test/e2e/api-support/api-support.test.ts",
+      "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts",
+      "test/e2e/client-max-body-size/index.test.ts",
+      "test/e2e/routing-server/http/action-origin-contract/action-origin-contract.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/action-origin-contract/action-origin-contract.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/client-max-body-size/index.test.ts",
+      {
+        "file": "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts",
+        "testNamePattern": "should respect the size set in serverActions\\.bodySizeLimit for (?:plaintext|multipart) fetch actions"
+      }
+    ]
+  },
+  {
+    "id": "H03",
+    "group": "http",
+    "capability": "Statuses, headers, and cookies",
+    "scope": "Both",
+    "contract": "Preserve the response selected by the application: JSON, text, binary bodies, status, custom headers, redirects, and response cookies. Verify distinct cookies remain independently usable in a browser. Request-header overrides are visible upstream rather than leaked as response headers. Verify the documented poweredByHeader opt-out on an eligible page response.",
+    "docs": [
+      "docs/02-pages/03-building-your-application/01-routing/07-api-routes.mdx",
+      "docs/01-app/03-api-reference/04-functions/next-response.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/poweredByHeader.mdx"
+    ],
+    "tests": [
+      "test/development/config/config.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts"
+    ]
+  },
+  {
+    "id": "H04",
+    "group": "http",
+    "capability": "Progressive response delivery",
+    "scope": "App; Pages API streams",
+    "contract": "A loading/Suspense fallback or prerendered shell reaches the client while later content is still blocked, followed by the completed content. Custom Route Handler streams and Pages API streams also progress. Use a fixture-controlled release barrier and verify ordered content; exact TCP chunk sizes are not a Next.js contract.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/loading.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/route.mdx",
+      "docs/01-app/02-guides/self-hosting.mdx",
+      "docs/02-pages/03-building-your-application/01-routing/07-api-routes.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+      "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
+      "test/e2e/cancel-request/stream-cancel.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
+      "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
+      "test/e2e/cancel-request/stream-cancel.test.ts",
+      "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts"
+    ]
+  },
+  {
+    "id": "H05",
+    "group": "http",
+    "capability": "Status behavior before and after streaming",
+    "scope": "App; auth fallbacks experimental",
+    "contract": "Before headers are committed, notFound returns 404 and redirects use their documented HTTP response. After streaming begins, a page can remain HTTP 200 while delivering not-found UI/noindex or a client redirect meta tag. Test each timing explicitly. With authInterrupts enabled, cover analogous unauthorized/forbidden UI and 401/403 before streaming.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/loading.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/not-found.mdx",
+      "docs/01-app/03-api-reference/04-functions/redirect.mdx",
+      "docs/01-app/03-api-reference/04-functions/unauthorized.mdx",
+      "docs/01-app/03-api-reference/04-functions/forbidden.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/metadata-streaming/metadata-streaming.test.ts",
+      "test/e2e/app-dir/not-found/basic/index.test.ts",
+      "test/e2e/app-dir/unauthorized/basic/unauthorized-basic.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts"
+    ]
+  },
+  {
+    "id": "H06",
+    "group": "http",
+    "capability": "Compression",
+    "scope": "next start / custom server",
+    "contract": "Negotiated gzip compresses eligible rendered content and static files; decompression returns the expected bytes. compress:false disables Next.js compression. A custom server that already provides compression does not gain a second compression layer. Keep deployment-managed compression expectations separate.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/compress.mdx"
+    ],
+    "tests": [
+      "test/development/compression/compression.test.ts",
+      "test/e2e/custom-server/custom-server.test.ts",
+      "test/e2e/routing-server/http/compression-contract/compression-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/compression-contract/compression-contract.test.ts"
+    ]
+  },
+  {
+    "id": "H07",
+    "group": "http",
+    "capability": "HTTP caching and validators",
+    "scope": "Both",
+    "contract": "Public files default to public,max-age=0. Truly immutable hashed assets receive public,max-age=31536000,immutable and cannot have that policy overridden by next.config headers. Static/ISR/dynamic page Cache-Control follows its documented rendering policy; dynamic and Draft Mode responses remain private. Check generateEtags on/off on a suitable non-streamed HTML page. Conditional request mechanics beyond the docs belong to HTTP conformance checks.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/public-folder.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/headers.mdx",
+      "docs/01-app/02-guides/cdn-caching.mdx",
+      "docs/01-app/02-guides/self-hosting.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/generateEtags.mdx"
+    ],
+    "tests": [
+      "test/e2e/api-support/api-support.test.ts",
+      "test/e2e/app-dir/app/index.test.ts",
+      "test/e2e/custom-server/custom-server.test.ts",
+      "test/e2e/draft-mode/draft-mode.test.ts",
+      "test/e2e/getserversideprops/test/index.test.ts",
+      "test/e2e/prerender.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/production/pages-dir/production/test/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      {
+        "file": "test/e2e/custom-server/custom-server.test.ts",
+        "testNamePattern": "response (?:includes|does not include) etag header"
+      },
+      {
+        "file": "test/e2e/prerender.test.ts",
+        "testNamePattern": "should use correct caching headers for a (?:revalidate|fallback-true|no-revalidate) page"
+      },
+      {
+        "file": "test/e2e/getserversideprops/test/index.test.ts",
+        "testNamePattern": "should (?:set default|respect custom) caching header"
+      }
+    ]
+  },
+  {
+    "id": "H08",
+    "group": "http",
+    "capability": "Server Action request admission",
+    "scope": "App",
+    "contract": "Matching Origin/Host or X-Forwarded-Host permits an action; mismatches are rejected unless allowedOrigins matches. Test explicit hosts, ports, single-label and multi-label wildcards, plus rejection cases. The docs expressly permit a missing Origin with a warning. Verify these decisions survive the frontend boundary without changing application-visible host information.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/serverActions.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts",
+      "test/e2e/app-dir/actions-allowed-origins/app-action-disallowed-origins.test.ts",
+      "test/e2e/app-dir/actions-allowed-origins/app-action-opaque-origin.test.ts",
+      "test/e2e/routing-server/http/action-origin-contract/action-origin-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/action-origin-contract/action-origin-contract.test.ts"
+    ]
+  },
+  {
+    "id": "H09",
+    "group": "http",
+    "capability": "Dev asset and endpoint origin restrictions",
+    "scope": "Dev only",
+    "contract": "Dev-only assets/endpoints reject cross-origin access by default. allowedDevOrigins matches hostname, ignoring scheme and port; no-cors requests without Origin use Referer hostname. Test exact/wildcard allow entries and rejection cases separately from Server Action allowedOrigins, which matches host including port.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/allowedDevOrigins.mdx"
+    ],
+    "tests": ["test/development/basic/allowed-dev-origins.test.ts"],
+    "routingTests": ["test/development/basic/allowed-dev-origins.test.ts"]
+  },
+  {
+    "id": "H10",
+    "group": "http",
+    "capability": "Listener, connection timeout, and background work",
+    "scope": "Self-hosted; Proxy/App lifetime",
+    "contract": "Honor documented next start host/port and keepAliveTimeout. Proxy waitUntil allows work to finish after the response; after runs after the response finishes. On SIGINT/SIGTERM, self-hosted next start finishes in-flight requests and pending after callbacks before exit. Test controlled pending work, without assigning an undocumented universal drain deadline.",
+    "docs": [
+      "docs/01-app/03-api-reference/06-cli/next.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+      "docs/01-app/03-api-reference/04-functions/after.mdx",
+      "docs/01-app/02-guides/self-hosting.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/graceful-shutdown-next-after/next-start/index.test.ts",
+      "test/e2e/app-dir/next-after-app/index.test.ts",
+      "test/e2e/cli/cli.test.ts",
+      "test/e2e/rewrite-request-smuggling/rewrite-request-smuggling.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/http/lifecycle-contract/lifecycle-contract.test.ts",
+      "test/production/graceful-shutdown/index.test.ts",
+      "test/production/rewrite-request-smuggling/rewrite-request-smuggling.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/http/lifecycle-contract/lifecycle-contract.test.ts",
+      "test/e2e/app-dir/graceful-shutdown-next-after/next-start/index.test.ts",
+      {
+        "file": "test/e2e/app-dir/next-after-app/index.test.ts",
+        "testNamePattern": "only runs callbacks after the response is fully sent|runs callbacks if (?:a request is aborted|the browser disconnects) before the page finishes streaming"
+      },
+      "test/production/graceful-shutdown/index.test.ts"
+    ]
+  },
+  {
+    "id": "R01",
+    "group": "router",
+    "capability": "Filesystem route selection",
+    "scope": "Both",
+    "contract": "Serve Pages index/nested routes and App page/route endpoints at their documented URL paths. An application containing distinct App and Pages routes must keep both reachable during incremental migration. Reject App/Pages definitions sharing a URL and an App page sharing a segment with a Route Handler.",
+    "docs": [
+      "docs/02-pages/03-building-your-application/01-routing/01-pages-and-layouts.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/page.mdx",
+      "docs/01-app/01-getting-started/15-route-handlers.mdx",
+      "docs/01-app/02-guides/migrating/app-router-migration.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/app/index.test.ts",
+      "test/e2e/conflicting-app-page-error/index.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/pages-to-app-routing/pages-to-app-routing.test.ts",
+      "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/pages-to-app-routing/pages-to-app-routing.test.ts",
+      "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts",
+      "test/e2e/conflicting-app-page-error/index.test.ts"
+    ]
+  },
+  {
+    "id": "R02",
+    "group": "router",
+    "capability": "Public versus non-routable files",
+    "scope": "App; public files shared",
+    "contract": "A folder alone does not expose a route; colocated source files remain inaccessible. _private folders and descendants are excluded. Route-group names and @slot names do not appear in URLs. A %5F-prefixed folder can create a real underscore-prefixed URL segment. Route groups cannot define duplicate URL paths, and public files cannot conflict with Pages file routes.",
+    "docs": [
+      "docs/01-app/01-getting-started/02-project-structure.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/route-groups.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/parallel-routes.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/public-folder.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+      "test/e2e/app-dir/app/index.test.ts",
+      "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts",
+      "test/e2e/conflicting-public-file-page/conflicting-public-file-page.test.ts",
+      "test/e2e/file-serving/file-serving.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts",
+      "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts",
+      "test/e2e/conflicting-public-file-page/conflicting-public-file-page.test.ts"
+    ]
+  },
+  {
+    "id": "R03",
+    "group": "router",
+    "capability": "Dynamic and catch-all routes",
+    "scope": "Both",
+    "contract": "[slug] captures one segment as a string; [...slug] captures one or more as an array; [[...slug]] also matches the base route with an absent parameter. Cover nested dynamic segments and expose received parameters from the fixture. Test the documented static > dynamic > catch-all priority for Pages APIs.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/dynamic-routes.mdx",
+      "docs/02-pages/03-building-your-application/01-routing/02-dynamic-routes.mdx",
+      "docs/02-pages/03-building-your-application/01-routing/07-api-routes.mdx"
+    ],
+    "tests": [
+      "test/e2e/api-support/api-support.test.ts",
+      "test/e2e/app-dir/app/index.test.ts",
+      "test/e2e/app-dir/param-matching-routing/param-matching-routing.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts"
+    ]
+  },
+  {
+    "id": "R04",
+    "group": "router",
+    "capability": "URL and query information at the destination",
+    "scope": "Both",
+    "contract": "Preserve path parameters and search parameters in the documented request/page APIs. App searchParams retains repeated keys as arrays. Pages query includes dynamic parameters; getServerSideProps.resolvedUrl strips the data prefix and preserves original query values. Test request.nextUrl/basePath where applicable. Encoding conflict policies not documented remain open questions.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/page.mdx",
+      "docs/02-pages/04-api-reference/03-functions/get-server-side-props.mdx",
+      "docs/01-app/03-api-reference/04-functions/next-request.mdx"
+    ],
+    "tests": [
+      "test/e2e/getserversideprops/test/index.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
+      "test/e2e/routing-server/router/multi-value-search-params-stale/multi-value-search-params-stale.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
+      "test/e2e/routing-server/router/multi-value-search-params-stale/multi-value-search-params-stale.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+    ]
+  },
+  {
+    "id": "R05",
+    "group": "router",
+    "capability": "Routing phase order",
+    "scope": "Both; docs discrepancy noted below",
+    "contract": "Use legally overlapping fixtures to observe headers \u2192 config redirects \u2192 Proxy \u2192 beforeFiles \u2192 filesystem/static routes \u2192 afterFiles \u2192 dynamic routes \u2192 fallback \u2192 unmatched handling. Assert both the chosen destination and which later stages did not run. The Pages rewrites reference omits Proxy; retain that discrepancy explicitly until resolved.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+    ]
+  },
+  {
+    "id": "R06",
+    "group": "router",
+    "capability": "Custom-route path pattern language",
+    "scope": "Both",
+    "contract": "For headers, redirects, and rewrites, cover literals, named segments, zero/many wildcard segments, regex-constrained segments, and escaped regex characters; include matching and near-miss paths. Verify captures are substituted into documented destinations/header keys and values.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/redirects.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/headers.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+    ]
+  },
+  {
+    "id": "R07",
+    "group": "router",
+    "capability": "Conditional custom routes",
+    "scope": "Both",
+    "contract": "For headers/redirects/rewrites, test header, cookie, query, and host conditions; presence-only matching; regex values and named captures; all has entries must match and all missing entries must not match. Test combined conditions and a nonmatching case for each.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/redirects.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/headers.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+    ]
+  },
+  {
+    "id": "R08",
+    "group": "router",
+    "capability": "Configured response headers",
+    "scope": "Both",
+    "contract": "Headers apply before filesystem selection. When several matching rules set the same key, the last wins. Captures can appear in both header keys and values; basePath and locale alter matching as documented. Assert this on pages and public files, using cache-header exceptions from H07.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/headers.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
+    ]
+  },
+  {
+    "id": "R09",
+    "group": "router",
+    "capability": "Configured redirects",
+    "scope": "Both; Pages client caveat",
+    "contract": "Temporary redirects use 307; permanent redirects use 308 and preserve method semantics. Query values pass through, captured path values interpolate, and destinations may be internal or external. Cover the documented custom statusCode option. Pages client-side Link/router navigation does not apply config redirects unless matching Proxy is present.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/redirects.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
+    ]
+  },
+  {
+    "id": "R10",
+    "group": "router",
+    "capability": "Internal rewrite behavior",
+    "scope": "Both",
+    "contract": "A rewrite serves its destination while keeping the visible URL. It works on client navigation as well as document requests. When no captured parameter is used in the destination, captures pass into the query; once a capture is used, automatic query insertion stops, with manual query interpolation still supported. Verify the hydrated destination sees the documented values.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+    ]
+  },
+  {
+    "id": "R11",
+    "group": "router",
+    "capability": "Rewrite phase and termination semantics",
+    "scope": "Both",
+    "contract": "Array-form rewrites run after filesystem checks and before dynamic routes. beforeFiles can override files and continues through all its rules without immediate filesystem checks. afterFiles stops at the first rewrite resolving to an existing file/page/dynamic route. fallback runs after those matches fail; getStaticPaths fallback true/blocking dynamic routes take priority over fallback rewrites.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx"
+    ],
+    "tests": [
+      "test/e2e/i18n-support-fallback-rewrite-legacy/i18n-support-fallback-rewrite-legacy.test.ts",
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
+      "test/e2e/i18n-support-fallback-rewrite-legacy/i18n-support-fallback-rewrite-legacy.test.ts"
+    ]
+  },
+  {
+    "id": "R12",
+    "group": "router",
+    "capability": "External rewrites and incremental adoption",
+    "scope": "Both; multi-zone fixture",
+    "contract": "External rewrites proxy to the configured origin while keeping the incoming visible URL. Cover a specific external route and fallback to a legacy origin, verifying upstream path/query. A multi-zone fixture routes both page paths and prefixed assets to the right app; cross-zone links use full navigation, as documented.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx",
+      "docs/01-app/02-guides/multi-zones.mdx"
+    ],
+    "tests": [
+      "test/e2e/multi-zone/multi-zone.test.ts",
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/multi-zone/multi-zone.test.ts"
+    ]
+  },
+  {
+    "id": "R13",
+    "group": "router",
+    "capability": "basePath",
+    "scope": "Both",
+    "contract": "Serve an application under its configured build-time path prefix; generated Link/router URLs include it. Configured header/redirect/rewrite sources and local destinations receive documented prefix handling and opt-outs. basePath:false in rewrites/redirects is documented for external destinations. Headers have their own documented opt-out. Include an image whose source contains the base path.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/basePath.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/redirects.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/headers.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts",
+      "test/e2e/routing-server/router/basepath/redirect-and-rewrite.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/basepath/redirect-and-rewrite.test.ts",
+      "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts"
+    ]
+  },
+  {
+    "id": "R14",
+    "group": "router",
+    "capability": "Trailing slashes",
+    "scope": "Both",
+    "contract": "Default slash removal and trailingSlash:true slash addition use documented redirects. Test files/extensions, dots in the last versus earlier segment, and .well-known exceptions. With skipTrailingSlashRedirect enabled, both page URL forms serve without automatic redirection and client URLs stay as written; explicit custom redirects/rewrites still apply.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/trailingSlash.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/skipTrailingSlashRedirect.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/routing-server/router/trailing-slashes/with-trailing-slash.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/routing-server/router/trailing-slashes/with-trailing-slash.test.ts"
+    ]
+  },
+  {
+    "id": "R15",
+    "group": "router",
+    "capability": "Proxy matching",
+    "scope": "Both",
+    "contract": "Without matcher, Proxy runs for pages, APIs, public files, static chunks, and image optimization. Cover string/array/object matchers; named modifiers and regex/negative patterns; has/missing and locale:false; prefetch exclusions. Crucially, the documented _next/data protection still invokes Proxy even when a negative pattern excludes that prefix.",
+    "docs": ["docs/01-app/03-api-reference/03-file-conventions/proxy.mdx"],
+    "tests": [
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
+      "test/e2e/routing-server/router/middleware-custom-matchers/test/index.test.ts",
+      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
+      "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
+      "test/e2e/routing-server/router/middleware-custom-matchers/test/index.test.ts",
+      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
+      "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts"
+    ]
+  },
+  {
+    "id": "R16",
+    "group": "router",
+    "capability": "Proxy outcomes and propagated request changes",
+    "scope": "Both",
+    "contract": "Exercise next/continue, redirect, internal/external rewrite, and a direct response, verifying that completed responses do not invoke the destination. Request-header changes reach Pages APIs, SSR, App routes, and actions; response headers/cookies reach the browser. Retain legacy Middleware compatibility as a deprecated surface where documented.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+      "docs/01-app/03-api-reference/04-functions/next-response.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/middleware.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
+      "test/e2e/routing-server/router/middleware-redirects/test/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
+      "test/e2e/routing-server/router/middleware-redirects/test/index.test.ts"
+    ]
+  },
+  {
+    "id": "R17",
+    "group": "router",
+    "capability": "Proxy normalization and raw-request opt-out",
+    "scope": "Both",
+    "contract": "By default Proxy sees normalized data URLs, stripped _rsc/navigation headers, and normalized rewrite/redirect outputs. skipProxyUrlNormalize exposes original URL/query/navigation headers and sends destinations as written; matcher still targets the destination URL. Include the deprecated skipMiddlewareUrlNormalize alias and its documented conflict behavior as a configuration companion test.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/skipProxyUrlNormalize.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
+      "test/e2e/routing-server/router/proxy-normalization-config/proxy-normalization-config.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
+      "test/e2e/routing-server/router/proxy-normalization-config/proxy-normalization-config.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+    ]
+  },
+  {
+    "id": "R18",
+    "group": "router",
+    "capability": "Built-in internationalized routing",
+    "scope": "Pages",
+    "contract": "Cover default/unprefixed locale, locale subpaths, configured domains, locale fallback, root Accept-Language/domain detection, NEXT_LOCALE priority, localeDetection:false, and locale switching. Assert locale/locales/defaultLocale at the destination. Config headers/redirects/rewrites automatically handle locales, with explicit locale:false opt-outs.",
+    "docs": [
+      "docs/02-pages/02-guides/internationalization.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx"
+    ],
+    "tests": [
+      "test/e2e/custom-routes-i18n/custom-routes-i18n.test.ts",
+      "test/e2e/i18n-ignore-redirect-source-locale/redirects-with-basepath.test.ts",
+      "test/e2e/i18n-ignore-redirect-source-locale/redirects.test.ts",
+      "test/e2e/i18n-ignore-rewrite-source-locale/rewrites-with-basepath.test.ts",
+      "test/e2e/i18n-ignore-rewrite-source-locale/rewrites.test.ts",
+      "test/e2e/i18n-support/i18n-support.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/custom-routes-i18n/custom-routes-i18n.test.ts",
+      "test/e2e/i18n-ignore-redirect-source-locale/redirects-with-basepath.test.ts",
+      "test/e2e/i18n-ignore-redirect-source-locale/redirects.test.ts",
+      "test/e2e/i18n-ignore-rewrite-source-locale/rewrites-with-basepath.test.ts",
+      "test/e2e/i18n-ignore-rewrite-source-locale/rewrites.test.ts",
+      "test/e2e/i18n-support/i18n-support.test.ts"
+    ]
+  },
+  {
+    "id": "R19",
+    "group": "router",
+    "capability": "Internationalized routing through Proxy and [lang]",
+    "scope": "App; application-authored pattern",
+    "contract": "Use the documented Proxy redirect plus app/[lang] fixture and verify the locale parameter reaches pages/layouts and survives navigation. Language negotiation and translation are fixture/application logic; this does not imply built-in Pages i18n behavior in App Router.",
+    "docs": ["docs/01-app/02-guides/internationalization.mdx"],
+    "tests": [
+      "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.ts",
+      "test/e2e/routing-server/router/app-i18n-contract/app-i18n-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/app-i18n-contract/app-i18n-contract.test.ts"
+    ]
+  },
+  {
+    "id": "R20",
+    "group": "router",
+    "capability": "API/Route Handler dispatch",
+    "scope": "Both; distinct method APIs",
+    "contract": "pages/api files resolve as API endpoints, including dynamic/catch-all forms. App route.js handlers can live at arbitrary route paths and dispatch GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS. Unsupported methods return 405; absent OPTIONS is generated with an appropriate Allow header. Pages APIs receive req.method and implement their own method policy. A Route Handler and page cannot occupy the same App route segment.",
+    "docs": [
+      "docs/02-pages/03-building-your-application/01-routing/07-api-routes.mdx",
+      "docs/01-app/01-getting-started/15-route-handlers.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/route.mdx"
+    ],
+    "tests": [
+      "test/e2e/api-support/api-support.test.ts",
+      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+      "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts",
+      {
+        "file": "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+        "testNamePattern": "basic fetch request with a response|body can read|automatic implementations|responds with 405 \\(Method Not Allowed\\)|request can read query parameters"
+      }
+    ]
+  },
+  {
+    "id": "R21",
+    "group": "router",
+    "capability": "HTML versus RSC navigation/prefetch requests",
+    "scope": "App",
+    "contract": "Initial documents return HTML; client navigation/prefetch obtains the corresponding RSC payload. Preserve documented variability and cache discrimination involving rsc, router-state/prefetch headers, next-url for interception, Vary, and _rsc. Cover the documented 307 correction for an invalid/missing _rsc hash and its experimental opt-out. Test existing segment-prefetch paths only in the configuration that supports them.",
+    "docs": [
+      "docs/01-app/01-getting-started/04-linking-and-navigating.mdx",
+      "docs/01-app/02-guides/cdn-caching.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts",
+      "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts",
+      "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts"
+    ]
+  },
+  {
+    "id": "R22",
+    "group": "router",
+    "capability": "Data requests for navigation",
+    "scope": "Pages",
+    "contract": "SSR/SSG client transitions receive the correct page JSON rather than an HTML document. Data requests remain on the application domain even with assetPrefix. Proxy normalization and getServerSideProps.resolvedUrl present the documented logical page URL. Exercise rewrites, dynamic parameters, locale, and basePath combinations that have documented semantics.",
+    "docs": [
+      "docs/02-pages/04-api-reference/03-functions/get-static-paths.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/assetPrefix.mdx",
+      "docs/02-pages/04-api-reference/03-functions/get-server-side-props.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+      "docs/02-pages/03-building-your-application/03-data-fetching/03-get-server-side-props.mdx"
+    ],
+    "tests": [
+      "test/e2e/getserversideprops/test/index.test.ts",
+      "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts",
+      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts",
+      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
+      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts",
+      {
+        "file": "test/e2e/getserversideprops/test/index.test.ts",
+        "testNamePattern": "should have original req\\.url for /_next/data request"
+      }
+    ]
+  },
+  {
+    "id": "R23",
+    "group": "router",
+    "capability": "Navigation and history",
+    "scope": "Both; browser compatibility checks",
+    "contract": "Verify Link and programmatic push/replace, back/forward, prefetch then navigate, and App refresh through the replacement listener. App transitions retain shared UI; refresh merges new server output while retaining unaffected client/browser state. App native history changes update pathname/search hooks. Pages shallow changes retain state and skip data fetching on the current page; include its documented Proxy caveat.",
+    "docs": [
+      "docs/01-app/01-getting-started/04-linking-and-navigating.mdx",
+      "docs/01-app/03-api-reference/04-functions/use-router.mdx",
+      "docs/02-pages/03-building-your-application/01-routing/03-linking-and-navigating.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/app/index.test.ts",
+      "test/e2e/app-dir/shallow-routing/shallow-routing.test.ts",
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
+      "test/e2e/app-dir/shallow-routing/shallow-routing.test.ts",
+      {
+        "file": "test/e2e/app-dir/app/index.test.ts",
+        "testNamePattern": "should (?:soft push|soft replace|be soft for (?:back|forward) navigation|handle router\\.refresh without resetting state)"
+      }
+    ]
+  },
+  {
+    "id": "R24",
+    "group": "router",
+    "capability": "Parallel routes",
+    "scope": "App",
+    "contract": "@slots are URL-neutral. Soft navigation changes the matched slot while retaining the others' active state; hard navigation uses default.js for an unmatched slot, or 404 when it is missing. Include implicit children fallback and independently streamed slot content.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/parallel-routes.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
+      "test/e2e/routing-server/router/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
+      "test/e2e/routing-server/router/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts"
+    ]
+  },
+  {
+    "id": "R25",
+    "group": "router",
+    "capability": "Intercepted routes",
+    "scope": "App",
+    "contract": "Soft navigation can render an intercepted modal in its originating context; direct visits and refresh render the full target page. Cover (.), (..), (..)(..), (...) counting route segments rather than @slot directories, and documented back-close/forward-reopen behavior.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/intercepting-routes.mdx"
+    ],
+    "tests": [
+      "test/e2e/routing-server/router/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts",
+      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts",
+      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts"
+    ]
+  },
+  {
+    "id": "R26",
+    "group": "router",
+    "capability": "Generated and unknown dynamic paths",
+    "scope": "Both; config-dependent",
+    "contract": "Pages fallback:false returns 404 for ungenerated paths; fallback:true supplies first-visit fallback then generated data, while bots/client navigation block; blocking waits for a full page and caches it. Preserve documented case-sensitive getStaticPaths parameters. App dynamicParams true/false controls ungenerated paths where supported; it is unavailable with Cache Components.",
+    "docs": [
+      "docs/02-pages/04-api-reference/03-functions/get-static-paths.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/dynamicParams.mdx"
+    ],
+    "tests": [
+      "test/e2e/prerender.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/dynamic-params-request-modes/dynamic-params-request-modes.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/dynamic-params-request-modes/dynamic-params-request-modes.test.ts",
+      {
+        "file": "test/e2e/prerender.test.ts",
+        "testNamePattern": "should (?:SSR blocking path correctly|not return data for fallback: false|handle fallback only page correctly|always show fallback for page not in getStaticPaths|not show fallback for page in getStaticPaths|never show fallback for page not in getStaticPaths when blocking|support (?:prerendered|lazy|nested lazy) catchall route)"
+      }
+    ]
+  },
+  {
+    "id": "R27",
+    "group": "router",
+    "capability": "Server Actions and PPR POST dispatch",
+    "scope": "App; PPR/deployment conditional",
+    "contract": "Actions are POSTs to their owning page and receive the matching Proxy policy; they are not a separate global route phase. Verify mutation result/UI, cookie update, refresh/revalidation, and redirect navigation in JS and progressive-enhancement flows. For platforms using documented PPR resume, POST with next-resume and postponed state resumes dynamic content; combined action/resume bodies preserve the declared state-prefix length.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+      "docs/01-app/02-guides/server-actions.mdx",
+      "docs/01-app/03-api-reference/04-functions/redirect.mdx",
+      "docs/01-app/02-guides/ppr-platform-guide.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts",
+      "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts",
+      "test/e2e/app-dir/actions/app-action.test.ts",
+      "test/production/app-dir/action-only-fallback-resume-data-cache/action-only-fallback-resume-data-cache.test.ts",
+      "test/production/app-dir/empty-resume/empty-resume.test.ts",
+      "test/production/app-dir/instant-navigation-resume/instant-navigation-resume.test.ts"
+    ],
+    "routingTests": [
+      {
+        "file": "test/e2e/app-dir/actions/app-action.test.ts",
+        "testNamePattern": "should (?:handle action correctly with middleware rewrite|handle basic actions correctly|support headers and cookies|push new route when redirecting|replace current route when redirecting with type set to replace|support formData and redirect|invalidate the client router cache if the redirect action triggers a revalidation|handle revalidatePath|revalidate when cookies\\.set is called)|redirects properly when route handler uses|should not forward next-action header to a redirected RSC request"
+      },
+      "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts",
+      "test/production/app-dir/action-only-fallback-resume-data-cache/action-only-fallback-resume-data-cache.test.ts",
+      "test/production/app-dir/empty-resume/empty-resume.test.ts",
+      "test/production/app-dir/instant-navigation-resume/instant-navigation-resume.test.ts"
+    ]
+  },
+  {
+    "id": "R28",
+    "group": "router",
+    "capability": "Caching, revalidation, and cached handlers",
+    "scope": "Both; rendering/config dimensions",
+    "contract": "Preserve prerendered versus request-time routes and documented revalidation outcomes. A failed background regeneration continues serving the last successful result. On-demand ISR uses the exact destination path and bypasses Proxy rewrites. App GET Route Handlers are uncached by default outside the documented Cache Components model, may opt into caching, and other methods remain uncached. Test outputs and freshness rather than internal cache implementation.",
+    "docs": [
+      "docs/01-app/02-guides/incremental-static-regeneration.mdx",
+      "docs/01-app/01-getting-started/15-route-handlers.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/app-static/app-static.test.ts",
+      "test/e2e/app-dir/cache-components/cache-components.routes.test.ts",
+      "test/e2e/app-dir/revalidate-path-with-rewrites/revalidate-path-with-rewrites.test.ts",
+      "test/e2e/routing-server/router/docs-handler-cache/docs-handler-cache.test.ts",
+      "test/e2e/routing-server/router/isr-last-good/isr-last-good.test.ts",
+      "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-handler-cache/docs-handler-cache.test.ts",
+      "test/e2e/routing-server/router/isr-last-good/isr-last-good.test.ts",
+      "test/e2e/app-dir/cache-components/cache-components.routes.test.ts",
+      "test/e2e/app-dir/revalidate-path-with-rewrites/revalidate-path-with-rewrites.test.ts",
+      "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts"
+    ]
+  },
+  {
+    "id": "R29",
+    "group": "router",
+    "capability": "Draft/Preview request routing",
+    "scope": "Both; Pages Preview deprecated",
+    "contract": "Enable Draft Mode, receive its cookie, see fresh request-time content, disable it, and return to the normal cached view. Isolate browsers with/without the cookie. Preserve Pages Preview cookies/data for compatibility with that deprecated API. Test the page response and H07 privacy headers through the public frontend.",
+    "docs": [
+      "docs/01-app/02-guides/draft-mode.mdx",
+      "docs/02-pages/02-guides/draft-mode.mdx",
+      "docs/02-pages/02-guides/preview-mode.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/draft-mode/draft-mode.test.ts",
+      "test/e2e/app-dir/use-cache-draft-mode-isolation/use-cache-draft-mode-isolation.test.ts",
+      "test/e2e/draft-mode/draft-mode.test.ts",
+      "test/e2e/prerender-preview/prerender-preview.test.ts",
+      "test/e2e/routing-server/router/docs-draft-lifecycle/docs-draft-lifecycle.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-draft-lifecycle/docs-draft-lifecycle.test.ts",
+      "test/e2e/draft-mode/draft-mode.test.ts",
+      "test/e2e/prerender-preview/prerender-preview.test.ts"
+    ]
+  },
+  {
+    "id": "R30",
+    "group": "router",
+    "capability": "Unmatched routes, errors, and runtime redirects",
+    "scope": "Both; optional experimental cases",
+    "contract": "Unmatched URLs reach the correct App/Pages 404; notFound and Pages notFound return the documented UI/outcome. Preserve Pages custom 500/_error behavior and reserved /_error exclusion. Cover runtime redirect/permanentRedirect and Pages SSR redirects, distinguishing their streaming/action contexts via H05. Add global-not-found and 401/403 fallback fixtures only with their documented experimental flags.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/not-found.mdx",
+      "docs/02-pages/03-building-your-application/01-routing/08-custom-error.mdx",
+      "docs/02-pages/04-api-reference/03-functions/get-server-side-props.mdx",
+      "docs/01-app/03-api-reference/04-functions/permanentRedirect.mdx"
+    ],
+    "tests": [
+      "test/development/pages-dir/client-navigation/error-pages.test.ts",
+      "test/e2e/500-page/500-page.test.ts",
+      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+      "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts",
+      "test/e2e/app-dir/not-found/basic/index.test.ts",
+      "test/e2e/custom-error/custom-error.test.ts",
+      "test/e2e/getserversideprops/test/index.test.ts",
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/production/custom-error-500/index.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      {
+        "file": "test/e2e/500-page/500-page.test.ts",
+        "testNamePattern": "should (?:use pages/500|set correct status code with pages/500|not error when visited directly)"
+      },
+      "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts",
+      {
+        "file": "test/e2e/custom-error/custom-error.test.ts",
+        "testNamePattern": "renders custom _error successfully"
+      },
+      "test/production/custom-error-500/index.test.ts",
+      {
+        "file": "test/e2e/getserversideprops/test/index.test.ts",
+        "testNamePattern": "should render 404 correctly when notFound is returned"
+      }
+    ]
+  },
+  {
+    "id": "R31",
+    "group": "router",
+    "capability": "Static and generated metadata routes",
+    "scope": "App; public files shared",
+    "contract": "Serve public files at their URL paths. Cover App favicon/icon, robots.txt, sitemap.xml, manifest, Open Graph/Twitter images, and generated metadata variants (including /product/sitemap/1.xml) through the frontend. Verify URL advertised by rendered metadata is reachable and returns the corresponding asset/content. Special metadata handlers have documented default caching distinct from ordinary GET handlers.",
+    "docs": [
+      "docs/01-app/03-api-reference/03-file-conventions/public-folder.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/01-metadata/app-icons.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/01-metadata/robots.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/01-metadata/sitemap.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/01-metadata/manifest.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/01-metadata/opengraph-image.mdx",
+      "docs/01-app/03-api-reference/04-functions/generate-sitemaps.mdx",
+      "docs/01-app/03-api-reference/04-functions/generate-image-metadata.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts",
+      "test/e2e/app-dir/metadata/metadata.test.ts"
+    ],
+    "routingTests": [
+      {
+        "file": "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts",
+        "testNamePattern": "should (?:handle (?:robots|sitemap|manifest)\\.\\[ext\\] dynamic routes|support generate multi (?:sitemaps|images)|404 for non-existing id from generateImageMetadata|render (?:og image|icon|apple icon) with|fill params into dynamic routes url of metadata images|support params as argument in dynamic routes|fill params into routes groups url of static images|generate unique path for image routes under group routes)"
+      },
+      {
+        "file": "test/e2e/app-dir/metadata/metadata.test.ts",
+        "testNamePattern": "should (?:have /favicon\\.ico as route|have icons as route|support root dir robots\\.txt|support sitemap\\.xml under every routes|support static manifest\\.webmanifest)"
+      }
+    ]
+  },
+  {
+    "id": "R32",
+    "group": "router",
+    "capability": "Framework asset and image endpoints",
+    "scope": "Both",
+    "contract": "Fetch emitted JS/CSS at their assetPrefix URLs while public files and Pages data retain their documented origin behavior. Image optimization uses /_next/image by default or configured images.path. Allowed source patterns succeed and documented disallowed source/quality cases return 400. Verify basePath images. Custom/unoptimized image loaders are execution dimensions; the routing suite need not retest image codec quality.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/assetPrefix.mdx",
+      "docs/01-app/03-api-reference/02-components/image.mdx",
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/basePath.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts",
+      "test/e2e/image-optimizer/image-optimizer.test.ts",
+      "test/e2e/next-image-new/both-basepath-trailingslash/both-basepath-trailingslash.test.ts",
+      "test/e2e/routing-server/router/docs-remote-images/docs-remote-images.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/docs-remote-images/docs-remote-images.test.ts",
+      "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
+      "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts",
+      "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts",
+      "test/e2e/next-image-new/both-basepath-trailingslash/both-basepath-trailingslash.test.ts"
+    ]
+  },
+  {
+    "id": "R33",
+    "group": "router",
+    "capability": "Custom server entry and disabled filesystem routes",
+    "scope": "Custom-server / Pages conditional",
+    "contract": "A documented custom server can hand requests to Next or render a chosen route while retaining query data. With useFileSystemPublicRoutes:false, Pages filename routes are disabled for SSR; this is not a promise that client navigation cannot reach them. Keep custom-server support explicitly scoped to the rewrite milestone.",
+    "docs": ["docs/01-app/02-guides/custom-server.mdx"],
+    "tests": [
+      "test/e2e/custom-server/custom-server.test.ts",
+      "test/e2e/filesystempublicroutes/filesystempublicroutes.test.ts",
+      "test/e2e/routing-server/router/filesystem-optout-contract/filesystem-optout-contract.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/filesystem-optout-contract/filesystem-optout-contract.test.ts"
+    ]
+  },
+  {
+    "id": "R34",
+    "group": "router",
+    "capability": "Route configuration compatibility",
+    "scope": "Conditional/deprecated configurations",
+    "contract": "Routes emitted from configured pageExtensions remain reachable, including Pages APIs and the correctly renamed Proxy file. Default Node runtime routes dispatch normally. Proxy uses Node and rejects an explicit runtime configuration. Preserve documented deprecated surfaces only for supported versions/modes; the current docs deprecate Edge and disallow runtime configuration with Cache Components. Configuration rejection/diagnostics belong in build companion checks.",
+    "docs": [
+      "docs/01-app/03-api-reference/05-config/01-next-config-js/pageExtensions.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+      "docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/runtime.mdx"
+    ],
+    "tests": [
+      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
+      "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts",
+      "test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts",
+      "test/e2e/app-dir/proxy-runtime/proxy-runtime.test.ts",
+      "test/e2e/routing-server/router/custom-page-extension/custom-page-extension.test.ts",
+      "test/e2e/routing-server/router/proxy-page-extensions/proxy-page-extensions.test.ts"
+    ],
+    "routingTests": [
+      "test/e2e/routing-server/router/custom-page-extension/custom-page-extension.test.ts",
+      "test/e2e/routing-server/router/proxy-page-extensions/proxy-page-extensions.test.ts",
+      "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts",
+      "test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts",
+      "test/e2e/app-dir/proxy-runtime/proxy-runtime.test.ts"
+    ]
+  }
+]
