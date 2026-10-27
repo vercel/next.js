@@ -2,7 +2,8 @@
 // results: a headline, a settings table (model, harness, reasoning, accuracy,
 // cost per task, frontier), a pass/fail grid per task, and accuracy against
 // cost as a Mermaid chart GitHub renders inline. Accuracy and cost count only
-// scored cells; runner errors are discarded, not failures.
+// scored cells; an agent timeout is a failure, other runner errors are
+// discarded.
 //
 //   node evals/agent-build/tools/report.mjs <jobs-dir>
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -29,6 +30,13 @@ const label = (model) =>
     .join(' ')
     .replace(/^GPT /, 'GPT-')
 
+// An agent that runs out of time is a scored failure, as in Harbor's own
+// metrics; any other exception is a runner error and is discarded.
+const runnerError = (evaluation) =>
+  Object.keys(evaluation.exception_stats ?? {}).some(
+    (name) => name !== 'AgentTimeoutError'
+  )
+
 const cells = []
 for (const name of readdirSync(jobs)) {
   if (name.startsWith('_')) continue // runs set aside by hand
@@ -53,7 +61,7 @@ for (const name of readdirSync(jobs)) {
     reasoning,
     state: !result.finished_at
       ? 'running'
-      : (evaluation.n_errors ?? 0) > 0
+      : runnerError(evaluation)
         ? 'discarded'
         : reward >= 1
           ? 'pass'
