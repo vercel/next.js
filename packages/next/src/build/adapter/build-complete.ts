@@ -1142,6 +1142,13 @@ export async function handleBuildComplete({
       > = {}
       const appDistDir = path.join(distDir, 'server', 'app')
 
+      // A metadata pathname like /robots.txt or /sitemap.xml can come from a
+      // static file or from a route handler. Only fully static prerenders can
+      // be emitted as static files, otherwise revalidation would be dropped.
+      const isStaticMetadataPrerender = (pathname: string) =>
+        isStaticMetadataFile(pathname) &&
+        prerenderManifest.routes[pathname]?.initialRevalidateSeconds === false
+
       if (appPageKeys) {
         for (const page of orderAppPageKeysByEntry(appPageKeys)) {
           if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1149,24 +1156,28 @@ export async function handleBuildComplete({
           }
           const normalizedPage = normalizeAppPath(page)
 
-          // Skip static metadata routes only when they are prerendered.
-          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // Skip static metadata routes only when they are prerendered without
+          // revalidation. Dynamic or revalidating metadata routes (e.g.
+          // robots/sitemap using connection() or "use cache" with cacheLife)
           // should remain app routes in adapter outputs.
-          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
           const staticMetadataPrerenderPathname =
             getStaticMetadataPrerenderPathname(normalizedPage) ?? normalizedPage
           const isPrerenderedMetadataRoute =
-            prerenderManifest.routes[staticMetadataPrerenderPathname] ||
-            config.i18n?.locales?.some((locale) => {
-              const localePathname = path.posix.join(
-                '/',
-                locale,
-                staticMetadataPrerenderPathname.slice(1)
+            isStaticMetadataPrerender(staticMetadataPrerenderPathname) ||
+            config.i18n?.locales?.some((locale) =>
+              isStaticMetadataPrerender(
+                path.posix.join(
+                  '/',
+                  locale,
+                  staticMetadataPrerenderPathname.slice(1)
+                )
               )
-              return prerenderManifest.routes[localePathname]
-            })
+            )
 
-          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
+          if (
+            isStaticMetadataFile(normalizedPage) &&
+            isPrerenderedMetadataRoute
+          ) {
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1523,8 +1534,9 @@ export async function handleBuildComplete({
         )
 
         // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
-        // These should be output as static files, not prerenders.
-        if (isStaticMetadataFile(route)) {
+        // These should be output as static files, not prerenders, unless they
+        // revalidate (e.g. a robots.txt route handler using cacheLife).
+        if (isStaticMetadataPrerender(route)) {
           // For static metadata from app router, check if the .body file exists
           const staticMetadataFilePath = getPrerenderFilePath(
             route,

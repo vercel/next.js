@@ -298,6 +298,27 @@ describe('adapter-config', () => {
     )
     expect(robotsAppRoute).toBeUndefined()
 
+    // A revalidating route handler at a metadata pathname must stay a
+    // prerender backed by its app route, not a static file
+    const revalidatingSitemapStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/revalidating-sitemap/sitemap.xml'
+    )
+    expect(revalidatingSitemapStaticFile).toBeUndefined()
+
+    const revalidatingSitemapPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/revalidating-sitemap/sitemap.xml'
+    )
+    expect(revalidatingSitemapPrerender).toBeDefined()
+    expect(revalidatingSitemapPrerender?.fallback?.initialRevalidate).toBe(60)
+
+    const revalidatingSitemapAppRoute = outputs.appRoutes.find(
+      (item) => item.pathname === '/docs/revalidating-sitemap/sitemap.xml'
+    )
+    expect(revalidatingSitemapAppRoute).toBeDefined()
+    expect(revalidatingSitemapPrerender?.parentOutputId).toBe(
+      revalidatingSitemapAppRoute?.id
+    )
+
     for (const prerenderOutput of prerenderOutputs) {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
