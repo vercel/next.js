@@ -1198,8 +1198,7 @@ impl EsmExports {
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
                             use crate::references::esm::base::ReferencedAssetIdent;
                             match &ident {
-                                ReferencedAssetIdent::LocalBinding {ctxt, liveness,.. } => {
-                                    debug_assert!(*mutable == (*liveness == Liveness::Mutable), "If the re-export is mutable, the merged local must be too");
+                                ReferencedAssetIdent::LocalBinding {liveness,.. } => {
                                     // If we are re-exporting something but got merged with it we can treat it like a local export
                                      match (liveness, early_exports) {
                                         (Liveness::Constant, false) => {
@@ -1212,6 +1211,9 @@ impl EsmExports {
                                             // came _before_ us, but we don't at this point.
                                             ExportBinding::Getter(quote!("() => $local" as Expr, local: Expr = read_expr))
                                         }
+                                        (Liveness::Mutable, _) if !mutable => {
+                                            ExportBinding::Getter(quote!("() => $local" as Expr, local: Expr = read_expr))
+                                        }
                                         (Liveness::Mutable, _) => {
                                             let assign_target = AssignTarget::Simple(
                                                         ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
@@ -1220,7 +1222,7 @@ impl EsmExports {
                                                 quote!(
                                                     "($new) => $lhs = $new" as Expr,
                                                     lhs: AssignTarget = assign_target,
-                                                    new = Ident::new(format!("new_{name}").into(), DUMMY_SP, *ctxt),
+                                                    new = Ident::new(format!("new_{name}").into(), DUMMY_SP, Default::default()),
                                                 )
                                             )
                                         }

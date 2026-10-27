@@ -2,10 +2,13 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
+        MergeableModules, MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, binding_usage_info::ModuleExportUsageInfo},
     reference::ModuleReferences,
     resolve::ModulePart,
 };
@@ -13,7 +16,7 @@ use turbopack_core::{
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    EcmascriptParsable, EnvVarInfo,
+    EcmascriptParsable, EnvVarInfo, MergedEcmascriptModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -380,6 +383,36 @@ impl ChunkableModule for EcmascriptModulePartAsset {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
+        let exports = self.get_exports().await?;
+        let EcmascriptExports::EsmExports(exports) = &*exports else {
+            return Ok(Vc::cell(false));
+        };
+        Ok(Vc::cell(
+            exports
+                .expand_exports(ModuleExportUsageInfo::all())
+                .await?
+                .dynamic_exports
+                .is_empty(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn merge(
+        &self,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(modules, entry_points, self.full_module.await?.options)
+                .await?,
+        ))
     }
 }
 

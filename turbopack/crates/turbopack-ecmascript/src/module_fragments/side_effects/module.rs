@@ -19,7 +19,7 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, ecmascript_chunk_item, item::RewriteSourcePath,
     },
-    references::async_module::AsyncModuleOptions,
+    references::{async_module::AsyncModuleOptions, esm::mangle::module_merging_analysis},
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyModuleId,
 };
@@ -146,7 +146,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -155,6 +155,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         let mut has_top_level_await = false;
 
         let unused_references = chunking_context.unused_references();
+        let module_merging = module_merging_analysis(module_graph, chunking_context).await?;
 
         for &side_effect in module.side_effects.iter() {
             let reference = side_effect_reference(side_effect).to_resolved().await?;
@@ -179,11 +180,23 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 has_top_level_await = true;
             }
 
+            // Merged fragments may no longer have a separately registered factory.
+            let target = if let Some(groups) = module_merging
+                && let Some(group) = groups
+                    .get(&ResolvedVc::upcast(side_effect))
+                    .await?
+                    .as_deref()
+            {
+                group.await?.entry
+            } else {
+                ResolvedVc::upcast(side_effect)
+            };
+
             code.push_bytes(
                 format!(
                     "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(&side_effect.chunk_item_id(chunking_context).await?)
+                    StringifyModuleId(&target.chunk_item_id(chunking_context).await?)
                 )
                 .as_bytes(),
             );

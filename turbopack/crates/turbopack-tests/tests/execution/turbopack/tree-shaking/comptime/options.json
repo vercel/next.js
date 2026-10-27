@@ -1,3 +1,4 @@
 {
-  "moduleFragmentsEnabled": true
+  "moduleFragmentsEnabled": true,
+  "scopeHoisting": false
 }
