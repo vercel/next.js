@@ -9,8 +9,12 @@ candidates in `evals/agent-build` using the current Harbor task format. Do not
 add them to the legacy suites. Use calibration to decide whether to retain,
 revise, or drop each candidate.
 
-Run every new task during authoring. Verify that the untouched fixture fails,
-the reference solution passes, and representative incorrect solutions fail.
+Run every new task during authoring with `evals/agent-build/tools/run-local.sh`.
+Verify that the untouched fixture fails, the reference solution passes, and
+every script in the task's `tests/bad-solutions/` fails at the check its header
+names. Keep tasks in the published Harbor format described in
+`evals/RUN_AGENT_BUILD_EVALS.md`; they are the baseline for the shared
+`vercel/evals` repository.
 Use the first valid model attempt as pass@1. Retry infrastructure failures.
 Confirmation attempts can explain a model failure, but they do not change its
 score.

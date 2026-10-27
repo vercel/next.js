@@ -25,6 +25,18 @@ The `regression`, `competency`, and `audit` labels apply only to the existing `a
 
 Use an Agent Build eval when an agent must make a correct Next.js code change. Start with behavior observed in real work, including repeated agent feedback, framework migrations, release changes, and fixes from real applications.
 
+Prefer capabilities the existing `agent-eval` fixtures do not already measure. Before writing a task, search `evals/evals/*/PROMPT.md` and `EVAL.ts` for the capability; a bigger fixture for a saturated capability is not a harder eval.
+
+### Build tasks around a decision, not an error message
+
+The first candidates in this directory were solvable from the build error alone: the Cache Components clock error and the `server-only` import error each name their fix, and every frontier model passed on the first attempt. The agent-feedback reports show a different failure. Agents read an error page with several branches, pick the branch the overlay lists first, and apply it everywhere. A hard task puts several sites of the same error in one realistic app so that each site needs a different branch, and makes the wrong branch fail a requirement the error message does not mention.
+
+`prerender-unstable-values` is the pattern. Four clock reads trigger the same `blocking-prerender-current-time` error. The footer year must be cached so marketing pages stay static; the "checked at" time must be captured inside the cached data function it describes; the client relative time must be deferred behind a deterministic fallback; and a vendored SDK's clock read must be kept out of the prerender with `io()`, which only shows up in the production server log after the build is green. `await connection()` at every site builds, and fails.
+
+`protected-routes-instant-scope` takes the same approach to `blocking-prerender-dynamic` and instant validation: the overlay suggests `instant = false`, the reports show agents adding it to every segment, and the task forbids it while requiring a real HTTP redirect for signed-out visitors and a prerendered frame for every workspace route.
+
+To find these decisions, read the reports behind a cluster in the Maintainer Agent store, not the summary. The reports say what the agent tried, what the overlay suggested, and what finally worked; the task should make the first two fail.
+
 Route other questions to the measurement that owns them:
 
 | Question                                                        | Measurement        |
@@ -89,6 +101,22 @@ Prove that the task measures its contract before interpreting model results:
 6. Ask a framework owner to review the prompt and verifier together.
 
 The prompt must state every behavior the verifier requires without revealing the implementation. The verifier must accept reasonable alternative solutions and check that unrelated behavior still works. Avoid exact symbols, patches, or error messages unless the prompt requires them.
+
+### Grade what the error message cannot tell the agent
+
+Lessons from validating the first tasks, each of which let a wrong repair through until the check changed:
+
+- **A live response is not the static shell.** Playwright's `request` fixture returns the whole streamed document, so a substring check passes whether the content was prerendered or streamed later. Read the prerendered HTML the build wrote under `.next/server/app/<route>.html` to prove what is in the shell, and treat a missing file as "this route has no shell".
+- **Strip React's comment nodes before substring checks.** `© {year} Pulse` renders as `© <!-- -->2026<!-- --> Pulse`.
+- **Read the server log.** Some unstable-value reads report only at request time, after a green build. Start the production server, exercise document, RSC, and prefetch requests, then fail the task if the log contains `while prerendering`, `unstable value`, or `Could not validate`.
+- **Use two identities.** Isolation checks need a second user whose data must not appear, and an expired or invalid session that must see nothing.
+- **Check the status code with redirects disabled.** A streamed redirect is a 200 with a redirect inside the body; uptime checks and non-browser clients only see the 200.
+- **Pin the vendored dependency.** Compare `lib/vendor/*` against the git baseline so the agent cannot edit the library instead of working around it, which is the real-world constraint the reports describe.
+- **Keep timestamp comparisons honest.** Two requests inside the same second produce the same second-resolution timestamp; compare against the prerendered value instead.
+
+### Keep the known incorrect repairs
+
+Every task ships `tests/bad-solutions/`: one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision, with a header naming the check that rejects it. They are the grader's test suite. When a bad repair scores 1, the grader is wrong, not the repair. When the untouched fixture scores 1, the task is wrong.
 
 Classify each failure as a task, verifier, runner, model, or infrastructure failure. Only valid model attempts contribute to the score.
 

@@ -1,3 +1,0 @@
-The deployment activity page fails its production build after Cache Components reports that its client-side time displays read the current time during prerendering.
-
-Keep Cache Components enabled and keep /activity instant. The heading, status, deployment list, filters, and both browser-time fallbacks must remain in the prerendered page. After hydration, replace both fallbacks with browser timestamps and keep them updating without navigation. Preserve the interactive refresh counter and deployment filter. Do not suppress the warning or opt the route out of prerendering. Verify the result with a production build.
