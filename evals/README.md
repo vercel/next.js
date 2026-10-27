@@ -5,8 +5,8 @@ Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertion
 The point: find places where agents get Next.js wrong because their training data is stale, then fix it by shipping better docs in the `next` package itself.
 
 Existing fixtures use `agent-eval` and preserve the published result history.
-New Agent Build tasks use Harbor on Vercel Sandbox. Follow
-[Author harder Next.js evals](HARDER_EVALS.md) for new work.
+New Agent Build candidates use Harbor on Vercel Sandbox. Follow
+[Author harder Next.js eval candidates](HARDER_EVALS.md) for new work.
 
 ## How it works
 

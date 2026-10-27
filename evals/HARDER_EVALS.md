@@ -1,4 +1,4 @@
-# Author harder Next.js evals
+# Author harder Next.js eval candidates
 
 This directory is the Next.js implementation of the shared Vercel Agent Build
 contract. New tasks use the open-source
@@ -16,6 +16,27 @@ publication pipeline.
 capability after the current suite has saturated. Complexity alone does not
 qualify a task. Validation and calibration determine whether it belongs in the
 maintained set.
+
+## Define harder with results
+
+A new task is a candidate until repeated calibration proves otherwise. Do not
+call it hard because it has a longer prompt, more files, a browser verifier, or
+a Harbor task definition.
+
+Use valid pass@1 results from a fixed frontier and weaker-model cohort:
+
+- A harder task keeps frontier models below 90% because of repeatable capability
+  failures.
+- A task that reaches at least 90% across frontier and weaker models over
+  repeated runs or framework versions belongs in regression coverage instead.
+- A task that frontier models solve reliably but weaker models do not may be
+  useful for competency measurement.
+- A task with unstable failures, an invalid grader, or no useful separation
+  stays a candidate while it is revised or is dropped.
+
+One model cohort is directional evidence. Admission to a maintained set needs
+repeated independent runs, confirmation that scored failures are real, and
+review by the framework owner.
 
 ## Choose a capability
 
@@ -69,6 +90,24 @@ Run the verifier in a separate environment with no network access. Pass only the
 artifacts it needs, and install verifier tooling in its image rather than at
 scoring time. Task definitions in this directory are public. Keep a future task
 outside this repository only when it must be held out from model training.
+
+## Prevent contamination
+
+A verifier can be hidden from the agent during a run while still being public
+to future model training. Public tasks therefore provide reproducible examples
+and regression coverage; they cannot support a leakage-resistant headline
+score on their own.
+
+When resistance to training contamination matters, create multiple meaningful
+instances of the same capability. Keep the scoring instances, prompts,
+fixtures, reference solutions, and verifiers in an approved private dataset.
+Publish the capability definition and aggregate result, record when an instance
+becomes exposed, and rotate exposed instances out of the held-out score. Do not
+count superficial renames as new instances.
+
+The public tasks in `evals/harder` can validate the authoring workflow and seed
+task families. They enter a held-out score only through independently authored
+private sibling instances.
 
 ## Validate the task
 
