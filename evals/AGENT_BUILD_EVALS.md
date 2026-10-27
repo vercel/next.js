@@ -83,45 +83,20 @@ Public tasks support reproducibility and regression. A leakage-resistant headlin
 
 ## Pull request format
 
-Every pull request whose primary purpose is an eval task, suite, runner, or measurement automation uses the same shape, so results read the same across pull requests and copy into the team channel without rewriting. The title starts with `eval:` and names the outcome: `eval: resolve and classify the audit suite`, not `eval: eval updates`.
+Title starts with `eval:` and names the outcome. The description is short and
+has the same four parts every time, so results read the same across pull
+requests; see #100756 for the shape.
 
-Keep every section, writing "Not run" or "None" where nothing happened, so a reader can tell "did not happen" from "forgot to say". Describe the resulting state, not the history; mention a removal in one sentence under the Tasks table. Harbor tasks carry no suite label, so the Tasks table has no class column; a task that turns out too easy is removed, not relabeled.
+1. One sentence on what the change adds.
+2. **Tasks**: a table of task, what the agent has to get right, and source
+   findings. No suite label; a task that proves too easy is removed, not
+   relabeled.
+3. **Validation**: a table of untouched, reference, and known-bad results,
+   then one line for lint and formatting.
+4. **Calibration**: the grid and chart from
+   `node evals/agent-build/tools/report.mjs <jobs-dir>`, with the framework
+   version, Harbor revision, task version, and attempt policy on one line.
+   Say "in progress" or "not run" rather than leaving it out.
 
-```markdown
-One paragraph: the question this change answers and the outcome.
-
-## Tasks
-
-| Task | Capability | Source findings |
-| ---- | ---------- | --------------- |
-
-## Validation
-
-| Task | Untouched | Reference | Known incorrect repairs |
-| ---- | --------- | --------- | ----------------------- |
-
-Rows read `0 (gate)`, `1`, `n of n rejected at the named gate`. Then the
-static checks that ran: harbor lint, harbor check, Prettier, ESLint.
-
-## Calibration results
-
-| Model | Treatment | `task-a` | `task-b` |
-| ----- | --------- | -------: | -------: |
-
-Pass@1 against the exact framework package. Cells read `1/1`, `0/1`, or
-`discarded`. Below: why each discarded attempt was infrastructure, and what
-confirmation reruns of each scored failure showed.
-
-## Versions
-
-Framework package, Harbor revision, agent and model versions, the `version`
-in each `task.toml`, and a link to the job directory or dataset.
-
-## Publication
-
-Public or held out, and that score publication is a separate decision.
-
-Stacked on #NNNN, when applicable.
-```
-
-Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so older trials are never compared with newer ones and a grader-only change can be regraded without a rerun.
+Bump the `version` in `task.toml` whenever the instruction, fixture, or
+verifier changes, so older trials are never compared with newer ones.
