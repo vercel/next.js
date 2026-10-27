@@ -1,11 +1,16 @@
-import { value as firstValue } from './emitter.js?first'
-import { value as secondValue } from './emitter.js?second'
+import * as firstModule from './emitter.js?first'
+import * as secondModule from './emitter.js?second'
 
 const getList = __turbopack_collect__({ namespace: 'self-test' })
 
 it('should emit the originating module and preserve its query', async () => {
-  expect(firstValue).toBe('self-emitted value')
-  expect(secondValue).toBe('self-emitted value')
+  for (const module of [firstModule, secondModule]) {
+    expect(module).toMatchObject({
+      value: 'self-emitted value',
+      reexported: 're-exported value',
+    })
+  }
+  expect(firstModule.identity).not.toBe(secondModule.identity)
 
   const list = getList()
   expect(list).toHaveLength(2)
@@ -20,6 +25,13 @@ it('should emit the originating module and preserve its query', async () => {
       expect(entry.data).toBe('self-emitted data')
       const module = await entry.import()
       expect(module.value).toBe('self-emitted value')
+      expect(module.reexported).toBe('re-exported value')
+      // Module fragments can expose different namespace wrappers, but must share the instance.
+      expect(module.identity).toBe(
+        entry.id.includes('?first')
+          ? firstModule.identity
+          : secondModule.identity
+      )
       return module
     })
   )

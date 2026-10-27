@@ -15,7 +15,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModulePart, ModuleResolveResult, ResolveErrorMode,
         options::ResolveOptions,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
@@ -24,11 +24,13 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
+    EcmascriptModuleAsset,
     analyzer::imports::ImportAnnotations,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     collect_module::{COLLECT_LIST_EXPORT, EcmascriptCollectModule},
     create_visitor,
+    module_canonicalization::{EcmascriptModuleCanonicalization, canonicalize_ecmascript_module},
     references::{
         esm::{base::ReferencedAsset, mangle::generated_export_key},
         pattern_mapping::{PatternMapping, ResolveType},
@@ -110,8 +112,28 @@ impl ModuleReference for EmitReference {
             if self.annotations.transition().is_some() {
                 bail!("Transitions are not supported with a null emit target");
             }
-            // Keep the module identity instead of resolving a processed filename on disk.
-            return Ok(*ModuleResolveResult::module(self.parent_module));
+            // Match normal imports' canonical facade/parts without resolving a filename. A raw
+            // asset and its facade can share an ident and must not coexist in the module graph.
+            let module = if let Some(module) =
+                ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(self.parent_module)
+            {
+                let options = module.options().await?;
+                let canonicalization = if options.module_fragments_enabled {
+                    EcmascriptModuleCanonicalization::ModuleFragments(ModulePart::facade())
+                } else if options.follow_reexports {
+                    EcmascriptModuleCanonicalization::FollowReexports(None)
+                } else {
+                    EcmascriptModuleCanonicalization::None
+                };
+                ResolvedVc::upcast(
+                    canonicalize_ecmascript_module(*module, canonicalization)
+                        .to_resolved()
+                        .await?,
+                )
+            } else {
+                self.parent_module
+            };
+            return Ok(*ModuleResolveResult::module(module));
         };
 
         esm_resolve(

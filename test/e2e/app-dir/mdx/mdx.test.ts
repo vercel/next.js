@@ -3,8 +3,9 @@ import { retry } from 'next-test-utils'
 
 for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
   describe(`mdx ${type}`, () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
+      skipStart: true,
       dependencies: {
         '@next/mdx': 'workspace:*',
         '@mdx-js/loader': '^2.2.1',
@@ -20,7 +21,16 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       },
     })
 
+    beforeAll(async () => {
+      if (!isTurbopack) {
+        // Webpack's MDX loader does not apply the server-action transform to this route.
+        await next.deleteFile('app/actions/page.mdx')
+      }
+      await next.start()
+    })
+
     describe('app directory', () => {
+      // @force-gate turbopack
       it('should invoke an inline server action from MDX', async () => {
         const browser = await next.browser('/actions')
         await browser.elementById('submit-mdx-action').click()

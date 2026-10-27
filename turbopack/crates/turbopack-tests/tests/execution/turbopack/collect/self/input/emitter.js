@@ -4,3 +4,5 @@ __turbopack_emit__(null, {
 })
 
 export const value = 'self-emitted value'
+export const identity = {}
+export { reexported } from './reexported.js'
