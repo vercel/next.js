@@ -34,7 +34,6 @@
     "agent-035-connection-dynamic",
     "agent-038-refresh-settings",
     "agent-041-optimize-ppr-shell",
-    "agent-051-prefetch-until-navigation",
-    "agent-061-bundle-optimizer-dedupe-packages"
+    "agent-051-prefetch-until-navigation"
   ]
 }
