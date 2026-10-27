@@ -210,10 +210,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .collect::<Vec<_>>();
 
         // First, rank every module in reverse postorder, so that a module is visited after the
-        // modules importing it.
+        // modules importing it. The ranks from the entries of the graph are shared with other
+        // analyses of this graph (e.g. the chunk group info).
         let module_rank = {
             let _inner_span = tracing::info_span!("compute reverse postorder").entered();
-            module_graph.reverse_postorder_ranks(entries.iter().copied())?
+            module_graph.entry_ranks()?
         };
 
         // For each module, the indices in the bitmap store which merge group entry modules
