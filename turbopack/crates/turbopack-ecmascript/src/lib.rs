@@ -1408,22 +1408,28 @@ impl EcmascriptModuleContent {
             };
 
             let first_entry = entry_points.first().unwrap().0;
-            let additional_ids = modules
-                .keys()
-                // Additionally set this module factory for all modules that are exposed. The whole
-                // group might be imported via a different entry import in different chunks (we only
-                // ensure that the modules are in the same order, not that they form a subgraph that
-                // is always imported from the same root module).
-                //
-                // Also skip the first entry, which is the name of the chunk item.
-                .filter(|m| {
-                    **m != first_entry
-                        && *modules.get(*m).unwrap() == MergeableModuleExposure::External
-                })
-                .map(|m| m.chunk_item_id(*options.chunking_context))
-                .try_join()
-                .await?
-                .into();
+            let additional_ids = if flat_exports {
+                // All imports of a flat group use its canonical entry, which is also the chunk
+                // item's ID. The other exposed members do not need factory aliases.
+                SmallVec::new()
+            } else {
+                modules
+                    .keys()
+                    // Additionally set this module factory for all modules that are exposed. The
+                    // whole group might be imported via a different entry import in different
+                    // chunks (we only ensure that the modules are in the same order, not that they
+                    // form a subgraph that is always imported from the same root module).
+                    //
+                    // Also skip the first entry, which is the name of the chunk item.
+                    .filter(|m| {
+                        **m != first_entry
+                            && *modules.get(*m).unwrap() == MergeableModuleExposure::External
+                    })
+                    .map(|m| m.chunk_item_id(*options.chunking_context))
+                    .try_join()
+                    .await?
+                    .into()
+            };
 
             emit_content(content, additional_ids)
                 .instrument(tracing::info_span!("emit code"))
