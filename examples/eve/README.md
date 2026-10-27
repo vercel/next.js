@@ -7,7 +7,7 @@ The agent triages a small batch of sample issues. A fast decision model gives ev
 - `next.config.ts` wraps the config with `withEve()`. This mounts the agent in `agent/` at `/eve/v1/*`, on the same origin as the app.
 - `agent/tools/triage_issues.ts` is a [workflow tool](https://eve.dev/docs/tools/workflows). It loads the issues, decides them with `decide()` from `eve/ai` (`agent/lib/decide.ts`), and sends each issue below the confidence threshold to the reviewer with `ctx.agent("reviewer")`. It yields progress as it works, so the app can show each issue as it is decided.
 - `agent/subagents/reviewer/` is the reviewer subagent. It sees only the issue it is sent and returns a typed category, priority, and summary.
-- `agent/lib/issues.ts` holds the sample issues. Replace `loadIssues()` with a call to your issue tracker.
+- `agent/lib/sample-issues.ts` holds the sample issues. The page lists them before a run, and `loadIssues()` in `agent/lib/issues.ts` gives them to the workflow. Replace `loadIssues()` with a call to your issue tracker.
 - `agent/channels/eve.ts` sets the auth policy for browser requests.
 - `app/triage.tsx` is a Client Component that starts a run through the `useEveAgent` hook from `eve/react`. It renders the tool's progress as a table and shows the agent's one-sentence summary below it.
 

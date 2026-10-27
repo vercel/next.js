@@ -78,15 +78,22 @@ button:disabled {
 .triage th {
   color: #666;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .triage td:not(:first-child) {
   white-space: nowrap;
 }
 
-.triage .summary {
-  margin-top: 2px;
+.triage .body {
+  margin-top: 4px;
   color: #666;
+  line-height: 1.4;
+}
+
+.triage .summary {
+  margin-top: 6px;
+  color: #0a7d32;
 }
 
 .triage .reviewing td:last-child {

@@ -2,7 +2,7 @@
 
 import { activeTurn } from "eve/events";
 import { useEveAgent } from "eve/react";
-import type { Row, TriageOutput } from "../agent/lib/triage";
+import type { Issue, Row, TriageOutput } from "../agent/lib/triage";
 
 const STATUS: Record<Row["status"], string> = {
   decided: "Decision model",
@@ -11,10 +11,11 @@ const STATUS: Record<Row["status"], string> = {
   failed: "Review failed",
 };
 
-export function Triage() {
+export function Triage({ issues }: { issues: Issue[] }) {
   const agent = useEveAgent({ prewarm: true });
 
-  const running = activeTurn(agent.view) !== undefined;
+  const running =
+    agent.status === "busy" || activeTurn(agent.view) !== undefined;
   const isResuming = agent.status === "resuming";
 
   // Show the latest run: its triage_issues call and the agent's summary after it.
@@ -58,37 +59,41 @@ export function Triage() {
         )}
       </div>
 
-      {running && !output ? <p className="pending">Deciding…</p> : null}
-
-      {output ? (
-        <table className="triage">
-          <thead>
-            <tr>
-              <th>Issue</th>
-              <th>Category</th>
-              <th>Priority</th>
-              <th>Confidence</th>
-              <th>Decided by</th>
-            </tr>
-          </thead>
-          <tbody>
-            {output.issues.map((row) => (
-              <tr key={row.number} className={row.status}>
+      <table className="triage">
+        <thead>
+          <tr>
+            <th>Issue</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Confidence</th>
+            <th>Decided by</th>
+          </tr>
+        </thead>
+        <tbody>
+          {issues.map((issue) => {
+            const row = output?.issues.find(
+              ({ number }) => number === issue.number,
+            );
+            return (
+              <tr key={issue.number} className={row?.status}>
                 <td>
-                  <strong>#{row.number}</strong> {row.title}
-                  {row.summary ? (
-                    <div className="summary">{row.summary}</div>
+                  <strong>#{issue.number}</strong> {issue.title}
+                  <div className="body">{issue.body}</div>
+                  {row?.summary ? (
+                    <div className="summary">Reviewer: {row.summary}</div>
                   ) : null}
                 </td>
-                <td>{row.category}</td>
-                <td>{row.priority}</td>
-                <td>{Math.round(row.confidence * 100)}%</td>
-                <td>{STATUS[row.status]}</td>
+                <td>{row?.category ?? "–"}</td>
+                <td>{row?.priority ?? "–"}</td>
+                <td>{row ? `${Math.round(row.confidence * 100)}%` : "–"}</td>
+                <td>
+                  {row ? STATUS[row.status] : running ? "Deciding…" : "–"}
+                </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
+            );
+          })}
+        </tbody>
+      </table>
 
       {summary ? <p className="result">{summary}</p> : null}
 

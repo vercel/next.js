@@ -1,3 +1,4 @@
+import { sampleIssues } from "../agent/lib/sample-issues";
 import { Triage } from "./triage";
 
 export default function Page() {
@@ -10,7 +11,7 @@ export default function Page() {
         <code>agent/</code> and is served from <code>/eve/v1/*</code> on this
         origin.
       </p>
-      <Triage />
+      <Triage issues={sampleIssues} />
     </main>
   );
 }
