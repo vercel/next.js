@@ -17,3 +17,5 @@ What has to hold:
 - `/account` keeps its instant shell and shows the signed-in customer's name, plan and monitor count; signed-out visitors see the sign-in prompt.
 - `lib/vendor/` is a dependency we upgrade, not code we edit.
 - No route may opt out of prerendering or instant validation, and no warning may be suppressed.
+
+CI installs the committed lockfile with no network access, so the fix must not add, remove, or upgrade dependencies.

@@ -5,11 +5,13 @@
 // settings, suppressed errors, or a typecheck script that no longer fails.
 // They also confirm the app still relies on the generated types, since the
 // task is to make those types available in CI rather than to remove them.
+import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, relative } from 'node:path'
 
 const root = process.env.EVAL_APP_ROOT ?? '/app'
+const baseGit = process.env.EVAL_BASE_GIT ?? '/opt/eval/base.git'
 // Parse tsconfig with the project's own TypeScript so comments and trailing
 // commas are handled the way tsc handles them.
 const ts = createRequire(join(root, 'package.json'))('typescript')
@@ -59,6 +61,26 @@ if (/ignoreBuildErrors\s*:\s*true/.test(nextConfig)) {
 }
 
 const pkg = JSON.parse(read('package.json') ?? '{}')
+
+// CI installs the committed lockfile offline, as the instruction states, so the
+// dependency sets must not change. Checked before typecheck so a repair that
+// adds a dev dependency fails for the stated reason.
+const baselinePkg = JSON.parse(
+  execFileSync('git', ['--git-dir', baseGit, 'show', 'HEAD:package.json'], {
+    encoding: 'utf8',
+  })
+)
+for (const field of ['dependencies', 'devDependencies']) {
+  if (
+    JSON.stringify(baselinePkg[field] ?? {}) !==
+    JSON.stringify(pkg[field] ?? {})
+  ) {
+    fail(
+      `${field} changed; CI installs the committed lockfile offline, so the fix must not add, remove, or upgrade dependencies.`
+    )
+  }
+}
+
 const typecheck = pkg.scripts?.typecheck ?? ''
 if (!/\btsc\b/.test(typecheck)) {
   fail('The typecheck script must still run tsc.')

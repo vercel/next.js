@@ -57,6 +57,7 @@ Each of these let a wrong repair through until the check changed:
 - **Disable redirects when checking status codes.** A streamed redirect is a 200 with the redirect inside the body.
 - **Pin vendored dependencies.** Compare `lib/vendor/*` with the git baseline so the agent cannot edit the library instead of working around it.
 - **Compare timestamps with the prerendered value.** Two requests within one second produce the same second-resolution stamp.
+- **State the dependency policy in the instruction and enforce it first.** The verifier has no network and installs the committed lockfile, so an agent that adds a dev dependency to write its own tests fails `tsc` for a reason it was never told. Say so in the instruction and reject dependency changes in the source check with that message, before any other gate.
 
 ## Calibrate
 

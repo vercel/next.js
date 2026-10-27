@@ -18,15 +18,20 @@ LOGS=${EVAL_LOGS_DIR:-/logs/verifier}
 PATCH=${EVAL_PATCH:-/tmp/agent.patch}
 PORT=${EVAL_PORT:-3010}
 export EVAL_APP_ROOT=$APP EVAL_BASE_URL="http://127.0.0.1:$PORT"
+export EVAL_BASE_GIT=${EVAL_BASE_GIT:-/opt/eval/base.git}
 
 mkdir -p "$LOGS"
 reward=0
 server_pid=''
 
 cleanup() {
+  # `npm run start` wraps a next-server child; stop the wrapper, its children,
+  # and whatever still listens on the port this verifier owns.
   if [ -n "$server_pid" ]; then
+    pkill -P "$server_pid" 2>/dev/null || true
     kill "$server_pid" 2>/dev/null || true
   fi
+  lsof -ti :"$PORT" 2>/dev/null | xargs kill 2>/dev/null || true
 }
 trap cleanup EXIT
 

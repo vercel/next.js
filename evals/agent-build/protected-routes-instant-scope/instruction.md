@@ -12,3 +12,5 @@ Please fix the workspace so that:
 - `/`, `/pricing` and `/login` stay fully static.
 - No route opts out of prerendering or instant validation, nothing suppresses warnings, and `lib/vendor/` stays untouched because it is a dependency.
 - The production build passes and the production server logs stay free of prerender and validation errors while browsing signed out, signed in, and with an expired session.
+
+CI installs the committed lockfile with no network access, so the fix must not add, remove, or upgrade dependencies.

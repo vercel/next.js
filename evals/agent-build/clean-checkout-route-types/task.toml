@@ -3,7 +3,7 @@ artifacts = ["/tmp/agent.patch"]
 
 [task]
 name = "nextjs/clean-checkout-route-types"
-version = "0.1.0"
+version = "0.1.1"
 authors = [{ name = "Aurora Scharff" }]
 description = "Make a strict CI typecheck pass from a clean clone of an app that depends on generated Next.js route types, without committing generated output or weakening the types."
 keywords = ["nextjs", "agent-build", "typegen", "route-types", "ci"]

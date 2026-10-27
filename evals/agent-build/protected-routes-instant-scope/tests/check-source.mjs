@@ -57,6 +57,26 @@ for (const [path, contents] of files) {
   }
 }
 
+// CI installs the committed lockfile offline, as the instruction states, so the
+// dependency sets must not change. Checked before typecheck so a repair that
+// adds a dev dependency fails for the stated reason.
+const baselinePkg = JSON.parse(
+  execFileSync('git', ['--git-dir', baseGit, 'show', 'HEAD:package.json'], {
+    encoding: 'utf8',
+  })
+)
+const currentPkg = JSON.parse(read('package.json') ?? '{}')
+for (const field of ['dependencies', 'devDependencies']) {
+  if (
+    JSON.stringify(baselinePkg[field] ?? {}) !==
+    JSON.stringify(currentPkg[field] ?? {})
+  ) {
+    fail(
+      `${field} changed; CI installs the committed lockfile offline, so the fix must not add, remove, or upgrade dependencies.`
+    )
+  }
+}
+
 const vendorPath = 'lib/vendor/session-sdk.ts'
 const vendorNow = read(vendorPath)
 if (vendorNow === null) fail(`${vendorPath} must still exist.`)

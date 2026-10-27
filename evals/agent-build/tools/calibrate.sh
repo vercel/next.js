@@ -16,15 +16,17 @@ set -uo pipefail
 
 HARBOR=${HARBOR:-harbor}
 
-# agent|model|effort. Frontier first, then the weaker tier. Effort is passed
-# only when set; agents that ignore it are unaffected.
+# agent|model|effort|agent options. Frontier first, then the weaker tier.
+# Effort is passed only when set. Agent options are comma-separated key=value
+# pairs passed as --agent-kwarg. Claude Code's SDK appends /v1/messages itself,
+# so it needs the bare gateway host instead of the /v1 base URL below.
 COHORT=(
-  "claude-code|anthropic/claude-opus-5.5|high"
-  "codex|openai/gpt-6.1-sol|high"
-  "opencode|google/gemini-4-argon|"
-  "codex|openai/gpt-6-luna|high"
-  "opencode|google/gemini-3.8-flash|"
-  "opencode|zai/glm-5.2|"
+  "claude-code|anthropic/claude-opus-5.5|high|base_url=https://ai-gateway.vercel.sh"
+  "codex|openai/gpt-6.1-sol|high|"
+  "opencode|google/gemini-4-argon||"
+  "codex|openai/gpt-6-luna|high|"
+  "opencode|google/gemini-3.8-flash||"
+  "opencode|zai/glm-5.2||"
 )
 
 if [ "${1:-}" = "--summary" ]; then
@@ -55,7 +57,7 @@ mkdir -p "$JOBS"
 for task in "$@"; do
   name=$(basename "$task")
   for row in "${COHORT[@]}"; do
-    IFS='|' read -r agent model effort <<< "$row"
+    IFS='|' read -r agent model effort options <<< "$row"
     job="${name}__${agent}__${model//\//-}"
     if [ -f "$JOBS/$job/result.json" ]; then
       echo "== skip $job (result exists)"
@@ -67,6 +69,10 @@ for task in "$@"; do
       --api-key-name AI_GATEWAY_API_KEY --n-attempts 1 --max-retries 2
       --jobs-dir "$JOBS" --job-name "$job")
     [ -n "$effort" ] && args+=(--effort "$effort")
+    if [ -n "$options" ]; then
+      IFS=',' read -ra pairs <<< "$options"
+      for pair in "${pairs[@]}"; do args+=(--agent-kwarg "$pair"); done
+    fi
     "$HARBOR" "${args[@]}" > "$JOBS/$job.log" 2>&1 || echo "   harbor exited non-zero; see $JOBS/$job.log"
   done
 done

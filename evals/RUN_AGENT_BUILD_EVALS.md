@@ -26,16 +26,30 @@ evals/agent-build/<task>/
 
 `instruction.md` is the only task instruction the agent receives. `solution/solve.sh` is available only to the oracle. The verifier runs from `tests/` in a separate environment with no network access. Harbor transfers the agent's patch into that environment for grading.
 
+### How to read a task
+
+A Harbor task spreads one eval over more files than an `agent-eval` fixture, so read it in this order:
+
+1. `instruction.md`: the prompt, and the only thing the agent sees. Every requirement the verifier grades is stated here.
+2. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings. The [configuration reference](https://docs.harborframework.com/tasks/configuration) explains each field.
+3. `environment/fixture/`: the broken app the agent starts from. `environment/Dockerfile` installs it from the lockfile and commits a git baseline that the patch is diffed against.
+4. `tests/test.sh`: the gates in order. `check-source.mjs` rejects shortcuts, then typecheck and build, then the behavioral checks (`check-routes.mjs` or `behavior.spec.ts`), then for some tasks the server log. The [verifier reference](https://docs.harborframework.com/tasks/verifier) covers the reward file and the separate verifier.
+5. `solution/`: the reference repair, as files under `solution/files/` copied by `solve.sh`. Read it after the verifier, not before, so the checks are judged on their own.
+6. `tests/bad-solutions/`: one script per shortcut, with the gate that rejects it in the header and a README table.
+
 ### What Harbor expects
 
-These tasks follow the published Harbor task format exactly, so they can move to the shared `vercel/evals` repository and be handed to partners unchanged. The rules that matter:
+These tasks follow the published Harbor task format exactly, so they can move to the shared `vercel/evals` repository and be handed to partners unchanged. Each rule below links to where it comes from.
 
-- The five parts are `instruction.md`, `task.toml`, `environment/`, `solution/solve.sh`, and `tests/test.sh`. Nothing else is required, and nothing else is read by Harbor.
-- `tests/test.sh` must write a numeric reward to `/logs/verifier/reward.json` (a JSON object of labeled numbers) or `/logs/verifier/reward.txt` (one number). Our tasks write `{"reward": 1}` or `{"reward": 0}` and always exit 0, so a crashed check reads as a failed task rather than a runner error.
-- With a separate verifier (`[verifier] environment_mode = "separate"`), Harbor does not upload `tests/` at run time. `tests/Dockerfile` must copy every check it runs, and the agent's changes only reach it through the paths listed in `artifacts`. Our tasks collect `/tmp/agent.patch` from the agent container and apply it to a clean copy of the fixture.
-- Harbor copies `solution/` to `/solution` and runs `solve.sh` from the task working directory (`/app`). Keep the reference repair as files under `solution/files/` and have `solve.sh` copy them; large heredocs are hard to review and easy to break.
-- Pin everything: base images by digest, npm dependencies through the committed lockfiles, and the verifier's browser through `tests/package-lock.json`. `harbor lint --select ALL` enforces the pins.
+- The five parts are `instruction.md`, `task.toml`, `environment/`, `solution/solve.sh`, and `tests/test.sh`. Nothing else is required, and nothing else is read by Harbor ([task overview](https://docs.harborframework.com/tasks/overview)).
+- `tests/test.sh` must write a numeric reward to `/logs/verifier/reward.json` (a JSON object of labeled numbers) or `/logs/verifier/reward.txt` (one number). Our tasks write `{"reward": 1}` or `{"reward": 0}` and always exit 0, so a crashed check reads as a failed task rather than a runner error ([verifier](https://docs.harborframework.com/tasks/verifier)).
+- With a separate verifier (`[verifier] environment_mode = "separate"`), Harbor does not upload `tests/` at run time. `tests/Dockerfile` must copy every check it runs, and the agent's changes only reach it through the paths listed in `artifacts`. Our tasks collect `/tmp/agent.patch` from the agent container and apply it to a clean copy of the fixture ([configuration](https://docs.harborframework.com/tasks/configuration), [verifier](https://docs.harborframework.com/tasks/verifier)).
+- Harbor copies `solution/` to `/solution` and runs `solve.sh` from the task working directory (`/app`). Keep the reference repair as files under `solution/files/` and have `solve.sh` copy them; large heredocs are hard to review and easy to break ([solution](https://docs.harborframework.com/tasks/solution)).
+- The verifier has no network, and Harbor's `verifier-network-download` lint rule flags verifiers that download at run time. The committed lockfile is therefore the only source of dependencies, which is why every instruction says the fix must not add dependencies and every `check-source.mjs` rejects dependency changes first. On Vercel, Compose tasks support `public` and `no-network` but not `allowlist` (`harbor/environments/vercel/environment.py` in the pinned revision).
+- Pin everything: base images by digest, npm dependencies through the committed lockfiles, and the verifier's browser through `tests/package-lock.json`. `harbor lint --select ALL` enforces the pins; `harbor lint --help` lists every rule.
 - Run `harbor lint --select ALL <task>` before opening a pull request. Only the compose rules need the Docker CLI; every other rule runs anywhere.
+
+Further reading: the [environment reference](https://docs.harborframework.com/tasks/environment) for `/logs`, `/solution`, `/tests`, and prebuilt images; the [instruction reference](https://docs.harborframework.com/tasks/instruction); [running Harbor on Vercel Sandbox](https://vercel.com/kb/guide/run-terminal-bench-harbor-benchmarks-vercel-sandbox); [HarborHub](https://hub.harborframework.com/) for published datasets; and `harbor agent schema <agent>` for the options each harness accepts.
 
 Two conventions are ours, not Harbor's. `tests/bad-solutions/` holds known incorrect repairs with a README that names the check that rejects each one; they are review material and never run during a trial. `tests/fixture/` is a byte-identical copy of `environment/fixture/`, because the separate verifier image needs the baseline too. Copy it again after every fixture edit.
 
@@ -122,6 +136,8 @@ HARBOR=.harbor/bin/harbor evals/agent-build/tools/calibrate.sh \
 
 evals/agent-build/tools/calibrate.sh --summary /path/to/jobs
 ```
+
+Agent harnesses differ in how they build the inference URL. Codex and OpenCode take the gateway's OpenAI-compatible base `https://ai-gateway.vercel.sh/v1`; Claude Code's SDK appends `/v1/messages` itself, so its row passes `base_url=https://ai-gateway.vercel.sh` as an agent option, or every call returns a 404 that Claude Code reports as `model_not_found`.
 
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 

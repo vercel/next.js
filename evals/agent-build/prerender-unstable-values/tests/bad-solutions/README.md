@@ -14,3 +14,4 @@ wrong site, plus the opt-outs the feedback reports show agents reaching for.
 | `hardcode-year.sh`         | Replaces the footer year with a literal                               | `check-source.mjs`                                            |
 | `edit-vendor.sh`           | Patches `Date.now()` out of the vendored SDK                          | `check-source.mjs`                                            |
 | `skip-sdk-fix.sh`          | Fixes the three build errors and stops once the build is green        | server log check in `test.sh`                                 |
+| `adds-dependency.sh`       | Correct repairs plus a dev dependency and its own tests               | `check-source.mjs`: dependency sets changed                   |

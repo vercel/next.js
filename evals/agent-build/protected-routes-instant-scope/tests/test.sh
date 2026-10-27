@@ -25,9 +25,13 @@ server_pid=''
 server_log=$LOGS/next-start.log
 
 cleanup() {
+  # `npm run start` wraps a next-server child; stop the wrapper, its children,
+  # and whatever still listens on the port this verifier owns.
   if [ -n "$server_pid" ]; then
+    pkill -P "$server_pid" 2>/dev/null || true
     kill "$server_pid" 2>/dev/null || true
   fi
+  lsof -ti :"$PORT" 2>/dev/null | xargs kill 2>/dev/null || true
 }
 trap cleanup EXIT
 
