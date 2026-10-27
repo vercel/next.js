@@ -100,7 +100,7 @@ With experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go
 
 Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. By default, the generated server matches its emitted route pattern and derives decoded dynamic parameters from the request URL.
 
-Platforms that preserve the public URL when rewriting to a Go function must supply the concrete routed pathname separately. Set the function's `__NEXT_GO_ADAPTER_ROUTING` environment variable to JSON with `version: 1` and `pathHeader` naming a trusted request header:
+Platforms that preserve the public URL when rewriting to a Go function must supply the concrete routed pathname separately. Set the function's `NEXT_GO_ADAPTER_ROUTING` environment variable to JSON with `version: 1` and `pathHeader` naming a trusted request header:
 
 ```json
 { "version": 1, "pathHeader": "x-platform-route-path" }

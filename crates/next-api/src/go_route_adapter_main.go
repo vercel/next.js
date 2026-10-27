@@ -23,11 +23,11 @@ type nextGoAdapterRouting struct {
 }
 
 func nextGoRoutingConfig() (*nextGoAdapterRouting, error) {
-	raw := os.Getenv("__NEXT_GO_ADAPTER_ROUTING")
+	raw := os.Getenv("NEXT_GO_ADAPTER_ROUTING")
 	if raw == "" {
 		return nil, nil
 	}
-	invalid := fmt.Errorf("invalid __NEXT_GO_ADAPTER_ROUTING: expected version 1 and a valid pathHeader")
+	invalid := fmt.Errorf("invalid NEXT_GO_ADAPTER_ROUTING: expected version 1 and a valid pathHeader")
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	var config nextGoAdapterRouting
