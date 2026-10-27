@@ -22309,3 +22309,118 @@ describe('actual readonly snapshot completion for literal public empty files', (
     130000
   )
 })
+
+describe('actual serial beforeAll Array coverage carriers', () => {
+  it.each([
+    'sync',
+    'async',
+    'repeated',
+    'primitive-sync',
+    'primitive-async',
+    'no-capture',
+    'parallel',
+    'fixture',
+    'pending',
+    'abort-pending',
+    'disposal-same',
+    'finalizer-same',
+    'scope-dispose-same',
+    'borrowed',
+    'mixed-borrowed',
+    'duplicate-fresh',
+    'missing-map',
+    'deadline',
+    'late',
+  ])(
+    'keeps exact current capture and physical completion for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-beforeall-array-carriers-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'beforeall-array-carriers.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualCallbackCarrierOwnership: true,
+          noBodyInvocations: true,
+          noInventedStarts: true,
+          actualOperationJoins: mode !== 'deadline',
+          otherStageAndBorrowedVeto: true,
+          originalArrayReadsPreserved: true,
+          rawErrorsUnchanged: true,
+          snapshotPolicyTouched: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+  it.each([
+    'istanbul-beforeall-array-async-report-false',
+    'istanbul-beforeall-array-async-report-true',
+    'istanbul-beforeall-array-repeated-report-true',
+    'istanbul-beforeall-array-sync-report-false',
+    'istanbul-beforeall-array-sync-report-true',
+    'istanbul-beforeall-primitive-async-report-true',
+    'istanbul-beforeall-primitive-sync-report-true',
+  ])(
+    'matches actual failed suite/descendant states and complete reports for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-beforeall-array-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeall-array-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            env: {
+              ...process.env,
+              CI: '1',
+              TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+            },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualBeforeAllArray: true,
+          actualOrderedModuleErrors: true,
+          actualOrderedRootErrors: true,
+          completeCaseReportAndMap: true,
+          completeCoverageFiles: true,
+          snapshotBytesUnchanged: true,
+          rawFrameEqualityQualified: false,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})

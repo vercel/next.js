@@ -304,6 +304,8 @@ Object.defineProperty(PendingError, 'name', {
 export interface RunnerOperationObservation {
   readonly bounded: Set<TimedOperation>
   readonly around: Set<TimedOperation>
+  /** Actual beforeAll expansion returned an uncreated carrier; never reset. */
+  beforeAllCaptureIncomplete?: true
   pendingHooks?: ReadonlySet<Promise<unknown>>
 }
 
@@ -758,7 +760,8 @@ export async function runCollected(
     handleControl?: (error: unknown) => boolean,
     onTimeout?: (error: DeadlineError) => void,
     afterFulfilled?: (value: unknown) => unknown | Promise<unknown>,
-    createdCarriers?: Set<RunnerFailure>
+    createdCarriers?: Set<RunnerFailure>,
+    observeCreatedCarrier?: (failure: RunnerFailure, cause: unknown) => void
   ) {
     try {
       return await bounded(
@@ -782,6 +785,7 @@ export async function runCollected(
         ...(Array.isArray(error) ? error : [error]).map((failure) => {
           const carrier = { phase, error: failure }
           createdCarriers?.add(carrier)
+          observeCreatedCarrier?.(carrier, error)
           return carrier
         })
       )
@@ -911,6 +915,19 @@ export async function runCollected(
             }
           const previous = errors.length
           const authoredFailures = new Set<unknown>()
+          let createdBeforeAllCarriers: Set<RunnerFailure> | undefined
+          const observeCreatedBeforeAllCarrier =
+            options.captureCoverageCompletion === true &&
+            context.hook === 'beforeAll' &&
+            declaration !== undefined &&
+            declaration.fixtures === undefined
+              ? (failure: RunnerFailure, cause: unknown) => {
+                  if (authoredFailures.has(cause)) {
+                    createdBeforeAllCarriers ??= new Set()
+                    createdBeforeAllCarriers.add(failure)
+                  }
+                }
+              : undefined
           const value = await capture(
             context.hook,
             () =>
@@ -922,11 +939,21 @@ export async function runCollected(
             undefined,
             declaration
               ? registeredDeadline(declaration, bodyTimeout)
-              : undefined
+              : undefined,
+            undefined,
+            undefined,
+            observeCreatedBeforeAllCarrier
           )
           for (const failure of errors.slice(previous)) {
+            if (observeCreatedBeforeAllCarrier) {
+              if (createdBeforeAllCarriers?.delete(failure))
+                settledBeforeAllFailures.set(failure, context.id)
+              else if (operationObservation)
+                operationObservation.beforeAllCaptureIncomplete = true
+            }
             if (
               options.captureCoverageCompletion &&
+              !observeCreatedBeforeAllCarrier &&
               authoredFailures.has(failure.error)
             ) {
               if (context.hook === 'beforeAll')

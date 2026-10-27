@@ -1435,6 +1435,7 @@ function initializeFile(
         !disposalSucceeded ||
         !completedCoverageFailures ||
         !operationObservation ||
+        operationObservation.beforeAllCaptureIncomplete === true ||
         (worker && (!worker.disposalSucceeded || worker.failures.length)) ||
         runSignal?.aborted ||
         lateErrors.some(
