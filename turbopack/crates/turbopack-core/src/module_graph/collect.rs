@@ -1,7 +1,6 @@
-use std::cmp::Reverse;
+use std::{borrow::Cow, cmp::Reverse};
 
 use anyhow::{Context, Result, bail};
-use either::Either;
 use rustc_hash::FxHashMap;
 use turbo_bitset::Bitset;
 use turbo_rcstr::{RcStr, rcstr};
@@ -130,7 +129,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                     // Initial visit, clone instead of merging
                     *current_membership = parent_membership.clone();
                     Ok(GraphTraversalAction::Continue)
-                } else if !parent_membership.is_subset(current_membership) {
+                } else if parent_membership.has_bits_not_in(current_membership) {
                     // Add bits from parent, and continue traversal because changed
                     *current_membership |= &*parent_membership;
                     Ok(GraphTraversalAction::Continue)
@@ -218,17 +217,13 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
             let matching_chunk_groups = if *emit_to_all_entries {
                 // Add to all entry groups the collecting module is in.
-                Either::Left(collecting_membership.iter())
+                Cow::Borrowed(collecting_membership)
             } else {
                 // Add to all entry groups the collecting module is in that also contain the emitted
                 // module.
-                Either::Right(
-                    collecting_membership
-                        .iter()
-                        .filter(|&entry| emitted_membership.contains(entry)),
-                )
+                Cow::Owned(collecting_membership & emitted_membership)
             };
-            let mut matching_chunk_groups = matching_chunk_groups.peekable();
+            let mut matching_chunk_groups = matching_chunk_groups.iter().peekable();
             if matching_chunk_groups.peek().is_some() {
                 let refs = collected_references
                     .entry(ResolvedVc::upcast(*collecting_module))
