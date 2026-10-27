@@ -105,6 +105,44 @@ const tests = {
         },
       ],
     },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <div>
+            <head>
+              <title>Home</title>
+            </head>
+          </div>
+        );
+      }`,
+      filename: '/projects/my-app/pages/index.jsx',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <div>
+            <head>
+              <title>Home</title>
+            </head>
+          </div>
+        );
+      }`,
+      filename: '/tmp/repro/srv/app/web/pages/index.jsx',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
   ],
 }
 
