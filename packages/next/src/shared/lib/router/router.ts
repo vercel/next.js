@@ -1371,9 +1371,27 @@ export default class Router implements BaseRouter {
       hasBasePath(as) ? removeBasePath(as) : as,
       nextState.locale
     )
+    // When href contains different query params from the current URL,
+    // we must not treat it as a hash-only change even if "as" only
+    // differs by hash. (fixes #10900)
+    const hrefParsed = parseRelativeUrl(url)
+    const hrefPathname = hrefParsed.pathname
+    const hrefQuery = hrefParsed.query
+    const currentPathname = this.pathname
+    const currentQuery = this.query
+    const hrefHasQueryChange =
+      hrefPathname !== currentPathname ||
+      Object.keys(hrefQuery).some(
+        (key) => hrefQuery[key] !== (currentQuery as any)[key]
+      ) ||
+      Object.keys(currentQuery).some(
+        (key) =>
+          !(key in hrefQuery) && (currentQuery as any)[key] !== undefined
+      )
+
     this._inFlightRoute = as
 
-    const localeChange = prevLocale !== nextState.locale
+    const localeChange = prevLocale !== nextState.locale || hrefHasQueryChange
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -1402,7 +1420,7 @@ export default class Router implements BaseRouter {
       return true
     }
 
-    let parsed = parseRelativeUrl(url)
+    let parsed = hrefParsed
     let { pathname, query } = parsed
 
     // The build manifest needs to be loaded before auto-static dynamic pages
