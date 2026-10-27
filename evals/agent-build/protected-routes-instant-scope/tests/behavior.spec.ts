@@ -7,7 +7,11 @@ const baseURL = process.env.EVAL_BASE_URL ?? 'http://127.0.0.1:3010'
 const appRoot = process.env.EVAL_APP_ROOT ?? '/app'
 
 function clean(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '')
+  // React also leaves an empty <template> placeholder where a Suspense
+  // boundary streams in later; the fallback text around it is in the shell.
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<template[^>]*><\/template>/g, '')
 }
 
 // The prerendered HTML the build wrote. A route without one has no static

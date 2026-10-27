@@ -44,6 +44,11 @@ for (const name of readdirSync(jobs)) {
   const result = read(join(dir, 'result.json'))
   const model = read(join(dir, 'config.json')).agents?.[0]?.model_name
   const evaluation = Object.values(result.stats?.evals ?? {})[0] ?? {}
+  // A regrade with a fixed verifier (tools/regrade.sh) replaces Harbor's reward.
+  const regrade = existsSync(join(dir, 'regrade.json'))
+    ? read(join(dir, 'regrade.json'))
+    : null
+  const reward = regrade?.reward ?? evaluation.metrics?.[0]?.mean
   cells.push({
     task: name.split('__')[0],
     model:
@@ -55,7 +60,7 @@ for (const name of readdirSync(jobs)) {
       ? 'running'
       : runnerError(evaluation)
         ? 'discarded'
-        : evaluation.metrics?.[0]?.mean >= 1
+        : reward >= 1
           ? '1/1'
           : '0/1',
   })

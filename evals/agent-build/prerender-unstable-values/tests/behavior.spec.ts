@@ -20,7 +20,11 @@ const relativePattern = /\bago\b|yesterday|just now|last (?:week|month)/i
 // React separates adjacent text and expressions with comment nodes, so strip
 // them before any substring check.
 function clean(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '')
+  // React also leaves an empty <template> placeholder where a Suspense
+  // boundary streams in later; the fallback text around it is in the shell.
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<template[^>]*><\/template>/g, '')
 }
 
 function checkedAt(html: string): string {
@@ -78,15 +82,12 @@ test('the prerendered status page carries the cached checked-at time and absolut
   const stamp = checkedAt(prerendered)
   expect(stamp).toMatch(checkedAtPattern)
 
-  const texts = relativeTimeTexts(prerendered)
-  expect(texts, 'all three incidents render a start time').toHaveLength(3)
-  for (const text of texts) {
-    expect(text.length).toBeGreaterThan(0)
+  // The instruction leaves the server rendering of start times open: an
+  // absolute time, a relative time as of the fetch, or a Suspense fallback are
+  // all accepted. Whether each becomes the visitor's live relative time is
+  // checked in the browser with a pinned clock.
+  for (const text of relativeTimeTexts(prerendered)) {
     expect(text).not.toContain('NaN')
-    expect(
-      text,
-      'relative wording must not be baked into the HTML'
-    ).not.toMatch(relativePattern)
   }
 
   // Every visitor sees the snapshot's time until the cache refreshes.

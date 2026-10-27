@@ -131,6 +131,8 @@ Agent harnesses differ in how they build the inference URL. Codex and OpenCode t
 
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`; run confirmations as separate jobs and record them separately.
 
+When a verifier fix lands after runs were scored, and the instruction and fixture did not change, regrade instead of rerunning: `evals/agent-build/tools/regrade.sh <task-dir> <jobs-dir>` applies each run's collected patch to a fresh fixture, grades it with the current verifier, and writes `regrade.json`, which the report uses in place of Harbor's reward. A change to the instruction or fixture needs new runs.
+
 ## Run optional context treatments
 
 Harbor runs the base task as committed. `TREATMENT=agents-md evals/agent-build/tools/calibrate.sh ...` runs a generated copy whose fixture also has the standard Next.js `AGENTS.md`, the same text as the `agent-eval` `agents-md` variant, and a `CLAUDE.md` that imports it. The instruction, verifier, model, effort, and runtime stay identical, jobs get an `__agents-md` suffix, and the report labels those rows `· AGENTS.md`. Never commit the generated copy as a second task. Suites for other frameworks can omit the treatment or define one for their own documentation.
