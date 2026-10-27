@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use tracing::Instrument;
+use turbo_bitset::Bitset;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
@@ -15,9 +16,7 @@ use crate::{
         MergeableModulesExposed,
     },
     module::Module,
-    module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::RoaringBitmapWrapper,
-    },
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
     resolve::ExportUsage,
 };
 
@@ -76,13 +75,13 @@ impl MergedModuleInfo {
 }
 
 /// Assigns each distinct bitmap a dense id, starting at 0, so that callers can hash and compare a
-/// `u32` instead of a whole bitmap (hashing a [`RoaringBitmapWrapper`] serializes it). Equal
-/// bitmaps get the same id. Returns the id of every key and the number of distinct bitmaps.
+/// `u32` instead of a whole bitmap. Equal bitmaps get the same id. Returns the id of every key and
+/// the number of distinct bitmaps.
 fn intern_bitmaps<'a, K: Eq + Hash>(
-    entries: impl IntoIterator<Item = (K, &'a RoaringBitmapWrapper)>,
+    entries: impl IntoIterator<Item = (K, &'a Bitset)>,
     capacity: usize,
 ) -> (FxHashMap<K, u32>, usize) {
-    let mut ids: FxHashMap<&'a RoaringBitmapWrapper, u32> = FxHashMap::default();
+    let mut ids: FxHashMap<&'a Bitset, u32> = FxHashMap::default();
     let mut result = FxHashMap::with_capacity_and_hasher(capacity, Default::default());
     for (key, bitmap) in entries {
         let next_id = ids.len() as u32;
@@ -220,7 +219,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // For each module, the indices in the bitmap store which merge group entry modules
         // transitively import that module. The bitmap can be treated as an opaque value, merging
         // all modules with the same bitmap.
-        let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
             FxHashMap::with_capacity_and_hasher(module_count, Default::default());
         // Entries that started a new merge group for some deopt reason
         let mut entry_modules =
@@ -311,13 +310,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         bail!("unreachable except for eventual consistency");
                     };
 
-                    if current_merged_groups.is_empty() {
+                    if current_merged_groups.is_zero() {
                         // Initial visit, clone instead of merging
                         *current_merged_groups = parent_merged_groups.clone();
                         GraphTraversalAction::Continue
-                    } else if parent_merged_groups.is_proper_superset(current_merged_groups) {
+                    } else if !parent_merged_groups.is_subset(current_merged_groups) {
                         // Add bits from parent, and continue traversal because changed
-                        **current_merged_groups |= &**parent_merged_groups;
+                        *current_merged_groups |= &*parent_merged_groups;
                         GraphTraversalAction::Continue
                     } else {
                         // Unchanged, no need to forward to children
@@ -907,12 +906,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
 #[cfg(test)]
 mod tests {
-    use roaring::RoaringBitmap;
-
     use super::*;
 
-    fn bitmap(bits: &[u32]) -> RoaringBitmapWrapper {
-        RoaringBitmapWrapper(bits.iter().copied().collect::<RoaringBitmap>())
+    fn bitmap(bits: &[u32]) -> Bitset {
+        bits.iter().copied().collect()
     }
 
     #[test]
