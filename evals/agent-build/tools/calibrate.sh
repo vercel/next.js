@@ -95,6 +95,14 @@ treat() {
   echo "$copy"
 }
 
+# Record the cohort so the report can list models that have not started yet.
+mkdir -p "$JOBS"
+printf '%s\n' "${COHORT[@]}" | node -e '
+  const rows = require("fs").readFileSync(0, "utf8").trim().split("\n")
+  const cohort = rows.map((row) => { const [agent, model] = row.split("|"); return { agent, model } })
+  require("fs").writeFileSync(process.argv[1], JSON.stringify(cohort, null, 2) + "\n")
+' "$JOBS/cohort.json"
+
 case "$TREATMENT" in
   base) suffix='' ;;
   agents-md) suffix='__agents-md' ;;

@@ -98,28 +98,31 @@ const tally = (rs) => {
   }
 }
 
-// Models aggregated across tasks, sorted by base pass rate.
-const models = [
-  ...new Map(
-    [...runs]
-      .sort((a, b) => a.started.localeCompare(b.started))
-      .map((r) => [r.model, r])
-  ).values(),
-].map((first) => {
-  const mine = runs.filter((r) => r.model === first.model)
+// Models: every cohort row from calibrate.sh's cohort.json, so queued models
+// show too, plus any model that ran without being listed.
+const cohortFile = join(jobs, 'cohort.json')
+const cohort = existsSync(cohortFile)
+  ? read(cohortFile).map((c) => ({
+      model: label(c.model),
+      harness: HARNESS[c.agent] ?? c.agent,
+    }))
+  : []
+const seen = new Set(cohort.map((c) => c.model))
+for (const r of [...runs].sort((a, b) => a.started.localeCompare(b.started))) {
+  if (!seen.has(r.model)) {
+    cohort.push({ model: r.model, harness: r.harness })
+    seen.add(r.model)
+  }
+}
+const models = cohort.map((c, order) => {
+  const mine = runs.filter((r) => r.model === c.model)
   const base = tally(mine.filter((r) => r.treatment === 'base'))
   const docs = tally(mine.filter((r) => r.treatment === 'agents-md'))
   const modelCosts = mine
     .filter(scored)
     .map((r) => r.cost)
-    .filter((c) => c != null)
-  return {
-    model: first.model,
-    harness: first.harness,
-    base,
-    docs,
-    cost: mean(modelCosts),
-  }
+    .filter((x) => x != null)
+  return { ...c, order, base, docs, cost: mean(modelCosts) }
 })
 const rate = (t) => (t.scored ? t.passed / t.scored : -1)
 models.sort(
@@ -127,7 +130,7 @@ models.sort(
 )
 
 const cell = (t) =>
-  t.scored ? `${t.passed}/${t.scored} (${pct(t.passed, t.scored)})` : ''
+  t.scored ? `${t.passed}/${t.scored} (${pct(t.passed, t.scored)})` : 'pending'
 const delta = (a, b) => {
   if (!a.scored || !b.scored) return ''
   const pp = Math.round(100 * (b.passed / b.scored - a.passed / a.scored))
@@ -208,31 +211,27 @@ const points = models
   .filter((p) => p.cost != null)
 
 console.log()
-if (points.length === 0) {
+const log = (v) => Math.log10(Math.max(v, 0.01))
+const lo = points.length ? Math.min(...points.map((p) => log(p.cost))) : 0
+const hi = points.length ? Math.max(...points.map((p) => log(p.cost))) : 0
+const x = (v) => (hi === lo ? 0.5 : 0.05 + (0.9 * (log(v) - lo)) / (hi - lo))
+const y = (v) => Math.min(0.97, Math.max(0.03, v))
+console.log('```mermaid')
+console.log('quadrantChart')
+console.log('    title Accuracy vs cost per run')
+console.log(
+  points.length
+    ? `    x-axis "${usd(Math.min(...points.map((p) => p.cost)))}" --> "${usd(Math.max(...points.map((p) => p.cost)))} per run"`
+    : '    x-axis "cheaper" --> "more expensive per run"'
+)
+console.log('    y-axis "0% pass@1" --> "100% pass@1"')
+console.log('    quadrant-1 Accurate and expensive')
+console.log('    quadrant-2 Accurate and cheap')
+console.log('    quadrant-3 Inaccurate and cheap')
+console.log('    quadrant-4 Inaccurate and expensive')
+for (const p of points) {
   console.log(
-    '_The accuracy against cost chart appears after the first scored run._'
+    `    ${p.name}: [${x(p.cost).toFixed(2)}, ${y(p.accuracy).toFixed(2)}]`
   )
-} else {
-  const log = (v) => Math.log10(Math.max(v, 0.01))
-  const lo = Math.min(...points.map((p) => log(p.cost)))
-  const hi = Math.max(...points.map((p) => log(p.cost)))
-  const x = (v) => (hi === lo ? 0.5 : 0.05 + (0.9 * (log(v) - lo)) / (hi - lo))
-  const y = (v) => Math.min(0.97, Math.max(0.03, v))
-  console.log('```mermaid')
-  console.log('quadrantChart')
-  console.log('    title Accuracy vs cost per run')
-  console.log(
-    `    x-axis "${usd(Math.min(...points.map((p) => p.cost)))}" --> "${usd(Math.max(...points.map((p) => p.cost)))} per run"`
-  )
-  console.log('    y-axis "0% pass@1" --> "100% pass@1"')
-  console.log('    quadrant-1 Accurate and expensive')
-  console.log('    quadrant-2 Accurate and cheap')
-  console.log('    quadrant-3 Inaccurate and cheap')
-  console.log('    quadrant-4 Inaccurate and expensive')
-  for (const p of points) {
-    console.log(
-      `    ${p.name}: [${x(p.cost).toFixed(2)}, ${y(p.accuracy).toFixed(2)}]`
-    )
-  }
-  console.log('```')
 }
+console.log('```')
