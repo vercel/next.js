@@ -13,7 +13,7 @@ use crate::{
     next_font::{
         font_fallback::{
             AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
-            FontFallback,
+            FontFallback, FontFallbacks,
         },
         google::options::NextFontGoogleOptions,
         issue::NextFontIssue,
@@ -62,20 +62,24 @@ async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetric
 pub(super) async fn get_font_fallback(
     project_root: FileSystemPath,
     options_vc: Vc<NextFontGoogleOptions>,
-) -> Result<Vc<FontFallback>> {
+) -> Result<Vc<FontFallbacks>> {
     let options = options_vc.await?;
-    Ok(match &options.fallback {
-        Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
-        None => {
-            let metrics_json = load_font_metrics(project_root.clone()).await?;
-            let fallback = lookup_fallback(
-                &options.font_family,
-                &metrics_json,
-                options.adjust_font_fallback,
-            );
+    let mut font_fallbacks = vec![];
 
-            match fallback {
-                Ok(fallback) => FontFallback::Automatic(AutomaticFontFallback {
+    // Like the webpack loader, the metric-adjusted fallback face is generated whenever
+    // `adjustFontFallback` is enabled, independent of whether a manual `fallback` list was
+    // provided. The manual list is appended after it.
+    if options.fallback.is_none() || options.adjust_font_fallback {
+        let metrics_json = load_font_metrics(project_root.clone()).await?;
+        let fallback = lookup_fallback(
+            &options.font_family,
+            &metrics_json,
+            options.adjust_font_fallback,
+        );
+
+        match fallback {
+            Ok(fallback) => font_fallbacks.push(
+                FontFallback::Automatic(AutomaticFontFallback {
                     scoped_font_family: get_scoped_font_family(
                         FontFamilyType::Fallback,
                         options_vc.font_family().await?,
@@ -83,31 +87,37 @@ pub(super) async fn get_font_fallback(
                     local_font_family: fallback.font_family,
                     adjustment: fallback.adjustment,
                 })
-                .cell(),
-                Err(_) => {
-                    NextFontIssue {
-                        path: project_root.clone(),
-                        title: StyledString::Text(
-                            format!(
-                                "Failed to find font override values for font `{}`",
-                                options.font_family,
-                            )
-                            .into(),
+                .resolved_cell(),
+            ),
+            Err(_) => {
+                NextFontIssue {
+                    path: project_root.clone(),
+                    title: StyledString::Text(
+                        format!(
+                            "Failed to find font override values for font `{}`",
+                            options.font_family,
                         )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    description: StyledString::Text(rcstr!("Skipping generating a fallback font."))
                         .resolved_cell(),
-                        description: StyledString::Text(rcstr!(
-                            "Skipping generating a fallback font."
-                        ))
-                        .resolved_cell(),
-                        severity: IssueSeverity::Warning,
-                    }
-                    .resolved_cell()
-                    .emit();
-                    FontFallback::Error.cell()
+                    severity: IssueSeverity::Warning,
+                }
+                .resolved_cell()
+                .emit();
+                if options.fallback.is_none() {
+                    font_fallbacks.push(FontFallback::Error.resolved_cell());
                 }
             }
         }
-    })
+    }
+
+    if let Some(fallback) = &options.fallback {
+        font_fallbacks.push(FontFallback::Manual(fallback.clone()).resolved_cell());
+    }
+
+    Ok(Vc::cell(font_fallbacks))
 }
 
 static FALLBACK_FONT_NAME: LazyLock<Regex> =
