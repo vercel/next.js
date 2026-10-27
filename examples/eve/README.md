@@ -9,7 +9,7 @@ The agent triages a small batch of sample issues. A fast decision model gives ev
 - `agent/subagents/reviewer/` is the reviewer subagent. It sees only the issue it is sent and returns a typed category, priority, and summary.
 - `agent/lib/sample-issues.ts` holds the sample issues. The page lists them before a run, and `loadIssues()` in `agent/lib/issues.ts` gives them to the workflow. Replace `loadIssues()` with a call to your issue tracker.
 - `agent/channels/eve.ts` sets the auth policy for browser requests.
-- `app/triage.tsx` is a Client Component that starts a run through the `useEveAgent` hook from `eve/react`. It renders the tool's progress as a table and shows the agent's one-sentence summary below it.
+- `app/triage.tsx` is a Client Component that starts a run through the `useEveAgent` hook from `eve/react`. It renders each issue as a tile that fills in from the tool's progress, with a confidence bar marked at the escalation threshold, and shows a run log with the agent's one-sentence summary. **Reset** starts a fresh session.
 
 In development, `next dev` starts the eve dev server next to Next.js and forwards the eve routes to it. On Vercel, the app and the agent deploy as one project.
 
@@ -51,7 +51,7 @@ To call a provider directly or use a local model instead, see [Set the model](ht
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and select **Triage issues**. To see more issues go to the reviewer, raise `CONFIDENCE_THRESHOLD` in `agent/lib/triage.ts`.
+Open [http://localhost:3000](http://localhost:3000) and select **Run triage**. To see more issues go to the reviewer, raise `CONFIDENCE_THRESHOLD` in `agent/lib/triage.ts`.
 
 To run a production build locally, build the agent with `eve build` before you start Next.js:
 
