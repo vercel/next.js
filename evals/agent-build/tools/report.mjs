@@ -1,8 +1,8 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
 // request: one dense table with a row per model, passed out of scored runs
 // with and without AGENTS.md, the delta, then price per million tokens, tokens,
-// cost, and time per run, as in the agent-eval result PRs, then the failed runs
-// by task,
+// cost, and time per run, as in the agent-eval result PRs, then each task's
+// result per model and treatment,
 // then pass@1 against cost per run as a Mermaid chart GitHub renders inline.
 //
 // Scores are pass@1 over scored runs. An agent that runs out of time is a
@@ -207,25 +207,37 @@ if (all.base.scored || all.docs.scored) {
   )
 }
 
-// Which runs failed, per task, then what is not scored yet.
+// Each task on its own: a row per model and treatment, a cell per task.
 console.log()
-const treatmentName = (t) => (t === 'agents-md' ? ' + AGENTS.md' : '')
-const failures = tasks
-  .map((task) => {
-    const failed = runs.filter((r) => r.task === task && r.state === 'fail')
-    if (!failed.length) return null
-    const who = failed.map(
-      (r) =>
-        `${r.model}${treatmentName(r.treatment)}${r.confirmed ? `, repeated ${r.repeated}/${r.confirmed}` : ''}`
+const shortTask = (t) => `\`${t}\``
+console.log(`| Model | Treatment | ${tasks.map(shortTask).join(' | ')} |`)
+console.log(`| --- | --- | ${tasks.map(() => '---:').join(' | ')} |`)
+const taskCell = (r) =>
+  !r
+    ? 'not started'
+    : r.state === 'pass'
+      ? '1/1'
+      : r.state === 'fail'
+        ? r.confirmed
+          ? `0/1, failed ${r.repeated}/${r.confirmed} reruns`
+          : '0/1'
+        : r.state === 'running'
+          ? 'running'
+          : 'error, rerun'
+for (const m of models) {
+  for (const t of ['base', 'agents-md']) {
+    const cells = tasks.map((task) =>
+      taskCell(
+        runs.find(
+          (r) => r.task === task && r.model === m.model && r.treatment === t
+        )
+      )
     )
-    return `\`${task}\` (${who.join('; ')})`
-  })
-  .filter(Boolean)
-console.log(
-  failures.length
-    ? `Failed runs: ${failures.join(', ')}.`
-    : 'No scored run failed.'
-)
+    console.log(
+      `| ${m.model} | ${t === 'base' ? 'Base' : 'AGENTS.md'} | ${cells.join(' | ')} |`
+    )
+  }
+}
 const expected = tasks.length * models.length * 2
 const unscored = expected - runs.filter(scored).length
 if (unscored > 0) {
