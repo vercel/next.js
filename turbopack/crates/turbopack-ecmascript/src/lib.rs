@@ -1369,11 +1369,15 @@ impl EcmascriptModuleContent {
             } else {
                 None
             };
-            // A deoptimized factory entry keeps its own namespace. Register the shared table
-            // under an eligible member instead, without changing the factory's identity.
+            // Any exposed deoptimized member can instantiate this factory through its alias.
+            // Always target the flat namespace explicitly in mixed groups, even when it is the
+            // original entry, so registration never writes to and seals an alias's namespace.
             let flat_export_id = if let Some(group) = &flat_group
-                && group.entry != first_entry
-            {
+                && (group.entry != first_entry
+                    || modules.iter().any(|(module, exposure)| {
+                        *exposure == MergeableModuleExposure::External
+                            && !group.names.contains_key(module)
+                    })) {
                 Some(group.entry.chunk_item_id(*options.chunking_context).await?)
             } else {
                 None

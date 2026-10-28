@@ -73,12 +73,10 @@ pub async fn flat_export_group(
         .get(&ResolvedVc::upcast(module))
         .await?
         .as_deref()
+        && let Some(flat_group) = *flat_group_exports(**group, chunking_context).await?
+        && flat_group.await?.names.contains_key(&module)
     {
-        if let Some(flat_group) = *flat_group_exports(**group, chunking_context).await?
-            && flat_group.await?.names.contains_key(&module)
-        {
-            return Ok(Vc::cell(Some(flat_group)));
-        }
+        return Ok(Vc::cell(Some(flat_group)));
     }
     Ok(Vc::cell(None))
 }
