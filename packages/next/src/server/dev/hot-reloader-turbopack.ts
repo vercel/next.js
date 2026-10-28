@@ -86,7 +86,10 @@ import {
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import {
+  hasRouteFilename,
+  type RouteDefinition,
+} from '../route-definitions/route-definition'
 import {
   type EntryKey,
   getEntryKey,
@@ -2072,6 +2075,11 @@ export async function createHotReloaderTurbopack(
           await currentEntriesHandling
 
           // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
+          if (definition && !hasRouteFilename(definition)) {
+            throw new Error(
+              'Invariant: legacy route preparation requires a filename'
+            )
+          }
           let routeDef: Pick<
             RouteDefinition,
             'filename' | 'bundlePath' | 'page'

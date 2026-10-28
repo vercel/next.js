@@ -11,7 +11,11 @@ import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { __ApiPreviewProps } from '../../api-utils'
 import type { Params } from '../../request/params'
-import type { RouteDefinition } from '../../route-definitions/route-definition'
+import type {
+  RouteDefinition,
+  RouteIdentity,
+} from '../../route-definitions/route-definition'
+import type { LocaleRouteIdentity } from '../../route-definitions/locale-route-definition'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -78,16 +82,10 @@ export type FsOutput = {
   fsPath?: string
   itemsRoot?: string
   locale?: string
-  route?: RouteDefinition
+  route?: RouteIdentity
   params?: Params
   requestPath?: string
   error?: Error
-}
-
-type FilesystemRouteDefinition = RouteDefinition & {
-  i18n?: {
-    locale?: string
-  }
 }
 
 const debug = setupDebug('next:router-server:filesystem')
@@ -235,8 +233,8 @@ export async function setupFsCheck(opts: {
   // Page and app outputs need route metadata for compilation and rendering.
   // Static assets remain plain filesystem matches.
   const routeDefinitions = {
-    appFile: new Map<string, FilesystemRouteDefinition[]>(),
-    pageFile: new Map<string, FilesystemRouteDefinition[]>(),
+    appFile: new Map<string, LocaleRouteIdentity[]>(),
+    pageFile: new Map<string, LocaleRouteIdentity[]>(),
   }
 
   let middlewareMatcher:
@@ -263,7 +261,7 @@ export async function setupFsCheck(opts: {
   const setRouteDefinition = (
     type: 'appFile' | 'pageFile',
     pathname: string,
-    definition: FilesystemRouteDefinition
+    definition: LocaleRouteIdentity
   ) => {
     const definitions = routeDefinitions[type].get(pathname)
     if (definitions) {
@@ -434,7 +432,7 @@ export async function setupFsCheck(opts: {
               },
             }
           : undefined),
-      } as FilesystemRouteDefinition)
+      } as RouteDefinition)
     }
     for (const key of Object.keys(appRoutesManifest)) {
       appFiles.add(appRoutesManifest[key])
@@ -462,7 +460,7 @@ export async function setupFsCheck(opts: {
         bundlePath: appNormalizers.bundlePath.normalize(page),
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
         appPaths,
-      } as FilesystemRouteDefinition)
+      } as RouteDefinition)
       addAppDynamicRoute(pathname)
     }
 
@@ -477,7 +475,7 @@ export async function setupFsCheck(opts: {
         page,
         bundlePath: appNormalizers.bundlePath.normalize(page),
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
-      } as FilesystemRouteDefinition)
+      } as RouteDefinition)
       addAppDynamicRoute(pathname)
     }
 
@@ -665,14 +663,14 @@ export async function setupFsCheck(opts: {
     nextDataRoutes,
     setRouteDefinitions(
       type: 'appFile' | 'pageFile',
-      definitions: ReadonlyArray<RouteDefinition>
+      definitions: ReadonlyArray<RouteIdentity>
     ) {
       routeDefinitions[type].clear()
       for (const definition of definitions) {
         setRouteDefinition(
           type,
           definition.pathname,
-          definition as FilesystemRouteDefinition
+          definition as LocaleRouteIdentity
         )
       }
     },

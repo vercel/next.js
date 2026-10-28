@@ -6,7 +6,7 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteIdentity } from '../route-definitions/route-definition'
 
 import {
   addRequestMeta,
@@ -933,7 +933,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    definition: RouteDefinition | undefined
+    definition: RouteIdentity | undefined
     url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)

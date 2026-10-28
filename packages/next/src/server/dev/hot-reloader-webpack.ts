@@ -4,7 +4,10 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import {
+  hasRouteFilename,
+  type RouteIdentity,
+} from '../route-definitions/route-definition'
 import type { AnyStream } from '../app-render/stream-ops'
 
 import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
@@ -1885,7 +1888,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    definition?: RouteDefinition
+    definition?: RouteIdentity
     url?: string
     // subscribeToChanges is accepted for interface compatibility but is a
     // no-op for webpack: webpack's on-demand entry handler does not wire HMR
@@ -1906,6 +1909,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           : this.serverError || this.clientError
         if (error) {
           throw error
+        }
+
+        // Webpack compiles a supplied source file, while Turbopack resolves it
+        // from the identity. Never guess a filename for a partial definition.
+        if (definition && !hasRouteFilename(definition)) {
+          throw new Error(
+            'Invariant: webpack route definitions require a filename'
+          )
         }
 
         return this.onDemandEntries?.ensurePage({
