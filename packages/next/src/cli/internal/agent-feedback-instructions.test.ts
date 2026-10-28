@@ -40,7 +40,11 @@ describe('loadAgentFeedbackInstructions', () => {
       '`comparison` of no more than 180 characters'
     )
     expect(instructions).toContain(
-      '`nextVersion` and `agent`, with no more than 64 characters each'
+      '`nextVersion`, `agent`, and `agentVersion`, with no more than 64 characters each'
+    )
+    expect(instructions).toContain('`model`, with no more than 100 characters')
+    expect(instructions).toContain(
+      'Set `model` to the model identifier and `reasoningEffort`'
     )
   })
 
