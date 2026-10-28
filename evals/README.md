@@ -4,9 +4,20 @@ Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertion
 
 The point: find places where agents get Next.js wrong because their training data is stale, then fix it by shipping better docs in the `next` package itself.
 
-Existing fixtures use `agent-eval` and preserve the published result history.
-New Agent Build candidates use Harbor on Vercel Sandbox. Follow
-[Curate Next.js Agent Build evals](AGENT_BUILD_EVALS.md) for new work.
+## Two kinds of evals
+
+This directory holds two kinds of evals. The rest of this file covers the
+`agent-eval` fixtures. Agent Build tasks have their own docs in
+[`agent-build/README.md`](agent-build/README.md).
+
+|          | `agent-eval` fixtures                                                     | Agent Build tasks                             |
+| -------- | ------------------------------------------------------------------------- | --------------------------------------------- |
+| Location | `evals/evals/agent-*`                                                     | `evals/agent-build/<task>`                    |
+| Format   | `PROMPT.md`, `EVAL.ts`, and the fixture app                               | Harbor task with a separate, offline verifier |
+| Labels   | `regression` and `competency` in `eval.suites.json`                       | None                                          |
+| Runner   | `run-evals.js` over `@vercel/agent-eval`                                  | Harbor on Vercel Sandbox                      |
+| Results  | Published to `next-evals-oss` and nextjs.org/evals                        | Reported in the pull request, not published   |
+| Status   | Kept running for their published history. Their future is not decided yet | New tasks go here                             |
 
 ## How it works
 
@@ -28,8 +39,8 @@ External contributors can run the same evals in local Docker with their own API 
 
 ## Existing agent-eval format
 
-Use this format when maintaining an existing fixture. New Agent Build tasks use the portable contract in
-[the Agent Build guide](AGENT_BUILD_EVALS.md).
+Use this format when maintaining an existing fixture. New tasks use the
+[Agent Build format](agent-build/README.md).
 
 To split or replace an existing fixture, copy it and take the next free number.
 Gaps are fine.
@@ -163,9 +174,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ```
 evals/
-├── AGENT_BUILD_EVALS.md      # selection and authoring contract
-├── RUN_AGENT_BUILD_EVALS.md  # current Harbor and Sandbox adapter
-├── agent-build/               # new Agent Build task candidates
+├── agent-build/     # Agent Build tasks in Harbor format, with their own docs
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)

@@ -1,14 +1,8 @@
-# Curate Next.js Agent Build evals
+# Create an Agent Build task
 
-Agent Build evals measure whether an agent can make a correct Next.js code change on work that still separates model capability. Tasks live in `evals/agent-build` in the Harbor task format. The existing `agent-eval` fixtures in `evals/evals` keep running the `regression` and `competency` suites and keep their published history. New tasks do not enter that pipeline, and the `regression`, `competency`, and `audit` labels do not apply to them.
+Create a task by drafting candidates in batches, screening them on two models, and building out only the ones that separate models. [Harbor format](./HARBOR.md) covers the files a task contains and the Harbor and Terminal-Bench rules it follows, and [Run tasks](./RUN.md) has the commands each step uses.
 
-This directory owns the Next.js task definitions and grading contracts. The scripts in `evals/agent-build/tools` are temporary pilot adapters for validating and calibrating these first tasks. Shared execution, credentials, budgets, evidence, and reporting belong in the Vercel-owned eval layer built from Vercel Bench and Harbor. Landing a task here does not establish that platform contract or promise that the task moves there unchanged.
-
-See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credentials, and local validation.
-
-## Add a task
-
-Terminal-Bench, Harbor's own benchmark, sets the bar these steps follow in its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task. The steps below add only what is specific to Next.js.
+## Steps
 
 Every task goes through the seven steps below, from finding a capability to calibrating and deciding. Build the full grader only for drafts that pass the screen. A task that skips a step is not ready for review.
 
@@ -139,5 +133,3 @@ The title starts with `eval:` and names the outcome. The description shows the c
 3. **Verification**: a short list covering lint, untouched and reference scores, known-bad and known-good results, and formatting.
 
 Open the pull request as a draft and refresh the Results section as runs finish. A section with pending runs says how many remain rather than being left out.
-
-Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so older trials are never compared with newer ones.
