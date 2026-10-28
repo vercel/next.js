@@ -1344,6 +1344,16 @@ impl EcmascriptModuleContent {
                 .try_join()
                 .await?;
 
+            // Synthetic members must not disable maps for the rest of the group.
+            let source_map_generation_options = contents.iter().fold(
+                SourceMapGenerationOptions::NONE,
+                |mut generation, (_, content)| {
+                    generation.full |= content.source_map_generation_options.full;
+                    generation.partial |= content.source_map_generation_options.partial;
+                    generation
+                },
+            );
+
             let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
                 merge_modules(contents, &entry_points, &globals_merged).await?;
 
@@ -1354,7 +1364,7 @@ impl EcmascriptModuleContent {
             let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
             let content = CodeGenResult {
                 program: merged_ast,
-                source_map_generation_options: options.source_map_generation_options,
+                source_map_generation_options,
                 source_map: CodeGenResultSourceMap::ScopeHoisting {
                     modules_header_width,
                     lookup_table: lookup_table.clone(),

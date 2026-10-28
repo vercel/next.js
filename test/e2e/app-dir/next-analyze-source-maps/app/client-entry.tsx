@@ -32,6 +32,15 @@ export default function ClientEntry() {
       >
         Load on demand
       </button>
+      <button
+        onClick={() =>
+          import('./merged-reexport').then((module) =>
+            setMessage(module.reexportedMessage())
+          )
+        }
+      >
+        Load reexport
+      </button>
       <span>{message}</span>
     </>
   )
