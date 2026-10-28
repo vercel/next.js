@@ -419,7 +419,7 @@ export async function getData() {
 }
 ```
 
-Whether a function's output is cached depends on the environment where the function is used. [Proxy](/docs/app/api-reference/file-conventions/proxy) does not transform the `use cache` directive. The function still executes when called from Proxy, but its output is not cached or deduplicated. A call to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) inside the function throws because no cache scope exists. This also applies to imported functions whose output is cached elsewhere in your application.
+[Proxy](/docs/app/api-reference/file-conventions/proxy) does not apply [directive transforms](/docs/app/api-reference/directives), so `use cache` has no effect in Proxy. The function executes as an ordinary function, including when it is imported from code that is cached elsewhere in your application.
 
 ### Caching a component's output with `use cache`
 
