@@ -14,6 +14,12 @@ import { installBrowserSnapshotBridge } from './snapshot-environment'
 import { createClientSourceMapResolver } from './source-maps'
 import type { ClientConfiguration, ClientPayload } from './protocol'
 import { clientCaseFinal } from './protocol'
+import { createClientRpcPrimitives } from './rpc-primitives'
+import {
+  callClientRpc,
+  decodeClientRpcValue,
+  hasVoidClientRpcReply,
+} from './rpc-call'
 import {
   initializeBrowserContext,
   cleanupBrowserContext,
@@ -46,12 +52,13 @@ export async function startClientTest(
   loadSetupModules?: () => unknown | Promise<unknown>
 ) {
   const configURL = new URL('config', location.href)
-  const configResponse = await fetch(configURL, {
+  const { fetchRpc, readRpcJson, stringifyRpc } = createClientRpcPrimitives()
+  const configResponse = await fetchRpc(configURL, {
     credentials: 'same-origin',
     cache: 'no-store',
   })
   if (!configResponse.ok) throw new Error('Browser Mode configuration failed.')
-  const config = (await configResponse.json()) as ClientConfiguration
+  const config = (await readRpcJson(configResponse)) as ClientConfiguration
   if (
     (config.includeTaskLocation !== undefined &&
       typeof config.includeTaskLocation !== 'boolean') ||
@@ -95,7 +102,7 @@ export async function startClientTest(
   const realSetTimeout = globalThis.setTimeout.bind(globalThis)
   let terminalPublished = false
   let sequence = 0,
-    queue: Promise<unknown> = Promise.resolve(),
+    queue: Promise<unknown> = nativePromiseResolve(),
     nativeReply: Promise<void> | undefined,
     transportFailure: unknown
   const nativeReplies = new Set<Promise<void>>()
@@ -139,7 +146,11 @@ export async function startClientTest(
     actionError?: { name: string; message: string; stack?: string }
     artifactError?: { key: string; value?: unknown }[]
   }
-  function request(message: ClientPayload, body: () => string) {
+  function request(
+    message: ClientPayload,
+    body: () => string,
+    onSendStart: () => void
+  ) {
     const opened = queue.then(async () => {
       // Observational updates share one FIFO slot while the native reply is pending.
       const observational =
@@ -155,7 +166,7 @@ export async function startClientTest(
       )
         await Promise.all([...nativeReplies])
       if (transportFailure) throw transportFailure
-      const response = await fetch(config.rpcURL, {
+      const responseOperation = fetchRpc(config.rpcURL, {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
@@ -164,8 +175,10 @@ export async function startClientTest(
         },
         body: body(),
       })
+      onSendStart()
+      const response = await responseOperation
       if (!response.ok) throw new Error('Browser Mode RPC failed.')
-      const reply = Promise.resolve(response.json())
+      const reply = nativePromiseResolve(readRpcJson(response))
         .then((value) => {
           if (value && typeof value === 'object' && 'error' in value)
             throw new Error('Browser Mode RPC failed.')
@@ -204,40 +217,67 @@ export async function startClientTest(
     return opened.then(({ reply }) => reply)
   }
   function send(message: Parameters<typeof payload>[0]): Promise<unknown> {
-    const value = payload(message)
-    let snapshot: { body: string } | { error: unknown }
-    try {
-      snapshot = { body: JSON.stringify(value) }
-    } catch (error) {
-      snapshot = { error }
-    }
-    return request(message, () => {
-      if ('error' in snapshot) throw snapshot.error
-      return snapshot.body
-    }).then((reply) => {
-      if (reply.actionError) {
-        const error = new Error(reply.actionError.message)
-        error.name = reply.actionError.name
-        if (reply.actionError.stack) error.stack = reply.actionError.stack
-        throw error
+    return callClientRpc((complete, fail, sent) => {
+      const voidReply = hasVoidClientRpcReply(message)
+      const value = payload(message)
+      let snapshot: { body: string } | { error: unknown }
+      try {
+        snapshot = { body: stringifyRpc(value) }
+      } catch (error) {
+        snapshot = { error }
       }
-      return reply.value
+      void request(
+        message,
+        () => {
+          if ('error' in snapshot) throw snapshot.error
+          return snapshot.body
+        },
+        sent
+      )
+        .then((reply) => {
+          if (reply.actionError) {
+            const error = new Error(reply.actionError.message)
+            error.name = reply.actionError.name
+            if (reply.actionError.stack) error.stack = reply.actionError.stack
+            throw error
+          }
+          complete(decodeClientRpcValue(voidReply, reply.value))
+        }, fail)
+        .catch(fail)
     })
   }
   function sendArtifact(
     message: Extract<ClientPayload, { type: 'artifact' }>
   ): Promise<TestArtifact> {
-    const value = payload(message)
-    return request(message, () => JSON.stringify(value)).then((reply) => {
-      if (reply.artifactError)
-        throw Object.fromEntries(
-          reply.artifactError.map(({ key, value: fieldValue }) => [
-            key,
-            fieldValue,
-          ])
-        )
-      return reply.value as TestArtifact
+    return callClientRpc<TestArtifact>((complete, fail, sent) => {
+      const value = payload(message)
+      void request(message, () => stringifyRpc(value), sent)
+        .then((reply) => {
+          if (reply.artifactError)
+            throw Object.fromEntries(
+              reply.artifactError.map(({ key, value: fieldValue }) => [
+                key,
+                fieldValue,
+              ])
+            )
+          complete(reply.value as TestArtifact)
+        }, fail)
+        .catch(fail)
     })
+  }
+  async function withCommandErrorSource(
+    operation: Promise<unknown>,
+    source: Error
+  ) {
+    try {
+      return await operation
+    } catch (error) {
+      const failure = error as { name: string; message: string }
+      source.message = failure.message
+      source.name = failure.name
+      source.stack = source.stack?.replace(source.message, failure.message)
+      throw source
+    }
   }
   function report(reason: unknown) {
     recordFailure(reason)
@@ -274,12 +314,16 @@ export async function startClientTest(
     snapshotSummary: unknown
   const mapper = createClientSourceMapResolver(config)
   const browserContext = initializeBrowserContext(
-    (command, origin) =>
-      send({
+    (command, origin, errorSource) => {
+      const operation = send({
         type: 'browser-command',
         command,
         ...(origin ? { origin } : {}),
-      }),
+      })
+      return errorSource
+        ? withCommandErrorSource(operation, errorSource)
+        : operation
+    },
     {
       getConsoleTask: getCurrentConsoleTask,
       captureCommandAdmission:
@@ -342,7 +386,7 @@ export async function startClientTest(
             Authorization: config.authorization,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...identity, ...message }),
+          body: stringifyRpc({ ...identity, ...message }),
         }
       )
       if (!response.ok)
@@ -362,7 +406,7 @@ export async function startClientTest(
     // Headers admit this actual owner before collection; the JSON body waits
     // independently of authored fetches and the ordinary result/action FIFO.
     const response = await requestControl({ type: 'wait' })
-    const waiting = response.json().then((value) => {
+    const waiting = readRpcJson(response).then((value) => {
       if (cancelledReply(value) && active) {
         delivered = true
         controller.abort()

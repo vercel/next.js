@@ -5620,3 +5620,93 @@ it('enriches only actual final Browser root error presentation with owned stack 
     mapperFailurePreservesRawError: true,
   })
 }, 20000)
+
+it.each([
+  'fetch',
+  'missing-late',
+  'native-json',
+  'own-shadow',
+  'bootstrap-accessor',
+  'errors',
+  'native-errors',
+  'replaced-bootstrap',
+  'proxy-first',
+  'proxy-later',
+])(
+  'captures private Browser RPC primitives before authored mutations: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'rpc-primitives.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      captureBeforeAuthoredLoading: true,
+      originalLookupReceiverAndErrors: true,
+    })
+  }
+)
+
+it.each([
+  'constructor-veto',
+  'undefined-veto',
+  'before-start',
+  'after-start',
+  'synchronous-start-error',
+  'foreign',
+  'overlap',
+  'nested',
+  'current-constructor-value',
+  'late-executor-snapshot',
+  'cancel-before-start',
+])('owns the actual Browser RPC constructor and send lifetime: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'rpc-call.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    actualStartAndReplyOnly: true,
+    resultConstructedBeforeWork: true,
+    originalFailuresAndValues: true,
+  })
+})
+
+it('decodes only actual void RPC sentinels before the public resolver', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'rpc-void-values.cjs')],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    knownVoidKindsOnly: true,
+    immutableReplyKindAtActualStart: true,
+    snapshotArtifactAndStateNullsHeld: true,
+    allNonNullValuesUntouched: true,
+    originalErrorsHeld: true,
+  })
+})
+
+it.each([
+  'function-values',
+  'receiver',
+  'global-accessor',
+  'method-accessor',
+  'missing-late',
+  'noncallable',
+  'proxy-bootstrap',
+])('captures only data-backed private RPC serialization: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'rpc-stringify.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    dataCaptureBeforeAuthoredLoading: true,
+    bootstrapFallbacksHeld: true,
+    originalReceiverValuesAndErrors: true,
+  })
+})

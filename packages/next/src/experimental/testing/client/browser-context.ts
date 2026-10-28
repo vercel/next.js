@@ -74,7 +74,8 @@ function resolveWheelOptions(options: WheelOptions) {
 let command:
   | ((
       value: ClientBrowserCommand,
-      origin?: ClientCommandAttemptOrigin
+      origin?: ClientCommandAttemptOrigin,
+      errorSource?: Error
     ) => Promise<unknown>)
   | undefined
 type BrowserActionCallbacks = {
@@ -86,14 +87,23 @@ let actionCallbacks: BrowserActionCallbacks | undefined
 
 class Action<T> implements Promise<T> {
   [Symbol.toStringTag] = 'Action'
-  #command: (args: unknown[], options: unknown) => Promise<T>
+  #command: (
+    args: unknown[],
+    options: unknown,
+    errorSource: Error
+  ) => Promise<T>
+  #errorSource: Error
   #args: unknown[]
   #options: unknown
   #promise: Promise<T> | undefined
   #awaited = false
 
   constructor(
-    perform: (args: unknown[], options: unknown) => Promise<T>,
+    perform: (
+      args: unknown[],
+      options: unknown,
+      errorSource: Error
+    ) => Promise<T>,
     args: unknown[],
     options: unknown,
     errorSource?: Error
@@ -102,6 +112,7 @@ class Action<T> implements Promise<T> {
     this.#args = args
     this.#options = options
     const sourceError = errorSource ?? new Error('STACK_TRACE_ERROR')
+    this.#errorSource = sourceError
     const task = actionCallbacks?.getConsoleTask() as AwaitCheckTask | undefined
     if (errorSource || !task || task.type !== 'test') {
       this.#promise = this.#run()
@@ -123,7 +134,7 @@ class Action<T> implements Promise<T> {
   }
 
   #run(): Promise<T> {
-    return this.#command(this.#args, this.#options)
+    return this.#command(this.#args, this.#options, this.#errorSource)
   }
 
   #start(): Promise<T> {
@@ -152,7 +163,8 @@ class Action<T> implements Promise<T> {
 type LocatorWork<T> = (
   locator: ElementLocator,
   args: unknown[],
-  options: unknown
+  options: unknown,
+  errorSource?: Error
 ) => Promise<T>
 
 class LocatorAction<T> extends Action<T> {
@@ -164,7 +176,8 @@ class LocatorAction<T> extends Action<T> {
     errorSource?: Error
   ) {
     super(
-      (values, actionOptions) => perform(locator, values, actionOptions),
+      (values, actionOptions, source) =>
+        perform(locator, values, actionOptions, source),
       args,
       options,
       errorSource
@@ -182,7 +195,8 @@ class UploadAction<T> extends Action<T> {
     options: unknown
   ) {
     super(
-      (values, actionOptions) => perform(locator, values, actionOptions),
+      (values, actionOptions, source) =>
+        perform(locator, values, actionOptions, source),
       args,
       options
     )
@@ -297,14 +311,16 @@ async function dispatchBrowserCommand(
   method: ClientBrowserCommand['method'],
   args: unknown[],
   resolveElements?: () => Element[],
-  resolveNativeElements?: () => Element[]
+  resolveNativeElements?: () => Element[],
+  errorSource?: Error
 ): Promise<void> {
   await dispatchBrowserCommandResult(
     resolveElement,
     method,
     args,
     resolveElements,
-    resolveNativeElements
+    resolveNativeElements,
+    errorSource
   )
 }
 
@@ -313,7 +329,8 @@ async function dispatchBrowserCommandResult(
   method: ClientBrowserCommand['method'],
   args: unknown[],
   resolveElements?: () => Element[],
-  resolveNativeElements?: () => Element[]
+  resolveNativeElements?: () => Element[],
+  errorSource?: Error
 ) {
   assertBrowserApiScope('browser-native')
   const admission = actionCallbacks?.captureCommandAdmission?.()
@@ -341,9 +358,11 @@ async function dispatchBrowserCommandResult(
       return admission.query(operation, resolveNativeElements)
     })
     try {
-      operation = admission
-        ? command({ method, element: id, args }, admission.origin)
-        : command({ method, element: id, args })
+      operation = errorSource
+        ? command({ method, element: id, args }, admission?.origin, errorSource)
+        : admission
+          ? command({ method, element: id, args }, admission.origin)
+          : command({ method, element: id, args })
       admission?.bind(operation)
       deferredCommands.add(operation)
       if (admission) admittedDeferredCommands.add(operation)
@@ -368,9 +387,11 @@ async function dispatchBrowserCommandResult(
     element: browserElementId(element),
     args,
   }
-  const operation = admission
-    ? command(value, admission.origin)
-    : command(value)
+  const operation = errorSource
+    ? command(value, admission?.origin, errorSource)
+    : admission
+      ? command(value, admission.origin)
+      : command(value)
   admission?.bind(operation)
   try {
     const result = await operation
@@ -615,10 +636,11 @@ class ElementLocator {
   ): Promise<void> {
     return createAction(
       this,
-      async (locator, values, actionOptions) => {
+      async (locator, values, actionOptions, errorSource) => {
         await locator.dispatch(
           method,
-          actionOptions === undefined ? values : [...values, actionOptions]
+          actionOptions === undefined ? values : [...values, actionOptions],
+          errorSource
         )
       },
       args,
@@ -627,14 +649,16 @@ class ElementLocator {
   }
   private async dispatch(
     method: ClientBrowserCommand['method'],
-    args: unknown[]
+    args: unknown[],
+    errorSource?: Error
   ) {
     await dispatchBrowserCommand(
       () => this.actionElement ?? this.query(),
       method,
       args,
       () => this.elements(),
-      this.#nativeElements
+      this.#nativeElements,
+      errorSource
     )
   }
   getByRole(...args: any[]) {
