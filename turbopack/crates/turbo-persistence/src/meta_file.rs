@@ -20,6 +20,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as 
 use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
+    db::ChunkBitSet,
     lookup_entry::LookupValue,
     shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -614,7 +615,8 @@ impl MetaFile {
     }
 
     /// Looks up the keys of `cells` in the SST file of the entry `entry_index`, whose hash range is
-    /// `range`. `cells` holds `(key hash, key index)` pairs and must be sorted by key hash. Only
+    /// `range`. `cells` holds `(key hash, key index)` pairs, must be sorted by key hash and must
+    /// fit in a [`ChunkBitSet`]. Only
     /// cells that are not `resolved` yet are looked up. When a key is found, its cell is marked as
     /// resolved, `unresolved` is decremented and `on_found` is called with the position of the cell
     /// and the value.
@@ -625,7 +627,7 @@ impl MetaFile {
         range: &StaticSortedFileRange,
         keys: &[K],
         cells: &[(u64, u32)],
-        resolved: &mut [bool],
+        resolved: &mut ChunkBitSet,
         unresolved: &mut usize,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
@@ -635,7 +637,7 @@ impl MetaFile {
             cells.is_sorted_by_key(|(hash, _)| *hash),
             "Cells must be sorted by key hash"
         );
-        debug_assert_eq!(cells.len(), resolved.len());
+        debug_assert!(cells.len() <= ChunkBitSet::CAPACITY);
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
         let start_index = cells
@@ -661,10 +663,10 @@ impl MetaFile {
             return Ok(lookup_result);
         }
         let entry = &self.entries[entry_index as usize];
-        for position in start_index..end_index {
-            let (hash, index) = cells[position];
+        for (position, &(hash, index)) in cells.iter().enumerate().take(end_index).skip(start_index)
+        {
             debug_assert!(range.contains(hash), "Key hash out of range");
-            if resolved[position] {
+            if resolved.contains(position) {
                 continue;
             }
             if !entry.amqf.contains_fingerprint(hash) {
@@ -686,7 +688,7 @@ impl MetaFile {
                 let Some(value) = values.pop() else {
                     unreachable!()
                 };
-                resolved[position] = true;
+                resolved.insert(position);
                 *unresolved -= 1;
                 #[cfg(feature = "stats")]
                 {
