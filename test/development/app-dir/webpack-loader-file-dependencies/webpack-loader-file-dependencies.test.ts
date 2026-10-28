@@ -54,6 +54,21 @@ describe('webpack-loader-file-dependencies', () => {
   // written, so a restart would recompile instead of restoring cached results.
   const stop = () => next.stop('SIGTERM')
 
+  it('preserves persistent caching for loaders without cached CommonJS children', async () => {
+    const $ = await next.render$('/cache')
+    const initial = $('p').text()
+    expect(initial).toMatch(/^cacheable-\d+$/)
+    await stop()
+    await next.start()
+    const $2 = await next.render$('/cache')
+    if (await gate('turbopack')) {
+      expect($2('p').text()).toBe(initial)
+    } else {
+      // This fixture only enables persistent caching for Turbopack.
+      expect($2('p').text()).not.toBe(initial)
+    }
+  })
+
   it('should update when the dependency file changes', async () => {
     const $ = await next.render$('/')
     const initialText = await $('p').text()
@@ -325,6 +340,17 @@ describe('webpack-loader-file-dependencies', () => {
       'package: package-one',
       'package: nearer-two',
     ],
+    [
+      'a changed CommonJS package export',
+      'node_modules/tracking-package/package.json',
+      JSON.stringify({
+        name: 'tracking-package',
+        version: '1.0.0',
+        exports: { './value': './two.js' },
+      }),
+      'package: package-one',
+      'package: package-two',
+    ],
   ])(
     'loads %s after restarting the dev server',
     async (_name, fileName, content, initial, expected) => {
@@ -346,6 +372,42 @@ describe('webpack-loader-file-dependencies', () => {
       }
     }
   )
+
+  it('loads a nearer package when the previous dependency was symlinked', async () => {
+    await stop()
+    await next.renameFolder(
+      'node_modules/tracking-package',
+      'node_modules/tracking-package-backup'
+    )
+    try {
+      await next.symlink('tracking-package', 'node_modules/tracking-package')
+      await next.start()
+      const $ = await next.render$('/tracking')
+      expect($('p').text()).toContain('package: package-one')
+      await stop()
+      await next.patchFile(
+        'tracking/node_modules/tracking-package/value.js',
+        "module.exports = 'nearer-symlink-two'",
+        async () => {
+          await next.start()
+          try {
+            const $ = await next.render$('/tracking')
+            expect($('p').text()).toContain('package: nearer-symlink-two')
+          } finally {
+            await stop()
+          }
+        }
+      )
+    } finally {
+      await stop()
+      await next.deleteFile('node_modules/tracking-package')
+      await next.renameFolder(
+        'node_modules/tracking-package-backup',
+        'node_modules/tracking-package'
+      )
+      await next.start()
+    }
+  })
 
   // @force-gate turbopack
   it('updates when an uncached build dependency import changes', async () => {
