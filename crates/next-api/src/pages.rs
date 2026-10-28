@@ -303,6 +303,23 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
+    pub async fn has_typescript_files(self: Vc<Self>) -> Result<Vc<bool>> {
+        if let Some(pages) = self.pages_structure().await?.pages {
+            return Ok(next_core::route_discovery::has_typescript_files(
+                pages.await?.project_path.clone(),
+            ));
+        }
+        Ok(Vc::cell(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn development_discovery(
+        self: Vc<Self>,
+    ) -> Vc<next_core::route_discovery::OptionDevelopmentDiscovery> {
+        next_core::pages_structure::development_discovery(self.pages_structure())
+    }
+
+    #[turbo_tasks::function]
     async fn pages_structure(&self) -> Result<Vc<PagesStructure>> {
         let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
         let next_router_root = next_router_fs.root().owned().await?;

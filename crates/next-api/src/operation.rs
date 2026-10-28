@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use next_core::next_manifests::ProxyMatcher;
+use next_core::{next_manifests::ProxyMatcher, route_discovery::DevelopmentDiscovery};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
@@ -28,6 +28,7 @@ pub struct EntrypointsOperation {
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
+    pub development: Option<DevelopmentDiscovery>,
     pub pages_document_endpoint: OperationVc<OptionEndpoint>,
     pub pages_app_endpoint: OperationVc<OptionEndpoint>,
     pub pages_error_endpoint: OperationVc<OptionEndpoint>,
@@ -82,6 +83,7 @@ impl EntrypointsOperation {
                     node_js: pick_endpoint(entrypoints, EndpointSelector::InstrumentationNodeJs),
                     edge: pick_endpoint(entrypoints, EndpointSelector::InstrumentationEdge),
                 }),
+            development: e.development.clone(),
             pages_document_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesDocument),
             pages_app_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesApp),
             pages_error_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesError),

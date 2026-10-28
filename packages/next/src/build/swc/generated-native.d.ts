@@ -226,6 +226,18 @@ export interface NapiAssetPath {
   contentHash: RcStr
 }
 
+export interface NapiAuthoredRouteFile {
+  kind: RcStr
+  originalName: RcStr
+  sourcePath: RcStr
+  runtimePathname?: RcStr
+}
+
+export interface NapiAuthoredRouteSlot {
+  name: RcStr
+  parent: RcStr
+}
+
 export declare const enum NapiCodeFrameColorMode {
   Error = 0,
   Warning = 1,
@@ -279,6 +291,14 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 
+export interface NapiDevelopmentDiscovery {
+  files: Array<NapiAuthoredRouteFile>
+  slots: Array<NapiAuthoredRouteSlot>
+  hasTypeScriptFiles: boolean
+  hasRootNotFound: boolean
+  authoredPagesSpecialRoutes: Array<RcStr>
+}
+
 export interface NapiDraftModeOptions {
   previewModeId: RcStr
   previewModeEncryptionKey: RcStr
@@ -288,12 +308,13 @@ export interface NapiDraftModeOptions {
 export interface NapiEndpointConfig {}
 
 export interface NapiEntrypoints {
-  routes: Array<NapiRoute>
+  routes?: Array<NapiRoute>
+  development?: NapiDevelopmentDiscovery
   middleware?: NapiMiddleware
   instrumentation?: NapiInstrumentation
-  pagesDocumentEndpoint: ExternalObject<ExternalEndpoint>
-  pagesAppEndpoint: ExternalObject<ExternalEndpoint>
-  pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
+  pagesDocumentEndpoint?: ExternalObject<ExternalEndpoint>
+  pagesAppEndpoint?: ExternalObject<ExternalEndpoint>
+  pagesErrorEndpoint?: ExternalObject<ExternalEndpoint>
 }
 
 export interface NapiEnvVar {

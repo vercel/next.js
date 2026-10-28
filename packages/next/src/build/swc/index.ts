@@ -514,6 +514,7 @@ function bindingToApi(
 
   type NapiEntrypoints = {
     routes: NapiRoute[]
+    development?: import('./types').DevelopmentDiscovery
     middleware?: NapiMiddleware
     instrumentation?: NapiInstrumentation
     pagesDocumentEndpoint: NapiEndpoint
@@ -762,7 +763,9 @@ function bindingToApi(
 
     entrypointsSubscribe() {
       const subscription = subscribe<
-        TurbopackResult<NapiEntrypoints | {} | null>
+        TurbopackResult<Partial<
+          import('./generated-native').NapiEntrypoints
+        > | null>
       >(false, async (callback) =>
         binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
@@ -770,13 +773,17 @@ function bindingToApi(
         for await (const entrypoints of subscription) {
           if (entrypoints.value && 'routes' in entrypoints.value) {
             yield napiEntrypointsToRawEntrypoints(
-              entrypoints as TurbopackResult<NapiEntrypoints>
+              entrypoints as unknown as TurbopackResult<NapiEntrypoints>
             )
           } else {
             yield {
-              value: {},
+              value: {
+                development: (
+                  entrypoints.value as Partial<NapiEntrypoints> | null
+                )?.development,
+              },
               issues: entrypoints.issues,
-            } as TurbopackResult<{}>
+            } as TurbopackResult<Pick<RawEntrypoints, 'development'>>
           }
         }
       })()
@@ -1308,6 +1315,7 @@ function bindingToApi(
     return {
       value: {
         routes,
+        development: entrypoints.value.development,
         middleware,
         instrumentation,
         pagesDocumentEndpoint: new EndpointImpl(

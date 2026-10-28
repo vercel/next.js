@@ -206,14 +206,51 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
+/** Authored files used by development tooling, before routes are merged or pruned. */
+export interface AuthoredRouteFile {
+  kind:
+    | 'app-page'
+    | 'app-route'
+    | 'app-layout'
+    | 'app-default'
+    | 'app-special'
+    | 'app-metadata'
+    | 'pages'
+    | 'pages-api'
+  originalName: string
+  sourcePath: string
+  /** Metadata routes can have a generated URL that differs from the authored filename. */
+  runtimePathname?: string
+}
+
+export interface AuthoredRouteSlot {
+  name: string
+  parent: string
+}
+
+/** Development discovery is separate from the effective request-routing inventory. */
+export interface DevelopmentDiscovery {
+  files: AuthoredRouteFile[]
+  slots: AuthoredRouteSlot[]
+  hasTypeScriptFiles: boolean
+  hasRootNotFound: boolean
+  authoredPagesSpecialRoutes: string[]
+}
+
 export interface RawEntrypoints {
   routes: Map<string, Route>
+  development?: DevelopmentDiscovery
   middleware?: Middleware
   instrumentation?: Instrumentation
   pagesDocumentEndpoint: Endpoint
   pagesAppEndpoint: Endpoint
   pagesErrorEndpoint: Endpoint
 }
+
+// Compilation diagnostics may suppress runtime routes while authored-file discovery still updates.
+export type EntrypointsUpdate =
+  | RawEntrypoints
+  | Pick<RawEntrypoints, 'development'>
 
 interface BaseUpdate {
   resource: {
@@ -356,7 +393,7 @@ export interface Project {
   featureUsage(): Promise<BuildFeatureUsage[]>
 
   entrypointsSubscribe(): AsyncIterableIterator<
-    TurbopackResult<RawEntrypoints | {}>
+    TurbopackResult<EntrypointsUpdate>
   >
 
   getServerHmrUpdate(

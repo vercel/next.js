@@ -37,6 +37,7 @@ use next_core::{
     },
     next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
+    route_discovery::{DevelopmentDiscovery, OptionDevelopmentDiscovery},
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, OptionEnvMap},
 };
@@ -51,8 +52,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
-    VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem,
+    FileSystemEntryType, FileSystemPath, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -998,6 +999,12 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub fn entrypoints(self: Vc<Self>) -> Vc<Entrypoints> {
         self.project().entrypoints()
+    }
+
+    /// Development file inventory, independent of endpoint diagnostics.
+    #[turbo_tasks::function]
+    pub fn development_discovery(self: Vc<Self>) -> Vc<OptionDevelopmentDiscovery> {
+        self.project().development_discovery()
     }
 
     /// See [`Project::hmr_chunk_names`].
@@ -2106,6 +2113,44 @@ impl Project {
         Ok(ProjectFeatureUsageSummary { features }.cell())
     }
 
+    /// Authored development files do not depend on compiling valid executable entrypoints. This
+    /// remains available when route diagnostics temporarily prevent creating those entrypoints.
+    #[turbo_tasks::function]
+    pub async fn development_discovery(self: Vc<Self>) -> Result<Vc<OptionDevelopmentDiscovery>> {
+        if !self.next_mode().await?.is_development() {
+            return Ok(Vc::cell(None));
+        }
+        let app = *self.app_project().await?;
+        let mut discovery = DevelopmentDiscovery::default();
+        if let Some(app) = app
+            && let Some(app_discovery) = &*app.development_discovery().await?
+        {
+            discovery = app_discovery.clone();
+        }
+        let pages = self.pages_project();
+        if let Some(pages_discovery) = &*pages.development_discovery().await? {
+            discovery
+                .files
+                .extend(pages_discovery.files.iter().cloned());
+            discovery.authored_pages_special_routes =
+                pages_discovery.authored_pages_special_routes.clone();
+        }
+        let config = self.next_config();
+        let tsconfig_path = config.typescript_tsconfig_path().await?;
+        let project_path = self.project_path().owned().await?;
+        let tsconfig = project_path.join(tsconfig_path.as_deref().unwrap_or("tsconfig.json"))?;
+        discovery.has_type_script_files = *tsconfig.get_type().await? == FileSystemEntryType::File;
+        if !discovery.has_type_script_files {
+            discovery.has_type_script_files = *pages.has_typescript_files().await?;
+            if !discovery.has_type_script_files
+                && let Some(app) = app
+            {
+                discovery.has_type_script_files = *app.has_typescript_files().await?;
+            }
+        }
+        Ok(Vc::cell(Some(discovery)))
+    }
+
     /// Scans the app/pages directories for entry points files (matching the
     /// provided page_extensions).
     #[turbo_tasks::function]
@@ -2217,6 +2262,7 @@ impl Project {
             routes,
             middleware,
             instrumentation,
+            development: self.development_discovery().owned().await?,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,

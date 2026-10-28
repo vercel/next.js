@@ -165,6 +165,21 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    pub fn has_typescript_files(&self) -> Vc<bool> {
+        next_core::route_discovery::has_typescript_files(self.app_dir.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn development_discovery(
+        &self,
+    ) -> Vc<next_core::route_discovery::OptionDevelopmentDiscovery> {
+        next_core::app_structure::development_discovery(
+            self.app_dir.clone(),
+            self.project.next_config().page_extensions(),
+        )
+    }
+
+    #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
         let conf = self.project.next_config();
         get_entrypoints(
