@@ -22864,3 +22864,38 @@ describe('actual excluded only declaration options', () => {
     140000
   )
 })
+
+describe('actual inactive focused task selection', () => {
+  it.each(
+    require('./fixtures/istanbul-provider/inactive-focused-pristine.json').rows.map(
+      ({ name }: { name: string }) => name
+    )
+  )(
+    'matches complete genuine inactive focused trees and reports for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(
+        join(tmpdir(), 'next-inactive-focused-report-')
+      )
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'inactive-focused-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})

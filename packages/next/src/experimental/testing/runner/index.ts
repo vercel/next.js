@@ -942,9 +942,7 @@ function initializeFile(
               publicTaskSelection === true &&
               preparePublicSnapshots === true &&
               finalizePublicTaskModes === true &&
-              updateMode === 'none' &&
-              (captureCoverageCompletion === true ||
-                finishReadOnlySnapshots === true)
+              updateMode === 'none'
                 ? true
                 : undefined,
             ...(preparePublicSnapshots === true

@@ -11731,3 +11731,87 @@ describe('piped default actual snapshot preparation admission', () => {
     40000
   )
 })
+
+describe('actual cache owner snapshot admission', () => {
+  it.each(
+    ['development', 'production'].flatMap((mode) => [
+      {
+        label: `${mode}:automatic-json`,
+        mode,
+        reporter: ['json'],
+        cached: true,
+        expected: false,
+      },
+      {
+        label: `${mode}:automatic-default-json`,
+        mode,
+        reporter: ['default', 'json'],
+        cached: true,
+        expected: false,
+      },
+      {
+        label: `${mode}:automatic-custom-json`,
+        mode,
+        reporter: ['json', './reporter.mjs'],
+        cached: false,
+        expected: true,
+      },
+      {
+        label: `${mode}:explicit-cached-json`,
+        mode,
+        reporter: ['json'],
+        authoredCache: true,
+        cached: true,
+        expected: false,
+      },
+      {
+        label: `${mode}:explicit-cached-custom-json`,
+        mode,
+        reporter: ['json', './reporter.mjs'],
+        authoredCache: true,
+        cached: false,
+        expected: true,
+      },
+      {
+        label: `${mode}:explicit-uncached-json`,
+        mode,
+        reporter: ['json'],
+        authoredCache: false,
+        cached: false,
+        expected: true,
+      },
+    ])
+  )(
+    'matches actual cache creation and one-shot snapshot role for $label',
+    async ({ expected, ...specification }) => {
+      const directory = await mkdtemp(
+        path.join(os.tmpdir(), 'next-cache-snapshot-role-')
+      )
+      try {
+        const output = path.join(directory, 'observed.json')
+        await new Promise<void>((resolve, reject) =>
+          execFile(
+            process.execPath,
+            [
+              path.join(__dirname, 'snapshot-cache-admission.mjs'),
+              JSON.stringify(specification),
+              String(expected),
+              output,
+            ],
+            { timeout: 35000, encoding: 'utf8' },
+            (error) => (error ? reject(error) : resolve())
+          )
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          expected,
+          actualCLIForwarded: true,
+          customNeverCreatesCache: true,
+          cachedJsonDefaultRoleRemainsAbsent: true,
+        })
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    40000
+  )
+})

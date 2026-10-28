@@ -94,7 +94,10 @@ if (phase !== 'child') {
         },
       })
       await file.dispose()
-      assert.equal(actualFile.mode, 'run')
+      assert.equal(
+        actualFile.mode,
+        mode === 'file-inactive-injected' ? 'skip' : 'run'
+      )
       assert.equal(result.errors.length, 0)
       assert.equal(result.cases.length, 2)
       assert(result.cases.every((c) => c.status === 'skipped'))

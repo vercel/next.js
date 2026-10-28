@@ -913,7 +913,7 @@ export async function nextTestRunner(
     const preparePublicSnapshots =
       !options.watch &&
       !options.list &&
-      !options.cache &&
+      (!options.cache || reporters.some(isCustomResultReporter)) &&
       options.shard === undefined &&
       apiPort === undefined &&
       options.testNamePattern === undefined &&
