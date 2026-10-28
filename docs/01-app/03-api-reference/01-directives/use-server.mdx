@@ -7,7 +7,7 @@ The `use server` directive designates a function or file to be executed on the *
 
 For Next.js-specific Server Action behaviors (response model, security, configuration, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
 
-> **Good to know**: `use server` is not supported in [Proxy](/docs/app/api-reference/file-conventions/proxy) because Proxy does not run its compiler transform. The directive has no effect in functions called from Proxy, including imported functions that work as Server Functions elsewhere in your application.
+> **Good to know**: [Proxy](/docs/app/api-reference/file-conventions/proxy) does not transform the `use server` directive. The function still executes when called from Proxy, but it is not registered as a Server Function. This also applies to imported functions that work as Server Functions elsewhere in your application.
 
 ## Using `use server` at the top of a file
 

@@ -18,7 +18,7 @@ Proxy executes before routes are rendered. It's particularly useful for implemen
 >
 > Proxy is meant to be invoked separately of your render code and in optimized cases deployed to your CDN for fast redirect/rewrite handling, you should not attempt relying on shared modules or globals.
 >
-> Proxy does not run the Next.js compiler transforms for [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use server`](/docs/app/api-reference/directives/use-server). As a result, these directives have no effect in functions called from Proxy. This includes imported functions whose directives work elsewhere in your application.
+> Proxy does not transform the [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use server`](/docs/app/api-reference/directives/use-server) directives. Functions containing these directives still execute when called from Proxy, but the directives have no effect. The output of a `use cache` function is not cached or deduplicated, and calling [`cacheLife`](/docs/app/api-reference/functions/cacheLife) inside the function throws an error. A `use server` function is not registered as a Server Function.
 >
 > To reuse cached data in Proxy, use an [external cache or data store](/docs/app/guides/redirecting#managing-redirects-at-scale-advanced). Alternatively, move the work to a supported context, such as a Server Component or Route Handler.
 >

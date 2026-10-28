@@ -253,7 +253,9 @@ With the default in-memory handler, runtime cache behavior depends on your hosti
 
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
-If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+Hosting providers can replace the default cache handler or disable runtime storage. When a provider does not store `use cache` output at runtime, concurrent calls are still deduplicated, but later requests do not reuse the result. Check your hosting provider's documentation for its runtime caching behavior.
+
+If the default in-memory cache isn't enough, or your provider does not store runtime output, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
 > [!NOTE]
 > With the default in-memory handler, serverless instances are ephemeral, so entries may not be reused between requests, unlike with `use cache: remote`. Neither caching directive carries over to a new deploy, because the [cache key](#cache-keys) includes the build (or `deploymentId`) ID.
@@ -417,7 +419,7 @@ export async function getData() {
 }
 ```
 
-Whether a function's output is cached depends on the environment where the function is used. [Proxy](/docs/app/api-reference/file-conventions/proxy) does not run the `use cache` compiler transform, so its output is not cached when the function is called from Proxy. This includes imported functions whose output is cached elsewhere in your application.
+Whether a function's output is cached depends on the environment where the function is used. [Proxy](/docs/app/api-reference/file-conventions/proxy) does not transform the `use cache` directive. The function still executes when called from Proxy, but its output is not cached or deduplicated. A call to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) inside the function throws because no cache scope exists. This also applies to imported functions whose output is cached elsewhere in your application.
 
 ### Caching a component's output with `use cache`
 
