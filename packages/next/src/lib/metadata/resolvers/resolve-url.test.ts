@@ -68,6 +68,15 @@ describe('resolveAbsoluteUrlWithPathname', () => {
         'https://example.com/?foo=bar'
       )
     })
+
+    it('should keep query and hash of ./ urls on the current pathname', () => {
+      expect(
+        resolveAbsoluteUrlWithPathname('./?page=2', metadataBase, '/blog', opts)
+      ).toBe('https://example.com/blog?page=2')
+      expect(
+        resolveAbsoluteUrlWithPathname('./#top', metadataBase, '/blog', opts)
+      ).toBe('https://example.com/blog#top')
+    })
   })
 
   describe('trailingSlash is true', () => {
