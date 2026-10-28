@@ -1687,8 +1687,7 @@ const nextConfig = ${JSON.stringify(nextConfig)}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
-require('next')
-const { startServer } = require('next/dist/server/lib/start-server')
+const { startServer } = require('next/dist/compiled/next-server/start-server.runtime.prod')
 
 if (
   Number.isNaN(keepAliveTimeout) ||
