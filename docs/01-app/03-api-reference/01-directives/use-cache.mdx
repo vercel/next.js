@@ -419,7 +419,9 @@ export async function getData() {
 }
 ```
 
-[Proxy](/docs/app/api-reference/file-conventions/proxy) does not apply [directive transforms](/docs/app/api-reference/directives), so `use cache` has no effect in Proxy. The function executes as an ordinary function, including when it is imported from code that is cached elsewhere in your application.
+[Proxy](/docs/app/api-reference/file-conventions/proxy) does not apply [directive transforms](/docs/app/api-reference/directives), so `use cache` has no effect in Proxy. The function executes as an ordinary function, including when it is imported into Proxy from code that is cached elsewhere in your application.
+
+Calling [`cacheLife`](/docs/app/api-reference/functions/cacheLife) or [`cacheTag`](/docs/app/api-reference/functions/cacheTag) in that function throws because Proxy does not create a cache scope.
 
 ### Caching a component's output with `use cache`
 

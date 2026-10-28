@@ -26,6 +26,8 @@ Some common scenarios where Proxy is effective include:
 
 For simple redirects, consider using the [`redirects`](/docs/app/api-reference/config/next-config-js/redirects) configuration in `next.config.ts` first. Proxy should be used when you need access to request data or more complex logic.
 
+### Limitations
+
 Proxy is _not_ intended for slow data fetching. While Proxy can be helpful for [optimistic checks](/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) such as permission-based redirects, it should not be used as a full session management or authorization solution.
 
 Proxy does not apply [directive transforms](/docs/app/api-reference/directives). Without these transforms, directives such as [`use cache`](/docs/app/api-reference/directives/use-cache) and [`use server`](/docs/app/api-reference/directives/use-server) have no effect in Proxy.
