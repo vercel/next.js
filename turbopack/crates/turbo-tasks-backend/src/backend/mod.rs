@@ -677,8 +677,77 @@ fn collected_task_read_error(task_id: TaskId, operation: &str) -> anyhow::Error 
     )
 }
 
+/// Whether a task under a shared lock can be read by the shared-lock fast paths: it must be fully
+/// restored and not deleted. This must be checked before using any generated getter.
+fn is_task_readable(task: &storage::StorageReadGuard<'_>) -> bool {
+    task.flags.is_restored(TaskDataCategory::All) && !task.flags.deleted()
+}
+
+/// Whether reads of the task don't need dependency edges, because it can never be invalidated.
+/// See [`lock_task_and_optional_reader`].
+fn is_immutable(task: &storage::StorageReadGuard<'_>) -> bool {
+    task.immutable() && !cfg!(feature = "verify_immutable")
+}
+
 // Operations
 impl TurboTasksBackend {
+    /// Shared-lock fast path for cell reads. It only takes a shared lock on the read task, so many
+    /// readers of the same cell don't serialize on it. Returns `None` when the slow path is needed
+    /// (cell missing, task not resident/restored/alive, or a dependency edge must be recorded).
+    ///
+    /// Reads that don't need a dependency edge (immutable task, untracked reads, ...) just read
+    /// the content under the shared lock. Tracked reads of mutable tasks take the slow path.
+    fn try_read_task_cell_shared(
+        &self,
+        _ctx: &mut ExecuteContext<'_>,
+        task_id: TaskId,
+        need_reader_task: Option<TaskId>,
+        cell: CellId,
+        tracking: ReadCellTracking,
+    ) -> Option<SharedReference> {
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) {
+            return None;
+        }
+        match need_reader_task {
+            Some(_) if tracking.should_track(false) && !is_immutable(&task) => None,
+            // No dependency edge needed.
+            _ => task.get_cell_data(&cell).cloned(),
+        }
+    }
+
+    /// Shared-lock fast path for eventually consistent output reads, analogous to
+    /// [`Self::try_read_task_cell_shared`]. Only handles a task that is not in progress and has a
+    /// non-error output; everything else returns `None` and takes the slow path.
+    fn try_read_task_output_shared(
+        &self,
+        _ctx: &mut ExecuteContext<'_>,
+        task_id: TaskId,
+        need_reader_task: Option<TaskId>,
+        tracking: ReadTracking,
+    ) -> Option<RawVc> {
+        // Callers must have checked `is_task_readable` before.
+        let read = |task: &storage::StorageReadGuard<'_>| -> Option<RawVc> {
+            if task.get_in_progress().is_some() {
+                return None;
+            }
+            match *task.get_output()? {
+                OutputValue::Cell(cell) => Some(RawVc::task_cell(cell.task, cell.cell)),
+                OutputValue::Output(output_task) => Some(RawVc::task_output(output_task)),
+                OutputValue::Error(_) => None,
+            }
+        };
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) {
+            return None;
+        }
+        match need_reader_task {
+            Some(_) if tracking.should_track(false) && !is_immutable(&task) => None,
+            // No dependency edge needed.
+            _ => read(&task),
+        }
+    }
+
     fn try_read_task_output(
         &self,
         task_id: TaskId,
@@ -695,6 +764,16 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
+        if matches!(options.consistency, ReadConsistency::Eventual)
+            && let Some(value) = self.try_read_task_output_shared(
+                &mut ctx,
+                task_id,
+                need_reader_task,
+                options.tracking,
+            )
+        {
+            return Ok(ReadOutcome::Value(value));
+        }
         let Some((mut task, mut reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
         else {
@@ -1096,6 +1175,15 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
+        if !final_read_hint
+            && let Some(content) =
+                self.try_read_task_cell_shared(&mut ctx, task_id, need_reader_task, cell, tracking)
+        {
+            return Ok(ReadOutcome::Value(TypedCellContent(
+                cell.type_id(),
+                CellContent(Some(content)),
+            )));
+        }
         let Some((mut task, reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
         else {
