@@ -693,35 +693,89 @@ fn is_immutable(task: &storage::StorageReadGuard<'_>) -> bool {
 impl TurboTasksBackend {
     /// Shared-lock fast path for cell reads. It only takes a shared lock on the read task, so many
     /// readers of the same cell don't serialize on it. Returns `None` when the slow path is needed
-    /// (cell missing, task not resident/restored/alive, or a dependency edge must be recorded).
+    /// (cell missing, task not resident/restored/alive, or a new dependency edge must be inserted).
     ///
     /// Reads that don't need a dependency edge (immutable task, untracked reads, ...) just read
-    /// the content under the shared lock. Tracked reads of mutable tasks take the slow path.
+    /// the content under the shared lock.
+    ///
+    /// Tracked reads are only handled when the task already has the reader as dependent (e.g. a
+    /// repeated read in the same execution or a re-execution). Race argument: `update_cell` removes
+    /// the old content and snapshots `cell_dependents` under the task's exclusive lock, and only
+    /// afterwards checks each dependent's current/outdated `cell_dependencies`. We first make the
+    /// reader-side dependency current (locking only the reader), then, under the shared lock,
+    /// verify the task-side edge still exists and read the content. If an update's exclusive
+    /// section happens before our shared section, we see no content and fall back. If it happens
+    /// after, the update sees the task-side edge and then a *current* reader-side edge, so the
+    /// reader is made stale. Making the reader-side edge current when we then fall back is
+    /// harmless: the slow path does the same.
+    ///
+    /// Inserting a *new* task-side edge still requires the slow path, which locks both tasks
+    /// together (see `lock_task_and_optional_reader`).
     fn try_read_task_cell_shared(
         &self,
-        _ctx: &mut ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         need_reader_task: Option<TaskId>,
         cell: CellId,
         tracking: ReadCellTracking,
     ) -> Option<SharedReference> {
+        let key = tracking.key();
+        let has_edge = |task: &storage::StorageReadGuard<'_>, reader: TaskId| {
+            let reverse = CellRef { task: reader, cell };
+            if let Some(k) = key {
+                task.cell_dependents_hashed_contains(&(reverse, k))
+            } else {
+                task.cell_dependents_contains(&reverse)
+            }
+        };
         let task = self.storage.access_read(task_id)?;
         if !is_task_readable(&task) {
             return None;
         }
-        match need_reader_task {
-            Some(_) if tracking.should_track(false) && !is_immutable(&task) => None,
+        let reader_id = match need_reader_task {
+            Some(reader_id) if tracking.should_track(false) && !is_immutable(&task) => reader_id,
             // No dependency edge needed.
-            _ => task.get_cell_data(&cell).cloned(),
+            _ => return task.get_cell_data(&cell).cloned(),
+        };
+        if !has_edge(&task, reader_id) || !task.cell_data_contains(&cell) {
+            return None;
         }
+        drop(task);
+
+        // Make the reader side current *before* reading the content (see above).
+        {
+            let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
+            let target = CellRef {
+                task: task_id,
+                cell,
+            };
+            if let Some(k) = key {
+                if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
+                    let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                }
+            } else if !reader_task.remove_outdated_cell_dependencies(&target) {
+                let _ = reader_task.add_cell_dependencies(target);
+            }
+        }
+
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) || !has_edge(&task, reader_id) {
+            return None;
+        }
+        task.get_cell_data(&cell).cloned()
     }
 
     /// Shared-lock fast path for eventually consistent output reads, analogous to
     /// [`Self::try_read_task_cell_shared`]. Only handles a task that is not in progress and has a
     /// non-error output; everything else returns `None` and takes the slow path.
+    ///
+    /// The race argument for the tracked case mirrors the cell case: an output only changes when
+    /// the task completes, which happens under the task's exclusive lock and is followed by
+    /// checking each output dependent's current/outdated `output_dependencies`. Before that, the
+    /// task is in progress, which makes this fast path bail out.
     fn try_read_task_output_shared(
         &self,
-        _ctx: &mut ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         need_reader_task: Option<TaskId>,
         tracking: ReadTracking,
@@ -741,11 +795,29 @@ impl TurboTasksBackend {
         if !is_task_readable(&task) {
             return None;
         }
-        match need_reader_task {
-            Some(_) if tracking.should_track(false) && !is_immutable(&task) => None,
+        let reader_id = match need_reader_task {
+            Some(reader_id) if tracking.should_track(false) && !is_immutable(&task) => reader_id,
             // No dependency edge needed.
-            _ => read(&task),
+            _ => return read(&task),
+        };
+        if !task.output_dependent_contains(&reader_id) || read(&task).is_none() {
+            return None;
         }
+        drop(task);
+
+        // Make the reader side current *before* reading the output (see above).
+        {
+            let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
+            if !reader_task.remove_outdated_output_dependencies(&task_id) {
+                let _ = reader_task.add_output_dependencies(task_id);
+            }
+        }
+
+        let task = self.storage.access_read(task_id)?;
+        if !is_task_readable(&task) || !task.output_dependent_contains(&reader_id) {
+            return None;
+        }
+        read(&task)
     }
 
     fn try_read_task_output(
