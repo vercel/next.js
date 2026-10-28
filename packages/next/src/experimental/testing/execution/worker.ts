@@ -493,6 +493,11 @@ async function run({
     const staticRuntimeMocks =
       artifact.kind === 'node' &&
       artifact.dynamicModuleMocking?.staticMocks === 1
+    const productionStaticRuntimeMocks =
+      staticRuntimeMocks &&
+      artifact.profile.mode === 'production' &&
+      artifact.profile.environment === 'node' &&
+      artifact.profile.route === undefined
     if (
       staticRuntimeMocks &&
       (artifact.moduleMocking?.version !== 1 ||
@@ -621,7 +626,8 @@ async function run({
         !['node', 'rsc'].includes(artifact.profile.environment) ||
         artifact.kind !== artifact.profile.environment ||
         (artifact.profile.mode !== 'development' &&
-          !artifact.moduleMocking.productionStaticFactory) ||
+          !artifact.moduleMocking.productionStaticFactory &&
+          !productionStaticRuntimeMocks) ||
         (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
         ('moduleCache' in artifact &&
           artifact.moduleCache !== undefined &&
@@ -635,10 +641,9 @@ async function run({
     ) {
       throw new Error('Unsupported compiled module mocking profile or version')
     }
-    verifyProductionStaticMock = await captureProductionStaticMockClosure(
-      artifact,
-      options
-    )
+    verifyProductionStaticMock = productionStaticRuntimeMocks
+      ? undefined
+      : await captureProductionStaticMockClosure(artifact, options)
     if (
       artifact.kind === 'node' &&
       artifact.moduleCache &&
@@ -648,8 +653,8 @@ async function run({
           !(
             artifact.profile.mode === 'production' &&
             artifact.profile.route === undefined &&
-            !artifact.moduleMocking &&
-            !artifact.dynamicModuleMocking
+            ((!artifact.moduleMocking && !artifact.dynamicModuleMocking) ||
+              productionStaticRuntimeMocks)
           )) ||
         (artifact.moduleMocking && !staticRuntimeMocks) ||
         artifact.cohort ||

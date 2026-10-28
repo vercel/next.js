@@ -1,0 +1,1 @@
+{"name": "next-test-native-helpers-esm", "version": "1.0.0", "type": "module", "main": "./index.mjs"}

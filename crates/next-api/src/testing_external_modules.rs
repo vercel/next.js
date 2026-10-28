@@ -1,7 +1,7 @@
 //! Native import namespaces for compiler-certified project ESM external edges.
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use next_core::get_next_package;
 use next_taskless::NODE_EXTERNALS;
 use turbo_rcstr::{RcStr, rcstr};
@@ -394,6 +394,9 @@ async fn prepare_native_external_context(
                     native_runtime_original(
                         context,
                         native,
+                        runtime_requests
+                            .context("Native runtime originals require their actual entry")?
+                            .0,
                         &format!("{id}/original-{}.mjs", native_modules.len()),
                     )
                     .await?
@@ -661,26 +664,32 @@ async fn native_graph_original(
 async fn native_runtime_original(
     context: ResolvedVc<ModuleAssetContext>,
     native: ResolvedVc<Box<dyn Module>>,
+    owner: &FileSystemPath,
     identity: &str,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
-    let path = VirtualFileSystem::new_with_name(rcstr!("next-test-native-runtime-originals"))
-        .root()
-        .owned()
-        .await?
-        .join(identity)?;
-    let source = VirtualSource::new(
-        path,
-        AssetContent::file(
-            FileContent::Content(File::from(
-                "import * as original from 'INNER_NATIVE_ORIGINAL';\n__turbopack_context__.n(new \
-                 Proxy(original, {}));\n",
-            ))
-            .cell(),
-        ),
-    );
+    // The wrapper keeps an actual entry location for production package lookup.
+    // Its modifier retains a distinct provider identity without touching source bytes.
+    let source = crate::testing::test_source(
+        owner.clone(),
+        Some(format!("next-test-native-runtime-original:{identity}").into()),
+        "import * as original from 'INNER_NATIVE_ORIGINAL' with { \"__turbopack-helper__\": \
+         \"true\" };\nlet namespace = original;\nlet defaultExport = original.default;\nif \
+         (defaultExport != null && (typeof defaultExport === 'object' || typeof defaultExport === \
+         'function') && defaultExport.__esModule) {\nnamespace = defaultExport;\nif ('default' in \
+         defaultExport) defaultExport = defaultExport.default;\n}\n__turbopack_context__.n(new \
+         Proxy(namespace, {\nget(value, key) { return key === 'default' ? defaultExport : \
+         value[key] ?? defaultExport?.[key]; },\nhas(value, key) { return key === 'default' ? \
+         defaultExport !== undefined : key in value || !!defaultExport && key in defaultExport; \
+         },\ngetOwnPropertyDescriptor(value, key) {\nconst descriptor = \
+         Reflect.getOwnPropertyDescriptor(value, key);\nif (descriptor) return descriptor;\nif \
+         (key === 'default' && defaultExport !== undefined) return {value:defaultExport, \
+         enumerable:true, configurable:true};\n}\n}));\n"
+            .to_owned(),
+    )
+    .await?;
     Ok(context
         .process(
-            Vc::upcast(source),
+            *source,
             ReferenceType::Internal(ResolvedVc::cell(
                 fxindexmap! { rcstr!("INNER_NATIVE_ORIGINAL") => native },
             )),

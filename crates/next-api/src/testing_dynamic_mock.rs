@@ -886,6 +886,7 @@ pub(crate) async fn manifest(
     native_certificates: &[NativeExternalCertificate],
     static_pairs: &[crate::testing_static_runtime::StaticMockPair],
     commonjs: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
+    paired_actual_helper: Option<ResolvedVc<Box<dyn Module>>>,
 ) -> Result<DynamicMockManifest> {
     let root = project.project_path().owned().await?;
     let next_package = next_core::get_next_package(root.clone()).await?;
@@ -1221,7 +1222,21 @@ pub(crate) async fn manifest(
         .iter()
         .flat_map(|pair| pair.protected.iter().copied())
         .collect::<HashSet<_>>();
+    let paired_helper_owner = if let Some(helper) = paired_actual_helper {
+        if !static_protected.contains(&helper) || helper.ident().await?.path != *path {
+            return Err(test_input_error(
+                path.clone(),
+                "Native actual helpers require the protected compiler registration",
+            ));
+        }
+        Some(graph_source_owner(helper).await?)
+    } else {
+        None
+    };
     let mut queue = vec![root_module];
+    if let Some(helper) = paired_actual_helper {
+        queue.push(helper);
+    }
     let mut seen = HashSet::new();
     let mut owners = Vec::new();
     while let Some(module) = queue.pop() {
@@ -1230,6 +1245,15 @@ pub(crate) async fn manifest(
         }
         let ident = module.ident().await?;
         if next_package.get_path_to(&ident.path).is_some() {
+            continue;
+        }
+        if ident.path == *path
+            && static_protected.contains(&module)
+            && let Some(helper) = paired_helper_owner
+            && graph_source_owner(module).await? == helper
+        {
+            owners.push(module);
+            queue.extend(references(module).await?);
             continue;
         }
         if commonjs.is_some_and(|commonjs| commonjs.protected.contains(&module))

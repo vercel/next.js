@@ -498,7 +498,18 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     let native_static = !calls.runtime_calls.is_empty()
         && !calls.calls.is_empty()
         && calls.hoisted_calls.is_empty()
-        && calls.actual_calls.is_empty()
+        && calls.actual_calls.iter().all(|call| {
+            native_static_request(call).is_some_and(|request| {
+                calls
+                    .calls
+                    .iter()
+                    .any(|declaration| native_static_request(declaration) == Some(request))
+                    && calls
+                        .runtime_calls
+                        .iter()
+                        .any(|(_, runtime)| native_static_request(runtime) == Some(request))
+            })
+        })
         && calls.mock_import_calls.is_empty()
         && calls.unmock_calls.is_empty()
         && calls.calls.iter().all(|call| {
@@ -550,7 +561,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         }
         if (!calls.calls.is_empty() && !native_static)
             || !calls.hoisted_calls.is_empty()
-            || !calls.actual_calls.is_empty()
+            || (!native_static && !calls.actual_calls.is_empty())
             || !calls.mock_import_calls.is_empty()
             || !calls.unmock_calls.is_empty()
         {
@@ -1760,12 +1771,36 @@ mod tests {
     }
 
     #[test]
+    fn retains_paired_native_runtime_actual_helpers() {
+        for reset in ["", "vi.resetModules();"] {
+            let source = format!(
+                "import {{vi}} from \
+                 'vitest';vi.mock('package',()=>({{value:5}}));vi.doMock('package',()=>({{value:\
+                 73}}));{reset}vi.importActual('package')"
+            );
+            let plan = extract_test_mocks(&source, "native-runtime-actual.mjs").unwrap();
+            assert_eq!(plan.declarations.len(), 1);
+            assert_eq!(plan.runtime_requests, ["package"]);
+            assert_eq!(plan.actual_imports.len(), 1);
+            assert_eq!(plan.actual_imports[0].request, "package");
+            assert!(!plan.source.contains("vi.importActual"));
+            assert!(extract_static_mocks(&source, "native-runtime-actual.mjs").is_err());
+        }
+        for actual in ["./compiled.mjs", "other-package"] {
+            let source = format!(
+                "import {{vi}} from \
+                 'vitest';vi.mock('package',()=>({{value:5}}));vi.doMock('package',()=>({{value:\
+                 73}}));vi.importActual('{actual}')"
+            );
+            assert!(extract_test_mocks(&source, "unpaired-native-actual.mjs").is_err());
+        }
+    }
+
+    #[test]
     fn keeps_compiled_and_unpaired_static_runtime_mixtures_rejected() {
         for source in [
             "vi.mock('./dep',()=>({value:5}));vi.doMock('./dep',()=>({value:73}))",
             "vi.mock('package',()=>({value:5}));vi.doMock('other',()=>({value:73}))",
-            "vi.mock('package',()=>({value:5}));vi.doMock('package',()=>({value:73}));vi.\
-             importActual('package')",
         ] {
             assert!(
                 extract_test_mocks(

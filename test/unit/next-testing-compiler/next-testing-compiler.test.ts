@@ -1161,6 +1161,64 @@ describe('test compiler artifact publication', () => {
     expect(JSON.stringify(mockMetadata)).toBe(encoded)
   })
 
+  it('accepts certified static native runtime metadata in production', async () => {
+    process.env = { ...process.env, NODE_ENV: 'production' }
+    const swc =
+      require('next/dist/build/swc') as typeof import('next/dist/build/swc')
+    const previousDefineEnv = Object.getOwnPropertyDescriptor(
+      swc,
+      'createDefineEnv'
+    )
+    Object.defineProperty(swc, 'createDefineEnv', {
+      configurable: true,
+      value: () => ({ client: [], edge: [], nodejs: [] }),
+    })
+    const productionBindings = jest
+      .spyOn(swc, 'loadBindings')
+      .mockResolvedValue({
+        isWasm: false,
+        turbo: {
+          createProject: async () => ({
+            issues: [],
+            value: (await (createDevTurbopackProject as jest.Mock)()).project,
+          }),
+        },
+      } as any)
+    try {
+      const nodeProfile = {
+        ...profile,
+        environment: 'node' as const,
+        mode: 'production' as const,
+      }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      mockMetadata = {
+        moduleCache: { version: 1 },
+        dynamicModuleMocking: { version: 1, staticMocks: 1 },
+        moduleMocking: { version: 1 },
+      }
+      const encoded = JSON.stringify(mockMetadata)
+      const artifact = await session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+      expect(artifact.kind).toBe('node')
+      if (artifact.kind !== 'node')
+        throw new Error('Expected paired Node owner')
+      expect(artifact.moduleCache).toEqual({ version: 1 })
+      expect(artifact.dynamicModuleMocking).toEqual({
+        version: 1,
+        staticMocks: 1,
+      })
+      expect(artifact.moduleMocking).toEqual({ version: 1 })
+      expect(JSON.stringify(mockMetadata)).toBe(encoded)
+    } finally {
+      productionBindings.mockRestore()
+      if (previousDefineEnv)
+        Object.defineProperty(swc, 'createDefineEnv', previousDefineEnv)
+      else delete (swc as any).createDefineEnv
+    }
+  })
+
   it.each([
     { dynamicModuleMocking: { version: 1, staticMocks: 1 } },
     {
@@ -1267,47 +1325,56 @@ describe('test compiler artifact publication', () => {
           moduleMocking: { version: 1 },
         }
         await writeFile(join(dir, 'setup.ts'), 'export {}')
-        await expect(
-          session.compile(
-            {
-              ...entry(),
-              profile: nodeProfile,
-              ...(mode === 'realm'
-                ? { executionEnvironment: { name: 'node' } }
-                : {}),
-              ...(mode === 'in-source'
-                ? {
-                    inSource: true as const,
-                    inSourceHash: createHash('sha256')
-                      .update(await readFile(entry().file))
-                      .digest('hex'),
-                  }
-                : {}),
-            },
-            {
-              signal: new AbortController().signal,
-              ...(mode === 'setup'
-                ? { setupFiles: [join(dir, 'setup.ts')] }
-                : {}),
-              ...(mode === 'serializers'
-                ? { snapshotSerializers: [join(dir, 'setup.ts')] }
-                : {}),
-              ...(mode === 'coverage'
-                ? {
-                    coverage: {
-                      version: 1 as const,
-                      kind: 'node-line' as const,
-                    },
-                  }
-                : {}),
-            }
-          )
-        ).rejects.toThrow(
-          mode === 'production'
-            ? 'Module cache resets require isolated development Node'
-            : undefined
+        const compilation = session.compile(
+          {
+            ...entry(),
+            profile: nodeProfile,
+            ...(mode === 'realm'
+              ? { executionEnvironment: { name: 'node' } }
+              : {}),
+            ...(mode === 'in-source'
+              ? {
+                  inSource: true as const,
+                  inSourceHash: createHash('sha256')
+                    .update(await readFile(entry().file))
+                    .digest('hex'),
+                }
+              : {}),
+          },
+          {
+            signal: new AbortController().signal,
+            ...(mode === 'setup'
+              ? { setupFiles: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'serializers'
+              ? { snapshotSerializers: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'coverage'
+              ? {
+                  coverage: {
+                    version: 1 as const,
+                    kind: 'node-line' as const,
+                  },
+                }
+              : {}),
+          }
         )
-        expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+        if (mode === 'production') {
+          const artifact = await compilation
+          expect(artifact.kind).toBe('node')
+          expect(artifact.profile).toEqual(nodeProfile)
+          if (artifact.kind !== 'node')
+            throw new Error('Expected paired Node owner')
+          expect(artifact.moduleCache).toEqual({ version: 1 })
+          expect(artifact.dynamicModuleMocking).toEqual({
+            version: 1,
+            staticMocks: 1,
+          })
+          expect(artifact.moduleMocking).toEqual({ version: 1 })
+        } else {
+          await expect(compilation).rejects.toThrow()
+          expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+        }
       } finally {
         productionBindings?.mockRestore()
         if (mode === 'production') {
@@ -9366,6 +9433,47 @@ it.each(['development', 'production'] as const)(
         namespaceAndFunctionDescriptors: true,
         dependencyResetAndHeldValues: true,
         exactParameterEvaluation: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
+
+it.each(['development', 'production'] as const)(
+  'combines native static runtime and actual helpers in %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-native-runtime-actual-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-runtime-actual.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        cases: 2,
+        rows: 2,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceDescriptors: true,
+        actualResetAndUnmockIdentities: true,
+        originalEvaluationAndFactoryCounts: true,
         allAuthoredBytesHeld: true,
         allOwnersJoined: true,
       })

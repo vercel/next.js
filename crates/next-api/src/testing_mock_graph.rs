@@ -224,6 +224,7 @@ impl BeforeResolvePlugin for MockBuiltinResolvePlugin {
 pub(crate) enum MockOriginalSource<'a> {
     Compiled(&'a str),
     NativeExternal(&'a str),
+    NativeRuntime(&'a str),
 }
 
 pub(crate) struct MockRegistrationSource<'a> {
@@ -294,6 +295,31 @@ pub(crate) fn mock_registration_source_with_helpers(
     actual_imports: &[MockActualSource<'_>],
     mock_imports: &[MockImportSource<'_>],
     api_bindings: &[(String, String)],
+) -> Result<String> {
+    mock_registration_source_with_paired_native_helpers(
+        runtime_request,
+        original_path,
+        original_source,
+        declarations,
+        hoisted,
+        actual_imports,
+        mock_imports,
+        api_bindings,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn mock_registration_source_with_paired_native_helpers(
+    runtime_request: &str,
+    original_path: &str,
+    original_source: &str,
+    declarations: &[MockRegistrationSource<'_>],
+    hoisted: &[MockHoistedSource<'_>],
+    actual_imports: &[MockActualSource<'_>],
+    mock_imports: &[MockImportSource<'_>],
+    api_bindings: &[(String, String)],
+    paired_native_actuals: bool,
 ) -> Result<String> {
     let mut source = String::new();
     let mut generated = SourcePosition::default();
@@ -399,9 +425,37 @@ pub(crate) fn mock_registration_source_with_helpers(
             &format!("import {{ {names} }} from 'vitest';\n"),
         );
     }
+    let mut native_actual_api = "__next_native_actual".to_owned();
+    while original_source.contains(&native_actual_api)
+        || api_bindings
+            .iter()
+            .any(|(_, local)| local == &native_actual_api)
+        || hoisted
+            .iter()
+            .any(|helper| helper.bindings.contains(&native_actual_api))
+    {
+        native_actual_api.push('_');
+    }
+    if paired_native_actuals {
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!(
+                "import {{ importNativeActual as {native_actual_api} }} from \
+                 'next/dist/experimental/testing/mocking/dynamic';\n"
+            ),
+        );
+    }
     let mut cached_actuals = std::collections::HashMap::new();
     for import in actual_imports {
-        let code = if import.cache {
+        let code = if paired_native_actuals {
+            format!(
+                "export const {} = async () => {native_actual_api}({}, __turbopack_context__);\n",
+                import.local,
+                serde_json::to_string(import.original_request)?
+            )
+        } else if import.cache {
             if let Some(local) = cached_actuals.get(import.original_request) {
                 format!("export const {} = {local};\n", import.local)
             } else {
@@ -616,6 +670,12 @@ pub(crate) fn mock_registration_source_with_helpers(
             let original_loader = match declaration.original_request {
                 MockOriginalSource::Compiled(request) => {
                     format!("import({})", serde_json::to_string(request)?)
+                }
+                MockOriginalSource::NativeRuntime(request) => {
+                    format!(
+                        "{native_actual_api}({}, __turbopack_context__)",
+                        serde_json::to_string(request)?
+                    )
                 }
                 MockOriginalSource::NativeExternal(request) => {
                     // Keep a missing original as a real native import failure,

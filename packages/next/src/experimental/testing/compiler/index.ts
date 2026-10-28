@@ -1798,8 +1798,8 @@ export async function createTestCompilerSession(
           const productionReset =
             profile.mode === 'production' &&
             profile.route === undefined &&
-            !metadata.moduleMocking &&
-            !metadata.dynamicModuleMocking
+            ((!metadata.moduleMocking && !metadata.dynamicModuleMocking) ||
+              staticRuntimeMocks)
           if (
             metadata.moduleCache?.version !== 1 ||
             profile.environment !== 'node' ||

@@ -81,9 +81,9 @@ use crate::{
     testing_mock_graph::{
         MockActualSource, MockBuiltinFactoryTarget, MockBuiltinResolvePlugin, MockGraphTarget,
         MockGraphTargets, MockHoistedSource, MockImportKind, MockImportSource, MockOriginalSource,
-        MockRegistrationSource, MockResolvePlugin, mock_registration_source_with_helpers,
-        mock_spec_source_with_imports, mock_wrapper_source_with_original_cycle,
-        virtual_mock_wrapper_source,
+        MockRegistrationSource, MockResolvePlugin,
+        mock_registration_source_with_paired_native_helpers, mock_spec_source_with_imports,
+        mock_wrapper_source_with_original_cycle, virtual_mock_wrapper_source,
     },
     testing_mock_source::{StaticMockPlan, extract_test_mocks},
 };
@@ -522,7 +522,9 @@ pub(crate) async fn test_endpoint(
             || !(if *browser_client {
                 production_browser_mock_plan(&production_plan)
             } else {
-                production_factory_plan(&production_plan) || production_reset_plan(&production_plan)
+                production_factory_plan(&production_plan)
+                    || production_reset_plan(&production_plan)
+                    || production_paired_native_actual_plan(&production_plan)
             }))
     {
         return Err(test_input_error(
@@ -634,6 +636,39 @@ pub(crate) fn production_factory_plan(plan: &StaticMockPlan) -> bool {
 
 pub(crate) fn production_browser_mock_plan(plan: &StaticMockPlan) -> bool {
     production_static_mock_plan(plan, true)
+}
+
+// This is only a syntax candidate. Assembly still requires the same resolved
+// external originals, actual native certificates and static namespace pairs.
+fn production_paired_native_actual_plan(plan: &StaticMockPlan) -> bool {
+    !plan.declarations.is_empty()
+        && !plan.runtime_requests.is_empty()
+        && !plan.actual_imports.is_empty()
+        && plan.hoisted.is_empty()
+        && plan.mock_imports.is_empty()
+        && plan.unmocks.is_empty()
+        && plan.declarations.iter().all(|declaration| {
+            !declaration.automatic
+                && !declaration.spy
+                && declaration.has_object_return
+                && !declaration.has_spread
+                && !declaration.request.starts_with('.')
+                && !declaration.request.starts_with('/')
+                && !declaration.request.contains(':')
+                && plan.runtime_requests.contains(&declaration.request)
+        })
+        && plan.runtime_requests.iter().all(|request| {
+            plan.declarations
+                .iter()
+                .any(|declaration| &declaration.request == request)
+        })
+        && plan.actual_imports.iter().all(|actual| {
+            plan.runtime_requests.contains(&actual.request)
+                && plan
+                    .declarations
+                    .iter()
+                    .any(|declaration| declaration.request == actual.request)
+        })
 }
 
 fn production_reset_plan(plan: &StaticMockPlan) -> bool {
@@ -1471,6 +1506,8 @@ pub(crate) struct PreparedTestModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub registration: Option<ResolvedVc<Box<dyn Module>>>,
     pub module_reset: bool,
+    /// Every actual helper reuses its paired resolved native original.
+    pub paired_native_actuals: bool,
     pub coverage_sources: Vec<MockCoverageSource>,
     pub runtime_requests: Vec<String>,
     pub static_runtime_origin: Option<ResolvedVc<ModuleAssetContext>>,
@@ -2164,6 +2201,7 @@ async fn prepare_test_module_with_loading(
             source: ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
             registration: None,
             module_reset: plan.reset_modules || !plan.runtime_requests.is_empty(),
+            paired_native_actuals: false,
             runtime_requests: plan.runtime_requests,
             static_runtime_origin: None,
             coverage_sources: Vec::new(),
@@ -2238,10 +2276,11 @@ async fn prepare_test_module_with_loading(
     let mut native_unmock_cuts = HashMap::new();
     let mut builtin_unmock_cuts = HashMap::new();
     let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
+    let paired_native_actual_candidate = static_runtime && !plan.actual_imports.is_empty();
     let allow_native_actual_imports = if cache_actual_imports
         && !layered_inputs
         && loading == MockImportLoading::CachedOriginal
-        && project.next_mode().await?.is_development()
+        && (project.next_mode().await?.is_development() || paired_native_actual_candidate)
         && let Some(entry) = project.await?.test_entry
     {
         let entry = entry.await?;
@@ -2493,7 +2532,11 @@ async fn prepare_test_module_with_loading(
                 );
                 registrations.push((
                     key,
-                    original_request,
+                    if paired_native_actual_candidate {
+                        request.to_owned()
+                    } else {
+                        original_request
+                    },
                     declaration.factory_source.clone(),
                     declaration.factory_start,
                     declaration.original_factory_source.clone(),
@@ -2715,6 +2758,7 @@ async fn prepare_test_module_with_loading(
         }
     }
     let mut actual_loaders = Vec::new();
+    let mut paired_native_actual_count = 0usize;
     let mut callable_originals = Vec::new();
     let mut actual_requests: HashMap<ResolvedVc<Box<dyn Module>>, String> = HashMap::new();
     for (index, import) in plan.actual_imports.iter().enumerate() {
@@ -2769,6 +2813,12 @@ async fn prepare_test_module_with_loading(
                 format!("The spec module cannot be its own vi.importActual target: {request}"),
             ));
         }
+        if paired_native_actual_candidate && !external_modules.contains_key(&original) {
+            return Err(test_input_error(
+                path.clone(),
+                "Native mixed actual helpers must reuse their paired external original",
+            ));
+        }
         if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(original) {
             let external = external.await?;
             let builtin = builtin_factory_name(&external.request()).is_some();
@@ -2781,6 +2831,7 @@ async fn prepare_test_module_with_loading(
                             if query.is_empty() && fragment.is_empty())))
             {
                 let original_request = if let Some((_, request)) = external_modules.get(&original) {
+                    paired_native_actual_count += 1;
                     request.clone()
                 } else if let Some(request) = actual_requests.get(&original) {
                     request.clone()
@@ -2803,7 +2854,14 @@ async fn prepare_test_module_with_loading(
                     request
                 };
                 actual_requests.insert(original, original_request.clone());
-                actual_loaders.push((import.local.clone(), original_request));
+                actual_loaders.push((
+                    import.local.clone(),
+                    if paired_native_actual_candidate {
+                        request.to_owned()
+                    } else {
+                        original_request
+                    },
+                ));
                 continue;
             }
             return Err(test_input_error(
@@ -3278,7 +3336,7 @@ async fn prepare_test_module_with_loading(
     let registration_source = test_source(
         path.clone(),
         Some(rcstr!("next-test-mock-registration")),
-        mock_registration_source_with_helpers(
+        mock_registration_source_with_paired_native_helpers(
             runtime_request,
             &original_source_url,
             &original_source,
@@ -3296,7 +3354,9 @@ async fn prepare_test_module_with_loading(
                         native_external,
                     )| MockRegistrationSource {
                         key,
-                        original_request: if *native_external {
+                        original_request: if paired_native_actual_candidate {
+                            MockOriginalSource::NativeRuntime(original_request)
+                        } else if *native_external {
                             MockOriginalSource::NativeExternal(original_request)
                         } else {
                             MockOriginalSource::Compiled(original_request)
@@ -3358,6 +3418,8 @@ async fn prepare_test_module_with_loading(
                 )
                 .collect::<Vec<_>>(),
             &plan.api_bindings,
+            paired_native_actual_candidate
+                && paired_native_actual_count == plan.actual_imports.len(),
         )?,
     )
     .await?;
@@ -3513,6 +3575,8 @@ async fn prepare_test_module_with_loading(
         .await?,
         registration: Some(registration),
         module_reset: plan.reset_modules || !plan.runtime_requests.is_empty(),
+        paired_native_actuals: paired_native_actual_candidate
+            && paired_native_actual_count == plan.actual_imports.len(),
         coverage_sources,
         runtime_requests: plan.runtime_requests,
         static_runtime_origin,
@@ -3697,7 +3761,7 @@ impl NodeTestEndpoint {
         };
         let native_runtime = if commonjs_runtime.is_none()
             && !prepared.runtime_requests.is_empty()
-            && self.project.next_mode().await?.is_development()
+            && (self.project.next_mode().await?.is_development() || prepared.paired_native_actuals)
             && let Some(entry) = self.project.await?.test_entry
         {
             let entry = entry.await?;
@@ -3723,6 +3787,7 @@ impl NodeTestEndpoint {
                         &self.path,
                         &prepared.runtime_requests,
                         &self.id,
+                        prepared.paired_native_actuals,
                     )
                     .await?;
                     (
@@ -3795,7 +3860,13 @@ impl NodeTestEndpoint {
         } else {
             None
         };
-        if !plan.actual_imports.is_empty() && prepared.module_reset && commonjs_reset.is_none() {
+        if !plan.actual_imports.is_empty()
+            && prepared.module_reset
+            && commonjs_reset.is_none()
+            && !(prepared.paired_native_actuals
+                && !native_certificates.is_empty()
+                && !static_pairs.is_empty())
+        {
             return Err(test_input_error(
                 self.path.clone(),
                 "CommonJS actual-import resets require an isolated development Node certified \
@@ -3831,6 +3902,11 @@ impl NodeTestEndpoint {
                     native_certificates,
                     static_pairs,
                     commonjs_reset.as_ref(),
+                    if prepared.paired_native_actuals {
+                        prepared.registration
+                    } else {
+                        None
+                    },
                 )
                 .await?,
             )
@@ -4285,6 +4361,7 @@ impl NodeTestEndpoint {
                                     &this.path,
                                     &prepared.runtime_requests,
                                     &this.id,
+                                    prepared.paired_native_actuals,
                                 ).await?;
                                 if paired.pairs.is_empty() {
                                     return Err(test_input_error(this.path.clone(), "Static runtime activation requires actual compiler namespace/provider pairs"));
@@ -4554,6 +4631,38 @@ pub async fn snapshot_endpoint_operation(
 
 #[cfg(test)]
 mod production_factory_tests {
+    #[test]
+    fn admits_only_paired_native_actual_syntax_candidates() {
+        for reset in ["", "vi.resetModules();"] {
+            let source = format!(
+                "import {{vi}} from \
+                 'vitest';vi.mock('package',()=>({{value:5}}));vi.doMock('package',()=>({{value:\
+                 73}}));{reset}vi.importActual('package')"
+            );
+            let plan = crate::testing::extract_test_mocks(&source, "entry.mjs").unwrap();
+            assert!(crate::testing::production_paired_native_actual_plan(&plan));
+        }
+        for body in [
+            "vi.mock('./dep',()=>({value:5}));vi.doMock('./dep',()=>({value:73}));vi.\
+             importActual('./dep')",
+            "vi.mock('package',()=>({value:5}));vi.importActual('package')",
+            "vi.doMock('package',()=>({value:73}));vi.importActual('package')",
+            "vi.mock('package',()=>({value:5}));vi.doMock('package',()=>({value:73}));vi.\
+             importActual('other')",
+            "vi.mock('package',()=>({value:5}));vi.doMock('package',()=>({value:73}));vi.\
+             importMock('package')",
+            "vi.mock('package',()=>({value:5}));vi.doMock('package',()=>({value:73}));vi.\
+             hoisted(()=>1);vi.importActual('package')",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body}");
+            if let Ok(plan) = crate::testing::extract_test_mocks(&source, "entry.mjs") {
+                assert!(
+                    !crate::testing::production_paired_native_actual_plan(&plan),
+                    "{body}"
+                );
+            }
+        }
+    }
     use crate::testing::{
         extract_test_mocks, production_browser_mock_plan, production_factory_plan,
         production_reset_plan,

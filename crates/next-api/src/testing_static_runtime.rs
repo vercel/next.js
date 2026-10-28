@@ -134,11 +134,12 @@ pub(crate) async fn prepare(
     path: &FileSystemPath,
     requests: &[String],
     id: &str,
+    paired_native_actuals: bool,
 ) -> Result<StaticRuntimePreparation> {
     let plan = static_mock_plan(path).await?;
     if plan.declarations.is_empty()
         || !plan.hoisted.is_empty()
-        || !plan.actual_imports.is_empty()
+        || (!plan.actual_imports.is_empty() && !paired_native_actuals)
         || !plan.mock_imports.is_empty()
         || !plan.unmocks.is_empty()
         || plan.declarations.iter().any(|declaration| {

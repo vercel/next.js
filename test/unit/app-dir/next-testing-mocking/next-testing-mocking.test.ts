@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { MockRegistry } from 'next/dist/experimental/testing/mocking/registry'
 
@@ -3171,3 +3172,23 @@ it('preserves actual callback Promise construction and the exact completed facto
     lateErrors: 0,
   })
 })
+
+it.each([
+  'reuses',
+  'resets',
+  'unpaired',
+  'omitted',
+  'foreign-id',
+  'foreign-prototype',
+  'foreign-record',
+])(
+  'keeps paired native actual imports on their exact cache owner: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'native-actual-owner.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({ mode, ownedActualCache: true })
+  }
+)

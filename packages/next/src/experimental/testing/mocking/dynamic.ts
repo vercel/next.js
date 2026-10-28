@@ -60,6 +60,7 @@ interface State {
   invalidations: Set<Target>
   closed: boolean
   onLateFailure(error: Error): void
+  loadNativeActual(request: string, importer: Importer): Promise<Namespace>
 }
 const RealPromise = Promise
 const owners = new WeakSet<object>()
@@ -277,6 +278,27 @@ export function initializeDynamicModuleMocking(
     invalidations: new Set(),
     closed: false,
     onLateFailure: options.onLateFailure,
+    loadNativeActual(request, importer) {
+      const origin = captureCompilerAsyncScope()
+      return origin.run(() => {
+        assertOwner()
+        const target = requests.get(request)
+        if (!target?.nativeOriginal || target.initial === undefined)
+          throw new Error(
+            'Native actual imports require a certified static/runtime pair.'
+          )
+        if (
+          !importer ||
+          Object.getPrototypeOf(importer) !== prototype ||
+          !entryIds.has(importer.m?.id) ||
+          context.c.get(importer.m.id) !== importer.m
+        )
+          throw new Error(
+            'Native actual imports require their actual compiler helper owner.'
+          )
+        return own(original(importer, target.id, target, origin))
+      })
+    },
   }
   const pending = new Set<(error: Error) => void>()
   function assertOwner() {
@@ -684,6 +706,14 @@ export function initializeDynamicModuleMocking(
       if (unfinished) throw error
     },
   }
+}
+
+/** Compiler-only paired native helper; original values use the existing cache owner. */
+export function importNativeActual(
+  request: string,
+  importer: Importer
+): Promise<Namespace> {
+  return current().loadNativeActual(request, importer)
 }
 
 /** Calls stay in their original source location with their original closure. */
