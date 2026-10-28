@@ -174,7 +174,7 @@ export type ServerFields = {
   resetFetch?: () => void
 }
 
-async function verifyTypeScript(opts: SetupOpts) {
+export async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
