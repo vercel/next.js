@@ -167,6 +167,7 @@ pub fn server_actions<C: Comments>(
         file_directive: None,
         current_export_name: None,
         fn_decl_ident: None,
+        fn_expr_ident: None,
         in_callee: false,
         has_action: false,
         has_cache: false,
@@ -236,6 +237,8 @@ struct ServerActions<C: Comments> {
     file_directive: Option<Directive>,
     current_export_name: Option<ModuleExportName>,
     fn_decl_ident: Option<Ident>,
+    /// The explicit name of a function expression, not its enclosing binding.
+    fn_expr_ident: Option<Ident>,
     in_callee: bool,
     has_action: bool,
     has_cache: bool,
@@ -267,6 +270,7 @@ struct ServerActions<C: Comments> {
     private_ctxt: SyntaxContext,
     unresolved_ctxt: SyntaxContext,
 
+    /// The inferred name from an enclosing variable, assignment, or property.
     arrow_or_fn_expr_ident: Option<Ident>,
     export_name_by_local_id: FxIndexMap<Id, ModuleExportName>,
 
@@ -1196,13 +1200,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
         let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
-        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
-        if let Some(ident) = &f.ident {
-            self.arrow_or_fn_expr_ident = Some(ident.clone());
-        }
+        let old_fn_expr_ident = replace(&mut self.fn_expr_ident, f.ident.clone());
         f.visit_mut_children_with(self);
         self.this_status = old_this_status;
-        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
+        self.fn_expr_ident = old_fn_expr_ident;
     }
 
     fn visit_mut_function(&mut self, f: &mut Function) {
@@ -1223,11 +1224,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
             let old_current_export_name = self.current_export_name.take();
             let old_fn_decl_ident = self.fn_decl_ident.take();
+            let old_fn_expr_ident = self.fn_expr_ident.take();
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
             self.fn_decl_ident = old_fn_decl_ident;
+            self.fn_expr_ident = old_fn_expr_ident;
         }
 
         let mut child_names = take(&mut self.names);
@@ -1240,16 +1243,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let fn_name = self
                 .fn_decl_ident
                 .as_ref()
+                .or(self.fn_expr_ident.as_ref())
                 .or(self.arrow_or_fn_expr_ident.as_ref())
+                .cloned();
+            let export_ident = self
+                .fn_decl_ident
+                .as_ref()
+                .or(self.arrow_or_fn_expr_ident.as_ref())
+                .or(self.fn_expr_ident.as_ref())
                 .cloned();
 
             if !self.validate_async_function(f.is_async, f.span, fn_name.as_ref(), &directive) {
                 // If this is an exported function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
                 if self.current_export_name.is_some()
-                    && let Some(fn_name) = fn_name
+                    && let Some(export_ident) = export_ident
                 {
-                    self.export_name_by_local_id.swap_remove(&fn_name.to_id());
+                    self.export_name_by_local_id
+                        .swap_remove(&export_ident.to_id());
                 }
 
                 return;
@@ -1272,7 +1283,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 self.register_server_action_export(
                     &export_name,
-                    fn_name.as_ref(),
+                    export_ident.as_ref(),
                     Some(&params),
                     span,
                     &mut || {
@@ -1293,7 +1304,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 {
                     self.register_cache_export_on_client(
                         &export_name,
-                        fn_name.as_ref(),
+                        export_ident.as_ref(),
                         Some(&f.params),
                         f.span,
                     );
@@ -1312,10 +1323,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                     child_names.clone(),
-                    self.fn_decl_ident
-                        .as_ref()
-                        .or(self.arrow_or_fn_expr_ident.as_ref())
-                        .cloned(),
+                    fn_name,
                     cache_kind,
                     f,
                 );
