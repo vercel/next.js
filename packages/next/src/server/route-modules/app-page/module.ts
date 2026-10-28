@@ -192,15 +192,13 @@ export class AppPageRouteModule extends RouteModule<
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
     return renderToHTMLOrFlight(
-      context.serverActionRequestMetadata.isPossibleServerAction
-        ? (input) =>
-            handleAction({
-              ...input,
-              req,
-              res,
-              serverActionRequestMetadata: context.serverActionRequestMetadata,
-            })
-        : null,
+      (input) =>
+        handleAction({
+          ...input,
+          req,
+          res,
+          serverActionRequestMetadata: context.serverActionRequestMetadata,
+        }),
       res,
       context.requestUrl,
       context.requestHeaders,

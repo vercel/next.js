@@ -2840,11 +2840,15 @@ async function prerenderAppPage({
 }
 
 async function renderAppPage(
-  handleAction: AppPageActionHandler | null,
-  isFetchAction: boolean,
+  handleAction: AppPageActionHandler,
   requestHeaders: IncomingHttpHeaders,
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  { ctx, metadata, loaderTree }: PreparedAppPageRender,
+  {
+    ctx,
+    metadata,
+    loaderTree,
+    serverActionRequestMetadata,
+  }: PreparedAppPageRender,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined,
   stagedFallbackParams: OpaqueFallbackRouteParams | null
@@ -2886,7 +2890,7 @@ async function renderAppPage(
 
   // MPA form submissions need a complete document with the submitted form
   // state. Their new render can still reuse the extracted RDC.
-  if (isPossibleActionRequest && !isFetchAction) {
+  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
     postponedState = null
   }
 
@@ -2982,7 +2986,7 @@ async function renderAppPage(
 
   let didExecuteServerAction = false
   let formState: null | any = null
-  if (handleAction !== null) {
+  if (isPossibleActionRequest) {
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       ComponentMod,
@@ -3133,7 +3137,7 @@ async function renderAppPage(
 }
 
 async function renderToHTMLOrFlightImpl(
-  handleAction: AppPageActionHandler | null,
+  handleAction: AppPageActionHandler,
   res: BaseNextResponse,
   requestUrl: string,
   requestHeaders: IncomingHttpHeaders,
@@ -3188,7 +3192,6 @@ async function renderToHTMLOrFlightImpl(
   )
   return renderAppPage(
     handleAction,
-    serverActionRequestMetadata.isFetchAction,
     requestHeaders,
     onUpdateCookies,
     prepared,
@@ -3250,7 +3253,7 @@ async function prerenderToHTMLOrFlightImpl(
 }
 
 export type AppPageRender = (
-  handleAction: AppPageActionHandler | null,
+  handleAction: AppPageActionHandler,
   res: BaseNextResponse,
   requestUrl: string,
   requestHeaders: IncomingHttpHeaders,
