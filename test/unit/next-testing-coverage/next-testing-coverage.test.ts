@@ -22424,3 +22424,77 @@ describe('actual serial beforeAll Array coverage carriers', () => {
     130000
   )
 })
+
+describe('actual skipped-file snapshot preparation', () => {
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'all-skipped',
+        'selected',
+        'literal-empty',
+        'empty-no-pass',
+        'omitted',
+        'nontrue',
+        'no-mode',
+        'setup-error',
+        'setup-undefined',
+        'read-error',
+        'pending',
+        'abort-pending',
+        'finish-undefined',
+        'cleanup-undefined',
+      ].map((mode) => `${provider}:${mode}`)
+    )
+  )(
+    'keeps actual SDK selection and cleanup ownership for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-skipped-preparation-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'skipped-snapshot-preparation.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+
+  it.each(['v8-all-skipped-orphan', 'istanbul-all-skipped-orphan'])(
+    'matches the complete genuine skipped report and counters for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-skipped-snapshot-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'readonly-skipped-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})

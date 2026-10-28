@@ -4213,7 +4213,8 @@ export async function createAssertionRuntime(options: {
         (options.captureCoverageCompletion?.() !== true &&
           options.finishReadOnlySnapshots?.() !== true) ||
         ('deferSnapshotPreparation' in options &&
-          options.deferSnapshotPreparation === true) ||
+          options.deferSnapshotPreparation === true &&
+          !snapshotPrepared) ||
         snapshotOptions.updateSnapshot !== 'none' ||
         options.collectOnly ||
         disposed

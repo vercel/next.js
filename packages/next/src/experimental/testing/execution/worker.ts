@@ -165,6 +165,9 @@ async function run({
       /\.(?:mjs|js)$/.test(options.entry.file) &&
       (!options.entry.executionEnvironment ||
         options.entry.executionEnvironment.name === 'node'))
+  // The actual finalized task tree decides whether the SDK prepares this file.
+  const prepareReadOnlySelectedPublicFile =
+    prepareReadOnlyEmptyPublicFile && options.testNamePattern === undefined
   type CollectionRestoration = Readonly<{
     collectionError: unknown
     disposalError: unknown
@@ -883,8 +886,12 @@ async function run({
         : undefined
     file = entry.testRunner.initializeTestFile({
       publicTaskSelection: true,
-      ...(options.preparePublicSnapshots === true
+      ...(options.preparePublicSnapshots === true ||
+      prepareReadOnlySelectedPublicFile
         ? { preparePublicSnapshots: true }
+        : {}),
+      ...(prepareReadOnlySelectedPublicFile
+        ? { finalizePublicTaskModes: true as const }
         : {}),
       ...(v8ReadOnlySnapshots
         ? { finishReadOnlySnapshots: true as const }
