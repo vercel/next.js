@@ -6,9 +6,10 @@ import type { Rule } from 'eslint'
  * Process a Next.js root directory glob.
  */
 const processRootDir = (rootDir: string): string[] => {
-  return globSync(rootDir.replace(/\\/g, '/'), {
+  const dirs = globSync(rootDir.replace(/\\/g, '/'), {
     onlyDirectories: true,
   })
+  return dirs.length === 0 && !/[*?{}()[\]]/.test(rootDir) ? [rootDir] : dirs
 }
 
 const rootDirsCache = new WeakMap<Rule.RuleContext, string[]>()
