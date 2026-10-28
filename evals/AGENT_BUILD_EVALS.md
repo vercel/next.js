@@ -111,7 +111,7 @@ Prove the task measures its contract before reading any model result:
 
 Run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
 
-1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors. An agent that runs out of time is a failure.
+1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors. An agent that runs out of time is scored on the work it left, as Harbor scores it, so it usually fails.
 2. **Confirm failures.** Rerun each valid failure twice with `calibrate.sh --confirm` and record whether it repeats. Confirmations show whether a failure is stable and never change the score.
 3. **Read every failure** before trusting it, and fix the grader when the instruction did not ask for what it checks.
 4. **Keep the task** only if all of these hold:

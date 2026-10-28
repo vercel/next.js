@@ -228,7 +228,7 @@ for task in "$@"; do
         const r = require(require("path").resolve(process.argv[1]));
         const ev = Object.values(r.stats?.evals ?? {})[0] ?? {};
         const reward = ev.metrics?.[0]?.mean;
-        // An agent timeout is a scored failure; other exceptions are runner errors.
+        // An agent timeout is scored on the work it left; other exceptions are runner errors.
         const runnerError = Object.keys(ev.exception_stats ?? {}).some((name) => name !== "AgentTimeoutError");
         process.exit(r.finished_at && !runnerError && Number.isFinite(reward) ? 0 : 1);
       ' "$JOBS/$job/result.json"; then

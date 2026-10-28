@@ -4,9 +4,9 @@
 // tokens, cost, and time per run, as in the agent-eval result PRs,
 // then pass@1 against cost per run as a Mermaid chart GitHub renders inline.
 //
-// Scores are pass@1 over scored runs. An agent that runs out of time is a
-// failure, as in Harbor's own metrics; any other runner error is discarded
-// and the run repeated. A `calibrate.sh --regrade` result replaces the
+// Scores are pass@1 over scored runs. An agent that runs out of time is scored
+// on the work it left, as Harbor scores it; any other runner error is
+// discarded and the run repeated. A `calibrate.sh --regrade` result replaces the
 // reward; cost and duration stay the original run's.
 //
 //   node evals/agent-build/tools/report.mjs <jobs-dir> [task ...]
