@@ -56,6 +56,8 @@ python -m venv .harbor
 
 ## Configure credentials
 
+Set `HARBOR_TELEMETRY=0` for every run, which `calibrate.sh` does itself. Otherwise Harbor sends a usage event per job with the model names, cost, and mean reward. Never pass `--upload`, which streams results to the Harbor Hub.
+
 Use an approved measurement project's `VERCEL_OIDC_TOKEN` for Vercel Sandbox. Use a dedicated, spend-limited `AI_GATEWAY_API_KEY` for model calls. Store both in an ignored local file. Never add credentials to a task or result artifact.
 
 The OIDC token must be scoped to the Vercel project used for the run. A failed token exchange is an authentication failure. A VCR `NAME_INVALID` error for the `next.js` project means the Compose files are missing or were not detected.

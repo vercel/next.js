@@ -33,6 +33,9 @@
 set -uo pipefail
 
 HARBOR=${HARBOR:-harbor}
+# Harbor sends a usage event per job, including model names, cost, and mean
+# reward, unless telemetry is off. Keep measurement runs out of it.
+export HARBOR_TELEMETRY=0
 TREATMENT=${TREATMENT:-base}
 
 # agent|model|effort|agent options|api format. Frontier first, then the weaker
