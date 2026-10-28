@@ -46,6 +46,9 @@ describe('loadAgentFeedbackInstructions', () => {
     expect(instructions).toContain(
       'Set `model` to the model identifier and `reasoningEffort`'
     )
+    expect(instructions).toContain(
+      'Do not report a `SecurityFatalError` or `UpgradeNudgeError` when Next.js says the command intentionally stopped to show an upgrade recommendation and that retrying will continue.'
+    )
   })
 
   it('does not read the protocol when feedback is disabled', async () => {

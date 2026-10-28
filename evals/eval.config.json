@@ -60,5 +60,10 @@
     "skills": ["next-bundle-optimizer"],
     "publish": false,
     "timeout": 2700
+  },
+  "agent-061-agent-feedback-upgrade-nudge": {
+    "agentFeedback": true,
+    "publish": false,
+    "timeout": 900
   }
 }
