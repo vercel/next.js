@@ -96,9 +96,38 @@ static URI_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([^/\\:]+:)(.+
 static DATA_URI_REMAINDER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap());
 static MODULE_PATH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap());
+    LazyLock::new(|| Regex::new(r"^((?:@[^/?#]+/)?[^/?#]+)(.*)$").unwrap());
 
 impl Request {
+    /// The complete constant request, including its query and fragment. Inline loader requests
+    /// must be interpreted before their individual segments' queries are resolved.
+    pub fn raw_request(&self) -> Option<RcStr> {
+        let path = self.request()?;
+        let (query, fragment) = match self {
+            Request::Raw {
+                query, fragment, ..
+            }
+            | Request::Relative {
+                query, fragment, ..
+            }
+            | Request::Module {
+                query, fragment, ..
+            }
+            | Request::ServerRelative {
+                query, fragment, ..
+            }
+            | Request::Windows {
+                query, fragment, ..
+            } => (query.as_str(), fragment.as_str()),
+            _ => ("", ""),
+        };
+        if query.is_empty() && fragment.is_empty() {
+            Some(path)
+        } else {
+            Some(format!("{path}{query}{fragment}").into())
+        }
+    }
+
     /// Turns the request into a string.
     ///
     /// This is not only used for printing the request to the user, but also for matching inner
