@@ -925,9 +925,9 @@ describe.each(VARIANTS)(
             'deploy (no adapter), cache components, proxy',
           ].includes(env)
         ) {
-          expect(tree).toMatchInlineSnapshot(`
-            "[trace A] middleware GET (Middleware.execute) {http.target=/redirect}"
-          `)
+          expect(tree).toMatchInlineSnapshot(
+            `"[trace A] middleware GET (Middleware.execute) {http.target=/redirect}"`
+          )
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
@@ -978,9 +978,9 @@ describe.each(VARIANTS)(
             'deploy (no adapter), cache components, proxy',
           ].includes(env)
         ) {
-          expect(tree).toMatchInlineSnapshot(`
-            "[trace A] middleware GET (Middleware.execute) {http.target=/direct}"
-          `)
+          expect(tree).toMatchInlineSnapshot(
+            `"[trace A] middleware GET (Middleware.execute) {http.target=/direct}"`
+          )
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
@@ -1032,9 +1032,9 @@ describe.each(VARIANTS)(
             'deploy (no adapter), cache components, proxy',
           ].includes(env)
         ) {
-          expect(tree).toMatchInlineSnapshot(`
-            "[trace A] middleware GET (Middleware.execute) {http.target=/rewrite-external}"
-          `)
+          expect(tree).toMatchInlineSnapshot(
+            `"[trace A] middleware GET (Middleware.execute) {http.target=/rewrite-external}"`
+          )
         } else {
           // Not observed yet (filled from CI).
           expect(tree).toMatchInlineSnapshot()
