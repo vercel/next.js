@@ -67,7 +67,6 @@ import {
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
 } from '../../../build/utils'
-import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
@@ -384,6 +383,7 @@ async function startWatcher(
     })
   })
 
+  const configuredBeforeFiles = [...opts.fsChecker.rewrites.beforeFiles]
   let resolved = false
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
@@ -521,12 +521,9 @@ async function startWatcher(
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
-
-      appFiles.clear()
-      pageFiles.clear()
-      staticMetadataFiles.clear()
-      devPageFiles.clear()
+      const appFiles = new Set<string>()
+      const pageFiles = new Set<string>()
+      const staticMetadataFiles = new Map<string, string>()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -691,9 +688,6 @@ async function startWatcher(
           continue
         }
 
-        // Collect all current filenames for the TS plugin to use
-        devPageFiles.add(fileName)
-
         let pageName = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,
           extensions: nextConfig.pageExtensions,
@@ -839,7 +833,6 @@ async function startWatcher(
 
           if (useFileSystemPublicRoutes) {
             pageFiles.add(pageName)
-            opts.fsChecker.nextDataRoutes.add(pageName)
           }
 
           const route = normalizePathSep(pageName)
@@ -1232,9 +1225,6 @@ async function startWatcher(
         }),
       ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
 
-      opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
-      opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
-
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
@@ -1263,7 +1253,12 @@ async function startWatcher(
         )
       )
 
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
+      opts.fsChecker.rewrites.beforeFiles.splice(
+        0,
+        Infinity,
+        ...configuredBeforeFiles,
+        ...interceptionRoutes
+      )
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
@@ -1304,7 +1299,7 @@ async function startWatcher(
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
+        const dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
             const regex = getNamedRouteRegex(page, {
               prefixRouteKeys: true,
@@ -1321,7 +1316,7 @@ async function startWatcher(
           }
         )
 
-        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
+        const dataRoutes: FilesystemDynamicRoute[] = []
 
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
@@ -1348,7 +1343,20 @@ async function startWatcher(
             }),
           })
         }
-        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
+        dynamicRoutes.unshift(...dataRoutes)
+        opts.fsChecker.replaceDevRoutes({
+          pageRoutes: pageRouteDefinitions,
+          appRoutes: appRouteDefinitions,
+          appFiles,
+          pageFiles,
+          staticMetadataFiles,
+          nextDataRoutes: new Set(
+            useFileSystemPublicRoutes
+              ? pageRouteDefinitions.map((route) => route.pathname)
+              : []
+          ),
+          dynamicRoutes,
+        })
 
         // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
         // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.

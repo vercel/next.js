@@ -97,6 +97,21 @@ export type FilesystemDynamicRoute = ManifestRoute & {
   match: PatchMatcher
 }
 
+/**
+ * All request-routing state produced by one dev route discovery update.
+ * Keeping membership separate from identities supports static metadata and
+ * useFileSystemPublicRoutes without discarding compiler route information.
+ */
+export interface DevRoutesSnapshot {
+  appRoutes: ReadonlyArray<RouteIdentity>
+  pageRoutes: ReadonlyArray<RouteIdentity>
+  appFiles: ReadonlySet<string>
+  pageFiles: ReadonlySet<string>
+  staticMetadataFiles: ReadonlyMap<string, string>
+  nextDataRoutes: ReadonlySet<string>
+  dynamicRoutes: ReadonlyArray<FilesystemDynamicRoute>
+}
+
 const buildFilesystemDynamicRoute = (page: string): FilesystemDynamicRoute => {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
@@ -661,18 +676,45 @@ export async function setupFsCheck(opts: {
     staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
-    setRouteDefinitions(
-      type: 'appFile' | 'pageFile',
-      definitions: ReadonlyArray<RouteIdentity>
-    ) {
-      routeDefinitions[type].clear()
-      for (const definition of definitions) {
-        setRouteDefinition(
-          type,
-          definition.pathname,
-          definition as LocaleRouteIdentity
-        )
+    replaceDevRoutes(snapshot: DevRoutesSnapshot) {
+      if (!opts.dev) {
+        throw new Error('replaceDevRoutes is only available in development')
       }
+
+      // There is no await between replacing these collections. A request sees
+      // route identities and membership from the same discovery update. Keep
+      // the Sets/Maps stable because getItem closes over them.
+      routeDefinitions.appFile.clear()
+      routeDefinitions.pageFile.clear()
+      for (const definition of snapshot.appRoutes) {
+        setRouteDefinition('appFile', definition.pathname, definition)
+      }
+      for (const definition of snapshot.pageRoutes) {
+        setRouteDefinition('pageFile', definition.pathname, definition)
+      }
+
+      if (snapshot.appFiles !== appFiles) {
+        appFiles.clear()
+        for (const pathname of snapshot.appFiles) appFiles.add(pathname)
+      }
+      if (snapshot.pageFiles !== pageFiles) {
+        pageFiles.clear()
+        for (const pathname of snapshot.pageFiles) pageFiles.add(pathname)
+      }
+      if (snapshot.staticMetadataFiles !== staticMetadataFiles) {
+        staticMetadataFiles.clear()
+        for (const [pathname, filename] of snapshot.staticMetadataFiles) {
+          staticMetadataFiles.set(pathname, filename)
+        }
+      }
+      if (snapshot.nextDataRoutes !== nextDataRoutes) {
+        nextDataRoutes.clear()
+        for (const pathname of snapshot.nextDataRoutes) {
+          nextDataRoutes.add(pathname)
+        }
+      }
+      dynamicRoutes = Array.from(snapshot.dynamicRoutes)
+      this.dynamicRoutes = dynamicRoutes
     },
     getRouteDefinition,
 
