@@ -1,3 +1,4 @@
+// run deploy tests: v1
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import cookie from 'cookie'
