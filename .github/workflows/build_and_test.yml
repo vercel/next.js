@@ -908,6 +908,11 @@ jobs:
         builder: [adapter, non-adapter]
         # Run without and with cache components (__NEXT_CACHE_COMPONENTS=true).
         cache-components: [false, true]
+        exclude:
+          # The release deploy tests don't run cache components with the
+          # non-adapter builder.
+          - builder: non-adapter
+            cache-components: true
 
     permissions:
       contents: read
