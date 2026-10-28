@@ -3,7 +3,7 @@ import path from 'path'
 
 describe('build-output-tree-view', () => {
   // TODO(NAR-423): Migrate to Cache Components.
-  describe.skip('with mixed static and dynamic pages and app router routes', () => {
+  describe('with mixed static and dynamic pages and app router routes', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/mixed'),
       skipStart: true,

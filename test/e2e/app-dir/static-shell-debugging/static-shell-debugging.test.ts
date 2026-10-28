@@ -5,7 +5,6 @@ import { nextTestSetup } from 'e2e-utils'
 // This test skips deployment because env vars that are doubled underscore prefixed
 // are not supported. This is also intended to be used in development.
 // @force-gate !deploy
-// @force-gate TODO
 describe('static-shell-debugging', () => {
   const cacheComponents = Boolean(process.env.__NEXT_CACHE_COMPONENTS)
   const context = {

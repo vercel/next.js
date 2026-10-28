@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
-// @force-gate FIXME
 // @force-gate prefetching
 describe('search-params', () => {
   const { next } = nextTestSetup({

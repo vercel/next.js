@@ -8,7 +8,6 @@ function countSubstring(str: string, substr: string): number {
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // Need to skip deployment because the test uses the private env cannot be used in deployment
 // @force-gate !deploy
-// @force-gate TODO
 describe('ppr-metadata-blocking-ppr-fallback', () => {
   const { next } = nextTestSetup({
     files: __dirname,

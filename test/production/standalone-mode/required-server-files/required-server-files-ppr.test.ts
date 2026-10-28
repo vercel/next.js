@@ -14,7 +14,7 @@ import {
 import { ChildProcess } from 'node:child_process'
 
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('required server files app router', () => {
+describe('required server files app router', () => {
   let server: ChildProcess
   let appPort: number | string
   let delayedPostpone: string
