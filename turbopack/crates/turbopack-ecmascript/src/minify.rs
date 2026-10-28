@@ -29,7 +29,7 @@ use tracing::instrument;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::{SourceMapType, SourceMaps},
+    source_map::SourceMaps,
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
@@ -38,18 +38,10 @@ use crate::parse::{IdentCollector, generate_js_source_map};
 pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
-    let full_map = code
-        .has_source_map_for(SourceMapType::Full)
-        .then(|| code.generate_source_map_ref(None, SourceMapType::Full))
-        .transpose()?;
-    let partial_map = code
-        .has_source_map_for(SourceMapType::Partial)
-        .then(|| code.generate_source_map_ref(None, SourceMapType::Partial))
-        .transpose()?;
+    let original_maps = code.source_maps()?;
     let source_maps = code.has_source_map();
-
     anyhow::ensure!(
-        !source_maps || full_map.is_some() || partial_map.is_some(),
+        !source_maps || original_maps != SourceMaps::None,
         "Cannot minify code with incompatible source map variants"
     );
     let generate_debug_id = code.should_generate_debug_id();
@@ -159,11 +151,7 @@ pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
     };
 
     src_map_buf.shrink_to_fit();
-    let source_maps = SourceMaps {
-        full: full_map,
-        partial: partial_map,
-    }
-    .try_map(|original_map| {
+    let source_maps = original_maps.try_map(|original_map| {
         generate_js_source_map(
             &*cm,
             &src_map_buf,
@@ -214,4 +202,36 @@ fn print_program(
     };
 
     Ok((src, src_map_buf))
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_tasks_fs::rope::Rope;
+    use turbopack_core::{
+        code_builder::CodeBuilder,
+        source_map::{SourceMap, SourceMaps},
+    };
+
+    use crate::minify::minify;
+
+    #[test]
+    fn preserves_shared_maps() -> anyhow::Result<()> {
+        let mut code = CodeBuilder::new(false);
+        code.push_source(
+            &Rope::from("console.log(1);"),
+            SourceMaps::Shared(SourceMap::empty_rope()),
+        );
+        let minified = minify(code.build(), None)?;
+        assert!(matches!(minified.source_maps()?, SourceMaps::Shared(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn preserves_disabled_maps() -> anyhow::Result<()> {
+        let mut code = CodeBuilder::new(false);
+        code += "console.log(1);";
+        let minified = minify(code.build(), None)?;
+        assert!(!minified.has_source_map());
+        Ok(())
+    }
 }

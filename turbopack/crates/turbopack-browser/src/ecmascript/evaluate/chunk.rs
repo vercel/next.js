@@ -181,7 +181,13 @@ impl EcmascriptBrowserEvaluateChunk {
                 .output_root_to_root_path()
                 .owned()
                 .await?;
-            let asset_context = turbopack::get_runtime_asset_context(environment);
+            let asset_context = turbopack::get_runtime_asset_context(
+                environment,
+                *this
+                    .chunking_context
+                    .source_map_generation_options()
+                    .await?,
+            );
             let runtime_type = *this.chunking_context.runtime_type().await?;
             // Detect async modules from the whole-app graph in production. In development the graph
             // is per-page, so always include the machinery.

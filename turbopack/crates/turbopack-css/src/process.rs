@@ -134,8 +134,9 @@ async fn stylesheet_to_css(
         ..Default::default()
     })?;
 
+    let shared_source_map = generation.full && generation.partial && origin_source_map.is_none();
     let partial_source_map = if generation.partial {
-        let mut partial_map = if generation.full {
+        let mut partial_map = if generation.full && !shared_source_map {
             srcmap.as_ref().unwrap().clone()
         } else {
             srcmap.take().unwrap()
@@ -148,7 +149,7 @@ async fn stylesheet_to_css(
         None
     };
 
-    let source_map = if generation.full {
+    let source_map = if generation.full && !shared_source_map {
         let map = srcmap.as_mut().unwrap();
         debug_assert_eq!(ss.sources.len(), 1);
         if let Some(origin_source_map) = origin_source_map.as_mut() {
@@ -162,13 +163,12 @@ async fn stylesheet_to_css(
         None
     };
 
-    Ok((
-        result,
-        SourceMaps {
-            full: source_map,
-            partial: partial_source_map,
-        },
-    ))
+    let source_maps = if shared_source_map {
+        SourceMaps::Shared(partial_source_map.unwrap())
+    } else {
+        SourceMaps::new(source_map, partial_source_map)
+    };
+    Ok((result, source_maps))
 }
 
 /// Multiple [ModuleReference]s

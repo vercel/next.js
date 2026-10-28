@@ -1,8 +1,9 @@
+mod source_map_sections;
+
 use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
     ops,
-    sync::Arc,
 };
 
 use anyhow::Result;
@@ -17,11 +18,12 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
+    code_builder::source_map_sections::{MappingVariants, Mappings},
     debug_id::generate_debug_id,
     output::OutputAsset,
     source_map::{
-        GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType,
-        SourceMaps, structured::StructuredSourceMap,
+        GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapType, SourceMaps,
+        structured::StructuredSourceMap,
     },
     source_pos::SourcePos,
 };
@@ -78,11 +80,8 @@ pub type Mapping = (usize, Option<SectionMap>);
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    full_mappings: Arc<Vec<Mapping>>,
-    partial_mappings: Arc<Vec<Mapping>>,
+    mappings: MappingVariants,
     should_generate_debug_id: bool,
-    // Synthetic sections impose no constraint; mapped sections must all support the variant.
-    available_source_maps: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -101,10 +100,7 @@ impl PersistedCode {
 impl Code {
     /// Rejects variants that were not generated for every mapped section.
     pub fn validate_source_map_type(&self, ty: SourceMapType) -> Result<()> {
-        let available = match ty {
-            SourceMapType::Full => self.available_source_maps.full,
-            SourceMapType::Partial => self.available_source_maps.partial,
-        };
+        let available = self.mappings(ty).complete;
         anyhow::ensure!(
             available,
             "Requested {ty:?} source map was not generated for all mapped code"
@@ -118,17 +114,32 @@ impl Code {
 
     /// Tests if any code in this Code contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        !self.full_mappings.is_empty() || !self.partial_mappings.is_empty()
+        self.mappings.has_source_map()
     }
     pub fn has_source_map_for(&self, ty: SourceMapType) -> bool {
-        match ty {
-            SourceMapType::Full => {
-                self.available_source_maps.full && !self.full_mappings.is_empty()
-            }
-            SourceMapType::Partial => {
-                self.available_source_maps.partial && !self.partial_mappings.is_empty()
-            }
+        let stream = self.mappings(ty);
+        stream.complete && stream.has_source_map()
+    }
+
+    fn mappings(&self, ty: SourceMapType) -> &Mappings {
+        self.mappings.get(ty)
+    }
+
+    pub fn source_maps(&self) -> Result<SourceMaps<Rope>> {
+        let full = self.has_source_map_for(SourceMapType::Full);
+        let partial = self.has_source_map_for(SourceMapType::Partial);
+        if full && partial && matches!(self.mappings, MappingVariants::Shared(_)) {
+            return Ok(SourceMaps::Shared(
+                self.generate_source_map_ref(None, SourceMapType::Full)?,
+            ));
         }
+        Ok(SourceMaps::new(
+            full.then(|| self.generate_source_map_ref(None, SourceMapType::Full))
+                .transpose()?,
+            partial
+                .then(|| self.generate_source_map_ref(None, SourceMapType::Partial))
+                .transpose()?,
+        ))
     }
 
     // Whether this code should have a debug id generated for it
@@ -209,23 +220,16 @@ impl Code {
 /// CodeBuilder provides a mutable container to append source code.
 pub struct CodeBuilder {
     code: RopeBuilder,
-    full_mappings: Vec<Mapping>,
-    partial_mappings: Vec<Mapping>,
+    mappings: MappingVariants,
     should_generate_debug_id: bool,
-    available_source_maps: SourceMapGenerationOptions,
 }
 
 impl Default for CodeBuilder {
     fn default() -> Self {
         Self {
             code: RopeBuilder::default(),
-            full_mappings: Vec::new(),
-            partial_mappings: Vec::new(),
+            mappings: MappingVariants::default(),
             should_generate_debug_id: false,
-            available_source_maps: SourceMapGenerationOptions {
-                full: true,
-                partial: true,
-            },
         }
     }
 }
@@ -242,8 +246,7 @@ impl CodeBuilder {
     /// the default concatenation operation, but it's designed to be used
     /// with the `+=` operator.
     fn push_static_bytes(&mut self, code: &'static [u8]) {
-        self.push_map(None, SourceMapType::Full);
-        self.push_map(None, SourceMapType::Partial);
+        self.push_source_maps(SourceMaps::None);
         self.code.push_static_bytes(code);
     }
 
@@ -255,13 +258,12 @@ impl CodeBuilder {
         code: &Rope,
         source_maps: SourceMaps<M>,
     ) {
-        if source_maps.full.is_some() || source_maps.partial.is_some() {
-            self.available_source_maps.full &= source_maps.full.is_some();
-            self.available_source_maps.partial &= source_maps.partial.is_some();
-        }
-        self.push_map(source_maps.full.map(Into::into), SourceMapType::Full);
-        self.push_map(source_maps.partial.map(Into::into), SourceMapType::Partial);
+        self.push_source_maps(source_maps.map(Into::into));
         self.code += code;
+    }
+
+    fn push_source_maps(&mut self, source_maps: SourceMaps<SectionMap>) {
+        self.mappings.push(self.code.len(), source_maps);
     }
 
     /// Copies the Synthetic/Original code of an already constructed Code into
@@ -269,70 +271,20 @@ impl CodeBuilder {
     ///
     /// This adjusts the source map to be relative to the new code object
     pub fn push_code(&mut self, prebuilt: &Code) {
-        self.available_source_maps.full &= prebuilt.available_source_maps.full;
-        self.available_source_maps.partial &= prebuilt.available_source_maps.partial;
-        for (ty, prebuilt_mappings) in [
-            (SourceMapType::Full, &prebuilt.full_mappings),
-            (SourceMapType::Partial, &prebuilt.partial_mappings),
-        ] {
-            if prebuilt_mappings
-                .first()
-                .is_none_or(|(index, _)| *index > 0)
-            {
-                // Synthetic prefixes must end the previous section's mappings.
-                self.push_map(None, ty);
-            }
-
-            let len = self.code.len();
-            let mappings = match ty {
-                SourceMapType::Full => &mut self.full_mappings,
-                SourceMapType::Partial => &mut self.partial_mappings,
-            };
-            mappings.extend(
-                prebuilt_mappings
-                    .iter()
-                    .map(|(index, map)| (index + len, map.clone())),
-            );
-        }
-
+        self.mappings.append(self.code.len(), &prebuilt.mappings);
         self.code += &prebuilt.code;
-    }
-
-    /// Setting breakpoints on synthetic code can cause weird behaviors
-    /// because Chrome will treat the location as belonging to the previous
-    /// original code section. By inserting an empty source map when reaching a
-    /// synthetic section directly after an original section, we tell Chrome
-    /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<SectionMap>, ty: SourceMapType) {
-        let mappings = match ty {
-            SourceMapType::Full => &mut self.full_mappings,
-            SourceMapType::Partial => &mut self.partial_mappings,
-        };
-
-        if map.is_none() && matches!(mappings.last(), None | Some((_, None))) {
-            // No reason to push an empty map directly after an empty map
-            return;
-        }
-
-        debug_assert!(
-            map.is_some() || !mappings.is_empty(),
-            "the first mapping is never a None"
-        );
-        mappings.push((self.code.len(), map));
     }
 
     /// Tests if any code in this CodeBuilder contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        !self.full_mappings.is_empty() || !self.partial_mappings.is_empty()
+        self.mappings.has_source_map()
     }
 
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            full_mappings: Arc::new(self.full_mappings),
-            partial_mappings: Arc::new(self.partial_mappings),
+            mappings: self.mappings,
             should_generate_debug_id: self.should_generate_debug_id,
-            available_source_maps: self.available_source_maps,
         }
     }
 }
@@ -351,8 +303,7 @@ impl ops::AddAssign<&'static str> for &mut CodeBuilder {
 
 impl Write for CodeBuilder {
     fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
-        self.push_map(None, SourceMapType::Full);
-        self.push_map(None, SourceMapType::Partial);
+        self.push_source_maps(SourceMaps::None);
         self.code.write(bytes)
     }
 
@@ -433,10 +384,7 @@ impl Code {
 
         let mut last_byte_pos = 0;
 
-        let mappings = match ty {
-            SourceMapType::Full => &self.full_mappings,
-            SourceMapType::Partial => &self.partial_mappings,
-        };
+        let mappings = &self.mappings(ty).mappings;
         let mut sections = Vec::with_capacity(mappings.len());
         let mut read = self.code.read();
         for (byte_pos, map) in mappings.iter() {

@@ -293,10 +293,13 @@ pub async fn get_evaluate_pool(
 
     // Invalidate pool when code content changes
     content_changed(Vc::upcast(**bootstrap)).await?;
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(**bootstrap, output_root.clone())
-            .to_resolved()
-            .await?;
+    let assets_for_source_mapping = internal_assets_for_source_mapping(
+        **bootstrap,
+        output_root.clone(),
+        *chunking_context.emitted_source_map_type().await?,
+    )
+    .to_resolved()
+    .await?;
     let env = match env_var_tracking {
         EnvVarTracking::WholeEnvTracked => env.read_all().await?,
         EnvVarTracking::Untracked => {

@@ -28,40 +28,40 @@ async fn split_chunk() {
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
-            SourceMaps {
-                full: Some(Rope::from(serde_json::to_string(&json!({
+            SourceMaps::new(
+                Some(Rope::from(serde_json::to_string(&json!({
                     "version": 3,
                     "mappings": "AAAA",
                     "sources": ["original-source.ts"],
                     "names": []
                 }))?)),
-                partial: Some(Rope::from(serde_json::to_string_pretty(&json! ({
+                Some(Rope::from(serde_json::to_string_pretty(&json! ({
                     "version": 3,
                     "mappings": "AAAA;AACA",
                     "sources": ["source1.js"],
                     "names": [],
                     "sourcesContent": ["console.log('Hello world!');"]
                 }))?)),
-            },
+            ),
         );
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
-            SourceMaps {
-                full: Some(Rope::from(serde_json::to_string(&json!({
+            SourceMaps::new(
+                Some(Rope::from(serde_json::to_string(&json!({
                     "version": 3,
                     "mappings": "AAAA",
                     "sources": ["original-source.ts"],
                     "names": []
                 }))?)),
-                partial: Some(Rope::from(serde_json::to_string_pretty(&json! ({
+                Some(Rope::from(serde_json::to_string_pretty(&json! ({
                     "version": 3,
                     "mappings": "AAAA",
                     "sources": ["source2.js"],
                     "names": [],
                     "sourcesContent": ["console.log('Middle of file');"]
                 }))?)),
-            },
+            ),
         );
         code += "This is the end of the file.\n";
         let code = code.build();
@@ -195,10 +195,10 @@ fn rejects_missing_source_map_variants() {
     let mut partial = CodeBuilder::new(false);
     partial.push_source(
         &Rope::from("partial"),
-        SourceMaps {
-            full: None,
-            partial: Some(turbopack_core::source_map::SourceMap::empty_rope()),
-        },
+        SourceMaps::new(
+            None,
+            Some(turbopack_core::source_map::SourceMap::empty_rope()),
+        ),
     );
     let partial = partial.build();
     assert!(
@@ -226,10 +226,10 @@ fn rejects_missing_source_map_variants() {
     incompatible.push_code(&combined);
     incompatible.push_source(
         &Rope::from("full"),
-        SourceMaps {
-            full: Some(turbopack_core::source_map::SourceMap::empty_rope()),
-            partial: None,
-        },
+        SourceMaps::new(
+            Some(turbopack_core::source_map::SourceMap::empty_rope()),
+            None,
+        ),
     );
     let incompatible = incompatible.build();
     assert!(
@@ -242,4 +242,44 @@ fn rejects_missing_source_map_variants() {
             .generate_source_map_ref(None, SourceMapType::Partial)
             .is_err()
     );
+}
+
+#[test]
+fn shared_maps_survive_concatenation() -> anyhow::Result<()> {
+    let mut source = CodeBuilder::new(false);
+    source.push_source(
+        &Rope::from("const value = 1;"),
+        SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
+    );
+    let mut combined = CodeBuilder::new(false);
+    combined += "prefix";
+    combined.push_code(&source.build());
+    combined += "suffix";
+    let combined = combined.build();
+    assert!(matches!(combined.source_maps()?, SourceMaps::Shared(_)));
+    assert_eq!(
+        combined.generate_source_map_ref(None, SourceMapType::Full)?,
+        combined.generate_source_map_ref(None, SourceMapType::Partial)?,
+    );
+    Ok(())
+}
+
+#[test]
+fn shared_maps_split_when_variants_diverge() -> anyhow::Result<()> {
+    let mut code = CodeBuilder::new(false);
+    code.push_source(
+        &Rope::from("shared"),
+        SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
+    );
+    code.push_source(
+        &Rope::from("partial"),
+        SourceMaps::Partial(turbopack_core::source_map::SourceMap::empty_rope()),
+    );
+    let code = code.build();
+    assert!(
+        code.generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(matches!(code.source_maps()?, SourceMaps::Partial(_)));
+    Ok(())
 }

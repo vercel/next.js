@@ -2423,7 +2423,7 @@ async fn emit_content(
         None
     };
 
-    let source_map = if generate_source_map && source_map_generation_options.full {
+    let source_maps = if generate_source_map && source_map_generation_options.full {
         let original_source_maps = original_source_map
             .iter()
             .map(|map| map.generate_source_map(SourceMapType::Full))
@@ -2435,31 +2435,31 @@ async fn emit_content(
             .map(|map| map.content())
             .collect::<Vec<_>>();
 
-        if original_source_maps.is_empty() && partial_source_map.is_some() {
-            partial_source_map.clone()
+        if let (true, Some(map)) = (original_source_maps.is_empty(), partial_source_map.as_ref()) {
+            SourceMaps::Shared(map.clone())
         } else {
-            Some(generate_js_source_map(
-                &*source_map,
-                &mappings,
-                original_source_maps,
-                matches!(
-                    original_source_map,
-                    CodeGenResultOriginalSourceMap::Single(_)
-                ),
-                true,
-                &source_map_names,
-            )?)
+            SourceMaps::new(
+                Some(generate_js_source_map(
+                    &*source_map,
+                    &mappings,
+                    original_source_maps,
+                    matches!(
+                        original_source_map,
+                        CodeGenResultOriginalSourceMap::Single(_)
+                    ),
+                    true,
+                    &source_map_names,
+                )?),
+                partial_source_map,
+            )
         }
     } else {
-        None
+        SourceMaps::new(None, partial_source_map)
     };
 
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
-        source_maps: SourceMaps {
-            full: source_map,
-            partial: partial_source_map,
-        },
+        source_maps,
         is_esm,
         strict,
         additional_ids,

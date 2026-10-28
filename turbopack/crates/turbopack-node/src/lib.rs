@@ -9,7 +9,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
     virtual_output::VirtualOutputAsset,
 };
 
@@ -83,7 +83,9 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(
+    FxHashMap<String, (ResolvedVc<Box<dyn GenerateSourceMap>>, SourceMapType)>,
+);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -91,7 +93,11 @@ pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateS
 async fn internal_assets_for_source_mapping(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: FileSystemPath,
+    source_map_type: Option<SourceMapType>,
 ) -> Result<Vc<AssetsForSourceMapping>> {
+    let Some(source_map_type) = source_map_type else {
+        return Ok(Vc::cell(FxHashMap::default()));
+    };
     let internal_assets =
         internal_assets(intermediate_asset, intermediate_output_path.clone()).await?;
     let intermediate_output_path = intermediate_output_path.clone();
@@ -101,7 +107,8 @@ async fn internal_assets_for_source_mapping(
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
             && let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?)
         {
-            internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
+            internal_assets_for_source_mapping
+                .insert(path.to_string(), (generate_source_map, source_map_type));
         }
     }
     Ok(Vc::cell(internal_assets_for_source_mapping))

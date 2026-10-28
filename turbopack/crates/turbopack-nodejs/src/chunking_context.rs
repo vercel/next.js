@@ -27,7 +27,7 @@ use turbopack_core::{
         chunk_group_info::ChunkGroupKey,
     },
     output::{OutputAsset, OutputAssets},
-    source_map::{OptionSourceMapType, SourceMapType},
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -79,6 +79,11 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    pub fn source_map_generation_options(mut self, options: SourceMapGenerationOptions) -> Self {
+        self.chunking_context.source_map_generation_options = Some(options);
         self
     }
 
@@ -236,6 +241,7 @@ pub struct NodeJsChunkingContext {
     minify_type: MinifyType,
     /// Whether to generate source maps
     emitted_source_map_type: Option<SourceMapType>,
+    source_map_generation_options: Option<SourceMapGenerationOptions>,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
@@ -294,6 +300,7 @@ impl NodeJsChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 emitted_source_map_type: Some(SourceMapType::Full),
+                source_map_generation_options: None,
                 manifest_chunks: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: None,
@@ -397,6 +404,15 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
+    #[turbo_tasks::function]
+    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
+        self.source_map_generation_options
+            .unwrap_or_else(|| {
+                SourceMapGenerationOptions::from_emitted(self.emitted_source_map_type)
+            })
+            .cell()
+    }
+
     #[turbo_tasks::function]
     fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
         Vc::cell(self.emitted_source_map_type)

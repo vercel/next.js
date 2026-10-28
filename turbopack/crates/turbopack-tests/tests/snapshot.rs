@@ -759,3 +759,70 @@ fn styled_components_transform_plugin() -> Vc<TransformPlugin> {
         &StyledComponentsTransformConfig::default(),
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn runtime_source_map_generation_requests() -> Result<()> {
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions::default(),
+        noop_backing_storage(),
+    ));
+    tt.run_once(async {
+        runtime_source_map_generation_operation()
+            .read_strongly_consistent()
+            .await?;
+        anyhow::Ok(())
+    })
+    .await
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
+    use turbopack_core::source_map::{SourceMapGenerationOptions, SourceMapType, SourceMaps};
+    use turbopack_ecmascript::StaticEcmascriptCode;
+    use turbopack_ecmascript_runtime::embed_file_path;
+
+    let environment = Environment::new(ExecutionEnvironment::Browser(
+        BrowserEnvironment {
+            dom: true,
+            web_worker: false,
+            service_worker: false,
+            browserslist_query: rcstr!("last 1 Chrome version"),
+        }
+        .resolved_cell(),
+    ));
+    for generation in [
+        SourceMapGenerationOptions::NONE,
+        SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Full)),
+        SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Partial)),
+        SourceMapGenerationOptions {
+            full: true,
+            partial: true,
+        },
+    ] {
+        let context = turbopack::get_runtime_asset_context(environment, generation);
+        let code = StaticEcmascriptCode::new(
+            context,
+            embed_file_path(rcstr!("shared/runtime/runtime-utils.ts"))
+                .owned()
+                .await?,
+        )
+        .code()
+        .await?;
+        assert_eq!(
+            code.has_source_map(),
+            generation.should_generate_any_source_maps()
+        );
+        assert_eq!(
+            code.has_source_map_for(SourceMapType::Full),
+            generation.full && generation.should_generate_any_source_maps()
+        );
+        assert_eq!(
+            code.has_source_map_for(SourceMapType::Partial),
+            generation.partial && generation.should_generate_any_source_maps()
+        );
+        if generation.full && generation.partial {
+            assert!(matches!(code.source_maps()?, SourceMaps::Shared(_)));
+        }
+    }
+    Ok(Vc::cell(()))
+}
