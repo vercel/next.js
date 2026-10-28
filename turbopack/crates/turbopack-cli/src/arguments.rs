@@ -43,6 +43,9 @@ pub enum Target {
 
 #[derive(Debug, Args, Clone)]
 pub struct CommonArguments {
+    #[clap(flatten)]
+    pub go: GoBuildOptions,
+
     /// The entrypoints of the project. Resolved relative to the project's
     /// directory (`--dir`).
     #[clap(value_parser)]
@@ -137,10 +140,11 @@ pub struct DevArguments {
 #[clap(author, version, about, long_about = None)]
 pub struct BuildArguments {
     #[clap(flatten)]
-    pub go: GoBuildOptions,
-
-    #[clap(flatten)]
     pub common: CommonArguments,
+
+    /// Rebuild all entrypoints when their dependencies change.
+    #[clap(long)]
+    pub watch: bool,
 
     /// Don't generate sourcemaps.
     #[clap(long)]
@@ -192,33 +196,22 @@ impl FromStr for IssueSeverityCliOption {
     }
 }
 
-/// Options for native Go file builds.
-#[derive(Debug, Args)]
+/// Go toolchain options shared by build and dev.
+#[derive(Clone, Debug, Args)]
 pub struct GoBuildOptions {
     /// Go binary from an installation that stays immutable throughout this session.
     #[clap(long, default_value = "go")]
     pub go: PathBuf,
-    /// Output executable. Defaults to <dir>/dist/<first-input-name> (with .exe on Windows).
-    #[clap(long)]
-    pub output: Option<PathBuf>,
-    /// Override Go's build cache. Defaults to the installed toolchain's GOCACHE.
-    #[clap(long)]
-    pub go_cache: Option<PathBuf>,
+    /// Build tags for imported Go packages.
     #[clap(long, default_value = "")]
     pub tags: String,
-    /// Keep one live task graph and rebuild after tracked filesystem changes.
-    #[clap(long)]
-    pub watch: bool,
 }
 
 impl Default for GoBuildOptions {
     fn default() -> Self {
         Self {
             go: PathBuf::from("go"),
-            output: None,
-            go_cache: None,
             tags: String::new(),
-            watch: false,
         }
     }
 }

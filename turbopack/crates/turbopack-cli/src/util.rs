@@ -76,3 +76,18 @@ pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(project_dir));
     Ok(Vc::upcast(disk_fs))
 }
+
+/// Wait for a CLI shutdown signal on every supported entrypoint language.
+pub async fn interrupted() -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => result?,
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    tokio::signal::ctrl_c().await?;
+    Ok(())
+}

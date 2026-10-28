@@ -10,8 +10,8 @@ use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Effects, OperationVc, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
-    read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, OperationVc, ReadConsistency, ResolvedVc, TaskId, TransientInstance, TryJoinIterExt,
+    TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
@@ -55,6 +55,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     arguments::{BuildArguments, Target},
     contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
+    go::{GoBuild, is_go_entry},
     util::{
         EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
@@ -62,6 +63,7 @@ use crate::{
 
 type Backend = TurboTasksBackend;
 
+#[derive(Clone)]
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
@@ -75,6 +77,7 @@ pub struct TurbopackBuildBuilder {
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
+    go_build: Option<GoBuild>,
 }
 
 impl TurbopackBuildBuilder {
@@ -96,6 +99,7 @@ impl TurbopackBuildBuilder {
             },
             target: Target::Node,
             scope_hoist: true,
+            go_build: None,
         }
     }
 
@@ -144,36 +148,70 @@ impl TurbopackBuildBuilder {
         self
     }
 
+    pub fn go_build(mut self, go_build: Option<GoBuild>) -> Self {
+        self.go_build = go_build;
+        self
+    }
+
     pub async fn build(self) -> Result<()> {
-        self.turbo_tasks
-            .run_once(async move {
-                let wrapper_op = extract_effects_operation(build_internal(
-                    self.project_dir.clone(),
-                    self.root_dir,
-                    self.entry_requests.clone(),
-                    self.browserslist_query,
-                    self.source_maps_type,
-                    self.minify_type,
-                    self.target,
-                    self.scope_hoist,
-                ));
+        self.turbo_tasks.clone().run_once(self.compile(false)).await
+    }
 
-                read_strongly_consistent_and_apply_effects(wrapper_op, |e| e).await?;
+    /// Keep the same compilation graph alive for every entrypoint language.
+    pub fn watch(self) -> TaskId {
+        let turbo_tasks = self.turbo_tasks.clone();
+        turbo_tasks.spawn_root_task::<(), _, _>(move || {
+            let builder = self.clone();
+            async move {
+                if let Err(error) = builder.compile(true).await {
+                    eprintln!("{error:#}");
+                }
+                Ok(Vc::cell(()))
+            }
+        })
+    }
 
-                let issue_reporter: Vc<Box<dyn IssueReporter>> =
-                    Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
-                        project_dir: PathBuf::from(self.project_dir),
-                        current_dir: current_dir().unwrap(),
-                        show_all: self.show_all,
-                        log_detail: self.log_detail,
-                        log_level: self.log_level,
-                    })));
+    async fn compile(self, watch: bool) -> Result<()> {
+        let wrapper_op = extract_effects_operation(build_internal(
+            self.project_dir.clone(),
+            self.root_dir,
+            self.entry_requests,
+            self.browserslist_query,
+            self.source_maps_type,
+            self.minify_type,
+            self.target,
+            self.scope_hoist,
+            watch,
+            self.go_build.clone(),
+        ));
 
-                handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
+        // Cancel publication while allowing the compiler graph to settle before engine shutdown.
+        tokio::select! {
+            result = read_strongly_consistent_and_apply_effects(wrapper_op, |e| e) => { result?; }
+            _ = async {
+                match &self.go_build {
+                    Some(build) => build.context.cancelled().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                // Let the shared graph settle without applying its effects. Stopping the
+                // engine first could strand operations that still need to schedule tasks.
+                let _ = wrapper_op.resolve().strongly_consistent().await;
+                return Ok(());
+            },
+        }
 
-                Ok(())
-            })
-            .await
+        let issue_reporter: Vc<Box<dyn IssueReporter>> =
+            Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
+                project_dir: PathBuf::from(self.project_dir),
+                current_dir: current_dir().unwrap(),
+                show_all: self.show_all,
+                log_detail: self.log_detail,
+                log_level: self.log_level,
+            })));
+
+        handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
+        Ok(())
     }
 }
 
@@ -193,7 +231,53 @@ async fn build_internal(
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
+    watch: bool,
+    go_build: Option<GoBuild>,
 ) -> Result<()> {
+    let output_root = output_fs(project_dir.clone()).root().await?.join("dist")?;
+    let js_entries = entry_requests
+        .into_iter()
+        .filter(|entry| !matches!(entry, EntryRequest::Relative(path) if is_go_entry(path)))
+        .collect();
+    let js_assets = build_assets(
+        project_dir,
+        root_dir,
+        js_entries,
+        browserslist_query,
+        source_maps_type,
+        minify_type,
+        target,
+        scope_hoist,
+        watch,
+    );
+    let go_assets = match go_build {
+        Some(build) => crate::go::output_assets(build, output_root),
+        None => OutputAssets::empty(),
+    };
+    let all_assets = js_assets.concatenate(go_assets).await?;
+    all_assets
+        .iter()
+        .map(async |asset| asset.content().write(asset.path().owned().await?).await)
+        .try_join()
+        .await?;
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn build_assets(
+    project_dir: RcStr,
+    root_dir: RcStr,
+    entry_requests: Vec<EntryRequest>,
+    browserslist_query: RcStr,
+    source_maps_type: SourceMapsType,
+    minify_type: MinifyType,
+    target: Target,
+    scope_hoist: bool,
+    watch: bool,
+) -> Result<Vc<OutputAssets>> {
+    if entry_requests.is_empty() {
+        return Ok(OutputAssets::empty());
+    }
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -204,7 +288,7 @@ async fn build_internal(
         .into();
     let project_fs = project_fs(
         root_dir.clone(),
-        /* watch= */ false,
+        watch,
         join_path(project_relative.as_str(), OUTPUT_DIR)
             .unwrap()
             .into(),
@@ -514,27 +598,14 @@ async fn build_internal(
     .instrument(tracing::info_span!("list chunks"))
     .await?;
 
-    all_assets
-        .iter()
-        .map(async |c| c.content().write(c.path().owned().await?).await)
-        .try_join()
-        .await?;
-
-    Ok(())
+    Ok(Vc::cell(all_assets.into_iter().collect()))
 }
 
 pub async fn build(args: &BuildArguments) -> Result<()> {
-    if crate::go::has_go_inputs(args)? {
-        return crate::go::build(args).await;
-    }
-    anyhow::ensure!(
-        !args.go.watch
-            && args.go.output.is_none()
-            && args.go.go_cache.is_none()
-            && args.go.tags.is_empty()
-            && args.go.go == std::path::Path::new("go"),
-        "native Go options require .go input files"
-    );
+    let go_build = tokio::select! {
+        result = crate::go::prepare(&args.common) => result?,
+        signal = crate::util::interrupted() => return signal,
+    };
     let NormalizedDirs {
         project_dir,
         root_dir,
@@ -572,7 +643,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         };
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                dependency_tracking: false,
+                dependency_tracking: args.watch || go_build.is_some(),
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
@@ -591,7 +662,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     } else {
         TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                dependency_tracking: false,
+                dependency_tracking: args.watch || go_build.is_some(),
                 storage_mode: None,
                 ..Default::default()
             },
@@ -600,6 +671,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     };
 
     let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
+        .go_build(go_build.clone())
         .log_detail(args.common.log_detail)
         .log_level(
             args.common
@@ -626,7 +698,50 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         builder = builder.entry_request(EntryRequest::Relative(entry));
     }
 
-    builder.build().await?;
+    if let Some(build) = go_build.clone() {
+        tt.run_once(async move { build.start_watching().await })
+            .await?;
+    }
+    let mut watch_task = None;
+    let result = if args.watch {
+        let root_task = builder.watch();
+        watch_task = Some(root_task);
+        let result = crate::util::interrupted().await;
+        if let Some(build) = &go_build {
+            build.context.cancel();
+        }
+        result
+    } else {
+        let build = builder.build();
+        tokio::pin!(build);
+        tokio::select! {
+            result = &mut build => result,
+            signal = crate::util::interrupted() => {
+                if let Some(build) = &go_build {
+                    build.context.cancel();
+                }
+                let _ = build.await;
+                signal
+            }
+        }
+    };
+    if let Some(build) = go_build {
+        build.context.cancel();
+        tt.run_once(async move { build.stop_watching().await })
+            .await?;
+    }
+    if let Some(task) = watch_task {
+        let tasks = tt.clone();
+        tt.run_once(async move {
+            tasks
+                .wait_task_completion(task, ReadConsistency::Strong)
+                .await
+        })
+        .await?;
+        tt.dispose_root_task(task);
+    }
+    tt.stop_and_wait().await;
+    result?;
 
     // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
     // ton of drop calls.

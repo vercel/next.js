@@ -1,121 +1,103 @@
-//! Native CLI consumer: Turbo Tasks owns discovery, invalidation and compilation.
-use std::{
-    io::{Read, Write},
-    path::{Path, PathBuf},
-    time::Duration,
-};
+//! Go entrypoints participate in the CLI's task graph and emit ordinary output assets.
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TurboTasks};
-use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_go::{
-    GoBuildContext, GoBuildOutcome, filesystem, go_bundle, paths_refer_to_same_file,
-    validate_source_path,
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{FileSystemPath, to_sys_path};
+use turbopack_core::{
+    asset::AssetContent,
+    ident::AssetIdent,
+    issue::{IssueExt, module::ModuleIssue},
+    output::OutputAssets,
+    raw_output::RawOutput,
+    virtual_source::VirtualSource,
 };
+use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle, validate_source_path};
 
-use crate::arguments::BuildArguments;
+use crate::arguments::CommonArguments;
 
-fn absolute(path: &Path) -> Result<PathBuf> {
-    let path = std::path::absolute(path)?;
-    ensure!(
-        !std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()),
-        "output/cache symlinks are unsupported: {}",
-        path.display()
-    );
-    std::fs::create_dir_all(path.parent().context("path has no parent")?)?;
-    Ok(std::fs::canonicalize(path.parent().unwrap())?
-        .join(path.file_name().context("path has no filename")?))
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode)]
+pub struct GoBuild {
+    pub context: GoBuildContext,
+    project: RcStr,
+    files: Vec<RcStr>,
+    output_name: RcStr,
 }
 
-const DEFAULT_OUTPUT_ERROR: &str = "default Go output must stay inside --dir without symlinks; \
-                                    choose another destination explicitly with --output";
-
-fn validate_default_output(root: &Path, path: &Path) -> Result<()> {
-    validate_source_path(root, path).context(DEFAULT_OUTPUT_ERROR)?;
-    ensure!(
-        std::fs::canonicalize(root)? == root,
-        "{DEFAULT_OUTPUT_ERROR}"
-    );
-    match std::fs::canonicalize(path.parent().context("output has no parent")?) {
-        Ok(parent) => ensure!(parent.starts_with(root), "{DEFAULT_OUTPUT_ERROR}"),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error).context(DEFAULT_OUTPUT_ERROR),
+impl<C> Decode<C> for GoBuild {
+    fn decode<D: bincode::de::Decoder<Context = C>>(
+        _: &mut D,
+    ) -> std::result::Result<Self, bincode::error::DecodeError> {
+        Err(bincode::error::DecodeError::Other(
+            "Go build sessions are transient",
+        ))
     }
-    Ok(())
 }
 
-fn default_output(root: &Path, name: &str) -> Result<PathBuf> {
-    let path = root.join("dist").join(name);
-    validate_default_output(root, &path)?;
-    // Only dist may be missing. Do not recursively create directories through a redirected
-    // project path, even when the symlink points to a destination that does not exist yet.
-    match std::fs::create_dir(path.parent().unwrap()) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(error) => return Err(error).context("creating the default Go output directory"),
+impl GoBuild {
+    /// Called in the CLI's existing Turbo Tasks session, including during one-shot compilation.
+    pub async fn start_watching(&self) -> Result<()> {
+        filesystem(self.project.clone())
+            .resolve()
+            .strongly_consistent()
+            .await?
+            .await?
+            .start_watching()
+            .await?;
+        filesystem(self.context.module_cache.clone())
+            .resolve()
+            .strongly_consistent()
+            .await?
+            .await?
+            .start_watching()
+            .await?;
+        Ok(())
     }
-    validate_default_output(root, &path)?;
-    Ok(path)
+
+    /// Stop input watching and settle compiler cancellation before the caller stops its engine.
+    pub async fn stop_watching(&self) -> Result<()> {
+        self.context.cancel();
+        let fs = filesystem(self.project.clone())
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        fs.await?.stop_watching().await;
+        let cache_fs = filesystem(self.context.module_cache.clone())
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        cache_fs.await?.stop_watching().await;
+
+        // A cancelled consumer can detach while compiler tasks are still unwinding. Drain
+        // their operation before stopping the engine, while it can still schedule work.
+        let root = FileSystemPath {
+            fs: ResolvedVc::upcast(fs),
+            path: rcstr!(""),
+        };
+        let _ = go_bundle(root, self.files.clone(), self.context.clone())
+            .resolve()
+            .strongly_consistent()
+            .await;
+        Ok(())
+    }
 }
 
-/// Rename a complete graph-owned executable into place. Failed builds retain the last output.
-fn publish(path: &Path, default_root: Option<&Path>, bytes: &[u8]) -> std::io::Result<()> {
-    if let Some(root) = default_root {
-        validate_default_output(root, path).map_err(std::io::Error::other)?;
-    }
-    let mut temp = tempfile::NamedTempFile::new_in(path.parent().unwrap())?;
-    temp.write_all(bytes)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        temp.as_file()
-            .set_permissions(std::fs::Permissions::from_mode(0o755))?;
-    }
-    if let Some(root) = default_root {
-        validate_default_output(root, path).map_err(std::io::Error::other)?;
-    }
-    temp.persist(path).map_err(|error| error.error)?;
-    Ok(())
+pub fn is_go_entry(entry: &str) -> bool {
+    Path::new(entry).extension().is_some_and(|ext| ext == "go")
 }
 
-async fn interrupted() -> Result<()> {
-    #[cfg(unix)]
-    {
-        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-        tokio::select! { result = tokio::signal::ctrl_c() => result?, _ = term.recv() => {} }
-    }
-    #[cfg(not(unix))]
-    tokio::signal::ctrl_c().await?;
-    Ok(())
-}
-
-/// Select the source language from the same positional inputs used by JS builds.
-pub fn has_go_inputs(args: &BuildArguments) -> Result<bool> {
-    let entries = args.common.entries.as_deref().unwrap_or_default();
-    let count = entries
-        .iter()
-        .filter(|entry| Path::new(entry).extension().is_some_and(|ext| ext == "go"))
-        .count();
-    ensure!(
-        count == 0 || count == entries.len(),
-        "Go and JavaScript inputs cannot be mixed in one build"
-    );
-    Ok(count > 0)
-}
-
-fn input_files(args: &BuildArguments) -> Result<(PathBuf, Vec<RcStr>)> {
-    let base = std::fs::canonicalize(args.common.dir.as_deref().unwrap_or(Path::new(".")))?;
-    let entries = args
-        .common
+fn input_files(common: &CommonArguments) -> Result<(PathBuf, Vec<RcStr>)> {
+    let base = std::fs::canonicalize(common.dir.as_deref().unwrap_or(Path::new(".")))?;
+    // Normalize lexically so missing inputs can become available during a watch session.
+    let paths: Vec<_> = common
         .entries
-        .as_ref()
-        .context("supply .go input files")?;
-    ensure!(!entries.is_empty(), "supply .go input files");
-    // Normalize lexically so a missing input can become available in a watch session.
-    let paths: Vec<_> = entries
+        .as_deref()
+        .unwrap_or_default()
         .iter()
+        .filter(|entry| is_go_entry(entry))
         .map(|entry| {
             let mut path = PathBuf::new();
             for part in base.join(entry).components() {
@@ -130,7 +112,11 @@ fn input_files(args: &BuildArguments) -> Result<(PathBuf, Vec<RcStr>)> {
             path
         })
         .collect();
-    let parent = paths[0].parent().context("input has no directory")?;
+    let parent = paths
+        .first()
+        .context("supply .go input files")?
+        .parent()
+        .context("input has no directory")?;
     ensure!(
         paths.iter().all(|path| path.parent() == Some(parent)),
         "Go input files must share one directory"
@@ -140,8 +126,8 @@ fn input_files(args: &BuildArguments) -> Result<(PathBuf, Vec<RcStr>)> {
         .find(|path| path.join("go.mod").is_file())
         .or_else(|| parent.ancestors().find(|path| path.is_dir()))
         .context("Go input directory does not exist")?;
-    // Validate before canonicalizing the module: standalone entry directories can themselves
-    // be symlinks, and resolving them would erase the unsupported source alias.
+    // Validate before canonicalizing: resolving a standalone source directory would erase a
+    // symlink alias that the Go input tracker cannot safely consume.
     let source_root = if module.starts_with(&base) {
         base.as_path()
     } else {
@@ -164,291 +150,112 @@ fn input_files(args: &BuildArguments) -> Result<(PathBuf, Vec<RcStr>)> {
     files.sort();
     files.dedup();
     let module = std::fs::canonicalize(module)?;
-    if let Some(root) = &args.common.root {
+    if let Some(root) = &common.root {
         let root = std::fs::canonicalize(root)?;
         ensure!(module.starts_with(root), "Go module is outside --root");
     }
     Ok((module, files))
 }
 
-pub async fn build(build: &BuildArguments) -> Result<()> {
-    ensure!(has_go_inputs(build)?, "supply .go input files");
-    ensure!(
-        build.common.target.is_none(),
-        "native Go builds do not accept --target"
-    );
-    ensure!(
-        !build.common.persistent_caching && build.common.cache_dir.is_none(),
-        "native Go builds do not support persistent task caching"
-    );
-    ensure!(
-        !build.no_minify && !build.no_sourcemap && !build.no_scope_hoist,
-        "JavaScript optimization flags do not apply to Go inputs"
-    );
-    ensure!(
-        build.common.log_level.is_none() && !build.common.show_all && !build.common.log_detail,
-        "Go diagnostics do not support JavaScript issue filtering options"
-    );
-    ensure!(
-        !build.common.full_stats,
-        "Go builds do not currently expose --full-stats"
-    );
-    let (project, files) = input_files(build)?;
-    let args = &build.go;
-    let go_context = tokio::select! {
-        go_context = GoBuildContext::host(&args.go, args.go_cache.as_deref(), &args.tags) => go_context?,
-        signal = interrupted() => { signal?; return Ok(()); }
+pub async fn prepare(common: &CommonArguments) -> Result<Option<GoBuild>> {
+    let Some(first) = common
+        .entries
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .find(|entry| is_go_entry(entry))
+    else {
+        return Ok(None);
     };
-    let name = Path::new(&build.common.entries.as_ref().unwrap()[0])
+    ensure!(
+        !common.persistent_caching,
+        "Go build sessions do not support persistent task caching"
+    );
+    let (project, files) = input_files(common)?;
+    let context = GoBuildContext::host(&common.go.go, None, &common.go.tags).await?;
+    let name = Path::new(first)
         .file_stem()
         .context("input has no filename")?
-        .to_string_lossy();
-    let default_root = args
-        .output
-        .is_none()
-        .then(|| std::fs::canonicalize(build.common.dir.as_deref().unwrap_or(Path::new("."))))
-        .transpose()?;
-    let target = match &args.output {
-        Some(output) => absolute(output)?,
-        None => default_output(
-            default_root.as_deref().unwrap(),
-            &format!("{name}{}", go_context.exe_suffix),
-        )?,
-    };
-    for input in files
-        .iter()
-        .map(|file| project.join(file.as_str()))
-        .chain(["go.mod", "go.sum", "go.work", "go.work.sum"].map(|file| project.join(file)))
-    {
-        ensure!(
-            !paths_refer_to_same_file(&input, &target)?,
-            "output must not overwrite Go source or module configuration"
-        );
-    }
-    ensure!(
-        target
-            .extension()
-            .is_none_or(|ext| !ext.eq_ignore_ascii_case("go")),
-        "Go output cannot have a .go extension"
-    );
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
-    let path: RcStr = project.to_str().context("non-UTF8 Go project")?.into();
-    let module_cache = go_context.module_cache.clone();
-    let (fs, cache_fs) = tt
-        .run_once(async move {
-            let fs = filesystem(path).resolve().strongly_consistent().await?;
-            let cache_fs = filesystem(module_cache)
-                .resolve()
-                .strongly_consistent()
-                .await?;
-            // One-shot builds also need events while discovery/compilation are running.
-            fs.await?.start_watching().await?;
-            cache_fs.await?.start_watching().await?;
-            Ok((fs, cache_fs))
-        })
-        .await?;
-    let cancel = go_context.clone();
-    let signals = tokio::spawn(async move {
-        let result = interrupted().await;
-        cancel.cancel();
-        result
-    });
-    let mut previous = None;
-    let mut previous_error = String::new();
-    let result = async {
-        loop {
-            let build_context = go_context.clone();
-            let inputs = files.clone();
-            // Cancel the graph read inside its once task. Dropping only run_once's receiver
-            // leaves that task waiting for graph consistency and can block stop_and_wait.
-            let result = tt
-                .run_once(async move {
-                    let root = FileSystemPath { fs: ResolvedVc::upcast(fs), path: rcstr!("") };
-                    tokio::select! {
-                        result = go_bundle(root, inputs, build_context.clone()).read_strongly_consistent() => result.map(Some),
-                        _ = build_context.cancelled() => Ok(None),
-                    }
-                })
-                .await
-                .map_err(|error| anyhow::anyhow!("{error:#}"))?;
-            let Some(result) = result else {
-                break;
-            };
-            if !result.is_current()? {
-                tt.run_once(async move {
-                    fs.await?.invalidate();
-                    cache_fs.await?.invalidate();
-                    Ok(())
-                })
-                .await?;
-                continue;
-            }
-            match &result.outcome {
-                GoBuildOutcome::Success(file) => {
-                    let file = *file;
-                    if previous != Some(file) || !target.exists() {
-                        let bytes = tt
-                            .run_once(async move {
-                                let file = file.await?;
-                                let turbo_tasks_fs::FileContent::Content(file) = &*file else {
-                                    anyhow::bail!("missing native executable")
-                                };
-                                let mut bytes = Vec::new();
-                                file.read().read_to_end(&mut bytes)?;
-                                Ok(bytes)
-                            })
-                            .await?;
-                        if !result.is_current()? {
-                            continue;
-                        }
-                        ensure!(
-                            !result.is_input(&target)?,
-                            "output must be outside tracked Go inputs and embed patterns; choose \
-                             another --output path"
-                        );
-                        if let Err(error) = publish(&target, default_root.as_deref(), &bytes) {
-                            // Windows cannot replace an executable while it is running or an
-                            // open handle denies delete sharing. Keep the previous output and
-                            // recheck graph freshness before retrying publication.
-                            if args.watch
-                                && cfg!(windows)
-                                && matches!(error.raw_os_error(), Some(5 | 32 | 33))
-                            {
-                                let message = format!(
-                                    "native output is in use; retrying publication of {}: {error}",
-                                    target.display()
-                                );
-                                if message != previous_error {
-                                    eprintln!("{message}");
-                                    previous_error = message;
-                                }
-                                tokio::select! {
-                                    _ = go_context.cancelled() => break,
-                                    _ = tokio::time::sleep(Duration::from_millis(100)) => {}
-                                }
-                                continue;
-                            }
-                            return Err(error).with_context(|| {
-                                format!("publishing native executable: {}", target.display())
-                            });
-                        }
-                        println!("native executable: {}", target.display());
-                        previous = Some(file);
-                    }
-                    previous_error.clear();
-                }
-                GoBuildOutcome::Failed(message) => {
-                    let message = message.to_string();
-                    if !args.watch {
-                        anyhow::bail!("{message}");
-                    }
-                    if message != previous_error {
-                        eprintln!("{message}");
-                        previous_error = message;
-                    }
-                }
-                GoBuildOutcome::Retry => continue,
-                GoBuildOutcome::Cancelled => break,
-            }
-            if !args.watch {
-                break;
-            }
-            tokio::select! {
-                _ = go_context.cancelled() => break,
-                _ = tokio::time::sleep(Duration::from_millis(100)) => {}
-            }
-        }
-        Ok(())
-    }
-    .await;
-    go_context.cancel();
-    signals.abort();
-    tt.run_once(async move {
-        fs.await?.stop_watching().await;
-        cache_fs.await?.stop_watching().await;
-        Ok(())
-    })
-    .await?;
-    tt.stop_and_wait().await;
-    result
+        .to_str()
+        .context("non-UTF8 Go output name")?;
+    Ok(Some(GoBuild {
+        output_name: format!("{name}{}", context.exe_suffix).into(),
+        project: project.to_str().context("non-UTF8 Go project")?.into(),
+        files,
+        context,
+    }))
 }
 
-#[cfg(test)]
-mod tests {
-    use clap::Parser;
-
-    use crate::{
-        arguments::{Arguments, BuildArguments},
-        go::{has_go_inputs, input_files},
+/// Compile native inputs in the caller's graph and publish through the shared asset writer.
+#[turbo_tasks::function]
+pub async fn output_assets(
+    build: GoBuild,
+    output_root: FileSystemPath,
+) -> Result<Vc<OutputAssets>> {
+    let fs = filesystem(build.project.clone())
+        .resolve()
+        .strongly_consistent()
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(fs),
+        path: rcstr!(""),
     };
-
-    fn build(arguments: &[&str]) -> BuildArguments {
-        let Arguments::Build(args) = Arguments::try_parse_from(arguments).unwrap() else {
-            panic!("expected build")
+    let path = output_root.join(&build.output_name)?;
+    let output = to_sys_path(path.clone())
+        .await?
+        .context("Go output requires a disk filesystem")?;
+    loop {
+        if build.context.is_cancelled() {
+            return Ok(OutputAssets::empty());
+        }
+        // The caller's root read can be interrupted while this cached task is still waiting
+        // for graph consistency. Let this task unwind too, before shutdown stops scheduling.
+        let result = tokio::select! {
+            result = go_bundle(root.clone(), build.files.clone(), build.context.clone())
+                .read_strongly_consistent() => result?,
+            _ = build.context.cancelled() => return Ok(OutputAssets::empty()),
         };
-        args
-    }
-
-    #[test]
-    fn dispatches_by_source_extension() {
-        assert!(
-            has_go_inputs(&build(&["turbopack-cli", "build", "main.go", "helper.go"])).unwrap()
-        );
-        assert!(!has_go_inputs(&build(&["turbopack-cli", "build", "main.ts"])).unwrap());
-        assert!(has_go_inputs(&build(&["turbopack-cli", "build", "main.go", "main.ts"])).is_err());
-        assert!(Arguments::try_parse_from(["turbopack-cli", "go-build"]).is_err());
-    }
-
-    #[test]
-    fn resolves_file_inputs_and_keeps_missing_files_for_watch() {
-        let temp = tempfile::tempdir().unwrap();
-        let module = std::fs::canonicalize(temp.path()).unwrap();
-        std::fs::write(module.join("go.mod"), "module example.com/files\ngo 1.24\n").unwrap();
-        std::fs::create_dir(module.join("cmd")).unwrap();
-        let dir = module.join("cmd");
-        let args = build(&[
-            "turbopack-cli",
-            "build",
-            "./missing.go",
-            "../cmd/helper.go",
-            "helper.go",
-            "--dir",
-            dir.to_str().unwrap(),
-            "--watch",
-        ]);
-        let (root, files) = input_files(&args).unwrap();
-        assert_eq!(root, module);
-        assert_eq!(
-            files.iter().map(|file| file.as_str()).collect::<Vec<_>>(),
-            ["cmd/helper.go", "cmd/missing.go"]
-        );
-        let absolute = dir.join("missing.go");
-        let args = build(&["turbopack-cli", "build", absolute.to_str().unwrap()]);
-        assert_eq!(input_files(&args).unwrap().1[0].as_str(), "cmd/missing.go");
-        let args = build(&[
-            "turbopack-cli",
-            "build",
-            "main.go",
-            "cmd/helper.go",
-            "--dir",
-            module.to_str().unwrap(),
-        ]);
-        assert!(format!("{:#}", input_files(&args).unwrap_err()).contains("share one directory"));
-        let args = build(&[
-            "turbopack-cli",
-            "build",
-            "missing.go",
-            "--dir",
-            dir.to_str().unwrap(),
-            "--root",
-            dir.to_str().unwrap(),
-        ]);
-        assert!(format!("{:#}", input_files(&args).unwrap_err()).contains("outside --root"));
+        if build.context.is_cancelled() {
+            return Ok(OutputAssets::empty());
+        }
+        if !result.is_current()? {
+            fs.await?.invalidate();
+            filesystem(build.context.module_cache.clone())
+                .resolve()
+                .strongly_consistent()
+                .await?
+                .await?
+                .invalidate();
+            continue;
+        }
+        match &result.outcome {
+            GoBuildOutcome::Success(file) => {
+                ensure!(
+                    !result.is_input(&output)?,
+                    "output must be outside tracked Go inputs and embed patterns"
+                );
+                let source =
+                    VirtualSource::new(root.join(&build.files[0])?, AssetContent::file(**file));
+                return Ok(Vc::cell(vec![ResolvedVc::upcast(
+                    RawOutput::new(path, Vc::upcast(source))
+                        .to_resolved()
+                        .await?,
+                )]));
+            }
+            GoBuildOutcome::Failed(message) => {
+                ModuleIssue::new(
+                    AssetIdent::from_path(root.join(&build.files[0])?).into_vc(),
+                    rcstr!("Go compilation failed"),
+                    message.clone(),
+                    None,
+                )
+                .to_resolved()
+                .await?
+                .emit();
+                return Ok(OutputAssets::empty());
+            }
+            GoBuildOutcome::Retry => continue,
+            GoBuildOutcome::Cancelled => return Ok(OutputAssets::empty()),
+        }
     }
 }

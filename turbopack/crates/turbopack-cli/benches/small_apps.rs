@@ -66,8 +66,8 @@ fn bench_small_apps(c: &mut Criterion) {
 
                     rt.block_on(async move {
                         turbopack_cli::build::build(&BuildArguments {
-                            go: Default::default(),
                             common: CommonArguments {
+                                go: Default::default(),
                                 entries: Some(vec![format!("{app_name}/index.tsx")]),
                                 dir: Some(app.clone()),
                                 root: Some(apps_dir),
@@ -81,6 +81,7 @@ fn bench_small_apps(c: &mut Criterion) {
                                 cache_dir: None,
                             },
                             no_sourcemap: false,
+                            watch: false,
                             no_minify: false,
                             force_memory_cleanup: true,
                             no_scope_hoist: false,

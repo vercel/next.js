@@ -1,6 +1,6 @@
 use std::{
     env::current_dir,
-    future::{Future, join},
+    future::Future,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
     path::{MAIN_SEPARATOR, PathBuf},
@@ -46,7 +46,9 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use self::web_entry_source::create_web_entry_source;
 use crate::{
     arguments::DevArguments,
+    build::TurbopackBuildBuilder,
     contexts::NodeEnv,
+    go::is_go_entry,
     util::{
         EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
@@ -365,18 +367,10 @@ async fn source(
 
 /// Start a devserver with the given args.
 pub async fn start_server(args: &DevArguments) -> Result<()> {
-    anyhow::ensure!(
-        !args
-            .common
-            .entries
-            .as_deref()
-            .unwrap_or_default()
-            .iter()
-            .any(|entry| std::path::Path::new(entry)
-                .extension()
-                .is_some_and(|ext| ext == "go")),
-        "Go inputs support build and build --watch; dev does not run native executables"
-    );
+    let go_build = tokio::select! {
+        result = crate::go::prepare(&args.common) => result?,
+        signal = crate::util::interrupted() => return signal,
+    };
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]
@@ -445,9 +439,67 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         ))
     };
 
+    let entries = normalize_entries(&args.common.entries);
+    let build_task = if let Some(build) = go_build.clone() {
+        tt.run_once(async move { build.start_watching().await })
+            .await?;
+        let mut builder =
+            TurbopackBuildBuilder::new(tt.clone(), project_dir.clone(), root_dir.clone())
+                .go_build(go_build.clone())
+                .log_detail(args.common.log_detail)
+                .log_level(
+                    args.common
+                        .log_level
+                        .map_or(IssueSeverity::Warning, |level| level.0),
+                )
+                .show_all(args.common.show_all);
+        if let Some(target) = args.common.target {
+            builder = builder.target(target);
+        }
+        for entry in &entries {
+            builder = builder.entry_request(EntryRequest::Relative(entry.clone()));
+        }
+        Some(builder.watch())
+    } else {
+        None
+    };
+
+    let result = if entries.iter().all(|entry| is_go_entry(entry)) {
+        crate::util::interrupted().await
+    } else {
+        serve(args, tt.clone(), project_dir, root_dir, entries, start).await
+    };
+
+    if let Some(build) = go_build {
+        build.context.cancel();
+        tt.run_once(async move { build.stop_watching().await })
+            .await?;
+    }
+    if let Some(task) = build_task {
+        let tasks = tt.clone();
+        tt.run_once(async move {
+            tasks
+                .wait_task_completion(task, turbo_tasks::ReadConsistency::Strong)
+                .await
+        })
+        .await?;
+        tt.dispose_root_task(task);
+    }
+    tt.stop_and_wait().await;
+    result
+}
+
+async fn serve(
+    args: &DevArguments,
+    tt: Arc<TurboTasks<TurboTasksBackend>>,
+    project_dir: RcStr,
+    root_dir: RcStr,
+    entries: Vec<RcStr>,
+    start: Instant,
+) -> Result<()> {
     let tt_clone = tt.clone();
 
-    let mut server = TurbopackDevServerBuilder::new(tt, project_dir, root_dir)
+    let mut server = TurbopackDevServerBuilder::new(tt.clone(), project_dir, root_dir)
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)
         .port(args.port)
@@ -459,7 +511,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
         );
 
-    for entry in normalize_entries(&args.common.entries) {
+    for entry in entries.into_iter().filter(|entry| !is_go_entry(entry)) {
         server = server.entry_request(EntryRequest::Relative(entry))
     }
 
@@ -578,9 +630,11 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         }
     };
 
-    join!(stats_future, async { server.future.await.unwrap() }).await;
-
-    Ok(())
+    tokio::select! {
+        result = server.future => result,
+        _ = stats_future => Ok(()),
+        result = crate::util::interrupted() => result,
+    }
 }
 
 #[cfg(feature = "profile")]

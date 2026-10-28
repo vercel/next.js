@@ -58,11 +58,14 @@ turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
 url = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+tempfile = { workspace = true }
+
 [target.'cfg(windows)'.dependencies]
 omnipath = "0.1.6"
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
-  "Win32_Security",
+  "Win32_Security", # Required by CreateFileW in src/windows.rs.
   "Win32_Storage_FileSystem",
   "Win32_System_SystemServices",
 ] }

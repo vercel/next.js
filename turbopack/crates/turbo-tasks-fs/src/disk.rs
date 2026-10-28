@@ -494,7 +494,7 @@ impl DiskFileSystem {
     /// including an edit that restores identical bytes. Call before accessing the OS path.
     pub async fn track_file(&self, path: &FileSystemPath) -> Result<()> {
         self.inner
-            .register_read_invalidator(&Arc::new(self.to_sys_path(path)))
+            .register_read_invalidator(&Arc::new(self.to_sys_path_raw(path)))
             .await
     }
 
@@ -502,7 +502,7 @@ impl DiskFileSystem {
     /// watched through their nearest existing parent, just like ordinary filesystem reads.
     pub async fn track_directory(&self, path: &FileSystemPath) -> Result<()> {
         self.inner
-            .register_dir_invalidator(&Arc::new(self.to_sys_path(path)))
+            .register_dir_invalidator(&Arc::new(self.to_sys_path_raw(path)))
             .await
     }
 
@@ -1316,25 +1316,51 @@ impl FileSystem for DiskFileSystem {
                     PersistedFileContent::Content(..) => {
                         let content = content.clone();
 
+                        fn write_file(path: &Path, file: &File) -> io::Result<()> {
+                            #[cfg(unix)]
+                            if file.meta.permissions == crate::Permissions::Executable {
+                                // A running executable cannot be truncated on Unix. Publish a
+                                // complete new inode so existing processes retain their binary
+                                // and new processes never observe an incomplete executable.
+                                let mut temporary = tempfile::NamedTempFile::new_in(
+                                    path.parent().ok_or_else(|| {
+                                        io::Error::new(
+                                            ErrorKind::InvalidInput,
+                                            "output has no parent",
+                                        )
+                                    })?,
+                                )?;
+                                std::io::copy(&mut file.read(), temporary.as_file_mut())?;
+                                temporary
+                                    .as_file_mut()
+                                    .set_permissions(file.meta.permissions.into())?;
+                                temporary.as_file_mut().flush()?;
+                                temporary.persist(path).map_err(|error| error.error)?;
+                                return Ok(());
+                            }
+
+                            let mut f = std::fs::File::create(path)?;
+                            std::io::copy(&mut file.read(), &mut f)?;
+                            #[cfg(unix)]
+                            f.set_permissions(file.meta.permissions.into())?;
+                            f.flush()
+                        }
+
                         let mut missing_parent_dir = false;
                         let do_write = || {
                             if missing_parent_dir && let Some(parent) = full_path.parent() {
                                 std::fs::create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
-                            let mut f = std::fs::File::create(&**full_path).inspect_err(|err| {
+                            let PersistedFileContent::Content(file) = &*content else {
+                                unreachable!()
+                            };
+                            write_file(full_path, file).inspect_err(|err| {
                                 if err.kind() == ErrorKind::NotFound {
                                     // create the parent dirs in the next attempt
                                     missing_parent_dir = true;
                                 }
                             })?;
-                            let PersistedFileContent::Content(file) = &*content else {
-                                unreachable!()
-                            };
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
 
                             static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
                                 std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
@@ -1351,11 +1377,7 @@ impl FileSystem for DiskFileSystem {
                                 }
                                 full_path.set_extension(ext);
                                 validate_path_length(&full_path)?;
-                                let mut f = std::fs::File::create(&*full_path)?;
-                                std::io::copy(&mut file.read(), &mut f)?;
-                                #[cfg(unix)]
-                                f.set_permissions(file.meta.permissions.into())?;
-                                f.flush()?;
+                                write_file(&full_path, file)?;
                             }
                             Ok::<(), io::Error>(())
                         };

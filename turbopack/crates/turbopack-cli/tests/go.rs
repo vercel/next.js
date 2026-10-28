@@ -27,6 +27,40 @@ fn run(path: &Path) -> Option<String> {
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
+fn run_javascript(project: &Path) -> Option<String> {
+    let output = Command::new("node")
+        .arg(project.join("dist/index.entry.js"))
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+fn http_response(port: u16, path: &str) -> Option<(u16, String)> {
+    // HTML responses are gzip compressed and may use chunked transfer encoding.
+    let output = Command::new("node")
+        .args([
+            "-e",
+            r#"
+fetch(`http://127.0.0.1:${process.argv[1]}${process.argv[2]}`, {
+    signal: AbortSignal.timeout(5000),
+}).then(async response => {
+    process.stdout.write(`${response.status}\n${await response.text()}`);
+}).catch(() => process.exit(1));
+"#,
+        ])
+        .arg(port.to_string())
+        .arg(path)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let response = String::from_utf8(output.stdout).ok()?;
+    let (status, body) = response.split_once('\n')?;
+    Some((status.parse().ok()?, body.to_owned()))
+}
 struct Process(Child);
 impl Drop for Process {
     fn drop(&mut self) {
@@ -34,25 +68,35 @@ impl Drop for Process {
         let _ = self.0.wait();
     }
 }
-fn wait(condition: impl FnMut() -> bool) {
-    wait_for("native build", condition);
-}
 fn wait_for(description: &str, mut condition: impl FnMut() -> bool) {
     wait_for_timeout(description, Duration::from_secs(60), &mut condition);
 }
-fn wait_for_timeout(description: &str, timeout: Duration, mut condition: impl FnMut() -> bool) {
+fn wait_for_log(description: &str, log: &Path, condition: impl FnMut() -> bool) {
+    wait_for_timeout_and_log(description, Duration::from_secs(60), Some(log), condition);
+}
+fn wait_for_timeout(description: &str, timeout: Duration, condition: impl FnMut() -> bool) {
+    wait_for_timeout_and_log(description, timeout, None, condition);
+}
+fn wait_for_timeout_and_log(
+    description: &str,
+    timeout: Duration,
+    log: Option<&Path>,
+    mut condition: impl FnMut() -> bool,
+) {
     let deadline = Instant::now() + timeout;
     while !condition() {
         assert!(
             Instant::now() < deadline,
-            "timed out waiting for {description}"
+            "timed out waiting for {description}\n{}",
+            log.map(|path| std::fs::read_to_string(path).unwrap_or_else(|error| error.to_string()))
+                .unwrap_or_default()
         );
         thread::sleep(Duration::from_millis(100));
     }
 }
 
 #[test]
-fn standalone_defaults_errors_and_output_ownership() {
+fn standalone_explicit_files_and_compile_errors() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
     source(project, MAIN);
@@ -84,86 +128,243 @@ fn standalone_defaults_errors_and_output_ownership() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
-    let error = String::from_utf8_lossy(&output.stderr);
+    let error = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(
         error.contains("syntax error") && error.contains("main.go:"),
         "{error}"
     );
     assert!(!error.contains("panicked"), "{error}");
     assert_eq!(std::fs::read(&target).unwrap(), bytes);
-    let custom = project.join("owned-by-user");
-    std::fs::write(&custom, b"keep me").unwrap();
+}
+
+#[test]
+fn builds_go_and_typescript_entries_together() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path();
+    source(project, MAIN);
+    std::fs::write(
+        project.join("helper.go"),
+        "package main\nfunc value() string { return \"native\" }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        project.join("index.ts"),
+        "const message: string = 'typescript'; console.log(message);\n",
+    )
+    .unwrap();
     let output = cli(project)
-        .args(["build", "main.go", "--go", &tool(), "--output"])
-        .arg(&custom)
+        .args([
+            "build",
+            "index.ts",
+            "main.go",
+            "helper.go",
+            "--go",
+            &tool(),
+            "--target",
+            "node",
+            "--no-minify",
+            "--no-sourcemap",
+        ])
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(std::fs::read(&custom).unwrap(), b"keep me");
-    std::fs::create_dir(project.join("assets")).unwrap();
-    std::fs::write(project.join("assets/message.txt"), "embedded").unwrap();
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(run(&executable(project)).as_deref(), Some("native"));
+    assert_eq!(run_javascript(project).as_deref(), Some("typescript"));
+}
+
+#[test]
+fn javascript_default_entry_does_not_require_go() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path();
+    std::fs::create_dir(project.join("src")).unwrap();
+    std::fs::write(
+        project.join("src/entry.ts"),
+        "const message: string = 'javascript-default'; console.log(message);\n",
+    )
+    .unwrap();
+    let output = cli(project)
+        .args(["build", "--go", "missing-go-toolchain"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = Command::new("node")
+        .arg(project.join("dist/entry.entry.js"))
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "javascript-default"
+    );
+}
+
+#[test]
+fn watch_and_dev_rebuild_go_and_typescript_entries() {
+    for command in ["build", "dev"] {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path();
+        source(
+            project,
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"go-first\") }\n",
+        );
+        std::fs::write(
+            project.join("index.ts"),
+            "const message: string = 'ts-first'; console.log(message);\n",
+        )
+        .unwrap();
+        let log = tempfile::NamedTempFile::new().unwrap();
+        let mut invocation = cli(project);
+        invocation.args([
+            command,
+            "index.ts",
+            "main.go",
+            "--go",
+            &tool(),
+            "--target",
+            "node",
+        ]);
+        if command == "build" {
+            invocation.arg("--watch");
+        } else {
+            invocation.args(["--no-open", "--port", "0"]);
+        }
+        let mut process = Process(
+            invocation
+                .stdout(log.as_file().try_clone().unwrap())
+                .stderr(log.as_file().try_clone().unwrap())
+                .spawn()
+                .unwrap(),
+        );
+        let target = executable(project);
+        let mut expect_outputs = |go: &str, javascript: &str| {
+            wait_for_log(
+                &format!("{command}: {go}, {javascript}"),
+                log.path(),
+                || {
+                    assert!(
+                        process.0.try_wait().unwrap().is_none(),
+                        "{command} exited:\n{}",
+                        std::fs::read_to_string(log.path()).unwrap()
+                    );
+                    run(&target).as_deref() == Some(go)
+                        && run_javascript(project).as_deref() == Some(javascript)
+                },
+            );
+        };
+        expect_outputs("go-first", "ts-first");
+        if command == "dev" {
+            wait_for_log("mixed dev HTTP response", log.path(), || {
+                let log = std::fs::read_to_string(log.path()).unwrap();
+                let port = log.lines().find_map(|line| {
+                    line.split("url: http://localhost:")
+                        .nth(1)?
+                        .trim()
+                        .parse::<u16>()
+                        .ok()
+                });
+                let Some((status, body)) = port.and_then(|port| http_response(port, "/index.html"))
+                else {
+                    return false;
+                };
+                status == 200 && body.contains("<script")
+            });
+        }
+        std::fs::write(
+            project.join("index.ts"),
+            "const message: string = 'ts-edited'; console.log(message);\n",
+        )
+        .unwrap();
+        expect_outputs("go-first", "ts-edited");
+        source(
+            project,
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"go-edited\") }\n",
+        );
+        expect_outputs("go-edited", "ts-edited");
+    }
+}
+
+#[test]
+fn go_only_dev_rebuilds_without_an_http_server() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path();
     source(
         project,
-        "package main\nimport _ \"embed\"\n//go:embed assets/*\nvar data string\nfunc main() {}\n",
+        "package main\nimport (\"fmt\"; \"os\"; \"time\")\nfunc main() { \
+         fmt.Println(\"go-first\"); if len(os.Args) > 1 { time.Sleep(time.Hour) } }\n",
     );
-    let embedded_output = project.join("assets/output");
-    let output = cli(project)
-        .args(["build", "main.go", "--go", &tool(), "--output"])
-        .arg(&embedded_output)
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("embed patterns"));
-    assert!(!embedded_output.exists());
-    for cache in ["assets/cache", ".", "ASSETS/cache"] {
-        rejection(
-            project,
-            &["build", "main.go", "--go-cache", cache],
-            "Go build cache must be outside the source project and module cache",
+    let log = tempfile::NamedTempFile::new().unwrap();
+    let mut process = Process(
+        cli(project)
+            .args([
+                "dev",
+                "main.go",
+                "--go",
+                &tool(),
+                "--no-open",
+                "--port",
+                "0",
+            ])
+            .stdout(log.as_file().try_clone().unwrap())
+            .stderr(log.as_file().try_clone().unwrap())
+            .spawn()
+            .unwrap(),
+    );
+    let target = executable(project);
+    wait_for_log("initial Go-only dev compilation", log.path(), || {
+        assert!(process.0.try_wait().unwrap().is_none());
+        run(&target).as_deref() == Some("go-first")
+    });
+    #[cfg(unix)]
+    let mut application = Process(
+        Command::new(&target)
+            .arg("hold")
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    source(
+        project,
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"go-edited\") }\n",
+    );
+    wait_for_log("Go-only dev source rebuild", log.path(), || {
+        assert!(process.0.try_wait().unwrap().is_none());
+        run(&target).as_deref() == Some("go-edited")
+    });
+    // Rebuilding through the shared writer must work while the previous Unix executable runs.
+    #[cfg(unix)]
+    assert!(application.0.try_wait().unwrap().is_none());
+    assert!(
+        !std::fs::read_to_string(log.path())
+            .unwrap()
+            .contains("started server on")
+    );
+    #[cfg(unix)]
+    {
+        assert!(
+            Command::new("/bin/kill")
+                .args(["-INT", &process.0.id().to_string()])
+                .status()
+                .unwrap()
+                .success()
         );
-        assert_eq!(std::fs::read(&target).unwrap(), bytes);
-        assert_eq!(
-            std::fs::read(project.join("assets/message.txt")).unwrap(),
-            b"embedded"
-        );
-    }
-    assert!(!project.join("assets/cache").exists());
-    assert!(!project.join("ASSETS/cache").exists());
-    std::fs::write(
-        project.join("go.mod"),
-        "module example.com/ownership\ngo 1.24\n",
-    )
-    .unwrap();
-    std::fs::write(
-        project.join("go.sum"),
-        include_bytes!("../../turbopack-go/tests/dependency-proxy/go.sum"),
-    )
-    .unwrap();
-    for (path, diagnostic) in [
-        (
-            "main.go",
-            "output must not overwrite Go source or module configuration",
-        ),
-        (
-            "go.mod",
-            "output must not overwrite Go source or module configuration",
-        ),
-        (
-            "go.sum",
-            "output must not overwrite Go source or module configuration",
-        ),
-        (
-            "assets/message.txt",
-            "output must be outside tracked Go inputs and embed patterns",
-        ),
-    ] {
-        let original = std::fs::read(project.join(path)).unwrap();
-        rejection(project, &["build", "main.go", "--output", path], diagnostic);
-        assert_eq!(
-            std::fs::read(project.join(path)).unwrap(),
-            original,
-            "overwrote {path}"
-        );
+        wait_for_log("Go-only dev shutdown", log.path(), || {
+            process.0.try_wait().unwrap().is_some()
+        });
+        assert_eq!(process.0.wait().unwrap().code(), Some(0));
     }
 }
 
@@ -175,11 +376,11 @@ fn rejection(project: &Path, arguments: &[&str], diagnostic: &str) {
     }
     // File-backed diagnostics avoid pipe backpressure, and the independent wait bounds
     // regressions that retry forever instead of reporting a rejected configuration.
-    let stderr = tempfile::NamedTempFile::new().unwrap();
+    let log = tempfile::NamedTempFile::new().unwrap();
     let mut process = Process(
         command
-            .stdout(Stdio::null())
-            .stderr(stderr.reopen().unwrap())
+            .stdout(log.as_file().try_clone().unwrap())
+            .stderr(log.as_file().try_clone().unwrap())
             .spawn()
             .unwrap(),
     );
@@ -187,275 +388,46 @@ fn rejection(project: &Path, arguments: &[&str], diagnostic: &str) {
         process.0.try_wait().unwrap().is_some()
     });
     assert_eq!(process.0.wait().unwrap().code(), Some(1), "{arguments:?}");
-    let error = std::fs::read_to_string(stderr.path()).unwrap();
+    let error = std::fs::read_to_string(log.path()).unwrap();
     assert!(error.contains(diagnostic), "{arguments:?}: {error}");
     assert!(!error.contains("panicked"), "{error}");
 }
 
 #[test]
-fn output_aliases_preserve_sources_metadata_and_embedded_assets() {
+fn rejects_persistent_go_task_caching() {
+    let temp = tempfile::tempdir().unwrap();
+    source(temp.path(), "package main\nfunc main() {}\n");
+    rejection(
+        temp.path(),
+        &["build", "main.go", "--persistent-caching"],
+        "Go build sessions do not support persistent task caching",
+    );
+    assert!(!executable(temp.path()).exists());
+}
+
+#[test]
+fn rejects_outputs_matching_embed_patterns() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
-    source(
-        project,
-        "package main\nimport \"embed\"\n//go:embed assets/*\nvar data embed.FS\nfunc main() {}\n",
-    );
-    std::fs::create_dir(project.join("assets")).unwrap();
-    std::fs::write(project.join("assets/message.txt"), "embedded").unwrap();
-    std::fs::create_dir(project.join("assets/nested")).unwrap();
-    std::fs::write(project.join("assets/nested/sentinel.txt"), "nested").unwrap();
-    std::fs::write(
-        project.join("go.mod"),
-        "module example.com/aliases\ngo 1.24\n",
-    )
-    .unwrap();
-    std::fs::write(
-        project.join("go.sum"),
-        include_bytes!("../../turbopack-go/tests/dependency-proxy/go.sum"),
-    )
-    .unwrap();
-    let protected = ["main.go", "go.mod", "go.sum", "assets/message.txt"];
-    let originals: Vec<_> = protected
-        .iter()
-        .map(|path| std::fs::read(project.join(path)).unwrap())
-        .collect();
-    let check_inputs = || {
-        for (path, bytes) in protected.iter().zip(&originals) {
-            assert_eq!(
-                std::fs::read(project.join(path)).unwrap(),
-                *bytes,
-                "changed {path}"
-            );
-        }
-    };
-    let insensitive = project.join("MAIN.GO").exists();
+    let input =
+        "package main\nimport \"embed\"\n//go:embed dist/*\nvar files embed.FS\nfunc main() {}\n";
+    source(project, input);
+    std::fs::create_dir(project.join("dist")).unwrap();
+    std::fs::write(project.join("dist/message.txt"), "original").unwrap();
     rejection(
         project,
-        &["build", "main.go", "--output", "MAIN.GO"],
-        if insensitive {
-            "output must not overwrite Go source or module configuration"
-        } else {
-            "Go output cannot have a .go extension"
-        },
-    );
-    check_inputs();
-    for path in ["GO.MOD", "GO.SUM"] {
-        if project.join(path).exists() {
-            rejection(
-                project,
-                &["build", "main.go", "--output", path],
-                "output must not overwrite Go source or module configuration",
-            );
-        } else {
-            // Distinct names on a case-sensitive filesystem are valid output destinations.
-            let output = cli(project)
-                .args(["build", "main.go", "--go", &tool(), "--output", path])
-                .output()
-                .unwrap();
-            assert!(
-                output.status.success(),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            assert_eq!(run(&project.join(path)).as_deref(), Some(""));
-        }
-        check_inputs();
-    }
-    rejection(
-        project,
-        &["build", "main.go", "--output", "assets/MESSAGE.TXT"],
+        &["build", "main.go"],
         "output must be outside tracked Go inputs and embed patterns",
     );
-    check_inputs();
-    let assets_alias = project.join("ASSETS").exists();
-    std::fs::create_dir_all(project.join("ASSETS/nested")).unwrap();
-    if assets_alias {
-        rejection(
-            project,
-            &["build", "main.go", "--output", "ASSETS/nested/output"],
-            "output must be outside tracked Go inputs and embed patterns",
-        );
-        assert!(!project.join("assets/nested/output").exists());
-    } else {
-        let output = cli(project)
-            .args([
-                "build",
-                "main.go",
-                "--go",
-                &tool(),
-                "--output",
-                "ASSETS/nested/output",
-            ])
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert_eq!(
-            run(&project.join("ASSETS/nested/output")).as_deref(),
-            Some("")
-        );
-    }
-    check_inputs();
-    // Aliases outside an embed directory must still be protected by file identity.
-    std::fs::create_dir(project.join("aliases")).unwrap();
-    for (path, alias, diagnostic) in [
-        (
-            "main.go",
-            "aliases/source",
-            "output must not overwrite Go source or module configuration",
-        ),
-        (
-            "go.mod",
-            "aliases/module",
-            "output must not overwrite Go source or module configuration",
-        ),
-        (
-            "assets/message.txt",
-            "aliases/asset",
-            "output must be outside tracked Go inputs and embed patterns",
-        ),
-    ] {
-        std::fs::hard_link(project.join(path), project.join(alias)).unwrap();
-        let original = std::fs::read(project.join(alias)).unwrap();
-        rejection(
-            project,
-            &["build", "main.go", "--output", alias],
-            diagnostic,
-        );
-        assert_eq!(std::fs::read(project.join(alias)).unwrap(), original);
-        check_inputs();
-    }
-}
-
-#[test]
-fn rejects_removed_command_log_without_mutating_inputs() {
-    let temp = tempfile::tempdir().unwrap();
-    let project = temp.path().join("project");
-    std::fs::create_dir_all(project.join("assets")).unwrap();
-    source(
-        &project,
-        "package main\nimport _ \"embed\"\n//go:embed assets/*\nvar data string\nfunc main() {}\n",
+    assert!(!executable(project).exists());
+    assert_eq!(
+        std::fs::read_to_string(project.join("main.go")).unwrap(),
+        input
     );
-    let asset = project.join("assets/message.txt");
-    std::fs::write(&asset, "original").unwrap();
-    let baseline = cli(&project)
-        .args(["build", "main.go", "--go", &tool()])
-        .output()
-        .unwrap();
-    assert!(
-        baseline.status.success(),
-        "{}",
-        String::from_utf8_lossy(&baseline.stderr)
+    assert_eq!(
+        std::fs::read_to_string(project.join("dist/message.txt")).unwrap(),
+        "original"
     );
-    let source_bytes = std::fs::read(project.join("main.go")).unwrap();
-    let executable_bytes = std::fs::read(executable(&project)).unwrap();
-    for path in ["assets/message.txt", "assets/new.log", "main.go"] {
-        let log = std::fs::File::create(temp.path().join("rejection.log")).unwrap();
-        let mut process = Process(
-            cli(&project)
-                .args([
-                    "build",
-                    "main.go",
-                    "--watch",
-                    "--go",
-                    &tool(),
-                    "--command-log",
-                    path,
-                ])
-                .stdout(Stdio::from(log.try_clone().unwrap()))
-                .stderr(Stdio::from(log))
-                .spawn()
-                .unwrap(),
-        );
-        let deadline = Instant::now() + Duration::from_secs(15);
-        while process.0.try_wait().unwrap().is_none() {
-            assert!(
-                Instant::now() < deadline,
-                "removed --command-log option did not terminate promptly"
-            );
-            thread::sleep(Duration::from_millis(20));
-        }
-        assert_eq!(process.0.wait().unwrap().code(), Some(2));
-        let error = std::fs::read_to_string(temp.path().join("rejection.log")).unwrap();
-        assert!(
-            error.contains("unexpected argument '--command-log'"),
-            "{error}"
-        );
-        assert_eq!(std::fs::read(&asset).unwrap(), b"original");
-        assert_eq!(
-            std::fs::read(project.join("main.go")).unwrap(),
-            source_bytes
-        );
-        assert_eq!(
-            std::fs::read(executable(&project)).unwrap(),
-            executable_bytes
-        );
-        assert!(!project.join("assets/new.log").exists());
-    }
-}
-
-#[test]
-fn rejects_incompatible_commands_and_flags() {
-    let temp = tempfile::tempdir().unwrap();
-    let project = temp.path();
-    source(project, "package main\nfunc main() {}\n");
-    std::fs::write(project.join("index.ts"), "console.log('valid');\n").unwrap();
-    let baseline = cli(project)
-        .args(["build", "main.go", "--go", &tool()])
-        .output()
-        .unwrap();
-    assert!(
-        baseline.status.success(),
-        "{}",
-        String::from_utf8_lossy(&baseline.stderr)
-    );
-    for (arguments, diagnostic) in [
-        (
-            vec!["dev", "main.go"],
-            "Go inputs support build and build --watch",
-        ),
-        (
-            vec!["build", "main.go", "index.ts"],
-            "Go and JavaScript inputs cannot be mixed",
-        ),
-        (
-            vec!["build", "main.go", "--target", "browser"],
-            "native Go builds do not accept --target",
-        ),
-        (
-            vec!["build", "main.go", "--no-minify"],
-            "JavaScript optimization flags do not apply",
-        ),
-        (
-            vec!["build", "main.go", "--no-sourcemap"],
-            "JavaScript optimization flags do not apply",
-        ),
-        (
-            vec!["build", "main.go", "--no-scope-hoist"],
-            "JavaScript optimization flags do not apply",
-        ),
-        (
-            vec!["build", "main.go", "--persistent-caching"],
-            "native Go builds do not support persistent task caching",
-        ),
-        (
-            vec!["build", "main.go", "--cache-dir", "cache"],
-            "native Go builds do not support persistent task caching",
-        ),
-        (
-            vec!["build", "main.go", "--show-all"],
-            "Go diagnostics do not support JavaScript issue filtering",
-        ),
-        (
-            vec!["build", "main.go", "--full-stats"],
-            "Go builds do not currently expose --full-stats",
-        ),
-    ] {
-        rejection(project, &arguments, diagnostic);
-    }
 }
 
 #[test]
@@ -559,7 +531,7 @@ fn rejects_source_symlinks() {
 }
 
 #[test]
-fn watch_rebuilds_recovers_and_recreates_output() {
+fn watch_recovers_after_compile_errors_and_timeouts() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
     source(
@@ -611,7 +583,8 @@ fn watch_rebuilds_recovers_and_recreates_output() {
         )
         .unwrap();
     }
-    let log = std::fs::File::create(project.join("watch.log")).unwrap();
+    let log_path = project.join("watch.log");
+    let log = std::fs::File::create(&log_path).unwrap();
     let mut process = Process(
         cli(project)
             .args(["build", "main.go", "--watch", "--go"])
@@ -622,50 +595,11 @@ fn watch_rebuilds_recovers_and_recreates_output() {
             .unwrap(),
     );
     let target = executable(project);
-    wait(|| run(&target).as_deref() == Some("first"));
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-
-        // Allow reading/executing the existing output, but deny delete sharing so
-        // publication deterministically hits the same lock as a running Windows binary.
-        let held_output = std::fs::OpenOptions::new()
-            .read(true)
-            .share_mode(0x1 | 0x2) // FILE_SHARE_READ | FILE_SHARE_WRITE
-            .open(&target)
-            .unwrap();
-        let previous = std::fs::read(&target).unwrap();
-        source(
-            project,
-            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"after-lock\") }\n",
-        );
-        wait_for("publication blocked by an open Windows output", || {
-            let log = std::fs::read_to_string(project.join("watch.log")).unwrap();
-            log.contains("output is in use") && log.contains("retrying publication")
-        });
-        assert!(process.0.try_wait().unwrap().is_none());
-        assert_eq!(std::fs::read(&target).unwrap(), previous);
-        assert_eq!(run(&target).as_deref(), Some("first"));
-        // Changes made while publication is blocked must supersede the pending output.
-        source(
-            project,
-            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"edited-while-locked\") }\n",
-        );
-        drop(held_output);
-        wait(|| {
-            assert!(process.0.try_wait().unwrap().is_none());
-            run(&target).as_deref() == Some("edited-while-locked")
-        });
-        source(
-            project,
-            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"first\") }\n",
-        );
-        wait(|| run(&target).as_deref() == Some("first"));
-    }
-    std::fs::remove_file(&target).unwrap();
-    wait(|| run(&target).as_deref() == Some("first"));
+    wait_for_log("initial Go watch compilation", &log_path, || {
+        run(&target).as_deref() == Some("first")
+    });
     source(project, "package main\nfunc main() { invalid Go }\n");
-    wait(|| {
+    wait_for_log("Go syntax error diagnostic", &log_path, || {
         std::fs::read_to_string(project.join("watch.log"))
             .unwrap()
             .contains("syntax error")
@@ -676,8 +610,10 @@ fn watch_rebuilds_recovers_and_recreates_output() {
         project,
         "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"repaired\") }\n",
     );
-    // Hold a completed replacement, and require every observation to see a valid output.
-    wait(|| control.path().join("ready").exists());
+    // A compile in progress must preserve the last successful output.
+    wait_for_log("held Go repair compilation", &log_path, || {
+        control.path().join("ready").exists()
+    });
     let previous = std::fs::read(&target).unwrap();
     for _ in 0..10 {
         assert_eq!(std::fs::read(&target).unwrap(), previous);
@@ -685,10 +621,8 @@ fn watch_rebuilds_recovers_and_recreates_output() {
         thread::sleep(Duration::from_millis(50));
     }
     std::fs::write(control.path().join("resume"), "").unwrap();
-    wait(|| {
-        let value = run(&target).expect("executable must stay runnable during publication");
-        assert!(value == "first" || value == "repaired", "{value}");
-        value == "repaired"
+    wait_for_log("Go repair publication", &log_path, || {
+        run(&target).as_deref() == Some("repaired")
     });
     assert!(process.0.try_wait().unwrap().is_none());
     // Exercise the production deadline end to end: the failed compile must remain a
@@ -701,11 +635,14 @@ fn watch_rebuilds_recovers_and_recreates_output() {
         project,
         "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"timed-out\") }\n",
     );
-    wait(|| control.path().join("ready").exists());
+    wait_for_log("Go compiler timeout readiness", &log_path, || {
+        control.path().join("ready").exists()
+    });
     let previous = std::fs::read(&target).unwrap();
-    wait_for_timeout(
+    wait_for_timeout_and_log(
         "recoverable compiler timeout",
         Duration::from_secs(195),
+        Some(&log_path),
         || {
             assert!(
                 process.0.try_wait().unwrap().is_none(),
@@ -725,7 +662,9 @@ fn watch_rebuilds_recovers_and_recreates_output() {
         project,
         "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"after-timeout\") }\n",
     );
-    wait(|| run(&target).as_deref() == Some("after-timeout"));
+    wait_for_log("Go watch recovery after timeout", &log_path, || {
+        run(&target).as_deref() == Some("after-timeout")
+    });
     assert!(process.0.try_wait().unwrap().is_none());
     #[cfg(unix)]
     {
@@ -736,115 +675,11 @@ fn watch_rebuilds_recovers_and_recreates_output() {
                 .unwrap()
                 .success()
         );
-        wait(|| process.0.try_wait().unwrap().is_some());
+        wait_for_log("Go build watcher shutdown", &log_path, || {
+            process.0.try_wait().unwrap().is_some()
+        });
         assert_eq!(process.0.wait().unwrap().code(), Some(0));
     }
-}
-
-#[cfg(unix)]
-#[test]
-fn default_outputs_reject_redirected_directories_and_watch_changes() {
-    let temp = tempfile::tempdir().unwrap();
-    let project = temp.path().join("project");
-    let outside = temp.path().join("outside");
-    let inside = project.join("inside");
-    std::fs::create_dir_all(&inside).unwrap();
-    std::fs::create_dir(&outside).unwrap();
-    std::fs::write(
-        project.join("go.mod"),
-        "module example.com/outputs\ngo 1.24\n",
-    )
-    .unwrap();
-    source(
-        &project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"original\") }\n",
-    );
-    let name = format!("main{}", std::env::consts::EXE_SUFFIX);
-    let victim = outside.join(&name);
-    let internal = inside.join(&name);
-    std::fs::write(&victim, "external sentinel").unwrap();
-    std::fs::write(&internal, "internal sentinel").unwrap();
-    let missing = temp.path().join("missing/nested");
-    for destination in [&outside, &inside, &missing] {
-        std::os::unix::fs::symlink(destination, project.join("dist")).unwrap();
-        for arguments in [
-            vec!["build", "main.go"],
-            vec!["build", "main.go", "--dir", project.to_str().unwrap()],
-        ] {
-            rejection(
-                &project,
-                &arguments,
-                "default Go output must stay inside --dir without symlinks",
-            );
-            assert_eq!(std::fs::read(&victim).unwrap(), b"external sentinel");
-            assert_eq!(std::fs::read(&internal).unwrap(), b"internal sentinel");
-            assert!(
-                !temp.path().join("missing").exists(),
-                "rejection created directories outside the project"
-            );
-        }
-        std::fs::remove_file(project.join("dist")).unwrap();
-    }
-    std::fs::create_dir(project.join("dist")).unwrap();
-    std::os::unix::fs::symlink(&victim, executable(&project)).unwrap();
-    rejection(
-        &project,
-        &["build", "main.go"],
-        "default Go output must stay inside --dir without symlinks",
-    );
-    assert_eq!(std::fs::read(&victim).unwrap(), b"external sentinel");
-    std::fs::remove_file(executable(&project)).unwrap();
-
-    // External output remains available when the caller explicitly selects the destination.
-    let output = cli(&project)
-        .args(["build", "main.go", "--go", &tool(), "--output"])
-        .arg(&victim)
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(run(&victim).as_deref(), Some("original"));
-    let previous = std::fs::read(&victim).unwrap();
-
-    let log = tempfile::NamedTempFile::new().unwrap();
-    let mut process = Process(
-        cli(&project)
-            .args(["build", "main.go", "--go", &tool(), "--watch"])
-            .stdout(Stdio::null())
-            .stderr(log.reopen().unwrap())
-            .spawn()
-            .unwrap(),
-    );
-    wait(|| run(&executable(&project)).as_deref() == Some("original"));
-    std::fs::rename(project.join("dist"), project.join("old-dist")).unwrap();
-    std::os::unix::fs::symlink(&outside, project.join("dist")).unwrap();
-    source(
-        &project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"changed\") }\n",
-    );
-    wait_for("watch rejection after output redirection", || {
-        process.0.try_wait().unwrap().is_some()
-    });
-    assert_eq!(process.0.wait().unwrap().code(), Some(1));
-    let error = std::fs::read_to_string(log.path()).unwrap();
-    assert!(
-        error.contains("default Go output must stay inside --dir without symlinks"),
-        "{error}"
-    );
-    assert_eq!(std::fs::read(&victim).unwrap(), previous);
-    assert_eq!(run(&victim).as_deref(), Some("original"));
-    assert_eq!(
-        run(&project.join("old-dist").join(&name)).as_deref(),
-        Some("original")
-    );
-    assert_eq!(
-        std::fs::read_dir(&outside).unwrap().count(),
-        1,
-        "redirection wrote extra files outside the project"
-    );
 }
 
 #[cfg(unix)]
@@ -874,16 +709,17 @@ fn cancellation_during_compilation_kills_child_processes() {
     )
     .unwrap();
     std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let log = tempfile::NamedTempFile::new().unwrap();
     let mut process = Process(
         cli(project)
             .args(["build", "main.go", "--go"])
             .arg(&wrapper)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(log.as_file().try_clone().unwrap())
+            .stderr(log.as_file().try_clone().unwrap())
             .spawn()
             .unwrap(),
     );
-    wait_for("compiler descendant readiness", || {
+    wait_for_log("compiler descendant readiness", log.path(), || {
         project.join("child.ready").exists()
     });
     let pid = std::fs::read_to_string(project.join("child.pid")).unwrap();
@@ -894,11 +730,11 @@ fn cancellation_during_compilation_kills_child_processes() {
             .unwrap()
             .success()
     );
-    wait_for("CLI shutdown after Ctrl-C", || {
+    wait_for_log("CLI shutdown after Ctrl-C", log.path(), || {
         process.0.try_wait().unwrap().is_some()
     });
     assert_eq!(process.0.wait().unwrap().code(), Some(0));
-    wait_for("compiler descendant termination", || {
+    wait_for_log("compiler descendant termination", log.path(), || {
         !Command::new("/bin/kill")
             .args(["-0", pid.trim()])
             .stderr(Stdio::null())
@@ -942,7 +778,8 @@ fn watch_observes_imported_packages_and_embedded_assets() {
          assets.ReadFile(\"assets/new/deep/message.txt\"); \
          fmt.Println(helper.Text()+\":\"+string(data)+\":\"+string(nested)) }\n",
     );
-    let log = std::fs::File::create(project.join("watch.log")).unwrap();
+    let log_path = project.join("watch.log");
+    let log = std::fs::File::create(&log_path).unwrap();
     let _process = Process(
         cli(project)
             .args(["build", "main.go", "--watch", "--go", &tool()])
@@ -953,18 +790,8 @@ fn watch_observes_imported_packages_and_embedded_assets() {
     );
     let target = executable(project);
     let wait_for_output = |expected: &str| {
-        let deadline = Instant::now() + Duration::from_secs(60);
-        wait_for(expected, || {
-            let actual = run(&target);
-            if actual.as_deref() == Some(expected) {
-                return true;
-            }
-            assert!(
-                Instant::now() < deadline,
-                "expected {expected:?}, observed {actual:?}; watch log:\n{}",
-                std::fs::read_to_string(project.join("watch.log")).unwrap()
-            );
-            false
+        wait_for_log(expected, &log_path, || {
+            run(&target).as_deref() == Some(expected)
         });
     };
     wait_for_output("dependency-v1:asset-v1:");
@@ -1008,7 +835,7 @@ fn watch_observes_imported_packages_and_embedded_assets() {
          return missing.Text() }\n",
     )
     .unwrap();
-    wait(|| {
+    wait_for_log("missing imported package diagnostic", &log_path, || {
         let log = std::fs::read_to_string(project.join("watch.log")).unwrap();
         log.contains("example.com/watch/internal/missing")
             && (log.contains("no required module provides package")
@@ -1030,11 +857,15 @@ fn watch_observes_imported_packages_and_embedded_assets() {
         "module example.com/watch\ngo 1.24\nreplace example.com/unsupported => ../outside\n",
     )
     .unwrap();
-    wait(|| {
-        std::fs::read_to_string(project.join("watch.log"))
-            .unwrap()
-            .contains("Go module replacements are not supported")
-    });
+    wait_for_log(
+        "unsupported module replacement diagnostic",
+        &log_path,
+        || {
+            std::fs::read_to_string(project.join("watch.log"))
+                .unwrap()
+                .contains("Go module replacements are not supported")
+        },
+    );
     assert_eq!(std::fs::read(&target).unwrap(), previous);
     std::fs::write(
         &missing,

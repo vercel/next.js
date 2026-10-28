@@ -11,8 +11,10 @@ For CLI commands, environment setup and current support limits, see the
 ## Integration contract
 
 The public API is in [src/lib.rs](src/lib.rs). The
-[CLI consumer](../turbopack-cli/src/go.rs) demonstrates session setup, watching,
-publication and shutdown.
+[CLI adapter](../turbopack-cli/src/go.rs) wraps the executable as an ordinary
+`OutputAsset`. The [CLI build pipeline](../turbopack-cli/src/build/mod.rs) compiles
+Go and JavaScript entries in the same Turbo Tasks session, writes their assets
+through the same output writer, and owns watching and shutdown.
 
 1. Create a `GoBuildContext` with `GoBuildContext::host`, supplying the Go executable,
    optional build-cache path and build tags. Reuse that context throughout the session.
@@ -41,7 +43,8 @@ publication and shutdown.
 
 Task and filesystem errors can also propagate as Rust errors. The crate returns
 executable bytes; consumers choose an output path and own publication and application
-execution.
+execution. The CLI emits Go failures through the same issue-reporting system used
+for JavaScript compilation errors, so its shared watcher can recover after edits.
 
 ## How it works
 
@@ -75,8 +78,9 @@ writers: it does not lock sources or provide a transactional snapshot.
 - At most two Go actions run concurrently. Each command has a 180-second deadline.
   Cancellation and timeouts terminate its process tree. Compiler subprocess errors
   become failed build outcomes so a watch consumer can recover after input changes.
-- Temporary compiler output is removed after its bytes are read. Atomic publication
-  and preserving an earlier executable are consumer responsibilities.
+- Temporary compiler output is removed after its bytes are read. The CLI publishes
+  its executable through the same asset writer as other languages; application
+  execution is separate.
 
 ## Contributor verification
 
@@ -91,4 +95,5 @@ watch timeout regression adds roughly three minutes to the combined suite.
 
 See the [live integration tests](tests/live.rs), [process tests](src/process.rs),
 [CLI tests](../turbopack-cli/tests/go.rs), and
-[CI workflow](../../../.github/workflows/turbopack_go.yml) for verification coverage.
+[Rust CI workflow](../../../.github/workflows/build_and_test.yml) for verification
+coverage. Its existing workspace test job installs Go and runs both crates.

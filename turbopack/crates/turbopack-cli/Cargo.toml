@@ -61,7 +61,6 @@ turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-go = { workspace = true }
-tempfile = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
@@ -80,5 +79,6 @@ vergen-gitcl = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 regex = { workspace = true }
+tempfile = { workspace = true }
 turbopack-bench = { workspace = true }
 turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
