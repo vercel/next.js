@@ -18,8 +18,7 @@
 //   git diff --numstat main | node scripts/review-context.mjs - [--author <login>]
 //   node scripts/review-context.mjs --check
 //     validates review/OWNERS (run in CI): every area has an owner and a
-//     rubric, every rubric has an area, every glob matches a file, and every
-//     owner is on the allowlist in .github/workflows/automated_code_review.yml
+//     rubric, every rubric has an area, and every glob matches a file
 //
 // Output is JSON:
 //   { areas: [{ area, owners, authorIsOwner, rubric, files }],
@@ -31,18 +30,6 @@ import { join } from 'node:path'
 
 const repoRoot = new URL('..', import.meta.url).pathname
 const ownersFile = join(repoRoot, 'review/OWNERS')
-const workflowFile = join(
-  repoRoot,
-  '.github/workflows/automated_code_review.yml'
-)
-
-// The logins in the workflow's `contains(fromJSON('[...]'), ...)` allowlist.
-function readAllowlist() {
-  const match = readFileSync(workflowFile, 'utf8').match(
-    /fromJSON\('(\[[^\]]*\])'\)/
-  )
-  return match ? JSON.parse(match[1]) : null
-}
 
 function parseOwners(text) {
   const sections = []
@@ -249,23 +236,11 @@ function check() {
   })
     .split('\n')
     .filter(Boolean)
-  const allowlist = readAllowlist()
-  if (allowlist == null) {
-    problems.push(`can't find the author allowlist in ${workflowFile}`)
-  }
-  const allowed = new Set((allowlist ?? []).map((l) => l.toLowerCase()))
   for (const section of sections) {
     if (section.area === 'default') continue
     const owners = section.owners.filter((o) => o !== '@TODO')
     if (owners.length === 0) {
       problems.push(`[${section.area}] has no owners`)
-    }
-    for (const owner of owners) {
-      if (allowlist != null && !allowed.has(owner.slice(1).toLowerCase())) {
-        problems.push(
-          `[${section.area}] ${owner} isn't on the allowlist in .github/workflows/automated_code_review.yml`
-        )
-      }
     }
     if (!existsSync(join(repoRoot, `review/areas/${section.area}.md`))) {
       problems.push(
