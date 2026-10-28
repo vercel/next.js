@@ -1,29 +1,29 @@
 # Curate Next.js Agent Build evals
 
-Agent Build evals measure whether an agent can make a correct Next.js code change on work that still separates model capability. Tasks live in `evals/agent-build` in the Harbor task format. The existing `agent-eval` fixtures in `evals/evals` keep running the `regression` and `competency` suites and keep their published history; new tasks do not enter that pipeline, and the `regression`, `competency`, and `audit` labels do not apply to them.
+Agent Build evals measure whether an agent can make a correct Next.js code change on work that still separates model capability. Tasks live in `evals/agent-build` in the Harbor task format. The existing `agent-eval` fixtures in `evals/evals` keep running the `regression` and `competency` suites and keep their published history. New tasks do not enter that pipeline, and the `regression`, `competency`, and `audit` labels do not apply to them.
 
-This directory owns the Next.js task definitions and grading contracts. The scripts in `evals/agent-build/tools` are temporary pilot adapters for validating and calibrating these first tasks. Shared execution, credentials, budgets, evidence, and reporting belong in the Vercel-owned eval layer built from Vercel Bench and Harbor; landing a task here does not establish that platform contract or promise that the task will move there unchanged.
+This directory owns the Next.js task definitions and grading contracts. The scripts in `evals/agent-build/tools` are temporary pilot adapters for validating and calibrating these first tasks. Shared execution, credentials, budgets, evidence, and reporting belong in the Vercel-owned eval layer built from Vercel Bench and Harbor. Landing a task here does not establish that platform contract or promise that the task moves there unchanged.
 
 See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credentials, and local validation.
 
 ## Add a task
 
-Terminal-Bench, Harbor's own benchmark, publishes the bar these steps follow: its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task; the steps below add only what is specific to Next.js.
+Terminal-Bench, Harbor's own benchmark, sets the bar these steps follow in its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task. The steps below add only what is specific to Next.js.
 
-Every task goes through the same steps: find a capability, build it around a decision, write a short instruction, screen drafts, grade behavior, validate the grader, then calibrate and decide. Build the full grader only for drafts that pass the screen. A task that skips a step is not ready for review.
+Every task goes through the seven steps below, from finding a capability to calibrating and deciding. Build the full grader only for drafts that pass the screen. A task that skips a step is not ready for review.
 
 ### 1. Find a capability
 
 Look for work where agents fail on real applications, in this order:
 
-- **Agent Feedback reports** in the Maintainer Agent store, especially the ones that ended in a wrong workaround. Read the reports behind a finding, not the cluster summary: they say what the agent was building, what it tried, and what it settled for. Most reports, blocked ones included, describe framework bugs or tooling friction rather than agent mistakes, so confirm a trap still exists (step 4) before building on one.
+- **Agent Feedback reports** in the Maintainer Agent store, especially the ones that ended in a wrong workaround. Read the reports behind a finding rather than the cluster summary, because they say what the agent was building, what it tried, and what it settled for. Most reports, blocked ones included, describe framework bugs or tooling friction rather than agent mistakes, so confirm the problem still reproduces (step 4) before building on one.
 - **Competency tasks that still separate models** (`evals/eval.suites.json`). A harder variant of a capability where weaker models already fail is a better bet than a new topic.
-- **Error repros**, minimal apps that each trigger one framework error. Use a repro to find where the error lives, then write the feature request that leads an agent there; never start the task from the error itself.
-- **GitHub issues and merged pull requests** that change how an application has to be written, such as a new API, a migration, or a behavior change. A merged change gives a realistic starting point and a known-good result, which is how SelfBench builds its tasks. Grade the behavior the change produces, not the tests that came with it: tests written for one patch import its files and mock its functions, so a correct repair with another structure fails.
+- **Error repros**, minimal apps that each trigger one framework error. Use a repro to find where the error lives, then write the feature request that leads an agent there. Never start the task from the error itself.
+- **GitHub issues and merged pull requests** that change how an application has to be written, such as a new API, a migration, or a behavior change. A merged change gives a realistic starting point and a known-good result, which is how SelfBench builds its tasks. Grade the behavior the change produces rather than the tests that came with it. Tests written for one patch import its files and mock its functions, so a correct repair with another structure fails.
 
-Difficulty comes from real work at real size. SWE-Bench Pro tasks take an engineer hours to days, with changes across several files in real repositories; a 15-file fixture that needs a 30-line change is easy to brute-force. Prefer a real open-source Next.js app at a pinned commit over a fixture written for the task. The `vercel/next-benchmarks` apps are adapted for performance runs, with stubbed pages and mock data, so they are not usable as they are.
+Difficulty comes from real work at real size. SWE-Bench Pro tasks take an engineer hours to days, with changes across several files in real repositories. A 15-file fixture that needs a 30-line change can be brute-forced. Prefer a real open-source Next.js app at a pinned commit over a fixture written for the task. The `vercel/next-benchmarks` apps are adapted for performance runs, with stubbed pages and mock data, so they are not usable as they are.
 
-Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first; a larger fixture for a capability the suite already measures is not a harder eval.
+Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first. A larger fixture for a capability the suite already measures does not make a harder eval.
 
 Route other questions to the measurement that owns them:
 
@@ -37,23 +37,23 @@ Route other questions to the measurement that owns them:
 
 ### 2. Build the task around a decision, not an error message
 
-Start from a working application and a feature request, not from a failing build. A build error names the route and the problem, so the agent can loop on `next build` until it is green; frontier and weaker models alike pass that, and the task measures error-following instead of the decision. Agent Feedback reports describe an error, but turn the report into the feature the user was building, not the broken state.
+Start from a working application and a feature request, not from a failing build. A build error names the route and the problem, so the agent can loop on `next build` until it's green. Frontier and weaker models alike pass that, and the task measures error-following instead of the decision. Agent Feedback reports describe an error, but turn the report into the feature the user was building, not the broken state.
 
-Put the decision where nothing warns the agent: content that has to stay in the static HTML, a cache lifetime that has to stay fresh, data that must not leak between users, navigation that has to stay instant. In the first pilots, every task that started from a failing build saturated, and every real failure came from a requirement like these: content deferred to the browser, a stale cache lifetime, a clock read only the production log reported. Let a build error appear only when the agent's own change causes it, and make the shortcuts the error page suggests fail one of those requirements.
+Put the decision where nothing warns the agent: content that has to stay in the static HTML, a cache lifetime that has to stay fresh, data that must not leak between users, navigation that has to stay instant. Let a build error appear only when the agent's own change causes it, and make the shortcuts the error page suggests fail one of those requirements.
 
-The strongest decisions show up only after the agent is done. State a change the app will go through later, such as new content, a new locale, or another route, and have the verifier make that change before it builds. A one-off fix that meets every check on today's app then fails, while the framework's own mechanism keeps working. In screening, this was the first requirement that separated a frontier model from a weaker one: both met every page-weight budget, but only the run that used the image component handled photos added later.
+The strongest decisions show up only after the agent is done. State a change the app will go through later, such as new content, a new locale, or another route, and have the verifier make that change before it builds. A one-off fix that meets every check on today's app then fails, while the framework's own mechanism keeps working. For example, an agent that resizes today's images by hand meets every page-weight budget but fails once the verifier adds a new photo, while the image component handles it.
 
 ### 3. Write a short instruction
 
-Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction): concise, with clear outcomes. Write it as the user would report it: the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The instruction must still state everything the verifier checks, with nothing left to guess, including requirements a user would take for granted, such as a passing type check or an unchanged feature. The approved competency prompts are 20 to 50 words. A checklist of every requirement hands the agent the answer, and every model passes it.
+Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction), which asks for a concise instruction with clear outcomes. Write it as the user would report it, with the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The instruction must still state everything the verifier checks, with nothing left to guess, including requirements a user would take for granted, such as a passing type check or an unchanged feature. The approved competency prompts are 20 to 50 words. A checklist of every requirement hands the agent the answer, and every model passes it.
 
-Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. Each task's `README.md` has a **Difficulty explanation**, why the task is hard for agents and for which reports, and a **Verification explanation**, which gate checks what, as Terminal-Bench asks. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the instruction.
+Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. Each task's `README.md` has a **Difficulty explanation**, why the task is hard for agents and for which reports, and a **Verification explanation**, which gate checks what, as Terminal-Bench asks. The reference repair is one accepted answer among many, and the verifier must accept any repair that meets the instruction.
 
 ### 4. Screen drafts before building graders
 
 Most ideas do not survive contact with a model, so write several cheap drafts and build out only the few that fail for a real reason. A draft is the instruction, the fixture, a reference repair, one or two known-bad repairs, and a rough behavior check.
 
-1. **Confirm the trap on the pinned version.** Apply the change a developer would write first and check that it fails the rough check while the reference passes. Ideas from feedback reports and error repros often no longer reproduce because the framework now handles the case: in the first screening round, three of eleven ideas had no trap and were dropped before any model ran.
+1. **Confirm the pitfall on the pinned version.** Apply the change a developer would write first and check that it fails the rough check while the reference passes. Ideas from feedback reports and error repros often no longer reproduce because the framework now handles the case, and those drafts are dropped before any model runs.
 2. **Validate locally.** The untouched fixture builds and scores 0, every known-bad repair scores 0, and the reference scores 1. A fixture that does not build hands the agent an error to follow.
 3. **Run one frontier and one weaker model**, base treatment only. `MODELS` limits the cohort to those rows and `PARALLEL` runs them at the same time.
 4. **Read both transcripts.** Keep a draft only when a model fails for a capability reason, such as a wrong API choice, a missed requirement, or a claim it never verified. A failure caused by the task or the check is a task bug to fix. A draft both models solve is dropped or reworked, not run on a full cohort.
@@ -72,22 +72,22 @@ Use the first row that can prove the requirement, and stop there:
 | Judge model with a written rubric        | A semantic requirement none of the above can express          | "details wait for navigation behind a boundary"     |
 | Trajectory review                        | Detecting shortcuts or a broken task; never part of the score | Editing tests, hard-coding answers, reading graders |
 
-Terminal-Bench allows a model judge only in rare cases where it is shown to essentially never err, with a documented reason a program could not check the requirement. A judge grades only the criteria that need it, on top of every deterministic gate. Pin the model, commit the rubric, report its result as its own labeled number in `reward.json` rather than folding it into the pass, and spot-check its verdicts until its accuracy is known. The current tasks have no judge because every requirement in them is observable; that is a property of these tasks, not a rule for the suite. Harbor's `harbor-rewardkit` is the supported way to add one.
+Terminal-Bench allows a model judge only in rare cases where it is shown to essentially never err, with a documented reason a program could not check the requirement. A judge grades only the criteria that need it, on top of every deterministic gate. Pin the model, commit the rubric, report its result as its own labeled number in `reward.json` rather than folding it into the pass, and spot-check its verdicts until its accuracy is known. The current tasks have no judge because every requirement in them is observable, and a future task may need one. Harbor's `harbor-rewardkit` is the supported way to add a judge.
 
-Source checks cover only the constraints the instruction states and behavior cannot show, such as an unchanged vendored SDK or dependency set. Do not ban an opt-out in the source; make the behavior it breaks fail.
+Source checks cover only the constraints the instruction states and behavior cannot show, such as an unchanged vendored SDK or dependency set. Rather than banning an opt-out in the source, make the behavior it breaks fail.
 
 #### Grading lessons
 
-Read every failure before trusting it. In the first pilot runs, about six checks rejected correct repairs because they tested something the instruction did not state: exact title wording, server wording for live times, a start-time element in the static HTML, and markup around a value instead of its text. Fix the check, or state the requirement and bump the version, then regrade.
+Read every failure before trusting it. A check that tests something the instruction doesn't state, such as exact wording or the markup around a value, fails correct repairs. Fix the check, or state the requirement and bump the version, then regrade.
 
 Each of these let a wrong repair through until the check changed:
 
 - **A live response is not the static shell.** Playwright's `request` fixture returns the whole streamed document. Read the prerendered HTML the build wrote under `.next/server/app/<route>.html`, and treat a missing file as "no shell".
-- **Compare visible text, not markup.** `© {year} Pulse` renders as `© <!-- -->2026<!-- --> Pulse`, a Suspense boundary leaves a `<template>` placeholder, and a correct repair may wrap the value in a `<span>` with an inline script. Strip scripts and tags and collapse whitespace before checking content, and read headings from the `<h1>` text.
-- **Read the production server log.** Some unstable-value reads report only at request time, after a green build. Exercise document, RSC, and prefetch requests, then fail on `while prerendering`, `unstable value`, or `Could not validate`.
+- **Compare visible text, not markup.** React splits interpolated values with comment markers (`<!-- -->2026<!-- -->`), a Suspense boundary leaves a `<template>` placeholder, and a correct repair may wrap the value in a `<span>` with an inline script. Strip scripts and tags and collapse runs of spaces before checking content, and read headings from the `<h1>` text.
+- **Read the production server log.** Some errors report only at request time, after a green build. Exercise document, RSC, and prefetch requests, then fail on `while prerendering`, `unstable value`, or `Could not validate`.
 - **Use two identities.** Isolation needs a second user whose data must not appear and an expired session that must see nothing.
 - **Disable redirects when checking status codes.** A streamed redirect is a 200 with the redirect inside the body.
-- **Pin vendored dependencies.** Compare `lib/vendor/*` with the git baseline so the agent cannot edit the library instead of working around it.
+- **Pin vendored dependencies.** Compare vendored files with the git baseline so the agent can't edit the library instead of working around it.
 - **Compare timestamps with the prerendered value.** Two requests within one second produce the same second-resolution stamp.
 - **State the dependency policy in the instruction and enforce it first.** The verifier has no network and installs the committed lockfile, so an agent that adds a dev dependency to write its own tests fails `tsc` for a reason it was never told. Say so in the instruction and fail dependency changes in the source check with that message, before any other gate.
 
@@ -109,8 +109,8 @@ Prove the task measures its contract before reading any model result:
 
 Run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
 
-1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors; an agent that runs out of time is a failure.
-2. **Confirm failures.** Rerun each valid failure twice with `calibrate.sh --confirm` and record whether it repeats. Confirmations never change the score; they show whether a failure is stable.
+1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors. An agent that runs out of time is a failure.
+2. **Confirm failures.** Rerun each valid failure twice with `calibrate.sh --confirm` and record whether it repeats. Confirmations show whether a failure is stable and never change the score.
 3. **Read every failure** before trusting it, and fix the grader when the instruction did not ask for what it checks.
 4. **Keep the task** only if all of these hold:
    - It represents a real user or agent failure.
@@ -118,22 +118,22 @@ Run the task on a fixed cohort of frontier and weaker models with `evals/agent-b
    - The verifier tests behavior, not the reference patch.
    - It separates models: frontier models below 90% valid pass@1, with failures that repeat.
    - The result is reproducible enough to maintain.
-5. **Decide.** Accepted tasks join the harder suite. Revise or drop the rest. Saturated tasks stay in the existing regression suite; this step never migrates or redesigns them.
+5. **Decide.** Accepted tasks join the harder suite. Revise or drop the rest. Saturated tasks stay in the existing regression suite, and this step never migrates or redesigns them.
 
-One cohort is directional; repeated independent runs are needed before publishing a stable rate. Prove a new task format with a few strong tasks before expanding a suite.
+One cohort is directional, and a stable rate needs repeated independent runs before it's published. Prove a new task format with a few strong tasks before expanding a suite.
 
-Public tasks support review and reproducibility. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals; that is a separate decision.
+Public tasks support review and reproducibility. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals, which is a separate decision.
 
 ## Context treatments
 
-Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner, not the task. For Next.js, with and without `AGENTS.md` are two real user conditions, not docs versus no docs: `create-next-app` adds `AGENTS.md` by default, older apps usually lack it, and the bundled docs are in `node_modules/next/dist/docs` in both runs. The comparison measures whether pointing the agent at the docs changes the result; with `AGENTS.md` is the product claim, and without it shows how often agents find the docs on their own. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
+Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner rather than the task. For Next.js, the runs with and without `AGENTS.md` are two real user conditions. The `create-next-app` command adds `AGENTS.md` by default, older apps usually lack it, and the bundled docs are in `node_modules/next/dist/docs` in both runs. The comparison measures whether pointing the agent at the docs changes the result. The run with `AGENTS.md` backs the product claim, and the run without it shows how often agents find the docs on their own. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
 
 ## Pull request format
 
 Title starts with `eval:` and names the outcome. Keep the description short and in the same shape as other Next.js pull requests:
 
-1. **Summary**: what the change adds and what calibration found, in plain sentences, then one bullet per task saying what the agent has to get right. No suite label; a task that proves too easy is removed, not relabeled.
-2. **Results**: one line with the Next.js version, attempt policy, and treatments, then the output of `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged: one table with a row for every cohort model, a base / AGENTS.md column per task, the totals (Base, + AGENTS.md, Delta), and price per million tokens, tokens, cost, and time per run, then pass@1 and cost per run as two bar charts. After it, a few sentences on which failures are real and whether a task separates models or is saturated. Say "still running" or "not run" rather than leaving the section out.
+1. **Summary**: what the change adds and what calibration found, in plain sentences, then one bullet per task saying what the agent has to get right. Leave out suite labels, and remove a task every model solves rather than relabeling it.
+2. **Results**: one line with the Next.js version, attempt policy, and treatments, then the output of `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged: one table with a row for every cohort model, a base / AGENTS.md column per task, the totals (Base, + AGENTS.md, Delta), and price per million tokens, tokens, cost, and time per run, then a chart of pass@1 against cost per run, one point per model, as SelfBench charts its results. After it, a few sentences on which failures are real and whether a task separates models or is saturated. Say "still running" or "not run" rather than leaving the section out.
 3. **Verification**: a short list covering lint, untouched and reference scores, known-bad and known-good results, and formatting.
 
 Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so older trials are never compared with newer ones.

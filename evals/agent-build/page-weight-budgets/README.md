@@ -51,5 +51,5 @@ scores 0.
 
 Every check maps to a sentence in `instruction.md`. Expected content comes from
 the baseline catalog, read from the verifier's own copy of the fixture, plus
-the added product. `tests/bad-solutions/` lists shortcuts these gates reject,
+the added product. `tests/bad-solutions/` lists shortcuts these gates catch,
 and `tests/known-good/` holds reviewed passing solutions from screening.

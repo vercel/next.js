@@ -42,4 +42,4 @@ scores 0.
 4. The production server log has no prerender or validation errors.
 
 Every check maps to a sentence in `instruction.md`. `tests/bad-solutions/`
-lists the shortcuts these gates reject.
+lists the shortcuts these gates catch.

@@ -2,7 +2,7 @@
 // request: one table, a row per model with a base / AGENTS.md column per task,
 // the totals across tasks (Base, + AGENTS.md, Delta), then price per million
 // tokens, tokens, cost, and time per run, as in the agent-eval result PRs,
-// then pass@1 and cost per run as Mermaid bar charts GitHub renders inline.
+// then pass@1 against cost per run as a Mermaid chart GitHub renders inline.
 //
 // Scores are pass@1 over scored runs. An agent that runs out of time is a
 // failure, as in Harbor's own metrics; any other runner error is discarded
@@ -241,9 +241,10 @@ console.log(
   'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, with how many confirmation reruns repeated the failure, ⏳ running, · not started, — runner error, rerun.'
 )
 
-// Two bar charts in the same model order: pass@1 across all scored runs and
-// cost per run. Mermaid's scatter chart cannot keep labels apart, so models
-// with the same score overlap; bars keep every name readable.
+// Pass@1 against cost per run, one point per model across all scored runs, as
+// SelfBench charts its results. Cost uses a log scale so cheap models spread
+// out, and points that would overlap are nudged apart so every label stays
+// readable.
 const charted = models
   .map((m) => {
     const scoredRuns = runs.filter((r) => r.model === m.model && scored(r))
@@ -257,31 +258,49 @@ const charted = models
       cost: mean(costs),
     }
   })
-  .filter((m) => m.accuracy != null)
+  .filter((m) => m.accuracy != null && m.cost != null && m.cost > 0)
 
 console.log()
 if (charted.length === 0) {
-  console.log('_The charts appear after the first scored run._')
+  console.log('_The chart appears after the first scored run._')
 } else {
-  const names = charted.map((m) => `"${m.name}"`).join(', ')
-  const maxCost = Math.max(...charted.map((m) => m.cost ?? 0))
+  const costs = charted.map((m) => m.cost)
+  const lo = Math.log(Math.min(...costs) / 2)
+  const hi = Math.log(Math.max(...costs) * 2)
+  const points = charted.map((m) => ({
+    ...m,
+    x: 0.06 + (0.88 * (Math.log(m.cost) - lo)) / (hi - lo),
+    y: 0.06 + (0.88 * m.accuracy) / 100,
+  }))
+  // Nudge a point down while it sits on top of one already placed.
+  const placed = []
+  for (const p of [...points].sort((a, b) => b.y - a.y || a.x - b.x)) {
+    while (
+      placed.some(
+        (q) => Math.abs(q.x - p.x) < 0.3 && Math.abs(q.y - p.y) < 0.06
+      )
+    ) {
+      p.y = Math.max(0.02, p.y - 0.06)
+    }
+    placed.push(p)
+  }
   console.log('```mermaid')
-  console.log('xychart-beta')
-  console.log('    title "Pass@1 per model, all runs"')
-  console.log(`    x-axis [${names}]`)
-  console.log('    y-axis "pass@1 (%)" 0 --> 100')
-  console.log(
-    `    bar [${charted.map((m) => Math.round(m.accuracy)).join(', ')}]`
-  )
-  console.log('```')
-  console.log()
-  console.log('```mermaid')
-  console.log('xychart-beta')
-  console.log('    title "Cost per run (USD)"')
-  console.log(`    x-axis [${names}]`)
-  console.log(`    y-axis "USD" 0 --> ${Math.max(1, Math.ceil(maxCost))}`)
-  console.log(
-    `    bar [${charted.map((m) => (m.cost ?? 0).toFixed(2)).join(', ')}]`
-  )
+  console.log('---')
+  console.log('config:')
+  console.log('  quadrantChart:')
+  console.log('    chartWidth: 640')
+  console.log('    chartHeight: 420')
+  console.log('    pointLabelFontSize: 14')
+  console.log('    quadrantPadding: 2')
+  console.log('---')
+  console.log('quadrantChart')
+  console.log('    title Pass@1 against cost per run, all runs')
+  console.log('    x-axis "Cheaper per run" --> "More expensive per run"')
+  console.log('    y-axis "Lower pass@1" --> "Higher pass@1"')
+  for (const p of points) {
+    console.log(
+      `    ${p.name}, ${Math.round(p.accuracy)}%, ${usd(p.cost)}: [${p.x.toFixed(2)}, ${p.y.toFixed(2)}]`
+    )
+  }
   console.log('```')
 }

@@ -44,4 +44,4 @@ scores 0.
    document, RSC, and prefetch requests.
 
 Every check maps to a sentence in `instruction.md`. `tests/bad-solutions/`
-lists the shortcuts these gates reject.
+lists the shortcuts these gates catch.
