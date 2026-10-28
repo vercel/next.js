@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     fmt::Display,
     mem::take,
     ops::Deref,
@@ -639,10 +638,7 @@ impl MetaFile {
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
-        let start_index = cells
-            .binary_search_by(|(hash, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
-            .err()
-            .unwrap();
+        let start_index = cells.partition_point(|&(hash, _)| hash < range.min_hash);
         if start_index >= cells.len() {
             #[cfg(feature = "stats")]
             {
@@ -650,10 +646,7 @@ impl MetaFile {
             }
             return Ok(lookup_result);
         }
-        let end_index = cells
-            .binary_search_by(|(hash, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
-            .err()
-            .unwrap();
+        let end_index = cells.partition_point(|&(hash, _)| hash <= range.max_hash);
         if start_index >= end_index {
             #[cfg(feature = "stats")]
             {
