@@ -11,6 +11,16 @@ const findSourceMap =
     ? noSourceMap
     : (require('module') as typeof import('module')).findSourceMap
 
+// Edge runtime has no file system, so lazy source maps are Node.js only.
+const nodeModules =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? undefined
+    : {
+        fs: require('fs') as typeof import('fs'),
+        path: require('path') as typeof import('path'),
+        url: require('url') as typeof import('url'),
+      }
+
 /**
  * https://tc39.es/source-map/#index-map
  */
@@ -56,13 +66,16 @@ const sourceMapPayloads = new WeakMap<SourceMap, ModernSourceMapPayload>()
  * Like `module.findSourceMap`, but returns the source map's payload without
  * cloning it on every call. Callers must not mutate the returned payload.
  * Throws like `module.findSourceMap` does on invalid source maps.
+ *
+ * Falls back to reading the source map from disk when lazy source maps are
+ * enabled (see `enableLazySourceMaps`) and Node.js has none for `sourceURL`.
  */
 export function findSourceMapPayload(
   sourceURL: string
 ): ModernSourceMapPayload | undefined {
   const sourceMap = findSourceMap(sourceURL)
   if (sourceMap === undefined) {
-    return undefined
+    return findLazySourceMapPayload(sourceURL)
   }
   let payload = sourceMapPayloads.get(sourceMap)
   if (payload === undefined) {
@@ -70,6 +83,198 @@ export function findSourceMapPayload(
     sourceMapPayloads.set(sourceMap, payload)
   }
   return payload
+}
+
+// Shared via `globalThis` because this module is compiled both into the server
+// runtime bundles and into `next/dist/server`, and each copy has its own module
+// state. `undefined` means lazy source maps are disabled.
+const lazySourceMapPayloadsSymbol = Symbol.for(
+  'next.server.lazySourceMapPayloads'
+)
+interface LazySourceMapEntry {
+  /** `undefined` if the file has no (readable) source map. */
+  payload: ModernSourceMapPayload | undefined
+  /** Set if the source map is invalid, rethrown on every lookup. */
+  error: unknown
+  /** Size of the source map JSON, to bound the memory the cache holds. */
+  size: number
+}
+type LazySourceMapPayloads = LRUCache<LazySourceMapEntry>
+type GlobalWithLazySourceMapPayloads = typeof globalThis & {
+  [lazySourceMapPayloadsSymbol]?: LazySourceMapPayloads
+}
+
+/**
+ * Resolves source maps on demand, by reading the `sourceMappingURL` of the
+ * generated file from disk, instead of having Node.js load them eagerly for
+ * every module via `--enable-source-maps`. Some Node.js versions (e.g. v20 and
+ * v22) read and parse the source map of every module they load when source
+ * maps are enabled, which costs a lot during prerendering of many pages even
+ * when no error is ever formatted. Enabling source maps later with
+ * `process.setSourceMapsEnabled(true)` is no alternative, because Node.js
+ * doesn't map modules that were loaded before.
+ *
+ * Has no effect when Node.js source maps are enabled anyway (e.g. via the
+ * user's `NODE_OPTIONS`), because Node.js then knows the source maps already.
+ */
+export function enableLazySourceMaps(): void {
+  const globalWithPayloads = globalThis as GlobalWithLazySourceMapPayloads
+  if (globalWithPayloads[lazySourceMapPayloadsSymbol] === undefined) {
+    globalWithPayloads[lazySourceMapPayloadsSymbol] = new LRUCache(
+      256 * 1024 * 1024,
+      // Guestimate a small entry for files without a source map so they don't
+      // fill the cache.
+      (entry) => Math.max(entry.size, 1024)
+    )
+  }
+}
+
+// Same as Node.js: the last `sourceMappingURL` comment wins, so that one in a
+// string literal earlier in the file doesn't.
+const sourceMappingURLComment =
+  /\/[*/]#\s+sourceMappingURL=(?<sourceMappingURL>[^\s]+)/g
+
+function findLazySourceMapPayload(
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  const payloads = (globalThis as GlobalWithLazySourceMapPayloads)[
+    lazySourceMapPayloadsSymbol
+  ]
+  if (payloads === undefined || nodeModules === undefined) {
+    return undefined
+  }
+
+  let entry = payloads.get(sourceURL)
+  if (entry === undefined) {
+    const sourceMap = readSourceMapJSONFromDisk(sourceURL, nodeModules)
+    entry = { payload: undefined, error: undefined, size: 0 }
+    if (sourceMap !== undefined) {
+      entry.size = sourceMap.json.length
+      try {
+        entry.payload = sourcesToAbsolute(
+          JSON.parse(sourceMap.json),
+          sourceMap.url,
+          nodeModules
+        )
+      } catch (error) {
+        entry.error = error
+      }
+    }
+    payloads.set(sourceURL, entry)
+  }
+
+  if (entry.error !== undefined) {
+    // Like `module.findSourceMap` on invalid source maps, so callers report it.
+    throw entry.error
+  }
+  return entry.payload
+}
+
+/**
+ * Resolves `sources` (with `sourceRoot`) to absolute URLs relative to the
+ * source map's URL, the same way Node.js does for the payloads it returns from
+ * `module.findSourceMap`, so both kinds of payloads behave the same, e.g. when
+ * matching a source against the `ignoreList`.
+ */
+function sourcesToAbsolute(
+  payload: ModernSourceMapPayload,
+  sourceMapURL: string,
+  modules: NonNullable<typeof nodeModules>
+): ModernSourceMapPayload {
+  if ('sections' in payload) {
+    for (const section of payload.sections) {
+      sourcesToAbsolute(section.map, sourceMapURL, modules)
+    }
+    return payload
+  }
+  const { path, url } = modules
+  // `sources[number]` can be `null`, see `BasicSourceMapPayload`.
+  payload.sources = (payload.sources as Array<string | null>).map((source) => {
+    if (source === null) {
+      return source
+    }
+    source = (payload.sourceRoot || '') + source
+    if (path.isAbsolute(source)) {
+      return url.pathToFileURL(source).href
+    }
+    return new URL(source, sourceMapURL).href
+  }) as Array<string>
+  payload.sourceRoot = ''
+  return payload
+}
+
+function readSourceMapJSONFromDisk(
+  sourceURL: string,
+  { fs, path, url }: NonNullable<typeof nodeModules>
+): { json: string; url: string } | undefined {
+  const { readFileSync } = fs
+  const { isAbsolute } = path
+  const { fileURLToPath, pathToFileURL } = url
+
+  let generatedFileURL: URL
+  try {
+    if (sourceURL.startsWith('file://')) {
+      generatedFileURL = new URL(sourceURL)
+    } else if (isAbsolute(sourceURL)) {
+      generatedFileURL = pathToFileURL(sourceURL)
+    } else {
+      // Not a file, e.g. `<anonymous>` or `node:internal/...`.
+      return undefined
+    }
+  } catch {
+    return undefined
+  }
+
+  let sourceMappingURL: string | undefined
+  try {
+    const content = readFileSync(
+      /* turbopackIgnore: true */ generatedFileURL,
+      'utf8'
+    )
+    for (const match of content.matchAll(sourceMappingURLComment)) {
+      sourceMappingURL = match.groups!.sourceMappingURL
+    }
+  } catch {
+    // e.g. the file was deleted since it was loaded.
+    return undefined
+  }
+  if (sourceMappingURL === undefined) {
+    return undefined
+  }
+
+  try {
+    const sourceMapURL = new URL(sourceMappingURL, generatedFileURL)
+    if (sourceMapURL.protocol === 'data:') {
+      // e.g. `data:application/json;charset=utf-8;base64,eyJ2...`
+      const commaIndex = sourceMapURL.pathname.indexOf(',')
+      if (commaIndex === -1) {
+        return undefined
+      }
+      const metadata = sourceMapURL.pathname.slice(0, commaIndex)
+      const data = sourceMapURL.pathname.slice(commaIndex + 1)
+      return {
+        json: metadata.endsWith(';base64')
+          ? Buffer.from(data, 'base64').toString('utf8')
+          : decodeURIComponent(data),
+        // Same as Node.js: inline source maps resolve against the file.
+        url: generatedFileURL.href,
+      }
+    } else if (sourceMapURL.protocol === 'file:') {
+      return {
+        json: readFileSync(
+          /* turbopackIgnore: true */ fileURLToPath(sourceMapURL),
+          'utf8'
+        ),
+        url: sourceMapURL.href,
+      }
+    } else {
+      return undefined
+    }
+  } catch {
+    // Missing source map file or malformed URL. Same as Node.js, which treats
+    // these as having no source map.
+    return undefined
+  }
 }
 
 export function sourceMapIgnoreListsEverything(
@@ -147,7 +352,8 @@ export function filterStackFrameDEV(
     return false
   }
   try {
-    // Node.js loads source maps eagerly so this call is cheap.
+    // Cheap after the first lookup, since Node.js or the lazy source maps (see
+    // `enableLazySourceMaps`) cache the source map.
     // TODO: ESM sourcemaps are O(1) but CommonJS sourcemaps are O(Number of CJS modules).
     // Make sure this doesn't adversely affect performance when CJS is used by Next.js.
     const payload = findSourceMapPayload(sourceURL)

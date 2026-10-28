@@ -47,7 +47,6 @@ export class Worker {
        * `-1` if not inspectable
        */
       debuggerPortOffset: number
-      enableSourceMaps?: boolean
       /**
        * True if `--max-old-space-size` should not be forwarded to the worker.
        */
@@ -62,7 +61,6 @@ export class Worker {
     }
   ) {
     let {
-      enableSourceMaps,
       timeout,
       onRestart,
       logger = console,
@@ -108,10 +106,6 @@ export class Worker {
         }
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
-    }
-
-    if (enableSourceMaps) {
-      nodeOptions['enable-source-maps'] = true
     }
 
     if (isolatedMemory) {
