@@ -75,6 +75,7 @@ describe('next analyze source maps', () => {
         } else {
           expect(mapContents.length).toBeGreaterThan(0)
           const originalSources = mapContents.join('\n')
+          expect(originalSources.includes('app/merged-target.ts')).toBe(true)
           if (sourceMaps === 'full') {
             expect(originalSources.includes('original-lazy.ts')).toBe(true)
             expect(originalSources.includes('original-page.scss')).toBe(true)
@@ -100,6 +101,11 @@ describe('next analyze source maps', () => {
         ).toBe(true)
         expect(
           parts.some((part) => part.source_path.includes('app/page.css'))
+        ).toBe(true)
+        expect(
+          parts.some((part) =>
+            part.source_path.includes('app/merged-target.ts')
+          )
         ).toBe(true)
         expect(
           parts.some((part) => /original-(?:lazy|page)/.test(part.source_path))
