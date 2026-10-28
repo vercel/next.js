@@ -70,3 +70,36 @@ describe('Next.js sandbox Request constructor', () => {
     )
   })
 })
+
+describe('Next.js sandbox process polyfill', () => {
+  let moduleContext: any
+
+  beforeEach(async () => {
+    moduleContext = await getModuleContext({
+      moduleName: 'test-module',
+      onError: () => {},
+      onWarning: () => {},
+      useCache: false,
+      distDir: '/tmp',
+      edgeFunctionEntry: {
+        assets: [],
+        wasm: [],
+        env: {},
+      },
+    })
+  })
+
+  it('should not expose process.getBuiltinModule so it can be feature-detected', () => {
+    // The Edge Runtime has no process.getBuiltinModule. Libraries such as bson
+    // call it only when it exists, so a throwing stub breaks module evaluation.
+    expect(
+      moduleContext.runtime.evaluate('typeof process.getBuiltinModule')
+    ).toBe('undefined')
+  })
+
+  it('should still throw for other unsupported Node.js process APIs', () => {
+    expect(() => moduleContext.runtime.evaluate('process.cwd()')).toThrow(
+      'A Node.js API is used (process.cwd) which is not supported in the Edge Runtime.'
+    )
+  })
+})
