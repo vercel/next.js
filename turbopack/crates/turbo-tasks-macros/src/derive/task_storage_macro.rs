@@ -53,7 +53,7 @@ struct FieldInfo {
     field_type: Type,
     storage_type: StorageType,
     category: Category,
-    /// If true, field is lazily allocated in Vec<LazyField> (the default).
+    /// If true, field is lazily allocated in `Vec<LazyField>` (the default).
     /// If false (marked with `inline`), field is stored directly on TaskStorage.
     lazy: bool,
     /// If true, filter out values that reference transient tasks during encoding.
@@ -61,7 +61,7 @@ struct FieldInfo {
     /// For collections: filter out entries where key/value is_transient() returns true.
     filter_transient: bool,
     /// If true, use Default::default() semantics instead of Option for inline direct fields.
-    /// The field type should be T (not Option<T>), and empty is represented by T::default().
+    /// The field type should be `T` (not `Option<T>`), and empty is represented by `T::default()`.
     use_default: bool,
     /// If true, shrink this collection after task execution completes.
     /// Empty collections are removed entirely from the lazy vec.
@@ -130,7 +130,8 @@ impl FieldInfo {
     ///
     /// Used by mutators that track unconditionally (a replace/batch/counter update that reaches the
     /// track call is always a real change), so the returned `TrackOutcome` is discarded with
-    /// `let _ =`. Mutators that track-then-undo use [`track_modification_outcome_expr`] instead.
+    /// `let _ =`. Mutators that track-then-undo use
+    /// [`track_modification_outcome_expr`](Self::track_modification_outcome_expr) instead.
     fn track_modification_call(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
@@ -148,13 +149,14 @@ impl FieldInfo {
         }
     }
 
-    /// [`track_modification_call`], but for `filter_transient` fields it only
-    /// fires when `key_expr` is not transient — transient entries are dropped at
+    /// [`track_modification_call`](Self::track_modification_call), but for `filter_transient`
+    /// fields it only fires when `key_expr` is not transient — transient entries are dropped at
     /// encode (see [`generate_filter_predicate`]), so mutating one changes no
     /// persistable bytes. Safe because tracking is monotonic (we only omit, never
     /// clear). `key_expr` is the entry whose transience decides tracking and is
-    /// matched with `.is_transient()`. Identical to [`track_modification_call`]
-    /// for non-`filter_transient` fields.
+    /// matched with `.is_transient()`. Identical to
+    /// [`track_modification_call`](Self::track_modification_call) for non-`filter_transient`
+    /// fields.
     fn track_modification_call_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
             return self.track_modification_call();
@@ -169,8 +171,9 @@ impl FieldInfo {
 
     /// An *expression* (no trailing `;`) that calls `self.track_modification(...)` and evaluates to
     /// a `TrackOutcome`. Used by mutators that track-before-mutate and then undo if the mutation
-    /// was a no-op (see [`track_modification_undo_expr`]). For transient *fields* there is nothing
-    /// to track, so it evaluates to `TrackOutcome::NoChange`.
+    /// was a no-op (see [`track_modification_undo_expr`](Self::track_modification_undo_expr)). For
+    /// transient *fields* there is nothing to track, so it evaluates to
+    /// `TrackOutcome::NoChange`.
     fn track_modification_outcome_expr(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
@@ -184,9 +187,10 @@ impl FieldInfo {
         }
     }
 
-    /// Like [`track_modification_outcome_expr`], but for `filter_transient` fields it only tracks
-    /// when `key_expr` is not transient (transient entries change no persistable bytes), evaluating
-    /// to `TrackOutcome::NoChange` otherwise. Identical to [`track_modification_outcome_expr`] for
+    /// Like [`track_modification_outcome_expr`](Self::track_modification_outcome_expr), but for
+    /// `filter_transient` fields it only tracks when `key_expr` is not transient (transient
+    /// entries change no persistable bytes), evaluating to `TrackOutcome::NoChange` otherwise.
+    /// Identical to [`track_modification_outcome_expr`](Self::track_modification_outcome_expr) for
     /// non-`filter_transient` fields.
     fn track_modification_outcome_expr_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
@@ -3345,7 +3349,7 @@ fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
     }
 }
 
-/// Extract the inner type from Option<T>, or return the type as-is if not Option
+/// Extract the inner type from `Option<T>`, or return the type as-is if not Option
 fn extract_option_inner_type(ty: &Type) -> TokenStream {
     // Try to parse as Option<T> and extract T
     if let Type::Path(type_path) = ty
@@ -3361,7 +3365,7 @@ fn extract_option_inner_type(ty: &Type) -> TokenStream {
     quote! { #ty }
 }
 
-/// Extract the element type K from AutoSet<K> (which is FxHashSet<K>)
+/// Extract the element type `K` from `AutoSet<K>` (which is `FxHashSet<K>`)
 fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -3776,7 +3780,7 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
 }
 
 /// Generate code to encode lazy fields to bincode.
-/// Uses sentinel-terminated format: [index, data]... [sentinel]
+/// Uses sentinel-terminated format: `[index, data]... [sentinel]`
 fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};

@@ -727,7 +727,7 @@ pub struct ReadRawVcFuture {
 /// Phase 1 and phase 2 of [`ReadRawVcFuture`] use disjoint sets of fields. Storing them in an
 /// enum keeps the future smaller than holding both sets simultaneously.
 enum ReadRawVcState {
-    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
+    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVcUnpacked::TaskCell`].
     Resolving(ResolveRawVcFuture),
     /// Phase 2: the resolved task/cell identity plus a listener for the cell read wait.
     Reading {

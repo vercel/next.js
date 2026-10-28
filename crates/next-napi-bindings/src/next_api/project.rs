@@ -744,8 +744,8 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// more than `SLOW_FILESYSTEM_THRESHOLD`.
 ///
 /// This idea is copied from Bun:
-/// - https://x.com/jarredsumner/status/1637549427677364224
-/// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+/// - <https://x.com/jarredsumner/status/1637549427677364224>
+/// - <https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038>
 async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<()> {
     let temp_path = dir.join(format!(
         "tmp_file_io_benchmark_{:x}",
