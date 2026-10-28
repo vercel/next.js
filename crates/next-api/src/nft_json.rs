@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    nft::{EndpointTraceResult, tracing_exclude_glob},
+    nft::{EndpointTraceResult, traced_module_hash, traced_module_path, tracing_exclude_glob},
     nft_json_builder::NftJsonBuilder,
     project::Project,
 };
@@ -155,22 +155,12 @@ impl Asset for NftJsonAsset {
                             )
                         }
                         AssetOrModule::Module(v) => {
-                            let ident = module_data
-                                .idents
-                                .get(&v)
-                                .await?
-                                .context("missing path for module")?;
-                            let hash = module_data
-                                .hashes
-                                .get(&v)
-                                .await?
-                                .context("missing hash for module")?;
+                            // Per-module tasks instead of keyed reads of the shared maps, so the
+                            // many routes don't all lock the same task (see `traced_module_path`).
+                            let path = traced_module_path(*module_data.idents, *v).owned().await?;
+                            let hash = traced_module_hash(*module_data.hashes, *v).owned().await?;
                             let source = v.source().await?.context("NFT module has no content")?;
-                            (
-                                ident.path.clone(),
-                                (**hash).clone(),
-                                source.content().await?,
-                            )
+                            (path, hash, source.content().await?)
                         }
                     };
 
