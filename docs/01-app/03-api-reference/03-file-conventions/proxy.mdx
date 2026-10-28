@@ -18,6 +18,8 @@ Proxy executes before routes are rendered. It's particularly useful for implemen
 >
 > Proxy is meant to be invoked separately of your render code and in optimized cases deployed to your CDN for fast redirect/rewrite handling, you should not attempt relying on shared modules or globals.
 >
+> Cache Components and the `use cache` directive are not supported in Proxy. A `use cache` directive in a function called from Proxy has no effect, even if the same function is cached when called elsewhere. To reuse cached data in Proxy, use an [external cache or data store](/docs/app/guides/redirecting#managing-redirects-at-scale-advanced). Alternatively, move the work to a supported context, such as a Server Component or Route Handler.
+>
 > To pass information from Proxy to your application, use [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
 
 Create a `proxy.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
