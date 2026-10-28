@@ -525,6 +525,7 @@ impl ModuleOptions {
                                     postprocess,
                                     ecmascript_options_vc,
                                     environment,
+                                    css_source_map_generation_options,
                                     lightningcss_features,
                                 )
                                 .await?,
@@ -867,6 +868,7 @@ impl ModuleOptions {
                     module_css_condition.clone(),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
+                        source_map_generation_options: css_source_map_generation_options,
                         environment,
                         lightningcss_features,
                         module_css_debuggable_idents,
@@ -879,6 +881,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Default,
+                        source_map_generation_options: css_source_map_generation_options,
                         environment,
                         lightningcss_features,
                         module_css_debuggable_idents,
@@ -944,6 +947,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
+                        source_map_generation_options: css_source_map_generation_options,
                         environment,
                         lightningcss_features,
                         module_css_debuggable_idents,
@@ -959,6 +963,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
+                        source_map_generation_options: css_source_map_generation_options,
                         environment,
                         lightningcss_features,
                         module_css_debuggable_idents,
@@ -974,6 +979,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
+                        source_map_generation_options: css_source_map_generation_options,
                         environment,
                         lightningcss_features,
                         module_css_debuggable_idents,
@@ -981,7 +987,9 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![module_css_condition.clone()]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule {
+                        source_map_generation_options: css_source_map_generation_options,
+                    })],
                 ),
                 ModuleRule::new_all(
                     RuleCondition::Any(vec![
@@ -990,6 +998,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Default,
+                        source_map_generation_options: css_source_map_generation_options,
                         environment,
                         lightningcss_features,
                         module_css_debuggable_idents,
