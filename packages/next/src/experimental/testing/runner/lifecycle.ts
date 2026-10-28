@@ -520,10 +520,10 @@ export async function runCollected(
     testTimeout,
   })
   const finalizedModes =
-    options.finalizePublicTaskModes === true &&
-    options.testNamePattern === undefined &&
-    !hasFocusedTests(root)
-      ? finalizePublicTaskModes(root, tasks)
+    options.finalizePublicTaskModes === true && !hasFocusedTests(root)
+      ? options.testNamePattern === undefined
+        ? finalizePublicTaskModes(root, tasks)
+        : finalizePublicTaskModes(root, tasks, selected)
       : undefined
   if (finalizedModes)
     for (const test of selected.keys()) {

@@ -166,8 +166,7 @@ async function run({
       (!options.entry.executionEnvironment ||
         options.entry.executionEnvironment.name === 'node'))
   // The actual finalized task tree decides whether the SDK prepares this file.
-  const prepareReadOnlySelectedPublicFile =
-    prepareReadOnlyEmptyPublicFile && options.testNamePattern === undefined
+  const prepareReadOnlySelectedPublicFile = prepareReadOnlyEmptyPublicFile
   type CollectionRestoration = Readonly<{
     collectionError: unknown
     disposalError: unknown

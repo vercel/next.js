@@ -486,14 +486,38 @@ export function createTaskTree(
 /** Finalized exclusions belong to the actual cached tasks and execution plan. */
 export function finalizePublicTaskModes(
   root: TestSuite,
-  tasks: ReadonlyMap<TestCase | TestSuite, Task>
+  tasks: ReadonlyMap<TestCase | TestSuite, Task>,
+  actualSelection?: ReadonlyMap<TestCase, 'run' | 'skip' | 'todo'>
 ): ReadonlyMap<TestCase | TestSuite, 'run' | 'skip' | 'todo'> {
   const modes = new Map<TestCase | TestSuite, 'run' | 'skip' | 'todo'>()
-  for (const [node, task] of tasks)
-    modes.set(
-      node,
-      task.mode === 'skip' || task.mode === 'todo' ? task.mode : 'run'
-    )
+  const filteredModes =
+    actualSelection === undefined
+      ? undefined
+      : new Map<TestCase, 'run' | 'skip' | 'todo'>()
+  if (actualSelection === undefined) {
+    for (const [node, task] of tasks)
+      modes.set(
+        node,
+        task.mode === 'skip' || task.mode === 'todo' ? task.mode : 'run'
+      )
+  } else {
+    for (const [node, task] of tasks) {
+      const selected =
+        node.type === 'test' ? actualSelection.get(node) : undefined
+      if (
+        node.type === 'test' &&
+        selected !== 'run' &&
+        selected !== 'skip' &&
+        selected !== 'todo'
+      )
+        throw new Error('Finalized modes require each actual test selection.')
+      if (node.type === 'test') filteredModes!.set(node, selected!)
+      modes.set(
+        node,
+        task.mode === 'skip' || task.mode === 'todo' ? task.mode : 'run'
+      )
+    }
+  }
   const exclude = (suite: TestSuite, mode: 'skip' | 'todo') => {
     for (const child of suite.children)
       if (modes.get(child) === 'run') {
@@ -503,7 +527,10 @@ export function finalizePublicTaskModes(
   }
   const visit = (suite: TestSuite) => {
     for (const child of suite.children) {
-      if (child.type !== 'suite') continue
+      if (child.type !== 'suite') {
+        if (filteredModes) modes.set(child, filteredModes.get(child)!)
+        continue
+      }
       const mode = modes.get(child)
       if (mode === 'skip' || mode === 'todo') exclude(child, mode)
       else visit(child)

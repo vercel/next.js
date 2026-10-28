@@ -22498,3 +22498,151 @@ describe('actual skipped-file snapshot preparation', () => {
     140000
   )
 })
+
+describe('actual regex-selected snapshot preparation', () => {
+  it.each([
+    'two-arg-order',
+    'zero',
+    'one',
+    'literal-empty',
+    'missing',
+    'foreign',
+    'invalid',
+    'throw-undefined',
+  ])(
+    'keeps actual task identity and finalized selection for %s',
+    async (mode) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-task-selection-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'task-mode-selection.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'all-skipped',
+        'selected',
+        'literal-empty',
+        'empty-no-pass',
+        'setup-error',
+        'setup-undefined',
+        'read-error',
+        'pending',
+        'abort-pending',
+        'finish-undefined',
+        'cleanup-undefined',
+      ].map((mode) => `${provider}:${mode}`)
+    )
+  )(
+    'keeps actual name-filter SDK preparation and physical vetoes for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-namefilter-preparation-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'namefilter-snapshot-preparation.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+
+  it.each([
+    'v8-namefilter-0',
+    'v8-namefilter-1',
+    'istanbul-namefilter-0',
+    'istanbul-namefilter-1',
+  ])(
+    'matches the complete genuine selected report and counters for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-namefilter-snapshot-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'readonly-namefilter-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+describe('actual name-filter untouched excluded descendants', () => {
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'skip-todo-body',
+        'todo-skip-body',
+        'skip-todo-empty',
+        'todo-skip-empty',
+      ].map((mode) => `${provider}-${mode}`)
+    )
+  )(
+    'preserves the whole genuine nested reporter tree and maps for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-namefilter-excluded-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'namefilter-excluded-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
