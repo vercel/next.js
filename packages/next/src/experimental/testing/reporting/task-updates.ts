@@ -20,10 +20,18 @@ export interface ReporterTaskUpdate<Result = RunnerCaseResult> {
 export function createReporterTaskUpdates<
   Result extends { caseId: string } = RunnerCaseResult,
 >(options: {
+  /** Defer the existing leading root pack until its actual preparation. */
+  captureModuleStart?: true
   onUpdate(update: ReporterTaskUpdate<Result>): void | Promise<void>
   getTaskLocation?(task: Task): TaskLocation | undefined
 }) {
+  if (
+    options.captureModuleStart !== undefined &&
+    options.captureModuleStart !== true
+  )
+    throw new Error('Invalid reporter module preparation request.')
   let file: File | undefined
+  let filePrepared = false
   const tasks = new Map<string, Task>()
   const preparedSuites = new Set<string>()
   const pendingTasks = new Map<
@@ -96,10 +104,28 @@ export function createReporterTaskUpdates<
         if (task.type === 'suite') for (const child of task.tasks) visit(child)
       }
       visit(file)
-      preparedSuites.add(file.id)
-      schedule(file)
+      if (options.captureModuleStart !== true) {
+        preparedSuites.add(file.id)
+        schedule(file)
+      }
+    },
+    filePrepared(actualFile: File) {
+      if (
+        options.captureModuleStart !== true ||
+        actualFile !== file ||
+        filePrepared ||
+        !actualFile.result ||
+        !['run', 'fail', 'skip', 'todo'].includes(actualFile.result.state)
+      )
+        throw new Error('Reporter module requires its actual prepared File.')
+      assertOwned(actualFile)
+      filePrepared = true
+      preparedSuites.add(actualFile.id)
+      schedule(actualFile)
     },
     caseStart(testId: string) {
+      if (options.captureModuleStart === true && !filePrepared)
+        throw new Error('Reporter case started before actual File preparation.')
       const task = tasks.get(testId)
       if (!task || task.type !== 'test')
         throw new Error('Unknown reporter case start.')
@@ -114,6 +140,10 @@ export function createReporterTaskUpdates<
       schedule(task)
     },
     caseResult(task: Test, result: Result) {
+      if (options.captureModuleStart === true && !filePrepared)
+        throw new Error(
+          'Reporter case completed before actual File preparation.'
+        )
       assertOwned(task)
       if (task.id !== result.caseId)
         throw new Error('Reporter logical result does not match its task.')
@@ -121,6 +151,8 @@ export function createReporterTaskUpdates<
       schedule(task)
     },
     suiteEnd(task: Suite) {
+      if (options.captureModuleStart === true && !filePrepared)
+        throw new Error('Reporter suite ended before actual File preparation.')
       schedule(task)
     },
     async finish() {

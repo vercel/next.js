@@ -8360,3 +8360,64 @@ it.each(['omitted', 'false', 'one', 'true'])(
     })
   }
 )
+
+it.each([
+  'success',
+  'empty',
+  'skip',
+  'cleanup-failure',
+  'observer-failure',
+  'snapshot-error',
+  'snapshot-undefined',
+  'foreign',
+  'duplicate',
+  'missing',
+  'send-failure',
+  'absent',
+  'truthy',
+] as const)(
+  'observes the actual prepared File before execution for ModuleStart %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-module-start-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-preparation.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualRootIdentity: true,
+        preparedResultIdentity: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each(['owned', 'absent', 'truthy'] as const)(
+  'binds the private ModuleStart observation to its real File owner for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-module-start-file-owner-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-owned-file.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualOwnedResultIdentity: true,
+        absentRoleSemanticsHeld: true,
+        allFileScopesJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)

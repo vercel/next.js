@@ -938,6 +938,17 @@ function initializeFile(
           collector.root,
           {
             ...executionOptions,
+            // Only the actual public File can request the root preparation pack.
+            captureModuleStart:
+              preparePublicSnapshots === true &&
+              executionOptions.captureModuleStart === true
+                ? true
+                : undefined,
+            onFilePrepared:
+              preparePublicSnapshots === true &&
+              executionOptions.captureModuleStart === true
+                ? executionOptions.onFilePrepared
+                : undefined,
             finalizeFocusedPublicTaskModes:
               publicTaskSelection === true &&
               preparePublicSnapshots === true &&

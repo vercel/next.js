@@ -280,6 +280,9 @@ export interface RunnerOptions {
   setCurrentTask?(task: Task): void
   onLateFailure?(error: Error): void
   onUnhandledFailure?(reason: unknown): void
+  /** Requested actual root preparation; never an authored reporter acknowledgement. */
+  captureModuleStart?: true
+  onFilePrepared?(file: File): void
   /** Actual task graph, before authored fixtures, hooks or bodies start. */
   onCollected?(file: File): void | Promise<void>
   onCaseStart?(context: AttemptContext): void | Promise<void>
@@ -2584,6 +2587,8 @@ export async function runCollected(
       errors.push(failure)
       result.errors.push(failure)
     }
+    if (node === root && options.captureModuleStart === true)
+      options.onFilePrepared?.(publicSuite as File)
     const cleanups: { fn: Cleanup; index: number; timeout: number }[] = []
     const context: TestContext = {
       inject: ((key: string) =>
