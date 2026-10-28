@@ -1143,7 +1143,7 @@ export async function createTestCompilerSession(
       )
     if (
       istanbulInstrumentation &&
-      (!/\.(?:js|mjs)$/.test(entry.file) ||
+      (!/\.(?:js|mjs|ts|mts)$/.test(entry.file) ||
         entry.inSource ||
         entry.typecheck ||
         entry.executionEnvironment ||

@@ -22899,3 +22899,57 @@ describe('actual inactive focused task selection', () => {
     140000
   )
 })
+
+describe('actual Istanbul typed test entries with JavaScript source coverage', () => {
+  it.each(
+    require('./fixtures/istanbul-provider/typed-entry-pristine.json').rows.map(
+      ({ name }: { name: string }) => name
+    )
+  )(
+    'matches the complete genuine reports and completion trees for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-entry-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'typed-entry-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+it('retains actual Istanbul typed-entry metadata and unsupported-source boundaries', async () => {
+  const { execFile } = require('node:child_process')
+  const { promisify } = require('node:util')
+  const { mkdtempSync, rmSync } = require('node:fs')
+  const { tmpdir } = require('node:os')
+  const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-artifacts-'))
+  try {
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'typed-entry-artifacts.cjs'),
+        join(__dirname, '../../..'),
+        output,
+      ],
+      { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+    )
+  } finally {
+    rmSync(output, { recursive: true, force: true })
+  }
+}, 140000)
