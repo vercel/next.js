@@ -7,6 +7,7 @@ pub mod chunk;
 mod code_gen;
 pub mod embed;
 mod lifetime_util;
+pub mod minify;
 mod module_asset;
 pub(crate) mod process;
 pub(crate) mod references;

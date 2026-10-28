@@ -509,6 +509,7 @@ impl ModuleOptions {
                                     resolve_options_context,
                                     matches!(ecmascript_source_maps, SourceMapsType::Full),
                                     config_tracing_module_context(*execution_context),
+                                    webpack_loaders_options.emitted_files_scope.clone(),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -926,6 +927,7 @@ impl ModuleOptions {
                                 *execution_context,
                                 options.config_location,
                                 matches!(css_source_maps, SourceMapsType::Full),
+                                options.emitted_files_scope.clone(),
                             )
                             .to_resolved()
                             .await?,
