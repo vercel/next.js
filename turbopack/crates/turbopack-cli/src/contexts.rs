@@ -7,7 +7,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     ModuleAssetContext,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         TypescriptTransformOptions,
     },
 };
@@ -96,7 +96,16 @@ async fn get_client_module_options_context(
     source_maps_type: Option<SourceMapType>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let is_dev = matches!(*node_env.await?, NodeEnv::Development);
+    let source_map_generation_options = SourceMapGenerationOptions::from_emitted(source_maps_type);
     let module_options_context = ModuleOptionsContext {
+        ecmascript: EcmascriptOptionsContext {
+            source_map_generation_options,
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            source_map_generation_options,
+            ..Default::default()
+        },
         environment: Some(env),
         execution_context: Some(execution_context),
         follow_reexports: true,
@@ -126,9 +135,6 @@ async fn get_client_module_options_context(
             enable_jsx,
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
-            ),
-            source_map_generation_options: SourceMapGenerationOptions::from_emitted(
-                source_maps_type,
             ),
             ..module_options_context.ecmascript.clone()
         },
