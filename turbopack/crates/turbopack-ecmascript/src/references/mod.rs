@@ -149,8 +149,8 @@ use crate::{
         },
     },
     runtime_functions::{
-        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
-        TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_MODULE, TURBOPACK_REQUIRE_REAL,
+        TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
@@ -3666,6 +3666,25 @@ async fn handle_membership<'a>(
         let obj_name = obj.get_definable_name(Some(&state.var_graph));
 
         if let [obj_name] = &*obj_name {
+            if state.is_esm
+                && matches!(ty, MembershipType::Member { .. })
+                && matches!(prop, "hot" | "id")
+                && let Some((name, false)) = obj_name
+                && matches!(name.0.as_slice(), [DefinableNameSegmentRef::Name("module")])
+            {
+                // Support loader-emitted module.id and module.hot without making ESM CommonJS.
+                let path = analysis.intern_path(ast_path);
+                if prop == "id" {
+                    // Keep style IDs distinct when scope hoisting merges ESM modules.
+                    analysis.add_code_gen(CodeGen::ModuleId(path));
+                } else {
+                    analysis.add_code_gen(ConstantValueCodeGen::new(
+                        CompileTimeDefineValue::Evaluate(format!("{TURBOPACK_MODULE}.hot").into()),
+                        path,
+                    ));
+                }
+                return Ok(());
+            }
             // Exactly one name. We can potentially inline
             if has_member && let Some((mut name, false)) = obj_name.clone() {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
@@ -4468,6 +4487,21 @@ async fn require_resolve_visitor<'a>(
 ) -> Result<JsValue<'a>> {
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
+        if let Pattern::Constant(request) = &pat
+            && turbopack_core::loader::parse_inline_loader_request(request).is_some()
+        {
+            // An inline request identifies a transformed module, not a filesystem path. Leave
+            // require.resolve() to its module-reference codegen instead of folding it to a path.
+            return Ok(JsValue::unknown(
+                JsValue::call_from_parts(
+                    arena.get_or_default(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                    args,
+                ),
+                false,
+                rcstr!("inline loader request"),
+            ));
+        }
         let request = Request::parse(pat.clone());
         let resolved = cjs_resolve_source(
             origin,
