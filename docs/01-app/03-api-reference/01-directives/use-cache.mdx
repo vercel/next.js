@@ -18,7 +18,6 @@ The `use cache` directive allows you to mark a route, React component, or a func
 
 > **Good to know:**
 >
-> - `use cache` is not supported in [Proxy](/docs/app/api-reference/file-conventions/proxy). A `use cache` directive in a function called from Proxy has no effect, even if the same function is cached when called elsewhere.
 > - To use cookies or headers, read them outside cached scopes and pass values as arguments. This is the preferred pattern.
 > - If the in-memory cache isn't sufficient for runtime data, [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) allows platforms to provide a dedicated cache handler, though it requires a network roundtrip to check the cache and typically incurs platform fees.
 > - For compliance requirements or when you can't refactor to pass runtime data as arguments to a `use cache` scope, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
@@ -396,7 +395,7 @@ Both `cacheLife` and `cacheTag` integrate across client and server caching layer
 
 ### Caching function output with `use cache`
 
-You can add `use cache` to asynchronous functions used by routes and components, not only to the routes and components themselves. You might want to cache a network request, a database query, or a slow computation.
+You can add `use cache` to any asynchronous function, not only to components and routes. You might want to cache a network request, a database query, or a slow computation.
 
 ```tsx filename="app/actions.ts" highlight={2} switcher
 export async function getData() {
@@ -417,6 +416,8 @@ export async function getData() {
   return data
 }
 ```
+
+Whether a function's output is cached depends on the environment where the function is used. [Proxy](/docs/app/api-reference/file-conventions/proxy) does not run the `use cache` compiler transform, so its output is not cached when the function is called from Proxy. This includes imported functions whose output is cached elsewhere in your application.
 
 ### Caching a component's output with `use cache`
 

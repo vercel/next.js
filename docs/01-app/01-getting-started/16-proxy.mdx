@@ -28,7 +28,9 @@ For simple redirects, consider using the [`redirects`](/docs/app/api-reference/c
 
 Proxy is _not_ intended for slow data fetching. While Proxy can be helpful for [optimistic checks](/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) such as permission-based redirects, it should not be used as a full session management or authorization solution.
 
-Cache Components are not supported in Proxy. The `use cache` directive has no effect, and `fetch` options such as `cache`, `next.revalidate`, and `next.tags` do not cache responses. To reuse cached data in Proxy, use an [external cache or data store](/docs/app/guides/redirecting#managing-redirects-at-scale-advanced). Alternatively, move the work to a supported context, such as a Server Component or Route Handler.
+Proxy does not run the Next.js compiler transforms for [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use server`](/docs/app/api-reference/directives/use-server). As a result, these directives have no effect in functions called from Proxy. This includes imported functions whose directives work elsewhere in your application.
+
+`fetch` options such as `cache`, `next.revalidate`, and `next.tags` also do not cache responses. To reuse cached data in Proxy, use an [external cache or data store](/docs/app/guides/redirecting#managing-redirects-at-scale-advanced). Alternatively, move the work to a supported context, such as a Server Component or Route Handler.
 
 ### Convention
 
