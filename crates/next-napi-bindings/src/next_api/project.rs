@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::hash_map::Entry,
     fs::{canonicalize, create_dir_all},
     io::Write,
     path::{Path, PathBuf},
@@ -46,6 +47,7 @@ use next_core::{
     },
 };
 use rand::RngExt;
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
 use tracing::Instrument;
@@ -902,6 +904,11 @@ pub struct NapiRoute {
     pub r#type: &'static str,
 
     pub pages: Option<Vec<AppPageNapiRoute>>,
+    pub app_paths: Option<Vec<RcStr>>,
+    pub is_internal: Option<bool>,
+    pub runtime_page: Option<RcStr>,
+    pub runtime_pathname: Option<RcStr>,
+    pub static_metadata_source: Option<RcStr>,
 
     pub has_action_manifest: Option<bool>,
 
@@ -917,14 +924,15 @@ impl NapiRoute {
         pathname: RcStr,
         value: RouteOperation,
         turbopack_ctx: &NextTurbopackContext,
-    ) -> Self {
+        source_paths: &FxHashMap<FileSystemPath, RcStr>,
+    ) -> Result<Self> {
         let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
             Some(External::new(ExternalEndpoint(DetachedVc::new(
                 turbopack_ctx.clone(),
                 endpoint,
             ))))
         };
-        match value {
+        Ok(match value {
             RouteOperation::Page {
                 html_endpoint,
                 data_endpoint,
@@ -941,9 +949,15 @@ impl NapiRoute {
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            RouteOperation::AppPage(pages) => NapiRoute {
+            RouteOperation::AppPage {
+                pages,
+                app_paths,
+                is_internal,
+            } => NapiRoute {
                 pathname,
                 r#type: "app-page",
+                app_paths: Some(app_paths),
+                is_internal: Some(is_internal),
                 pages: Some(
                     pages
                         .into_iter()
@@ -960,12 +974,25 @@ impl NapiRoute {
                 original_name,
                 endpoint,
                 has_action_manifest,
+                runtime_page,
+                runtime_pathname,
+                static_metadata_source,
             } => NapiRoute {
                 pathname,
                 original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 has_action_manifest: Some(has_action_manifest),
+                runtime_page: Some(runtime_page),
+                runtime_pathname: Some(runtime_pathname),
+                static_metadata_source: static_metadata_source
+                    .as_ref()
+                    .map(|source| {
+                        source_paths.get(source).cloned().context(
+                            "Static metadata source path was not materialized at the NAPI boundary",
+                        )
+                    })
+                    .transpose()?,
                 ..Default::default()
             },
             RouteOperation::Conflict => NapiRoute {
@@ -973,8 +1000,53 @@ impl NapiRoute {
                 r#type: "conflict",
                 ..Default::default()
             },
+        })
+    }
+}
+
+#[turbo_tasks::function(operation, root)]
+fn discovery_filesystem_operation(file_system: ResolvedVc<DiskFileSystem>) -> Vc<DiskFileSystem> {
+    *file_system
+}
+
+/// System filenames are only materialized while returning data to JavaScript. Keep filesystem
+/// identities in the cached discovery values so those values remain portable across project roots.
+async fn materialize_discovery_sources(
+    entrypoints: Option<&EntrypointsOperation>,
+) -> Result<FxHashMap<FileSystemPath, RcStr>> {
+    let mut sources = FxIndexSet::default();
+    if let Some(entrypoints) = entrypoints {
+        for route in entrypoints.routes.values() {
+            if let RouteOperation::AppRoute {
+                static_metadata_source: Some(source),
+                ..
+            } = route
+            {
+                sources.insert(source.clone());
+            }
         }
     }
+    let mut file_systems = FxHashMap::default();
+    let mut paths = FxHashMap::default();
+    for source in sources {
+        let file_system = ResolvedVc::try_downcast_type::<DiskFileSystem>(source.fs)
+            .context("A route discovery source must use a disk filesystem")?;
+        let file_system = match file_systems.entry(file_system) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(
+                discovery_filesystem_operation(file_system)
+                    .read_strongly_consistent()
+                    .await?,
+            ),
+        };
+        let path = file_system.to_sys_path(&source);
+        let path: RcStr = path
+            .to_str()
+            .context("A route discovery source path must be valid Unicode")?
+            .into();
+        paths.insert(source, path);
+    }
+    Ok(paths)
 }
 
 #[napi(object, object_from_js = false)]
@@ -1036,12 +1108,13 @@ impl NapiEntrypoints {
     fn from_entrypoints_op(
         entrypoints: &EntrypointsOperation,
         turbopack_ctx: &NextTurbopackContext,
+        source_paths: &FxHashMap<FileSystemPath, RcStr>,
     ) -> Result<Self> {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.clone(), v.clone(), turbopack_ctx))
-            .collect();
+            .map(|(k, v)| NapiRoute::from_route(k.clone(), v.clone(), turbopack_ctx, source_paths))
+            .collect::<Result<_>>()?;
         let middleware = entrypoints
             .middleware
             .as_ref()
@@ -1086,6 +1159,8 @@ struct EntrypointsWithIssues {
 async fn get_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
+    // Tooling must continue receiving authored-file updates when a conflicting route or another
+    // compilation diagnostic prevents the effective runtime inventory from being returned.
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
     let filter = container.project().issue_filter().await?;
@@ -1223,7 +1298,10 @@ fn compute_deferred_phase_build_paths(
             Route::Page { .. } | Route::PageApi { .. } => {
                 pages.insert(route_key.clone());
             }
-            Route::AppPage(app_page_routes) => {
+            Route::AppPage {
+                pages: app_page_routes,
+                ..
+            } => {
                 let app_debug_path = to_app_debug_path(route_key.as_str(), "page");
                 if is_deferred_app_route(route_key.as_str(), deferred_entries) {
                     deferred_app.insert(app_debug_path);
@@ -1494,7 +1572,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         EntrypointsWritePhase::All
     };
 
-    let (mut entrypoints, mut issues) = tt
+    let (mut entrypoints, mut issues, mut source_paths) = tt
         .run(async move {
             let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                 container,
@@ -1513,9 +1591,11 @@ pub async fn project_write_all_entrypoints_to_disk(
                 ..
             } = &*read;
 
+            let source_paths = materialize_discovery_sources(entrypoints.as_deref()).await?;
             Ok((
                 entrypoints.clone(),
                 issues.iter().cloned().collect::<Vec<_>>(),
+                source_paths,
             ))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1558,7 +1638,7 @@ pub async fn project_write_all_entrypoints_to_disk(
             .await?;
         }
 
-        let (deferred_entrypoints, deferred_issues) = tt
+        let (deferred_entrypoints, deferred_issues, deferred_source_paths) = tt
             .run(async move {
                 let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                     container,
@@ -1577,9 +1657,11 @@ pub async fn project_write_all_entrypoints_to_disk(
                     ..
                 } = &*read;
 
+                let source_paths = materialize_discovery_sources(entrypoints.as_deref()).await?;
                 Ok((
                     entrypoints.clone(),
                     issues.iter().cloned().collect::<Vec<_>>(),
+                    source_paths,
                 ))
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1587,6 +1669,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
         if deferred_entrypoints.is_some() {
             entrypoints = deferred_entrypoints;
+            source_paths = deferred_source_paths;
         }
         issues.extend(deferred_issues);
     }
@@ -1611,7 +1694,11 @@ pub async fn project_write_all_entrypoints_to_disk(
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
-            Some(NapiEntrypoints::from_entrypoints_op(&entrypoints, ctx)?)
+            Some(NapiEntrypoints::from_entrypoints_op(
+                &entrypoints,
+                ctx,
+                &source_paths,
+            )?)
         } else {
             None
         },
@@ -1812,7 +1899,7 @@ pub async fn project_entrypoints(
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    let (entrypoints, issues) = ctx
+    let (entrypoints, issues, source_paths) = ctx
         .turbo_tasks()
         .run_once(async move {
             let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
@@ -1826,13 +1913,18 @@ pub async fn project_entrypoints(
                 .read_strongly_consistent()
                 .await?;
 
-            Ok((entrypoints.clone(), issues.clone()))
+            let source_paths = materialize_discovery_sources(entrypoints.as_deref()).await?;
+            Ok((entrypoints.clone(), issues.clone(), source_paths))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     let result = match entrypoints {
-        Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(&entrypoints, &ctx)?),
+        Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
+            &entrypoints,
+            &ctx,
+            &source_paths,
+        )?),
         None => None,
     };
 
@@ -1872,16 +1964,18 @@ pub fn project_entrypoints_subscribe(
                     issues,
                     ..
                 } = &*read;
-                Ok((entrypoints.clone(), issues.clone()))
+                let source_paths = materialize_discovery_sources(entrypoints.as_deref()).await?;
+                Ok((entrypoints.clone(), issues.clone(), source_paths))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
-            let (entrypoints, issues) = ctx.value;
+            let (entrypoints, issues, source_paths) = ctx.value;
             let result = match entrypoints {
                 Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
                     &entrypoints,
                     &turbopack_ctx,
+                    &source_paths,
                 )?),
                 None => None,
             };

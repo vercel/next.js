@@ -1466,7 +1466,9 @@ impl Project {
                         add_pages_entries = true;
                     }
                 }
-                Route::AppPage(page_routes) => {
+                Route::AppPage {
+                    pages: page_routes, ..
+                } => {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),
                         EndpointGroup {

@@ -9,6 +9,7 @@ use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     module::Module,
     module_graph::{GraphEntries, ModuleGraph},
@@ -34,9 +35,16 @@ pub enum Route {
     PageApi {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
-    AppPage(Vec<AppPageRoute>),
+    AppPage {
+        pages: Vec<AppPageRoute>,
+        app_paths: Vec<RcStr>,
+        is_internal: bool,
+    },
     AppRoute {
         original_name: RcStr,
+        runtime_page: RcStr,
+        runtime_pathname: RcStr,
+        static_metadata_source: Option<FileSystemPath>,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
         has_action_manifest: bool,
     },

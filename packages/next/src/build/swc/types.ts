@@ -407,6 +407,8 @@ export type Route =
     }
   | {
       type: 'app-page'
+      appPaths: string[]
+      isInternal: boolean
       pages: {
         originalName: string
         htmlEndpoint: Endpoint
@@ -416,6 +418,9 @@ export type Route =
   | {
       type: 'app-route'
       originalName: string
+      runtimePage: string
+      runtimePathname: string
+      staticMetadataSource?: string
       hasActionManifest: boolean
       endpoint: Endpoint
     }

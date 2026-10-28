@@ -196,7 +196,7 @@ pub async fn render_routes(
                         Route::PageApi { endpoint } => {
                             endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
-                        Route::AppPage(routes) => {
+                        Route::AppPage { pages: routes, .. } => {
                             for route in routes {
                                 endpoint_write_to_disk_with_apply(route.html_endpoint).await?;
                             }

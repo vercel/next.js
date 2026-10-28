@@ -543,6 +543,8 @@ function bindingToApi(
       }
     | {
         type: 'app-page'
+        appPaths: string[]
+        isInternal: boolean
         pages: {
           originalName: string
           htmlEndpoint: NapiEndpoint
@@ -552,6 +554,9 @@ function bindingToApi(
     | {
         type: 'app-route'
         originalName: string
+        runtimePage: string
+        runtimePathname: string
+        staticMetadataSource?: string
         hasActionManifest: boolean
         endpoint: NapiEndpoint
       }
@@ -1235,6 +1240,8 @@ function bindingToApi(
         case 'app-page':
           route = {
             type: 'app-page',
+            appPaths: nativeRoute.appPaths,
+            isInternal: nativeRoute.isInternal,
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
@@ -1246,6 +1253,9 @@ function bindingToApi(
           route = {
             type: 'app-route',
             originalName: nativeRoute.originalName,
+            runtimePage: nativeRoute.runtimePage,
+            runtimePathname: nativeRoute.runtimePathname,
+            staticMetadataSource: nativeRoute.staticMetadataSource,
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }

@@ -5,6 +5,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
     debug::ValueDebugFormat, take_effects,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::CollectibleIssuesExt;
 
 use crate::{
@@ -96,8 +97,14 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
         Route::PageApi { .. } => RouteOperation::PageApi {
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageApi(key)),
         },
-        Route::AppPage(pages) => RouteOperation::AppPage(
-            pages
+        Route::AppPage {
+            pages,
+            app_paths,
+            is_internal,
+        } => RouteOperation::AppPage {
+            app_paths: app_paths.clone(),
+            is_internal: *is_internal,
+            pages: pages
                 .iter()
                 .enumerate()
                 .map(|(i, p)| AppPageRouteOperation {
@@ -112,13 +119,19 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                     ),
                 })
                 .collect(),
-        ),
+        },
         Route::AppRoute {
             original_name,
+            runtime_page,
+            runtime_pathname,
+            static_metadata_source,
             has_action_manifest,
             ..
         } => RouteOperation::AppRoute {
             original_name: original_name.clone(),
+            runtime_page: runtime_page.clone(),
+            runtime_pathname: runtime_pathname.clone(),
+            static_metadata_source: static_metadata_source.clone(),
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
             has_action_manifest: *has_action_manifest,
         },
@@ -186,14 +199,14 @@ async fn pick_endpoint(
             }
         }
         EndpointSelector::RouteAppPageHtml(name, i) => {
-            if let Some(Route::AppPage(pages)) = endpoints.routes.get(&name) {
+            if let Some(Route::AppPage { pages, .. }) = endpoints.routes.get(&name) {
                 pages.get(i).as_ref().map(|p| p.html_endpoint)
             } else {
                 None
             }
         }
         EndpointSelector::RouteAppPageRscHmr(name, i) => {
-            if let Some(Route::AppPage(pages)) = endpoints.routes.get(&name) {
+            if let Some(Route::AppPage { pages, .. }) = endpoints.routes.get(&name) {
                 pages.get(i).as_ref().map(|p| p.rsc_hmr_endpoint)
             } else {
                 None
@@ -232,9 +245,16 @@ pub enum RouteOperation {
     PageApi {
         endpoint: OperationVc<OptionEndpoint>,
     },
-    AppPage(Vec<AppPageRouteOperation>),
+    AppPage {
+        pages: Vec<AppPageRouteOperation>,
+        app_paths: Vec<RcStr>,
+        is_internal: bool,
+    },
     AppRoute {
         original_name: RcStr,
+        runtime_page: RcStr,
+        runtime_pathname: RcStr,
+        static_metadata_source: Option<FileSystemPath>,
         endpoint: OperationVc<OptionEndpoint>,
         has_action_manifest: bool,
     },
