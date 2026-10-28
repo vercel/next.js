@@ -308,7 +308,7 @@ async function cleanupDeferredLocators() {
 }
 
 async function dispatchBrowserCommand(
-  resolveElement: () => Element | null,
+  resolveElement: (() => Element | null) | undefined,
   method: ClientBrowserCommand['method'],
   args: unknown[],
   resolveElements?: () => Element[],
@@ -328,7 +328,7 @@ async function dispatchBrowserCommand(
 }
 
 async function dispatchBrowserCommandResult(
-  resolveElement: () => Element | null,
+  resolveElement: (() => Element | null) | undefined,
   method: ClientBrowserCommand['method'],
   args: unknown[],
   resolveElements?: () => Element[],
@@ -350,7 +350,7 @@ async function dispatchBrowserCommandResult(
   if (serializedTarget && serializedMethod === undefined)
     throw new Error('Serialized Browser targets require a locator action.')
   const admission = actionCallbacks?.captureCommandAdmission?.()
-  const element = serializedTarget ? undefined : resolveElement()
+  const element = serializedTarget ? undefined : resolveElement!()
   if (
     !serializedTarget &&
     !element &&
@@ -595,6 +595,11 @@ class ElementLocator {
     )
   }
   unhover(options?: HoverOptions): Promise<void> {
+    if (serializedClickTargets)
+      return this.action('__vitest_hover', [], options, {
+        selector: 'html > body',
+        locator: "locator('body')",
+      })
     return this.#action('unhover', [], options)
   }
   hover(options?: HoverOptions): Promise<void> {
@@ -784,6 +789,36 @@ class ElementLocator {
   }
   getByTestId(...args: any[]) {
     return createQueryLocator(this, 'TestId', args)
+  }
+  private action(
+    method: '__vitest_hover',
+    args: unknown[],
+    options?: HoverOptions,
+    locator: SerializedLocator = this.serialize()
+  ): Promise<void> {
+    if (method !== '__vitest_hover')
+      throw new Error('Unsupported Browser locator action.')
+    const errorSource = (this as ElementLocator & { _errorSource?: Error })
+      ._errorSource
+    const work: LocatorWork<void> = async (
+      _receiver,
+      values,
+      actionOptions,
+      source
+    ) => {
+      await dispatchBrowserCommand(
+        undefined,
+        'hover',
+        actionOptions === undefined ? values : [...values, actionOptions],
+        undefined,
+        undefined,
+        source,
+        { locator }
+      )
+    }
+    return actionCallbacks
+      ? new LocatorAction(work, this, args, options, errorSource)
+      : work(this, args, options, errorSource)
   }
 }
 function createQueryLocator(

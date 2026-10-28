@@ -5934,3 +5934,28 @@ it.each(['success', 'native-error', 'wrong-value', 'legacy-invalid', 'cancel'])(
     })
   }
 )
+
+it.each([
+  'body',
+  'prototype',
+  'borrowed',
+  'delegate',
+  'source',
+  'source-error',
+  'legacy',
+  'no-callback',
+  'late',
+])('delegates unhover to its actual body target and receiver: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-unhover-target.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    actualBodyTarget: true,
+    receiverAndDelegatePreserved: true,
+    legacyUnchanged: true,
+    actualLifetimePreserved: true,
+  })
+})
