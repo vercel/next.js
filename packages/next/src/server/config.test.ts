@@ -403,8 +403,7 @@ describe('loadConfig', () => {
       }
     })
 
-    it('loads standalone config from globalThis and keeps env as 1', async () => {
-      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = '1'
+    it('loads standalone config from globalThis without env var', async () => {
       const standaloneConfig = {
         distDir: '.next',
         output: 'standalone',
@@ -413,7 +412,7 @@ describe('loadConfig', () => {
 
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname)
       expect(result.output).toBe('standalone')
-      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBe('1')
+      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBeUndefined()
     })
 
     it('cleans up serialized standalone config in process.env to prevent E2BIG', async () => {
@@ -425,10 +424,18 @@ describe('loadConfig', () => {
 
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname)
       expect(result.output).toBe('standalone')
-      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBe('1')
+      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBeUndefined()
       expect((globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG).toEqual(
         hugeConfig
       )
+    })
+
+    it('falls through gracefully if child process inherits sentinel 1 without globalThis', async () => {
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = '1'
+
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname)
+      expect(result).toBeDefined()
+      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBeUndefined()
     })
   })
 })
