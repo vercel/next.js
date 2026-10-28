@@ -63,7 +63,9 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
-        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
+        webpack_rules::{
+            WebpackLoaderBuiltinCondition, emitted_files_scope, webpack_loader_options,
+        },
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -435,6 +437,9 @@ pub async fn get_server_module_options_context(
                 .await?,
         ),
         config_location: postcss_config_location,
+        emitted_files_scope: Some(emitted_files_scope(
+            &next_runtime.webpack_loader_conditions().collect(),
+        )),
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {

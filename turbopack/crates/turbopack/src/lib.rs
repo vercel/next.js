@@ -689,6 +689,7 @@ async fn process_default_internal(
             *resolve_options_context,
             source_maps,
             config_tracing_module_context(*execution_context),
+            webpack_loaders_options.emitted_files_scope.clone(),
         )
         .to_resolved()
         .await?;

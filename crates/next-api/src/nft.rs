@@ -7,7 +7,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    Completion, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemEntryType, FileSystemPath,
@@ -22,17 +23,19 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
+    output::OutputAsset,
     raw_module::RawModule,
     reference::DynamicTraceReference,
 };
 
-use crate::project::Project;
+use crate::project::{Project, loader_emitted_assets};
 
 #[turbo_tasks::value]
 pub struct EndpointTraceResult {
     pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
     pub includes: Vec<FileSystemPath>,
     pub module_data: ResolvedVc<TracedModuleData>,
+    pub emitted_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -54,6 +57,43 @@ impl EndpointTraceResult {
                 .collect(),
         ))
     }
+}
+
+#[turbo_tasks::function]
+async fn endpoint_modules(
+    module_graph: Vc<ModuleGraph>,
+    entry_modules: Vc<Modules>,
+) -> Result<Vc<Modules>> {
+    let mut modules = FxIndexSet::default();
+    module_graph.await?.traverse_edges_dfs(
+        entry_modules.await?.iter().copied(),
+        &mut (),
+        |_, target, _| {
+            modules.insert(target);
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+        false,
+    )?;
+    Ok(Vc::cell(modules.into_iter().collect()))
+}
+
+/// Reads source content to collect files emitted by transforms.
+#[turbo_tasks::function(operation, root)]
+async fn read_module_sources_operation(modules: ResolvedVc<Modules>) -> Result<Vc<Completion>> {
+    modules
+        .await?
+        .iter()
+        .map(async |module| {
+            if let Some(source) = *module.source().await? {
+                source.content().await?;
+            }
+            Ok(())
+        })
+        .try_join()
+        .await?;
+    Ok(Completion::new())
 }
 
 /// Traces the files an endpoint needs at runtime.
@@ -166,10 +206,20 @@ pub async fn trace_endpoint(
             Default::default()
         };
 
+        // The module graph can be shared by the whole app, so only read this endpoint's modules.
+        let sources = read_module_sources_operation(
+            endpoint_modules(*module_graph, entry_modules)
+                .to_resolved()
+                .await?,
+        );
+        sources.connect().await?;
+        let emitted_assets = loader_emitted_assets(*project, sources).await?;
+
         Ok(EndpointTraceResult {
             modules,
             includes,
             module_data,
+            emitted_assets,
         }
         .cell())
     }

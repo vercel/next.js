@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use next_core::emit_assets;
+use next_core::{check_duplicates, emit_assets};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -10,6 +10,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    emitted_output::EmittedOutputAsset,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
@@ -215,6 +216,8 @@ impl VersionedContentMap {
             // Any error should result in an empty list, which removes all assets from the map
             .ok();
 
+        // Emitted files can share a path across endpoints without sharing content.
+        let mut shared_emitted_files = Vec::new();
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
@@ -223,11 +226,21 @@ impl VersionedContentMap {
             // get current map's keys, subtract keys that don't exist in operation
             let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
-            for (k, _) in entries.iter().flatten() {
+            for (k, asset) in entries.iter().flatten() {
                 let set = &mut map.0.entry(k.clone()).or_default().0;
                 let inserted = !set.contains(&assets_operation);
                 if inserted {
                     set.insert(GcRoot::pin(tt.clone(), assets_operation));
+                }
+                if ResolvedVc::try_downcast_type::<EmittedOutputAsset>(*asset).is_some() {
+                    let others = set
+                        .iter()
+                        .map(|pin| **pin)
+                        .filter(|op| *op != assets_operation)
+                        .collect::<Vec<_>>();
+                    if !others.is_empty() {
+                        shared_emitted_files.push((k.clone(), *asset, others));
+                    }
                 }
                 stale_assets.remove(k);
                 changed = changed || inserted;
@@ -250,12 +263,22 @@ impl VersionedContentMap {
         // Make sure all written client assets are up-to-date
         emit_assets(
             assets_operation.connect(),
-            node_root,
+            node_root.clone(),
             client_relative_path,
             client_output_path,
         )
         .as_side_effect()
         .await?;
+        // Dev emits endpoints separately; also check assets from other endpoints.
+        for (path, asset, others) in shared_emitted_files {
+            let mut assets = vec![asset];
+            for op in others {
+                if let Ok(entries) = get_entries(op).read_strongly_consistent().await {
+                    assets.extend(entries.iter().filter(|(p, _)| *p == path).map(|(_, a)| *a));
+                }
+            }
+            check_duplicates(&path, &assets, &node_root).await?;
+        }
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
             path_to_asset: entries.iter().flatten().cloned().collect(),

@@ -1,4 +1,4 @@
-use std::{mem::take, path::Path};
+use std::{collections::BTreeMap, mem::take, path::Path};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -8,7 +8,6 @@ use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue, json};
-use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -28,6 +27,7 @@ use turbopack_core::{
     changed::any_source_content_changed_of_module,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset},
     context::{AssetContext, ProcessResult},
+    emitted_output::EmittedFile,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
@@ -50,7 +50,6 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
     source_transform::SourceTransform,
-    virtual_source::VirtualSource,
 };
 use turbopack_resolve::{
     ecmascript::{esm_resolve, get_condition_maps},
@@ -70,15 +69,8 @@ use crate::{
     execution_context::ExecutionContext,
     format::FormattingMode,
     source_map::{StackFrame, StructuredError},
-    transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
+    transforms::util::{BytesBase64, LoaderEmittedAsset, loader_emitted_assets_to_files},
 };
-
-#[serde_as]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Encode, Decode)]
-struct BytesBase64 {
-    #[serde_as(as = "serde_with::base64::Base64")]
-    binary: Vec<u8>,
-}
 
 #[derive(Debug, Clone, Deserialize)]
 #[turbo_tasks::value]
@@ -89,7 +81,7 @@ struct WebpackLoadersProcessingResult {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     source: Either<RcStr, BytesBase64>,
     map: Option<RcStr>,
-    assets: Option<Vec<EmittedAsset>>,
+    assets: Option<Vec<LoaderEmittedAsset>>,
 }
 
 pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
@@ -105,6 +97,7 @@ pub struct WebpackLoaders {
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
     source_maps: bool,
     config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
+    emitted_files_scope: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -120,6 +113,7 @@ impl WebpackLoaders {
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
         source_maps: bool,
         config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
+        emitted_files_scope: Option<RcStr>,
     ) -> Vc<Self> {
         WebpackLoaders {
             evaluate_context,
@@ -131,6 +125,7 @@ impl WebpackLoaders {
             resolve_options_context,
             source_maps,
             config_tracing_context,
+            emitted_files_scope,
         }
         .cell()
     }
@@ -200,7 +195,11 @@ impl Source for WebpackLoadersProcessedAsset {
 impl Asset for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*self.process().await?.content)
+        let result = self.process().await?;
+        for file in &result.emitted_files {
+            file.emit();
+        }
+        Ok(*result.content)
     }
 }
 
@@ -216,7 +215,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
     source_map: ResolvedVc<FileContent>,
-    assets: Vec<ResolvedVc<VirtualSource>>,
+    emitted_files: Vec<ResolvedVc<EmittedFile>>,
 }
 
 #[turbo_tasks::function]
@@ -449,7 +448,24 @@ impl WebpackLoadersProcessedAsset {
                 env,
                 node_backend,
             } = &*transform.execution_context.await?;
-            let source_content = self.source.content();
+            // Read an inner loader chain's result directly, so only the outermost chain emits.
+            let (source_content, mut emitted_files) = if let Some(inner) =
+                ResolvedVc::try_downcast_type::<WebpackLoadersProcessedAsset>(self.source)
+            {
+                let inner = inner.process().await?;
+                let files = inner
+                    .emitted_files
+                    .iter()
+                    .map(async |file| Ok((file.await?.name.clone(), *file)))
+                    .try_join()
+                    .await?;
+                (
+                    *inner.content,
+                    files.into_iter().collect::<BTreeMap<_, _>>(),
+                )
+            } else {
+                (self.source.content(), BTreeMap::new())
+            };
             let AssetContent::File(file) = *source_content.await? else {
                 bail!("Webpack Loaders transform only support transforming files");
             };
@@ -457,8 +473,8 @@ impl WebpackLoadersProcessedAsset {
                 return Ok(ProcessWebpackLoadersResult {
                     content: AssetContent::File(FileContent::NotFound.resolved_cell())
                         .resolved_cell(),
-                    assets: Vec::new(),
                     source_map: FileContent::NotFound.resolved_cell(),
+                    emitted_files: Vec::new(),
                 }
                 .cell());
             };
@@ -548,8 +564,8 @@ impl WebpackLoadersProcessedAsset {
                 return Ok(ProcessWebpackLoadersResult {
                     content: AssetContent::File(FileContent::NotFound.resolved_cell())
                         .resolved_cell(),
-                    assets: Vec::new(),
                     source_map: FileContent::NotFound.resolved_cell(),
+                    emitted_files: Vec::new(),
                 }
                 .cell());
             };
@@ -573,13 +589,19 @@ impl WebpackLoadersProcessedAsset {
                 Either::Left(str) => File::from(str),
                 Either::Right(bytes) => File::from(bytes.binary),
             };
-            let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
+            if let Some(scope) = &transform.emitted_files_scope {
+                for file in
+                    loader_emitted_assets_to_files(processed.assets, scope, resource_fs_path)?
+                {
+                    emitted_files.insert(file.await?.name.clone(), file);
+                }
+            }
 
             let content =
                 AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
             Ok(ProcessWebpackLoadersResult {
                 content,
-                assets,
+                emitted_files: emitted_files.into_values().collect(),
                 source_map: if let Some(source_map) = source_map {
                     FileContent::Content(File::from(source_map)).resolved_cell()
                 } else {

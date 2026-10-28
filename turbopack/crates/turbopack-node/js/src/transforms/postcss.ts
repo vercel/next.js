@@ -86,16 +86,17 @@ export default async function transform(
   for (const msg of messages) {
     switch (msg.type) {
       case 'asset':
-        assets.push({
-          file: msg.file,
-          content: msg.content,
-          sourceMap: !sourceMap
-            ? undefined
-            : typeof msg.sourceMap === 'string'
-              ? msg.sourceMap
-              : JSON.stringify(msg.sourceMap),
-          // There is also an info field, which we currently ignore
-        })
+        // Like postcss-loader, which passes these messages to `emitFile()`.
+        if (msg.file && msg.content) {
+          assets.push({
+            file: msg.file,
+            content: Buffer.isBuffer(msg.content)
+              ? { binary: msg.content.toString('base64') }
+              : msg.content,
+            sourceMap: msg.sourceMap || undefined,
+            minimized: msg.info?.minimized ? true : undefined,
+          })
+        }
         break
       case 'dependency':
       case 'missing-dependency':

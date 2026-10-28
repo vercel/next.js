@@ -103,11 +103,23 @@ impl Asset for NftJsonAsset {
             let mut nft_json = NftJsonBuilder::new(this.project, &nft_path).await?;
 
             let chunk = this.chunk;
+            let traced_files = this.traced_files.await?;
+            // Public files are served from the static directory rather than read by the server.
+            let emitted_assets = traced_files
+                .emitted_assets
+                .iter()
+                .copied()
+                .map(async |asset| {
+                    Ok((!asset.path().await?.is_inside_ref(&client_root)).then_some(asset))
+                })
+                .try_flat_join()
+                .await?;
             let entries = this
                 .additional_assets
                 .iter()
                 .copied()
                 .chain(std::iter::once(chunk))
+                .chain(emitted_assets)
                 .collect();
 
             let exclude_glob =
@@ -126,7 +138,6 @@ impl Asset for NftJsonAsset {
             )
             .await?;
 
-            let traced_files = this.traced_files.await?;
             let module_data = traced_files.module_data.await?;
 
             let result = all_assets

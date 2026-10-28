@@ -128,6 +128,11 @@ export function getDefineEnv({
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
+    ...(isTurbopack
+      ? {
+          __webpack_public_path__: `${config.assetPrefix.replace(/\/$/, '')}/_next/`,
+        }
+      : {}),
 
     ...nextPublicEnv,
     ...nextConfigEnv,

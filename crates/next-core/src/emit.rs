@@ -93,38 +93,6 @@ pub async fn emit_assets(
         }
     }
 
-    /// Checks for duplicate assets at the same path. If duplicates with
-    /// different content are found, emits an `EmitConflictIssue` for each
-    /// conflict but still returns the first asset so emission can continue.
-    async fn check_duplicates(
-        path: &FileSystemPath,
-        assets: AssetVec,
-        node_root: &FileSystemPath,
-    ) -> Result<()> {
-        let mut iter = assets.into_iter();
-        let first = iter.next().unwrap();
-        let ext: RcStr = path.extension().unwrap_or_default().into();
-        let conflicts = iter
-            .map(|next| assets_diff(*next, *first, ext.clone(), node_root.clone()).owned())
-            .try_flat_join()
-            .await?;
-        if let Some(detail) = conflicts.into_iter().next() {
-            #[turbo_tasks::function]
-            fn emit_conflict_issue(path: FileSystemPath, detail: RcStr) {
-                EmitConflictIssue {
-                    asset_path: path.clone(),
-                    detail,
-                }
-                .resolved_cell()
-                .emit();
-            }
-            emit_conflict_issue(path.clone(), detail)
-                .as_side_effect()
-                .await?;
-        }
-        Ok(())
-    }
-
     // Use join! instead of try_join! to collect all errors deterministically
     // rather than returning whichever branch fails first non-deterministically.
     let (node_result, client_result) = join!(
@@ -143,7 +111,7 @@ pub async fn emit_assets(
                         emit(*asset).as_side_effect().await?;
                         // This need to be after `emit()`, so the asset is emitted even if this
                         // method crashes due to eventual consistency.
-                        check_duplicates(&path, assets, &node_root).await?;
+                        check_duplicates(&path, &assets, &node_root).await?;
                         Ok(())
                     }
                     .instrument(span)
@@ -173,7 +141,7 @@ pub async fn emit_assets(
                             .await?;
                         // This need to be after `emit_rebase()`, so the asset is emitted even if
                         // this method crashes due to eventual consistency.
-                        check_duplicates(&path, assets, &node_root).await?;
+                        check_duplicates(&path, &assets, &node_root).await?;
                         Ok(())
                     }
                     .instrument(span)
@@ -184,6 +152,38 @@ pub async fn emit_assets(
     );
     node_result?;
     client_result?;
+    Ok(())
+}
+
+/// Reports differing content at a shared output path and writes copies for comparison.
+pub async fn check_duplicates(
+    path: &FileSystemPath,
+    assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+    node_root: &FileSystemPath,
+) -> Result<()> {
+    let Some((first, rest)) = assets.split_first() else {
+        return Ok(());
+    };
+    let ext: RcStr = path.extension().unwrap_or_default().into();
+    let conflicts = rest
+        .iter()
+        .map(|next| assets_diff(**next, **first, ext.clone(), node_root.clone()).owned())
+        .try_flat_join()
+        .await?;
+    if let Some(detail) = conflicts.into_iter().next() {
+        #[turbo_tasks::function]
+        fn emit_conflict_issue(path: FileSystemPath, detail: RcStr) {
+            EmitConflictIssue {
+                asset_path: path.clone(),
+                detail,
+            }
+            .resolved_cell()
+            .emit();
+        }
+        emit_conflict_issue(path.clone(), detail)
+            .as_side_effect()
+            .await?;
+    }
     Ok(())
 }
 
