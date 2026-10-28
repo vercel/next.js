@@ -811,7 +811,7 @@ export const page = Object.assign(selectors(root), {
       throw new Error('Browser locator must belong to its owned document.')
     return new ElementLocator(
       () => (element.isConnected ? [element] : []),
-      element.isConnected
+      serializedClickTargets || element.isConnected
         ? locatorFormatter.generateSelector(element)
         : () => locatorFormatter.generateSelector(element),
       element,
@@ -1095,7 +1095,27 @@ export const server = {
   config: { browser: { locators: { testIdAttribute: 'data-testid' } } },
 }
 export const utils = {
-  getElementLocatorSelectors: selectors,
+  getElementLocatorSelectors: function getElementLocatorSelectors(
+    element: Element | ElementLocator
+  ) {
+    if (!serializedClickTargets) return selectors(element)
+    const locator = page.elementLocator(element as Element)
+    return {
+      getByAltText: (altText: unknown, options?: unknown) =>
+        locator.getByAltText(altText, options),
+      getByLabelText: (labelText: unknown, options?: unknown) =>
+        locator.getByLabelText(labelText, options),
+      getByPlaceholder: (placeholderText: unknown, options?: unknown) =>
+        locator.getByPlaceholder(placeholderText, options),
+      getByRole: (role: unknown, options?: unknown) =>
+        locator.getByRole(role, options),
+      getByTestId: (testId: unknown) => locator.getByTestId(testId),
+      getByText: (text: unknown, options?: unknown) =>
+        locator.getByText(text, options),
+      getByTitle: (title: unknown, options?: unknown) =>
+        locator.getByTitle(title, options),
+    }
+  },
   debug(
     element: Element = document.body,
     maxLength?: number,

@@ -5816,3 +5816,27 @@ it.each(['descriptor', 'immutable', 'utilities', 'definition-call'])(
     })
   }
 )
+
+it.each([
+  'eager',
+  'delegation',
+  'factory-error',
+  'child-error',
+  'detached',
+  'legacy',
+  'legacy-lazy',
+  'construction',
+  'legacy-construction',
+])('captures the actual rooted utility factory: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-rooted-utility.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    actualFactoryAndSnapshotsHeld: true,
+    originalGetterReceiverArgsAndErrors: true,
+    legacyNoSerializeAndLazyHeld: true,
+  })
+})
