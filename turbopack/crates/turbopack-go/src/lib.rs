@@ -495,7 +495,16 @@ async fn observe_packages(
         for import in pkg.imports.iter().chain(std::iter::once(&pkg.import_path)) {
             if let Some(relative) = import
                 .strip_prefix(module)
-                .and_then(|p| p.strip_prefix('/'))
+                .and_then(|path| {
+                    // An import equal to the module path refers to its root package.
+                    // Missing packages have no Dir in go list's output, so this is also
+                    // needed to watch for the first source file appearing there.
+                    if path.is_empty() {
+                        Some(path)
+                    } else {
+                        path.strip_prefix('/')
+                    }
+                })
                 .filter(|_| !module.is_empty())
             {
                 tracker.parents(&project.join(relative)).await?;

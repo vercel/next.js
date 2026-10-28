@@ -1,7 +1,10 @@
 use std::{
     ffi::OsString,
     io, mem,
-    os::windows::ffi::{OsStrExt, OsStringExt},
+    os::windows::{
+        ffi::{OsStrExt, OsStringExt},
+        io::AsRawHandle,
+    },
     path::{Component, Path, PathBuf, Prefix},
     ptr::{null, null_mut},
 };
@@ -12,10 +15,45 @@ use windows_sys::Win32::{
     Storage::FileSystem::{
         CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_FLAG_BACKUP_SEMANTICS,
         FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
-        FileAttributeTagInfo, GetFileInformationByHandleEx, OPEN_EXISTING,
+        FileAttributeTagInfo, GetFileInformationByHandleEx, GetFinalPathNameByHandleW,
+        OPEN_EXISTING,
     },
     System::SystemServices::IO_REPARSE_TAG_MOUNT_POINT,
 };
+
+/// Returns the absolute path of an open handle, preserving verbatim drive and UNC prefixes.
+pub(crate) fn handle_path(handle: &impl AsRawHandle) -> io::Result<PathBuf> {
+    read_handle_path(|buffer| unsafe {
+        GetFinalPathNameByHandleW(
+            handle.as_raw_handle().cast(),
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+            0,
+        )
+    })
+}
+
+fn read_handle_path(mut read: impl FnMut(&mut [u16]) -> u32) -> io::Result<PathBuf> {
+    let mut buffer = vec![0; 256];
+    loop {
+        let length = read(&mut buffer) as usize;
+        if length == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        if length >= buffer.len() {
+            buffer.resize(length + 1, 0);
+            continue;
+        }
+        let path = PathBuf::from(OsString::from_wide(&buffer[..length]));
+        if !path.is_absolute() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file handle returned a relative path",
+            ));
+        }
+        return Ok(path);
+    }
+}
 
 pub(crate) fn is_link_junction_point(path: &Path) -> io::Result<bool> {
     let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
@@ -104,6 +142,52 @@ mod tests {
     use std::path::Path;
 
     use super::*;
+
+    fn mock_handle_path(path: &str) -> io::Result<PathBuf> {
+        let wide: Vec<_> = path.encode_utf16().collect();
+        read_handle_path(|buffer| {
+            if buffer.len() <= wide.len() {
+                return (wide.len() + 1) as u32;
+            }
+            buffer[..wide.len()].copy_from_slice(&wide);
+            buffer[wide.len()] = 0;
+            wide.len() as u32
+        })
+    }
+
+    #[test]
+    fn handle_paths_preserve_drive_and_unc_prefixes() {
+        for path in [
+            r"C:\project\dist".to_owned(),
+            r"\\server\share\project\dist".to_owned(),
+            r"\\?\C:\project\dist".to_owned(),
+            r"\\?\UNC\server\share\project\dist".to_owned(),
+            format!(r"\\?\UNC\server\share\{}\dist", "project\\".repeat(64)),
+        ] {
+            let actual = mock_handle_path(&path).unwrap();
+            assert_eq!(actual, Path::new(&path));
+            assert_eq!(actual.join("main.exe"), Path::new(&path).join("main.exe"));
+        }
+    }
+
+    #[test]
+    fn handle_paths_reject_relative_results() {
+        for path in [r"project\dist", r"C:project\dist", r"UNC\server\share\dist"] {
+            assert_eq!(
+                mock_handle_path(path).unwrap_err().kind(),
+                io::ErrorKind::InvalidInput
+            );
+        }
+    }
+
+    #[test]
+    fn handle_path_matches_the_canonical_directory() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(scratch.path()).unwrap();
+        let directory =
+            cap_std::fs::Dir::open_ambient_dir(&root, cap_std::ambient_authority()).unwrap();
+        assert_eq!(handle_path(&directory).unwrap(), root);
+    }
 
     fn fold(path: &str) -> String {
         to_verbatim_with_case_folded_disk(Path::new(path))

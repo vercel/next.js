@@ -349,6 +349,94 @@ async fn missing_inputs_imports_and_embed_matches() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn module_root_package_creation_and_replacement_invalidate_discovery() -> Result<()> {
+    let session = Session::new().await?;
+    let files = ["cmd/app/main.go"];
+    session
+        .write(
+            files[0],
+            "package main\nimport (\"fmt\"; root \"example.com/native-fixture\")\nfunc main() { \
+             fmt.Println(root.Text()) }\n",
+        )
+        .await?;
+    let fs = session.fs;
+    session
+        .tt
+        .run_once(async move {
+            fs.await?.start_watching().await?;
+            Ok(())
+        })
+        .await?;
+
+    let result = async {
+        let error = session.fetch(&files).await.unwrap_err().to_string();
+        assert!(error.contains("example.com/native-fixture"), "{error}");
+        let failed = session.counts();
+        assert!(session.fetch(&files).await.is_err());
+        assert_eq!(session.counts(), failed, "the initial failure is memoized");
+
+        // Do not use Session::write here: only watcher events may invalidate discovery.
+        let source = session.project.join("root.go");
+        std::fs::write(
+            &source,
+            "package root\nfunc Text() string { return \"created-root-package\" }\n",
+        )?;
+        wait_for_output(&session, &files, "created-root-package").await?;
+
+        // Losing the last source file must keep observing the root directory, even though
+        // go list stops reporting both the package's Dir and its old source filename.
+        std::fs::remove_file(source)?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            if let Err(error) = session.fetch(&files).await
+                && error.to_string().contains("example.com/native-fixture")
+            {
+                break;
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "removing the module-root package did not invalidate discovery"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        std::fs::write(
+            session.project.join("replacement.go"),
+            "package root\nfunc Text() string { return \"replaced-root-package\" }\n",
+        )?;
+        wait_for_output(&session, &files, "replaced-root-package").await
+    }
+    .await;
+
+    session
+        .tt
+        .run_once(async move {
+            fs.await?.stop_watching().await;
+            Ok(())
+        })
+        .await?;
+    session.stop().await;
+    result
+}
+
+async fn wait_for_output(session: &Session, files: &[&str], expected: &str) -> Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let observed = session.run(files).await;
+        if observed
+            .as_ref()
+            .is_ok_and(|output| output.trim() == expected)
+        {
+            return Ok(());
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "watcher did not rebuild {expected}: {observed:?}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn standalone_and_unsupported_configuration() -> Result<()> {
     let mut session = Session::new().await?;
     let original_cache = session.go_context.cache.clone();

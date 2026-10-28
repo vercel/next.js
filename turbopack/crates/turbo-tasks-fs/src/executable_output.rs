@@ -41,6 +41,35 @@ fn reject_link(directory: &Dir, name: &OsStr) -> io::Result<()> {
     }
 }
 
+#[cfg(windows)]
+fn pinned_path(directory: &Dir, name: &OsStr) -> io::Result<std::path::PathBuf> {
+    // cap-std pins Windows directories by withholding FILE_SHARE_DELETE. Keep that handle
+    // alive while using its path, but preserve the verbatim UNC prefix that cap-std's
+    // path-based mkdir, rename and unlink implementations currently strip incorrectly.
+    Ok(crate::windows::handle_path(directory)?.join(name))
+}
+
+fn create_directory(directory: &Dir, name: &OsStr) -> io::Result<()> {
+    #[cfg(unix)]
+    return directory.create_dir(name);
+    #[cfg(windows)]
+    return std::fs::create_dir(pinned_path(directory, name)?);
+}
+
+fn rename_file(directory: &Dir, from: &OsStr, to: &OsStr) -> io::Result<()> {
+    #[cfg(unix)]
+    return directory.rename(from, directory, to);
+    #[cfg(windows)]
+    return std::fs::rename(pinned_path(directory, from)?, pinned_path(directory, to)?);
+}
+
+fn remove_file(directory: &Dir, name: &OsStr) -> io::Result<()> {
+    #[cfg(unix)]
+    return directory.remove_file(name);
+    #[cfg(windows)]
+    return std::fs::remove_file(pinned_path(directory, name)?);
+}
+
 /// The configured filesystem root is trusted and canonical. Every path below it is opened
 /// one component at a time without following symlinks, including directories created here.
 pub(crate) struct ExecutableOutput {
@@ -78,7 +107,7 @@ impl ExecutableOutput {
             parent = match parent.open_dir_nofollow(name) {
                 Ok(directory) => directory,
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                    match parent.create_dir(name) {
+                    match create_directory(&parent, name) {
                         Ok(()) => {}
                         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
                         Err(error) => return Err(error),
@@ -137,8 +166,7 @@ impl ExecutableOutput {
         drop(temporary.file.take());
 
         reject_link(&self.parent, &self.name)?;
-        self.parent
-            .rename(temporary.name.as_ref().unwrap(), &self.parent, &self.name)?;
+        rename_file(&self.parent, temporary.name.as_ref().unwrap(), &self.name)?;
         temporary.name = None;
         Ok(())
     }
@@ -154,8 +182,37 @@ impl Drop for TemporaryOutput<'_> {
     fn drop(&mut self) {
         drop(self.file.take());
         if let Some(name) = &self.name {
-            let _ = self.parent.remove_file(name);
+            let _ = remove_file(self.parent, name);
         }
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use std::fs;
+
+    use crate::{File, Permissions, executable_output::ExecutableOutput};
+
+    #[test]
+    fn publication_creates_directories_replaces_files_and_cleans_up_on_error() {
+        let project = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(project.path()).unwrap();
+        let directory = root.join("dist/nested");
+        let target = directory.join("main.exe");
+        let output = ExecutableOutput::open(&root, &target).unwrap();
+        let file =
+            |bytes: &[u8]| File::from(bytes.to_vec()).with_permissions(Permissions::Executable);
+        output.write(&file(b"old executable")).unwrap();
+        output.write(&file(b"new executable")).unwrap();
+        assert_eq!(fs::read(target).unwrap(), b"new executable");
+        assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
+
+        let blocked = directory.join("directory.exe");
+        fs::create_dir(&blocked).unwrap();
+        let output = ExecutableOutput::open(&root, &blocked).unwrap();
+        assert!(output.write(&file(b"unpublished executable")).is_err());
+        assert!(blocked.is_dir());
+        assert_eq!(fs::read_dir(&directory).unwrap().count(), 2);
     }
 }
 
