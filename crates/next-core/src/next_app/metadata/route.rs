@@ -7,13 +7,13 @@ use async_trait::async_trait;
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Vc, turbobail, turbofmt};
+use turbo_tasks::{ResolvedVc, Vc, turbobail, turbofmt};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::AssetContent,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    issue::{CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     source::Source,
     virtual_source::VirtualSource,
 };
@@ -28,7 +28,7 @@ use crate::{
     },
     next_config::NextConfig,
     parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
 };
 
 /// Computes the route source for a Next.js metadata file.
@@ -55,59 +55,85 @@ pub async fn get_app_metadata_route_source(
     })
 }
 
+#[turbo_tasks::value(shared)]
+pub struct MetadataRouteInfo {
+    pub page: AppPage,
+    pub is_multi_dynamic: bool,
+    pub segment_config: ResolvedVc<NextSegmentConfig>,
+}
+
+/// Computes the effective metadata route without creating or compiling its endpoint. Discovery
+/// and compilation share these naming rules so generator exports cannot produce different URLs.
 #[turbo_tasks::function]
-pub async fn get_app_metadata_route_entry(
-    nodejs_context: Vc<ModuleAssetContext>,
-    edge_context: Vc<ModuleAssetContext>,
-    project_root: FileSystemPath,
+pub async fn metadata_route_info(
     mut page: AppPage,
-    mode: NextMode,
     metadata: MetadataItem,
-    next_config: Vc<NextConfig>,
-) -> Result<Vc<AppEntry>> {
-    // Read original source's segment config before replacing source into
-    // dynamic|static metadata route handler.
-    let original_path = metadata.clone().into_path();
-
-    let source = Vc::upcast(FileSource::new(original_path));
-    let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
-    let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
-    let is_multi_dynamic: bool = if Some(segment_config).is_some() {
-        // is_multi_dynamic is true when config.generateSitemaps or
-        // config.generateImageMetadata is defined in dynamic routes
-        let config = segment_config.await.unwrap();
-        config.generate_sitemaps || config.generate_image_metadata
-    } else {
-        false
-    };
-
-    // Map dynamic sitemap and image routes based on the exports.
-    // if there's generator export: add /[__metadata_id__] to the route;
-    // otherwise keep the original route.
-    if is_dynamic_metadata {
-        // remove the last /route segment of page
+) -> Result<Vc<MetadataRouteInfo>> {
+    let source = Vc::upcast(FileSource::new(metadata.clone().into_path()));
+    let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App)
+        .to_resolved()
+        .await?;
+    let config = segment_config.await?;
+    let is_multi_dynamic = config.generate_sitemaps || config.generate_image_metadata;
+    if matches!(metadata, MetadataItem::Dynamic { .. }) {
         page.0.pop();
-
         if is_multi_dynamic {
-            // For sitemap.xml routes with generateSitemaps, revert to sitemap
-            // since multi-dynamic sitemaps use /sitemap/[__metadata_id__]
             if page.last() == Some(&PageSegment::Static(rcstr!("sitemap.xml"))) {
                 page.0.pop();
                 page.push(PageSegment::Static(rcstr!("sitemap")))?;
             }
             page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
-        };
-        // Push /route back
+        }
         page.push(PageSegment::PageType(PageType::Route))?;
-    };
+    }
+    Ok(MetadataRouteInfo {
+        page,
+        is_multi_dynamic,
+        segment_config,
+    }
+    .cell())
+}
+
+/// Authored candidates include files shadowed by another extension. Their parse diagnostics
+/// belong to the selected compiler endpoint, not to the entire development route inventory.
+#[turbo_tasks::function(root)]
+pub async fn metadata_route_info_for_tooling(
+    page: AppPage,
+    metadata: MetadataItem,
+) -> Result<Vc<MetadataRouteInfo>> {
+    let operation = metadata_route_info_operation(page, metadata);
+    let info = operation.resolve().strongly_consistent().await?;
+    operation.drop_issues();
+    Ok(*info)
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn metadata_route_info_operation(
+    page: AppPage,
+    metadata: MetadataItem,
+) -> Result<Vc<MetadataRouteInfo>> {
+    Ok(metadata_route_info(page, metadata))
+}
+
+#[turbo_tasks::function]
+pub async fn get_app_metadata_route_entry(
+    nodejs_context: Vc<ModuleAssetContext>,
+    edge_context: Vc<ModuleAssetContext>,
+    project_root: FileSystemPath,
+    page: AppPage,
+    mode: NextMode,
+    metadata: MetadataItem,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<AppEntry>> {
+    let info = metadata_route_info(page, metadata.clone()).await?;
 
     Ok(get_app_route_entry(
         nodejs_context,
         edge_context,
-        get_app_metadata_route_source(mode, metadata, is_multi_dynamic),
-        page,
+        get_app_metadata_route_source(mode, metadata, info.is_multi_dynamic),
+        info.page.clone(),
         project_root,
-        Some(segment_config),
+        Some(*info.segment_config),
         next_config,
     ))
 }
