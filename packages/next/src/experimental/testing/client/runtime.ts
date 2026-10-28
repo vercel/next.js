@@ -330,7 +330,8 @@ export async function startClientTest(
         config.caseScheduling === 'concurrent-v1'
           ? captureClientCommandAdmission
           : captureClientResourceCommandAdmission,
-    }
+    },
+    { serializedClickTargets: true }
   )
   let mocks: { dispose(): void } | undefined
   let imports: ReturnType<NonNullable<typeof createImports>> | undefined

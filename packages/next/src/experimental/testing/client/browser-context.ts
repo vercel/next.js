@@ -84,6 +84,7 @@ type BrowserActionCallbacks = {
 }
 type AwaitCheckTask = Task & { onFinished?: (() => void)[] }
 let actionCallbacks: BrowserActionCallbacks | undefined
+let serializedClickTargets = false
 
 class Action<T> implements Promise<T> {
   [Symbol.toStringTag] = 'Action'
@@ -312,7 +313,8 @@ async function dispatchBrowserCommand(
   args: unknown[],
   resolveElements?: () => Element[],
   resolveNativeElements?: () => Element[],
-  errorSource?: Error
+  errorSource?: Error,
+  serializedTarget?: { locator: SerializedLocator }
 ): Promise<void> {
   await dispatchBrowserCommandResult(
     resolveElement,
@@ -320,7 +322,8 @@ async function dispatchBrowserCommand(
     args,
     resolveElements,
     resolveNativeElements,
-    errorSource
+    errorSource,
+    serializedTarget
   )
 }
 
@@ -330,12 +333,24 @@ async function dispatchBrowserCommandResult(
   args: unknown[],
   resolveElements?: () => Element[],
   resolveNativeElements?: () => Element[],
-  errorSource?: Error
+  errorSource?: Error,
+  serializedTarget?: { locator: SerializedLocator }
 ) {
   assertBrowserApiScope('browser-native')
+  const serializedMethod =
+    method === 'click' ||
+    method === 'dblClick' ||
+    method === 'tripleClick' ||
+    method === 'hover' ||
+    method === 'clear'
+      ? method
+      : undefined
+  if (serializedTarget && serializedMethod === undefined)
+    throw new Error('Serialized Browser targets require a locator action.')
   const admission = actionCallbacks?.captureCommandAdmission?.()
-  const element = resolveElement()
+  const element = serializedTarget ? undefined : resolveElement()
   if (
+    !serializedTarget &&
     !element &&
     resolveElements &&
     (method === 'click' ||
@@ -379,14 +394,12 @@ async function dispatchBrowserCommandResult(
       releaseDeferredLocators()
     }
   }
-  if (!element || !element.isConnected)
+  if (!serializedTarget && (!element || !element.isConnected))
     throw new Error('Browser element is not attached to its document.')
   if (!command) throw new Error('Browser element transport has closed.')
-  const value = {
-    method,
-    element: browserElementId(element),
-    args,
-  }
+  const value: ClientBrowserCommand = serializedTarget
+    ? { method: serializedMethod!, locator: serializedTarget.locator, args }
+    : { method, element: browserElementId(element!), args }
   const operation = errorSource
     ? command(value, admission?.origin, errorSource)
     : admission
@@ -548,19 +561,39 @@ class ElementLocator {
     return values[0] ?? null
   }
   click(options?: ClickOptions): Promise<void> {
-    return this.#action('click', [], options)
+    return this.#action(
+      'click',
+      [],
+      options,
+      serializedClickTargets ? { locator: this.serialize() } : undefined
+    )
   }
   dblClick(options?: DoubleClickOptions): Promise<void> {
-    return this.#action('dblClick', [], options)
+    return this.#action(
+      'dblClick',
+      [],
+      options,
+      serializedClickTargets ? { locator: this.serialize() } : undefined
+    )
   }
   tripleClick(options?: ClickOptions): Promise<void> {
-    return this.#action('tripleClick', [], options)
+    return this.#action(
+      'tripleClick',
+      [],
+      options,
+      serializedClickTargets ? { locator: this.serialize() } : undefined
+    )
   }
   unhover(options?: HoverOptions): Promise<void> {
     return this.#action('unhover', [], options)
   }
   hover(options?: HoverOptions): Promise<void> {
-    return this.#action('hover', [], options)
+    return this.#action(
+      'hover',
+      [],
+      options,
+      serializedClickTargets ? { locator: this.serialize() } : undefined
+    )
   }
   wheel(options: WheelOptions): Promise<void> {
     return ensureAwaited(async () => {
@@ -596,7 +629,12 @@ class ElementLocator {
     return this.#action('fill', [value], options)
   }
   clear(options?: ClearOptions): Promise<void> {
-    return this.#action('clear', [], options)
+    return this.#action(
+      'clear',
+      [],
+      options,
+      serializedClickTargets ? { locator: this.serialize() } : undefined
+    )
   }
   selectOptions(value: SelectValues, options?: SelectOptions): Promise<void> {
     return createAction(
@@ -663,7 +701,8 @@ class ElementLocator {
   #action(
     method: ClientBrowserCommand['method'],
     args: unknown[],
-    options?: unknown
+    options?: unknown,
+    serializedTarget?: { locator: SerializedLocator }
   ): Promise<void> {
     return createAction(
       this,
@@ -671,7 +710,8 @@ class ElementLocator {
         await locator.dispatch(
           method,
           actionOptions === undefined ? values : [...values, actionOptions],
-          errorSource
+          errorSource,
+          serializedTarget
         )
       },
       args,
@@ -681,7 +721,8 @@ class ElementLocator {
   private async dispatch(
     method: ClientBrowserCommand['method'],
     args: unknown[],
-    errorSource?: Error
+    errorSource?: Error,
+    serializedTarget?: { locator: SerializedLocator }
   ) {
     await dispatchBrowserCommand(
       () => this.actionElement ?? this.query(),
@@ -689,7 +730,8 @@ class ElementLocator {
       args,
       () => this.elements(),
       this.#nativeElements,
-      errorSource
+      errorSource,
+      serializedTarget
     )
   }
   getByRole(...args: any[]) {
@@ -1067,7 +1109,8 @@ export function elementExpect(
 }
 export function initializeBrowserContext(
   send: NonNullable<typeof command>,
-  callbacks?: BrowserActionCallbacks
+  callbacks?: BrowserActionCallbacks,
+  transport?: { serializedClickTargets?: true }
 ) {
   if (command || deferredCommands.size)
     throw new Error('Browser context already has an owner.')
@@ -1077,6 +1120,7 @@ export function initializeBrowserContext(
   })
   command = send
   actionCallbacks = callbacks
+  serializedClickTargets = transport?.serializedClickTargets === true
   return {
     install() {
       // jest-dom declares assertion methods; this entry contains their raw matcher functions.
@@ -1087,6 +1131,7 @@ export function initializeBrowserContext(
     dispose() {
       command = undefined
       actionCallbacks = undefined
+      serializedClickTargets = false
       releaseDeferredLocators()
     },
   }

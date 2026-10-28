@@ -35,6 +35,10 @@ import { createClientEngineBrand } from './engine-brand'
 import { clientConsoleBoundary } from './protocol'
 import { runClientBrowserAction } from './action-error'
 import { clientLocatorEngine, registerClientLocators } from './locator-engine'
+import {
+  resolveClientCommandTarget,
+  getClientCommandLocator,
+} from './command-target'
 import type { BrowserFrameOwner } from '../browser/frame-owner'
 import type { FirefoxFrameOwner } from '../browser/firefox-host'
 
@@ -331,29 +335,9 @@ export async function executeClient(
         retry: typeof options.retry === 'number' ? options.retry : undefined,
       },
       async onBrowserCommand(command, admit = () => {}, origin) {
-        const deferredLocator =
-          typeof command?.element === 'string' &&
-          /^next-test-locator-[0-9]+$/.test(command.element)
-        if (
-          !page ||
-          (options.testFrame && !testFrame) ||
-          closing ||
-          !command ||
-          (!/^next-test-element-[0-9]+$/.test(command.element) &&
-            !(
-              deferredLocator &&
-              (command.method === 'click' ||
-                command.method === 'fill' ||
-                command.method === 'clear' ||
-                command.method === 'dblClick' ||
-                command.method === 'tripleClick' ||
-                command.method === 'hover' ||
-                command.method === 'unhover' ||
-                command.method === 'selectOptions')
-            )) ||
-          !Array.isArray(command.args)
-        )
+        if (!page || (options.testFrame && !testFrame) || closing)
           throw new Error('Invalid Browser Mode element command.')
+        const commandTarget = resolveClientCommandTarget(command)
         const runAction = <T>(perform: () => Promise<T>) => {
           if (origin) collector.assertLiveCommandOrigin(origin)
           admit()
@@ -361,9 +345,11 @@ export async function executeClient(
         }
         const actionPage = page
         const actionFrame = testFrame ?? actionPage
-        const locator = deferredLocator
-          ? actionFrame.locator(clientLocatorEngine + '=' + command.element)
-          : actionFrame.locator(`[data-next-test-element="${command.element}"]`)
+        const locator = getClientCommandLocator(
+          actionFrame,
+          commandTarget,
+          clientLocatorEngine
+        )
         switch (command.method) {
           case 'dragAndDrop': {
             const [target, dragOptions] = command.args

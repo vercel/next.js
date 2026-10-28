@@ -62,8 +62,13 @@ export interface ClientConfiguration extends ClientIdentity {
   /** Compiler-issued maps containing the selected source, ready before execution. */
   sourceMaps: { url: string; map: unknown; originalSources: string[] }[]
 }
-export interface ClientBrowserCommand {
+export interface ClientSerializedLocator {
+  selector: string
+  locator: string
+}
+interface ClientElementBrowserCommand {
   element: string
+  locator?: never
   method:
     | 'type'
     | 'keyboard'
@@ -82,6 +87,15 @@ export interface ClientBrowserCommand {
     | 'upload'
   args: unknown[]
 }
+interface ClientSerializedLocatorCommand {
+  method: 'click' | 'dblClick' | 'tripleClick' | 'hover' | 'clear'
+  locator: ClientSerializedLocator
+  element?: never
+  args: unknown[]
+}
+export type ClientBrowserCommand =
+  | ClientElementBrowserCommand
+  | ClientSerializedLocatorCommand
 /** Captured from the actual private attempt when its command starts. */
 export interface ClientCommandAttemptOrigin {
   readonly fileId: string

@@ -5748,3 +5748,53 @@ it('preserves genuine public Locator serialization declaration fields', () => {
     genuineTwoFieldPublicShapeOnly: true,
   })
 }, 40000)
+
+it.each([
+  'legacy',
+  'serialized',
+  'mixed',
+  'host-label',
+  'producer-alias',
+  'producer-error',
+  'producer-legacy',
+])(
+  'consumes a real serialized click while preserving legacy transport: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'locator-click-target.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      strictTargetForms: true,
+      realSelectorAndDescriptionConsumer: true,
+      originalDescriptorAndCommandLifetime: true,
+    })
+  }
+)
+
+it.each(
+  ['dblClick', 'tripleClick', 'hover', 'clear'].flatMap((method) =>
+    [
+      'wire',
+      'producer-alias',
+      'producer-options',
+      'producer-error',
+      'producer-legacy',
+    ].map((mode) => [method, mode])
+  )
+)('consumes the actual serialized %s target in %s', (method, mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-action-targets.cjs'), mode, method],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    method,
+    actualSelectorConsumer: true,
+    retainedDescriptorAndOptions: true,
+    legacyNoSerialization: true,
+  })
+})
