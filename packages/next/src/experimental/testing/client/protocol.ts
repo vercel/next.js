@@ -88,7 +88,13 @@ interface ClientElementBrowserCommand {
   args: unknown[]
 }
 interface ClientSerializedLocatorCommand {
-  method: 'click' | 'dblClick' | 'tripleClick' | 'hover' | 'clear'
+  method:
+    | 'click'
+    | 'dblClick'
+    | 'tripleClick'
+    | 'hover'
+    | 'clear'
+    | 'selectOptions'
   locator: ClientSerializedLocator
   element?: never
   args: unknown[]

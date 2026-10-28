@@ -342,7 +342,8 @@ async function dispatchBrowserCommandResult(
     method === 'dblClick' ||
     method === 'tripleClick' ||
     method === 'hover' ||
-    method === 'clear'
+    method === 'clear' ||
+    method === 'selectOptions'
       ? method
       : undefined
   if (serializedTarget && serializedMethod === undefined)
@@ -645,6 +646,21 @@ class ElementLocator {
     )
   }
   selectOptions(value: SelectValues, options?: SelectOptions): Promise<void> {
+    if (serializedClickTargets) {
+      const values = (Array.isArray(value) ? value : [value]).map((option) =>
+        typeof option === 'string'
+          ? option
+          : {
+              element:
+                option && typeof option === 'object' && locatorBrand in option
+                  ? (option as ElementLocator).serialize()
+                  : locatorFormatter.serializeElement(option as Element),
+            }
+      )
+      return this.#action('selectOptions', [values], options, {
+        locator: this.serialize(),
+      })
+    }
     return createAction(
       this,
       async () => {

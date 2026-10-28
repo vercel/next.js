@@ -5840,3 +5840,54 @@ it.each([
     legacyNoSerializeAndLazyHeld: true,
   })
 })
+
+it.each([
+  'array',
+  'locator',
+  'dom',
+  'invalid',
+  'map-error',
+  'option-error',
+  'target-error',
+  'legacy',
+])('retains actual serialized option producer values: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-select-serialized.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toMatchObject({ mode, originalLifetime: true })
+})
+
+it.each([
+  'normal',
+  'strings',
+  'empty',
+  'mixed',
+  'native-error',
+  'lookup-error',
+  'missing',
+  'dispose-error',
+  'action-dispose-error',
+  'first-error',
+  'success-reply',
+  'later-lookup-error',
+  'cancel',
+])(
+  'joins actual serialized option handles without gating replies: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'client-serialized-option-handles.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/execute'),
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toMatchObject({
+      mode,
+      allOwnedTailsJoined: true,
+    })
+  }
+)

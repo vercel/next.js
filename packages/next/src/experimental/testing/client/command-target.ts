@@ -24,7 +24,8 @@ export function resolveClientCommandTarget(
         value.method !== 'dblClick' &&
         value.method !== 'tripleClick' &&
         value.method !== 'hover' &&
-        value.method !== 'clear') ||
+        value.method !== 'clear' &&
+        value.method !== 'selectOptions') ||
       !value.locator ||
       typeof value.locator !== 'object' ||
       Array.isArray(value.locator)

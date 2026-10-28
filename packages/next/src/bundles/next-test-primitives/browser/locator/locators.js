@@ -4194,7 +4194,7 @@ function Mr(e) {
     })
     .join(``)
 }
-function Nr(e) {
+function Nr(e, provider) {
   let t = [],
     n,
     r = !1
@@ -4216,7 +4216,7 @@ function Nr(e) {
     }
     e = n
   }
-  return `${s().provider === `webdriverio` && r ? `>>>` : ``}${t.reverse().join(` > `)}`
+  return `${(provider === undefined ? s().provider : provider) === `webdriverio` && r ? `>>>` : ``}${t.reverse().join(` > `)}`
 }
 function Pr(e) {
   let t = e.parentNode

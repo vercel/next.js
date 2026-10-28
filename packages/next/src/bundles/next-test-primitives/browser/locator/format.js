@@ -2,6 +2,7 @@ import { stringify } from '@vitest/utils/display'
 import {
   SelectorEngine,
   asLocator,
+  convertElementToCssSelector,
   getByRoleSelector,
   getByAltTextSelector,
   getByLabelSelector,
@@ -37,6 +38,19 @@ export function createBrowserLocatorFormatter() {
     },
     generateSelector(element) {
       return engine.generateSelectorSimple(element)
+    },
+    serializeElement(element) {
+      if (!element || !(element instanceof Element))
+        throw new Error(
+          `Expected DOM element to be an instance of Element, received ${typeof element}`
+        )
+      return {
+        selector: convertElementToCssSelector(element, 'playwright'),
+        locator: asLocator(
+          'javascript',
+          engine.generateSelectorSimple(element)
+        ),
+      }
     },
     strictError(selector, elements) {
       return engine.strictModeViolationError(

@@ -133,6 +133,7 @@ export async function executeClient(
     controller = new AbortController(),
     errors: unknown[] = [],
     cleanupErrors: unknown[] = []
+  const optionHandleCleanups = new Set<Promise<void>>()
   const envelope = () => ({
     version: 1 as const,
     runId: options.runId,
@@ -543,6 +544,63 @@ export async function executeClient(
             )
             break
           case 'selectOptions': {
+            if (commandTarget.kind === 'locator') {
+              await runAction(async () => {
+                const selections = command.args[0] as (
+                  | string
+                  | { element: { selector: string; locator: string } }
+                )[]
+                const operations = selections.map(async (value) => {
+                  if (typeof value === 'string') return value
+                  const { locator: description, selector } = value.element
+                  const handle = await getClientCommandLocator(
+                    actionFrame,
+                    { kind: 'locator', selector, description },
+                    clientLocatorEngine
+                  ).elementHandle()
+                  if (!handle)
+                    throw new Error(`Element not found: ${value.element}`)
+                  return handle
+                })
+                try {
+                  const values = await Promise.all(operations)
+                  await locator.selectOption(
+                    values as Parameters<typeof locator.selectOption>[0],
+                    command.args[1] as Parameters<
+                      typeof locator.selectOption
+                    >[1]
+                  )
+                } finally {
+                  // Join every started lookup before releasing its owned handle.
+                  // Keep the real first rejection reply independent from a
+                  // different lookup that may need subsequent authored DOM work.
+                  const cleanup = (async () => {
+                    const outcomes = await Promise.allSettled(operations)
+                    for (const outcome of outcomes) {
+                      if (
+                        outcome.status === 'fulfilled' &&
+                        typeof outcome.value !== 'string'
+                      ) {
+                        try {
+                          await outcome.value.dispose()
+                        } catch (error) {
+                          cleanupErrors.push(error)
+                        }
+                      }
+                    }
+                  })()
+                  optionHandleCleanups.add(cleanup)
+                  void cleanup.then(
+                    () => optionHandleCleanups.delete(cleanup),
+                    (error) => {
+                      cleanupErrors.push(error)
+                      optionHandleCleanups.delete(cleanup)
+                    }
+                  )
+                }
+              })
+              break
+            }
             const selections = command.args[0]
             if (
               !Array.isArray(selections) ||
@@ -786,6 +844,8 @@ export async function executeClient(
       () => engineBrand?.afterOwnersClosed(),
       () => coverage?.afterOwnersClosed(),
       () => server?.dispose(),
+      // The server has joined all command handlers; no new cleanup can start.
+      () => Promise.all([...optionHandleCleanups]),
       () => {
         // Native calls after STOP can overtake older queued RPC output. Publish
         // them after both channels close, retaining each captured event unchanged.

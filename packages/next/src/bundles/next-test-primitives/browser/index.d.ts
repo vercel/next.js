@@ -90,6 +90,7 @@ export declare function createBrowserLocatorFormatter(): {
   selector(name: string, args: unknown[]): string
   asLocator(selector: string): string
   generateSelector(element: Element): string
+  serializeElement(element: Element): { selector: string; locator: string }
   strictError(selector: string, elements: Element[]): Error
   missingError(selector: string, container: Element): Error
 }
