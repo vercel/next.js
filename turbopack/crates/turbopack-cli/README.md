@@ -88,8 +88,11 @@ imported packages:
 ```
 
 Keep Go sources and embedded assets outside `dist`. The compiler rejects a Go
-output that overlaps tracked inputs or embed patterns. Go's build cache must be
-outside both the source project and module cache, and cannot contain either tree.
+output that overlaps tracked inputs or embed patterns. For executable outputs,
+the shared writer rejects symlinks and Windows junctions in the output path,
+including a redirected `dist` directory or executable. This also applies when
+an executable's output path is replaced during watch mode. Go's build cache must
+be outside both the source project and module cache, and cannot contain either tree.
 
 ### Module dependencies and environment
 
