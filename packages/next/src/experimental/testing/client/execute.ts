@@ -527,7 +527,10 @@ export async function executeClient(
             })
             break
           case 'fill':
-            if (typeof command.args[0] !== 'string')
+            if (
+              commandTarget.kind !== 'locator' &&
+              typeof command.args[0] !== 'string'
+            )
               throw new Error('Invalid fill text.')
             await runAction(() =>
               locator.fill(

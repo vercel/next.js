@@ -95,7 +95,7 @@ async function run() {
       { ...legacy, locator: descriptor },
       { method: 'click', locator: descriptor, element: undefined, args: [] },
       { method: 'click', locator: descriptor, args: null },
-      { method: 'fill', locator: descriptor, args: [] },
+      { method: 'future', locator: descriptor, args: [] },
       { method: 'click', locator: null, args: [] },
       { method: 'click', locator: { selector: 1, locator: 'label' }, args: [] },
       { method: 'click', locator: { selector: 's', locator: null }, args: [] },

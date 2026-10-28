@@ -343,6 +343,7 @@ async function dispatchBrowserCommandResult(
     method === 'tripleClick' ||
     method === 'hover' ||
     method === 'clear' ||
+    method === 'fill' ||
     method === 'selectOptions'
       ? method
       : undefined
@@ -635,7 +636,12 @@ class ElementLocator {
     )
   }
   fill(value: string, options?: FillOptions): Promise<void> {
-    return this.#action('fill', [value], options)
+    return this.#action(
+      'fill',
+      [value],
+      options,
+      serializedClickTargets ? { locator: this.serialize() } : undefined
+    )
   }
   clear(options?: ClearOptions): Promise<void> {
     return this.#action(

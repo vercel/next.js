@@ -5891,3 +5891,46 @@ it.each([
     })
   }
 )
+
+it.each([
+  'wire',
+  'producer-alias',
+  'producer-options',
+  'producer-error',
+  'producer-legacy',
+])('consumes the actual serialized fill target: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-fill-target.cjs'), mode, 'fill'],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    method: 'fill',
+    actualSelectorConsumer: true,
+    retainedDescriptorAndOptions: true,
+    legacyNoSerialization: true,
+  })
+})
+
+it.each(['success', 'native-error', 'wrong-value', 'legacy-invalid', 'cancel'])(
+  'retains actual fill admission, error and cleanup lifetime: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'client-serialized-fill.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/execute'),
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toMatchObject({
+      mode,
+      actualNativeOptionsPreserved: true,
+      legacyPrecheckPreservedAndRealValueInsideAdmission: true,
+      originalErrorIdentityRetained: true,
+      cleanupJoined: true,
+    })
+  }
+)

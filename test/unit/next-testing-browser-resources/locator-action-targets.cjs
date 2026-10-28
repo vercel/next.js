@@ -46,7 +46,7 @@ async function run() {
     ])
     for (const value of [
       { method, locator: descriptor, element: 'next-test-element-1', args: [] },
-      { method: 'fill', locator: descriptor, args: [] },
+      { method: 'future', locator: descriptor, args: [] },
       { method: 'unhover', locator: descriptor, args: [] },
     ])
       assert.throws(

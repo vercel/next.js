@@ -94,6 +94,7 @@ interface ClientSerializedLocatorCommand {
     | 'tripleClick'
     | 'hover'
     | 'clear'
+    | 'fill'
     | 'selectOptions'
   locator: ClientSerializedLocator
   element?: never
