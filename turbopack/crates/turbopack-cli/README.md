@@ -88,12 +88,12 @@ imported packages:
   --dir path/to/project --tags special
 ```
 
-Keep Go sources and embedded assets outside `dist`. Go output paths must not
-overlap tracked inputs or embed patterns. Executable output paths must not contain
-symlinks or Windows junctions, including a redirected `dist` directory or executable.
-The shared writer validates this even when an executable's output path changes
-during watch mode. Go's build cache must be outside both the source project and
-module cache, and cannot contain either tree.
+Keep Go sources and embedded assets outside `dist`. The compiler disallows a Go
+output that overlaps tracked inputs or embed patterns. For executable outputs,
+the shared writer disallows symlinks and Windows junctions in the output path,
+including a redirected `dist` directory or executable. This also applies when
+an executable's output path is replaced during watch mode. Go's build cache must
+be outside both the source project and module cache, and cannot contain either tree.
 
 ### Module dependencies and environment
 
