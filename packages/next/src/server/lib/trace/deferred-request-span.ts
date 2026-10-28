@@ -13,7 +13,9 @@
  * span with exactly that span ID (see `startSpanWithIds`) once its request
  * handling has settled. Otherwise (a direct response, a redirect, an external
  * rewrite, a trace context the user set for the render, or a failure), the span
- * isn't emitted: only requests that continue to a render get one.
+ * isn't emitted and its context isn't forwarded: the middleware span becomes
+ * the root instead (see `clearSpanParent`). Only requests that continue to a
+ * render get a `Next.request` span.
  *
  * The entry is versioned: `1;<span ID>;<start time>;<name>;<http.method>;<http.target>`,
  * with the start time in microseconds since the epoch and the other fields
@@ -21,12 +23,11 @@
  * It isn't signed: an entry a client sends itself is accepted when valid,
  * which only affects trace data.
  *
- * Limitations: the span isn't emitted when the request doesn't continue to a
- * render (see above), when no render picks the entry up (e.g. a page served
- * from a cache without invoking a function, or a render that crashes or times
- * out), with an SDK without the internals used here, or when the render's
- * sampler drops it. The middleware's spans then have a parent that is never
- * exported. The middleware's and the render's clocks may differ.
+ * Limitations: when no render picks the entry up (e.g. a page served from a
+ * cache without invoking a function, or a render that crashes or times out),
+ * with an SDK without the internals used here, or when the render's sampler
+ * drops it, the span isn't emitted, and the middleware's spans have a parent
+ * that is never exported. The middleware's and the render's clocks may differ.
  */
 
 export const DEFERRED_REQUEST_SPAN_KEY = 'next-deferred'
@@ -327,6 +328,44 @@ export function reserveRootSpanIds(
     }
   } catch {
     return undefined
+  }
+}
+
+/**
+ * Makes a started span a root span, which the OpenTelemetry API can't do: it
+ * clears the parent of the OpenTelemetry SDK's span, `parentSpanContext` in
+ * `@opentelemetry/sdk-trace` 2.x (`parentSpanId` in `sdk-trace-base` 1.x),
+ * before it ends, so span processors' `onEnd` and exporters see a root span.
+ * It keeps its trace ID. Only a span whose parent is `parentSpanId` is
+ * changed. Returns whether its parent was cleared: `false` when the span has
+ * neither field, another parent, or clearing it fails.
+ */
+export function clearSpanParent(span: unknown, parentSpanId: string): boolean {
+  try {
+    if (!span || typeof span !== 'object') {
+      return false
+    }
+    const sdkSpan = span as {
+      parentSpanContext?: { spanId?: unknown }
+      parentSpanId?: unknown
+    }
+    const v2 = sdkSpan.parentSpanContext?.spanId === parentSpanId
+    const v1 = sdkSpan.parentSpanId === parentSpanId
+    if (!v2 && !v1) {
+      return false
+    }
+    if (v2) {
+      sdkSpan.parentSpanContext = undefined
+    }
+    if (v1 || sdkSpan.parentSpanId !== undefined) {
+      sdkSpan.parentSpanId = undefined
+    }
+    return (
+      sdkSpan.parentSpanContext === undefined &&
+      sdkSpan.parentSpanId === undefined
+    )
+  } catch {
+    return false
   }
 }
 

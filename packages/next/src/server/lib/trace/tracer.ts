@@ -8,6 +8,7 @@ import {
   NextSpan,
 } from './constants'
 import {
+  clearSpanParent,
   DEFERRED_REQUEST_SPAN_KEY,
   parseDeferredRequestSpan,
   removeTraceStateEntry,
@@ -278,6 +279,13 @@ export interface ReservedRequestSpan {
   sampled: boolean
   /** Runs `fn` with the reserved span as the active (non-recording) parent. */
   run<T>(fn: () => T): T
+  /**
+   * Returns a function that makes the span active now, a child of the
+   * reserved span (e.g. the middleware span), a root span, for when the
+   * reserved span won't be emitted. Call it before that span ends. It returns
+   * whether it did (see `clearSpanParent`), and never throws.
+   */
+  captureActiveChild(): () => boolean
 }
 
 // How `withPropagatedContext` handles a deferred request span (see
@@ -713,6 +721,10 @@ class NextTracerImpl implements NextTracer {
       spanId: ids.spanId,
       sampled: ids.sampled,
       run: (fn) => context.with(parentContext, fn),
+      captureActiveChild: () => {
+        const child = trace.getSpan(context.active())
+        return () => clearSpanParent(child, ids.spanId)
+      },
     }
   }
 

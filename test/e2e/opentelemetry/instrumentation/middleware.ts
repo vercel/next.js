@@ -12,5 +12,8 @@ export async function middleware(
   if (request.nextUrl.searchParams.has('direct')) {
     return new NextResponse('direct response from middleware')
   }
+  if (request.nextUrl.searchParams.has('redirect')) {
+    return NextResponse.redirect(new URL('/behind-middleware', request.url))
+  }
   return NextResponse.next()
 }

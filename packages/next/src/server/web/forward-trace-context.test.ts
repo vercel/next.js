@@ -1,4 +1,5 @@
 import {
+  continuesInSameTrace,
   continuesToSameOrigin,
   forwardTraceContextToRequest,
   getSharedParentTraceContext,
@@ -221,5 +222,50 @@ describe('continuesToSameOrigin', () => {
   it('is false for an invalid rewrite', () => {
     const headers = new Headers({ 'x-middleware-rewrite': 'http://[' })
     expect(continuesToSameOrigin(headers, url)).toBe(false)
+  })
+})
+
+describe('continuesInSameTrace', () => {
+  const url = new URL('https://app.example.com/a')
+  const withRequestHeaders = (headers: Headers) =>
+    NextResponse.next({ request: { headers } }).headers
+
+  it.each([
+    ['NextResponse.next()', NextResponse.next().headers, true],
+    [
+      'a rewrite to the same origin',
+      NextResponse.rewrite('https://app.example.com/b').headers,
+      true,
+    ],
+    [
+      'a rewrite to another origin',
+      NextResponse.rewrite('https://other.example.com/b').headers,
+      false,
+    ],
+    [
+      'a redirect',
+      NextResponse.redirect('https://app.example.com/b').headers,
+      false,
+    ],
+    ['a direct response', new NextResponse('direct').headers, false],
+    [
+      'a traceparent the user set',
+      withRequestHeaders(new Headers({ traceparent: TRACEPARENT })),
+      false,
+    ],
+    [
+      'the received traceparent, copied unchanged',
+      withRequestHeaders(new Headers({ traceparent: RECEIVED_TRACEPARENT })),
+      true,
+    ],
+    [
+      'other request header overrides',
+      withRequestHeaders(new Headers({ 'x-user': '1' })),
+      true,
+    ],
+  ])('%s', (_, headers, expected) => {
+    expect(continuesInSameTrace(headers, url, RECEIVED_TRACEPARENT)).toBe(
+      expected
+    )
   })
 })

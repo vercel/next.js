@@ -389,6 +389,8 @@ describe('deferred request span', () => {
         const record: FakeSpan = { name, options, traceId, spanId, ended: 0 }
         started.push(record)
         return {
+          // `Span` of `@opentelemetry/sdk-trace` 2.x.
+          parentSpanContext: parent,
           isRecording: () => true,
           spanContext: () => ({ traceId, spanId, traceFlags: 1 }),
           setStatus(status: { code: number }) {
@@ -483,6 +485,38 @@ describe('deferred request span', () => {
         )
       ).toBe(0)
       expect(started).toEqual([])
+    })
+
+    it('makes a child of the reserved span a root span', () => {
+      const reserved = getTracer().reserveRequestSpan('GET', {
+        attributes: {},
+      })!
+      const child = reserved.run(() =>
+        trace.getTracer('test').startSpan('middleware')
+      ) as any
+      expect(child.parentSpanContext?.spanId).toBe(reserved.spanId)
+
+      const makeRoot = context.with(
+        trace.setSpan(context.active(), child),
+        () => reserved.captureActiveChild()
+      )
+      expect(makeRoot()).toBe(true)
+      expect(child.parentSpanContext).toBeUndefined()
+      expect(child.spanContext().traceId).toBe(reserved.traceId)
+    })
+
+    it('leaves a span that is not a child of the reserved span alone', () => {
+      const reserved = getTracer().reserveRequestSpan('GET', {
+        attributes: {},
+      })!
+      const other = trace.getTracer('test').startSpan('other') as any
+      const makeRoot = context.with(
+        trace.setSpan(context.active(), other),
+        () => reserved.captureActiveChild()
+      )
+      expect(makeRoot()).toBe(false)
+      // Without an active span (the reserved span itself is non-recording).
+      expect(reserved.run(() => reserved.captureActiveChild())()).toBe(false)
     })
   })
 

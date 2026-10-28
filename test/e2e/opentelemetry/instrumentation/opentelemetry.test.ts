@@ -2684,46 +2684,62 @@ describe.each(
 
             // `Next.request` is only for requests that continue to a render:
             // a direct middleware response isn't wrapped in one.
-            it('should not insert a request span for a direct middleware response', async () => {
-              const res = await next.fetch(
-                '/behind-middleware?direct',
-                env.fetchInit
-              )
-              expect(res.status).toBe(200)
-              expect(await res.text()).toBe('direct response from middleware')
-
-              await retry(async () => {
-                const spans = getCollector().getAllSpans()
-                const middlewareSpans = spans.filter(
-                  (span) =>
-                    span.attributes?.['next.span_type'] === 'Middleware.execute'
-                )
-                expect(middlewareSpans).toHaveLength(1)
-                const [middlewareSpan] = middlewareSpans
-                if (env.span.rootParentId && !withParentSpan) {
-                  expect(middlewareSpan.traceId).toBe(EXTERNAL.traceId)
-                }
-                expect(
-                  spans.filter(
-                    (span) =>
-                      span.attributes?.['next.span_type'] === 'Next.request'
+            it.each([
+              {
+                outcome: 'a direct middleware response',
+                query: 'direct',
+                status: 200,
+              },
+              {
+                outcome: 'a middleware redirect',
+                query: 'redirect',
+                status: 307,
+              },
+            ])(
+              'should not insert a request span for $outcome',
+              async ({ query, status }) => {
+                const res = await next.fetch(`/behind-middleware?${query}`, {
+                  ...env.fetchInit,
+                  redirect: 'manual',
+                })
+                expect(res.status).toBe(status)
+                if (query === 'direct') {
+                  expect(await res.text()).toBe(
+                    'direct response from middleware'
                   )
-                ).toEqual([])
-                if (
-                  useDirectEntrypointHandler &&
-                  !withParentSpan &&
-                  !env.span.rootParentId
-                ) {
-                  // Invoked separately without any trace context: the
-                  // middleware span's parent is the reserved request span,
-                  // which isn't emitted.
-                  expect(middlewareSpan.parentId).toBeDefined()
-                  expect(
-                    spans.some((span) => span.id === middlewareSpan.parentId)
-                  ).toBe(false)
                 }
-              })
-            })
+
+                await retry(async () => {
+                  const spans = getCollector().getAllSpans()
+                  const middlewareSpans = spans.filter(
+                    (span) =>
+                      span.attributes?.['next.span_type'] ===
+                      'Middleware.execute'
+                  )
+                  expect(middlewareSpans).toHaveLength(1)
+                  const [middlewareSpan] = middlewareSpans
+                  if (env.span.rootParentId && !withParentSpan) {
+                    expect(middlewareSpan.traceId).toBe(EXTERNAL.traceId)
+                  }
+                  expect(
+                    spans.filter(
+                      (span) =>
+                        span.attributes?.['next.span_type'] === 'Next.request'
+                    )
+                  ).toEqual([])
+                  if (
+                    useDirectEntrypointHandler &&
+                    !withParentSpan &&
+                    !env.span.rootParentId
+                  ) {
+                    // Invoked separately without any trace context: the
+                    // request doesn't continue to a render, so the middleware
+                    // span is the root.
+                    expect(middlewareSpan.parentId).toBeUndefined()
+                  }
+                })
+              }
+            )
           }
         )
       }
