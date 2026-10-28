@@ -112,7 +112,6 @@ const count = (v) =>
       : v >= 1e3
         ? `${Math.round(v / 1e3)}k`
         : String(Math.round(v))
-const tokens = (i, o) => (i == null ? '' : `${count(i)} in / ${count(o)} out`)
 const duration = (m) => (m == null ? '' : `${Math.round(m)} min`)
 // Effective price per million tokens: what the runs cost divided by the
 // tokens they used, so cached input is already reflected in the rate.
@@ -181,31 +180,38 @@ const delta = (a, b) => {
   return `${pp >= 0 ? '+' : ''}${pp} pp`
 }
 
-// One dense table: a row per model and treatment with a cell per task, the
-// runs passed, the AGENTS.md delta, and what a run costs.
+// One dense table: a row per model and treatment, a short numbered column per
+// task (named in a key above the table), runs passed, the AGENTS.md delta, and
+// what a run costs.
 const taskCell = (r) =>
   !r
-    ? 'not started'
+    ? 'queued'
     : r.state === 'pass'
-      ? '1/1'
+      ? 'pass'
       : r.state === 'fail'
         ? r.confirmed
-          ? `0/1, failed ${r.repeated}/${r.confirmed} reruns`
-          : '0/1'
+          ? `fail (${r.repeated}/${r.confirmed} reruns)`
+          : 'fail'
         : r.state === 'running'
           ? 'running'
-          : 'error, rerun'
+          : 'rerun'
 const costs = (rs) => {
   const s = rs.filter(scored)
   const avg = (key) => mean(s.map((r) => r[key]).filter((x) => x != null))
   const cost = avg('cost')
-  return `${perMillion(cost, avg('tokensIn'), avg('tokensOut'))} | ${tokens(avg('tokensIn'), avg('tokensOut'))} | ${usd(cost)} | ${duration(avg('minutes'))}`
+  const tin = avg('tokensIn')
+  const tout = avg('tokensOut')
+  return `${usd(cost)} | ${duration(avg('minutes'))} | ${perMillion(cost, tin, tout)} | ${tin == null ? '' : `${count(tin)} / ${count(tout)}`}`
 }
 console.log(
-  `| Model | Treatment | ${tasks.map((t) => `\`${t}\``).join(' | ')} | Passed | Delta | Price per 1M tokens | Tokens per run | Cost per run | Time per run |`
+  `Tasks: ${tasks.map((t, i) => `**${i + 1}** \`${t}\``).join(', ')}.`
+)
+console.log()
+console.log(
+  `| Model | Treatment | ${tasks.map((_, i) => i + 1).join(' | ')} | Passed | Delta | Cost per run | Time per run | Price per 1M tokens | Tokens in / out |`
 )
 console.log(
-  `| --- | --- | ${tasks.map(() => '---:').join(' | ')} | ---: | ---: | ---: | ---: | ---: | ---: |`
+  `| --- | --- | ${tasks.map(() => ':---:').join(' | ')} | ---: | ---: | ---: | ---: | ---: | ---: |`
 )
 const treatments = [
   ['base', 'Base'],
@@ -231,7 +237,7 @@ if (all.base.scored || all.docs.scored) {
   for (const [t, name] of treatments) {
     const mine = runs.filter((r) => r.treatment === t)
     console.log(
-      `| ${t === 'base' ? 'All models' : ''} | ${name} | ${tasks.map((task) => cell(tally(mine.filter((r) => r.task === task)))).join(' | ')} | ${cell(t === 'base' ? all.base : all.docs)} | ${t === 'base' ? '' : delta(all.base, all.docs)} | ${costs(mine)} |`
+      `| ${t === 'base' ? '**All models**' : ''} | ${name} | ${tasks.map((task) => cell(tally(mine.filter((r) => r.task === task)))).join(' | ')} | ${cell(t === 'base' ? all.base : all.docs)} | ${t === 'base' ? '' : delta(all.base, all.docs)} | ${costs(mine)} |`
     )
   }
 }
