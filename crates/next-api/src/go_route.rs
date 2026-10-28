@@ -35,7 +35,7 @@ use crate::{
 pub(crate) struct GoSessions {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
-    pub context: tokio::sync::Mutex<Option<GoBuildContext>>,
+    pub go_context: tokio::sync::Mutex<Option<GoBuildContext>>,
 }
 impl PartialEq for GoSessions {
     fn eq(&self, other: &Self) -> bool {
@@ -46,7 +46,7 @@ impl Eq for GoSessions {}
 impl GoSessions {
     pub fn new() -> ResolvedVc<Self> {
         Self {
-            context: Default::default(),
+            go_context: Default::default(),
         }
         .resolved_cell()
     }
@@ -66,7 +66,7 @@ async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
 
 // Lazily resolve a session toolchain. Go-free projects never execute a Go command.
 #[turbo_tasks::function(session_dependent)]
-async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
+async fn go_build_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
     let project_value = project.await?;
     let sessions = project_value
         .go_sessions
@@ -76,47 +76,50 @@ async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
         .await?
         .context("native Go compilation requires a disk filesystem")?;
     let scope: RcStr = scope.to_str().context("non-UTF8 Go project")?.into();
-    let mut session = sessions.context.lock().await;
-    if let Some(context) = &*session {
-        return Ok(GoBuildSession::persistent(scope, context.options.clone()));
+    let mut session = sessions.go_context.lock().await;
+    if let Some(go_context) = &*session {
+        return Ok(GoBuildSession::persistent(
+            scope,
+            go_context.options.clone(),
+        ));
     }
     let go = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
-    let mut context = GoBuildContext::host(Path::new(&go), None, "").await?;
-    context.poll_interval_ms = *project.watch_poll_interval_ms().await?;
-    if is_adapter_build(project).await? {
-        if let Some(target) = std::env::var_os("NEXT_ADAPTER_VERCEL_GO_TARGET") {
-            let target: serde_json::Value = serde_json::from_str(
-                target
-                    .to_str()
-                    .context("NEXT_ADAPTER_VERCEL_GO_TARGET must be UTF-8 JSON")?,
-            )
-            .context("Invalid NEXT_ADAPTER_VERCEL_GO_TARGET JSON")?;
-            ensure!(
-                target.get("os").and_then(serde_json::Value::as_str) == Some("linux")
-                    && target
-                        .get("architecture")
-                        .and_then(serde_json::Value::as_str)
-                        == Some("x86_64")
-                    && target.get("linking").and_then(serde_json::Value::as_str) == Some("static"),
-                "NEXT_ADAPTER_VERCEL_GO_TARGET only supports static Linux x86_64 executables"
-            );
-            context.goos = rcstr!("linux");
-            context.goarch = rcstr!("amd64");
-            context.exe_suffix = rcstr!("");
-        }
+    let mut go_context = GoBuildContext::host(Path::new(&go), None, "").await?;
+    go_context.poll_interval_ms = *project.watch_poll_interval_ms().await?;
+    if is_adapter_build(project).await?
+        && let Some(target) = std::env::var_os("NEXT_ADAPTER_VERCEL_GO_TARGET")
+    {
+        let target: serde_json::Value = serde_json::from_str(
+            target
+                .to_str()
+                .context("NEXT_ADAPTER_VERCEL_GO_TARGET must be UTF-8 JSON")?,
+        )
+        .context("Invalid NEXT_ADAPTER_VERCEL_GO_TARGET JSON")?;
+        ensure!(
+            target.get("os").and_then(serde_json::Value::as_str) == Some("linux")
+                && target
+                    .get("architecture")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("x86_64")
+                && target.get("linking").and_then(serde_json::Value::as_str) == Some("static"),
+            "NEXT_ADAPTER_VERCEL_GO_TARGET only supports static Linux x86_64 executables"
+        );
+        go_context.goos = rcstr!("linux");
+        go_context.goarch = rcstr!("amd64");
+        go_context.exe_suffix = rcstr!("");
     }
-    let persistent = GoBuildSession::persistent(scope, context.options);
+    let persistent = GoBuildSession::persistent(scope, go_context.options);
     // The session may have been decoded from the task cache. Its fresh runtime state is the
     // one used by compiler tasks, and must also be the one cancelled during shutdown.
-    let context = persistent.await?.context.clone();
+    let go_context = persistent.await?.go_context.clone();
     if *project.is_watch_enabled().await? {
-        filesystem_with_poll_interval(context.module_cache.clone(), context.poll_interval_ms)
+        filesystem_with_poll_interval(go_context.module_cache.clone(), go_context.poll_interval_ms)
             .connect()
             .await?
             .start_watching()
             .await?;
     }
-    *session = Some(context.clone());
+    *session = Some(go_context.clone());
     Ok(persistent)
 }
 
@@ -155,8 +158,8 @@ impl Endpoint for GoRouteEndpoint {
             *this.project.next_config().go_routes().await?,
             "route.go requires experimental.goRoutes: true"
         );
-        let session = context(*this.project);
-        let context = session.await?;
+        let session = go_build_session(*this.project);
+        let go_session = session.await?;
         let source_root = this.project.project_root_path().owned().await?;
         let directory = this.path.parent();
         // Named-file mode supports Next's brackets and groups without importing those paths.
@@ -175,15 +178,16 @@ impl Endpoint for GoRouteEndpoint {
         let mut files = vec![];
         if let DirectoryContent::Entries(entries) = &*directory.read_dir().await? {
             for (name, entry) in entries {
-                if name.ends_with(".go") && !name.ends_with("_test.go") {
-                    if let DirectoryEntry::File(path) = entry {
-                        files.push(
-                            module_root
-                                .get_path_to(path)
-                                .context("Go source outside module")?
-                                .into(),
-                        );
-                    }
+                if name.ends_with(".go")
+                    && !name.ends_with("_test.go")
+                    && let DirectoryEntry::File(path) = entry
+                {
+                    files.push(
+                        module_root
+                            .get_path_to(path)
+                            .context("Go source outside module")?
+                            .into(),
+                    );
                 }
             }
         }
@@ -240,9 +244,12 @@ impl Endpoint for GoRouteEndpoint {
             .await?;
         let original_name = this.page.to_string();
         let entry = format!("app{original_name}.native.json");
-        let executable = format!("app{original_name}-{hash}{}", context.context.exe_suffix);
+        let executable = format!(
+            "app{original_name}-{hash}{}",
+            go_session.go_context.exe_suffix
+        );
         let node_root = this.project.node_root().owned().await?;
-        let descriptor = serde_json::json!({ "version": 1, "executable": executable, "goos": context.context.goos, "goarch": context.context.goarch });
+        let descriptor = serde_json::json!({ "version": 1, "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         let output_root = to_sys_path(node_root.clone())
             .await?
             .context("native Go output requires a disk filesystem")?;

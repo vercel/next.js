@@ -337,12 +337,12 @@ pub async fn endpoint_native_file_systems_operation(
         systems.push(project_vc.project_fs().to_resolved().await?);
         let project = project_vc.await?;
         if let Some(sessions) = &project.go_sessions
-            && let Some(context) = sessions.await?.context.lock().await.as_ref()
+            && let Some(go_context) = sessions.await?.go_context.lock().await.as_ref()
         {
             systems.push(
                 turbopack_go::filesystem_with_poll_interval(
-                    context.module_cache.clone(),
-                    context.poll_interval_ms,
+                    go_context.module_cache.clone(),
+                    go_context.poll_interval_ms,
                 )
                 .connect()
                 .to_resolved()

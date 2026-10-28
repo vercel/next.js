@@ -1,5 +1,5 @@
 import './node-environment'
-import { NativeRouteManager } from './lib/native-route'
+import { NativeRouteManager } from './lib/native-route.external'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -603,7 +603,11 @@ export default class NextNodeServer extends BaseServer<
     // Dev definitions retain source filenames for watcher bookkeeping. API
     // execution still needs to load the compiled server bundle.
     const modulePath = this.isDev
-      ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
+      ? join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          `${match.definition.bundlePath}.js`
+        )
       : match.definition.filename
     const module = (await loader.load(modulePath)) as {
       handler: (
