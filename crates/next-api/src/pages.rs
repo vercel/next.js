@@ -163,6 +163,7 @@ impl PagesProject {
                     ref children,
                     next_router_path: _,
                     project_path: _,
+                    authored_files: _,
                 } = *dir.await?;
                 for &item in items.iter() {
                     add_page_to_routes(routes, *item, &make_route).await?;

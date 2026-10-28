@@ -34,6 +34,7 @@ pub mod next_telemetry;
 mod page_loader;
 pub mod pages_structure;
 pub mod raw_ecmascript_module;
+pub mod route_discovery;
 pub mod segment_config;
 pub mod tracing_presets;
 mod transform_options;
