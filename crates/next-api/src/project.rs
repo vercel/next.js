@@ -28,6 +28,7 @@ use next_core::{
         TurbopackPluginRuntimeStrategy,
     },
     next_edge::context::EdgeChunkingContextOptions,
+    next_manifests::ProxyMatcher,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
@@ -36,7 +37,7 @@ use next_core::{
     },
     next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, OptionEnvMap},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -111,7 +112,7 @@ use crate::{
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
-    middleware::MiddlewareEndpoint,
+    middleware::{MiddlewareEndpoint, get_middleware_matchers},
     next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     path_utils::convention_file_base_name,
@@ -410,6 +411,7 @@ pub struct DefineEnv {
 pub struct Middleware {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub is_proxy: bool,
+    pub matchers: Vec<ProxyMatcher>,
 }
 
 #[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
@@ -2193,6 +2195,9 @@ impl Project {
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
                 is_proxy,
+                matchers: get_middleware_matchers(self.next_config(), self.middleware_config())
+                    .owned()
+                    .await?,
             })
         } else {
             None
@@ -2355,6 +2360,24 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    async fn middleware_config(self: Vc<Self>) -> Result<Vc<NextSegmentConfig>> {
+        let middleware = self.find_middleware();
+        let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
+            return Ok(Default::default());
+        };
+        let source = Vc::upcast(FileSource::new(fs_path.clone()));
+        let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
+        Ok(parse_segment_config_from_source(
+            source,
+            if is_proxy {
+                ParseSegmentMode::Proxy
+            } else {
+                ParseSegmentMode::Base
+            },
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
@@ -2369,14 +2392,7 @@ impl Project {
             .map(|_| AppProject::client_transition_name());
 
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
-        let config = parse_segment_config_from_source(
-            source,
-            if is_proxy {
-                ParseSegmentMode::Proxy
-            } else {
-                ParseSegmentMode::Base
-            },
-        );
+        let config = self.middleware_config();
         let runtime = config.await?.runtime.unwrap_or(if is_proxy {
             NextRuntime::NodeJs
         } else {

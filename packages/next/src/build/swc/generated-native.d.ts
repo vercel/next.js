@@ -342,6 +342,7 @@ export interface NapiLocation {
 export interface NapiMiddleware {
   endpoint: ExternalObject<ExternalEndpoint>
   isProxy: boolean
+  matchers: Array<any>
 }
 
 /**

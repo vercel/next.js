@@ -1053,6 +1053,7 @@ async fn materialize_discovery_sources(
 pub struct NapiMiddleware {
     pub endpoint: External<ExternalEndpoint>,
     pub is_proxy: bool,
+    pub matchers: Vec<serde_json::Value>,
 }
 
 impl NapiMiddleware {
@@ -1066,6 +1067,11 @@ impl NapiMiddleware {
                 value.endpoint,
             ))),
             is_proxy: value.is_proxy,
+            matchers: value
+                .matchers
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<std::result::Result<_, _>>()?,
         })
     }
 }

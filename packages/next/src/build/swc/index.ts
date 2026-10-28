@@ -1,6 +1,8 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import type { ProxyMatcher } from '../analysis/get-page-static-info'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -522,6 +524,7 @@ function bindingToApi(
   type NapiMiddleware = {
     endpoint: NapiEndpoint
     isProxy: boolean
+    matchers: ProxyMatcher[]
   }
 
   type NapiInstrumentation = {
@@ -1278,6 +1281,16 @@ function bindingToApi(
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),
       isProxy: middleware.isProxy,
+      matchers: middleware.matchers.map((matcher) => {
+        if (matcher.regexp.startsWith('^')) return matcher
+        // Native configuration expansion uses the same path-to-regexp sources
+        // as middleware manifests. Normalize before request routing uses them.
+        const parsed = tryToParsePath(matcher.regexp)
+        if (parsed.error || !parsed.regexStr) {
+          throw new Error(`Invalid source: ${matcher.regexp}`)
+        }
+        return { ...matcher, regexp: parsed.regexStr }
+      }),
     })
     const middleware = entrypoints.value.middleware
       ? napiMiddlewareToMiddleware(entrypoints.value.middleware)

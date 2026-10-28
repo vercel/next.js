@@ -1,5 +1,6 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use next_core::next_manifests::ProxyMatcher;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
@@ -72,6 +73,7 @@ impl EntrypointsOperation {
             middleware: e.middleware.as_ref().map(|m| MiddlewareOperation {
                 endpoint: pick_endpoint(entrypoints, EndpointSelector::Middleware),
                 is_proxy: m.is_proxy,
+                matchers: m.matchers.clone(),
             }),
             instrumentation: e
                 .instrumentation
@@ -233,6 +235,7 @@ pub struct InstrumentationOperation {
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
+    pub matchers: Vec<ProxyMatcher>,
 }
 
 #[turbo_tasks::value(shared)]

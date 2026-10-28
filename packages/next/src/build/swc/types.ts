@@ -1,5 +1,6 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import type { ProxyMatcher } from '../analysis/get-page-static-info'
 import type {
   ExternalObject,
   RefCell,
@@ -197,6 +198,7 @@ export type TurbopackResult<T> = {
 export interface Middleware {
   endpoint: Endpoint
   isProxy: boolean
+  matchers: ProxyMatcher[]
 }
 
 export interface Instrumentation {
