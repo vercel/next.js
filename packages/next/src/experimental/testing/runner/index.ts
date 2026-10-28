@@ -938,6 +938,15 @@ function initializeFile(
           collector.root,
           {
             ...executionOptions,
+            finalizeFocusedPublicTaskModes:
+              publicTaskSelection === true &&
+              preparePublicSnapshots === true &&
+              finalizePublicTaskModes === true &&
+              updateMode === 'none' &&
+              (captureCoverageCompletion === true ||
+                finishReadOnlySnapshots === true)
+                ? true
+                : undefined,
             ...(preparePublicSnapshots === true
               ? {
                   prepareSnapshots(actualFile: File) {

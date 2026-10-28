@@ -488,8 +488,11 @@ export function finalizePublicTaskModes(
   root: TestSuite,
   tasks: ReadonlyMap<TestCase | TestSuite, Task>,
   actualSelection?: ReadonlyMap<TestCase, 'run' | 'skip' | 'todo'>
-): ReadonlyMap<TestCase | TestSuite, 'run' | 'skip' | 'todo'> {
-  const modes = new Map<TestCase | TestSuite, 'run' | 'skip' | 'todo'>()
+): ReadonlyMap<TestCase | TestSuite, 'run' | 'skip' | 'todo' | 'only'> {
+  const modes = new Map<
+    TestCase | TestSuite,
+    'run' | 'skip' | 'todo' | 'only'
+  >()
   const filteredModes =
     actualSelection === undefined
       ? undefined
@@ -514,7 +517,11 @@ export function finalizePublicTaskModes(
       if (node.type === 'test') filteredModes!.set(node, selected!)
       modes.set(
         node,
-        task.mode === 'skip' || task.mode === 'todo' ? task.mode : 'run'
+        node.mode === 'only'
+          ? 'only'
+          : task.mode === 'skip' || task.mode === 'todo'
+            ? task.mode
+            : 'run'
       )
     }
   }
@@ -533,7 +540,10 @@ export function finalizePublicTaskModes(
       }
       const mode = modes.get(child)
       if (mode === 'skip' || mode === 'todo') exclude(child, mode)
-      else visit(child)
+      else {
+        if (mode === 'only') modes.set(child, 'run')
+        visit(child)
+      }
     }
     if (
       modes.get(suite) === 'run' &&

@@ -22703,3 +22703,164 @@ describe('actual compact conditional operand mapping', () => {
     }
   }, 50000)
 })
+
+describe('actual readonly focused task selection', () => {
+  it.each(
+    require('./fixtures/istanbul-provider/readonly-focused-pristine.json').rows.map(
+      ({ name }: { name: string }) => name
+    )
+  )(
+    'matches complete genuine focused trees snapshots and reports for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-report-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'focused-snapshot-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'all-skipped',
+        'selected',
+        'literal-empty',
+        'empty-no-pass',
+        'setup-error',
+        'setup-undefined',
+        'read-error',
+        'pending',
+        'abort-pending',
+        'finish-undefined',
+        'cleanup-undefined',
+      ].map((mode) => `${provider}:${mode}`)
+    )
+  )(
+    'preserves real focused SDK lifetime and physical vetoes for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-sdk-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'focused-snapshot-preparation.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+  it.each([
+    'omitted',
+    'false',
+    'one',
+    'allowed',
+    'forbidden',
+    'empty',
+    'under-skip',
+    'suite-under-todo',
+    'file-inactive-injected',
+    'file-no-public',
+    'file-no-prepare',
+    'file-no-finalize',
+    'file-not-readonly',
+  ])(
+    'preserves actual private mode ownership and unstarted tasks for %s',
+    async (mode) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-owner-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'focused-mode-owner.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+})
+
+describe('actual excluded only declaration options', () => {
+  it('uses only actual no-result nodes and validated excluded suite parents', async () => {
+    const { execFile } = require('node:child_process')
+    const { promisify } = require('node:util')
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-focused-live-options-'))
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'focused-live-options.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+      )
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 50000)
+  it.each(['focused-simple-active', 'focused-inactive-excluded-only'])(
+    'preserves measured inactive early declarations without claiming final pending production for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-inactive-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'focused-inactive-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})

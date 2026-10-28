@@ -224,6 +224,8 @@ export interface CompletedModuleResult {
 export interface RunnerOptions {
   /** Public finalized skip/todo modes; private standalone selection is unchanged. */
   finalizePublicTaskModes?: true
+  /** Actual active readonly File may finalize resolved allowed focus. */
+  finalizeFocusedPublicTaskModes?: true
   /** The actual assertion snapshot owner, before any file resources execute. */
   prepareSnapshots?(file: File): void | Promise<void>
   /** Actual empty public File failure, before authored file resources or hooks. */
@@ -519,12 +521,16 @@ export async function runCollected(
     ...options,
     testTimeout,
   })
-  const finalizedModes =
-    options.finalizePublicTaskModes === true && !hasFocusedTests(root)
-      ? options.testNamePattern === undefined
-        ? finalizePublicTaskModes(root, tasks)
-        : finalizePublicTaskModes(root, tasks, selected)
-      : undefined
+  let finalizedModes: ReturnType<typeof finalizePublicTaskModes> | undefined
+  let focusedPublicTaskModes = false
+  if (options.finalizePublicTaskModes === true) {
+    focusedPublicTaskModes = hasFocusedTests(root)
+    if (!focusedPublicTaskModes)
+      finalizedModes =
+        options.testNamePattern === undefined
+          ? finalizePublicTaskModes(root, tasks)
+          : finalizePublicTaskModes(root, tasks, selected)
+  }
   if (finalizedModes)
     for (const test of selected.keys()) {
       const mode = finalizedModes.get(test)
@@ -584,7 +590,8 @@ export async function runCollected(
   // The published collector fails each reachable .only task before execution.
   // A failed suite then skips its descendants without copying its error to them.
   const forbiddenFocus = new Map<TestSuite | TestCase, RunnerFailure>()
-  if (options.allowOnly === false) {
+  const actualAllowOnly = options.allowOnly
+  if (actualAllowOnly === false) {
     const collectForbiddenFocus = (suite: TestSuite) => {
       for (const child of suite.children) {
         if (child.mode === 'only')
@@ -609,6 +616,19 @@ export async function runCollected(
         state: 'fail',
         errors: [serializeTaskError(failure.error)],
       }
+    }
+  }
+
+  if (
+    focusedPublicTaskModes &&
+    actualAllowOnly === true &&
+    options.finalizeFocusedPublicTaskModes === true &&
+    selected.size > 0
+  ) {
+    finalizedModes = finalizePublicTaskModes(root, tasks, selected)
+    for (const test of selected.keys()) {
+      const mode = finalizedModes.get(test)
+      if (mode === 'skip' || mode === 'todo') selected.set(test, mode)
     }
   }
 
@@ -1067,8 +1087,9 @@ export async function runCollected(
     const publicTask = tasks.get(test) as Test
     const publication = getTaskContext(publicTask)
     const { controller, context: publicContext } = publication
+    const finalizedMode = finalizedModes?.get(test)
     const unexecuted =
-      finalizedModes?.get(test) === 'run' &&
+      (finalizedMode === 'run' || finalizedMode === 'only') &&
       (mode === 'skip' || mode === 'todo') &&
       !collectionBlocked &&
       !focusFailure &&
@@ -1078,7 +1099,7 @@ export async function runCollected(
       !poisoned &&
       !options.signal.aborted &&
       !options.userCancelSignal?.aborted
-    publicTask.mode = unexecuted ? 'run' : (mode ?? 'skip')
+    publicTask.mode = unexecuted ? finalizedMode! : (mode ?? 'skip')
     let currentContext: AttemptContext | undefined
     let lastAttemptId: string | undefined
     const caseState = {
@@ -2502,9 +2523,15 @@ export async function runCollected(
     collectionBlocked = false
   ) {
     const start = frameworkDateNow()
-    const mode =
+    const finalizedMode =
       finalizedModes && !collectionBlocked
         ? finalizedModes.get(node)!
+        : undefined
+    const mode =
+      finalizedMode !== undefined
+        ? finalizedMode === 'only'
+          ? 'run'
+          : finalizedMode
         : inheritedMode !== 'run'
           ? inheritedMode
           : node.mode === 'only'
@@ -2517,7 +2544,7 @@ export async function runCollected(
       mode === 'run'
     const publicSuite = tasks.get(node) as Suite
     options.setCurrentTask?.(publicSuite)
-    publicSuite.mode = mode
+    publicSuite.mode = finalizedMode === 'only' ? 'only' : mode
     if (collectionBlocked) publicSuite.result = { state: 'skip' }
     if (finalizedModes && mode !== 'run' && !publicSuite.result)
       publicSuite.result = { state: mode, startTime: frameworkDateNow() }

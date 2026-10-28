@@ -32,7 +32,7 @@ interface View {
   parent?: View
   project: { name: string }
   options?: {
-    mode: 'run' | 'skip' | 'todo'
+    mode: 'run' | 'skip' | 'todo' | 'only'
     tags: string[]
     each?: boolean
     fails?: boolean
@@ -108,7 +108,8 @@ export function createQueuedReporterModule(
 
 function declarationOptions(
   value: ReporterTaskSnapshot,
-  tags: string[]
+  tags: string[],
+  excludedOnly = false
 ): NonNullable<View['options']> {
   return {
     each: value.each,
@@ -119,8 +120,13 @@ function declarationOptions(
     repeats: value.repeats,
     tags,
     timeout: value.type === 'test' ? value.timeout : undefined,
-    mode:
-      value.mode === 'todo' ? 'todo' : value.mode === 'skip' ? 'skip' : 'run',
+    mode: excludedOnly
+      ? 'only'
+      : value.mode === 'todo'
+        ? 'todo'
+        : value.mode === 'skip'
+          ? 'skip'
+          : 'run',
   }
 }
 
@@ -187,6 +193,20 @@ export function createLiveReporterTaskStore(projectDir: string) {
       )
         throw new Error('Live reporter declaration identity changed.')
     }
+    const excludedOnly = (value: ReporterTaskSnapshot) => {
+      if (value.mode !== 'only' || value.result !== undefined) return false
+      let parent = observed.get(value.id)!.parentId
+      while (parent !== null && parent !== tree.id) {
+        const ancestor = observed.get(parent)!
+        if (
+          ancestor.value.type === 'suite' &&
+          (ancestor.value.mode === 'skip' || ancestor.value.mode === 'todo')
+        )
+          return true
+        parent = ancestor.parentId
+      }
+      return false
+    }
     const project = { name: tree.projectName ?? '' }
     const created = new Set<string>()
     function allocate(value: ReporterTaskSnapshot): View {
@@ -232,7 +252,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
           ...(value.type === 'suite'
             ? { children: new Collection(children) }
             : {
-                options: declarationOptions(value, tags),
+                options: declarationOptions(value, tags, excludedOnly(value)),
                 tags,
               }),
           state,
@@ -259,7 +279,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
           artifacts: () => [...(current().artifacts ?? [])],
         }
         if (!isRoot && !view.options)
-          view.options = declarationOptions(value, tags)
+          view.options = declarationOptions(value, tags, excludedOnly(value))
         const exposed = new Proxy(view, {
           get(target, key, receiver) {
             if (
