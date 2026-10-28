@@ -92,9 +92,11 @@ Prove the task measures its contract before reading any model result:
 
 `tests/bad-solutions/` holds one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision. They are the grader's test suite: a bad repair that scores 1 means the grader is wrong, and an untouched fixture that scores 1 means the task is wrong.
 
-### 6. Calibrate and decide
+### 6. Screen, then calibrate and decide
 
-Run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
+Before a full cohort, screen the task on one frontier and one weaker model and read both transcripts. Run the full cohort only when the screen shows a failure that comes from capability, not from the task or the grader; a task both models solve is not worth more runs. Benchmarks that stay hard select from many drafts this way: Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each.
+
+After the screen, run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
 
 1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors; an agent that runs out of time is a failure.
 2. **Confirm failures.** Rerun each valid failure twice with `calibrate.sh --confirm` and record whether it repeats. Confirmations never change the score; they show whether a failure is stable.
