@@ -168,6 +168,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       ...(request.captureJUnitSuiteTasks === true
         ? { captureJUnitSuiteTasks: true as const }
         : {}),
+      ...(request.captureModuleStart === true
+        ? { captureModuleStart: true as const }
+        : {}),
       captureTaskResults: request.captureTaskResults,
       ...(request.captureModuleCollected === true
         ? { captureModuleCollected: true as const }

@@ -449,6 +449,8 @@ export interface ExecuteTestOptions {
   captureTaskResults?: boolean
   /** Requested actual module collection observation; never a coverage certificate. */
   captureModuleCollected?: true
+  /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
+  captureModuleStart?: true
   /** Address for an explicitly requested inspector on this file worker. */
   inspect?: string
   /** Pause the explicitly inspected file worker before entry evaluation. */

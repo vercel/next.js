@@ -1113,6 +1113,10 @@ export async function nextTestRunner(
       }
       controller.signal.throwIfAborted()
       await machine.initialize({ signal: controller.signal })
+      if (machine.captureModuleStart && !preparePublicSnapshots)
+        throw new Error(
+          'Module Start reporters require one isolated ordinary JavaScript file with actual public snapshot preparation and JSON output.'
+        )
       controller.signal.throwIfAborted()
       await configuration.setup(
         projects.filter((project) => project.entries.length)
@@ -1164,6 +1168,9 @@ export async function nextTestRunner(
           !options.update &&
           process.env.CI
             ? { captureOneShotV8ReadOnlySnapshots: true as const }
+            : {}),
+          ...(machine.captureModuleStart
+            ? { captureModuleStart: true as const }
             : {}),
           ...(machine.captureModuleCollected
             ? { captureModuleCollected: true as const }

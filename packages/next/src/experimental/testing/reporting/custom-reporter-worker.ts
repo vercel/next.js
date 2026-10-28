@@ -27,6 +27,7 @@ type Reporter = {
   onUserConsoleLog?(log: unknown): unknown
   onTestModuleQueued?(module: unknown): unknown
   onTestModuleCollected?(module: unknown): unknown
+  onTestModuleStart?(module: unknown): unknown
   onTestModuleEnd?(module: unknown): unknown
   onTestCaseResult?(test: unknown): unknown
   onTestRunEnd?(modules: unknown[], errors: unknown[], reason: string): unknown
@@ -52,6 +53,15 @@ const completedModules = new Map<
 let queue = Promise.resolve()
 const queuedCallbacks: Promise<void>[] = []
 const collectedCallbacks: Promise<void>[] = []
+const startedCallbacks: Promise<void>[] = []
+const collectedStartOwners = new Map<
+  string,
+  { runId: string; revision: string }
+>()
+const moduleStarts = new Map<
+  string,
+  { failed: boolean; completion: Promise<boolean> }
+>()
 const collectedEntryIds = new Set<string>()
 const failedCollectedEntryIds = new Set<string>()
 const preparedEntryIds = new Set<string>()
@@ -86,7 +96,11 @@ async function settle(callbacks: (() => unknown)[]) {
     throw new AggregateError(errors, 'Custom reporter callbacks failed.')
 }
 async function shutdown() {
-  await Promise.all([...queuedCallbacks, ...collectedCallbacks])
+  await Promise.all([
+    ...queuedCallbacks,
+    ...collectedCallbacks,
+    ...startedCallbacks,
+  ])
   await settle(closeCallbacks.splice(0))
 }
 async function replayCases(tree: ReporterTaskSnapshot) {
@@ -108,7 +122,11 @@ async function finishCallbacks(
   errors: unknown[],
   reason: string
 ) {
-  await Promise.all([...queuedCallbacks, ...collectedCallbacks])
+  await Promise.all([
+    ...queuedCallbacks,
+    ...collectedCallbacks,
+    ...startedCallbacks,
+  ])
   let completionError: unknown
   await settle(
     reporters.map(
@@ -201,9 +219,11 @@ async function handle(message: any) {
             if (
               /^on[A-Z]/.test(name) &&
               !(
-                ['onTestModuleQueued', 'onTestModuleCollected'].includes(
-                  name
-                ) && !watching
+                [
+                  'onTestModuleQueued',
+                  'onTestModuleCollected',
+                  'onTestModuleStart',
+                ].includes(name) && !watching
               ) &&
               ![
                 'onInit',
@@ -230,8 +250,13 @@ async function handle(message: any) {
       )
       await send({
         type: 'custom-reporter-result',
+        captureModuleStart: reporters.some(
+          (reporter) => typeof reporter.onTestModuleStart === 'function'
+        ),
         captureModuleCollected: reporters.some(
-          (reporter) => typeof reporter.onTestModuleCollected === 'function'
+          (reporter) =>
+            typeof reporter.onTestModuleCollected === 'function' ||
+            typeof reporter.onTestModuleStart === 'function'
         ),
         captureModuleQueued: reporters.some(
           (reporter) => typeof reporter.onTestModuleQueued === 'function'
@@ -239,6 +264,7 @@ async function handle(message: any) {
         captureTaskResults: reporters.some(
           (reporter) =>
             typeof reporter.onTestModuleCollected === 'function' ||
+            typeof reporter.onTestModuleStart === 'function' ||
             typeof reporter.onTestCaseResult === 'function' ||
             typeof reporter.onTestModuleEnd === 'function' ||
             typeof reporter.onTestRunEnd === 'function' ||
@@ -500,6 +526,13 @@ async function handle(message: any) {
           'Custom module reporters require the actual test entry.'
         )
       completedModules.set(message.entryId, module)
+      const start = moduleStarts.get(message.entryId)
+      if (reporters.some((reporter) => reporter.onTestModuleStart) && !start)
+        throw new Error('Module End lacks its actual prepared Module Start.')
+      if (start?.failed && !(await start.completion)) {
+        await send({ type: 'custom-reporter-result' })
+        return
+      }
       try {
         await settle(
           reporters.map((reporter) => () => reporter.onTestModuleEnd?.(module))
@@ -626,9 +659,24 @@ process.on('message', (message: any) => {
         if (
           watching ||
           collectedEntryIds.has(message.taskTree.id) ||
-          !reporters.some((reporter) => reporter.onTestModuleCollected)
+          !reporters.some(
+            (reporter) =>
+              reporter.onTestModuleCollected || reporter.onTestModuleStart
+          )
         )
           throw new Error('Invalid actual module collection occurrence.')
+        if (reporters.some((reporter) => reporter.onTestModuleStart)) {
+          if (
+            typeof message.runId !== 'string' ||
+            typeof message.revision !== 'string' ||
+            message.entryId !== message.taskTree.id
+          )
+            throw new Error('Module Start lacks its actual collected owner.')
+          collectedStartOwners.set(message.entryId, {
+            runId: message.runId,
+            revision: message.revision,
+          })
+        }
         collectedEntryIds.add(message.taskTree.id)
         if (message.taskTree.result?.state === 'fail')
           failedCollectedEntryIds.add(message.taskTree.id)
@@ -641,6 +689,49 @@ process.on('message', (message: any) => {
             consoleErrors.push(error)
           })
         )
+      }
+      if (
+        message.notifyCollected !== true &&
+        reporters.some((reporter) => reporter.onTestModuleStart) &&
+        !moduleStarts.has(message.entryId)
+      ) {
+        const owner = collectedStartOwners.get(message.entryId)
+        if (
+          watching ||
+          !owner ||
+          owner.runId !== message.runId ||
+          owner.revision !== message.revision ||
+          message.entryId !== message.taskTree.id ||
+          preparedEntryIds.has(message.entryId) ||
+          completedModules.has(message.entryId) ||
+          !Array.isArray(message.taskUpdateIds) ||
+          message.taskUpdateIds.length !== 1 ||
+          message.taskUpdateIds[0] !== message.entryId ||
+          !['run', 'fail', 'skip', 'todo'].includes(
+            message.taskTree.result?.state
+          )
+        )
+          throw new Error(
+            'Module Start requires its actual first prepared root pack.'
+          )
+        // Preserve the received preparation state before authored callbacks.
+        const preparedFailed = message.taskTree.result.state === 'fail'
+        const completion = settle(
+          reporters.map(
+            (reporter) => () => reporter.onTestModuleStart?.(module)
+          )
+        ).then(
+          () => true,
+          (error) => {
+            consoleErrors.push(error)
+            return false
+          }
+        )
+        moduleStarts.set(message.entryId, {
+          failed: preparedFailed,
+          completion,
+        })
+        startedCallbacks.push(completion.then(() => {}))
       }
       if (watching) watchTrees.set(message.taskTree.id, message.taskTree)
     } catch (error) {

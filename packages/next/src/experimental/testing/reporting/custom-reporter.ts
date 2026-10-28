@@ -103,6 +103,7 @@ export async function openCustomReporters(options: {
   let captureTaskResults = false
   let captureModuleQueued = false
   let captureModuleCollected = false
+  let captureModuleStart = false
   let reporterErrors: SerializedDiagnostic[] = []
   let cancelledReporterErrors: Error[] | undefined
   let terminalReporterFailure:
@@ -198,6 +199,8 @@ export async function openCustomReporters(options: {
         message?.type !== 'custom-reporter-failed'
       )
         throw new Error('Invalid custom reporter response.')
+      if (message.captureModuleStart !== undefined)
+        captureModuleStart = message.captureModuleStart === true
       if (message.captureModuleCollected !== undefined)
         captureModuleCollected = message.captureModuleCollected === true
       if (message.captureModuleQueued !== undefined)
@@ -381,6 +384,9 @@ export async function openCustomReporters(options: {
   try {
     await loaded
     return {
+      get captureModuleStart() {
+        return captureModuleStart
+      },
       get captureModuleCollected() {
         return captureModuleCollected
       },
@@ -517,6 +523,13 @@ export async function openCustomReporters(options: {
           const notification = send({
             type: 'task-state',
             taskTree: event.taskTree,
+            ...(captureModuleStart
+              ? {
+                  runId: event.runId,
+                  entryId: event.entryId,
+                  revision: event.revision,
+                }
+              : {}),
             ...(event.type === 'file-collected' && captureModuleCollected
               ? { notifyCollected: true }
               : {}),

@@ -292,6 +292,9 @@ async function run({
   const taskUpdates =
     options.captureTaskResults || options.preparePublicSnapshots === true
       ? createReporterTaskUpdates<CaseResult>({
+          ...(options.captureModuleStart === true
+            ? { captureModuleStart: true as const }
+            : {}),
           getTaskLocation: (task) => file?.getPublishedTaskLocation(task),
           onUpdate: (update) =>
             event({
@@ -376,6 +379,7 @@ async function run({
   }
   let status: ResultStatus = 'failed'
   let failedCollectionObserved = false
+  let failedCollectedFile: import('../runner/tasks').File | undefined
   let sentPreparationFailure = false
   const readPreparationFailure = () => {
     if (options.preparePublicSnapshots !== true || !file) return undefined
@@ -550,6 +554,14 @@ async function run({
         'Client Browser Mode artifacts require the parent-owned client executor, never a Node worker.'
       )
     assertArtifactProfile(artifact, options.entry)
+    if (
+      options.captureModuleStart !== undefined &&
+      (options.captureModuleStart !== true ||
+        options.preparePublicSnapshots !== true ||
+        options.captureModuleCollected !== true ||
+        options.captureTaskResults !== true)
+    )
+      throw new Error('Unsupported actual prepared-module execution role.')
     if (
       options.captureModuleCollected !== undefined &&
       (options.captureModuleCollected !== true ||
@@ -939,6 +951,7 @@ async function run({
                 ),
               })
               taskUpdates!.collected(actualFile)
+              failedCollectedFile = actualFile
               failedCollectionObserved = true
             },
           }
@@ -1149,6 +1162,8 @@ async function run({
       ) {
         try {
           await file.prepareSnapshotsAfterFailedCollection!()
+          if (options.captureModuleStart === true)
+            taskUpdates!.filePrepared(failedCollectedFile!)
         } catch (preparationError) {
           const observed = readPreparationFailure()
           if (!observed || observed.source !== 'failed-collection')
@@ -1254,6 +1269,14 @@ async function run({
           if (publishingResult) process.exitCode = 1
           reportLateFailure(error)
         },
+        ...(options.captureModuleStart === true
+          ? {
+              captureModuleStart: true as const,
+              onFilePrepared(actualFile: import('../runner/tasks').File) {
+                taskUpdates!.filePrepared(actualFile)
+              },
+            }
+          : {}),
         onCollected: taskUpdates
           ? async (actualFile) => {
               await event({

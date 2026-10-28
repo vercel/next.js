@@ -1007,6 +1007,9 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureModuleStart() {
+      return custom?.captureModuleStart === true
+    },
     get captureModuleCollected() {
       return custom?.captureModuleCollected === true
     },

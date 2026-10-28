@@ -77,6 +77,8 @@ export type WatchProcessRequest =
       captureModuleQueued?: true
       captureTaskResults?: boolean
       captureModuleCollected?: true
+      /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
+      captureModuleStart?: true
       compilerTransforms?: Record<
         string,
         import('./compiler/transform-broker').CompilerTransformDescriptor

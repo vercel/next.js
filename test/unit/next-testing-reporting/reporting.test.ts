@@ -8421,3 +8421,199 @@ it.each(['owned', 'absent', 'truthy'] as const)(
   },
   35000
 )
+
+it.each([
+  'successful-pending',
+  'failed-pending',
+  'successful-error',
+  'failed-error',
+  'successful-undefined',
+  'failed-undefined',
+  'fulfilled',
+  'absent',
+] as const)(
+  'owns actual ModuleStart callbacks independently of execution for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-module-start-callback-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-consumer.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualFileResultHeld: true,
+        realCallbackPromisesJoined: true,
+        physicalJSONUnchanged: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it('preserves original Error getter and task meta effects with actual ModuleStart capture', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-module-start-effects-'))
+  try {
+    const observed = []
+    for (const mode of ['getter-baseline', 'getter-active']) {
+      const output = join(root, mode + '.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-consumer.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      observed.push(JSON.parse(await readFile(output, 'utf8')))
+    }
+    expect(observed[1].errorGetterCounts).toEqual(observed[0].errorGetterCounts)
+    expect(observed[1].metaReads).toBe(observed[0].metaReads)
+    expect(observed[1].physicalCounts).toEqual(observed[0].physicalCounts)
+    expect(observed.map((row) => row.body)).toEqual([0, 0])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}, 65000)
+
+it.each([
+  'truthy',
+  'false',
+  'missing-preparation',
+  'missing-collected',
+  'missing-task-capture',
+  'active-v8',
+  'watch',
+  'multiple-files',
+] as const)(
+  'refuses unowned ModuleStart preparation before execution for %s',
+  async (role) => {
+    const { normalizeTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const project = {
+      ...normalizeTestConfig({ test: {} }).projects[0],
+      entries: [{ ...entry, file: '/project/actual.case.mjs' }],
+    }
+    if (role === 'multiple-files')
+      project.entries.push({
+        ...project.entries[0],
+        id: 'other',
+        file: '/project/other.case.mjs',
+      })
+    const options: import('next/dist/experimental/testing/orchestrator').RunTestsOptions =
+      {
+        captureModuleStart:
+          role === 'truthy'
+            ? ('true' as never)
+            : role === 'false'
+              ? (false as never)
+              : true,
+        captureModuleCollected: role === 'missing-collected' ? undefined : true,
+        captureTaskResults: role !== 'missing-task-capture',
+        ...(role === 'missing-preparation'
+          ? {}
+          : {
+              preparePublicSnapshots: true as const,
+              onSnapshotPreparationFailure() {},
+            }),
+        ...(role === 'watch'
+          ? { userCancelSignal: new AbortController().signal }
+          : {}),
+        coverage: role === 'active-v8',
+        signal: new AbortController().signal,
+        write() {},
+      }
+    await expect(runTests('/project', [project], options)).rejects.toThrow(
+      /Module Start requires|Public snapshot preparation requires/
+    )
+  }
+)
+
+it.each(['success', 'setup-failure', 'cleanup-failure'] as const)(
+  'publishes actual prepared root data before its lazy file resource for %s',
+  async (mode) => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-module-start-resource-order-')
+    )
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-producer-order.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualRootAndResultIdentity: true,
+        actualLeadingPackBeforeLazyResource: true,
+        originalSetupCleanupOwnershipHeld: true,
+        allFileScopesJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each(['development', 'production'] as const)(
+  'matches complete ModuleStart reporter and author streams with actual causal ordering in %s',
+  async (mode) => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-public-module-start-causal-')
+    )
+    try {
+      for (const profile of ['success', 'setup-failure', 'cleanup-failure']) {
+        const output = join(root, profile + '.json')
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'public-module-start-causal.mjs'),
+            profile,
+            mode,
+            output,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          profile,
+          mode,
+          wholeReporterStreamEqual: true,
+          wholeAuthorStreamEqual: true,
+          actualEndGatedCausalOrderHeld: true,
+          standardCountsStatesAndFileMessagesEqual: true,
+          allOriginalBodyAndReporterBytesHeld: true,
+          allPhysicalOwnersJoined: true,
+        })
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  380000
+)
+
+it('validates every ModuleStart stream field while retaining only actual causal edges', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-module-start-causal-unit-'))
+  try {
+    const output = join(root, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'module-start-causal-unit.mjs'), output],
+      { encoding: 'utf8', timeout: 30000 }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toEqual({
+      acceptedExactAndUnawaitedInterleaving: 2,
+      rejectedFieldOrderOwnerAndCausalFaults: 11,
+      everyOriginalRowFieldRetained: true,
+      modelUnchanged: true,
+    })
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})

@@ -100,6 +100,8 @@ export interface RunTestsOptions {
   captureOneShotV8ReadOnlySnapshots?: true
   /** Private reporter request for actual collected-file observations. */
   captureModuleCollected?: true
+  /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
+  captureModuleStart?: true
   /** Actual selected-file scheduling; never a collected task snapshot. */
   onModuleQueued?: (entry: TestEntry) => void
   captureTaskResults?: boolean
@@ -229,6 +231,16 @@ export async function runTests(
   )
     throw new Error(
       'Public snapshot preparation requires its one-shot isolated ordinary Node JavaScript owner.'
+    )
+  if (
+    options.captureModuleStart !== undefined &&
+    (options.captureModuleStart !== true ||
+      options.preparePublicSnapshots !== true ||
+      options.captureModuleCollected !== true ||
+      options.captureTaskResults !== true)
+  )
+    throw new Error(
+      'Module Start requires its actual one-shot prepared File owner.'
     )
   if (
     options.captureModuleCollected !== undefined &&
@@ -969,6 +981,9 @@ export async function runTests(
                 options.onSnapshotPreparationFailure,
             }
           : {}),
+        ...(options.captureModuleStart === true
+          ? { captureModuleStart: true as const }
+          : {}),
         captureTaskResults: options.captureTaskResults,
         ...(options.captureModuleCollected === true
           ? { captureModuleCollected: true as const }
@@ -1420,6 +1435,9 @@ export async function runTests(
             : {}),
           ...(options.onModuleQueued
             ? { captureModuleQueued: true as const }
+            : {}),
+          ...(options.captureModuleStart === true
+            ? { captureModuleStart: true as const }
             : {}),
           captureTaskResults: options.captureTaskResults,
           ...(options.captureModuleCollected === true
