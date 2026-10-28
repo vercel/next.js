@@ -16,6 +16,7 @@ const testLoader = './loader.js'
 const testLoaders = [
   'test-resolution-loader',
   'test-resolution-loader/aliased',
+  'test-resolution-loader/conditions',
   testLoader,
 ]
 const postcssLoaders = [
@@ -90,7 +91,7 @@ const nextConfig = {
     })
     config.module.rules.push({
       test: /\.ts$/,
-      use: testLoaders,
+      use: testLoaders.map((loader) => require.resolve(loader)),
     })
     config.module.rules.push({
       test: /\.postcss-test$/,

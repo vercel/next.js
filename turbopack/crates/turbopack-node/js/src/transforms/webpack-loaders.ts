@@ -133,6 +133,7 @@ const transform = async (
 ) => {
   const resource = pathResolve(contextDir, name)
   const resourceDir = dirname(resource)
+  const nodeRequire = createRequire(path.join(contextDir, 'package.json'))
   const resolvedLoaders = await Promise.all(
     loaders.map(async (config) => {
       const { loader, options } =
@@ -141,12 +142,14 @@ const transform = async (
         type: 'resolveLoader',
         lookupPaths: [contextDir, resourceDir],
         request: loader,
+        resolvedPath: nodeRequire.resolve(loader, {
+          paths: [contextDir, resourceDir],
+        }),
       })) as { path: string }
       return { loader: result.path, options }
     })
   )
   return new Promise((resolve, reject) => {
-    const nodeRequire = createRequire(path.join(contextDir, 'package.json'))
     const buildDependencies = new Set(
       resolvedLoaders.map((loader) => loader.loader)
     )
@@ -575,6 +578,7 @@ const transform = async (
           if (!loadedModule) continue
           hasCachedBuildDependencies ||= loadedModule.children.length > 0
           for (const child of loadedModule.children) {
+            if (!child.filename) continue
             if (!buildDependencies.has(child.filename)) {
               buildDependencies.add(child.filename)
               pendingBuildDependencies.push(child.filename)

@@ -6,6 +6,11 @@
       "import": "./wrong.js",
       "require": "./index.js"
     },
-    "./aliased": "./index.js"
+    "./aliased": "./index.js",
+    "./conditions": {
+      "module-sync": "./index.js",
+      "node-addons": "./index.js",
+      "default": "./wrong.js"
+    }
   }
 }

@@ -69,6 +69,19 @@ describe('webpack-loader-file-dependencies', () => {
     }
   })
 
+  it('resolves loader packages with active Node export conditions', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toContain('build dependency: build-one')
+  })
+
+  it('ignores cached CommonJS children without filenames', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toContain('build dependency: build-one')
+
+    const $tracking = await next.render$('/tracking')
+    expect($tracking('p').text()).toContain('cached: transitive-one')
+  })
+
   it('should update when the dependency file changes', async () => {
     const $ = await next.render$('/')
     const initialText = await $('p').text()
