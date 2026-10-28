@@ -2186,7 +2186,7 @@ pub mod tests {
         emit_collect::CollectingModule,
         ident::AssetIdent,
         issue::{CollectibleIssuesExt, IssueSeverity},
-        module::{Module, ModuleSideEffects, Modules},
+        module::{ActivatableModule, Module, ModuleSideEffects, Modules},
         module_graph::chunk_group_info::{
             AsyncLoaderRelevantChunkGroups, AsyncLoaderRelevantChunkGroupsMap, ChunkGroup,
             ChunkGroupKey, EntryHeuristics,
@@ -3122,14 +3122,68 @@ pub mod tests {
     }
 
     /// Creates the mock module for `path`. Files named `collect*.js` become collecting modules
-    /// (namespace `ns`), everything else a plain [`MockModule`].
+    /// (namespace `ns`), files named `proxy*.js` activatable modules, everything else a plain
+    /// [`MockModule`].
     fn mock_module(path: FileSystemPath, repo: Vc<TestRepo>) -> Vc<Box<dyn Module>> {
         if path.file_name().starts_with("collect") {
             Vc::upcast(MockCollectingModule::new(path, repo))
+        } else if path.file_name().starts_with("proxy") {
+            Vc::upcast(MockActivatableModule::new(path, repo))
         } else {
             Vc::upcast(MockModule::new(path, repo))
         }
     }
+
+    /// A [`MockModule`] that is also an [`ActivatableModule`].
+    #[turbo_tasks::value]
+    struct MockActivatableModule {
+        inner: ResolvedVc<MockModule>,
+    }
+
+    #[turbo_tasks::value_impl]
+    impl MockActivatableModule {
+        #[turbo_tasks::function]
+        async fn new(path: FileSystemPath, repo: ResolvedVc<TestRepo>) -> Result<Vc<Self>> {
+            Ok(Self {
+                inner: MockModule::new(path, *repo).to_resolved().await?,
+            }
+            .cell())
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Asset for MockActivatableModule {
+        #[turbo_tasks::function]
+        fn content(&self) -> Vc<AssetContent> {
+            panic!("MockActivatableModule::content shouldn't be called")
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Module for MockActivatableModule {
+        #[turbo_tasks::function]
+        fn ident(&self) -> Vc<AssetIdent> {
+            self.inner.ident()
+        }
+
+        #[turbo_tasks::function]
+        fn source(&self) -> Vc<crate::source::OptionSource> {
+            Vc::cell(None)
+        }
+
+        #[turbo_tasks::function]
+        fn references(&self) -> Vc<ModuleReferences> {
+            self.inner.references()
+        }
+
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl ActivatableModule for MockActivatableModule {}
 
     /// A [`MockModule`] that is also a [`CollectingModule`].
     #[turbo_tasks::value]
@@ -4149,6 +4203,8 @@ pub mod tests {
         /// For each query: the availability before and after narrowing, and the narrowed available
         /// chunk groups by name.
         narrowed: Vec<(AvailabilityInfo, AvailabilityInfo, Vec<String>)>,
+        /// For each query: the available chunk groups before narrowing, by name.
+        narrowed_input: Vec<Vec<String>>,
     }
 
     /// For each query, builds the availability that `chunk_group_content` produces for the entry
@@ -4190,13 +4246,14 @@ pub mod tests {
                 (
                     names[module].to_string(),
                     describe(&relevant.chunk_groups),
-                    relevant.reaches_collecting_module,
+                    relevant.needs_entry_group(),
                 )
             })
             .collect::<Vec<_>>();
         relevant.sort();
 
         let mut narrowed = Vec::new();
+        let mut narrowed_input = Vec::new();
         for (pages, in_async_module, module) in queries {
             let pages = pages.iter().map(|p| by_name[p]).collect::<Vec<_>>();
             let mut availability = AvailabilityInfo::root();
@@ -4240,10 +4297,19 @@ pub mod tests {
                 Some(available) => describe(available.await?.chunk_groups(module_graph)),
                 None => vec![],
             };
+            narrowed_input.push(match availability.available_chunk_groups() {
+                Some(available) => describe(available.await?.chunk_groups(module_graph)),
+                None => vec![],
+            });
             narrowed.push((availability, result, available));
         }
 
-        Ok(AsyncAvailabilityTestReport { relevant, narrowed }.cell())
+        Ok(AsyncAvailabilityTestReport {
+            relevant,
+            narrowed,
+            narrowed_input,
+        }
+        .cell())
     }
 
     fn describe_chunk_group(
@@ -4274,11 +4340,11 @@ pub mod tests {
     fn relevant(
         module: &str,
         groups: &[&str],
-        reaches_collecting_module: bool,
+        needs_entry_group: bool,
     ) -> (String, Vec<String>, bool) {
         let mut groups = groups.iter().map(|g| g.to_string()).collect::<Vec<_>>();
         groups.sort();
-        (module.to_string(), groups, reaches_collecting_module)
+        (module.to_string(), groups, needs_entry_group)
     }
 
     /// Two pages load the same async module, whose subgraph is disjoint from both pages: the
@@ -4649,6 +4715,148 @@ pub mod tests {
         .await
     }
 
+    /// An activatable module (a lazily compiled dynamic import) keeps the availability its loader
+    /// is given, so that names derived from it don't change when it activates. Async targets whose
+    /// chunking reaches it stop at it and use the subset filter instead of the canonical
+    /// availability (which may contain chunk groups the activated subgraph would misread), keep the
+    /// entry group, and don't change on activation either.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_activatable() {
+        run_turbo_test(async {
+            let dependencies = |active: bool| -> Vec<(&'static str, &'static [&'static str])> {
+                let mut dependencies: Vec<(&str, &[&str])> = vec![
+                    ("p1.js", &["a.js", "u.js", "runtime.js", "shared.js"]),
+                    ("p2.js", &["a.js", "u.js", "runtime.js", "x.js"]),
+                    ("a.js", &["proxy.js", "runtime.js", "shared.js"]),
+                    ("u.js", &["runtime.js"]),
+                ];
+                if active {
+                    dependencies.push(("proxy.js", &["leaf.js"]));
+                    dependencies.push(("leaf.js", &["runtime.js", "x.js", "collect.js"]));
+                }
+                dependencies
+            };
+            let chunking_types = |active: bool| {
+                let mut chunking_types = vec![
+                    ("p1.js", "a.js", "async"),
+                    ("p2.js", "a.js", "async"),
+                    ("p1.js", "u.js", "async"),
+                    ("p2.js", "u.js", "async"),
+                    ("a.js", "proxy.js", "async"),
+                ];
+                if active {
+                    chunking_types.push(("proxy.js", "leaf.js", "async"));
+                    chunking_types.push(("leaf.js", "collect.js", "per-entry"));
+                }
+                chunking_types
+            };
+            let queries: &[(&[&str], bool, &str)] = &[
+                (&["p1.js"], true, "a.js"),
+                (&["p2.js"], true, "a.js"),
+                (&["p1.js"], true, "u.js"),
+                (&["p2.js"], true, "u.js"),
+            ];
+
+            let mut reports = Vec::new();
+            for active in [false, true] {
+                let test = AsyncAvailabilityTest::new(
+                    &dependencies(active),
+                    &chunking_types(active),
+                    &["p1.js", "p2.js"],
+                    &[],
+                )
+                .await?;
+                let mut queries = queries.to_vec();
+                if active {
+                    // `proxy` and `leaf` are only chunked through `a`.
+                    queries.push((&["p1.js"], true, "proxy.js"));
+                    queries.push((&["p1.js"], true, "leaf.js"));
+                }
+                reports.push(test.report(&queries).await?);
+            }
+            let (inactive, active) = (&reports[0], &reports[1]);
+
+            let relevant_of = |report: &AsyncAvailabilityTestReport, module: &str| {
+                report.relevant.iter().find(|(m, ..)| m == module).cloned()
+            };
+            for (report, behind_proxy) in [(inactive, &[][..]), (active, &["async leaf.js"][..])] {
+                // The activatable target keeps its availability.
+                assert_eq!(relevant_of(report, "proxy.js"), None);
+                // Its containing target stops at it and keeps the entry group. (The chunk groups
+                // of `runtime.js` grow on activation, but only by chunk groups behind the proxy,
+                // which are never available above it.)
+                let mut groups = vec![
+                    "async a.js",
+                    "async proxy.js",
+                    "async u.js",
+                    "entry p1.js",
+                    "entry p2.js",
+                ];
+                groups.extend(behind_proxy);
+                assert_eq!(
+                    relevant_of(report, "a.js"),
+                    Some(relevant("a.js", &groups, true))
+                );
+                // An unrelated target is still canonical: both pages get the same availability,
+                // which isn't a subset of either page's.
+                let (_, from_p1, ref from_p1_available) = report.narrowed[2];
+                let (_, from_p2, _) = report.narrowed[3];
+                assert_eq!(from_p1, from_p2);
+                assert!(from_p1_available.contains(&"entry p2.js".to_string()));
+            }
+
+            // The containing target uses the subset filter and keeps the entry group.
+            for (index, report) in [inactive, active].into_iter().enumerate() {
+                for query in 0..2 {
+                    let (before, after, ref after_available) = report.narrowed[query];
+                    let before_available = &report.narrowed_input[query];
+                    assert!(
+                        after_available.iter().all(|g| before_available.contains(g)),
+                        "graph {index}, query {query}: {after_available:?} is not a subset of \
+                         {before_available:?}"
+                    );
+                    assert!(after.entry_group().is_some());
+                    assert_eq!(after.entry_group(), before.entry_group());
+                }
+            }
+            // Activation doesn't change it.
+            for query in 0..2 {
+                assert_eq!(inactive.narrowed[query].2, active.narrowed[query].2);
+            }
+
+            // Behind the proxy, the activated target is canonicalized on its own (its collecting
+            // module reads the entry group).
+            assert_eq!(
+                relevant_of(active, "leaf.js"),
+                Some(relevant(
+                    "leaf.js",
+                    &[
+                        "async a.js",
+                        "async leaf.js",
+                        "async u.js",
+                        "entry p1.js",
+                        "entry p2.js"
+                    ],
+                    true
+                ))
+            );
+            // The proxy's own loader keeps the availability it is given.
+            let (before, after, _) = active.narrowed[4];
+            assert_eq!(after, before);
+            // The activated target isn't limited to a subset: its canonical availability contains
+            // chunk groups the input doesn't.
+            let (_, _, ref leaf_available) = active.narrowed[5];
+            assert!(
+                leaf_available
+                    .iter()
+                    .any(|g| !active.narrowed_input[5].contains(g)),
+                "{leaf_available:?} should be canonical"
+            );
+            Ok(())
+        })
+        .await
+    }
+
     #[turbo_tasks::value(transparent)]
     struct TestStep(State<u32>);
 
@@ -4669,6 +4877,7 @@ pub mod tests {
             observed_chunk_groups: Default::default(),
             chunk_groups: Default::default(),
             reaches_collecting_module,
+            reaches_activatable: false,
         };
         Ok(Vc::cell(FxHashMap::from_iter([
             (a, entry(step >= 3)),

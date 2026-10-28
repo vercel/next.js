@@ -17,7 +17,7 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     emit_collect::CollectingModule,
-    module::Module,
+    module::{ActivatableModule, Module},
     module_graph::{GraphTraversalAction, ModuleGraph, RefData, collect::CollectedModules},
 };
 
@@ -64,17 +64,36 @@ pub struct AsyncLoaderRelevantChunkGroups {
     /// Whether the chunking visits a collecting module, which reads the entry group of the
     /// availability.
     pub reaches_collecting_module: bool,
+    /// Whether the chunking reaches an async chunk group of an
+    /// [`crate::module::ActivatableModule`]. The observed sets stop at such a chunk group, but the
+    /// availability is passed on to it as is, and chunking behind it may test sets that aren't
+    /// observed here. So [`Self::canonicalize`] only removes chunk groups instead of producing a
+    /// canonical value.
+    pub reaches_activatable: bool,
 }
 
 impl AsyncLoaderRelevantChunkGroups {
-    /// A canonical replacement for `available` that answers every observed test the same way.
+    /// Whether the async loader needs the entry group of the availability: chunking visits a
+    /// collecting module, or reaches an activatable chunk group, behind which one can appear.
+    pub fn needs_entry_group(&self) -> bool {
+        self.reaches_collecting_module || self.reaches_activatable
+    }
+
+    /// A replacement for `available` that answers every observed test the same way.
     ///
-    /// The result is everything in [`Self::chunk_groups`] except the members of observed sets that
-    /// `available` misses. A set that `available` hits keeps `set ∩ available` (those chunk groups
-    /// are in no missed set), and a missed set loses all of its members. The result only depends
-    /// on which sets are hit, so availabilities that make the same modules available map to the
-    /// same value. It can contain chunk groups that are not in `available`.
+    /// Usually it is canonical: everything in [`Self::chunk_groups`] except the members of observed
+    /// sets that `available` misses. A set that `available` hits keeps `set ∩ available` (those
+    /// chunk groups are in no missed set), and a missed set loses all of its members. The result
+    /// only depends on which sets are hit, so availabilities that make the same modules available
+    /// map to the same value. It can contain chunk groups that are not in `available`.
+    ///
+    /// With [`Self::reaches_activatable`], it is `available ∩ chunk_groups` instead: a subset of
+    /// `available`, so tests that aren't observed here can only lose availability (which emits a
+    /// module again), never gain it.
     pub fn canonicalize(&self, available: &Bitset) -> Bitset {
+        if self.reaches_activatable {
+            return &self.chunk_groups & available;
+        }
         let mut missed = Bitset::new();
         for observed in &self.observed_chunk_groups {
             if observed.is_disjoint(available) {
@@ -88,8 +107,9 @@ impl AsyncLoaderRelevantChunkGroups {
 /// [`AsyncLoaderRelevantChunkGroups`] for each async chunk group, keyed by the module the async
 /// chunk group is created for (the `m` of [`ChunkGroupKey::Async`]). It is computed together with
 /// the chunk groups in [`compute_chunk_group_info`]. A module has no entry if it has no async chunk
-/// group in this graph, or if the chunking of its async chunk group can't be fully determined (an
-/// opaque subgraph). Its async loader then keeps the given availability.
+/// group in this graph, if it is an [`crate::module::ActivatableModule`], or if the chunking of its
+/// async chunk group can't be fully determined (an opaque subgraph). Its async loader then keeps
+/// the given availability.
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct AsyncLoaderRelevantChunkGroupsMap(
     FxHashMap<ResolvedVc<Box<dyn Module>>, AsyncLoaderRelevantChunkGroups>,
@@ -1114,6 +1134,16 @@ type SharedReference = (
 /// Cycles (e.g. two modules that import each other dynamically) are handled by computing the
 /// closure per strongly connected component. Equal sets are interned, so the closure works on set
 /// ids.
+///
+/// The async chunk group of an [`ActivatableModule`] is a boundary. Its references can appear
+/// later, and names derived from the availability of its async loader must not change when they
+/// do. So the closure doesn't continue through it: only its own modules are observed, not the
+/// async loaders created in it or what it references. It gets no entry (its loader keeps the given
+/// availability), and every async chunk group whose closure reaches it uses the subset filter and
+/// keeps the entry group (see [`AsyncLoaderRelevantChunkGroups::reaches_activatable`]).
+/// Activation can still add chunk groups behind the boundary to the chunk groups of modules above
+/// it, but those are never available above it, so the subset-filtered availabilities there don't
+/// change.
 fn compute_async_loader_relevant_chunk_groups<'a>(
     chunk_groups_map: &FxIndexMap<ChunkGroupKey, FxIndexSet<ResolvedVc<Box<dyn Module>>>>,
     module_chunk_groups: &'a FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
@@ -1141,6 +1171,30 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
         })
     };
 
+    // The async chunk groups of activatable modules. The closure stops at them: they get no
+    // outgoing edges and no loader sets.
+    let activatable = chunk_groups_map
+        .keys()
+        .enumerate()
+        .filter_map(|(index, key)| match key {
+            ChunkGroupKey::Async(module)
+                if ResolvedVc::try_downcast::<Box<dyn ActivatableModule>>(*module).is_some() =>
+            {
+                Some(index as u32)
+            }
+            _ => None,
+        })
+        .collect::<Bitset>();
+    // The chunk groups of a module that the closure continues from.
+    let outside_activatable = {
+        let activatable = &activatable;
+        move |groups: &'a Bitset| {
+            groups
+                .iter()
+                .filter(move |group| !activatable.contains(*group))
+        }
+    };
+
     // The chunk group graph, the ids of the chunk group sets of async loaders created while
     // chunking a chunk group, and the chunk groups that contain a collecting module.
     let mut graph = DiGraphMap::<u32, ()>::new();
@@ -1155,14 +1209,14 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
                 .get(child)
                 .context("Async loader chunk groups not found for async reference")?,
         );
-        for group in groups_of(parent)?.iter() {
+        for group in outside_activatable(groups_of(parent)?) {
             graph.add_edge(group, target, ());
             loader_sets.entry(group).or_default().insert(loader_set);
         }
     }
 
     for (parent, child, merge_tag) in shared_references {
-        for group in groups_of(parent)?.iter() {
+        for group in outside_activatable(groups_of(parent)?) {
             let key = match merge_tag {
                 None => ChunkGroupKey::Shared(*child),
                 Some(merge_tag) => ChunkGroupKey::SharedMerged {
@@ -1193,6 +1247,7 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
         let Some(collecting_groups) = module_chunk_groups.get(collecting_module) else {
             continue;
         };
+        let collecting_groups = outside_activatable(collecting_groups).collect::<Bitset>();
         for (_, references) in per_entry {
             for (_, collected_module) in references {
                 match index_of(&ChunkGroupKey::Collected(*collected_module)) {
@@ -1201,7 +1256,7 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
                             graph.add_edge(group, target, ());
                         }
                     }
-                    None => opaque |= collecting_groups,
+                    None => opaque |= &collecting_groups,
                 }
             }
         }
@@ -1255,9 +1310,9 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
     // at all, and the unreachable ones are skipped.
     let components = tarjan_scc(&graph);
     let mut component_of: FxHashMap<u32, usize> = FxHashMap::default();
-    // Per component: the ids of its observed sets, whether it reaches a collecting module, and
-    // whether it is opaque.
-    let mut closure: Vec<(Bitset, bool, bool)> = Vec::with_capacity(components.len());
+    // Per component: the ids of its observed sets, whether it reaches a collecting module, whether
+    // it is opaque, and whether it reaches an activatable chunk group.
+    let mut closure: Vec<(Bitset, bool, bool, bool)> = Vec::with_capacity(components.len());
     for (index, component) in components.iter().enumerate() {
         if !reachable.contains(component[0]) {
             closure.push(Default::default());
@@ -1269,6 +1324,7 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
         let mut sets = Bitset::new();
         let mut collecting = false;
         let mut is_opaque = false;
+        let mut reaches = false;
         for group in component {
             for group_sets in [direct_sets.get(group), loader_sets.get(group)]
                 .into_iter()
@@ -1278,25 +1334,28 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
             }
             collecting |= has_collecting_module.contains(*group);
             is_opaque |= opaque.contains(*group);
+            reaches |= activatable.contains(*group);
             for successor in graph.neighbors(*group) {
                 let successor = component_of[&successor];
                 if successor != index {
-                    let (successor_sets, successor_collecting, successor_opaque) =
+                    let (successor_sets, successor_collecting, successor_opaque, successor_reaches) =
                         &closure[successor];
                     sets |= successor_sets;
                     collecting |= successor_collecting;
                     is_opaque |= successor_opaque;
+                    reaches |= successor_reaches;
                 }
             }
         }
-        closure.push((sets, collecting, is_opaque));
+        closure.push((sets, collecting, is_opaque, reaches));
     }
 
     Ok(async_chunk_groups
         .into_iter()
         .filter_map(|(index, module)| {
-            let (sets, reaches_collecting_module, is_opaque) = &closure[component_of[&index]];
-            if *is_opaque {
+            let (sets, reaches_collecting_module, is_opaque, reaches_activatable) =
+                &closure[component_of[&index]];
+            if *is_opaque || activatable.contains(index) {
                 return None;
             }
             let mut observed_chunk_groups = sets
@@ -1316,6 +1375,7 @@ fn compute_async_loader_relevant_chunk_groups<'a>(
                     observed_chunk_groups,
                     chunk_groups,
                     reaches_collecting_module: *reaches_collecting_module,
+                    reaches_activatable: *reaches_activatable,
                 },
             ))
         })
@@ -1351,7 +1411,8 @@ mod tests {
     /// Exhaustive over a small universe of 4 chunk groups: for every family of up to 3 observed
     /// sets and every availability, the canonical availability answers every observed test the
     /// same way, is a fixed point, and only depends on the answers. Adding chunk groups (as
-    /// chunking nested chunk groups does) keeps the answers equal as well.
+    /// chunking nested chunk groups does) keeps the answers equal as well. With
+    /// `reaches_activatable`, the result answers the same way and is a subset.
     #[test]
     fn canonicalize_preserves_observed_tests() {
         let all = subsets(4);
@@ -1369,10 +1430,20 @@ mod tests {
                         observed_chunk_groups: observed,
                         chunk_groups,
                         reaches_collecting_module: false,
+                        reaches_activatable: false,
                     };
                     let observed = &relevant.observed_chunk_groups;
+                    let subset_only = AsyncLoaderRelevantChunkGroups {
+                        reaches_activatable: true,
+                        ..relevant.clone()
+                    };
                     let mut by_hits = rustc_hash::FxHashMap::default();
                     for available in &all {
+                        // Reaching an activatable chunk group only removes chunk groups.
+                        let subset = subset_only.canonicalize(available);
+                        assert!(subset.is_subset(available));
+                        assert_eq!(hits(observed, available), hits(observed, &subset));
+
                         let canonical = relevant.canonicalize(available);
                         assert_eq!(hits(observed, available), hits(observed, &canonical));
                         assert_eq!(relevant.canonicalize(&canonical), canonical);

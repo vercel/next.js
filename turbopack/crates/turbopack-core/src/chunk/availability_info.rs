@@ -135,8 +135,10 @@ impl AvailabilityInfo {
     /// reaches a collecting module. See
     /// [`crate::module_graph::chunk_group_info::AsyncLoaderRelevantChunkGroups::canonicalize`].
     ///
-    /// A module without an entry (see [`AsyncLoaderRelevantChunkGroupsMap`]) keeps the
-    /// availability as is.
+    /// An [`crate::module::ActivatableModule`] can gain references later, so its async loader
+    /// keeps the availability as is, and so does every module without an entry (see
+    /// [`AsyncLoaderRelevantChunkGroupsMap`]). When the chunking of `module` reaches an
+    /// activatable module, the result is only a subset of `self` and keeps the entry group.
     ///
     /// Not a `turbo_tasks::function`, to avoid a task per parent availability and module. It reads
     /// a single entry of the keyed [`AsyncLoaderRelevantChunkGroupsMap`] cell, and equal results
@@ -187,7 +189,7 @@ impl AvailabilityInfo {
         Ok(Self {
             flags: self.flags,
             available_chunk_groups,
-            entry_group: if relevant.reaches_collecting_module {
+            entry_group: if relevant.needs_entry_group() {
                 self.entry_group
             } else {
                 None
