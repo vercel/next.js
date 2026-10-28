@@ -9,6 +9,7 @@ type Node = {
   type: string
   loc: StandardCoverageLocation
   operator?: string
+  name?: string
   value?: unknown
   test?: Node
   consequent?: Node
@@ -41,6 +42,17 @@ function measuredRoles(node: Node) {
     consequent = node.consequent,
     alternate = node.alternate
   if (
+    test?.type === 'Identifier' &&
+    typeof test.name === 'string' &&
+    consequent?.type === 'Literal' &&
+    typeof consequent.value === 'number' &&
+    Number.isFinite(consequent.value) &&
+    alternate?.type === 'Literal' &&
+    typeof alternate.value === 'number' &&
+    Number.isFinite(alternate.value)
+  )
+    return { kind: 'literal' as const, test, consequent, alternate }
+  if (
     test?.type !== 'BinaryExpression' ||
     consequent?.type !== 'BinaryExpression' ||
     test.right?.type !== 'Literal' ||
@@ -53,6 +65,7 @@ function measuredRoles(node: Node) {
   )
     return
   return {
+    kind: 'binary' as const,
     test,
     consequent,
     alternate,
@@ -153,18 +166,32 @@ export function bindConditionalOperandEnds(
     )
     const associated = generated.filter((candidate) => {
       const other = measuredRoles(candidate)
+      if (!other) return false
+      if (roles.kind === 'literal') {
+        if (
+          other.kind !== 'literal' ||
+          other.test.name !== roles.test.name ||
+          other.consequent.value !== roles.consequent.value ||
+          other.alternate.value !== roles.alternate.value
+        )
+          return false
+      } else {
+        if (
+          other.kind !== 'binary' ||
+          other.test.operator !== roles.test.operator ||
+          other.consequent.operator !== roles.consequent.operator ||
+          other.testRight.value !== roles.testRight.value ||
+          other.terminal.value !== roles.terminal.value ||
+          other.alternate.value !== roles.alternate.value ||
+          !exact(other.testRight.loc.start, roles.testRight.loc.start) ||
+          !exact(other.terminal.loc.start, roles.terminal.loc.start)
+        )
+          return false
+      }
       return (
-        other &&
-        other.test.operator === roles.test.operator &&
-        other.consequent.operator === roles.consequent.operator &&
-        other.testRight.value === roles.testRight.value &&
-        other.terminal.value === roles.terminal.value &&
-        other.alternate.value === roles.alternate.value &&
         exact(candidate.loc.start, node.loc.start) &&
         exact(other.test.loc.start, roles.test.loc.start) &&
-        exact(other.testRight.loc.start, roles.testRight.loc.start) &&
         exact(other.consequent.loc.start, roles.consequent.loc.start) &&
-        exact(other.terminal.loc.start, roles.terminal.loc.start) &&
         exact(other.alternate.loc.start, roles.alternate.loc.start)
       )
     })

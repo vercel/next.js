@@ -22646,3 +22646,60 @@ describe('actual name-filter untouched excluded descendants', () => {
     140000
   )
 })
+
+describe('actual compact conditional operand mapping', () => {
+  it.each([
+    'v8-skip-todo-body',
+    'v8-todo-skip-body',
+    'v8-skip-todo-empty',
+    'v8-todo-skip-empty',
+    'v8-choose-true',
+    'v8-choose-false',
+    'v8-choose-both',
+  ])(
+    'matches the unchanged compact source full report and counters for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-compact-conditional-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'conditional-literal-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+  it('binds only the exact actual literal roles and preserves all raw counters and inputs', async () => {
+    const { execFile } = require('node:child_process')
+    const { promisify } = require('node:util')
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-compact-association-'))
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'conditional-literal-association.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+      )
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 50000)
+})

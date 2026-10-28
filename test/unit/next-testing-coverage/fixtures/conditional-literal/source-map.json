@@ -1,0 +1,44 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {
+      "offset": { "line": 5, "column": 0 },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/modes.case.mjs"
+        ],
+        "sourcesContent": [
+          "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
+        ],
+        "names": [
+          "record",
+          "event",
+          "process",
+          "env",
+          "MODE_TRACE",
+          "JSON",
+          "stringify",
+          "actor",
+          "skip",
+          "todo",
+          "__next_test_declaration__"
+        ],
+        "mappings": "A;AAAA;AACA;AACA;;;;;;;;AACA,MAAMA,SAAOC,CAAAA,QAAO,IAAA,sIAAc,EAACC,QAAQC,GAAG,CAACC,UAAU,EAACC,KAAKC,SAAS,CAAC;QAACC,OAAM;QAASN;IAAK,KAAG;AACjGD,OAAO;AAAgB,IAAA,oLAAS,EAAC,IAAIA,OAAO;AAAe,IAAA,mLAAQ,EAAC,IAAIA,OAAO;AAC/E,mLAAQ,CAACQ,IAAI,CAAC,SAAQ;IAAK,mLAAQ,CAACC,IAAI,CAAC,iBAAgB;QAAKC;8CAAAA,mLAAQ;YAARA,yBAAQ,CAAC,iBAAgB;gBAAK,IAAA,oLAAS,EAAC,IAAIV,OAAO;gBAAe,IAAA,mLAAQ,EAAC,IAAIA,OAAO;gBAAcU;sDAAAA,+KAAI;oBAAJA,yBAAI,CAAC,QAAO,IAAIV,OAAO;gBAAW;YAAC;QAAC;IAAC;AAAE"
+      }
+    },
+    {
+      "offset": { "line": 43, "column": 0 },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/subject.mjs"
+        ],
+        "sourcesContent": ["export function choose(value){return value?1:2}\n"],
+        "names": ["choose", "value"],
+        "mappings": "A;;;;AAAO,SAASA,OAAOC,KAAK;IAAE,OAAOA,QAAM,IAAE;AAAC"
+      }
+    }
+  ]
+}
