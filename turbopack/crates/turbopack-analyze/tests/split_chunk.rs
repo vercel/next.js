@@ -283,3 +283,65 @@ fn shared_maps_split_when_variants_diverge() -> anyhow::Result<()> {
     assert!(matches!(code.source_maps()?, SourceMaps::Partial(_)));
     Ok(())
 }
+
+#[test]
+fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()> {
+    let full = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["original.ts"],
+        "names": [],
+    });
+    let partial = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["input.js"],
+        "names": [],
+    });
+    let shared = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["shared.js"],
+        "names": [],
+    });
+    let mut source = CodeBuilder::new(false);
+    source += "prefix ";
+    source.push_source(
+        &Rope::from("mapped"),
+        SourceMaps::Both {
+            full: Rope::from(serde_json::to_string(&full)?),
+            partial: Rope::from(serde_json::to_string(&partial)?),
+        },
+    );
+    let mut combined = CodeBuilder::new(false);
+    combined.push_source(
+        &Rope::from("shared"),
+        SourceMaps::Shared(Rope::from(serde_json::to_string(&shared)?)),
+    );
+    combined.push_code(&source.build());
+    combined.push_code(&CodeBuilder::new(false).build());
+    combined += "suffix";
+    let combined = combined.build();
+
+    for (ty, map) in [
+        (SourceMapType::Full, full),
+        (SourceMapType::Partial, partial),
+    ] {
+        let generated = combined.generate_source_map_ref(None, ty)?;
+        let generated: serde_json::Value = serde_json::from_slice(&generated.to_bytes())?;
+        assert_eq!(
+            generated["sections"],
+            json!([
+                { "offset": { "line": 0, "column": 0 }, "map": shared },
+                { "offset": { "line": 0, "column": 6 }, "map": {
+                    "version": 3, "sources": [], "names": [], "mappings": "A",
+                } },
+                { "offset": { "line": 0, "column": 13 }, "map": map },
+                { "offset": { "line": 0, "column": 19 }, "map": {
+                    "version": 3, "sources": [], "names": [], "mappings": "A",
+                } },
+            ])
+        );
+    }
+    Ok(())
+}

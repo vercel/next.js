@@ -2,6 +2,7 @@ use std::future::Future;
 
 use bincode::{Decode, Encode};
 use turbo_tasks::NonLocalValue;
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::source_map::SourceMapType;
 
@@ -17,6 +18,22 @@ pub enum SourceMaps<T: NonLocalValue> {
         partial: T,
     },
     Shared(T),
+}
+
+impl<T: NonLocalValue + DeterministicHash> DeterministicHash for SourceMaps<T> {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).deterministic_hash(state);
+        match self {
+            Self::None => {}
+            Self::Full(map) | Self::Partial(map) | Self::Shared(map) => {
+                map.deterministic_hash(state);
+            }
+            Self::Both { full, partial } => {
+                full.deterministic_hash(state);
+                partial.deterministic_hash(state);
+            }
+        }
+    }
 }
 
 impl<T: NonLocalValue> SourceMaps<T> {
