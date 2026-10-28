@@ -73,9 +73,13 @@ A content fingerprint detects installed compiler/source changes between sessions
 allowing identical SDK copies to reuse cached results. It excludes the module cache.
 
 Acquire the session from a session-dependent task. Retain the returned session's
-`context` for cancellation, including after a warm restore, and recreate module-cache
+`go_context` for cancellation, including after a warm restore, and recreate module-cache
 watchers in each process. Discovery re-registers filesystem observations each session;
 unchanged compiler plans restore their executable bytes without invoking `go build`.
+Compiler plans identify source files and dependencies by their paths and content hashes,
+so recreating an identical project with new timestamps or file identities also reuses the
+executable. Live metadata is captured separately around each compiler invocation to detect
+changes during that attempt, including edits whose contents are restored before it finishes.
 When configuring `options.poll_interval_ms`, use `filesystem_with_poll_interval` with
 the same path and interval for module-cache watching and invalidation.
 Session owners must cancel compilation and stop module-cache watchers at shutdown.
@@ -93,8 +97,9 @@ it does not parse Go imports or implement a Go package graph.
   Tasks FS so edits and newly created files can invalidate discovery.
 - **Validation:** recorded hashes and live metadata detect inconsistent reads.
   Discovery validates newly registered inputs before handing its plan to compilation.
-- **Compilation:** `go build` writes to a temporary directory. Input stamps and
-  directory membership are checked before and after the command. Changed inputs
+- **Compilation:** `go build` writes to a temporary directory. Content hashes validate
+  the cached plan before execution; live input stamps and directory membership are
+  checked across the command. Changed inputs
   trigger invalidation and retry; successful builds return executable bytes and
   permission metadata.
 
@@ -110,7 +115,7 @@ writers: it does not lock sources or provide a transactional snapshot.
 - The source project, module cache and writable build cache must satisfy the CLI's
   cache-placement restrictions. Consumed source paths cannot contain symlinks.
 - Persistent consumers can cache executable bytes between sessions through the
-  session-valued API above. CLI context arguments remain transient; Go's own build
+  session-valued API above. CLI context arguments are transient; Go's own build
   and module caches persist independently.
 - At most two Go actions run concurrently. Each command has a 180-second deadline.
   Cancellation and timeouts terminate its process tree. Compiler subprocess errors

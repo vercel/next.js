@@ -1,14 +1,23 @@
 //! Subprocess ownership includes compiler children, including during cancellation.
+#[cfg(target_family = "wasm")]
+pub(crate) use std::process::Command;
+#[cfg(not(target_family = "wasm"))]
 use std::{pin::Pin, process::Stdio, time::Duration};
 
-use anyhow::{Context, Result};
-use tokio::process::Command;
+#[cfg(not(target_family = "wasm"))]
+use anyhow::Context;
+use anyhow::Result;
+#[cfg(not(target_family = "wasm"))]
+pub(crate) use tokio::process::Command;
 use tokio_util::sync::CancellationToken;
 
+#[cfg(not(target_family = "wasm"))]
 const TIMEOUT: Duration = Duration::from_secs(180);
 
+#[cfg(not(target_family = "wasm"))]
 struct ProcessGroup(Option<u32>);
 
+#[cfg(not(target_family = "wasm"))]
 impl ProcessGroup {
     fn terminate(&mut self) {
         let Some(pid) = self.0.take() else { return };
@@ -31,12 +40,14 @@ impl ProcessGroup {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 impl Drop for ProcessGroup {
     fn drop(&mut self) {
         self.terminate();
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 struct PendingOutput<F> {
     // Fields drop in declaration order. Keep the parent alive until tree termination has
     // completed: Windows taskkill /T needs the parent to enumerate its descendants.
@@ -44,6 +55,7 @@ struct PendingOutput<F> {
     output: Pin<Box<F>>,
 }
 
+#[cfg(not(target_family = "wasm"))]
 pub(crate) async fn output(
     command: Command,
     cancel: &CancellationToken,
@@ -51,6 +63,18 @@ pub(crate) async fn output(
     output_with_timeout(command, cancel, TIMEOUT).await
 }
 
+#[cfg(target_family = "wasm")]
+pub(crate) async fn output(
+    _command: Command,
+    _cancel: &CancellationToken,
+) -> Result<std::process::Output> {
+    anyhow::bail!(
+        "Go compilation requires a native host with Go 1.24 or newer; subprocess execution is \
+         unavailable on WebAssembly"
+    )
+}
+
+#[cfg(not(target_family = "wasm"))]
 async fn output_with_timeout(
     mut command: Command,
     cancel: &CancellationToken,
@@ -93,7 +117,7 @@ async fn output_with_timeout(
     result
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_family = "wasm")))]
 mod tests {
     use std::{path::Path, time::Instant};
 

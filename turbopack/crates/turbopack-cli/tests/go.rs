@@ -70,6 +70,7 @@ impl Drop for Process {
         let _ = self.0.wait();
     }
 }
+const WAIT_TIMEOUT: Duration = Duration::from_secs(60);
 fn wait_for(description: &str, mut condition: impl FnMut() -> bool) {
     wait_for_timeout(description, Duration::from_secs(60), &mut condition);
 }
@@ -95,6 +96,16 @@ fn wait_for_timeout_and_log(
         );
         thread::sleep(Duration::from_millis(100));
     }
+}
+fn wait_until(timeout: Duration, mut condition: impl FnMut() -> bool) -> bool {
+    let deadline = Instant::now() + timeout;
+    while !condition() {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    true
 }
 
 fn controlled_go(control: &Path) -> PathBuf {
@@ -443,9 +454,11 @@ fn rejection(project: &Path, arguments: &[&str], diagnostic: &str) {
             .spawn()
             .unwrap(),
     );
-    wait_for("rejected CLI invocation", || {
-        process.0.try_wait().unwrap().is_some()
-    });
+    assert!(
+        wait_until(WAIT_TIMEOUT, || process.0.try_wait().unwrap().is_some()),
+        "timed out waiting for rejected CLI invocation {arguments:?}; stderr:\n{}",
+        std::fs::read_to_string(stderr.path()).unwrap()
+    );
     assert_eq!(process.0.wait().unwrap().code(), Some(1), "{arguments:?}");
     let error = std::fs::read_to_string(log.path()).unwrap();
     assert!(error.contains(diagnostic), "{arguments:?}: {error}");

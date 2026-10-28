@@ -933,7 +933,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    definition: RouteDefinition | undefined
+    definition?: RouteDefinition | undefined
     url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)

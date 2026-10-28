@@ -190,8 +190,15 @@ describe('native-route-go', () => {
       const path = 'app/first-error/route.go'
       const source =
         'package main\nimport "net/http"\nvar Methods = []string{"GET"}\nfunc Handle(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+      const outputStart = next.cliOutput.length
       await next.patchFile(path, source + '\ninvalid syntax\n')
-      expect((await next.fetch('/first-error')).status).toBe(500)
+      // A newly added route enters the polling route table asynchronously.
+      await retry(async () => {
+        expect((await next.fetch('/first-error')).status).toBe(500)
+        const output = next.cliOutput.slice(outputStart)
+        expect(output).toContain('app/first-error/route.go')
+        expect(output).toContain('syntax error')
+      })
       await next.patchFile(path, source)
       await retry(async () => {
         expect(await next.render('/first-error')).toBe('first-repaired')
@@ -856,13 +863,14 @@ describe('native-route-go', () => {
 
 // @force-gate turbopack
 describe('native-route-go in src/app', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // This fixture exercises local native process lifecycle and source edits.
     skipDeployment: true,
   })
   beforeAll(async () => {
+    if (skipped) return
     await fs.mkdir(join(next.testDir, 'src'))
     await next.renameFolder('app', 'src/app')
     await next.renameFolder('pages', 'src/pages')

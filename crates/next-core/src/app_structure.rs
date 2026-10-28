@@ -390,14 +390,14 @@ async fn get_directory_tree_internal(
                         "not-found" => modules.not_found = Some(file.clone()),
                         "default" => modules.default = Some(file.clone()),
                         "route" => {
-                            if let Some(existing) = &modules.route {
-                                if ext == "go" || existing.path.ends_with(".go") {
-                                    DirectoryTreeIssue {
-                                        app_dir: dir.clone(),
-                                        severity: IssueSeverity::Error,
-                                        message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
-                                    }.resolved_cell().emit();
-                                }
+                            if let Some(existing) = &modules.route
+                                && (ext == "go" || existing.path.ends_with(".go"))
+                            {
+                                DirectoryTreeIssue {
+                                    app_dir: dir.clone(),
+                                    severity: IssueSeverity::Error,
+                                    message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
+                                }.resolved_cell().emit();
                             }
                             modules.route = Some(file.clone());
                         },

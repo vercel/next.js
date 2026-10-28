@@ -925,7 +925,11 @@ export async function isPageStatic({
       if (pageType === 'app') {
         const appPaths = JSON.parse(
           await fs.readFile(
-            path.join(distDir, 'server', 'app-paths-manifest.json'),
+            /* turbopackIgnore: true */ path.join(
+              /* turbopackIgnore: true */ distDir,
+              'server',
+              'app-paths-manifest.json'
+            ),
             'utf8'
           )
         )

@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types)]
 
-use std::{collections::BTreeMap, io::Read, path::Path, process::Command};
+use std::{collections::BTreeMap, io::Read, path::Path, process::Command, time::Duration};
 
 use anyhow::{Result, ensure};
 use turbo_rcstr::{RcStr, rcstr};
@@ -94,18 +94,21 @@ async fn persistent_child() -> Result<()> {
                 .resolve()
                 .strongly_consistent()
                 .await?;
-            let context = session.await?.context.clone();
+            let go_context = session.await?.go_context.clone();
             ensure!(
-                !context.is_cancelled(),
+                !go_context.is_cancelled(),
                 "restored a previous process's cancellation"
             );
             let other = session_operation(format!("{scope}/other-owner").into(), options.clone())
                 .read_strongly_consistent()
                 .await?
-                .context
+                .go_context
                 .clone();
             other.cancel();
-            ensure!(!context.is_cancelled(), "owners shared cancellation state");
+            ensure!(
+                !go_context.is_cancelled(),
+                "owners shared cancellation state"
+            );
             let generated = BTreeMap::from([(
                 rcstr!("generated.go"),
                 if mode == "generated" {
@@ -157,13 +160,13 @@ async fn persistent_child() -> Result<()> {
                 other => anyhow::bail!("unexpected build outcome: {other:?}"),
             }
             assert_eq!(
-                context.invocation_counts().1,
+                go_context.invocation_counts().1,
                 expected_builds,
                 "Go build invocations"
             );
-            context.cancel();
+            go_context.cancel();
             ensure!(
-                session.await?.context.is_cancelled(),
+                session.await?.go_context.is_cancelled(),
                 "shutdown cancelled the wrong runtime"
             );
             anyhow::Ok(())
@@ -211,6 +214,13 @@ fn executable_cache_survives_processes_and_invalidates_inputs() -> Result<()> {
     };
     run("cold", "dependency-v1:asset-v1:generated-v1", 1)?;
     run("warm", "dependency-v1:asset-v1:generated-v1", 0)?;
+    // Restore an identical project at the same path in another process, as a CI checkout or
+    // cache extraction would. Keep the original files alive to prevent file identity reuse.
+    let restored = temp.path().join("restored-project");
+    copy_project_with_new_metadata(&project, &restored)?;
+    std::fs::rename(&project, temp.path().join("original-project"))?;
+    std::fs::rename(&restored, &project)?;
+    run("restored", "dependency-v1:asset-v1:generated-v1", 0)?;
     std::fs::write(
         project.join("internal/message/message.go"),
         "package message\nconst Value = \"dependency-v2\"\n",
@@ -218,11 +228,17 @@ fn executable_cache_survives_processes_and_invalidates_inputs() -> Result<()> {
     run("dependency", "dependency-v2:asset-v1:generated-v1", 1)?;
     std::fs::write(project.join("asset.txt"), "asset-v2")?;
     run("embed", "dependency-v2:asset-v2:generated-v1", 1)?;
+    std::fs::write(
+        project.join("main.go"),
+        main.replace("generated()", "\"source-v2:\" + generated()"),
+    )?;
+    run("source", "dependency-v2:asset-v2:source-v2:generated-v1", 1)?;
     std::fs::write(project.join("main.go"), format!("{main}\ninvalid syntax\n"))?;
     run("syntax", "error", 1)?;
     run("syntax-retry", "error", 1)?;
     std::fs::write(project.join("main.go"), main)?;
-    run("repair", "dependency-v2:asset-v2:generated-v1", 1)?;
+    // Restoring earlier source bytes reuses that successful compilation, despite newer stamps.
+    run("repair", "dependency-v2:asset-v2:generated-v1", 0)?;
     run("generated", "dependency-v2:asset-v2:generated-v2", 1)?;
     run("toolchain", "dependency-v2:asset-v2:generated-v1", 1)?;
     run("tags", "dependency-v2:asset-v2:generated-v1", 1)?;
@@ -236,5 +252,35 @@ fn executable_cache_survives_processes_and_invalidates_inputs() -> Result<()> {
         target_builds,
     )?;
     run("warm", "dependency-v2:asset-v2:generated-v1", 0)?;
+    Ok(())
+}
+
+fn copy_project_with_new_metadata(source: &Path, destination: &Path) -> Result<()> {
+    std::fs::create_dir(destination)?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let original = entry.path();
+        let copy = destination.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_project_with_new_metadata(&original, &copy)?;
+        } else {
+            std::fs::copy(&original, &copy)?;
+            let modified = std::fs::metadata(&original)?.modified()?;
+            std::fs::File::options()
+                .write(true)
+                .open(&copy)?
+                .set_times(
+                    std::fs::FileTimes::new().set_modified(modified + Duration::from_secs(2)),
+                )?;
+            ensure!(
+                std::fs::metadata(&copy)?.modified()? != modified,
+                "restored source kept its original timestamp"
+            );
+            ensure!(
+                !turbopack_go::paths_refer_to_same_file(&original, &copy)?,
+                "restored source kept its original file identity"
+            );
+        }
+    }
     Ok(())
 }

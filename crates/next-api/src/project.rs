@@ -1014,12 +1014,12 @@ impl ProjectContainer {
     #[turbo_tasks::function(session_dependent)]
     pub async fn shutdown_go(self: Vc<Self>) -> Result<Vc<Completion>> {
         let this = self.await?;
-        let context = this.go_sessions.await?.context.lock().await.take();
-        if let Some(context) = context {
-            context.cancel();
+        let go_context = this.go_sessions.await?.go_context.lock().await.take();
+        if let Some(go_context) = go_context {
+            go_context.cancel();
             turbopack_go::filesystem_with_poll_interval(
-                context.module_cache.clone(),
-                context.poll_interval_ms,
+                go_context.module_cache.clone(),
+                go_context.poll_interval_ms,
             )
             .connect()
             .await?

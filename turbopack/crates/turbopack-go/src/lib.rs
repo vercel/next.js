@@ -22,7 +22,7 @@ use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use tokio::{process::Command, sync::Semaphore};
+use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -34,8 +34,11 @@ use turbo_tasks_fs::{
     Permissions, to_sys_path,
 };
 
-use crate::inputs::{FileInput, Inputs, Tracker, directory};
 pub use crate::paths::{paths_refer_to_same_file, validate_source_path};
+use crate::{
+    inputs::{CompilerInputs, FileInput, Inputs, Tracker},
+    process::Command,
+};
 
 #[derive(Debug)]
 pub struct Cancellation {
@@ -393,11 +396,11 @@ impl GoBuildContext {
 /// resident so restoring other task data cannot replace an active session's lifecycle state.
 #[turbo_tasks::value(evict = "never")]
 pub struct GoBuildSession {
-    pub context: GoBuildContext,
+    pub go_context: GoBuildContext,
 }
 impl GoBuildSession {
-    pub fn new(context: GoBuildContext) -> Vc<Self> {
-        Self { context }.cell()
+    pub fn new(go_context: GoBuildContext) -> Vc<Self> {
+        Self { go_context }.cell()
     }
 
     /// Scope must identify the lifecycle owner consistently across restarts. The caller must
@@ -419,8 +422,8 @@ fn persistent_session(scope: RcStr, options: GoBuildOptions) -> Vc<GoBuildSessio
 }
 
 #[turbo_tasks::function]
-fn shared_session(context: GoBuildContext) -> Vc<GoBuildSession> {
-    GoBuildSession::new(context)
+fn shared_session(go_context: GoBuildContext) -> Vc<GoBuildSession> {
+    GoBuildSession::new(go_context)
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -552,7 +555,7 @@ fn module_escape(value: &str) -> String {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 struct BuildPlan {
     files: Vec<RcStr>,
-    inputs: Inputs,
+    inputs: CompilerInputs,
     assembly_flags: BTreeMap<RcStr, RcStr>,
     generated: BTreeMap<RcStr, RcStr>,
 }
@@ -582,7 +585,7 @@ async fn module_configuration(
     input: FileInput,
     go_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<RcStr>> {
-    let go_context = go_session.await?.context.clone();
+    let go_context = go_session.await?.go_context.clone();
     if !input.exists() {
         return Ok(Vc::cell(rcstr!("{}")));
     }
@@ -863,7 +866,7 @@ async fn observe_packages(
             let inputs: BTreeMap<_, _> = assembly_inputs
                 .into_iter()
                 .map(|path| {
-                    let input = tracker.inputs.files[&path].clone();
+                    let input = tracker.inputs.files[&path].content_digest().clone();
                     (path, input)
                 })
                 .collect();
@@ -919,7 +922,7 @@ async fn discover(
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<Discovery>> {
-    let go_context = go_session.await?.context.clone();
+    let go_context = go_session.await?.go_context.clone();
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
         _ = go_context.cancellation.token.cancelled() => return Ok(Discovery { outcome: DiscoveryOutcome::Cancelled, inputs: Inputs::default() }.cell()),
@@ -1089,7 +1092,7 @@ async fn compile(
     plan: BuildPlan,
     go_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<Compilation>> {
-    let go_context = go_session.await?.context.clone();
+    let go_context = go_session.await?.go_context.clone();
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
         _ = go_context.cancellation.token.cancelled() => {
@@ -1097,16 +1100,14 @@ async fn compile(
             return Ok(Compilation::Cancelled.cell());
         },
     };
-    let directory = entry_directory(Path::new(project.as_str()), &plan.files)?;
-    if !plan.inputs.is_current()? {
+    let project_path = Path::new(project.as_str());
+    let module_cache = Path::new(go_context.module_cache.as_str());
+    let directory = entry_directory(project_path, &plan.files)?;
+    // Capture live metadata only when compilation runs, after verifying that the current bytes
+    // match the persistent plan. These stamps guard this command without becoming its cache key.
+    let Some(before) = plan.inputs.snapshot(project_path, module_cache)? else {
         return Ok(Compilation::Retry(get_invalidator()).cell());
-    }
-    let before: BTreeMap<_, _> = plan
-        .inputs
-        .directories
-        .keys()
-        .map(|path| Ok((path.clone(), directory_input(path)?)))
-        .collect::<Result<_>>()?;
+    };
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-output-")
         .tempdir()?;
@@ -1144,13 +1145,7 @@ async fn compile(
         }
         Ok(report) => report,
     };
-    let after: BTreeMap<_, _> = plan
-        .inputs
-        .directories
-        .keys()
-        .map(|path| Ok((path.clone(), directory_input(path)?)))
-        .collect::<Result<_>>()?;
-    if before != after || !plan.inputs.is_current()? {
+    if !before.is_current(project_path, module_cache)? {
         return Ok(Compilation::Retry(get_invalidator()).cell());
     }
     let outcome = if report.status.success() {
@@ -1174,10 +1169,6 @@ async fn compile(
 #[turbo_tasks::function]
 async fn executable_content(file: ResolvedVc<File>) -> Result<Vc<FileContent>> {
     Ok(FileContent::Content((*file.await?).clone()).cell())
-}
-
-fn directory_input(path: &RcStr) -> Result<inputs::DirectoryInput> {
-    directory(Path::new(path.as_str()))
 }
 
 #[turbo_tasks::value(shared)]
@@ -1213,7 +1204,7 @@ async fn bundle(
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
-    let go_context = go_session.await?.context.clone();
+    let go_context = go_session.await?.go_context.clone();
     files.extend(generated.keys().cloned());
     files.sort();
     files.dedup();

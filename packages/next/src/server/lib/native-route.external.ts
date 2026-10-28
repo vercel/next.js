@@ -43,7 +43,14 @@ export class NativeRouteManager {
 
   private async readExecutable(entry: string): Promise<string> {
     const descriptor = JSON.parse(
-      await fs.readFile(join(this.distDir, 'server', entry), 'utf8')
+      await fs.readFile(
+        /* turbopackIgnore: true */ join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          entry
+        ),
+        'utf8'
+      )
     )
     if (descriptor.version !== 1 || typeof descriptor.executable !== 'string') {
       throw new Error('Invalid native route descriptor')
@@ -60,8 +67,11 @@ export class NativeRouteManager {
         'Native route output was built for a different OS or architecture'
       )
     }
-    const serverDir = join(this.distDir, 'server')
-    const executable = join(serverDir, descriptor.executable)
+    const serverDir = join(/* turbopackIgnore: true */ this.distDir, 'server')
+    const executable = join(
+      /* turbopackIgnore: true */ serverDir,
+      descriptor.executable
+    )
     const localPath = relative(serverDir, executable)
     if (localPath.startsWith('..') || isAbsolute(localPath)) {
       throw new Error('Native route executable is outside the server output')
@@ -71,7 +81,7 @@ export class NativeRouteManager {
 
   private async start(executable: string): Promise<Worker> {
     const token = randomBytes(32).toString('hex')
-    const child = spawn(executable, [], {
+    const child = spawn(/* turbopackIgnore: true */ executable, [], {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: { ...process.env, __NEXT_GO_TOKEN: token },
       windowsHide: true,

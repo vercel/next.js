@@ -4,7 +4,7 @@ import { promises as fs } from 'fs'
 import http from 'http'
 import { Socket } from 'net'
 import { PassThrough } from 'stream'
-import { NativeRouteManager } from 'next/dist/server/lib/native-route'
+import { NativeRouteManager } from 'next/dist/server/lib/native-route.external'
 import { filterInternalHeaders } from 'next/dist/server/lib/server-ipc/utils'
 
 describe('native route runtime', () => {
