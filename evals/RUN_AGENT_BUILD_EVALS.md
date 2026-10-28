@@ -139,13 +139,23 @@ MODELS=anthropic/claude-opus-5.5,openai/gpt-6-luna PARALLEL=2 \
 
 Agent harnesses differ in how they build the inference URL. Codex and OpenCode take the gateway's OpenAI-compatible base `https://ai-gateway.vercel.sh/v1`. Claude Code's SDK appends `/v1/messages` itself, so its row passes `base_url=https://ai-gateway.vercel.sh` as an agent option, or every call returns a 404 that Claude Code reports as `model_not_found`.
 
-`node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` prints the Results section for the pull request, in the same shape as the `agent-eval` result pull requests. It has one dense table with a row per model and treatment, a cell per task, the runs passed out of runs scored, the `AGENTS.md` delta, the price per million tokens (the effective rate, cached input included), tokens, cost, and time per run. Under it, a Mermaid chart that GitHub renders inline plots pass@1 against cost per run. An agent that runs out of time is a failure, as in Harbor's own metrics, and any other runner error is discarded and the run repeated. Transcripts and verifier output stay in the jobs directory.
+`node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` prints the Results section for the pull request, in the same shape as the `agent-eval` result pull requests. It has one dense table with a row per model and treatment, a cell per task, the runs passed out of runs scored, the `AGENTS.md` delta, the price per million tokens (the effective rate, cached input included), tokens, cost, and time per run. Under it, a Mermaid chart that GitHub renders inline plots pass@1 against cost per run. An agent that runs out of time is a failure, as in Harbor's own metrics, and any other runner error is discarded and the run repeated.
 
 The script passes `--max-retries 2`, which retries runner exceptions such as sandbox allocation or transport failures and never reruns a completed attempt whose verifier returned `0`. A scored failure stays `0/1`, so run confirmations as separate jobs and record them separately.
 
 When only a verifier changed after runs were scored, regrade instead of rerunning: `calibrate.sh --regrade <env-file> <jobs-dir> <task-dir>...` runs Harbor's [`harbor job regrade`](https://docs.harborframework.com/jobs/regrade) on each finished job with the current verifier, on the recorded patch and without agent cost, and writes the results under `<jobs-dir>/_regraded`, which the report prefers. A change to the instruction or fixture needs new runs.
 
 To learn whether a failure is stable, `calibrate.sh --confirm <env-file> <jobs-dir> <task-dir>...` reruns every valid failure twice under `<jobs-dir>/_confirm`. Confirmations never change the pass@1 score, and the report shows how many repeated next to each failure.
+
+## Read transcripts
+
+Every run keeps its transcript next to its result in the jobs directory. The agent's trajectory is `<job>/<trial>/agent/trajectory.json` in Harbor's trajectory format, next to the harness's own log, and the verifier's output and reward are under `<job>/<trial>/verifier/`. Browse them with Harbor's viewer:
+
+```bash
+.harbor/bin/harbor view /path/to/jobs
+```
+
+Transcripts stay local for now. They are not uploaded to Harbor Hub or linked from the pull request, because they show how each task is solved and the harder set may be held out. Read the transcript behind every failure before trusting it, and share specific ones directly when a reviewer needs them. Revisit this when the publishing decision for the harder set is made.
 
 ## Run optional context treatments
 
