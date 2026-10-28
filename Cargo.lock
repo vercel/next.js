@@ -10504,7 +10504,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "virtue"
 version = "0.0.18"
-source = "git+https://github.com/bgw/virtue.git?branch=bgw%2Ffix-generic-default-parsing#e386f35cf7f22d04a4db32231904cbe5dc52c01d"
+source = "git+https://github.com/vercel-labs/virtue-fork.git?branch=trunk#06e262d73cec9bc360092fb2cf8e25dffde4e8bc"
 
 [[package]]
 name = "vlq"
