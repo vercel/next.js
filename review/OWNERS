@@ -15,9 +15,11 @@
 # applies, not just the last match. A colocated *.test.ts file belongs to the
 # area of its sibling source file.
 #
-# Each area has one or two owners. PRs that match no area go to two team
-# members picked at random by scripts/review-context.mjs, from the people
-# listed here who committed in the past week.
+# Each area needs at least one owner, and every owner must be on the author
+# allowlist in .github/workflows/automated_code_review.yml. PRs that match no
+# area go to two team members picked at random by
+# scripts/review-context.mjs, from the people listed here who committed in
+# the past week.
 # TODO: request the Next.js oncall instead, once Vercel Agent supports it.
 
 # ----------------------------------------------------------------------
@@ -475,7 +477,7 @@ test/e2e/app-dir/turbopack-*/**
 test/e2e/turbopack-*/**
 test/production/build-trace-extra-entries-turbo/**
 
-[turbopack-core-bundler] @sokra @lukesandberg
+[turbopack-core-bundler] @sokra @lukesandberg @mischnic
 turbopack/crates/turbopack/**
 turbopack/crates/turbopack-core/**
 turbopack/crates/turbopack-ecmascript/**
