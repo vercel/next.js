@@ -13,6 +13,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, turbofmt,
 };
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     chunk::ChunkingType,
@@ -23,6 +24,17 @@ use crate::{
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>);
+
+/// See [`ChunkGroupInfo::chunk_group_ident_hashes`].
+#[turbo_tasks::value(transparent)]
+pub struct ChunkGroupIdentHashes(Vec<u64>);
+
+/// The hash of a [`ChunkGroupKey::ident_str`], i.e. of the identity of one chunk group.
+pub fn chunk_group_ident_hash(ident: &str) -> u64 {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    hasher.write_value(ident);
+    hasher.finish()
+}
 
 #[turbo_tasks::value]
 pub struct ChunkGroupWithIndex {
@@ -172,6 +184,24 @@ impl ChunkGroupInfo {
     #[turbo_tasks::function]
     pub fn async_loader_relevant_chunk_groups(&self) -> Vc<AsyncLoaderRelevantChunkGroupsMap> {
         *self.async_loader_relevant_chunk_groups
+    }
+
+    /// A hash of the identity of every chunk group, indexed like [`ChunkGroupInfo::chunk_groups`]:
+    /// [`chunk_group_ident_hash`] of [`ChunkGroupKey::ident_str`].
+    ///
+    /// [`crate::chunk::available_chunk_groups::AvailableChunkGroups::hash`] combines these per
+    /// member, so each chunk group is rendered once per graph, not once for every availability
+    /// that contains it. That keeps hashing a set to one dependency and no string work, however
+    /// large the set is.
+    #[turbo_tasks::function]
+    pub async fn chunk_group_ident_hashes(&self) -> Result<Vc<ChunkGroupIdentHashes>> {
+        let keys = &self.chunk_group_keys;
+        let hashes = keys
+            .iter()
+            .map(async |key| Ok(chunk_group_ident_hash(&key.ident_str(keys).await?)))
+            .try_join()
+            .await?;
+        Ok(Vc::cell(hashes))
     }
 
     /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
@@ -524,9 +554,9 @@ impl ChunkGroupKey {
     /// parent of a merged chunk group is resolved through `keys` and rendered recursively.
     ///
     /// [`crate::chunk::available_chunk_groups::AvailableChunkGroups::hash`] derives output file
-    /// names from this, so two chunk groups must render equally exactly when they are the same
-    /// chunk group. Changing the rendering renames assets; adding anything graph-local to it is a
-    /// correctness bug.
+    /// names from this (through [`ChunkGroupInfo::chunk_group_ident_hashes`]), so two chunk groups
+    /// must render equally exactly when they are the same chunk group. Changing the rendering
+    /// renames assets; adding anything graph-local to it is a correctness bug.
     pub async fn ident_str(
         &self,
         keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
