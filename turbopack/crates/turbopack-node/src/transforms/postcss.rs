@@ -7,7 +7,8 @@ use turbo_tasks::{
     Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, turbofmt,
 };
 use turbo_tasks_fs::{
-    File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
+    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
+    json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,7 +28,7 @@ use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use crate::{
     embed_js::embed_file_path,
-    evaluate::get_evaluate_entries,
+    evaluate::{EvaluateArg, get_evaluate_entries},
     execution_context::ExecutionContext,
     transforms::{
         util::{EmittedAsset, emitted_assets_to_virtual_sources},
@@ -541,15 +542,13 @@ impl PostCssTransformedAsset {
 
         let source_ident = self.source.ident().await?;
 
-        // We need to get a path relative to the project because the postcss loader
-        // runs with the project as the current working directory.
-        let css_path = if let Some(css_path) = project_path.get_relative_path_to(&source_ident.path)
-        {
-            css_path.into_owned()
-        } else {
-            // This shouldn't be an error since it can happen on virtual assets
-            "".into()
-        };
+        let css_path =
+            if ResolvedVc::try_downcast_type::<DiskFileSystem>(source_ident.path.fs).is_some() {
+                EvaluateArg::Path(source_ident.path.clone())
+            } else {
+                // This shouldn't be an error since it can happen on virtual assets
+                EvaluateArg::Vc(ResolvedVc::cell(serde_json::Value::from("")))
+            };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             entries,
@@ -559,14 +558,13 @@ impl PostCssTransformedAsset {
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             evaluate_context: self.evaluate_context,
-            build_dependency_context: self.config_tracing_context,
             module_graph,
             resolve_options_context: None,
             asset_context: self.asset_context,
             args: vec![
-                ResolvedVc::cell(content.into()),
-                ResolvedVc::cell(css_path.into()),
-                ResolvedVc::cell(source_map.into()),
+                EvaluateArg::Vc(ResolvedVc::cell(content.into())),
+                css_path,
+                EvaluateArg::Vc(ResolvedVc::cell(source_map.into())),
             ],
             additional_invalidation: config_changed,
             loader_names: vec![turbo_rcstr::rcstr!("postcss")],

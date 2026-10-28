@@ -119,6 +119,10 @@ export const conditions: Record<string, Condition> = {
     'links prefetch — disabled in dev, the usual reason a suite skips it',
     () => getGateTestContext().mode !== 'dev'
   ),
+  prerelease: staticCondition(
+    'the installed Next.js version is a prerelease',
+    () => require('next/package.json').version.includes('-')
+  ),
 
   bundler: staticCondition(
     "the bundler under test: 'turbopack' | 'rspack' | 'webpack'",
@@ -192,6 +196,10 @@ export const conditions: Record<string, Condition> = {
   cacheComponents: lazyCondition(
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
+  ),
+  strictRouteTypes: lazyCondition(
+    'strict route type validation is enabled for the fixture',
+    (config) => config.experimental?.strictRouteTypes
   ),
   partialPrefetchingGlobal: lazyCondition(
     'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',

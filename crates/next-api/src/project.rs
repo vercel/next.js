@@ -103,9 +103,11 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
-pub use crate::additional_roots::AdditionalRootConfig;
+pub use crate::additional_roots::{AdditionalRootConfig, AdditionalRootName, BuiltinRootKind};
 use crate::{
-    additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
+    additional_roots::{
+        AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
+    },
     aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
@@ -477,6 +479,13 @@ async fn prepare_project_container_state(
         .and_then(|value| value.as_str())
         .unwrap_or(".next");
 
+    let builtin_roots = BuiltinRootsConfig {
+        detect_global_virtual_store: config_json
+            .pointer("/experimental/turbopackDetectGlobalVirtualStore")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+    };
+
     let watcher_config = DiskWatcherConfig {
         poll_interval: options.watch.poll_interval,
         report_invalidation_reason: true,
@@ -547,7 +556,9 @@ async fn prepare_project_container_state(
     let additional_roots = create_additional_root_file_systems(
         container_vc,
         configured_additional_roots,
+        builtin_roots,
         &project_root,
+        &project_path,
         watcher_config,
         map,
         config_path,
@@ -1804,6 +1815,7 @@ impl Project {
         supports_lazy_dynamic_imports: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
+        let turbopack_chunking = self.next_config().turbopack_chunking().await?;
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1837,6 +1849,8 @@ impl Project {
                     .next_config()
                     .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?)
                     .await?,
+            chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
+            chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)

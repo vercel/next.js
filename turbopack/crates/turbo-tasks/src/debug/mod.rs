@@ -63,6 +63,7 @@ mod detail {
     use auto_hash_map::{AutoMap, AutoSet};
     use futures::future::BoxFuture;
     use smallvec::SmallVec;
+    use turbo_bitset::Bitset;
     use turbo_rcstr::RcStr;
 
     use super::ValueDebugFormat;
@@ -98,6 +99,12 @@ mod detail {
     }
 
     impl ValueDebugFormat for RcStr {
+        fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
+            ValueDebugFormatString::Sync(format!("{self:?}"))
+        }
+    }
+
+    impl ValueDebugFormat for Bitset {
         fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
             ValueDebugFormatString::Sync(format!("{self:?}"))
         }

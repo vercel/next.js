@@ -342,7 +342,8 @@ impl TraitMethod {
         // SAFETY: Written during single-threaded Lazy init. Lazy provides acquire barrier.
         let raw = unsafe { std::ptr::read(self.trait_type.ty.id.get()) };
         debug_assert!(raw != 0, "TraitMethod::trait_type_id not initialized");
-        unsafe { TraitTypeId::new_unchecked(raw) }
+        // The registry caps trait ids at `TraitTypeId::MAX`, so this cannot truncate.
+        unsafe { TraitTypeId::new_unchecked(raw as u8) }
     }
 
     pub(crate) fn resolve_span(&self, priority: TaskPriority) -> Span {

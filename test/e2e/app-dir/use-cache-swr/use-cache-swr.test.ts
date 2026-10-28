@@ -17,7 +17,7 @@ function defer(callback: () => Promise<void>) {
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('use-cache-swr', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
@@ -56,9 +56,37 @@ describe('use-cache-swr', () => {
     dataServer.listen(port)
     next.env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
     await next.start()
+    if (isNextDev) {
+      // Compile both pages before `warmData()` creates the entries under test.
+      // Neither request has an `id`, so both pages skip their cached functions.
+      await next.render('/caller-context')
+      await next.render('/caller-context/foreground-first')
+    }
   })
 
   afterAll(() => dataServer?.close())
+
+  async function warmData(id: string) {
+    const initial: { value: string; createdAt: number } = await next
+      .fetch(`/caller-context/warm?id=${id}`)
+      .then((response) => response.json())
+    await retry(
+      () => {
+        expect(Date.now() - initial.createdAt).toBeGreaterThan(1100)
+      },
+      5000,
+      100
+    )
+    outputIndex = next.cliOutput.length
+    return initial
+  }
+
+  function expectOneWrite(id: string) {
+    expect(getOutput()).toIncludeRepeated(
+      `PersistentCacheHandler::set [^\\r\\n]*${escapeStringRegexp(JSON.stringify([id]))}`,
+      1
+    )
+  }
 
   let outputIndex: number
 
@@ -322,6 +350,67 @@ describe('use-cache-swr', () => {
     } finally {
       releaseDataResponses('rdc-second')
       releaseDataResponses(key)
+      await rendering
+    }
+  })
+
+  it('currently gives nested callers stale data after background revalidation completes', async () => {
+    const id = `caller-context-${randomUUID()}`
+    const initial = await warmData(id)
+    // Pause the page after its direct `readData()` call returns stale data. The
+    // nested `readOuter()` calls start after the `outer:<id>` response
+    // completes.
+    heldResponseKeys.add(`outer:${id}`)
+    const rendering = next.render$(`/caller-context?id=${id}`)
+    try {
+      await retry(() => {
+        expect(dataRequestCountsByKey.get(`outer:${id}`)).toBeGreaterThan(0)
+        expectOneWrite(id)
+      })
+      // Both nested calls currently reuse the direct call's stale value,
+      // although the handler already contains the revalidated entry.
+      releaseDataResponses(`outer:${id}`)
+      const $ = await rendering
+      expect($('#direct').text()).toBe(initial.value)
+      expect($('#first').text()).toBe(initial.value)
+      expect($('#first').text()).not.toBe('')
+      expect($('#second').text()).toBe($('#first').text())
+      expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+      expectOneWrite(id)
+    } finally {
+      releaseDataResponses(`outer:${id}`)
+      await rendering
+    }
+  })
+
+  it('currently delays a direct stale read behind a nested foreground fill', async () => {
+    const id = `caller-context-${randomUUID()}`
+    const initial = await warmData(id)
+    // Pause the nested `readData()` call at `fill:<id>`, then start the direct
+    // call. The nested call requires fresh data. The direct call can use the
+    // stale entry.
+    heldResponseKeys.add(`fill:${id}`)
+    heldResponseKeys.add(`direct-ready:${id}`)
+    const rendering = next.render$(`/caller-context/foreground-first?id=${id}`)
+    try {
+      await retry(() => {
+        expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+        expect(
+          dataRequestCountsByKey.get(`direct-ready:${id}`)
+        ).toBeGreaterThan(0)
+      })
+      releaseDataResponses(`direct-ready:${id}`)
+      releaseDataResponses(`fill:${id}`)
+      const $ = await rendering
+      expect($('#direct').text()).not.toBe(initial.value)
+      expect($('#direct').text()).toBe($('#outer').text())
+      expect($('#outer').text()).not.toBe(initial.value)
+      expect($('#outer').text()).not.toBe('')
+      expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+      expectOneWrite(id)
+    } finally {
+      releaseDataResponses(`direct-ready:${id}`)
+      releaseDataResponses(`fill:${id}`)
       await rendering
     }
   })

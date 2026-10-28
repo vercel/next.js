@@ -3176,12 +3176,21 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     // The first commit has nothing to size the shards by, so it uses the initial count.
     commit()?;
     assert_eq!(newest_shard_bits()?, 2);
-    // Without a bottom run yet, the next commit sizes the shards by all files: the tiny family
-    // shrinks to a single shard, far below the initial count.
+    // Without a bottom run yet, the count doesn't shrink, so that the first bottom merges are one
+    // per shard instead of a single large one, even though the tiny family fits in one shard.
     commit()?;
-    assert_eq!(newest_shard_bits()?, 0);
-    // Once compacted, the bottom run is as tiny, so the count stays.
+    assert_eq!(newest_shard_bits()?, 2);
+    // The first bottom merges are split at the initial count.
     db.full_compact()?;
+    let bottom_files = db
+        .meta_info()?
+        .iter()
+        .flat_map(|meta| &meta.entries)
+        .filter(|entry| entry.flags.bottom())
+        .count();
+    assert_eq!(bottom_files, 4);
+    // With bottom runs, the tiny family shrinks to a single shard. That doesn't rewrite anything:
+    // the four bottom runs together are its bottom run.
     commit()?;
     assert_eq!(newest_shard_bits()?, 0);
     for key in 0..1000u32 {

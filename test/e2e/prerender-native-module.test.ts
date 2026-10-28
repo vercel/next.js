@@ -1,5 +1,5 @@
 import path from 'path'
-import { isReact18, nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup, isNextStart } from 'e2e-utils'
 
 const fixture = path.join(__dirname, 'prerender-native-module')
 
@@ -57,7 +57,7 @@ describe('prerender native module', () => {
     })
   })
 
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     it('should output traces', async () => {
       const checks = [
         {
