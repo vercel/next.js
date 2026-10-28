@@ -161,6 +161,10 @@ export const conditions: Record<string, Condition> = {
     'running on Windows',
     () => process.platform === 'win32'
   ),
+  chrome: staticCondition(
+    'running in Chromium, which supports Chrome DevTools Protocol sessions',
+    () => (process.env.BROWSER_NAME || 'chrome') === 'chrome'
+  ),
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
   ),
