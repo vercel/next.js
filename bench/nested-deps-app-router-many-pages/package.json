@@ -7,7 +7,8 @@
     "start": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 next start",
     "dev-nocache": "rimraf .next && pnpm dev-application",
     "dev-cpuprofile-nocache": "rimraf .next && cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 node --cpu-prof ../../node_modules/next/dist/bin/next",
-    "build-nocache": "rimraf .next && pnpm build-application"
+    "build-nocache": "rimraf .next && pnpm build-application",
+    "bench-warm-build": "node ./bench-warm-build.mjs"
   },
   "devDependencies": {
     "fuzzponent": "workspace:*",

@@ -131,7 +131,7 @@ describe('app-dir - server source maps - fake frame source maps', () => {
     'internal-pkg': `link:./internal-pkg`,
     'external-pkg': `file:./external-pkg`,
   }
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
     // This suite requires runtime logs and a local Node.js inspector.
@@ -187,261 +187,263 @@ describe('app-dir - server source maps - fake frame source maps', () => {
     expect(source).toMatch(/^(file:\/\/\/|turbopack:\/\/|webpack:\/\/)/)
   }
 
-  if (isNextDev) {
-    it('fake stack frame source maps are resolvable by an attached debugger', async () => {
-      // Render an RSC page so that React materializes fake stack frame
-      // functions for the Server Components debug info.
-      await next.render('/rsc-error-log')
+  // Fake React frames are only emitted in development.
+  // @force-gate dev
+  it('fake stack frame source maps are resolvable by an attached debugger', async () => {
+    // Render an RSC page so that React materializes fake stack frame
+    // functions for the Server Components debug info.
+    await next.render('/rsc-error-log')
 
-      const target = await findServerInspectorTarget()
-      const session = await CDPSession.connect(target.webSocketDebuggerUrl)
-      try {
-        const fakeScripts: {
-          scriptId: string
-          url: string
-          sourceMapURL: string
-        }[] = []
-        session.onEvent = (method, params) => {
-          if (
-            method === 'Debugger.scriptParsed' &&
-            typeof params.url === 'string' &&
-            params.url.startsWith('about://React/')
-          ) {
-            fakeScripts.push({
-              scriptId: params.scriptId,
-              url: params.url,
-              sourceMapURL: params.sourceMapURL ?? '',
-            })
-          }
+    const target = await findServerInspectorTarget()
+    const session = await CDPSession.connect(target.webSocketDebuggerUrl)
+    try {
+      const fakeScripts: {
+        scriptId: string
+        url: string
+        sourceMapURL: string
+      }[] = []
+      session.onEvent = (method, params) => {
+        if (
+          method === 'Debugger.scriptParsed' &&
+          typeof params.url === 'string' &&
+          params.url.startsWith('about://React/')
+        ) {
+          fakeScripts.push({
+            scriptId: params.scriptId,
+            url: params.url,
+            sourceMapURL: params.sourceMapURL ?? '',
+          })
         }
-        // Enabling the debugger emits `Debugger.scriptParsed` for every
-        // script that is still alive, including the already-evaled fake
-        // frame scripts.
-        await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
-
-        await retry(async () => {
-          expect(fakeScripts.length).toBeGreaterThan(0)
-        })
-
-        for (const script of fakeScripts) {
-          expect({
-            url: script.url,
-            hasSourceMap: script.sourceMapURL !== '',
-          }).toEqual({ url: script.url, hasSourceMap: true })
-        }
-
-        if (isTurbopack) {
-          // The resolver silently falls back to inlining `data:` URLs, so a
-          // defect in the `file:` URL derivation keeps all behavior-based
-          // assertions green. Only this assertion catches it.
-          for (const script of fakeScripts) {
-            expect({
-              url: script.url,
-              sourceMapURL: script.sourceMapURL,
-            }).toEqual({
-              url: script.url,
-              sourceMapURL: expect.stringMatching(/^file:/),
-            })
-          }
-        }
-
-        // Resolve each source map like a debugger frontend and map the
-        // padded `_()` call position of each fake function back to its
-        // original source, like clicking the frame in a debugger would.
-        const sourceMapsByURL = new Map<string, any>()
-        const mappedSources = new Set<string>()
-        for (const script of fakeScripts) {
-          let resolved = sourceMapsByURL.get(script.sourceMapURL)
-          if (resolved === undefined) {
-            resolved = await resolveSourceMapLikeADebugger(
-              session,
-              script.url,
-              script.sourceMapURL
-            )
-            expect(resolved.sourceMap).toHaveProperty('version', 3)
-            sourceMapsByURL.set(script.sourceMapURL, resolved)
-          }
-          const { sourceMap, mapURL } = resolved
-
-          const { scriptSource } = await session.send(
-            'Debugger.getScriptSource',
-            { scriptId: script.scriptId }
-          )
-          const callIndex = scriptSource.indexOf('_()')
-          if (callIndex === -1) continue
-          const line = scriptSource.slice(0, callIndex).split('\n').length
-          const column =
-            callIndex - (scriptSource.lastIndexOf('\n', callIndex) + 1)
-
-          const consumer = new SourceMap(sourceMap)
-          const original = consumer.findEntry(line - 1, column)
-          if (original.originalSource !== undefined) {
-            // Relative sources resolve against the map's own URL. Sources in
-            // `data:` maps are already absolute.
-            mappedSources.add(
-              mapURL === null
-                ? original.originalSource
-                : new URL(original.originalSource, mapURL).href
-            )
-          }
-        }
-
-        for (const source of mappedSources) {
-          expectWellFormedSource(source)
-        }
-
-        const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
-        expect([...mappedSources]).toContain(
-          `${testDirURL.href}/app/rsc-error-log/page.js`
-        )
-      } finally {
-        session.close()
       }
-    })
+      // Enabling the debugger emits `Debugger.scriptParsed` for every
+      // script that is still alive, including the already-evaled fake
+      // frame scripts.
+      await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
 
-    it('fake stack frames from nested Flight requests are resolvable by an attached debugger', async () => {
-      // Rendering this page produces fake frame scripts whose frame
-      // filenames are `file:` URLs rather than file paths.
-      await next.render('/rsc-error-throw-cached')
+      await retry(async () => {
+        expect(fakeScripts.length).toBeGreaterThan(0)
+      })
 
-      const target = await findServerInspectorTarget()
-      const session = await CDPSession.connect(target.webSocketDebuggerUrl)
-      try {
-        const evalScripts: {
-          scriptId: string
-          url: string
-          sourceMapURL: string
-        }[] = []
-        session.onEvent = (method, params) => {
-          if (method === 'Debugger.scriptParsed' && params.hasSourceURL) {
-            evalScripts.push({
-              scriptId: params.scriptId,
-              url: params.url,
-              sourceMapURL: params.sourceMapURL ?? '',
-            })
-          }
-        }
-        await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
+      for (const script of fakeScripts) {
+        expect({
+          url: script.url,
+          hasSourceMap: script.sourceMapURL !== '',
+        }).toEqual({ url: script.url, hasSourceMap: true })
+      }
 
-        await retry(async () => {
-          expect(
-            evalScripts.filter((script) =>
-              script.url.startsWith('about://React/Cache/')
-            ).length
-          ).toBeGreaterThan(0)
-        })
-
-        // React emits a fake frame script under `about://React/` with a
-        // source map, or, when no source map could be found for it, under
-        // the frame's raw filename without one.
-        const fakeScripts = evalScripts.filter(
-          (script) =>
-            script.url.startsWith('about://React/') ||
-            (script.url.startsWith('file:') && script.sourceMapURL === '')
-        )
-        const mappedSources = new Set<string>()
+      if (isTurbopack) {
+        // The resolver silently falls back to inlining `data:` URLs, so a
+        // defect in the `file:` URL derivation keeps all behavior-based
+        // assertions green. Only this assertion catches it.
         for (const script of fakeScripts) {
           expect({
             url: script.url,
-            hasSourceMap: script.sourceMapURL !== '',
-          }).toEqual({ url: script.url, hasSourceMap: true })
+            sourceMapURL: script.sourceMapURL,
+          }).toEqual({
+            url: script.url,
+            sourceMapURL: expect.stringMatching(/^file:/),
+          })
+        }
+      }
 
-          const { sourceMap, mapURL } = await resolveSourceMapLikeADebugger(
+      // Resolve each source map like a debugger frontend and map the
+      // padded `_()` call position of each fake function back to its
+      // original source, like clicking the frame in a debugger would.
+      const sourceMapsByURL = new Map<string, any>()
+      const mappedSources = new Set<string>()
+      for (const script of fakeScripts) {
+        let resolved = sourceMapsByURL.get(script.sourceMapURL)
+        if (resolved === undefined) {
+          resolved = await resolveSourceMapLikeADebugger(
             session,
             script.url,
             script.sourceMapURL
           )
-          const { scriptSource } = await session.send(
-            'Debugger.getScriptSource',
-            { scriptId: script.scriptId }
-          )
-          const callIndex = scriptSource.indexOf('_()')
-          if (callIndex === -1) continue
-          const line = scriptSource.slice(0, callIndex).split('\n').length
-          const column =
-            callIndex - (scriptSource.lastIndexOf('\n', callIndex) + 1)
-
-          const consumer = new SourceMap(sourceMap)
-          const original = consumer.findEntry(line - 1, column)
-          if (original.originalSource !== undefined) {
-            mappedSources.add(
-              mapURL === null
-                ? original.originalSource
-                : new URL(original.originalSource, mapURL).href
-            )
-          }
+          expect(resolved.sourceMap).toHaveProperty('version', 3)
+          sourceMapsByURL.set(script.sourceMapURL, resolved)
         }
+        const { sourceMap, mapURL } = resolved
 
-        const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
-        expect([...mappedSources]).toContain(
-          `${testDirURL.href}/app/rsc-error-throw-cached/page.js`
+        const { scriptSource } = await session.send(
+          'Debugger.getScriptSource',
+          { scriptId: script.scriptId }
         )
-      } finally {
-        session.close()
+        const callIndex = scriptSource.indexOf('_()')
+        if (callIndex === -1) continue
+        const line = scriptSource.slice(0, callIndex).split('\n').length
+        const column =
+          callIndex - (scriptSource.lastIndexOf('\n', callIndex) + 1)
+
+        const consumer = new SourceMap(sourceMap)
+        const original = consumer.findEntry(line - 1, column)
+        if (original.originalSource !== undefined) {
+          // Relative sources resolve against the map's own URL. Sources in
+          // `data:` maps are already absolute.
+          mappedSources.add(
+            mapURL === null
+              ? original.originalSource
+              : new URL(original.originalSource, mapURL).href
+          )
+        }
       }
-    })
-  } else {
-    it('server chunk source maps are resolvable by an attached debugger', async () => {
-      await next.render('/rsc-error-log')
 
-      const target = await findServerInspectorTarget()
-      const session = await CDPSession.connect(target.webSocketDebuggerUrl)
-      try {
-        const serverScripts: { url: string; sourceMapURL: string }[] = []
-        session.onEvent = (method, params) => {
-          if (
-            method === 'Debugger.scriptParsed' &&
-            typeof params.url === 'string' &&
-            params.url.includes(`${path.sep}.next${path.sep}server${path.sep}`)
-          ) {
-            serverScripts.push({
-              url: params.url,
-              sourceMapURL: params.sourceMapURL ?? '',
-            })
-          }
+      for (const source of mappedSources) {
+        expectWellFormedSource(source)
+      }
+
+      const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
+      expect([...mappedSources]).toContain(
+        `${testDirURL.href}/app/rsc-error-log/page.js`
+      )
+    } finally {
+      session.close()
+    }
+  })
+
+  // @force-gate dev
+  it('fake stack frames from nested Flight requests are resolvable by an attached debugger', async () => {
+    // Rendering this page produces fake frame scripts whose frame
+    // filenames are `file:` URLs rather than file paths.
+    await next.render('/rsc-error-throw-cached')
+
+    const target = await findServerInspectorTarget()
+    const session = await CDPSession.connect(target.webSocketDebuggerUrl)
+    try {
+      const evalScripts: {
+        scriptId: string
+        url: string
+        sourceMapURL: string
+      }[] = []
+      session.onEvent = (method, params) => {
+        if (method === 'Debugger.scriptParsed' && params.hasSourceURL) {
+          evalScripts.push({
+            scriptId: params.scriptId,
+            url: params.url,
+            sourceMapURL: params.sourceMapURL ?? '',
+          })
         }
-        await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
+      }
+      await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
 
-        await retry(async () => {
-          expect(serverScripts.length).toBeGreaterThan(0)
-        })
+      await retry(async () => {
+        expect(
+          evalScripts.filter((script) =>
+            script.url.startsWith('about://React/Cache/')
+          ).length
+        ).toBeGreaterThan(0)
+      })
 
-        // Sources in these maps are relative and resolve against the map's
-        // own URL.
-        const resolvedSources = new Set<string>()
-        const mappedScripts: typeof serverScripts = []
-        for (const script of serverScripts) {
-          if (script.sourceMapURL === '') continue
-          const { sourceMap } = await resolveSourceMapLikeADebugger(
-            session,
-            script.url,
-            script.sourceMapURL
-          )
-          expect(sourceMap).toHaveProperty('version', 3)
-          const mapURL = new URL(
-            script.sourceMapURL,
-            scriptURLToFileURL(script.url)
-          )
-          for (const source of sourceMap.sources as string[]) {
-            const resolved = new URL(source, mapURL).href
-            expectWellFormedSource(resolved)
-            resolvedSources.add(resolved)
-          }
-          mappedScripts.push(script)
-        }
+      // React emits a fake frame script under `about://React/` with a
+      // source map, or, when no source map could be found for it, under
+      // the frame's raw filename without one.
+      const fakeScripts = evalScripts.filter(
+        (script) =>
+          script.url.startsWith('about://React/') ||
+          (script.url.startsWith('file:') && script.sourceMapURL === '')
+      )
+      const mappedSources = new Set<string>()
+      for (const script of fakeScripts) {
+        expect({
+          url: script.url,
+          hasSourceMap: script.sourceMapURL !== '',
+        }).toEqual({ url: script.url, hasSourceMap: true })
 
-        // The build output must reference source maps at all
-        // (`serverSourceMaps` is enabled in the fixture).
-        expect(mappedScripts.length).toBeGreaterThan(0)
-        const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
-        expect([...resolvedSources]).toContain(
-          isTurbopack
-            ? `${testDirURL.href}/app/rsc-error-log/page.js`
-            : 'webpack:///app/rsc-error-log/page.js'
+        const { sourceMap, mapURL } = await resolveSourceMapLikeADebugger(
+          session,
+          script.url,
+          script.sourceMapURL
         )
-      } finally {
-        session.close()
+        const { scriptSource } = await session.send(
+          'Debugger.getScriptSource',
+          { scriptId: script.scriptId }
+        )
+        const callIndex = scriptSource.indexOf('_()')
+        if (callIndex === -1) continue
+        const line = scriptSource.slice(0, callIndex).split('\n').length
+        const column =
+          callIndex - (scriptSource.lastIndexOf('\n', callIndex) + 1)
+
+        const consumer = new SourceMap(sourceMap)
+        const original = consumer.findEntry(line - 1, column)
+        if (original.originalSource !== undefined) {
+          mappedSources.add(
+            mapURL === null
+              ? original.originalSource
+              : new URL(original.originalSource, mapURL).href
+          )
+        }
       }
-    })
-  }
+
+      const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
+      expect([...mappedSources]).toContain(
+        `${testDirURL.href}/app/rsc-error-throw-cached/page.js`
+      )
+    } finally {
+      session.close()
+    }
+  })
+  // Production source maps are emitted with the built server chunks.
+  // @force-gate prod
+  it('server chunk source maps are resolvable by an attached debugger', async () => {
+    await next.render('/rsc-error-log')
+
+    const target = await findServerInspectorTarget()
+    const session = await CDPSession.connect(target.webSocketDebuggerUrl)
+    try {
+      const serverScripts: { url: string; sourceMapURL: string }[] = []
+      session.onEvent = (method, params) => {
+        if (
+          method === 'Debugger.scriptParsed' &&
+          typeof params.url === 'string' &&
+          params.url.includes(`${path.sep}.next${path.sep}server${path.sep}`)
+        ) {
+          serverScripts.push({
+            url: params.url,
+            sourceMapURL: params.sourceMapURL ?? '',
+          })
+        }
+      }
+      await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
+
+      await retry(async () => {
+        expect(serverScripts.length).toBeGreaterThan(0)
+      })
+
+      // Sources in these maps are relative and resolve against the map's
+      // own URL.
+      const resolvedSources = new Set<string>()
+      const mappedScripts: typeof serverScripts = []
+      for (const script of serverScripts) {
+        if (script.sourceMapURL === '') continue
+        const { sourceMap } = await resolveSourceMapLikeADebugger(
+          session,
+          script.url,
+          script.sourceMapURL
+        )
+        expect(sourceMap).toHaveProperty('version', 3)
+        const mapURL = new URL(
+          script.sourceMapURL,
+          scriptURLToFileURL(script.url)
+        )
+        for (const source of sourceMap.sources as string[]) {
+          const resolved = new URL(source, mapURL).href
+          expectWellFormedSource(resolved)
+          resolvedSources.add(resolved)
+        }
+        mappedScripts.push(script)
+      }
+
+      // The build output must reference source maps at all
+      // (`serverSourceMaps` is enabled in the fixture).
+      expect(mappedScripts.length).toBeGreaterThan(0)
+      const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
+      expect([...resolvedSources]).toContain(
+        isTurbopack
+          ? `${testDirURL.href}/app/rsc-error-log/page.js`
+          : 'webpack:///app/rsc-error-log/page.js'
+      )
+    } finally {
+      session.close()
+    }
+  })
 })

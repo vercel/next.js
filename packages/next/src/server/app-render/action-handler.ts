@@ -953,6 +953,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
+                  false,
                   actionWasForwarded
                 )
 
@@ -1171,6 +1172,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
+                  false,
                   actionWasForwarded
                 )
 
@@ -1303,6 +1305,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
+            isFetchAction,
             shouldSkipPageRendering
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
@@ -1467,12 +1470,14 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
+  isFetchAction: boolean,
   shouldSkipPageRendering: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
+  const wasDraftModeEnabled = requestStore.draftMode.isEnabled
   let skipPageRendering = shouldSkipPageRendering
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
@@ -1486,11 +1491,13 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if this is an action-only request,
-    // we can skip rendering the page.
+    // Fetch actions can skip rendering when the page was not revalidated. MPA
+    // form submissions still need a complete HTML response with their form
+    // state.
     skipPageRendering ||=
-      workStore.pathWasRevalidated === undefined ||
-      workStore.pathWasRevalidated === ActionDidNotRevalidate
+      isFetchAction &&
+      (workStore.pathWasRevalidated === undefined ||
+        workStore.pathWasRevalidated === ActionDidNotRevalidate)
 
     return { actionResult, skipPageRendering }
   } finally {
@@ -1507,6 +1514,13 @@ async function executeActionAndPrepareForRender<
       // The server action might have toggled draft mode, so we need to reflect
       // that in the work store to be up-to-date for subsequent rendering.
       workStore.isDraftMode = requestStore.draftMode.isEnabled
+
+      // The action may enable draft mode after the request received a
+      // published RDC. The re-render must generate fresh values without that
+      // RDC.
+      if (!wasDraftModeEnabled && requestStore.draftMode.isEnabled) {
+        requestStore.resumeDataCache = null
+      }
 
       // If the action called revalidateTag/revalidatePath, then that might
       // affect data used by the subsequent render, so we need to make sure all

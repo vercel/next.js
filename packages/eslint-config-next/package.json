@@ -1,6 +1,6 @@
 {
   "name": "eslint-config-next",
-  "version": "16.5.0-canary.24",
+  "version": "16.5.0-canary.29",
   "description": "ESLint configuration used by Next.js.",
   "license": "MIT",
   "repository": {

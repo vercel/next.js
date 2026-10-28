@@ -74,6 +74,7 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
@@ -509,11 +510,14 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
+    // When global-not-found is present, use full components. Otherwise, keep
+    // the root layout to render a complete HTML document.
     hasGlobalNotFound
       ? components
-      : { 'global-error': components['global-error'] },
+      : {
+          layout: components.layout,
+          'global-error': components['global-error'],
+        },
     null, // staticSiblings
   ]
 }
@@ -2858,7 +2862,6 @@ async function renderAppPage(
     implicitTags,
   } = ctx
   const { cacheComponents, setIsrStatus, serverActions } = renderOpts
-  const { cachedNavigations } = renderOpts.experimental
   const {
     isHmrRefresh,
     isPrefetchRequest,
@@ -2883,6 +2886,13 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
+
+  // MPA form submissions need a complete document with the submitted form
+  // state. Their new render can still reuse the extracted RDC.
+  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
+    postponedState = null
+  }
+
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     requestHeaders,
@@ -2946,7 +2956,7 @@ async function renderAppPage(
           createRequestStore,
           stagedFallbackParams
         )
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // MARK: RSC cacheComponents
         return generateStagedDynamicFlightRenderResultNode(ctx, requestStore)
       } else {
@@ -3558,7 +3568,6 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations } = renderOpts.experimental
   const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
@@ -3848,7 +3857,7 @@ async function renderToStream(
             requestId
           )
         }
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the shell byte length (`a`)
         // and, with Partial Prefetching, an embedded runtime prefetch that the
@@ -5395,6 +5404,17 @@ export enum PrefetchingMode {
   Partial = 2,
 }
 
+function shouldUseCachedNavigations(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    renderOpts.cacheComponents &&
+    renderOpts.experimental.cachedNavigations === true &&
+    !requestStore.draftMode.isEnabled
+  )
+}
+
 async function getPrefetchingModeForPage(
   renderOpts: Pick<RenderOpts, 'partialPrefetching'>,
   loaderTree: LoaderTree
@@ -6326,7 +6346,11 @@ async function accumulateStreamChunksInto(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        collectStageChunk(accumulator, stageController.currentStage, value)
+        collectStageChunk(
+          accumulator,
+          stageController.currentStage,
+          encodeTextChunk(value)
+        )
       }
     } catch (err) {
       if (!cancelled) {
@@ -6408,7 +6432,7 @@ async function countStageBytesUntilAbortNode(
       increaseChunkByteLengths(
         byteLengths,
         stageController.currentStage,
-        (value as Uint8Array).byteLength
+        typeof value === 'string' ? Buffer.byteLength(value) : value.byteLength
       )
     }
   } catch (err) {
@@ -11004,7 +11028,7 @@ async function iterateStreamingPrerenderChunks(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        onChunk(value)
+        onChunk(encodeTextChunk(value))
       }
     } catch (err) {
       if (!cancelled) {

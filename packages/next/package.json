@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.5.0-canary.24",
+  "version": "16.5.0-canary.29",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -133,7 +133,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@babel/core": "7.26.10",

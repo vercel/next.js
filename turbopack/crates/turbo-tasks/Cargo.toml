@@ -56,6 +56,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-bincode = { workspace = true }
+turbo-bitset = { workspace = true }
 turbo-dyn-eq-hash = { workspace = true }
 turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }

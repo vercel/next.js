@@ -2468,6 +2468,23 @@ export default async function build(
           }
         }
 
+        // Reverse index of `appPathRoutes`: normalized pathname -> original app
+        // paths that have an entry in `mappedAppPages`. Built once up front so
+        // the per-page check below doesn't scan every route for every page.
+        const originalAppPathsByPage = new Map<string, string[]>()
+        if (mappedAppPages) {
+          for (const originalPath in appPathRoutes) {
+            if (!mappedAppPages[originalPath]) continue
+            const normalizedPath = appPathRoutes[originalPath]
+            const originalAppPaths = originalAppPathsByPage.get(normalizedPath)
+            if (originalAppPaths) {
+              originalAppPaths.push(originalPath)
+            } else {
+              originalAppPathsByPage.set(normalizedPath, [originalPath])
+            }
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -2513,19 +2530,9 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
-                  const originalAppPaths: string[] = []
-                  for (const [originalPath, normalizedPath] of Object.entries(
-                    appPathRoutes
-                  )) {
-                    if (
-                      normalizedPath === page &&
-                      mappedAppPages[originalPath]
-                    ) {
-                      originalAppPaths.push(originalPath)
-                    }
-                  }
+                  const originalAppPaths = originalAppPathsByPage.get(page)
 
-                  if (originalAppPaths.length > 0) {
+                  if (originalAppPaths) {
                     originalAppPath = selectAppPageEntry(page, originalAppPaths)
                     pagePath = mappedAppPages[originalAppPath].replace(
                       /^private-next-app-dir/,
