@@ -18,7 +18,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
-    code_builder::source_map_sections::{MappingVariants, Mappings},
+    code_builder::source_map_sections::Mappings,
     debug_id::generate_debug_id,
     output::OutputAsset,
     source_map::{
@@ -73,14 +73,14 @@ impl SectionMap {
 }
 
 /// A mapping of byte-offset in the code string to an associated source map.
-pub type Mapping = (usize, Option<SectionMap>);
+pub type Mapping = (usize, SourceMaps<SectionMap>);
 
 /// Code stores combined output code and the source map of that output code.
 #[turbo_tasks::value(shared, serialization = "hash")]
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    mappings: MappingVariants,
+    mappings: Mappings,
     should_generate_debug_id: bool,
 }
 
@@ -100,7 +100,7 @@ impl PersistedCode {
 impl Code {
     /// Rejects variants that were not generated for every mapped section.
     pub fn validate_source_map_type(&self, ty: SourceMapType) -> Result<()> {
-        let available = self.mappings(ty).complete;
+        let available = self.mappings.is_complete(ty);
         anyhow::ensure!(
             available,
             "Requested {ty:?} source map was not generated for all mapped code"
@@ -117,18 +117,13 @@ impl Code {
         self.mappings.has_source_map()
     }
     pub fn has_source_map_for(&self, ty: SourceMapType) -> bool {
-        let stream = self.mappings(ty);
-        stream.complete && stream.has_source_map()
-    }
-
-    fn mappings(&self, ty: SourceMapType) -> &Mappings {
-        self.mappings.get(ty)
+        self.mappings.is_complete(ty) && self.mappings.has_source_map()
     }
 
     pub fn source_maps(&self) -> Result<SourceMaps<Rope>> {
         let full = self.has_source_map_for(SourceMapType::Full);
         let partial = self.has_source_map_for(SourceMapType::Partial);
-        if full && partial && matches!(self.mappings, MappingVariants::Shared(_)) {
+        if full && partial && self.mappings.is_shared() {
             return Ok(SourceMaps::Shared(
                 self.generate_source_map_ref(None, SourceMapType::Full)?,
             ));
@@ -220,7 +215,7 @@ impl Code {
 /// CodeBuilder provides a mutable container to append source code.
 pub struct CodeBuilder {
     code: RopeBuilder,
-    mappings: MappingVariants,
+    mappings: Mappings,
     should_generate_debug_id: bool,
 }
 
@@ -228,7 +223,7 @@ impl Default for CodeBuilder {
     fn default() -> Self {
         Self {
             code: RopeBuilder::default(),
-            mappings: MappingVariants::default(),
+            mappings: Mappings::default(),
             should_generate_debug_id: false,
         }
     }
@@ -384,10 +379,10 @@ impl Code {
 
         let mut last_byte_pos = 0;
 
-        let mappings = &self.mappings(ty).mappings;
+        let mappings = &self.mappings.mappings;
         let mut sections = Vec::with_capacity(mappings.len());
         let mut read = self.code.read();
-        for (byte_pos, map) in mappings.iter() {
+        for (byte_pos, maps) in mappings.iter() {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
                 // `fill_buf` never returns an error.
@@ -402,7 +397,7 @@ impl Code {
             }
             last_byte_pos = *byte_pos;
 
-            if let Some(map) = map {
+            if let Some(map) = maps.get(ty) {
                 sections.push((pos, map.to_rope()))
             } else {
                 // We don't need an empty source map when column is 0 or the next char is a newline.
