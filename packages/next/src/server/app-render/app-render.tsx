@@ -8802,6 +8802,7 @@ type PrerenderToStreamResult = {
   stream: AnyStream
   // The wrapper distinguishes a thrown undefined from an absent error.
   error: { thrownValue: unknown } | undefined
+  // Only the RSC errors this render surfaced, not `workStore.reactServerErrorsByDigest`.
   digestErrorsMap: Map<string, DigestedError>
   ssrErrors: Array<unknown>
   dynamicAccess?: null | Array<DynamicAccess>
@@ -9058,12 +9059,25 @@ async function prerenderToStream(
       )
     }
   }
-  const serverComponentsErrorHandler = createReactServerErrorHandler(
+  const reportServerComponentsError = createReactServerErrorHandler(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
     onHTMLRenderRSCError
   )
+  // The shared map also holds errors that a `'use cache'` fill threw and
+  // userland caught. Only RSC errors that reach this handler become the render error.
+  const surfacedReactServerErrors = new Map<string, DigestedError>()
+  const serverComponentsErrorHandler = (thrownValue: unknown) => {
+    const digest = reportServerComponentsError(thrownValue)
+    if (digest !== undefined) {
+      const surfacedError = reactServerErrorsByDigest.get(digest)
+      if (surfacedError !== undefined) {
+        surfacedReactServerErrors.set(digest, surfacedError)
+      }
+    }
+    return digest
+  }
 
   function onHTMLRenderSSRError(err: DigestedError) {
     if (reportErrors) {
@@ -10133,7 +10147,7 @@ async function prerenderToStream(
         reactServerResult.consume()
         return {
           error: undefined,
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: surfacedReactServerErrors,
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(htmlStream, {
             getServerInsertedHTML,
@@ -10207,7 +10221,7 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: surfacedReactServerErrors,
         ssrErrors: allCapturedErrors,
         stream,
         dynamicAccess: consumeDynamicAccess(
@@ -10305,7 +10319,7 @@ async function prerenderToStream(
       })
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: surfacedReactServerErrors,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataStream(
@@ -10697,7 +10711,7 @@ async function prerenderToStream(
           errorServerResult.consume()
           return {
             error: errorType !== undefined ? undefined : { thrownValue: err },
-            digestErrorsMap: reactServerErrorsByDigest,
+            digestErrorsMap: surfacedReactServerErrors,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
               getServerInsertedHTML,
@@ -10771,7 +10785,7 @@ async function prerenderToStream(
         errorServerResult.consume()
         return {
           error: errorType !== undefined ? undefined : { thrownValue: err },
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: surfacedReactServerErrors,
           ssrErrors: allCapturedErrors,
           stream,
           dynamicAccess: consumeDynamicAccess(
@@ -10878,7 +10892,7 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: surfacedReactServerErrors,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
           inlinedDataStream: createInlinedDataStream(

@@ -7,8 +7,11 @@ export interface CacheComponentsErrorsContext {
   isRspack: boolean
   isNextStart: boolean
   isDebugPrerender: boolean
-  prerender: (pathname: string) => Promise<void>
+  isPartialPrefetching: boolean
+  prerender: (pathname: string) => Promise<BuildResult>
 }
+
+type BuildResult = Awaited<ReturnType<NextInstance['build']>>
 
 // This suite is far too slow to run as a single CI test file, so it's split
 // into one `*.test.ts` entry file per group of sections (each with a
@@ -79,7 +82,7 @@ export function runCacheComponentsErrorsTests(
         args.push('--debug-prerender')
       }
 
-      await next.build({ args })
+      return next.build({ args })
     }
 
     registerTests({
@@ -88,6 +91,7 @@ export function runCacheComponentsErrorsTests(
       isRspack,
       isNextStart,
       isDebugPrerender,
+      isPartialPrefetching: process.env.__NEXT_PARTIAL_PREFETCHING === 'true',
       prerender,
     })
   })

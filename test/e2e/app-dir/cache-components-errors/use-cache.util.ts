@@ -1,10 +1,17 @@
+import { load } from 'cheerio'
 import { isNextDev } from 'e2e-utils'
-import { retry, waitForNoRedbox } from 'next-test-utils'
+import { retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import { getDeterministicOutput, getPrerenderOutput } from './utils'
 import type { CacheComponentsErrorsContext } from './shared.util'
 
 export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
-  const { next, isTurbopack, isDebugPrerender, prerender } = ctx
+  const {
+    next,
+    isTurbopack,
+    isDebugPrerender,
+    isPartialPrefetching,
+    prerender,
+  } = ctx
 
   let cliOutputLength: number
   beforeEach(() => {
@@ -1530,6 +1537,130 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
              }"
             `)
           }
+        })
+      }
+    })
+
+    describe('catching an error during prerendering', () => {
+      const staticPathname = '/use-cache-catch-error-static'
+      const dynamicPathname = '/use-cache-catch-error-dynamic/unknown'
+
+      if (isNextDev) {
+        it('should render the fallback in the static shell', async () => {
+          const browser = await next.browser(staticPathname)
+
+          expect(await browser.elementById('message').text()).toBe('fallback')
+          await waitForNoRedbox(browser)
+        })
+
+        it('should render the fallback for a param that was not prerendered', async () => {
+          const browser = await next.browser(dynamicPathname)
+
+          expect(await browser.elementById('message').text()).toBe('fallback')
+          await waitForNoRedbox(browser)
+        })
+      } else {
+        it('should not error the build when the error is caught', async () => {
+          const { exitCode, cliOutput } = await prerender(staticPathname)
+
+          expect(exitCode).toBe(0)
+
+          // The cache environment logs the original error in production only.
+          if (!isDebugPrerender) {
+            expect(cliOutput.split('Error: Kaputt!').length - 1).toBe(1)
+          }
+        })
+
+        it('should error the build when the error is not caught', async () => {
+          const { exitCode, cliOutput } = await prerender(
+            '/use-cache-throw-error-static'
+          )
+
+          expect(exitCode).not.toBe(0)
+          expect(cliOutput).toContain(
+            'Error occurred prerendering page "/use-cache-throw-error-static"'
+          )
+          expect(cliOutput).toContain('Error: Kaputt!')
+        })
+
+        it('should render and cache the fallback for a param that was not prerendered', async () => {
+          const { exitCode } = await prerender(
+            '/use-cache-catch-error-dynamic/[slug]'
+          )
+
+          expect(exitCode).toBe(0)
+
+          await next.start({ skipBuild: true })
+
+          const res = await next.fetch(dynamicPathname)
+
+          expect(res.status).toBe(200)
+          expect(['HIT', 'STALE']).not.toContain(
+            res.headers.get('x-nextjs-cache')
+          )
+          expect(load(await res.text())('#message').text()).toBe('fallback')
+
+          if (!isDebugPrerender) {
+            // The original error is logged with its digest, not the obfuscated one.
+            await retry(async () => {
+              expect(next.cliOutput).toMatch(
+                /Error: Kaputt: unknown[\s\S]*?digest: '\d+'/
+              )
+            })
+            expect(next.cliOutput).not.toContain(
+              'An error occurred in the Server Components render'
+            )
+          }
+
+          await retry(async () => {
+            const cachedRes = await next.fetch(dynamicPathname)
+
+            expect(cachedRes.status).toBe(200)
+            expect(cachedRes.headers.get('x-nextjs-cache')).toBe('HIT')
+            expect(load(await cachedRes.text())('#message').text()).toBe(
+              'fallback'
+            )
+          })
+        })
+
+        it('should not cache an uncaught error for a param that was not prerendered', async () => {
+          const pathname = '/use-cache-throw-error-dynamic/unknown'
+          const { exitCode } = await prerender(
+            '/use-cache-throw-error-dynamic/[slug]'
+          )
+
+          expect(exitCode).toBe(0)
+
+          await next.start({ skipBuild: true })
+
+          const expectUncachedError = async () => {
+            const res = await next.fetch(pathname)
+
+            // With partial prefetching the shell is already sent, so this answers 200 with an empty page.
+            if (!isPartialPrefetching) {
+              expect(res.status).toBe(500)
+            }
+            expect(res.headers.get('x-nextjs-cache')).not.toBe('HIT')
+            expect(load(await res.text())('#message').text()).toBe('')
+          }
+
+          await expectUncachedError()
+
+          if (!isDebugPrerender) {
+            await retry(async () => {
+              expect(next.cliOutput).toMatch(
+                /Error: Uncaught kaputt: unknown[\s\S]*?digest: '\d+'/
+              )
+            })
+            expect(next.cliOutput).not.toContain(
+              'An error occurred in the Server Components render'
+            )
+          }
+
+          // Give a wrongly stored entry the time the caught twin needs to become a HIT.
+          await waitFor(1000)
+          await expectUncachedError()
+          await expectUncachedError()
         })
       }
     })
