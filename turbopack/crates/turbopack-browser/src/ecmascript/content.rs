@@ -87,10 +87,15 @@ impl EcmascriptBrowserChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = this.content.await?;
+        let emit_source_maps = this
+            .chunking_context
+            .emitted_source_map_type()
+            .await?
+            .is_some();
         let minification =
             ChunkMinification::for_chunking_context(Vc::upcast(*this.chunking_context)).await?;
         let chunk_items = content
-            .chunk_item_code_module_ids_and_paths(minification, false)
+            .chunk_item_code_module_ids_and_paths(minification, emit_source_maps)
             .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
         let strict_chunk_wrapper =
@@ -131,7 +136,9 @@ impl EcmascriptBrowserChunkContent {
             code += suffix;
         }
 
-        Ok(minification.finish_chunk(code.build(), this.chunking_context.emitted_source_map_type().await?.is_some())?.cell())
+        Ok(minification
+            .finish_chunk(code.build(), emit_source_maps)?
+            .cell())
     }
 
     #[turbo_tasks::function]

@@ -34,7 +34,7 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::{SourceMap, SourceMaps, SourceMapType, structured::StructuredSourceMap},
+    source_map::{SourceMaps, structured::StructuredSourceMap},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
@@ -46,7 +46,10 @@ pub fn minify(code: Code, emit_source_maps: bool, mangle: Option<MangleType>) ->
     // will be added by the Code object returned from this function
     let original_maps = code.source_maps()?;
     let source_maps = code.has_source_map();
-    anyhow::ensure!(!source_maps || original_maps != SourceMaps::None, "Cannot minify code with incompatible source map variants");
+    anyhow::ensure!(
+        !source_maps || original_maps != SourceMaps::None,
+        "Cannot minify code with incompatible source map variants"
+    );
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
     minify_source(
@@ -76,7 +79,10 @@ pub fn minify_chunk_item(
 ) -> Result<Code> {
     let original_maps = code.source_maps()?;
     let source_maps = code.has_source_map();
-    anyhow::ensure!(!source_maps || original_maps != SourceMaps::None, "Cannot minify code with incompatible source map variants");
+    anyhow::ensure!(
+        !source_maps || original_maps != SourceMaps::None,
+        "Cannot minify code with incompatible source map variants"
+    );
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.source_code().clone().into_bytes())?;
     minify_source(
@@ -270,7 +276,10 @@ fn minify_source(
             // well), so it is emitted unmapped too. The mappings of the body move into a section
             // starting right after the directive.
             let body_map = mappings_after(&src, src_map_buf, directive.end);
-            builder.push_source(&src[..directive.start].to_string().into(), SourceMaps::<Rope>::None);
+            builder.push_source(
+                &src[..directive.start].to_string().into(),
+                SourceMaps::<Rope>::None,
+            );
             builder.push_strict_directive();
             builder.push_source(
                 &src[directive.end..].to_string().into(),
@@ -508,6 +517,7 @@ mod tests {
     use turbopack_core::{
         chunk::MangleType,
         code_builder::{CodeBuilder, STRICT_DIRECTIVE},
+        source_map::{SourceMap, SourceMapType},
     };
 
     use super::*;
@@ -621,8 +631,13 @@ mod tests {
     /// `(generated line, generated column, original line, original column)` of every token
     /// mapped to an original source.
     fn tokens(code: &Code) -> Vec<(u32, u32, u32, u32)> {
-        let map = match swc_sourcemap::decode_slice(&code.generate_source_map_ref(None, SourceMapType::Full).unwrap().to_bytes())
-            .unwrap()
+        let map = match swc_sourcemap::decode_slice(
+            &code
+                .generate_source_map_ref(None, SourceMapType::Full)
+                .unwrap()
+                .to_bytes(),
+        )
+        .unwrap()
         {
             DecodedMap::Regular(map) => map,
             DecodedMap::Index(index) => index.flatten().unwrap(),
@@ -664,7 +679,10 @@ mod tests {
         let mut map_bytes = Vec::new();
         map.into_sourcemap().to_writer(&mut map_bytes).unwrap();
         let mut builder = CodeBuilder::new(false);
-        builder.push_source(&src.to_string().into(), SourceMaps::Shared(Rope::from(map_bytes)));
+        builder.push_source(
+            &src.to_string().into(),
+            SourceMaps::Shared(Rope::from(map_bytes)),
+        );
         let factory =
             minify_chunk_item(&builder.build(), true, Some(MangleType::Deterministic)).unwrap();
         assert!(factory.strict_directive().is_some());

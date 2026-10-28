@@ -64,10 +64,15 @@ impl EcmascriptNodeChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = self.content.await?;
+        let emit_source_maps = self
+            .chunking_context
+            .emitted_source_map_type()
+            .await?
+            .is_some();
         let minification =
             ChunkMinification::for_chunking_context(Vc::upcast(*self.chunking_context)).await?;
         let chunk_items = content
-            .chunk_item_code_module_ids_and_paths(minification, false)
+            .chunk_item_code_module_ids_and_paths(minification, emit_source_maps)
             .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
         let strict_chunk_wrapper =
@@ -89,7 +94,7 @@ impl EcmascriptNodeChunkContent {
             code += suffix;
         }
 
-        let code = minification.finish_chunk(code.build(), self.chunking_context.emitted_source_map_type().await?.is_some())?;
+        let code = minification.finish_chunk(code.build(), emit_source_maps)?;
 
         Ok(code.cell())
     }

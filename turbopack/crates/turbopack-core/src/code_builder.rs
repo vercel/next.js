@@ -4,6 +4,7 @@ use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
     ops::{self, Range},
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -230,22 +231,12 @@ impl Code {
 }
 
 /// CodeBuilder provides a mutable container to append source code.
+#[derive(Default)]
 pub struct CodeBuilder {
     code: RopeBuilder,
     mappings: Mappings,
     should_generate_debug_id: bool,
     strict_directive: Option<usize>,
-}
-
-impl Default for CodeBuilder {
-    fn default() -> Self {
-        Self {
-            code: RopeBuilder::default(),
-            mappings: Mappings::default(),
-            should_generate_debug_id: false,
-            strict_directive: None,
-        }
-    }
 }
 
 impl CodeBuilder {
@@ -318,29 +309,34 @@ impl CodeBuilder {
         debug_assert!(
             prebuilt
                 .mappings
+                .mappings
                 .iter()
-                .all(|(index, map)| !directive.contains(index) || map.is_none()),
+                .all(|(index, map)| !directive.contains(index) || matches!(map, SourceMaps::None)),
             "a strict directive must be unmapped"
         );
         let removed = directive.len();
         // Mappings starting inside the directive only end the preceding section, which the
         // section after the directive does as well, so they are dropped.
-        let mappings = prebuilt
-            .mappings
-            .iter()
-            .filter(|(index, _)| !directive.contains(index))
-            .map(|(index, map)| {
-                let index = if *index >= directive.end {
-                    index - removed
-                } else {
-                    *index
-                };
-                (index, map.clone())
-            })
-            .collect();
+        let mut mappings = prebuilt.mappings.clone();
+        mappings.mappings = Arc::new(
+            prebuilt
+                .mappings
+                .mappings
+                .iter()
+                .filter(|(index, _)| !directive.contains(index))
+                .map(|(index, map)| {
+                    let index = if *index >= directive.end {
+                        index - removed
+                    } else {
+                        *index
+                    };
+                    (index, map.clone())
+                })
+                .collect(),
+        );
         self.push_code(&Code {
             code: prebuilt.code.skip(directive),
-            mappings: Arc::new(mappings),
+            mappings,
             should_generate_debug_id: prebuilt.should_generate_debug_id,
             strict_directive: None,
         });
@@ -513,7 +509,9 @@ mod tests {
     const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
 
     fn section_offsets(code: &Code) -> Vec<(u64, u64)> {
-        let map = code.generate_source_map_ref(None);
+        let map = code
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .unwrap();
         let map: Value = serde_json::from_str(&map.to_str().unwrap()).unwrap();
         map["sections"]
             .as_array()
@@ -537,7 +535,7 @@ mod tests {
         builder += prefix;
         builder.push_source(
             &Rope::from("mapped();".to_string()),
-            Some(Rope::from(SECTION_MAP.to_string())),
+            SourceMaps::Shared(Rope::from(SECTION_MAP.to_string())),
         );
         let code = builder.build();
 
@@ -574,8 +572,13 @@ mod tests {
     /// `(generated line, generated column, original line, original column)` of every token
     /// mapped to an original source.
     fn tokens(code: &Code) -> Vec<(u32, u32, u32, u32)> {
-        let map = match swc_sourcemap::decode_slice(&code.generate_source_map_ref(None).to_bytes())
-            .unwrap()
+        let map = match swc_sourcemap::decode_slice(
+            &code
+                .generate_source_map_ref(None, SourceMapType::Full)
+                .unwrap()
+                .to_bytes(),
+        )
+        .unwrap()
         {
             DecodedMap::Regular(map) => map,
             DecodedMap::Index(index) => index.flatten().unwrap(),
@@ -595,17 +598,17 @@ mod tests {
     }
 
     fn factory(head: &'static str, gap: &'static str, body: &str) -> Code {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(false);
         code += head;
         code.push_strict_directive();
         code += gap;
-        code.push_source(&body.to_string().into(), Some(line_map(body)));
+        code.push_source(&body.to_string().into(), SourceMaps::Shared(line_map(body)));
         code += "})";
         code.build()
     }
 
     fn compose(factory: &Code, without_directive: bool) -> Code {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(false);
         code += "[1,";
         if without_directive {
             code.push_code_without_strict_directive(factory);
@@ -662,8 +665,11 @@ mod tests {
 
     #[test]
     fn pushing_code_without_a_directive_is_unchanged() {
-        let mut code = CodeBuilder::new(true, false);
-        code.push_source(&"x();".to_string().into(), Some(line_map("x();")));
+        let mut code = CodeBuilder::new(false);
+        code.push_source(
+            &"x();".to_string().into(),
+            SourceMaps::Shared(line_map("x();")),
+        );
         let code = code.build();
         assert!(code.strict_directive().is_none());
         assert_eq!(
