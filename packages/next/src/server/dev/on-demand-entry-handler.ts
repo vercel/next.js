@@ -1049,6 +1049,14 @@ export function onDemandEntryHandler({
   })
 
   return {
+    entryRemoved(entryKey: string, page: string) {
+      // A source can disappear after ensurePage registered its build callback.
+      // Such an entry never reaches the compiler's done entrypoints, so reject
+      // the waiter here instead of leaving the request pending indefinitely.
+      if (doneCallbacks.listenerCount(entryKey) > 0) {
+        doneCallbacks.emit(entryKey, new PageNotFoundError(page))
+      }
+    },
     async ensurePage({
       page,
       appPaths = null,

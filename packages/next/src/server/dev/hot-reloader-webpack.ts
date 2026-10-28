@@ -946,6 +946,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 !dispose && existsSync(entryData.absolutePagePath)
               if (!pageExists) {
                 delete entries[entryKey]
+                this.onDemandEntries?.entryRemoved(entryKey, page)
                 return
               }
             }
