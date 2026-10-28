@@ -10,14 +10,15 @@ See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credenti
 
 Terminal-Bench, Harbor's own benchmark, publishes the bar these steps follow: its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task; the steps below add only what is specific to Next.js.
 
-Every task goes through the same steps: find a capability, build it around a decision, write a short instruction, screen a draft on two models, grade behavior, validate the grader, then calibrate and decide. Build the full grader only for drafts that pass the screen. A task that skips a step is not ready for review.
+Every task goes through the same steps: find a capability, build it around a decision, write a short instruction, screen drafts, grade behavior, validate the grader, then calibrate and decide. Build the full grader only for drafts that pass the screen. A task that skips a step is not ready for review.
 
 ### 1. Find a capability
 
 Look for work where agents fail on real applications, in this order:
 
-- **Agent Feedback reports** in the Maintainer Agent store, especially the ones that ended in a wrong workaround. Read the reports behind a finding, not the cluster summary: they say what the agent was building, what it tried, and what it settled for.
+- **Agent Feedback reports** in the Maintainer Agent store, especially the ones that ended in a wrong workaround. Read the reports behind a finding, not the cluster summary: they say what the agent was building, what it tried, and what it settled for. Most reports, blocked ones included, describe framework bugs or tooling friction rather than agent mistakes, so confirm a trap still exists (step 4) before building on one.
 - **Competency tasks that still separate models** (`evals/eval.suites.json`). A harder variant of a capability where weaker models already fail is a better bet than a new topic.
+- **Error repros**, minimal apps that each trigger one framework error. Use a repro to find where the error lives, then write the feature request that leads an agent there; never start the task from the error itself.
 - **GitHub issues and merged pull requests** that change how an application has to be written, such as a new API, a migration, or a behavior change. A merged change gives a realistic starting point and a known-good result, which is how SelfBench builds its tasks. Grade the behavior the change produces, not the tests that came with it: tests written for one patch import its files and mock its functions, so a correct repair with another structure fails.
 
 Difficulty comes from real work at real size. SWE-Bench Pro tasks take an engineer hours to days, with changes across several files in real repositories; a 15-file fixture that needs a 30-line change is easy to brute-force. Prefer a real open-source Next.js app at a pinned commit over a fixture written for the task. The `vercel/next-benchmarks` apps are adapted for performance runs, with stubbed pages and mock data, so they are not usable as they are.
@@ -40,15 +41,24 @@ Start from a working application and a feature request, not from a failing build
 
 Put the decision where nothing warns the agent: content that has to stay in the static HTML, a cache lifetime that has to stay fresh, data that must not leak between users, navigation that has to stay instant. In the first pilots, every task that started from a failing build saturated, and every real failure came from a requirement like these: content deferred to the browser, a stale cache lifetime, a clock read only the production log reported. Let a build error appear only when the agent's own change causes it, and make the shortcuts the error page suggests fail one of those requirements.
 
+The strongest decisions show up only after the agent is done. State a change the app will go through later, such as new content, a new locale, or another route, and have the verifier make that change before it builds. A one-off fix that meets every check on today's app then fails, while the framework's own mechanism keeps working. In screening, this was the first requirement that separated a frontier model from a weaker one: both met every page-weight budget, but only the run that used the image component handled photos added later.
+
 ### 3. Write a short instruction
 
 Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/instruction): concise, with clear outcomes. Write it as the user would report it: the symptom, the goal, and only the constraints a user would actually state, such as not editing a vendored SDK or not changing dependencies. Never list the checks, and never name the API or the patch. The instruction must still state everything the verifier checks, with nothing left to guess, including requirements a user would take for granted, such as a passing type check or an unchanged feature. The approved competency prompts are 20 to 50 words. A checklist of every requirement hands the agent the answer, and every model passes it.
 
 Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. Each task's `README.md` has a **Difficulty explanation**, why the task is hard for agents and for which reports, and a **Verification explanation**, which gate checks what, as Terminal-Bench asks. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the instruction.
 
-### 4. Screen a draft on two models
+### 4. Screen drafts before building graders
 
-Before writing the full grader, run the draft (instruction, fixture, reference repair, and a rough check) on one frontier and one weaker model, and read both transcripts. Build the task out only when a model fails for a capability reason, not because of the task or the check. A draft both models solve is dropped or reworked, not run on a full cohort. Benchmarks that stay hard select from many drafts this way: Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each.
+Most ideas do not survive contact with a model, so write several cheap drafts and build out only the few that fail for a real reason. A draft is the instruction, the fixture, a reference repair, one or two known-bad repairs, and a rough behavior check.
+
+1. **Confirm the trap on the pinned version.** Apply the change a developer would write first and check that it fails the rough check while the reference passes. Ideas from feedback reports and error repros often no longer reproduce because the framework now handles the case: in the first screening round, three of eleven ideas had no trap and were dropped before any model ran.
+2. **Validate locally.** The untouched fixture builds and scores 0, every known-bad repair scores 0, and the reference scores 1. A fixture that does not build hands the agent an error to follow.
+3. **Run one frontier and one weaker model**, base treatment only. `MODELS` limits the cohort to those rows and `PARALLEL` runs them at the same time.
+4. **Read both transcripts.** Keep a draft only when a model fails for a capability reason, such as a wrong API choice, a missed requirement, or a claim it never verified. A failure caused by the task or the check is a task bug to fix. A draft both models solve is dropped or reworked, not run on a full cohort.
+
+Benchmarks that stay hard select from many drafts this way: Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each.
 
 ### 5. Grade behavior
 
@@ -86,7 +96,7 @@ Each of these let a wrong repair through until the check changed:
 Prove the task measures its contract before reading any model result:
 
 1. `harbor lint --select ALL` passes.
-2. The untouched fixture scores 0 for the intended reason.
+2. The untouched fixture builds and type-checks, and scores 0 for the intended reason.
 3. The reference repair scores 1.
 4. Every script in `tests/bad-solutions/` scores 0 at the check its header names.
 5. The reference repair scores 1 on repeated runs. A verifier that flakes on a correct solution is wrong.

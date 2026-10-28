@@ -128,6 +128,13 @@ HARBOR=.harbor/bin/harbor evals/agent-build/tools/calibrate.sh \
 evals/agent-build/tools/calibrate.sh --summary /path/to/jobs
 ```
 
+Two variables narrow or speed up a run. `MODELS=<model>,<model>` keeps only those cohort rows, for example one frontier and one weaker model when screening a draft. `PARALLEL=<n>` runs up to `n` jobs at once instead of one after another. Each job is its own Harbor run in its own sandbox, so the limit protects the gateway budget and the sandbox quota, not the local machine:
+
+```bash
+MODELS=anthropic/claude-opus-5.5,openai/gpt-6-luna PARALLEL=2 \
+  evals/agent-build/tools/calibrate.sh /path/to/local.env /path/to/jobs evals/agent-build/<task>
+```
+
 Agent harnesses differ in how they build the inference URL. Codex and OpenCode take the gateway's OpenAI-compatible base `https://ai-gateway.vercel.sh/v1`; Claude Code's SDK appends `/v1/messages` itself, so its row passes `base_url=https://ai-gateway.vercel.sh` as an agent option, or every call returns a 404 that Claude Code reports as `model_not_found`.
 
 `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` prints the Results section for the pull request, in the same shape as the `agent-eval` result pull requests: one table with a row per model, a base / AGENTS.md column per task, the totals across tasks with Base, + AGENTS.md, and Delta, then price per million tokens (the effective rate, cached input included), tokens, cost, and time per run, then pass@1 and cost per run as Mermaid bar charts that GitHub renders inline. An agent that runs out of time is a failure, as in Harbor's own metrics; any other runner error is discarded and the run is repeated. Transcripts and verifier output stay in the jobs directory.

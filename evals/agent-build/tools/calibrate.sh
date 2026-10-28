@@ -53,6 +53,32 @@ COHORT=(
   "opencode|zai/glm-5.2|||openai_chat_completions"
 )
 
+# PARALLEL=n runs up to n jobs at once. Each job is a separate Harbor run in
+# its own sandbox, so the cap protects the gateway budget and the sandbox
+# quota rather than this machine. The default runs one at a time.
+PARALLEL=${PARALLEL:-1}
+
+# MODELS=a,b keeps only the cohort rows for those models, for example to
+# screen a draft task on two models before it runs on the full cohort.
+if [ -n "${MODELS:-}" ]; then
+  kept=()
+  for row in "${COHORT[@]}"; do
+    IFS='|' read -r _ model _ <<< "$row"
+    case ",$MODELS," in *",$model,"*) kept+=("$row") ;; esac
+  done
+  COHORT=("${kept[@]}")
+fi
+
+# True when a job directory name belongs to a row of the (filtered) cohort.
+in_cohort() {
+  local row agent model
+  for row in "${COHORT[@]}"; do
+    IFS='|' read -r agent model _ <<< "$row"
+    case "$1" in "${name}__${agent}__${model//\//-}" | "${name}__${agent}__${model//\//-}__"*) return 0 ;; esac
+  done
+  return 1
+}
+
 if [ "${1:-}" = "--summary" ]; then
   jobs=$2
   printf '%-34s %-14s %-32s %s\n' task agent model reward
@@ -128,6 +154,7 @@ if [ -n "$REGRADE" ]; then
       job=${job%/}
       [ -f "$job/result.json" ] || continue
       node -e 'process.exit(require(process.argv[1]).finished_at ? 0 : 1)' "$job/result.json" || continue
+      in_cohort "$(basename "$job")" || continue
       verifier=$base_task
       case "$job" in *__agents-md) TREATMENT=agents-md verifier=$(treat "$base_task") ;; esac
       echo "== regrade $(basename "$job")"
@@ -230,8 +257,14 @@ for task in "$@"; do
       IFS=',' read -ra pairs <<< "$options"
       for pair in "${pairs[@]}"; do args+=(--agent-kwarg "$pair"); done
     fi
-    "$HARBOR" "${args[@]}" > "$JOBS/$job.log" 2>&1 || echo "   harbor exited non-zero; see $JOBS/$job.log"
+    if [ "$PARALLEL" -gt 1 ]; then
+      while [ "$(jobs -rp | wc -l)" -ge "$PARALLEL" ]; do sleep 5; done
+      { "$HARBOR" "${args[@]}" > "$JOBS/$job.log" 2>&1 || echo "   harbor exited non-zero; see $JOBS/$job.log"; } &
+    else
+      "$HARBOR" "${args[@]}" > "$JOBS/$job.log" 2>&1 || echo "   harbor exited non-zero; see $JOBS/$job.log"
+    fi
   done
 done
+wait
 
 "$0" --summary "$JOBS"
