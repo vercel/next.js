@@ -85,8 +85,8 @@ import {
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import type { RouteIdentity } from '../route-definitions/route-definition'
+import type { TurbopackRoutePublisher } from '../lib/router-utils/turbopack-dev-routes'
 import {
-  createTurbopackDevRouteSnapshot,
   hasTurbopackPage,
   lookupTurbopackRoute,
   lookupTurbopackRouteByPathname,
@@ -420,7 +420,8 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
-  serverFastRefresh?: boolean
+  serverFastRefresh: boolean | undefined,
+  routePublisher: TurbopackRoutePublisher
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -617,9 +618,7 @@ export async function createHotReloaderTurbopack(
     app: new Map(),
   }
 
-  let routeSnapshot:
-    | ReturnType<typeof createTurbopackDevRouteSnapshot>
-    | undefined
+  let routeSnapshot: ReturnType<TurbopackRoutePublisher['install']> | undefined
   let routeGeneration = 0
   let closed = false
 
@@ -1239,20 +1238,19 @@ export async function createHotReloaderTurbopack(
             getStrictRouteMatchingDefaultWarning(nextConfig),
         })
 
+        await routePublisher.publish(hotReloader, entrypoints.value.development)
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
         continue
       }
 
       try {
-        routeSnapshot = createTurbopackDevRouteSnapshot(
-          entrypoints.value,
-          nextConfig
-        )
+        routeSnapshot = routePublisher.install(entrypoints.value)
       } catch (error) {
         // Keep both routing and compiler state from the last valid update.
         // At startup they remain empty until the user fixes the invalid routes.
         Log.warn('Failed to reload dynamic routes:', error)
+        await routePublisher.publish(hotReloader, entrypoints.value.development)
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
         continue
@@ -1318,6 +1316,12 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
+
+      await routePublisher.publish(
+        hotReloader,
+        entrypoints.value.development,
+        true
+      )
 
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.
