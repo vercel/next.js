@@ -127,7 +127,14 @@ impl EcmascriptBrowserChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, mangle)?;
+            code = minify(
+                code,
+                this.chunking_context
+                    .emitted_source_map_type()
+                    .await?
+                    .is_some(),
+                mangle,
+            )?;
         }
 
         Ok(code.cell())
@@ -141,12 +148,7 @@ impl EcmascriptBrowserChunkContent {
             .emitted_source_map_type()
             .await?;
         let code = self.code().await?;
-        if let Some(ty) = emitted_ty {
-            code.validate_source_map_type(ty)?;
-        }
-        Ok(Vc::cell(
-            emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)),
-        ))
+        Ok(Vc::cell(code.should_emit_source_map(emitted_ty)?))
     }
 }
 

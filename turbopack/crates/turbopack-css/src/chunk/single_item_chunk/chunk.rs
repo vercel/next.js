@@ -11,10 +11,9 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::Introspectable,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapType},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 
-use super::source_map::SingleItemCssChunkSourceMapAsset;
 use crate::chunk::{CssChunkItem, write_import_context};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
@@ -44,6 +43,16 @@ impl SingleItemCssChunk {
 
 #[turbo_tasks::value_impl]
 impl SingleItemCssChunk {
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        Ok(SourceMapAsset::new(
+            *self.await?.chunking_context,
+            self.ident_for_path(),
+            Vc::upcast(self),
+            rcstr!(".single.css"),
+        ))
+    }
+
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         use std::io::Write;
@@ -92,11 +101,7 @@ impl OutputAssetsReference for SingleItemCssChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(ResolvedVc::upcast(
-                SingleItemCssChunkSourceMapAsset::new(self)
-                    .to_resolved()
-                    .await?,
-            ));
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
             references,
@@ -142,14 +147,11 @@ impl Asset for SingleItemCssChunk {
             .chunking_context
             .emitted_source_map_type()
             .await?;
-        if let Some(ty) = emitted_ty {
-            code.validate_source_map_type(ty)?;
-        }
-        let rope = if emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)) {
+        let rope = if code.should_emit_source_map(emitted_ty)? {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
             rope_builder.concat(code.source_code());
-            let source_map_path = SingleItemCssChunkSourceMapAsset::new(self).path().await?;
+            let source_map_path = self.source_map().path().await?;
             write!(
                 rope_builder,
                 "\n/*# sourceMappingURL={}*/",

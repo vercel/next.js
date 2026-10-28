@@ -46,10 +46,7 @@ impl EcmascriptBrowserChunk {
             Vc::upcast(*this.chunking_context),
             this.ident_for_path().await?,
             Vc::upcast(self),
-            this.chunking_context
-                .emitted_source_map_type()
-                .await?
-                .unwrap_or_default(),
+            rcstr!(".js"),
         ))
     }
 }

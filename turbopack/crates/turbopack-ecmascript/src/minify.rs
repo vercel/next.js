@@ -29,13 +29,13 @@ use tracing::instrument;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::SourceMaps,
+    source_map::{SourceMaps, structured::StructuredSourceMap},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(code: Code, emit_source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
     let original_maps = code.source_maps()?;
@@ -151,7 +151,7 @@ pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
     };
 
     src_map_buf.shrink_to_fit();
-    let source_maps = original_maps.try_map(|original_map| {
+    let mut source_maps = original_maps.try_map(|original_map| {
         generate_js_source_map(
             &*cm,
             &src_map_buf,
@@ -162,6 +162,11 @@ pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
             &source_map_names,
         )
     })?;
+    if emit_source_maps && matches!(source_maps, SourceMaps::None) {
+        source_maps = SourceMaps::Shared(StructuredSourceMap::from_swc_map(
+            swc_sourcemap::SourceMapBuilder::new(None).into_sourcemap(),
+        )?);
+    }
     let mut builder = CodeBuilder::new(generate_debug_id);
     builder.push_source(&src.into(), source_maps);
     Ok(builder.build())
@@ -221,7 +226,7 @@ mod tests {
             &Rope::from("console.log(1);"),
             SourceMaps::Shared(SourceMap::empty_rope()),
         );
-        let minified = minify(code.build(), None)?;
+        let minified = minify(code.build(), false, None)?;
         assert!(matches!(minified.source_maps()?, SourceMaps::Shared(_)));
         Ok(())
     }
@@ -230,7 +235,7 @@ mod tests {
     fn preserves_disabled_maps() -> anyhow::Result<()> {
         let mut code = CodeBuilder::new(false);
         code += "console.log(1);";
-        let minified = minify(code.build(), None)?;
+        let minified = minify(code.build(), false, None)?;
         assert!(!minified.has_source_map());
         Ok(())
     }

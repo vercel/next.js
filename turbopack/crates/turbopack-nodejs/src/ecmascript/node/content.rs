@@ -88,7 +88,14 @@ impl EcmascriptNodeChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
-            code = minify(code, mangle)?;
+            code = minify(
+                code,
+                self.chunking_context
+                    .emitted_source_map_type()
+                    .await?
+                    .is_some(),
+                mangle,
+            )?;
         }
 
         Ok(code.cell())

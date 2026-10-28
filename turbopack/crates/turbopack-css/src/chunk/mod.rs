@@ -1,5 +1,4 @@
 pub(crate) mod single_item_chunk;
-pub mod source_map;
 
 use std::fmt::Write;
 
@@ -30,13 +29,13 @@ use turbopack_core::{
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
     source_map::{
-        GenerateSourceMap, SourceMapType, SourceMaps,
+        GenerateSourceMap, SourceMapAsset, SourceMapType, SourceMaps,
         structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
 
-use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
+use self::single_item_chunk::chunk::SingleItemCssChunk;
 use crate::ImportAssetReference;
 
 #[turbo_tasks::value]
@@ -62,6 +61,16 @@ impl CssChunk {
     #[turbo_tasks::function]
     fn chunk_content(&self) -> Vc<CssChunkContent> {
         *self.content
+    }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        Ok(SourceMapAsset::new(
+            *self.await?.chunking_context,
+            self.ident_for_path(),
+            Vc::upcast(self),
+            rcstr!(".css"),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -148,14 +157,11 @@ impl CssChunk {
             .chunking_context
             .emitted_source_map_type()
             .await?;
-        if let Some(ty) = emitted_ty {
-            code.validate_source_map_type(ty)?;
-        }
-        let rope = if emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)) {
+        let rope = if code.should_emit_source_map(emitted_ty)? {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
             rope_builder.concat(code.source_code());
-            let source_map_path = CssChunkSourceMapAsset::new(self).path().await?;
+            let source_map_path = self.source_map().path().await?;
             write!(
                 rope_builder,
                 "/*# sourceMappingURL={}*/",
@@ -290,9 +296,7 @@ impl OutputAssetsReference for CssChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            Some(ResolvedVc::upcast(
-                CssChunkSourceMapAsset::new(self).to_resolved().await?,
-            ))
+            Some(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         } else {
             None
         };

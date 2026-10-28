@@ -85,7 +85,11 @@ impl EcmascriptBrowserRuntimeChunk {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *chunking_context.minify_type().await? {
-            code = minify(code, mangle)?;
+            code = minify(
+                code,
+                chunking_context.emitted_source_map_type().await?.is_some(),
+                mangle,
+            )?;
         }
 
         Ok(code.cell())
@@ -109,10 +113,7 @@ impl EcmascriptBrowserRuntimeChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
-            this.chunking_context
-                .emitted_source_map_type()
-                .await?
-                .unwrap_or_default(),
+            rcstr!(".js"),
         ))
     }
 }

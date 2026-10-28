@@ -120,6 +120,12 @@ impl Code {
         self.mappings.is_complete(ty) && self.mappings.has_source_map()
     }
 
+    pub fn should_emit_source_map(&self, ty: Option<SourceMapType>) -> Result<bool> {
+        let Some(ty) = ty else { return Ok(false) };
+        self.validate_source_map_type(ty)?;
+        Ok(self.has_source_map())
+    }
+
     pub fn source_maps(&self) -> Result<SourceMaps<Rope>> {
         let full = self.has_source_map_for(SourceMapType::Full);
         let partial = self.has_source_map_for(SourceMapType::Partial);
@@ -160,10 +166,7 @@ impl Code {
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<Rope> {
         let code = self.await?;
-        if let Some(ty) = emitted_source_map_ty {
-            code.validate_source_map_type(ty)?;
-        }
-        let emit_source_map = emitted_source_map_ty.is_some_and(|ty| code.has_source_map_for(ty));
+        let emit_source_map = code.should_emit_source_map(emitted_source_map_ty)?;
         Ok(if emit_source_map || code.should_generate_debug_id() {
             let mut rope_builder = RopeBuilder::default();
             let debug_id = self.debug_id().await?;
@@ -268,11 +271,6 @@ impl CodeBuilder {
     pub fn push_code(&mut self, prebuilt: &Code) {
         self.mappings.append(self.code.len(), &prebuilt.mappings);
         self.code += &prebuilt.code;
-    }
-
-    /// Tests if any code in this CodeBuilder contains an associated source map.
-    pub fn has_source_map(&self) -> bool {
-        self.mappings.has_source_map()
     }
 
     pub fn build(self) -> Code {

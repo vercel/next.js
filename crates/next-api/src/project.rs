@@ -2867,15 +2867,6 @@ impl Project {
         }
     }
 
-    #[turbo_tasks::function]
-    pub async fn with_next_config(&self, next_config: Vc<NextConfig>) -> Result<Vc<Self>> {
-        Ok(Self {
-            next_config: next_config.to_resolved().await?,
-            ..(*self).clone()
-        }
-        .cell())
-    }
-
     /// Returns any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`
     #[turbo_tasks::function]
     pub async fn additional_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
