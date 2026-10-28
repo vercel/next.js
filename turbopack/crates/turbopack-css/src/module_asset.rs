@@ -344,9 +344,11 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
         };
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
-            source_maps: SourceMaps {
-                full: if generation.full { map.clone() } else { None },
-                partial: if generation.partial { map } else { None },
+            source_maps: match (generation.full, generation.partial, map) {
+                (true, true, Some(map)) => SourceMaps::Shared(map),
+                (true, false, Some(map)) => SourceMaps::Full(map),
+                (false, true, Some(map)) => SourceMaps::Partial(map),
+                _ => SourceMaps::None,
             },
             options: EcmascriptChunkItemOptions {
                 supports_arrow_functions: *chunking_context

@@ -494,6 +494,7 @@ pub struct ClientChunkingContextOptions {
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub minify_before_chunking: Vc<bool>,
@@ -545,6 +546,7 @@ pub async fn get_client_chunking_context(
         unused_references,
         minify,
         emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
         minify_before_chunking,
@@ -599,6 +601,7 @@ pub async fn get_client_chunking_context(
         MinifyType::NoMinify
     })
     .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
@@ -677,6 +680,7 @@ pub struct ServiceWorkerChunkingContextOptions {
     pub environment: Vc<Environment>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub hash_salt: ResolvedVc<RcStr>,
 }
@@ -693,6 +697,7 @@ pub async fn get_service_worker_chunking_context(
         environment,
         minify,
         emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         hash_salt,
     } = options;
@@ -718,6 +723,7 @@ pub async fn get_service_worker_chunking_context(
         MinifyType::NoMinify
     })
     .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .hash_salt(hash_salt)
     .single_chunk()
     .await?;

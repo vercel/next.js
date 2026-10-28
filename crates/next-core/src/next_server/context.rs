@@ -1025,6 +1025,7 @@ pub struct ServerChunkingContextOptions {
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub minify_before_chunking: Vc<bool>,
@@ -1060,6 +1061,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         unused_references,
         minify,
         emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
         minify_before_chunking,
@@ -1115,6 +1117,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -1176,6 +1179,7 @@ pub async fn get_server_chunking_context(
         unused_references,
         minify,
         emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
         minify_before_chunking,
@@ -1234,6 +1238,7 @@ pub async fn get_server_chunking_context(
         MinifyType::NoMinify
     })
     .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)

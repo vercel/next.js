@@ -34,7 +34,7 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::{SourceMapGenerationOptions, SourceMapType, SourceMaps},
+    source_map::{SourceMap, SourceMaps, SourceMapType},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
@@ -44,21 +44,15 @@ use crate::parse::{IdentCollector, generate_js_source_map};
 pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
-    let generation = SourceMapGenerationOptions {
-        full: code.has_source_map_for(SourceMapType::Full),
-        partial: code.has_source_map_for(SourceMapType::Partial),
-    };
-    anyhow::ensure!(!code.has_source_map() || generation.any(), "Cannot minify code with incompatible source map variants");
-    let original_maps = SourceMaps {
-        full: generation.full.then(|| code.generate_source_map_ref(None, SourceMapType::Full)).transpose()?,
-        partial: generation.partial.then(|| code.generate_source_map_ref(None, SourceMapType::Partial)).transpose()?,
-    };
+    let original_maps = code.source_maps()?;
+    let source_maps = code.has_source_map();
+    anyhow::ensure!(!source_maps || original_maps != SourceMaps::None, "Cannot minify code with incompatible source map variants");
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
     minify_source(
         source_code,
         original_maps,
-        generation,
+        source_maps,
         generate_debug_id,
         mangle,
         MinifyTarget::Program,
@@ -79,21 +73,15 @@ pub fn minify_chunk_item(
     _source_maps: bool,
     mangle: Option<MangleType>,
 ) -> Result<Code> {
-    let generation = SourceMapGenerationOptions {
-        full: code.has_source_map_for(SourceMapType::Full),
-        partial: code.has_source_map_for(SourceMapType::Partial),
-    };
-    anyhow::ensure!(!code.has_source_map() || generation.any(), "Cannot minify code with incompatible source map variants");
-    let original_maps = SourceMaps {
-        full: generation.full.then(|| code.generate_source_map_ref(None, SourceMapType::Full)).transpose()?,
-        partial: generation.partial.then(|| code.generate_source_map_ref(None, SourceMapType::Partial)).transpose()?,
-    };
+    let original_maps = code.source_maps()?;
+    let source_maps = code.has_source_map();
+    anyhow::ensure!(!source_maps || original_maps != SourceMaps::None, "Cannot minify code with incompatible source map variants");
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.source_code().clone().into_bytes())?;
     minify_source(
         source_code,
         original_maps,
-        generation,
+        source_maps,
         generate_debug_id,
         mangle,
         MinifyTarget::ChunkItem,
@@ -128,7 +116,7 @@ const CHUNK_ITEM_SENTINEL: &str = "__TURBOPACK_CHUNK_ITEM__";
 fn minify_source(
     source_code: BytesStr,
     original_maps: SourceMaps<Rope>,
-    generation: SourceMapGenerationOptions,
+    source_maps: bool,
     generate_debug_id: bool,
     mangle: Option<MangleType>,
     target: MinifyTarget,
@@ -176,7 +164,7 @@ fn minify_source(
 
             // Collect identifier names for source maps before minification. Synthetic nodes
             // (the sentinel) have dummy spans and are skipped by the collector.
-            let source_map_names = if generation.any() {
+            let source_map_names = if source_maps {
                 let mut collector = IdentCollector::default();
                 program.visit_with(&mut collector);
                 collector.into_map()
@@ -188,7 +176,7 @@ fn minify_source(
 
             let output = match target {
                 MinifyTarget::Program => {
-                    let (src, src_map_buf) = print(&cm, &program, generation.any())?;
+                    let (src, src_map_buf) = print(&cm, &program, source_maps)?;
                     MinifiedOutput {
                         prefix: None,
                         src,
@@ -222,7 +210,7 @@ fn minify_source(
                         ),
                     };
                     let has_directive = body_starts_with_use_strict(factory);
-                    let (src, src_map_buf) = print(&cm, &*factory, generation.any())?;
+                    let (src, src_map_buf) = print(&cm, &*factory, source_maps)?;
                     let strict_directive = if has_directive {
                         find_leading_use_strict(&src)
                     } else {
@@ -262,7 +250,7 @@ fn minify_source(
 
     let mut builder = CodeBuilder::new(generate_debug_id);
     if let Some(prefix) = prefix {
-        builder.push_source(&format!("{prefix},").into(), SourceMaps::<Rope>::default());
+        builder.push_source(&format!("{prefix},").into(), SourceMaps::<Rope>::None);
     }
     match strict_directive {
         None => builder.push_source(&src.into(), source_map(src_map_buf)?),
@@ -273,7 +261,7 @@ fn minify_source(
             // well), so it is emitted unmapped too. The mappings of the body move into a section
             // starting right after the directive.
             let body_map = mappings_after(&src, src_map_buf, directive.end);
-            builder.push_source(&src[..directive.start].to_string().into(), SourceMaps::<Rope>::default());
+            builder.push_source(&src[..directive.start].to_string().into(), SourceMaps::<Rope>::None);
             builder.push_strict_directive();
             builder.push_source(
                 &src[directive.end..].to_string().into(),
@@ -517,7 +505,7 @@ mod tests {
 
     fn code(src: &str) -> Code {
         let mut builder = CodeBuilder::new(false);
-        builder.push_source(&src.to_string().into(), SourceMaps::<Rope>::default());
+        builder.push_source(&src.to_string().into(), SourceMaps::<Rope>::None);
         builder.build()
     }
 
@@ -570,7 +558,7 @@ mod tests {
             &"function (ctx) { const value = 1; ctx.v(value); }"
                 .to_string()
                 .into(),
-            SourceMaps::<Rope>::default(),
+            SourceMaps::<Rope>::None,
         );
         let out = minify_chunk_item(&builder.build(), true, Some(MangleType::OptimalSize)).unwrap();
         assert!(out.has_source_map());
@@ -667,7 +655,7 @@ mod tests {
         let mut map_bytes = Vec::new();
         map.into_sourcemap().to_writer(&mut map_bytes).unwrap();
         let mut builder = CodeBuilder::new(false);
-        builder.push_source(&src.to_string().into(), Some(Rope::from(map_bytes)));
+        builder.push_source(&src.to_string().into(), SourceMaps::Shared(Rope::from(map_bytes)));
         let factory =
             minify_chunk_item(&builder.build(), true, Some(MangleType::Deterministic)).unwrap();
         assert!(factory.strict_directive().is_some());
@@ -736,5 +724,25 @@ mod tests {
         .unwrap();
         let out = out.source_code().to_str().unwrap().into_owned();
         assert!(out.contains("globalThis.TURBOPACK"), "{out}");
+    }
+    #[test]
+    fn preserves_shared_maps() -> anyhow::Result<()> {
+        let mut code = CodeBuilder::new(false);
+        code.push_source(
+            &Rope::from("console.log(1);"),
+            SourceMaps::Shared(SourceMap::empty_rope()),
+        );
+        let minified = minify(code.build(), None)?;
+        assert!(matches!(minified.source_maps()?, SourceMaps::Shared(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn preserves_disabled_maps() -> anyhow::Result<()> {
+        let mut code = CodeBuilder::new(false);
+        code += "console.log(1);";
+        let minified = minify(code.build(), None)?;
+        assert!(!minified.has_source_map());
+        Ok(())
     }
 }

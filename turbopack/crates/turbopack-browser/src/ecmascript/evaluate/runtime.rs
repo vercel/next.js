@@ -50,7 +50,10 @@ impl EcmascriptBrowserRuntimeChunk {
         let environment = chunking_context.environment();
 
         let output_root_to_root_path = chunking_context.output_root_to_root_path().owned().await?;
-        let asset_context = turbopack::get_runtime_asset_context(environment);
+        let asset_context = turbopack::get_runtime_asset_context(
+            environment,
+            *chunking_context.source_map_generation_options().await?,
+        );
         let runtime_type = *chunking_context.runtime_type().await?;
 
         let mut code = CodeBuilder::new(*chunking_context.debug_ids_enabled().await?);

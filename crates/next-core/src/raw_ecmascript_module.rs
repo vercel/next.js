@@ -253,68 +253,51 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             } else {
                 None
             };
-            code.push_source(
-                content,
-                SourceMaps {
-                    full: if generation.full {
+            let source_maps = if generation.full && generation.partial && source_map.is_none() {
+                SourceMaps::Shared(partial_source_map.unwrap())
+            } else {
+                SourceMaps::new(
+                    if generation.full {
                         source_map.or_else(|| partial_source_map.clone())
                     } else {
                         None
                     },
-                    partial: if generation.partial {
+                    if generation.partial {
                         partial_source_map
                     } else {
                         None
                     },
-                },
-            );
+                )
+            };
+            code.push_source(content, source_maps);
 
             // Add newline in case the raw code had a comment as the last line and no final newline.
             code += "\n})();\n";
 
             let code = code.build();
-            let generate_map = |ty| -> Result<Option<StructuredSourceMap>> {
-                let source_map = if code.has_source_map_for(ty) {
-                    let source_map = code.generate_source_map_ref(None, ty)?;
-
-                    static SECTIONS_REGEX: LazyLock<Regex> =
-                        LazyLock::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
-                    Some(if !SECTIONS_REGEX.is_match(&source_map.to_str()?) {
-                        // This is definitely not an index source map
-                        source_map
-                    } else {
-                        let _span = tracing::span!(
-                            tracing::Level::WARN,
-                            "flattening index source map in RawEcmascriptModule"
-                        )
-                        .entered();
-                        match swc_sourcemap::lazy::decode(&source_map.to_bytes())? {
-                            swc_sourcemap::lazy::DecodedMap::Regular(_) => source_map,
-                            // without flattening the index map, we would get nested index source
-                            // maps in the output chunks, which are
-                            // apparently not supported
-                            swc_sourcemap::lazy::DecodedMap::Index(source_map) => {
-                                let source_map = source_map.flatten()?.into_raw_sourcemap();
-                                let result = serde_json::to_vec(&source_map)?;
-                                Rope::from(result)
-                            }
-                        }
-                    })
+            let source_maps = code.source_maps()?.try_map(|source_map| {
+                static SECTIONS_REGEX: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
+                let source_map = if !SECTIONS_REGEX.is_match(&source_map.to_str()?) {
+                    source_map
                 } else {
-                    None
+                    let _span = tracing::span!(
+                        tracing::Level::WARN,
+                        "flattening index source map in RawEcmascriptModule"
+                    )
+                    .entered();
+                    match swc_sourcemap::lazy::decode(&source_map.to_bytes())? {
+                        swc_sourcemap::lazy::DecodedMap::Regular(_) => source_map,
+                        // Output chunks cannot embed nested index maps.
+                        swc_sourcemap::lazy::DecodedMap::Index(map) => {
+                            Rope::from(serde_json::to_vec(&map.flatten()?.into_raw_sourcemap())?)
+                        }
+                    }
                 };
-
-                source_map
-                    .map(|map| StructuredSourceMap::from_json(&map))
-                    .transpose()
-            };
-            let source_map = generate_map(SourceMapType::Full)?;
-            let partial_source_map = generate_map(SourceMapType::Partial)?;
+                StructuredSourceMap::from_json(&source_map)
+            })?;
             Ok(EcmascriptChunkItemContent {
-                source_maps: SourceMaps {
-                    full: source_map,
-                    partial: partial_source_map,
-                },
+                source_maps,
                 inner_code: code.into_source_code(),
                 options: EcmascriptChunkItemOptions {
                     module_and_exports: true,

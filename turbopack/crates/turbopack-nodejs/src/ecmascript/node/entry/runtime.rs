@@ -98,8 +98,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
             )?;
         }
 
-        let asset_context =
-            turbopack::get_runtime_asset_context(this.chunking_context.environment());
+        let asset_context = turbopack::get_runtime_asset_context(
+            this.chunking_context.environment(),
+            *this
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
+        );
 
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
