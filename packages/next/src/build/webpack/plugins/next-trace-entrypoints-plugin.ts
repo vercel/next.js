@@ -2,7 +2,7 @@ import nodePath from 'path'
 import type { Span } from '../../../trace'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
+import type { NodeFileTraceReasons } from '@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
