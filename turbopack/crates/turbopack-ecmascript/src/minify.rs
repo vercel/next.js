@@ -34,14 +34,14 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::{SourceMap, SourceMaps, SourceMapType},
+    source_map::{SourceMap, SourceMaps, SourceMapType, structured::StructuredSourceMap},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 /// Minify a whole program, typically a finished chunk.
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(code: Code, emit_source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
     let original_maps = code.source_maps()?;
@@ -53,6 +53,7 @@ pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
         source_code,
         original_maps,
         source_maps,
+        emit_source_maps,
         generate_debug_id,
         mangle,
         MinifyTarget::Program,
@@ -70,7 +71,7 @@ pub fn minify(code: Code, mangle: Option<MangleType>) -> Result<Code> {
 #[instrument(level = "info", name = "minify chunk item", skip_all)]
 pub fn minify_chunk_item(
     code: &Code,
-    _source_maps: bool,
+    emit_source_maps: bool,
     mangle: Option<MangleType>,
 ) -> Result<Code> {
     let original_maps = code.source_maps()?;
@@ -82,6 +83,7 @@ pub fn minify_chunk_item(
         source_code,
         original_maps,
         source_maps,
+        emit_source_maps,
         generate_debug_id,
         mangle,
         MinifyTarget::ChunkItem,
@@ -117,6 +119,7 @@ fn minify_source(
     source_code: BytesStr,
     original_maps: SourceMaps<Rope>,
     source_maps: bool,
+    emit_source_maps: bool,
     generate_debug_id: bool,
     mangle: Option<MangleType>,
     target: MinifyTarget,
@@ -236,7 +239,7 @@ fn minify_source(
         strict_directive,
     } = output;
     let source_map = |src_map_buf: Vec<(BytePos, LineCol)>| {
-        original_maps.clone().try_map(|original_map| {
+        let mut maps = original_maps.clone().try_map(|original_map| {
             generate_js_source_map(
                 &*cm,
                 &src_map_buf,
@@ -245,7 +248,13 @@ fn minify_source(
                 false,
                 &source_map_names,
             )
-        })
+        })?;
+        if emit_source_maps && matches!(maps, SourceMaps::None) {
+            maps = SourceMaps::Shared(StructuredSourceMap::from_swc_map(
+                swc_sourcemap::SourceMapBuilder::new(None).into_sourcemap(),
+            )?);
+        }
+        Ok::<_, anyhow::Error>(maps)
     };
 
     let mut builder = CodeBuilder::new(generate_debug_id);
@@ -719,6 +728,7 @@ mod tests {
     fn whole_program_still_keeps_statements() {
         let out = minify(
             code("globalThis.TURBOPACK = [1, function () { return 2 }];"),
+            false,
             Some(MangleType::OptimalSize),
         )
         .unwrap();
@@ -732,7 +742,7 @@ mod tests {
             &Rope::from("console.log(1);"),
             SourceMaps::Shared(SourceMap::empty_rope()),
         );
-        let minified = minify(code.build(), None)?;
+        let minified = minify(code.build(), false, None)?;
         assert!(matches!(minified.source_maps()?, SourceMaps::Shared(_)));
         Ok(())
     }
@@ -741,7 +751,7 @@ mod tests {
     fn preserves_disabled_maps() -> anyhow::Result<()> {
         let mut code = CodeBuilder::new(false);
         code += "console.log(1);";
-        let minified = minify(code.build(), None)?;
+        let minified = minify(code.build(), false, None)?;
         assert!(!minified.has_source_map());
         Ok(())
     }

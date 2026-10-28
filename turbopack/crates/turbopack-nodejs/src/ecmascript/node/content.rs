@@ -89,7 +89,7 @@ impl EcmascriptNodeChunkContent {
             code += suffix;
         }
 
-        let code = minification.finish_chunk(code.build(), false)?;
+        let code = minification.finish_chunk(code.build(), self.chunking_context.emitted_source_map_type().await?.is_some())?;
 
         Ok(code.cell())
     }

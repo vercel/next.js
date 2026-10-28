@@ -131,7 +131,7 @@ impl EcmascriptBrowserChunkContent {
             code += suffix;
         }
 
-        Ok(minification.finish_chunk(code.build(), false)?.cell())
+        Ok(minification.finish_chunk(code.build(), this.chunking_context.emitted_source_map_type().await?.is_some())?.cell())
     }
 
     #[turbo_tasks::function]
@@ -142,12 +142,7 @@ impl EcmascriptBrowserChunkContent {
             .emitted_source_map_type()
             .await?;
         let code = self.code().await?;
-        if let Some(ty) = emitted_ty {
-            code.validate_source_map_type(ty)?;
-        }
-        Ok(Vc::cell(
-            emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)),
-        ))
+        Ok(Vc::cell(code.should_emit_source_map(emitted_ty)?))
     }
 }
 

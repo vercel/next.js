@@ -151,10 +151,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
-            this.chunking_context
-                .emitted_source_map_type()
-                .await?
-                .unwrap_or_default(),
+            rcstr!(".js"),
         ))
     }
 }
