@@ -54,9 +54,8 @@ export interface NftJson extends NftFileList {
 /** Turbopack extension: Paths stored with a different base path. */
 export interface NftAdditionalRoot extends NftFileList {
   /**
-   * Stable unique identifier provided in `next.config.js`. This can be used to
-   * generate the output path where these files are copied, such as
-   * `next_additional_roots/${name}`.
+   * Stable unique identifier. This can be used to generate the output path
+   * where these files are copied, such as `next_additional_roots/${name}`.
    *
    * This uses a character set that is valid on most filesystems, and identifiers
    * are guaranteed not to overlap on case-insensitive filesystems.

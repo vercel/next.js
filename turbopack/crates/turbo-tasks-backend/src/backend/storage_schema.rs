@@ -743,10 +743,10 @@ impl TaskStorage {
     }
 
     /// Encode fields for the specified category
-    pub fn encode<E: bincode::enc::Encoder>(
+    pub fn encode(
         &self,
         category: SpecificTaskDataCategory,
-        encoder: &mut E,
+        encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
     ) -> Result<(), bincode::error::EncodeError> {
         match category {
             SpecificTaskDataCategory::Meta => self.encode_meta(encoder),

@@ -283,11 +283,7 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
           `Removing 'unhandledRejection' listener with name \`${listener.name}\`.`
         )
         // We remove the listener on a dummy event in case it throws. We don't catch it intentionally
-        originalProcessRemoveListener.call(
-          process,
-          MACGUFFIN_EVENT as any,
-          listener
-        )
+        originalProcessRemoveListener.call(process, MACGUFFIN_EVENT, listener)
         const index = underlyingListeners.lastIndexOf(listener)
         if (index > -1) {
           debug?.(`listener found index ${index} and removed.`)
@@ -317,7 +313,7 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
         )
         // We add the listener to a dummy event in case it throws. We don't catch it intentionally
         try {
-          originalProcessOn.call(process, MACGUFFIN_EVENT as any, listener)
+          originalProcessOn.call(process, MACGUFFIN_EVENT, listener)
         } finally {
           // We clean up the added event
           originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)
@@ -358,7 +354,7 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
           `Removing 'unhandledRejection' listener with name \`${listener.name}\`.`
         )
         // We remove the listener on a dummy event in case it throws. We don't catch it intentionally
-        originalProcessOff.call(process, MACGUFFIN_EVENT as any, listener)
+        originalProcessOff.call(process, MACGUFFIN_EVENT, listener)
         const index = underlyingListeners.lastIndexOf(listener)
         if (index > -1) {
           debug?.(`listener found index ${index} and removed.`)
@@ -421,7 +417,7 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
       )
       // We add the listener to a dummy event in case it throws. We don't catch it intentionally
       try {
-        originalProcessOnce.call(process, MACGUFFIN_EVENT as any, listener)
+        originalProcessOnce.call(process, MACGUFFIN_EVENT, listener)
       } finally {
         // We clean up the added event
         originalProcessRemoveAllListeners.call(process, MACGUFFIN_EVENT)

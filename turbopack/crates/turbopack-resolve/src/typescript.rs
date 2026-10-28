@@ -112,7 +112,7 @@ pub async fn read_tsconfigs(
 }
 
 /// Resolves tsconfig files according to TS's implementation:
-/// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
+/// <https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326>
 #[tracing::instrument(skip_all)]
 async fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,

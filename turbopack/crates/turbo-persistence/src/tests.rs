@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 use anyhow::Result;
 #[cfg(not(miri))]
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
 // Miri rejects a process that exits while rayon's global worker threads are still parked, so
@@ -31,6 +31,10 @@ struct RayonParallelScheduler;
 
 #[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
+    fn parallelism(&self) -> usize {
+        rayon::current_num_threads()
+    }
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send,
@@ -67,6 +71,18 @@ impl ParallelScheduler for RayonParallelScheduler {
         E: Send,
     {
         items.into_par_iter().try_for_each(f)
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send,
+    {
+        items.into_par_iter().with_max_len(1).try_for_each(f)
     }
 
     fn try_parallel_for_each_owned<T, E>(
@@ -2497,9 +2513,7 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in
-                StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
-            {
+            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4)? {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
@@ -3178,12 +3192,21 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     // The first commit has nothing to size the shards by, so it uses the initial count.
     commit()?;
     assert_eq!(newest_shard_bits()?, 2);
-    // Without a bottom run yet, the next commit sizes the shards by all files: the tiny family
-    // shrinks to a single shard, far below the initial count.
+    // Without a bottom run yet, the count doesn't shrink, so that the first bottom merges are one
+    // per shard instead of a single large one, even though the tiny family fits in one shard.
     commit()?;
-    assert_eq!(newest_shard_bits()?, 0);
-    // Once compacted, the bottom run is as tiny, so the count stays.
+    assert_eq!(newest_shard_bits()?, 2);
+    // The first bottom merges are split at the initial count.
     db.full_compact()?;
+    let bottom_files = db
+        .meta_info()?
+        .iter()
+        .flat_map(|meta| &meta.entries)
+        .filter(|entry| entry.flags.bottom())
+        .count();
+    assert_eq!(bottom_files, 4);
+    // With bottom runs, the tiny family shrinks to a single shard. That doesn't rewrite anything:
+    // the four bottom runs together are its bottom run.
     commit()?;
     assert_eq!(newest_shard_bits()?, 0);
     for key in 0..1000u32 {
@@ -3280,5 +3303,99 @@ fn commits_with_more_shards_than_collectors_split_files_at_shard_boundaries(
             &key.to_le_bytes()
         );
     }
+    Ok(())
+}
+
+// Writes 10K keys and runs the parallel `batch_get` path on Rayon, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_large_batches(#[case] mmap: bool) -> Result<()> {
+    const KEYS: u32 = 10_000;
+    let value_of = |key: u32, version: u8| -> Vec<u8> {
+        let mut value = vec![version; 8];
+        value[..4].copy_from_slice(&key.to_le_bytes());
+        value
+    };
+    let expected = |key: u32| -> Option<Vec<u8>> {
+        if key >= KEYS || key.is_multiple_of(11) {
+            None
+        } else if key.is_multiple_of(7) {
+            Some(value_of(key, 2))
+        } else {
+            Some(value_of(key, 1))
+        }
+    };
+
+    let tempdir = tempfile::tempdir()?;
+    let db = open_db_with_config::<1>(tempdir.path(), config_with_mmap::<1>(mmap))?;
+
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 1).into())?;
+    }
+    db.commit_write_batch(batch)?;
+    // A second commit adds a newer layer of SST files with overwrites and tombstones.
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        if key.is_multiple_of(11) {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        } else if key.is_multiple_of(7) {
+            batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 2).into())?;
+        }
+    }
+    db.commit_write_batch(batch)?;
+
+    // Batches at and around the parallel threshold, and well above it. Keys are spread over the
+    // key space in a scrambled order, include misses (keys >= KEYS) and duplicates.
+    for batch_size in [2048usize, 2049, 6000] {
+        let extra_keys = [0u32, 0, 1000, KEYS];
+        let keys: Vec<Vec<u8>> = (0..(batch_size - extra_keys.len()) as u32)
+            .map(|i| {
+                (i.wrapping_mul(7919) % (KEYS + KEYS / 10))
+                    .to_be_bytes()
+                    .to_vec()
+            })
+            .chain(extra_keys.map(|key| key.to_be_bytes().to_vec()))
+            .collect();
+        assert_eq!(keys.len(), batch_size);
+        #[cfg(feature = "stats")]
+        let before = db.statistics();
+        let results = db.batch_get(0, &keys)?;
+        assert_eq!(results.len(), batch_size);
+        #[cfg(feature = "stats")]
+        {
+            let after = db.statistics();
+            assert_eq!(
+                (after.hits + after.misses) - (before.hits + before.misses),
+                batch_size as u64,
+                "every key of the batch is counted as exactly one hit or miss"
+            );
+        }
+        for (key, result) in keys.iter().zip(&results) {
+            let key_num = u32::from_be_bytes(key[..].try_into().unwrap());
+            assert_eq!(
+                result.as_deref(),
+                expected(key_num).as_deref(),
+                "batch_get mismatch for key {key_num} in a batch of {batch_size}"
+            );
+            assert_eq!(result.as_deref(), db.get(0, key)?.as_deref());
+        }
+    }
+
+    // Duplicates of a key have the same hash, so they are adjacent and span several chunks.
+    let mut keys = vec![3u32.to_be_bytes().to_vec(); 3000];
+    keys.extend(vec![11u32.to_be_bytes().to_vec(); 600]);
+    let results = db.batch_get(0, &keys)?;
+    assert_eq!(results.len(), keys.len());
+    let (hits, deleted) = results.split_at(3000);
+    assert!(
+        hits.iter()
+            .all(|r| r.as_deref() == Some(&value_of(3, 1)[..]))
+    );
+    assert!(deleted.iter().all(Option::is_none));
+
+    db.shutdown();
     Ok(())
 }

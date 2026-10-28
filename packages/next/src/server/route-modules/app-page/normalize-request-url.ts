@@ -2,6 +2,7 @@ import type { IncomingMessage } from 'http'
 
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
@@ -31,7 +32,8 @@ export function applyAppPageRscRequestMetaFromHeaders(
   addRequestMeta(req as IncomingMessage, 'isRSCRequest', true)
 
   const isPrefetchRequest =
-    getHeaderValue(req.headers[NEXT_ROUTER_PREFETCH_HEADER]) === '1'
+    getHeaderValue(req.headers[NEXT_ROUTER_PREFETCH_HEADER]) ===
+    NEXT_ROUTER_PREFETCH_STATIC
   if (!isPrefetchRequest) {
     return
   }

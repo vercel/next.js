@@ -115,7 +115,6 @@ export interface RenderOptsPartial {
   cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
-  isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (

@@ -213,6 +213,7 @@ export const experimentalSchema = {
       })
     )
     .optional(),
+  turbopackDetectGlobalVirtualStore: z.boolean().optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -443,6 +444,8 @@ export const experimentalSchema = {
       maxMergeChunkSize: z.number().min(0).optional(),
       minComponentChunkSize: z.number().min(0).optional(),
       generateComponentChunks: z.boolean().optional(),
+      minServerChunkSize: z.number().min(0).optional(),
+      maxMergeServerChunkSize: z.number().min(0).optional(),
     })
     .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),

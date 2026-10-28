@@ -529,6 +529,12 @@ export interface ExperimentalConfig {
     string,
     { path: string; ignoreIfMissing?: boolean }
   >
+  /**
+   * Detect pnpm's global virtual store and add it as an additional root. Requires pnpm 11 or later.
+   *
+   * @default false
+   */
+  turbopackDetectGlobalVirtualStore?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -937,7 +943,7 @@ export interface ExperimentalConfig {
      */
     requestCost?: number
     /**
-     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
      * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
      */
     minChunkSize?: number
@@ -947,8 +953,9 @@ export interface ExperimentalConfig {
      */
     maxChunkCountPerGroup?: number
     /**
-     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
-     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
+     * (200 KB).
      */
     maxMergeChunkSize?: number
     /**
@@ -962,6 +969,18 @@ export interface ExperimentalConfig {
      * single remainder chunk. Defaults to `20000` (20 KB).
      */
     minComponentChunkSize?: number
+    /**
+     * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
+     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
+     * apply to Edge runtime chunks.
+     */
+    minServerChunkSize?: number
+    /**
+     * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
+     * (100 KB). Doesn't apply to Edge runtime chunks.
+     */
+    maxMergeServerChunkSize?: number
   }
 
   /**
@@ -2411,8 +2430,7 @@ export const defaultConfig = Object.freeze({
     manualClientBasePath: false,
     cpus: Math.max(
       1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
+      (Number(process.env.CIRCLE_NODE_TOTAL) || os.availableParallelism()) - 1
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,

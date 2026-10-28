@@ -170,6 +170,7 @@ next-taskless = { path = "crates/next-taskless" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
+turbo-bitset = { path = "turbopack/crates/turbo-bitset" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-frozenmap = { path = "turbopack/crates/turbo-frozenmap" }
@@ -214,29 +215,29 @@ turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
-swc_ecma_react_compiler = "25.0.0"
+swc_ecma_react_compiler = "26.0.1"
 react_compiler = "0.1.0"
 
 # SWC crates
-swc_core = { version = "81.0.2", default-features = false, features = [
+swc_core = { version = "82.2.0", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
 
-swc_plugin_backend_wasmtime = "16.0.0"
+swc_plugin_backend_wasmtime = "17.0.0"
 testing = "27.0.0"
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.21.0"
 mdxjs = "1.0.4"
-modularize_imports = "21.0.0"
-styled_components = "21.0.0"
-styled_jsx = "21.0.0"
-swc_emotion = "21.0.0"
-swc_relay = "21.0.0"
-react_remove_properties = "21.0.0"
-remove_console = "21.0.0"
+modularize_imports = "22.0.0"
+styled_components = "22.0.0"
+styled_jsx = "22.0.0"
+swc_emotion = "22.0.0"
+swc_relay = "22.0.0"
+react_remove_properties = "22.0.0"
+remove_console = "22.0.0"
 preset_env_base = "10.0.0"
 
 
@@ -254,6 +255,7 @@ allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
 anyhow = "1.0.100"
+arrayvec = "0.7.6"
 async-trait = "0.1.64"
 base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
@@ -333,7 +335,6 @@ regex = "1.12.3"
 regress = "0.11.1"
 reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.5"
-roaring = "0.11.4"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
 scattered-collect = "0.10.0"
@@ -374,7 +375,7 @@ vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "1.0.6"
 
 [patch.crates-io]
-bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
+bincode = { git = "https://github.com/vercel-labs/bincode-fork.git", branch = "main" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
 # We have to very frequently bump the swc major version of mdxjs-rs
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }

@@ -11,7 +11,6 @@ use std::{
 
 use anyhow::{Context, Result};
 use hashbrown::hash_table;
-use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
@@ -195,7 +194,7 @@ impl TaskDataCategory {
 /// resulting buffer sizes.
 ///
 /// TODO: The `Result` return type is an artifact of the bincode `Encode` trait requiring
-/// fallible encoding. In practice, encoding to a `SmallVec` is infallible (no I/O), and the only
+/// fallible encoding. In practice, encoding to a `Vec` is infallible (no I/O), and the only
 /// real failure mode — a `TypedSharedReference` whose value type has no bincode impl — is a
 /// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
 /// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
@@ -205,7 +204,7 @@ pub(crate) fn encode_task_contents(
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
     scratch_buffer: &mut TurboBincodeBuffer,
-) -> Result<TurboBincodeBuffer> {
+) -> Result<Box<[u8]>> {
     scratch_buffer.clear();
     let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
     data.encode(category, &mut encoder)?;
@@ -223,7 +222,7 @@ pub(crate) fn encode_task_contents(
                 )
             })?;
     }
-    Ok(SmallVec::from_slice(scratch_buffer))
+    Ok(Box::from(&scratch_buffer[..]))
 }
 
 /// Converts a task's current state into the [`SnapshotItem`] that persistence writes for it.
@@ -347,7 +346,7 @@ pub struct Storage {
     /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
     /// This is backed by the TaskCache table in the database.
     ///
-    /// LockOrdering: See the comments on [map].
+    /// LockOrdering: See the comments on [`map`](Self::map).
     pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
 }
 
@@ -1349,7 +1348,7 @@ mod tests {
     ) -> SnapshotItem {
         SnapshotItem::Put {
             task_id,
-            meta: Some(TurboBincodeBuffer::default()),
+            meta: Some(Box::default()),
             data: None,
             task_type_hash: None,
             #[cfg(feature = "print_cache_item_size")]

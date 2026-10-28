@@ -2918,10 +2918,9 @@ function pushTreeId(workInProgress, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     treeContextId =
@@ -13996,7 +13995,10 @@ function dispatchEventForPluginEventSystem(
           case ANIMATION_START:
             SyntheticEventCtor = SyntheticAnimationEvent;
             break;
+          case TRANSITION_CANCEL:
           case TRANSITION_END:
+          case TRANSITION_RUN:
+          case TRANSITION_START:
             SyntheticEventCtor = SyntheticTransitionEvent;
             break;
           case "scroll":
@@ -18547,14 +18549,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2051 = React.version;
 if (
-  "19.3.0-canary-99c106c4-20261014" !==
+  "19.3.0-canary-dc9aed36-20261027" !==
   isomorphicReactPackageVersion$jscomp$inline_2051
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2051,
-      "19.3.0-canary-99c106c4-20261014"
+      "19.3.0-canary-dc9aed36-20261027"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18576,10 +18578,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2599 = {
   bundleType: 0,
-  version: "19.3.0-canary-99c106c4-20261014",
+  version: "19.3.0-canary-dc9aed36-20261027",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-99c106c4-20261014"
+  reconcilerVersion: "19.3.0-canary-dc9aed36-20261027"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2600 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -18677,4 +18679,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-99c106c4-20261014";
+exports.version = "19.3.0-canary-dc9aed36-20261027";
