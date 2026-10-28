@@ -1,4 +1,7 @@
 pub trait ParallelScheduler: Clone + Sync + Send {
+    /// The number of tasks this scheduler can run at the same time. Always at least 1.
+    fn parallelism(&self) -> usize;
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send;
@@ -71,6 +74,10 @@ pub trait ParallelScheduler: Clone + Sync + Send {
 pub struct SerialScheduler;
 
 impl ParallelScheduler for SerialScheduler {
+    fn parallelism(&self) -> usize {
+        1
+    }
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send,

@@ -31,6 +31,10 @@ struct RayonParallelScheduler;
 
 #[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
+    fn parallelism(&self) -> usize {
+        rayon::current_num_threads()
+    }
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send,

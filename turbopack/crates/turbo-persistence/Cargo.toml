@@ -37,6 +37,7 @@ serde_json = { workspace = true }
 smallvec = { workspace = true }
 thread_local = { workspace = true }
 tracing = { workspace = true }
+turbo-bitset = { workspace = true }
 xxhash-rust = { workspace = true }
 
 # Compression is skipped under Miri.

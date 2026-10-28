@@ -29,6 +29,7 @@ use rustc_hash::{FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
+use turbo_bitset::Bitset;
 
 pub use crate::compaction::selector::CompactConfig;
 #[cfg(feature = "mmap")]
@@ -36,7 +37,6 @@ use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
     DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
-    chunk_bit_set::ChunkBitSet,
     compaction::selector::{Compactable, MergeJob, plan_compaction},
     compression::{Compression, checksum_block, decompress_into_arc},
     concurrent_slice::ConcurrentSlice,
@@ -310,9 +310,9 @@ impl Drop for WriteOperationGuard<'_> {
 /// scheduling overhead.
 const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 
-/// The maximum number of keys in a chunk of [`TurboPersistence::batch_get`]. A chunk is the unit of
-/// parallel work and never crosses a shard boundary.
-const MAX_BATCH_GET_CHUNK_LEN: usize = ChunkBitSet::CAPACITY;
+/// When [`TurboPersistence::batch_get`] runs in parallel, it aims for this many chunks per task
+/// that the scheduler can run at the same time, like `turbo_tasks::util::good_chunk_size`.
+const BATCH_GET_CHUNKS_PER_TASK: usize = 4;
 
 /// A chunk of keys looked up by [`TurboPersistence::batch_get`]. All keys belong to the same shard.
 struct BatchGetChunk<'l> {
@@ -322,16 +322,24 @@ struct BatchGetChunk<'l> {
     counts: BatchGetCounts,
 }
 
-/// Splits `cells`, which are sorted by key hash, into chunks of at most
-/// [`MAX_BATCH_GET_CHUNK_LEN`] contiguous cells that don't cross a shard boundary. The cells of
-/// each shard are split into chunks of nearly equal length. The counts of the chunks are zero.
-fn batch_get_chunks(cells: &[(u64, u32)], shard_bits: ShardBits) -> Vec<BatchGetChunk<'_>> {
-    let mut chunks = Vec::with_capacity(cells.len().div_ceil(MAX_BATCH_GET_CHUNK_LEN));
+/// Splits `cells`, which are sorted by key hash, into chunks of contiguous cells that don't cross a
+/// shard boundary, aiming for `target_chunk_count` chunks in total. Every shard is split into
+/// chunks of nearly equal length, none of which is longer than
+/// `cells.len().div_ceil(target_chunk_count)`. So there are at most `target_chunk_count` chunks
+/// plus one per shard. The counts of the chunks are zero.
+fn split_into_batch_chunks(
+    cells: &[(u64, u32)],
+    shard_bits: ShardBits,
+    target_chunk_count: usize,
+) -> Vec<BatchGetChunk<'_>> {
+    let max_chunk_len = cells.len().div_ceil(target_chunk_count.max(1)).max(1);
+    // There can't be more chunks than cells, even if the target asks for more.
+    let mut chunks = Vec::with_capacity(target_chunk_count.min(cells.len()));
     let mut rest = cells;
     while let Some(&(first_hash, _)) = rest.first() {
         let shard = shard_bits.shard_of(first_hash);
         let shard_len = rest.partition_point(|(hash, _)| shard_bits.shard_of(*hash) == shard);
-        let chunk_count = shard_len.div_ceil(MAX_BATCH_GET_CHUNK_LEN);
+        let chunk_count = shard_len.div_ceil(max_chunk_len);
         let (base_len, longer_chunks) = (shard_len / chunk_count, shard_len % chunk_count);
         for chunk in 0..chunk_count {
             let len = base_len + usize::from(chunk < longer_chunks);
@@ -2469,7 +2477,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .all(|meta| meta.family() as usize == family),
             "meta file stored in the wrong family shard while querying family {family}"
         );
-        let mut chunks = batch_get_chunks(&cells, inner.shard_indices[family].bits());
+        let parallel = keys.len() > PARALLEL_BATCH_GET_THRESHOLD;
+        // Without parallelism, one chunk per shard keeps the overhead low.
+        let target_chunk_count = if parallel {
+            self.parallel_scheduler
+                .parallelism()
+                .max(1)
+                .saturating_mul(BATCH_GET_CHUNKS_PER_TASK)
+        } else {
+            1
+        };
+        let mut chunks = split_into_batch_chunks(
+            &cells,
+            inner.shard_indices[family].bits(),
+            target_chunk_count,
+        );
         let mut results: Vec<Option<ArcBytes>> = vec![None; keys.len()];
         let results_writer = ConcurrentSlice::new(&mut results);
         let lookup_chunk = |chunk: &mut BatchGetChunk<'_>| {
@@ -2483,7 +2505,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 value_block_cache,
             )
         };
-        if keys.len() > PARALLEL_BATCH_GET_THRESHOLD {
+        if parallel {
             self.parallel_scheduler
                 .try_parallel_for_each_task_mut(&mut chunks, lookup_chunk)?;
         } else {
@@ -2522,9 +2544,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             counts,
         } = chunk;
         let cells: &[(u64, u32)] = cells;
-        debug_assert!(cells.len() <= ChunkBitSet::CAPACITY);
-        // Whether a key was found in a newer SST file already, by position in `cells`.
-        let mut resolved = ChunkBitSet::new();
+        // The positions in `cells` of the keys found in a newer SST file already, and their count.
+        let mut resolved = Bitset::new();
+        let mut resolved_count = 0;
         let mut on_found = |position: usize, value: LookupValue| -> Result<()> {
             let (hash, index) = cells[position];
             inner.accessed_key_hashes[family].insert(hash);
@@ -2584,6 +2606,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     keys,
                     cells,
                     &mut resolved,
+                    &mut resolved_count,
                     key_block_cache,
                     value_block_cache,
                     &mut on_found,
@@ -2594,13 +2617,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 lookup_counts.quick_filter_misses += _result.quick_filter_misses;
                 lookup_counts.sst_misses += _result.sst_misses;
             }
-            if resolved.len() == cells.len() {
+            if resolved_count == cells.len() {
                 break;
             }
         }
         // `on_found` borrows `counts`.
         drop(on_found);
-        counts.not_found += cells.len() - resolved.len();
+        counts.not_found += cells.len() - resolved_count;
         #[cfg(feature = "stats")]
         {
             counts.range_misses += lookup_counts.range_misses;
@@ -2885,7 +2908,7 @@ pub struct MetaFileEntryInfo {
 }
 
 #[cfg(test)]
-mod batch_get_chunks_tests {
+mod split_into_batch_chunks_tests {
     use super::*;
 
     /// Cells for `count` keys in each shard of `counts`, with 4 shard bits.
@@ -2901,19 +2924,22 @@ mod batch_get_chunks_tests {
         (cells, bits)
     }
 
-    #[test]
-    fn chunks_cover_cells_within_shards() {
-        let counts = [0, 1, 256, 257, 2049, 0, 3, 512, 1000];
-        let (cells, bits) = cells(&counts);
-        let chunks = batch_get_chunks(&cells, bits);
+    /// Checks that `chunks` cover `cells` contiguously without crossing a shard boundary, with zero
+    /// counts, and returns the chunk lengths of each shard of `counts`.
+    fn check_chunks(
+        chunks: &[BatchGetChunk<'_>],
+        cells: &[(u64, u32)],
+        bits: ShardBits,
+        counts: &[usize],
+    ) -> Vec<Vec<usize>> {
         let mut next = 0;
-        for chunk in &chunks {
+        for chunk in chunks {
             assert!(
                 std::ptr::eq(chunk.cells.as_ptr(), cells[next..].as_ptr()),
                 "chunks are contiguous"
             );
             next += chunk.cells.len();
-            assert!(!chunk.cells.is_empty() && chunk.cells.len() <= MAX_BATCH_GET_CHUNK_LEN);
+            assert!(!chunk.cells.is_empty());
             let BatchGetCounts {
                 not_found,
                 deleted,
@@ -2930,22 +2956,88 @@ mod batch_get_chunks_tests {
             }
         }
         assert_eq!(next, cells.len(), "chunks cover all cells");
-        for (shard, &count) in counts.iter().enumerate() {
-            let lens = chunks
-                .iter()
-                .filter(|chunk| chunk.shard == shard as u32)
-                .map(|chunk| chunk.cells.len())
-                .collect::<Vec<_>>();
-            assert_eq!(lens.len(), count.div_ceil(MAX_BATCH_GET_CHUNK_LEN));
-            // The chunks of a shard have nearly equal length.
-            if let (Some(min), Some(max)) = (lens.iter().min(), lens.iter().max()) {
-                assert!(max - min <= 1, "{lens:?}");
+        (0..counts.len())
+            .map(|shard| {
+                let lens = chunks
+                    .iter()
+                    .filter(|chunk| chunk.shard == shard as u32)
+                    .map(|chunk| chunk.cells.len())
+                    .collect::<Vec<_>>();
+                // The chunks of a shard have nearly equal length.
+                if let (Some(min), Some(max)) = (lens.iter().min(), lens.iter().max()) {
+                    assert!(max - min <= 1, "{lens:?}");
+                }
+                lens
+            })
+            .collect()
+    }
+
+    #[test]
+    fn chunks_aim_for_target_count() {
+        let counts = [0, 1, 256, 257, 2049, 0, 3, 512, 1000];
+        let (cells, bits) = cells(&counts);
+        let shards = counts.iter().filter(|&&count| count > 0).count();
+        for target in [2, 7, 16, 64, 128, 1000] {
+            let chunks = split_into_batch_chunks(&cells, bits, target);
+            let lens = check_chunks(&chunks, &cells, bits, &counts);
+            let max_len = cells.len().div_ceil(target);
+            assert!(chunks.iter().all(|chunk| chunk.cells.len() <= max_len));
+            assert!(
+                (shards.max(target.min(cells.len()) / 2)..=target + shards).contains(&chunks.len()),
+                "target {target}: {} chunks",
+                chunks.len()
+            );
+            for (lens, &count) in lens.iter().zip(&counts) {
+                assert_eq!(lens.len(), count.div_ceil(max_len), "target {target}");
             }
         }
     }
 
     #[test]
+    fn one_chunk_per_shard_for_target_one() {
+        let counts = [0, 1, 256, 257, 2049, 0, 3, 512, 1000];
+        let (cells, bits) = cells(&counts);
+        for target in [0, 1] {
+            let chunks = split_into_batch_chunks(&cells, bits, target);
+            let lens = check_chunks(&chunks, &cells, bits, &counts);
+            for (lens, &count) in lens.iter().zip(&counts) {
+                let expected: &[usize] = if count == 0 { &[] } else { &[count] };
+                assert_eq!(lens, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn single_shard_splits_into_target_chunks() {
+        let (cells, bits) = cells(&[10_000]);
+        let chunks = split_into_batch_chunks(&cells, bits, 128);
+        check_chunks(&chunks, &cells, bits, &[10_000]);
+        // Chunks of at most `ceil(10_000 / 128) = 79` cells.
+        assert_eq!(chunks.len(), 127);
+    }
+
+    #[test]
+    fn more_chunks_than_cells() {
+        let counts = [3, 0, 2];
+        let (cells, bits) = cells(&counts);
+        let chunks = split_into_batch_chunks(&cells, bits, 64);
+        let lens = check_chunks(&chunks, &cells, bits, &counts);
+        assert_eq!(lens, [vec![1, 1, 1], vec![], vec![1, 1]]);
+    }
+
+    #[test]
+    fn huge_target_creates_one_chunk_per_cell() {
+        let counts = [3, 0, 2];
+        let (cells, bits) = cells(&counts);
+        let chunks = split_into_batch_chunks(&cells, bits, usize::MAX);
+        let lens = check_chunks(&chunks, &cells, bits, &counts);
+        assert_eq!(lens, [vec![1, 1, 1], vec![], vec![1, 1]]);
+    }
+
+    #[test]
     fn no_chunks_for_no_cells() {
-        assert!(batch_get_chunks(&[], ShardBits::new(4)).is_empty());
+        for target in [0, 1, 64, usize::MAX] {
+            assert!(split_into_batch_chunks(&[], ShardBits::new(4), target).is_empty());
+        }
     }
 }
