@@ -6,13 +6,6 @@ import type { Channel as Ipc } from '../types'
 import { type StructuredError } from '../error'
 import { type StackFrame } from '../compiled/stacktrace-parser'
 
-export type BuildModuleRequest = {
-  lookupPath: string
-  request: string
-  expectedPath: string
-  bypassExports: boolean
-}
-
 export type IpcInfoMessage =
   | {
       type: 'dependencies'
@@ -22,7 +15,7 @@ export type IpcInfoMessage =
       buildFilePaths?: string[]
       buildDependencyRequests?: Array<[string, boolean]>
       buildModulePaths?: string[]
-      buildModuleRequests?: BuildModuleRequest[]
+      hasCachedBuildDependencies?: boolean
     }
   | {
       type: 'emittedError'

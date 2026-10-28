@@ -58,6 +58,10 @@ const nextConfig = {
       'test-resolution-loader/aliased': './resolution-loader/wrong.js',
     },
     rules: {
+      '*.cache-test': {
+        loaders: ['./leaf-loader.js'],
+        as: '*.js',
+      },
       '*.ts': {
         loaders: testLoaders,
       },
@@ -80,6 +84,10 @@ const nextConfig = {
       __dirname,
       './resolution-loader/wrong.js'
     )
+    config.module.rules.push({
+      test: /\.cache-test$/,
+      use: ['./leaf-loader.js'],
+    })
     config.module.rules.push({
       test: /\.ts$/,
       use: testLoaders,
