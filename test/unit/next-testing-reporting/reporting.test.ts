@@ -8345,3 +8345,18 @@ it.each([
   },
   150000
 )
+
+it.each(['omitted', 'false', 'one', 'true'])(
+  'finalizes filtered modes only for the actual readonly selection owner: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'filtered-mode-owner.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      actualSelectionOwner: mode === 'true',
+    })
+  }
+)

@@ -224,7 +224,7 @@ export interface CompletedModuleResult {
 export interface RunnerOptions {
   /** Public finalized skip/todo modes; private standalone selection is unchanged. */
   finalizePublicTaskModes?: true
-  /** Actual active readonly File may finalize resolved allowed focus. */
+  /** Actual readonly File owns resolved public selection, including allowed focus. */
   finalizeFocusedPublicTaskModes?: true
   /** The actual assertion snapshot owner, before any file resources execute. */
   prepareSnapshots?(file: File): void | Promise<void>
@@ -525,11 +525,12 @@ export async function runCollected(
   let focusedPublicTaskModes = false
   if (options.finalizePublicTaskModes === true) {
     focusedPublicTaskModes = hasFocusedTests(root)
-    if (!focusedPublicTaskModes)
-      finalizedModes =
-        options.testNamePattern === undefined
-          ? finalizePublicTaskModes(root, tasks)
-          : finalizePublicTaskModes(root, tasks, selected)
+    if (!focusedPublicTaskModes) {
+      if (options.testNamePattern === undefined)
+        finalizedModes = finalizePublicTaskModes(root, tasks)
+      else if (options.finalizeFocusedPublicTaskModes === true)
+        finalizedModes = finalizePublicTaskModes(root, tasks, selected)
+    }
   }
   if (finalizedModes)
     for (const test of selected.keys()) {
