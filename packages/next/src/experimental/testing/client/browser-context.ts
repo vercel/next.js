@@ -414,6 +414,16 @@ function browserElementId(element: Element) {
 const locatorFormatter = createBrowserLocatorFormatter()
 let nativeLocatorElements: (locator: ElementLocator) => Element[]
 
+interface SerializedLocator {
+  selector: string
+  locator: string
+}
+
+interface LocatorCache {
+  _pwSelector?: string
+  _pwLocator?: string
+}
+
 /** Queries execute in the actual document. Input commands stay Playwright-owned. */
 class ElementLocator {
   #nativeElements: () => Element[]
@@ -434,6 +444,27 @@ class ElementLocator {
     return typeof this.description === 'function'
       ? this.description()
       : this.description
+  }
+  toString(): string {
+    return this.selector
+  }
+  asLocator(): string {
+    const cache = this as this & LocatorCache
+    return (cache._pwLocator ||= locatorFormatter.asLocator(
+      cache._pwSelector || this.selector
+    ))
+  }
+  serialize(): SerializedLocator {
+    const cache = this as this & LocatorCache
+    const value = {
+      selector: this.selector,
+      locator: this.asLocator(),
+      _pwSelector: cache._pwSelector,
+    }
+    return value
+  }
+  toJSON(): SerializedLocator {
+    return this.serialize()
   }
   elements() {
     assertBrowserApiScope('browser-native')

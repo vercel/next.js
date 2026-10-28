@@ -5710,3 +5710,41 @@ it.each([
     originalReceiverValuesAndErrors: true,
   })
 })
+
+it.each([
+  'descriptors-values',
+  'cache-fields',
+  'delegation',
+  'formatter-effects',
+])(
+  'serializes real public Locator metadata with pinned effects: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'locator-public-serialization.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      actualSelectorAndFormatterOnly: true,
+      originalReceiverGettersAndArguments: true,
+      freshRuntimeObjectsAndCache: true,
+    })
+  }
+)
+
+it('preserves genuine public Locator serialization declaration fields', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-public-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    programs: 10,
+    accepted: 4,
+    rejected: 6,
+    rootConfigAndGlobalAugmentations: true,
+    realInferredDeclarationTarget: true,
+    genuineTwoFieldPublicShapeOnly: true,
+  })
+}, 40000)

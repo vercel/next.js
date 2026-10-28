@@ -1,0 +1,3 @@
+import { page } from 'vitest/browser'
+const locator = page.getByTestId('target-id')
+const value: ReturnType<typeof locator.serialize> = { selector: 's', locator: 'l', _pwSelector: 'private' };

@@ -1,0 +1,3 @@
+import { page } from 'vitest/browser'
+const locator = page.getByTestId('target-id')
+locator.asLocator('unexpected'); locator.serialize('unexpected');
