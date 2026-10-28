@@ -979,9 +979,6 @@ importers:
 
   bench/nested-deps-app-router-many-pages:
     devDependencies:
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
       fuzzponent:
         specifier: workspace:*
         version: link:../fuzzponent
