@@ -69,6 +69,7 @@ const addCacheBustingSearchParam = async (
 
 // TODO(NAR-423): Migrate to Cache Components.
 // The legacy route segment configs must be migrated before the fixture can build.
+// @force-gate FIXME
 describe('ppr-full', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
