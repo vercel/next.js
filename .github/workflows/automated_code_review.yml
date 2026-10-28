@@ -16,9 +16,31 @@ concurrency:
 
 jobs:
   review:
+    # Runs only for authors who are members of the Vercel GitHub org and are
+    # also on this allowlist of core Next.js contributors.
+    # TODO: Decide how to manage this allowlist. It duplicates the owners in
+    # review/OWNERS, and changing it means editing a privileged workflow.
     if: >-
       github.repository == 'vercel/next.js' &&
       github.event.pull_request.author_association == 'MEMBER' &&
+      contains(fromJSON('[
+        "acdlite",
+        "andrewimm",
+        "aurorascharff",
+        "bgw",
+        "devjiwonchoi",
+        "eps1lon",
+        "icyJoseph",
+        "jamiboym",
+        "lubieowoce",
+        "lukesandberg",
+        "mischnic",
+        "sokra",
+        "styfle",
+        "timneutkens",
+        "unstubbable",
+        "wbinnssmith"
+      ]'), github.event.pull_request.user.login) &&
       github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 55
