@@ -6,6 +6,15 @@ const nextConfig = {
       runtimePlugins: [['./runtime-plugin.js', { marker: 'plugin ran' }]],
       remotes: {
         catalog: `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
+        ...(process.env.MF_REMOTE_MANIFEST
+          ? {
+              catalogManifest: `${process.env.MF_REMOTE_MANIFEST}?v=1#hash`,
+              catalogObject: {
+                manifest: `${process.env.MF_REMOTE_MANIFEST}?v=2`,
+                shareScope: 'default',
+              },
+            }
+          : {}),
         fallbackCatalog: [
           `missingCatalog@${process.env.MF_REMOTE_ORIGIN}/missing/remoteEntry.js`,
           `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
