@@ -8,6 +8,7 @@ use std::{
     env,
     fs::{self, File, Metadata},
     io::{self, BufReader, Read, Seek, SeekFrom, Write},
+    ops::ControlFlow,
     path::{Path, PathBuf},
     sync::Arc,
     thread::{self, JoinHandle},
@@ -216,19 +217,27 @@ impl TraceReader {
     }
 
     pub fn run(&mut self) {
-        let mut read_warning_printed = false;
+        // Failures are retried every 500ms, so only report when the error changes
         let mut last_open_error = None;
+        let mut last_read_error = None;
         loop {
             match File::open(&self.path) {
                 Ok(file) => {
                     last_open_error = None;
-                    if !self.try_read(file) && !read_warning_printed {
-                        println!("Unable to read trace file at {:?}, waiting...", self.path);
-                        read_warning_printed = true;
+                    match self.try_read(file) {
+                        Ok(()) => last_read_error = None,
+                        Err(err) => {
+                            if last_read_error != Some(err.kind()) {
+                                println!(
+                                    "Unable to read trace file at {:?}: {err}, waiting...",
+                                    self.path
+                                );
+                                last_read_error = Some(err.kind());
+                            }
+                        }
                     }
                 }
                 Err(err) => {
-                    // This is retried every 500ms, so only report when the error changes
                     if last_open_error != Some(err.kind()) {
                         println!(
                             "Unable to open trace file at {:?}: {err}, waiting...",
@@ -281,7 +290,9 @@ impl TraceReader {
         })
     }
 
-    fn try_read(&mut self, mut file: File) -> bool {
+    /// Reads the trace file until it is replaced or removed. Returns an error if the file couldn't
+    /// be read.
+    fn try_read(&mut self, mut file: File) -> io::Result<()> {
         println!("Trace file opened");
         let stop_at = env::var("STOP_AT")
             .unwrap_or_default()
@@ -303,16 +314,8 @@ impl TraceReader {
             .seek(SeekFrom::End(0))
             .ok()
             .map(|total| (total, Instant::now()));
-        if file.seek(SeekFrom::Start(0)).is_err() {
-            return false;
-        }
-        let mut file = match self.trace_file_from_file(file) {
-            Ok(f) => f,
-            Err(err) => {
-                println!("Error opening trace file for reading: {err:?}");
-                return false;
-            }
-        };
+        file.seek(SeekFrom::Start(0))?;
+        let mut file = self.trace_file_from_file(file)?;
 
         let mut buffer = Vec::new();
         let mut index = 0;
@@ -323,12 +326,15 @@ impl TraceReader {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
                         self.store.write().optimize();
-                        if let Some(value) = self.wait_for_more_data(
-                            &mut file,
-                            &mut initial_read,
-                            format.as_ref().map(|(f, _)| f),
-                        ) {
-                            return value;
+                        if self
+                            .wait_for_more_data(
+                                &mut file,
+                                &mut initial_read,
+                                format.as_ref().map(|(f, _)| f),
+                            )
+                            .is_break()
+                        {
+                            return Ok(());
                         }
                     } else {
                         // If we have partially consumed some data, and we are at buffer capacity,
@@ -346,7 +352,7 @@ impl TraceReader {
                                 Err(err) => {
                                     println!("Trace file error: {err:?}");
                                     self.wait_for_file_change(&file);
-                                    return true;
+                                    return Ok(());
                                 }
                             };
                             let erased_format = match kind {
@@ -374,7 +380,7 @@ impl TraceReader {
                                 Err(err) => {
                                     println!("Trace file error: {err:?}");
                                     self.wait_for_file_change(&file);
-                                    return true;
+                                    return Ok(());
                                 }
                             }
                             if self.store.want_to_read() {
@@ -423,7 +429,7 @@ impl TraceReader {
                                      Waiting for new file..."
                                 );
                                 self.wait_for_new_file(&mut file);
-                                return true;
+                                return Ok(());
                             }
                         }
                     }
@@ -433,31 +439,35 @@ impl TraceReader {
                         || err.kind() == io::ErrorKind::InvalidInput
                     {
                         self.store.write().optimize();
-                        if let Some(value) = self.wait_for_more_data(
-                            &mut file,
-                            &mut initial_read,
-                            format.as_ref().map(|(f, _)| f),
-                        ) {
-                            return value;
+                        if self
+                            .wait_for_more_data(
+                                &mut file,
+                                &mut initial_read,
+                                format.as_ref().map(|(f, _)| f),
+                            )
+                            .is_break()
+                        {
+                            return Ok(());
                         }
                     } else {
                         // Error reading file, maybe it was removed
-                        println!("Error reading trace file: {err:?}");
-                        return true;
+                        return Err(err);
                     }
                 }
             }
         }
     }
 
+    /// Waits until the file has more data ([`ControlFlow::Continue`]) or was replaced or removed
+    /// ([`ControlFlow::Break`]).
     fn wait_for_more_data(
         &mut self,
         file: &mut TraceFile,
         initial_read: &mut Option<(u64, Instant)>,
         format: Option<&ErasedTraceFormat>,
-    ) -> Option<bool> {
+    ) -> ControlFlow<()> {
         let Ok(pos) = file.stream_position() else {
-            return Some(true);
+            return ControlFlow::Break(());
         };
         if let Some((total, start)) = initial_read.take() {
             // Erase the in-place progress line (printed with a leading `\r` and
@@ -482,17 +492,17 @@ impl TraceReader {
             // No more data to read, sleep for a while to wait for more data
             thread::sleep(Duration::from_millis(100));
             let Ok(mut real_file) = File::open(&self.path) else {
-                return Some(true);
+                return ControlFlow::Break(());
             };
             let Ok(end) = real_file.seek(SeekFrom::End(0)) else {
-                return Some(true);
+                return ControlFlow::Break(());
             };
             if end < pos {
                 // new file
-                return Some(true);
+                return ControlFlow::Break(());
             } else if end != pos {
                 // file has more data
-                return None;
+                return ControlFlow::Continue(());
             }
         }
     }
@@ -612,7 +622,7 @@ mod tests {
         dir: PathBuf,
         path: PathBuf,
         store: Arc<StoreContainer>,
-        thread: Option<JoinHandle<bool>>,
+        thread: Option<JoinHandle<io::Result<()>>>,
     }
 
     impl ReaderFixture {
@@ -627,7 +637,8 @@ mod tests {
                 store: store.clone(),
                 path: path.clone(),
             };
-            let thread = thread::spawn(move || reader.try_read());
+            let file = File::open(&path).unwrap();
+            let thread = thread::spawn(move || reader.try_read(file));
             Self {
                 dir,
                 path,
@@ -650,12 +661,13 @@ mod tests {
                 assert!(start.elapsed() < TIMEOUT, "reader did not return");
                 thread::sleep(Duration::from_millis(20));
             }
-            self.thread.take().unwrap().join().unwrap();
+            self.thread.take().unwrap().join().unwrap().unwrap();
             let mut reader = TraceReader {
                 store: self.store.clone(),
                 path: self.path.clone(),
             };
-            self.thread = Some(thread::spawn(move || reader.try_read()));
+            let file = File::open(&self.path).unwrap();
+            self.thread = Some(thread::spawn(move || reader.try_read(file)));
         }
 
         fn append(&self, data: &[u8]) {
@@ -691,7 +703,9 @@ mod tests {
             if let Some(thread) = self.thread.take() {
                 let result = thread.join();
                 if !thread::panicking() {
-                    result.expect("reader thread panicked");
+                    result
+                        .expect("reader thread panicked")
+                        .expect("reader failed");
                 }
             }
             let _ = std::fs::remove_dir_all(&self.dir);
