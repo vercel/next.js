@@ -10,17 +10,17 @@ See [Run Agent Build evals](./RUN_AGENT_BUILD_EVALS.md) for the runner, credenti
 
 Terminal-Bench, Harbor's own benchmark, publishes the bar these steps follow: its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task; the steps below add only what is specific to Next.js.
 
-Every task goes through the same steps: find a capability, build it around a decision, write a short instruction, grade behavior, validate the grader, then calibrate. A task that skips a step is not ready for review.
+Every task goes through the same steps: find a capability, build it around a decision, write a short instruction, screen a draft on two models, grade behavior, validate the grader, then calibrate and decide. Build the full grader only for drafts that pass the screen. A task that skips a step is not ready for review.
 
 ### 1. Find a capability
 
 Look for work where agents fail on real applications, in this order:
 
-- **Agent Feedback reports** in the Maintainer Agent store. Read the reports behind a finding, not the cluster summary: they say what the agent tried, what the overlay suggested, and what finally worked.
+- **Agent Feedback reports** in the Maintainer Agent store, especially the ones that ended in a wrong workaround. Read the reports behind a finding, not the cluster summary: they say what the agent was building, what it tried, and what it settled for.
 - **Competency tasks that still separate models** (`evals/eval.suites.json`). A harder variant of a capability where weaker models already fail is a better bet than a new topic.
 - **GitHub issues and merged pull requests** that change how an application has to be written, such as a new API, a migration, or a behavior change. A merged change gives a realistic starting point and a known-good result, which is how SelfBench builds its tasks. Grade the behavior the change produces, not the tests that came with it: tests written for one patch import its files and mock its functions, so a correct repair with another structure fails.
 
-Agent Feedback cases are easy to recreate in a small fixture, but a small fixture also makes them easy to find and brute-force. For realistic scale, start from a pinned app in [`vercel/next-benchmarks`](https://github.com/vercel/next-benchmarks): each records its upstream commit, so copy it at that commit and bump the task version when it moves. Adopting a feature across a real app, such as turning on Cache Components, puts many of these cases in one task.
+Difficulty comes from real work at real size. SWE-Bench Pro tasks take an engineer hours to days, with changes across several files in real repositories; a 15-file fixture that needs a 30-line change is easy to brute-force. Prefer a real open-source Next.js app at a pinned commit over a fixture written for the task. The `vercel/next-benchmarks` apps are adapted for performance runs, with stubbed pages and mock data, so they are not usable as they are.
 
 Search `evals/evals/*/PROMPT.md` and `EVAL.ts` first; a larger fixture for a capability the suite already measures is not a harder eval.
 
@@ -46,9 +46,11 @@ Follow Harbor's [instruction guidance](https://docs.harborframework.com/tasks/in
 
 Before implementing, record in `task.toml` the capability, the evidence that it matters, and the owner, and decide whether the task must be held out from model training. Each task's `README.md` has a **Difficulty explanation**, why the task is hard for agents and for which reports, and a **Verification explanation**, which gate checks what, as Terminal-Bench asks. The reference repair is not the only accepted answer; the verifier must accept any repair that meets the instruction.
 
-Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner, not the task. For Next.js, with and without `AGENTS.md` are two real user conditions, not docs versus no docs: `create-next-app` adds `AGENTS.md` by default, older apps usually lack it, and the bundled docs are in `node_modules/next/dist/docs` in both runs. The comparison measures whether pointing the agent at the docs changes the result; with `AGENTS.md` is the product claim, and without it shows how often agents find the docs on their own. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
+### 4. Screen a draft on two models
 
-### 4. Grade behavior
+Before writing the full grader, run the draft (instruction, fixture, reference repair, and a rough check) on one frontier and one weaker model, and read both transcripts. Build the task out only when a model fails for a capability reason, not because of the task or the check. A draft both models solve is dropped or reworked, not run on a full cohort. Benchmarks that stay hard select from many drafts this way: Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each.
+
+### 5. Grade behavior
 
 Use the first row that can prove the requirement, and stop there:
 
@@ -66,7 +68,7 @@ Source checks cover only the constraints the instruction states and behavior can
 
 #### Grading lessons
 
-Read every failure before trusting it. In the first runs of the pilot tasks, four checks rejected correct repairs because they tested something the instruction did not state: server wording for live times, a start-time element in the static HTML, and twice the markup around a value instead of its text. Fix the check, or state the requirement and bump the version, then regrade.
+Read every failure before trusting it. In the first pilot runs, about six checks rejected correct repairs because they tested something the instruction did not state: exact title wording, server wording for live times, a start-time element in the static HTML, and markup around a value instead of its text. Fix the check, or state the requirement and bump the version, then regrade.
 
 Each of these let a wrong repair through until the check changed:
 
@@ -79,7 +81,7 @@ Each of these let a wrong repair through until the check changed:
 - **Compare timestamps with the prerendered value.** Two requests within one second produce the same second-resolution stamp.
 - **State the dependency policy in the instruction and enforce it first.** The verifier has no network and installs the committed lockfile, so an agent that adds a dev dependency to write its own tests fails `tsc` for a reason it was never told. Say so in the instruction and fail dependency changes in the source check with that message, before any other gate.
 
-### 5. Validate the grader
+### 6. Validate the grader
 
 Prove the task measures its contract before reading any model result:
 
@@ -87,16 +89,15 @@ Prove the task measures its contract before reading any model result:
 2. The untouched fixture scores 0 for the intended reason.
 3. The reference repair scores 1.
 4. Every script in `tests/bad-solutions/` scores 0 at the check its header names.
-5. The reference repair scores 1 on repeated runs. A verifier that flakes on a correct solution is wrong; the pilot tasks are graded 8 extra times each.
-6. A framework owner reviews the prompt and verifier together.
+5. The reference repair scores 1 on repeated runs. A verifier that flakes on a correct solution is wrong.
+6. Correct solutions other than the reference score 1. Keep reviewed passing solutions from the screen and earlier runs as known-good cases, so the grader has to accept implementations shaped differently from yours.
+7. A framework owner reviews the prompt and verifier together.
 
 `tests/bad-solutions/` holds one script per shortcut the error page or the feedback reports show agents taking, each starting from the reference files and changing one decision. They are the grader's test suite: a bad repair that scores 1 means the grader is wrong, and an untouched fixture that scores 1 means the task is wrong.
 
-### 6. Screen, then calibrate and decide
+### 7. Calibrate and decide
 
-Before a full cohort, screen the task on one frontier and one weaker model and read both transcripts. Run the full cohort only when the screen shows a failure that comes from capability, not from the task or the grader; a task both models solve is not worth more runs. Benchmarks that stay hard select from many drafts this way: Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each.
-
-After the screen, run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
+Run the task on a fixed cohort of frontier and weaker models with `evals/agent-build/tools/calibrate.sh`, then decide from the result:
 
 1. **Score pass@1 only.** The first valid attempt is the score. Discard and rerun setup, image, sandbox, network, and model transport errors; an agent that runs out of time is a failure.
 2. **Confirm failures.** Rerun each valid failure twice with `calibrate.sh --confirm` and record whether it repeats. Confirmations never change the score; they show whether a failure is stable.
@@ -113,26 +114,16 @@ One cohort is directional; repeated independent runs are needed before publishin
 
 Public tasks support review and reproducibility. A leakage-resistant headline score needs independently authored private sibling instances in an approved dataset, with exposed instances rotated out. Adding a task here does not publish its scores on nextjs.org/evals; that is a separate decision.
 
+## Context treatments
+
+Context treatments such as `AGENTS.md` or a Skill are optional and belong to the runner, not the task. For Next.js, with and without `AGENTS.md` are two real user conditions, not docs versus no docs: `create-next-app` adds `AGENTS.md` by default, older apps usually lack it, and the bundled docs are in `node_modules/next/dist/docs` in both runs. The comparison measures whether pointing the agent at the docs changes the result; with `AGENTS.md` is the product claim, and without it shows how often agents find the docs on their own. A treatment may add context files but must leave the instruction, application, verifier, model, and runtime unchanged, and a treatment result never moves a task in or out of the curated set.
+
 ## Pull request format
 
-Title starts with `eval:` and names the outcome. Keep the description short
-and in the same shape as other Next.js pull requests:
+Title starts with `eval:` and names the outcome. Keep the description short and in the same shape as other Next.js pull requests:
 
-1. **Summary**: what the change adds and what calibration found, in plain
-   sentences. Then one bullet per task saying what the agent has to get right.
-   No suite label; a task that proves too easy is removed, not relabeled.
-2. **Results**: one line with the Next.js version, attempt policy, and
-   treatments, then the output of
-   `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged:
-   one table with a row for every model in the cohort from the start, a base
-   / AGENTS.md column per task, the totals (Base, + AGENTS.md, Delta), then
-   price per million tokens, tokens, cost, and time per run, so expensive and
-   cheap models compare on the same footing, then pass@1 and cost per run as two bar charts in the same model order,
-   filled in as runs finish. After it, a few sentences on what it means: which failures are real, and whether
-   a task separates models or is saturated. Say "still running" or "not run"
-   rather than leaving the section out.
-3. **Verification**: a short list covering lint, untouched and reference
-   scores, known-bad solutions rejected, and formatting.
+1. **Summary**: what the change adds and what calibration found, in plain sentences, then one bullet per task saying what the agent has to get right. No suite label; a task that proves too easy is removed, not relabeled.
+2. **Results**: one line with the Next.js version, attempt policy, and treatments, then the output of `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged: one table with a row for every cohort model, a base / AGENTS.md column per task, the totals (Base, + AGENTS.md, Delta), and price per million tokens, tokens, cost, and time per run, then pass@1 and cost per run as two bar charts. After it, a few sentences on which failures are real and whether a task separates models or is saturated. Say "still running" or "not run" rather than leaving the section out.
+3. **Verification**: a short list covering lint, untouched and reference scores, known-bad and known-good results, and formatting.
 
-Bump the `version` in `task.toml` whenever the instruction, fixture, or
-verifier changes, so older trials are never compared with newer ones.
+Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so older trials are never compared with newer ones.
