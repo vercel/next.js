@@ -1,23 +1,17 @@
-use std::{
-    cmp::Reverse,
-    hash::Hash,
-    ops::{Deref, DerefMut},
-    sync::LazyLock,
-};
+use std::{cmp::Reverse, hash::Hash, ops::Deref, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use indexmap::map::Entry;
-use roaring::RoaringBitmap;
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
+use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, turbofmt,
 };
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
     chunk::ChunkingType,
@@ -25,81 +19,8 @@ use crate::{
     module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
-#[derive(Clone, Debug, Default, PartialEq, ValueDebugFormat, Encode, Decode)]
-#[repr(transparent)]
-pub struct RoaringBitmapWrapper(#[bincode(with_serde)] pub RoaringBitmap);
-
-impl TaskInput for RoaringBitmapWrapper {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
-
-impl RoaringBitmapWrapper {
-    /// Whether `self` contains bits that are not in `other`
-    ///
-    /// The existing `is_superset` method also returns true for equal sets
-    pub fn is_proper_superset(&self, other: &Self) -> bool {
-        !self.is_subset(other)
-    }
-
-    pub fn into_inner(self) -> RoaringBitmap {
-        self.0
-    }
-}
-unsafe impl NonLocalValue for RoaringBitmapWrapper {}
-
-// RoaringBitmap doesn't impl Eq: https://github.com/RoaringBitmap/roaring-rs/issues/302
-// PartialEq can only return true if both bitmaps have the same internal representation, but two
-// bitmaps with the same content should always have the same internal representation
-impl Eq for RoaringBitmapWrapper {}
-
-impl Deref for RoaringBitmapWrapper {
-    type Target = RoaringBitmap;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for RoaringBitmapWrapper {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl Hash for RoaringBitmapWrapper {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        struct HasherWriter<'a, H: std::hash::Hasher>(&'a mut H);
-        impl<H: std::hash::Hasher> std::io::Write for HasherWriter<'_, H> {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                self.0.write(buf);
-                Ok(buf.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        self.0.serialize_into(HasherWriter(state)).unwrap();
-    }
-}
-
-impl DeterministicHash for RoaringBitmapWrapper {
-    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        struct HasherWriter<'a, H: DeterministicHasher>(&'a mut H);
-        impl<H: DeterministicHasher> std::io::Write for HasherWriter<'_, H> {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                self.0.write_bytes(buf);
-                Ok(buf.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        // The serialized form is stable across platforms, unlike the in-memory representation.
-        self.0.serialize_into(HasherWriter(state)).unwrap();
-    }
-}
-
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>);
 
 #[turbo_tasks::value]
 pub struct ChunkGroupWithIndex {
@@ -154,7 +75,7 @@ pub struct ChunkingHeuristicsInfo {
     ///
     /// Example: `priority_routes = {3, 7}` — chunk groups 3 and 7 are served by a priority
     /// route; any group not in the set (e.g. 4) is not.
-    pub priority_routes: RoaringBitmapWrapper,
+    pub priority_routes: Bitset,
 }
 
 #[turbo_tasks::value_impl]
@@ -619,14 +540,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
 
-        // For each module, the indices in the bitmap store which chunk groups in `chunk_groups_map`
+        // For each module, the indices in the bitset store which chunk groups in `chunk_groups_map`
         // that module is part of.
-        let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
             FxHashMap::default();
-        let mut async_loader_chunk_groups: FxHashMap<
-            ResolvedVc<Box<dyn Module>>,
-            RoaringBitmapWrapper,
-        > = FxHashMap::default();
+        let mut async_loader_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
+            FxHashMap::default();
 
         let module_count = graph
             .graphs
@@ -639,12 +558,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let entries = graph.all_chunk_group_entries().collect::<Vec<_>>();
 
         // First, rank every module in reverse postorder (so that a module is visited after the
-        // modules importing it), and initialize `module_chunk_groups` with empty bitmaps.
-        let module_rank =
-            graph.reverse_postorder_ranks(entries.iter().flat_map(|e| e.entries()))?;
+        // modules importing it), and initialize `module_chunk_groups` with empty bitsets. The ranks
+        // from the entries of the graph are shared with other analyses of this graph.
+        let module_rank = graph.entry_ranks()?;
         module_chunk_groups.reserve(module_rank.len());
         for module in module_rank.keys() {
-            module_chunk_groups.insert(*module, RoaringBitmapWrapper::default());
+            module_chunk_groups.insert(*module, Bitset::new());
         }
 
         // ----
@@ -707,7 +626,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .collect::<FxHashMap<_, _>>();
 
         // `inherits_from[source]` is the set of chunk groups that inherit heuristics from `source`.
-        let mut inherits_from: FxHashMap<u32, RoaringBitmap> = FxHashMap::default();
+        let mut inherits_from: FxHashMap<u32, Bitset> = FxHashMap::default();
 
         let visit_count = graph.traverse_edges_fixed_point_with_priority(
             entries
@@ -724,10 +643,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
              _,
-             module_chunk_groups: &mut FxHashMap<
-                ResolvedVc<Box<dyn Module>>,
-                RoaringBitmapWrapper,
-            >|
+             module_chunk_groups: &mut FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>|
              -> Result<GraphTraversalAction> {
                 enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroupKey>> {
                     Inherit(ResolvedVc<Box<dyn Module>>),
@@ -743,8 +659,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             let parent_groups = module_chunk_groups
                                 .get(&parent)
                                 .context("Module chunk group not found")?;
-                            **async_loader_chunk_groups.entry(node).or_default() |=
-                                &**parent_groups;
+                            *async_loader_chunk_groups.entry(node).or_default() |= parent_groups;
                             ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
                                 ChunkGroupKey::Async(node),
                             )))
@@ -871,17 +786,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             id
                         });
 
-                        let chunk_groups =
-                            RoaringBitmapWrapper(RoaringBitmap::from_iter(chunk_group_ids));
+                        let chunk_groups = Bitset::from_iter(chunk_group_ids);
 
                         // Assign chunk group to the target node (the entry of the chunk group)
                         let bitset = module_chunk_groups
                             .get_mut(&node)
                             .context("Module chunk group not found")?;
-                        if chunk_groups.is_proper_superset(bitset) {
-                            // Add bits from parent, and continue traversal because changed
-                            **bitset |= chunk_groups.into_inner();
-
+                        if bitset.union_with(&chunk_groups) {
+                            // Added bits from parent, continue traversal because changed
                             GraphTraversalAction::Continue
                         } else {
                             // Unchanged, no need to forward to children
@@ -905,13 +817,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 bail!("Module chunk groups not found");
                             };
 
-                            if current_chunk_groups.is_empty() {
-                                // Initial visit, clone instead of merging
-                                *current_chunk_groups = parent_chunk_groups.clone();
-                                GraphTraversalAction::Continue
-                            } else if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
-                                // Add bits from parent, and continue traversal because changed
-                                **current_chunk_groups |= &**parent_chunk_groups;
+                            // On the initial visit, `union_with` copies the parent's chunk groups.
+                            if current_chunk_groups.union_with(parent_chunk_groups) {
+                                // Added bits from parent, continue traversal because changed
                                 GraphTraversalAction::Continue
                             } else {
                                 // Unchanged, no need to forward to children
@@ -950,7 +858,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
             let mut buckets = BTreeMap::default();
             for (module, key) in &module_chunk_groups {
-                if !key.is_empty() {
+                if !key.is_zero() {
                     buckets
                         .entry(key.iter().collect::<Vec<_>>())
                         .or_insert(BTreeSet::new())
@@ -983,8 +891,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         // Resolve per-chunk-group chunking heuristics. Entry
         // chunk groups carry their route's clusters / priority-route flag; other chunk groups
         // inherit the union of clusters (and OR of the flag) from their referencing chunk groups.
-        let mut clusters: Vec<RoaringBitmap> = vec![RoaringBitmap::new(); chunk_groups_map.len()];
-        let mut priority_routes = RoaringBitmap::new();
+        let mut clusters: Vec<Bitset> = vec![Bitset::new(); chunk_groups_map.len()];
+        let mut priority_routes = Bitset::new();
 
         let mut worklist: Vec<usize> = Vec::new();
 
@@ -1002,7 +910,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             if let Some(index) =
                 chunk_groups_map.get_index_of(&ChunkGroupKey::Entry(modules.clone()))
             {
-                if clusters[index].is_empty() && !priority_routes.contains(index as u32) {
+                if clusters[index].is_zero() && !priority_routes.contains(index as u32) {
                     worklist.push(index);
                 }
                 clusters[index].extend(heuristics.clusters.iter().map(|&c| c as u32));
@@ -1024,10 +932,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 }
                 let [source_clusters, target_clusters] =
                     clusters.get_disjoint_mut([source, target]).unwrap();
-                let previous_target_clusters_len = target_clusters.len();
-                *target_clusters |= &*source_clusters;
+                let clusters_changed = target_clusters.union_with(source_clusters);
                 let changed = (source_priority_route && priority_routes.insert(target as u32))
-                    || previous_target_clusters_len != target_clusters.len();
+                    || clusters_changed;
                 if changed {
                     worklist.push(target);
                 }
@@ -1038,7 +945,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .into_iter()
             .map(|bm| bm.iter().map(|id| id as u16).collect())
             .collect();
-        let chunk_group_priority_routes = RoaringBitmapWrapper(priority_routes);
+        let chunk_group_priority_routes = priority_routes;
 
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),

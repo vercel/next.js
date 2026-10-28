@@ -64,8 +64,8 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
-        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateArg, EvaluateContext, EvaluateEntries, EvaluatePool,
+        EvaluationIssue, custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     format::FormattingMode,
@@ -502,13 +502,6 @@ impl WebpackLoadersProcessedAsset {
 
             let source_ident = self.source.ident().await?;
             let resource_fs_path = &source_ident.path;
-            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
-                bail!(
-                    "Resource path \"{}\" needs to be on project filesystem \"{}\"",
-                    resource_fs_path,
-                    project_path
-                );
-            };
             let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
 
             // TODO pass this into additional_invalidation again once we have proper pool handling
@@ -536,14 +529,14 @@ impl WebpackLoadersProcessedAsset {
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
                 args: vec![
-                    ResolvedVc::cell(content),
+                    EvaluateArg::Vc(ResolvedVc::cell(content)),
+                    EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
-                    ResolvedVc::cell(resource_path.to_string().into()),
-                    ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
-                    ResolvedVc::cell(json!(*loaders)),
-                    ResolvedVc::cell(transform.target.await?.to_string().into()),
-                    ResolvedVc::cell(transform.mode.to_string().into()),
-                    ResolvedVc::cell(transform.source_maps.into()),
+                    EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(json!(*loaders))),
+                    EvaluateArg::Vc(ResolvedVc::cell(transform.target.await?.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(transform.source_maps.into())),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
                 loader_names,
@@ -737,7 +730,7 @@ pub struct WebpackLoaderContext {
     pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub args: Vec<ResolvedVc<JsonValue>>,
+    pub args: Vec<EvaluateArg>,
     pub additional_invalidation: ResolvedVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
     /// Used to enrich error messages and issue details so users know which
@@ -792,7 +785,7 @@ impl EvaluateContext for WebpackLoaderContext {
         )
     }
 
-    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
+    fn args(&self) -> &[EvaluateArg] {
         &self.args
     }
 

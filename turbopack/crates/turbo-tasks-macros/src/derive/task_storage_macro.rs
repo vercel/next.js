@@ -3476,8 +3476,8 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
 /// Generate encode/decode methods for TaskStorage serialization.
 ///
 /// Generates four methods:
-/// - `encode_meta<E>(&self, encoder: &mut E)` - Encode meta category fields
-/// - `encode_data<E>(&self, encoder: &mut E)` - Encode data category fields
+/// - `encode_meta(&self, encoder: &mut TurboBincodeEncoder)` - Encode meta category fields
+/// - `encode_data(&self, encoder: &mut TurboBincodeEncoder)` - Encode data category fields
 /// - `decode_meta<D>(&mut self, decoder: &mut D)` - Decode meta category fields
 /// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
 ///
@@ -3535,9 +3535,9 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
         impl TaskStorage {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
-            pub fn encode_meta<E: bincode::enc::Encoder>(
+            pub fn encode_meta(
                 &self,
-                encoder: &mut E,
+                encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_meta_body
                 #encode_meta_flags
@@ -3546,9 +3546,9 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
             /// Encode data category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
-            pub fn encode_data<E: bincode::enc::Encoder>(
+            pub fn encode_data(
                 &self,
-                encoder: &mut E,
+                encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_data_body
                 #encode_data_flags
@@ -3640,8 +3640,9 @@ fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPr
 /// is already a reference from the match arm).
 ///
 /// For non-filtered fields, encodes the value directly.
-/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
-/// This avoids multiple iterations (check non-empty + count + encode).
+/// For filtered collections, reserves the unfiltered length as the length prefix, encodes the
+/// surviving entries in a single pass, then patches the prefix with the actual count. This avoids
+/// both iterating twice (count + encode) and collecting the entries into a temporary `Vec`.
 fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
@@ -3661,40 +3662,35 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
             }
         }
         FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys - collect once then encode
+            // For AutoSet<K>, filter out transient keys
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for key in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                    }
+                    let collection = #value_ref;
+                    turbo_bincode::encode_len_prefixed(encoder, collection.len(), |encoder| {
+                        let mut count = 0usize;
+                        for key in collection.iter().filter(#predicate) {
+                            bincode::Encode::encode(key, encoder)?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
                 }
             }
         }
-        FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys - collect once
+        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+            // For maps, filter out entries with transient keys (or values, for AutoMap)
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
+                    let collection = #value_ref;
+                    turbo_bincode::encode_len_prefixed(encoder, collection.len(), |encoder| {
+                        let mut count = 0usize;
+                        for (key, value) in collection.iter().filter(#predicate) {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
                 }
             }
         }
@@ -3711,8 +3707,8 @@ fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
 
 /// Generate code to encode a lazy field value with index.
 ///
-/// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing index. This avoids multiple iterations over the data.
+/// For filtered fields, writes the index and entries in a single pass and truncates them away
+/// again if every entry was filtered out. This avoids multiple iterations over the data.
 fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed - encode directly
@@ -3736,32 +3732,46 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
             }
         }
         FilterPredicateType::Set => {
-            // Collect once, check if non-empty, then encode
+            // Encode optimistically in a single pass, then roll back the index too if every entry
+            // was filtered out
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for key in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                        }
+                    let start = bincode::enc::Encoder::writer(encoder).buffer.len();
+                    bincode::Encode::encode(&#index, encoder)?;
+                    let count =
+                        turbo_bincode::encode_len_prefixed(encoder, data.len(), |encoder| {
+                            let mut count = 0usize;
+                            for key in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(key, encoder)?;
+                                count += 1;
+                            }
+                            Ok(count)
+                        })?;
+                    if count == 0 {
+                        bincode::enc::Encoder::writer(encoder).buffer.truncate(start);
                     }
                 }
             }
         }
         FilterPredicateType::CounterMap | FilterPredicateType::Map => {
-            // Collect once, check if non-empty, then encode
+            // Encode optimistically in a single pass, then roll back the index too if every entry
+            // was filtered out
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
+                    let start = bincode::enc::Encoder::writer(encoder).buffer.len();
+                    bincode::Encode::encode(&#index, encoder)?;
+                    let count =
+                        turbo_bincode::encode_len_prefixed(encoder, data.len(), |encoder| {
+                            let mut count = 0usize;
+                            for (key, value) in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(key, encoder)?;
+                                bincode::Encode::encode(value, encoder)?;
+                                count += 1;
+                            }
+                            Ok(count)
+                        })?;
+                    if count == 0 {
+                        bincode::enc::Encoder::writer(encoder).buffer.truncate(start);
                     }
                 }
             }

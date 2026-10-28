@@ -36,6 +36,7 @@ macro_rules! impl_auto_marker_trait {
             ::std::time::Duration,
             ::anyhow::Error,
             ::turbo_rcstr::RcStr,
+            ::turbo_bitset::Bitset,
         );
         $crate::marker_trait::impl_marker_trait!($trait: ::std::path::Path, ::std::path::PathBuf);
         $crate::marker_trait::impl_marker_trait!(

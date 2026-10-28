@@ -29,8 +29,9 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        AdditionalRootConfig, DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions,
-        Project, ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
+        AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
+        PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
+        activate_lazy_chunk_operation,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -327,7 +328,7 @@ impl NapiProjectOptions {
             additional_roots: additional_roots
                 .into_iter()
                 .map(|root| AdditionalRootConfig {
-                    key: root.key,
+                    name: AdditionalRootName::Configured(root.key),
                     path: root.path,
                     ignore_if_missing: root.ignore_if_missing.unwrap_or(false),
                 })

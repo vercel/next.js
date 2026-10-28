@@ -91,3 +91,4 @@ evals/agent-results.json
 # Upgrade eval execution artifacts
 evals/next-upgrade/.work/
 evals/next-upgrade/results/
+.env*
