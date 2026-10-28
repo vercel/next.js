@@ -337,7 +337,6 @@ describe('create-next-app prompts', () => {
             'Would you like to use React Compiler?',
             'Would you like to use Tailwind CSS?',
             'Would you like your code inside a',
-            'Would you like to use App Router?',
             'Would you like to use Cache Components?',
             'Would you like to customize the import alias',
             'Would you like to include AGENTS.md',
@@ -417,7 +416,7 @@ describe('create-next-app prompts', () => {
             cwd,
             projectName,
             files: [
-              'pages', // pages router (not app)
+              'app', // always App Router, even with a saved `app: false`
               'package.json',
               'jsconfig.json', // javascript
             ],
