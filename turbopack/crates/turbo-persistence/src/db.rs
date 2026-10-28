@@ -314,6 +314,15 @@ const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 /// that the scheduler can run at the same time, like `turbo_tasks::util::good_chunk_size`.
 const BATCH_GET_CHUNKS_PER_TASK: usize = 4;
 
+/// The number of `usize` blocks that the `SmallVec` storage of [`BatchGetResolved`] holds inline:
+/// enough for the positions of 256 keys on every target.
+const BATCH_GET_RESOLVED_INLINE_BLOCKS: usize = 256 / usize::BITS as usize;
+const _: () = assert!(BATCH_GET_RESOLVED_INLINE_BLOCKS * usize::BITS as usize == 256);
+
+/// The positions of the keys of a [`BatchGetChunk`] that were found already. Chunks of up to 256
+/// keys store it inline in a `SmallVec`, without a heap allocation.
+pub(crate) type BatchGetResolved = Bitset<SmallVec<[usize; BATCH_GET_RESOLVED_INLINE_BLOCKS]>>;
+
 /// A chunk of keys looked up by [`TurboPersistence::batch_get`]. All keys belong to the same shard.
 struct BatchGetChunk<'l> {
     shard: u32,
@@ -2545,7 +2554,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         } = chunk;
         let cells: &[(u64, u32)] = cells;
         // The positions in `cells` of the keys found in a newer SST file already, and their count.
-        let mut resolved = Bitset::new();
+        // The set covers every position up front, so lookups never grow it.
+        let mut resolved = BatchGetResolved::with_len(
+            u32::try_from(cells.len()).expect("batch_get limits the number of keys to u32::MAX"),
+        );
         let mut resolved_count = 0;
         let mut on_found = |position: usize, value: LookupValue| -> Result<()> {
             let (hash, index) = cells[position];

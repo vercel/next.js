@@ -14,13 +14,13 @@ use byteorder::{BE, ReadBytesExt};
 use fs_err::File;
 #[cfg(feature = "mmap")]
 use memmap2::{Mmap, MmapOptions};
-use turbo_bitset::Bitset;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 #[cfg(feature = "mmap")]
 use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
+    db::BatchGetResolved,
     lookup_entry::LookupValue,
     shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -627,7 +627,7 @@ impl MetaFile {
         range: &StaticSortedFileRange,
         keys: &[K],
         cells: &[(u64, u32)],
-        resolved: &mut Bitset,
+        resolved: &mut BatchGetResolved,
         resolved_count: &mut usize,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
