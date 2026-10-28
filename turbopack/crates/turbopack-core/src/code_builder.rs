@@ -216,20 +216,11 @@ impl Code {
 }
 
 /// CodeBuilder provides a mutable container to append source code.
+#[derive(Default)]
 pub struct CodeBuilder {
     code: RopeBuilder,
     mappings: Mappings,
     should_generate_debug_id: bool,
-}
-
-impl Default for CodeBuilder {
-    fn default() -> Self {
-        Self {
-            code: RopeBuilder::default(),
-            mappings: Mappings::default(),
-            should_generate_debug_id: false,
-        }
-    }
 }
 
 impl CodeBuilder {

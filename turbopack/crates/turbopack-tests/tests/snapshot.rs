@@ -799,9 +799,9 @@ async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
             partial: true,
         },
     ] {
-        let context = turbopack::get_runtime_asset_context(environment, generation);
+        let asset_context = turbopack::get_runtime_asset_context(environment, generation);
         let code = StaticEcmascriptCode::new(
-            context,
+            asset_context,
             embed_file_path(rcstr!("shared/runtime/runtime-utils.ts"))
                 .owned()
                 .await?,
