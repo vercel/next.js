@@ -216,12 +216,27 @@ impl TraceReader {
     }
 
     pub fn run(&mut self) {
-        let mut file_warning_printed = false;
+        let mut read_warning_printed = false;
+        let mut last_open_error = None;
         loop {
-            let read_success = self.try_read();
-            if !file_warning_printed && !read_success {
-                println!("Unable to read trace file at {:?}, waiting...", self.path);
-                file_warning_printed = true;
+            match File::open(&self.path) {
+                Ok(file) => {
+                    last_open_error = None;
+                    if !self.try_read(file) && !read_warning_printed {
+                        println!("Unable to read trace file at {:?}, waiting...", self.path);
+                        read_warning_printed = true;
+                    }
+                }
+                Err(err) => {
+                    // This is retried every 500ms, so only report when the error changes
+                    if last_open_error != Some(err.kind()) {
+                        println!(
+                            "Unable to open trace file at {:?}: {err}, waiting...",
+                            self.path
+                        );
+                        last_open_error = Some(err.kind());
+                    }
+                }
             }
             thread::sleep(Duration::from_millis(500));
         }
@@ -266,10 +281,7 @@ impl TraceReader {
         })
     }
 
-    fn try_read(&mut self) -> bool {
-        let Ok(mut file) = File::open(&self.path) else {
-            return false;
-        };
+    fn try_read(&mut self, mut file: File) -> bool {
         println!("Trace file opened");
         let stop_at = env::var("STOP_AT")
             .unwrap_or_default()
@@ -297,7 +309,7 @@ impl TraceReader {
         let mut file = match self.trace_file_from_file(file) {
             Ok(f) => f,
             Err(err) => {
-                println!("Error opening trace file for reading: {err}");
+                println!("Error opening trace file for reading: {err:?}");
                 return false;
             }
         };
@@ -332,7 +344,7 @@ impl TraceReader {
                                 // Not enough data yet
                                 Ok(None) => continue,
                                 Err(err) => {
-                                    println!("Trace file error: {err}");
+                                    println!("Trace file error: {err:?}");
                                     self.wait_for_file_change(&file);
                                     return true;
                                 }
@@ -360,7 +372,7 @@ impl TraceReader {
                                     index += bytes_read;
                                 }
                                 Err(err) => {
-                                    println!("Trace file error: {err}");
+                                    println!("Trace file error: {err:?}");
                                     self.wait_for_file_change(&file);
                                     return true;
                                 }
