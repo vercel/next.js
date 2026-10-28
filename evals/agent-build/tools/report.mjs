@@ -276,16 +276,18 @@ if (charted.length === 0) {
     x: 0.06 + (0.88 * (Math.log(m.cost) - lo)) / (hi - lo),
     y: 0.06 + (0.88 * m.accuracy) / 100,
   }))
-  // Nudge a point down while it sits on top of one already placed.
+  // Move a point that sits on one already placed to the nearest free spot,
+  // trying below and then above, so the loop always ends inside the chart.
   const placed = []
+  const clashes = (p, y) =>
+    placed.some((q) => Math.abs(q.x - p.x) < 0.3 && Math.abs(q.y - y) < 0.06)
   for (const p of [...points].sort((a, b) => b.y - a.y || a.x - b.x)) {
-    while (
-      placed.some(
-        (q) => Math.abs(q.x - p.x) < 0.3 && Math.abs(q.y - p.y) < 0.06
-      )
-    ) {
-      p.y = Math.max(0.02, p.y - 0.06)
-    }
+    const candidates = [0, 1, 2, 3, 4, 5].flatMap((i) => [
+      p.y - 0.06 * i,
+      p.y + 0.06 * i,
+    ])
+    p.y =
+      candidates.find((y) => y >= 0.02 && y <= 0.98 && !clashes(p, y)) ?? p.y
     placed.push(p)
   }
   console.log('```mermaid')
