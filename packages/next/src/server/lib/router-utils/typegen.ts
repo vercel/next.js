@@ -590,6 +590,8 @@ export function generateValidatorFile(
     maxDuration?: number
     runtime?: 'edge' | 'experimental-edge' | 'nodejs' | string // necessary unless config is exported as const
     regions?: string[]
+    unstable_runtimeJS?: boolean // \`false\` is inferred as boolean unless config is exported as const
+    unstable_JsPreload?: boolean
   }
 }
 
@@ -837,6 +839,8 @@ export function generateValidatorFileStrict(
     maxDuration?: number
     runtime?: 'edge' | 'experimental-edge' | 'nodejs' | string // necessary unless config is exported as const
     regions?: string[]
+    unstable_runtimeJS?: boolean // \`false\` is inferred as boolean unless config is exported as const
+    unstable_JsPreload?: boolean
   }
 }
 
