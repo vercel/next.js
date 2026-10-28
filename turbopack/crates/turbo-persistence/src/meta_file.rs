@@ -20,7 +20,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as 
 use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
-    db::ChunkBitSet,
+    chunk_bit_set::ChunkBitSet,
     lookup_entry::LookupValue,
     shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -616,10 +616,9 @@ impl MetaFile {
 
     /// Looks up the keys of `cells` in the SST file of the entry `entry_index`, whose hash range is
     /// `range`. `cells` holds `(key hash, key index)` pairs, must be sorted by key hash and must
-    /// fit in a [`ChunkBitSet`]. Only
-    /// cells that are not `resolved` yet are looked up. When a key is found, its cell is marked as
-    /// resolved, `unresolved` is decremented and `on_found` is called with the position of the cell
-    /// and the value.
+    /// fit in a [`ChunkBitSet`]. Only cells that are not `resolved` yet are looked up. When a key
+    /// is found, its cell is added to `resolved` and `on_found` is called with the position of
+    /// the cell and the value.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn batch_lookup_entry<K: QueryKey>(
         &self,
@@ -628,7 +627,6 @@ impl MetaFile {
         keys: &[K],
         cells: &[(u64, u32)],
         resolved: &mut ChunkBitSet,
-        unresolved: &mut usize,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
         mut on_found: impl FnMut(usize, LookupValue) -> Result<()>,
@@ -688,14 +686,14 @@ impl MetaFile {
                 let Some(value) = values.pop() else {
                     unreachable!()
                 };
-                resolved.insert(position);
-                *unresolved -= 1;
+                let inserted = resolved.insert(position);
+                debug_assert!(inserted);
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.hits += 1;
                 }
                 on_found(position, value)?;
-                if *unresolved == 0 {
+                if resolved.len() == cells.len() {
                     return Ok(lookup_result);
                 }
             } else {
