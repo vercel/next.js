@@ -51,14 +51,16 @@ Before implementing, record in `task.toml` the capability, the evidence that it 
 
 ### 4. Screen drafts before building graders
 
-Most ideas do not survive contact with a model, so write several cheap drafts and build out only the few that fail for a real reason. A draft is the instruction, the fixture, a reference repair, one or two known-bad repairs, and a rough behavior check.
+Most ideas do not survive contact with a model, so work in batches. Draft eight to ten candidates at once from the sources in step 1, screen them together, and build out only the few that fail for a real reason. This follows the SelfBench pipeline, which generates many candidate tasks from merged pull requests and keeps only those that pass its gates: the tests fail on the untouched repository, pass with the reference change, and pass again on a rerun.
+
+A draft is the instruction, the fixture, a reference repair, one or two known-bad repairs, and a rough behavior check. Keep drafts out of the repository until one is built out into a full task.
 
 1. **Confirm the pitfall on the pinned version.** Apply the change a developer would write first and check that it fails the rough check while the reference passes. Ideas from feedback reports and error repros often no longer reproduce because the framework now handles the case, and those drafts are dropped before any model runs.
 2. **Validate locally.** The untouched fixture builds and scores 0, every known-bad repair scores 0, and the reference scores 1. A fixture that does not build hands the agent an error to follow.
 3. **Run one frontier and one weaker model**, base treatment only. `MODELS` limits the cohort to those rows and `PARALLEL` runs them at the same time.
 4. **Read both transcripts.** Keep a draft only when a model fails for a capability reason, such as a wrong API choice, a missed requirement, or a claim it never verified. A failure caused by the task or the check is a task bug to fix. A draft both models solve is dropped or reworked, not run on a full cohort.
 
-Benchmarks that stay hard select from many drafts this way: Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each.
+Benchmarks that stay hard select from many drafts this way. Terminal-Bench 2.0 kept 89 of 229 contributed tasks after running models on each. Build out a draft that passes the screen by completing steps 5 to 7, adding the reviewed passing runs from the screen as known-good solutions.
 
 ### 5. Grade behavior
 
@@ -130,10 +132,12 @@ Context treatments such as `AGENTS.md` or a Skill are optional and belong to the
 
 ## Pull request format
 
-Title starts with `eval:` and names the outcome. Keep the description short and in the same shape as other Next.js pull requests:
+The title starts with `eval:` and names the outcome. The description shows the current state only, never the history of how the change got there, and keeps the same short shape as other Next.js pull requests:
 
-1. **Summary**: what the change adds and what calibration found, in plain sentences, then one bullet per task saying what the agent has to get right. Leave out suite labels, and remove a task every model solves rather than relabeling it.
-2. **Results**: one line with the Next.js version, attempt policy, and treatments, then the output of `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` unchanged: one table with a row for every cohort model, a base / AGENTS.md column per task, the totals (Base, + AGENTS.md, Delta), and price per million tokens, tokens, cost, and time per run, then a chart of pass@1 against cost per run, one point per model, as SelfBench charts its results. After it, a few sentences on which failures are real and whether a task separates models or is saturated. Say "still running" or "not run" rather than leaving the section out.
+1. **Summary**: what the change adds and what calibration found, in plain sentences with the takeaway first, such as whether the tasks are saturated. Then add one bullet per task saying what the agent has to get right. Leave out suite labels, and remove a task every model solves rather than relabeling it.
+2. **Results**: one line with the Next.js version, attempt policy, treatments, and how many runs are still going, then the output of `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` pasted unchanged. The report is one dense table with a row for every cohort model, listed from the start so queued models show too. Each row shows runs passed out of runs scored with and without `AGENTS.md`, the delta, the price per million tokens, tokens, cost, and time per run. Below the table it names the failed runs by task, then charts pass@1 against cost per run with one point per model, as SelfBench charts its results. After the report, add a few sentences on which failures are real and whether each task separates models or is saturated.
 3. **Verification**: a short list covering lint, untouched and reference scores, known-bad and known-good results, and formatting.
+
+Open the pull request as a draft and refresh the Results section as runs finish. A section with pending runs says how many remain rather than being left out.
 
 Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier changes, so older trials are never compared with newer ones.

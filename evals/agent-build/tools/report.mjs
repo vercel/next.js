@@ -1,7 +1,8 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
-// request: one table, a row per model with a base / AGENTS.md column per task,
-// the totals across tasks (Base, + AGENTS.md, Delta), then price per million
-// tokens, tokens, cost, and time per run, as in the agent-eval result PRs,
+// request: one dense table with a row per model, passed out of scored runs
+// with and without AGENTS.md, the delta, then price per million tokens, tokens,
+// cost, and time per run, as in the agent-eval result PRs, then the failed runs
+// by task,
 // then pass@1 against cost per run as a Mermaid chart GitHub renders inline.
 //
 // Scores are pass@1 over scored runs. An agent that runs out of time is a
@@ -104,7 +105,6 @@ const tasks = taskArgs.length
   ? taskArgs.map((t) => t.replace(/\/$/, '').split('/').pop())
   : [...new Set(runs.map((r) => r.task))].sort()
 const scored = (r) => r.state === 'pass' || r.state === 'fail'
-const pct = (p, n) => (n ? `${Math.round((100 * p) / n)}%` : '')
 const count = (v) =>
   v == null
     ? ''
@@ -175,48 +175,22 @@ models.sort(
   (a, b) => rate(b.base) - rate(a.base) || rate(b.docs) - rate(a.docs)
 )
 
-const cell = (t) =>
-  t.scored ? `${t.passed}/${t.scored} (${pct(t.passed, t.scored)})` : 'pending'
+const cell = (t) => (t.scored ? `${t.passed}/${t.scored}` : 'pending')
 const delta = (a, b) => {
   if (!a.scored || !b.scored) return ''
   const pp = Math.round(100 * (b.passed / b.scored - a.passed / a.scored))
   return `${pp >= 0 ? '+' : ''}${pp} pp`
 }
-const mark = (r) =>
-  !r
-    ? '·'
-    : r.state === 'pass'
-      ? '✅'
-      : r.state === 'fail'
-        ? r.confirmed
-          ? `❌ (${r.repeated}/${r.confirmed} repeat)`
-          : '❌'
-        : r.state === 'running'
-          ? '⏳'
-          : '—'
 
-// One table: a row per model, a base / AGENTS.md column per task, then the
-// totals across tasks, the AGENTS.md delta, and cost per run.
+// One dense table: a row per model with passed out of scored runs in each
+// treatment, the AGENTS.md delta, and what a run costs.
 console.log(
-  '| Model | Harness | ' +
-    tasks.map((t) => `\`${t}\``).join(' | ') +
-    ' | Base | + AGENTS.md | Delta | Price per 1M tokens | Tokens per run | Cost per run | Time per run |'
+  '| Model | Harness | Base | + AGENTS.md | Delta | Price per 1M tokens | Tokens per run | Cost per run | Time per run |'
 )
-console.log(
-  '| --- | --- | ' +
-    tasks.map(() => ':---:').join(' | ') +
-    ' | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
-)
+console.log('| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |')
 for (const m of models) {
-  const perTask = tasks.map((task) => {
-    const find = (t) =>
-      runs.find(
-        (r) => r.task === task && r.model === m.model && r.treatment === t
-      )
-    return `${mark(find('base'))} / ${mark(find('agents-md'))}`
-  })
   console.log(
-    `| ${m.model} | ${m.harness} | ${perTask.join(' | ')} | ${cell(m.base)} | ${cell(m.docs)} | ${delta(m.base, m.docs)} | ${perMillion(m.cost, m.tokensIn, m.tokensOut)} | ${tokens(m.tokensIn, m.tokensOut)} | ${usd(m.cost)} | ${duration(m.minutes)} |`
+    `| ${m.model} | ${m.harness} | ${cell(m.base)} | ${cell(m.docs)} | ${delta(m.base, m.docs)} | ${perMillion(m.cost, m.tokensIn, m.tokensOut)} | ${tokens(m.tokensIn, m.tokensOut)} | ${usd(m.cost)} | ${duration(m.minutes)} |`
   )
 }
 const all = {
@@ -226,20 +200,40 @@ const all = {
 const allScored = runs.filter(scored)
 const allAvg = (key) =>
   mean(allScored.map((r) => r[key]).filter((x) => x != null))
-const allCosts = runs
-  .filter(scored)
-  .map((r) => r.cost)
-  .filter((c) => c != null)
-const bold = (v) => (v ? `**${v}**` : '')
+const allCosts = allScored.map((r) => r.cost).filter((c) => c != null)
 if (all.base.scored || all.docs.scored) {
   console.log(
-    `| **All models** | | ${tasks.map(() => '').join(' | ')} | ${bold(cell(all.base))} | ${bold(cell(all.docs))} | ${bold(delta(all.base, all.docs))} | ${bold(perMillion(mean(allCosts), allAvg('tokensIn'), allAvg('tokensOut')))} | ${bold(tokens(allAvg('tokensIn'), allAvg('tokensOut')))} | ${bold(usd(mean(allCosts)))} | ${bold(duration(allAvg('minutes')))} |`
+    `| All models | | ${cell(all.base)} | ${cell(all.docs)} | ${delta(all.base, all.docs)} | ${perMillion(mean(allCosts), allAvg('tokensIn'), allAvg('tokensOut'))} | ${tokens(allAvg('tokensIn'), allAvg('tokensOut'))} | ${usd(mean(allCosts))} | ${duration(allAvg('minutes'))} |`
   )
 }
+
+// Which runs failed, per task, then what is not scored yet.
 console.log()
+const treatmentName = (t) => (t === 'agents-md' ? ' + AGENTS.md' : '')
+const failures = tasks
+  .map((task) => {
+    const failed = runs.filter((r) => r.task === task && r.state === 'fail')
+    if (!failed.length) return null
+    const who = failed.map(
+      (r) =>
+        `${r.model}${treatmentName(r.treatment)}${r.confirmed ? `, repeated ${r.repeated}/${r.confirmed}` : ''}`
+    )
+    return `\`${task}\` (${who.join('; ')})`
+  })
+  .filter(Boolean)
 console.log(
-  'Each task cell is base / AGENTS.md: ✅ pass, ❌ fail, with how many confirmation reruns repeated the failure, ⏳ running, · not started, — runner error, rerun.'
+  failures.length
+    ? `Failed runs: ${failures.join(', ')}.`
+    : 'No scored run failed.'
 )
+const expected = tasks.length * models.length * 2
+const unscored = expected - runs.filter(scored).length
+if (unscored > 0) {
+  console.log()
+  console.log(
+    `${unscored} of ${expected} runs are not scored yet. Counts are passed out of scored runs.`
+  )
+}
 
 // Pass@1 against cost per run, one point per model across all scored runs, as
 // SelfBench charts its results. Cost uses a log scale so cheap models spread
