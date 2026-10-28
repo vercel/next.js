@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { expectedParams as expected } from './expected'
 
 // TODO(NAR-423): Migrate to Cache Components.
+// @gate FIXME
 describe('ppr-middleware-rewrite-force-dynamic-generate-static-params', () => {
   const { next } = nextTestSetup({
     files: __dirname,

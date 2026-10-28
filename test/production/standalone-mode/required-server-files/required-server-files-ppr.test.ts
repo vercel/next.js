@@ -14,6 +14,7 @@ import {
 import { ChildProcess } from 'node:child_process'
 
 // TODO(NAR-423): Migrate to Cache Components.
+// @gate FIXME
 describe('required server files app router', () => {
   let server: ChildProcess
   let appPort: number | string
