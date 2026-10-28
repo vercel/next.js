@@ -148,10 +148,16 @@ pub async fn make_chunk_group(
     let async_loaders = async_modules
         .iter()
         .copied()
-        .map(|module| {
+        .map(async |module| {
+            // Only pass on what the async chunk group can observe. The full availability is
+            // specific to this chunk group, which would make every async loader unique to it.
+            let availability_info = async_availability_info
+                .canonicalize_for_async_loader(module_graph, ResolvedVc::upcast(module))
+                .await?;
             chunking_context
-                .async_loader_chunk_item(*module, *module_graph, async_availability_info)
+                .async_loader_chunk_item(*module, *module_graph, availability_info)
                 .to_resolved()
+                .await
         })
         .try_join()
         .await?;

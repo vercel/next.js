@@ -2,13 +2,15 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use turbo_rcstr::RcStr;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     chunk::available_chunk_groups::AvailableChunkGroups,
-    module::Modules,
+    module::{Module, Modules},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroupKey, module_batch::ChunkableModuleOrBatch,
+        ModuleGraph,
+        chunk_group_info::{AsyncLoaderRelevantChunkGroupsMap, ChunkGroupKey},
+        module_batch::ChunkableModuleOrBatch,
     },
 };
 
@@ -124,6 +126,73 @@ impl AvailabilityInfo {
 
     pub fn entry_group(&self) -> Option<ResolvedVc<Modules>> {
         self.entry_group
+    }
+
+    /// Reduces the availability to the canonical set that always produces the same chunks for the
+    /// async chunk group of `module` (and everything chunked from it). Use it for the availability
+    /// an async loader is created with, so parents that make the same modules available share one
+    /// async loader instead of each creating its own. The entry group is dropped unless chunking
+    /// reaches a collecting module. See
+    /// [`crate::module_graph::chunk_group_info::AsyncLoaderRelevantChunkGroups::canonicalize`].
+    ///
+    /// A module without an entry (see [`AsyncLoaderRelevantChunkGroupsMap`]) keeps the
+    /// availability as is.
+    ///
+    /// Not a `turbo_tasks::function`, to avoid a task per parent availability and module. It reads
+    /// a single entry of the keyed [`AsyncLoaderRelevantChunkGroupsMap`] cell, and equal results
+    /// share one cell through [`AvailableChunkGroups::from_chunk_groups`].
+    pub async fn canonicalize_for_async_loader(
+        self,
+        module_graph: ResolvedVc<ModuleGraph>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Self> {
+        self.canonicalize_for_async_loader_with(
+            module_graph,
+            module_graph
+                .chunk_group_info()
+                .async_loader_relevant_chunk_groups(),
+            module,
+        )
+        .await
+    }
+
+    /// [`AvailabilityInfo::canonicalize_for_async_loader`] with the relevant chunk groups of
+    /// `module_graph` passed in.
+    pub(crate) async fn canonicalize_for_async_loader_with(
+        self,
+        module_graph: ResolvedVc<ModuleGraph>,
+        relevant_chunk_groups: Vc<AsyncLoaderRelevantChunkGroupsMap>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Self> {
+        let Some(relevant) = relevant_chunk_groups.get(&module).await? else {
+            return Ok(self);
+        };
+        let available_chunk_groups = match self.available_chunk_groups {
+            Some(available_chunk_groups) => {
+                let available_chunk_groups = available_chunk_groups.await?;
+                let canonical =
+                    relevant.canonicalize(available_chunk_groups.chunk_groups(module_graph));
+                if canonical.is_zero() {
+                    None
+                } else {
+                    Some(
+                        AvailableChunkGroups::from_chunk_groups(*module_graph, canonical)
+                            .to_resolved()
+                            .await?,
+                    )
+                }
+            }
+            None => None,
+        };
+        Ok(Self {
+            flags: self.flags,
+            available_chunk_groups,
+            entry_group: if relevant.reaches_collecting_module {
+                self.entry_group
+            } else {
+                None
+            },
+        })
     }
 
     pub async fn ident(&self) -> Result<Option<RcStr>> {

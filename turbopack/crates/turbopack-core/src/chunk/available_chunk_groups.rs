@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_bitset::Bitset;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -56,6 +56,26 @@ impl AvailableChunkGroups {
             chunk_groups,
         }
         .cell()
+    }
+
+    /// Creates the set of `chunk_groups`, which must not be empty.
+    ///
+    /// Equal sets of the same graph share one cell, no matter how they were computed. Narrowing an
+    /// availability down to the chunk groups that matter for a chunk group goes through here, so
+    /// availabilities that only differed in irrelevant chunk groups become identical task inputs.
+    #[turbo_tasks::function]
+    pub fn from_chunk_groups(
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunk_groups: Bitset,
+    ) -> Result<Vc<Self>> {
+        if chunk_groups.is_zero() {
+            bail!("AvailableChunkGroups must not be empty");
+        }
+        Ok(Self {
+            module_graph,
+            chunk_groups,
+        }
+        .cell())
     }
 
     /// Adds `chunk_group` to the set. Adding a chunk group that is already available is a no-op:
