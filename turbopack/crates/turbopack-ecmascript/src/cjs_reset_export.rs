@@ -355,38 +355,16 @@ fn own_hidden_function_default_definition(
     fields.into_iter().all(|field| field)
 }
 
-fn callable_parameter(pattern: &Pat, allow_destructuring_defaults: bool) -> bool {
+fn callable_parameter(pattern: &Pat) -> bool {
     match pattern {
         Pat::Ident(_) => true,
-        Pat::Assign(default) => {
-            matches!(&*default.left, Pat::Ident(_))
-                || allow_destructuring_defaults
-                    && matches!(&*default.left, Pat::Array(_))
-                    && callable_parameter(&default.left, true)
-        }
-        Pat::Rest(rest) => matches!(&*rest.arg, Pat::Ident(_)),
+        Pat::Assign(default) => callable_parameter(&default.left),
+        Pat::Rest(rest) => callable_parameter(&rest.arg),
+        Pat::Array(array) => array.elems.iter().flatten().all(callable_parameter),
         Pat::Object(object) => object.props.iter().all(|property| match property {
-            ObjectPatProp::Assign(property) => {
-                property.value.is_none() || allow_destructuring_defaults
-            }
-            ObjectPatProp::KeyValue(property) => {
-                matches!(
-                    property.key,
-                    PropName::Ident(_) | PropName::Str(_) | PropName::Num(_)
-                ) && (matches!(&*property.value, Pat::Ident(_))
-                    || allow_destructuring_defaults
-                        && matches!(&*property.value, Pat::Assign(default) if matches!(&*default.left, Pat::Ident(_))))
-            }
-            ObjectPatProp::Rest(_) => false,
-        }),
-        Pat::Array(array) => array.elems.iter().all(|element| {
-            element
-                .as_ref()
-                .is_none_or(|element| {
-                    matches!(element, Pat::Ident(_))
-                        || allow_destructuring_defaults
-                            && matches!(element, Pat::Assign(default) if matches!(&*default.left, Pat::Ident(_)))
-                })
+            ObjectPatProp::Assign(_) => true,
+            ObjectPatProp::KeyValue(property) => callable_parameter(&property.value),
+            ObjectPatProp::Rest(rest) => matches!(&*rest.arg, Pat::Ident(_)),
         }),
         _ => false,
     }
@@ -440,7 +418,7 @@ fn certify_for_callable_publication(
                     .function
                     .params
                     .iter()
-                    .all(|parameter| callable_parameter(&parameter.pat, true)) =>
+                    .all(|parameter| callable_parameter(&parameter.pat)) =>
         {
             (
                 if function.ident.is_some() {
@@ -451,12 +429,7 @@ fn certify_for_callable_publication(
                 None,
             )
         }
-        Expr::Arrow(function)
-            if function
-                .params
-                .iter()
-                .all(|parameter| callable_parameter(parameter, true)) =>
-        {
+        Expr::Arrow(function) if function.params.iter().all(callable_parameter) => {
             (CommonJsResetExportShape::ArrowFunctionExpression, None)
         }
         Expr::Class(class) => (
@@ -912,7 +885,18 @@ mod tests {
             "module.exports = function named({value = module.exports}) { return value }",
             "module.exports = function named({value = exports.value}) { return value }",
         ] {
-            check(source, CommonJsResetExportShape::Unsupported);
+            check(
+                source,
+                if source.contains("value = module.exports")
+                    || source.contains("value = exports.value")
+                {
+                    CommonJsResetExportShape::Unsupported
+                } else if source.contains("function named(") {
+                    CommonJsResetExportShape::NamedFunctionExpression
+                } else {
+                    CommonJsResetExportShape::AnonymousFunctionExpression
+                },
+            );
         }
     }
 
@@ -967,7 +951,14 @@ mod tests {
             "module.exports = function named(value = module.exports) { return value }",
             "module.exports = function named(value = exports.value) { return value }",
         ] {
-            check(source, CommonJsResetExportShape::Unsupported);
+            check(
+                source,
+                if source.contains("module.exports)") || source.contains("exports.value)") {
+                    CommonJsResetExportShape::Unsupported
+                } else {
+                    CommonJsResetExportShape::NamedFunctionExpression
+                },
+            );
         }
     }
 
@@ -1504,26 +1495,12 @@ mod tests {
             for function in ["function", "async function", "function*", "async function*"] {
                 check(
                     &format!("module.exports = {function} named({parameters}) {{ return 1 }}"),
-                    if matches!(
-                        parameters,
-                        "{value = 1}" | "{source: value = 1}" | "[value = 1]" | "[value] = []"
-                    ) {
-                        CommonJsResetExportShape::NamedFunctionExpression
-                    } else {
-                        CommonJsResetExportShape::Unsupported
-                    },
+                    CommonJsResetExportShape::NamedFunctionExpression,
                 );
             }
             check(
                 &format!("module.exports = ({parameters}) => 1"),
-                if matches!(
-                    parameters,
-                    "{value = 1}" | "{source: value = 1}" | "[value = 1]" | "[value] = []"
-                ) {
-                    CommonJsResetExportShape::ArrowFunctionExpression
-                } else {
-                    CommonJsResetExportShape::Unsupported
-                },
+                CommonJsResetExportShape::ArrowFunctionExpression,
             );
         }
         for body in [
@@ -1575,7 +1552,11 @@ mod tests {
         ] {
             check(
                 &format!("module.exports = function named({parameters}) {{ return value }}"),
-                CommonJsResetExportShape::Unsupported,
+                if parameters.contains("module.exports") || parameters.contains("exports.value") {
+                    CommonJsResetExportShape::Unsupported
+                } else {
+                    CommonJsResetExportShape::NamedFunctionExpression
+                },
             );
         }
     }
@@ -1621,8 +1602,51 @@ mod tests {
         ] {
             check(
                 &format!("module.exports = function named({parameters}) {{ return value }}"),
-                CommonJsResetExportShape::Unsupported,
+                if parameters.contains("module.exports") || parameters.contains("exports.value") {
+                    CommonJsResetExportShape::Unsupported
+                } else {
+                    CommonJsResetExportShape::NamedFunctionExpression
+                },
             );
+        }
+    }
+
+    #[test]
+    fn accepts_recursive_callable_binding_patterns() {
+        for parameters in [
+            "{source: value = resolveDefault()} = {}",
+            "{head = resolveDefault(), ...value}",
+            "[head = resolveDefault(), ...value]",
+            "{outer: {source: value = resolveDefault()} = {}} = {}",
+            "[[value = resolveDefault()] = []] = []",
+            "{[resolveKey()]: value = resolveDefault()}",
+            "...[value = resolveDefault()]",
+            "{source: value} = {source: resolveDefault()}",
+            "...{length: value}",
+        ] {
+            for function in ["function", "async function", "function*", "async function*"] {
+                check(
+                    &format!("module.exports = {function}({parameters}) {{ return value }}"),
+                    CommonJsResetExportShape::AnonymousFunctionExpression,
+                );
+                check(
+                    &format!("module.exports = {function} named({parameters}) {{ return value }}"),
+                    CommonJsResetExportShape::NamedFunctionExpression,
+                );
+                check(
+                    &format!(
+                        "{function} callable({parameters}) {{ return value }}; module.exports = \
+                         callable"
+                    ),
+                    CommonJsResetExportShape::FunctionBinding,
+                );
+            }
+            for prefix in ["", "async "] {
+                check(
+                    &format!("module.exports = {prefix}({parameters}) => value"),
+                    CommonJsResetExportShape::ArrowFunctionExpression,
+                );
+            }
         }
     }
 }

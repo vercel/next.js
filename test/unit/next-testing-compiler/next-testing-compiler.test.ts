@@ -9334,3 +9334,45 @@ it.each(
   },
   130000
 )
+
+it.each(['development', 'production'] as const)(
+  'preserves complete recursive CommonJS parameter grammar in %s',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-cjs-parameter-grammar-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'cjs-parameter-grammar.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        forms: 126,
+        cases: 378,
+        rows: 378,
+        completeAuthoredCasesAndRows: true,
+        namespaceAndFunctionDescriptors: true,
+        dependencyResetAndHeldValues: true,
+        exactParameterEvaluation: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
