@@ -30,4 +30,32 @@ describe(`app-dir hmr-env`, () => {
       expect(next.cliOutput).not.toContain('FATAL')
     }
   )
+
+  it('invalidates a deleted environment value instead of retaining the previous module value', async () => {
+    const original = await next.readFile(envFile)
+    try {
+      await next.patchFile(
+        'app/env/deleted/route.js',
+        'export function GET() { return Response.json({ value: process.env.ROUTING_TEST_REMOVED_VALUE ?? null }) }'
+      )
+      await next.patchFile(
+        envFile,
+        original + '\nROUTING_TEST_REMOVED_VALUE=test-owned-value\n'
+      )
+      await retry(async () => {
+        expect(await (await next.fetch('/env/deleted')).json()).toEqual({
+          value: 'test-owned-value',
+        })
+      })
+      await next.patchFile(envFile, original)
+      await retry(async () => {
+        expect(await (await next.fetch('/env/deleted')).json()).toEqual({
+          value: null,
+        })
+      })
+    } finally {
+      await next.patchFile(envFile, original)
+      await next.deleteFile('app/env/deleted/route.js')
+    }
+  })
 })

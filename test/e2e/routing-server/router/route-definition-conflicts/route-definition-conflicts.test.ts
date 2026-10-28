@@ -18,26 +18,37 @@ describe('documented route definition conflicts', () => {
     expect(await control.text()).toContain('Page destination')
     if (!isNextDev) await next.stop()
 
-    await next.patchFile(
-      'app/route.ts',
-      await next.readFile('route-handler.ts')
-    )
+    try {
+      await next.patchFile(
+        'app/route.ts',
+        await next.readFile('route-handler.ts')
+      )
 
-    // The public constraint does not prescribe exact compiler wording.
-    const conflict = /conflict[^\n]*(?:page|route)/i
-    if (isNextDev) {
+      // The public constraint does not prescribe exact compiler wording.
+      const conflict = /conflict[^\n]*(?:page|route)/i
+      if (isNextDev) {
+        await retry(async () => {
+          const response = await next.fetch('/')
+          expect(response.status).toBeGreaterThanOrEqual(400)
+          await response.text()
+        })
+      } else {
+        await expect(next.start()).rejects.toThrow()
+      }
+      await retry(() => {
+        expect(next.cliOutput).toMatch(conflict)
+        expect(next.cliOutput).toMatch(/page/i)
+        expect(next.cliOutput).toMatch(/route/i)
+      })
+    } finally {
+      await next.deleteFile('app/route.ts')
+      // Recovery must replace the conflicting inventory without a dev restart.
+      if (!isNextDev) await next.start()
       await retry(async () => {
         const response = await next.fetch('/')
-        expect(response.status).toBeGreaterThanOrEqual(400)
-        expect(await response.text()).toMatch(conflict)
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('Page destination')
       })
-    } else {
-      await expect(next.start()).rejects.toThrow()
     }
-    await retry(() => {
-      expect(next.cliOutput).toMatch(conflict)
-      expect(next.cliOutput).toMatch(/page/i)
-      expect(next.cliOutput).toMatch(/route/i)
-    })
   })
 })

@@ -287,6 +287,22 @@ describe('next.rs api', () => {
   const { next } = nextTestSetup({
     skipStart: true,
     files: {
+      'pages/article/[slug].js':
+        'export default function Page() { return <p>article</p> }',
+      'app/(marketing)/grouped/page.tsx':
+        'export default function Page() { return <p>grouped</p> }',
+      'app/parallel/layout.tsx':
+        'export default function Layout({ children, left, right }) { return <>{children}{left}{right}</> }',
+      'app/parallel/page.tsx':
+        'export default function Page() { return <p>parallel</p> }',
+      'app/parallel/@left/page.tsx':
+        'export default function Page() { return <p>left</p> }',
+      'app/parallel/@right/page.tsx':
+        'export default function Page() { return <p>right</p> }',
+      'app/icon.svg':
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" /></svg>',
+      'app/sitemap.ts':
+        'export default function sitemap() { return [{ url: "https://example.test" }] }',
       'pages/index.js': pagesIndexCode('hello world'),
       'lib/props.js': 'export default {}',
       'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
@@ -396,13 +412,63 @@ describe('next.rs api', () => {
       '/app',
       '/app-edge',
       '/app-nodejs',
+      '/article/[slug]',
+      '/grouped',
+      '/icon.svg',
       '/page-edge',
       '/page-nodejs',
+      '/parallel',
       '/route-edge',
       '/route-nodejs',
+      '/sitemap.xml',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
     await entrypointsSubscription.return()
+  })
+
+  afterAll(async () => {
+    if (project) {
+      await project.shutdown()
+    }
+  })
+
+  it('reports route kinds and distinct App identities before compiling any endpoint', async () => {
+    const subscription = project.entrypointsSubscribe()
+    try {
+      const snapshot = (await subscription.next()).value.value
+      if (!('routes' in snapshot))
+        throw new Error('No compiler route inventory')
+      const { routes } = snapshot
+      expect(routes.get('/')?.type).toBe('page')
+      expect(routes.get('/article/[slug]')?.type).toBe('page')
+      expect(routes.get('/api/nodejs')?.type).toBe('page-api')
+      for (const [pathname, names] of [
+        ['/grouped', ['/(marketing)/grouped/page']],
+        [
+          '/parallel',
+          ['/parallel/@left/page', '/parallel/@right/page', '/parallel/page'],
+        ],
+      ] as const) {
+        const route = routes.get(pathname)
+        if (route?.type !== 'app-page')
+          throw new Error(`Expected App page: ${pathname}`)
+        expect(
+          route.pages
+            .map((page) => page.originalName.replace(/\\/g, '/'))
+            .sort()
+        ).toEqual([...names].sort())
+      }
+      for (const pathname of ['/route-nodejs', '/icon.svg', '/sitemap.xml']) {
+        expect(routes.get(pathname)?.type).toBe('app-route')
+      }
+      // Built-in error endpoints are separate from user routes. There is no
+      // source-filename field in this API yet; do not infer one from a name.
+      expect(snapshot.pagesErrorEndpoint).toBeDefined()
+      expect(snapshot.pagesAppEndpoint).toBeDefined()
+      expect(snapshot.pagesDocumentEndpoint).toBeDefined()
+    } finally {
+      await subscription.return()
+    }
   })
 
   const routes = [

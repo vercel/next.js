@@ -1,16 +1,11 @@
-import {
-  readFile,
-  readdir,
-  access,
-  mkdtemp,
-  writeFile,
-  rm,
-} from 'node:fs/promises'
+import { readFile, access, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import execa from 'execa'
+import suites from '../test/e2e/routing-server/suites.mjs'
+import companions from '../test/e2e/routing-server/regression-companions.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const suite = 'test/e2e/routing-server'
@@ -24,6 +19,7 @@ const { values } = parseArgs({
     core: { type: 'boolean', default: false },
     full: { type: 'boolean', default: false },
     dry: { type: 'boolean', default: false },
+    regressions: { type: 'string' },
     concurrency: {
       type: 'string',
       default: String(Math.min(4, availableParallelism())),
@@ -38,6 +34,14 @@ if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
 }
 if (values.core && values.full) {
   throw new Error('--core and --full select different profiles; choose one')
+}
+if (
+  values.regressions &&
+  (values.core || values.full || values.group !== 'all')
+) {
+  throw new Error(
+    '--regressions is a separate selection; do not combine it with --core, --full or --group'
+  )
 }
 
 function validateOption(name, choices) {
@@ -56,6 +60,46 @@ if (values.mode === 'deploy' && values.bundler === 'rspack') {
 const contracts = JSON.parse(
   await readFile(path.join(root, suite, 'contracts.json'), 'utf8')
 )
+const projectIds = companions.map((project) => project.id)
+if (projectIds.slice().sort().join('') !== 'ABCDEFGH') {
+  throw new Error('Regression companions must contain projects A–H once each')
+}
+const requestedProjects =
+  values.regressions === 'all'
+    ? projectIds
+    : (values.regressions?.split(',') ?? [])
+if (requestedProjects.some((id) => !projectIds.includes(id))) {
+  throw new Error(
+    '--regressions must be all or comma-separated project IDs A–H'
+  )
+}
+for (const project of companions) {
+  for (const selection of project.selections) {
+    if (
+      !/^test\/.+\.test\.[jt]sx?$/.test(selection.file) ||
+      selection.file.split('/').includes('..')
+    ) {
+      throw new Error(`Invalid regression test path: ${selection.file}`)
+    }
+    await access(path.join(root, selection.file))
+    if (
+      !selection.modes?.length ||
+      selection.modes.some((mode) => !['dev', 'start'].includes(mode)) ||
+      !selection.bundlers?.length ||
+      selection.bundlers.some(
+        (bundler) => !['turbo', 'webpack', 'rspack'].includes(bundler)
+      ) ||
+      !selection.hostingPath
+    ) {
+      throw new Error(`Missing regression dimensions: ${selection.file}`)
+    }
+    if (selection.testNamePattern !== undefined) {
+      if (!selection.testNamePattern)
+        throw new Error(`Empty regression selector: ${selection.file}`)
+      new RegExp(selection.testNamePattern)
+    }
+  }
+}
 const expectedIds = [
   ...Array.from({ length: 10 }, (_, i) => `H${String(i + 1).padStart(2, '0')}`),
   ...Array.from({ length: 34 }, (_, i) => `R${String(i + 1).padStart(2, '0')}`),
@@ -110,26 +154,28 @@ for (const contract of contracts) {
   }
 }
 
-async function findTests(directory) {
-  const result = []
-  for (const entry of await readdir(path.join(root, directory), {
-    withFileTypes: true,
-  })) {
-    if (entry.name === 'node_modules' || entry.name === '.next') continue
-    const file = `${directory}/${entry.name}`
-    if (entry.isDirectory()) result.push(...(await findTests(file)))
-    else if (/\.test\.[jt]sx?$/.test(entry.name)) result.push(file)
+const indexedFiles = new Set()
+for (const group of ['http', 'router']) {
+  for (const file of suites[group]) {
+    if (
+      !/^test\/e2e\/.+\.test\.[jt]sx?$/.test(file) ||
+      file.split('/').includes('..') ||
+      indexedFiles.has(file)
+    ) {
+      throw new Error(`Invalid or duplicate routing suite path: ${file}`)
+    }
+    await access(path.join(root, file))
+    indexedFiles.add(file)
   }
-  return result
 }
 
 const groups = values.group === 'all' ? ['http', 'router'] : [values.group]
 const selected = new Map(
-  (await Promise.all(groups.map((group) => findTests(`${suite}/${group}`))))
-    .flat()
-    .map((file) => [file, new Set()])
+  (values.regressions ? [] : groups.flatMap((group) => suites[group])).map(
+    (file) => [file, new Set()]
+  )
 )
-if (!values.core) {
+if (!values.core && !values.regressions) {
   for (const contract of contracts) {
     if (groups.includes(contract.group)) {
       for (const selection of values.full
@@ -168,8 +214,29 @@ environment.NEXT_TEST_SKIP_RESULT_CACHE = '1'
 let failed = false
 const started = performance.now()
 for (const mode of modes) {
-  const selections = [...selected]
+  const modeSelection = new Map(selected)
+  if (values.regressions) {
+    for (const project of companions.filter((project) =>
+      requestedProjects.includes(project.id)
+    )) {
+      for (const selection of project.selections) {
+        if (
+          !selection.modes.includes(mode) ||
+          !selection.bundlers.includes(values.bundler)
+        )
+          continue
+        const { file, testNamePattern: pattern } = selection
+        if (!modeSelection.has(file))
+          modeSelection.set(file, new Set(pattern ? [pattern] : []))
+        else if (!pattern) modeSelection.get(file).clear()
+        else if (modeSelection.get(file).size)
+          modeSelection.get(file).add(pattern)
+      }
+    }
+  }
+  const selections = [...modeSelection]
     .filter(([file]) => {
+      if (values.regressions) return true // Dimensions are explicit in this manifest.
       if (file.startsWith('test/development/')) return mode === 'dev'
       if (file.startsWith('test/production/')) return mode === 'start'
       return file.startsWith('test/e2e/')
@@ -185,10 +252,16 @@ for (const mode of modes) {
           }
         : {}),
     }))
+  if (!selections.length && values.regressions && values.mode === 'all') {
+    console.log(
+      `No applicable regression companions for ${mode}, ${values.bundler}`
+    )
+    continue
+  }
   if (!selections.length)
     throw new Error(`No routing tests selected for ${mode}`)
   console.log(
-    `Routing server: ${mode}, ${values.bundler}, ${selections.length} files, ${concurrency} workers (${values.full ? 'full' : values.core ? 'core' : 'routing'} profile)`
+    `Routing server: ${mode}, ${values.bundler}, ${selections.length} files, ${concurrency} workers (${values.regressions ? 'regressions ' + values.regressions : values.full ? 'full' : values.core ? 'core' : 'routing'} profile)`
   )
   if (values.list) {
     for (const selection of selections) {
@@ -234,6 +307,7 @@ for (const mode of modes) {
               ? { IS_WEBPACK_TEST: '1' }
               : { NEXT_RSPACK: '1', NEXT_TEST_USE_RSPACK: '1' }),
         },
+        extendEnv: false,
         stdio: 'inherit',
         reject: false,
       }

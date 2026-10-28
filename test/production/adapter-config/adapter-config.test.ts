@@ -4,6 +4,8 @@ import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
 import { RouteKind } from 'next/dist/server/route-kind'
+import { fork } from 'node:child_process'
+import { once } from 'node:events'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -65,6 +67,113 @@ describe('adapter-config', () => {
     expect(
       outputs.staticFiles.find((output) => output.pathname === pathname)
     ).toBeUndefined()
+  })
+
+  it('serves independently specified cases through a reference routing adapter and emitted handlers', async () => {
+    const child = fork(
+      path.join(next.testDir, 'reference-routing-server.cjs'),
+      [],
+      {
+        cwd: next.testDir,
+        env: {
+          ...process.env,
+          NODE_ENV: 'production',
+          ROUTING_PACKAGE_PATH: require.resolve(
+            '../../../packages/next-routing'
+          ),
+          ...(process.env.IS_TURBOPACK_TEST ? { TURBOPACK: '1' } : {}),
+        },
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      }
+    )
+    let diagnostics = ''
+    child.stdout?.on('data', (chunk) => {
+      diagnostics += chunk
+    })
+    child.stderr?.on('data', (chunk) => {
+      diagnostics += chunk
+    })
+    const exited = once(child, 'exit')
+    try {
+      const [ready] = await Promise.race([
+        once(child, 'message', { signal: AbortSignal.timeout(30000) }),
+        exited.then(() => {
+          throw new Error('Reference adapter exited: ' + diagnostics)
+        }),
+      ])
+      const origin = `http://127.0.0.1:${ready.port}`
+      for (const [pathname, marker] of [
+        ['/docs/node-pages', '/node-pages'],
+        ['/docs/node-app', '/node-app'],
+      ]) {
+        for (const host of [next.url, origin]) {
+          const response = await fetch(host + pathname)
+          expect(response.status).toBe(200)
+          expect(await response.text()).toContain(marker)
+          if (host === origin)
+            expect(response.headers.get('x-routing-host')).toBe(
+              'routing-package-emitted-handler'
+            )
+          else expect(response.headers.get('x-routing-host')).toBeNull()
+        }
+      }
+      for (const pathname of ['/docs/api/node-pages', '/docs/node-route']) {
+        for (const host of [next.url, origin]) {
+          const response = await fetch(host + pathname)
+          expect(response.status).toBe(200)
+          expect(await response.json()).toEqual({ now: expect.any(Number) })
+        }
+      }
+      for (const host of [next.url, origin]) {
+        const handoff = await fetch(
+          host + '/docs/reference-submit?value=one&value=two',
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-reference-input': 'accepted',
+            },
+            body: JSON.stringify({ message: 'body survived routing' }),
+          }
+        )
+        expect({ host, status: handoff.status }).toEqual({ host, status: 201 })
+        expect(handoff.headers.getSetCookie()).toEqual([
+          'reference-a=one; Path=/',
+          'reference-b=two; Path=/',
+        ])
+        expect(await handoff.json()).toEqual({
+          body: { message: 'body survived routing' },
+          values: ['one', 'two'],
+          header: 'accepted',
+        })
+        expect((await fetch(host + '/docs/reference-submit')).status).toBe(404)
+      }
+      for (const host of [next.url, origin]) {
+        const redirect = await fetch(host + '/docs/redirect-me?term=kept', {
+          redirect: 'manual',
+        })
+        expect({
+          host: host === origin ? 'adapter' : 'node',
+          status: redirect.status,
+        }).toEqual({ host: host === origin ? 'adapter' : 'node', status: 307 })
+        const location = new URL(redirect.headers.get('location')!, host)
+        expect(location.pathname).toBe('/docs/isr-pages')
+        expect(location.searchParams.get('term')).toBe('kept')
+        expect(
+          (await fetch(host + '/docs/unknown-reference-path')).status
+        ).toBe(404)
+      }
+    } finally {
+      if (child.connected) child.send('close')
+      try {
+        await Promise.race([
+          exited,
+          once(child, 'error', { signal: AbortSignal.timeout(10000) }),
+        ])
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) child.kill()
+      }
+    }
   })
 
   it('should call onBuildComplete with correct context', async () => {

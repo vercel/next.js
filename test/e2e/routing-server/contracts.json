@@ -64,13 +64,13 @@
     "tests": [
       "test/development/config/config.test.ts",
       "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
-      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
-      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts"
+      "test/e2e/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/middleware-responses/test/index.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
-      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
-      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts"
+      "test/e2e/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/middleware-responses/test/index.test.ts"
     ]
   },
   {
@@ -90,12 +90,12 @@
       "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
       "test/e2e/cancel-request/stream-cancel.test.ts",
       "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
-      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
+      "test/e2e/middleware-responses/test/index.test.ts",
       "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts",
-      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
+      "test/e2e/middleware-responses/test/index.test.ts",
       "test/e2e/cancel-request/stream-cancel.test.ts",
       "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts"
     ]
@@ -260,12 +260,12 @@
       "test/e2e/app-dir/app/index.test.ts",
       "test/e2e/conflicting-app-page-error/index.test.ts",
       "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
-      "test/e2e/routing-server/router/pages-to-app-routing/pages-to-app-routing.test.ts",
+      "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts",
       "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
-      "test/e2e/routing-server/router/pages-to-app-routing/pages-to-app-routing.test.ts",
+      "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts",
       "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts",
       "test/e2e/conflicting-app-page-error/index.test.ts"
     ]
@@ -289,11 +289,11 @@
       "test/e2e/conflicting-public-file-page/conflicting-public-file-page.test.ts",
       "test/e2e/file-serving/file-serving.test.ts",
       "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
-      "test/e2e/routing-server/router/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts"
+      "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
-      "test/e2e/routing-server/router/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts",
+      "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts",
       "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts",
       "test/e2e/conflicting-public-file-page/conflicting-public-file-page.test.ts"
     ]
@@ -332,14 +332,14 @@
     ],
     "tests": [
       "test/e2e/getserversideprops/test/index.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
-      "test/e2e/routing-server/router/multi-value-search-params-stale/multi-value-search-params-stale.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+      "test/e2e/middleware-rewrites/test/index.test.ts",
+      "test/e2e/app-dir/multi-value-search-params-stale/multi-value-search-params-stale.test.ts",
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
-      "test/e2e/routing-server/router/multi-value-search-params-stale/multi-value-search-params-stale.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+      "test/e2e/middleware-rewrites/test/index.test.ts",
+      "test/e2e/app-dir/multi-value-search-params-stale/multi-value-search-params-stale.test.ts",
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts"
     ]
   },
   {
@@ -353,14 +353,14 @@
       "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+      "test/e2e/middleware-rewrites/test/index.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+      "test/e2e/middleware-rewrites/test/index.test.ts"
     ]
   },
   {
@@ -376,11 +376,11 @@
     ],
     "tests": [
       "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts"
     ]
   },
   {
@@ -396,11 +396,11 @@
     ],
     "tests": [
       "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts",
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts"
     ]
   },
   {
@@ -413,11 +413,11 @@
       "docs/01-app/03-api-reference/05-config/01-next-config-js/headers.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
     ]
   },
@@ -431,11 +431,11 @@
       "docs/01-app/03-api-reference/05-config/01-next-config-js/redirects.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
     ]
   },
@@ -449,12 +449,12 @@
       "docs/01-app/03-api-reference/05-config/01-next-config-js/rewrites.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts",
+      "test/e2e/middleware-rewrites/test/index.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts",
+      "test/e2e/middleware-rewrites/test/index.test.ts"
     ]
   },
   {
@@ -468,11 +468,11 @@
     ],
     "tests": [
       "test/e2e/i18n-support-fallback-rewrite-legacy/i18n-support-fallback-rewrite-legacy.test.ts",
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
       "test/e2e/i18n-support-fallback-rewrite-legacy/i18n-support-fallback-rewrite-legacy.test.ts"
     ]
@@ -489,10 +489,10 @@
     ],
     "tests": [
       "test/e2e/multi-zone/multi-zone.test.ts",
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts"
+      "test/e2e/custom-routes/custom-routes.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts",
+      "test/e2e/custom-routes/custom-routes.test.ts",
       "test/e2e/multi-zone/multi-zone.test.ts"
     ]
   },
@@ -510,10 +510,10 @@
     ],
     "tests": [
       "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts",
-      "test/e2e/routing-server/router/basepath/redirect-and-rewrite.test.ts"
+      "test/e2e/basepath/redirect-and-rewrite.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/basepath/redirect-and-rewrite.test.ts",
+      "test/e2e/basepath/redirect-and-rewrite.test.ts",
       "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts"
     ]
   },
@@ -529,13 +529,13 @@
     ],
     "tests": [
       "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts",
-      "test/e2e/routing-server/router/trailing-slashes/with-trailing-slash.test.ts"
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/trailing-slashes/with-trailing-slash.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts",
-      "test/e2e/routing-server/router/trailing-slashes/with-trailing-slash.test.ts"
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/trailing-slashes/with-trailing-slash.test.ts"
     ]
   },
   {
@@ -547,14 +547,14 @@
     "docs": ["docs/01-app/03-api-reference/03-file-conventions/proxy.mdx"],
     "tests": [
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
-      "test/e2e/routing-server/router/middleware-custom-matchers/test/index.test.ts",
-      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
+      "test/e2e/middleware-custom-matchers/test/index.test.ts",
+      "test/e2e/middleware-matcher/index.test.ts",
       "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts",
-      "test/e2e/routing-server/router/middleware-custom-matchers/test/index.test.ts",
-      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
+      "test/e2e/middleware-custom-matchers/test/index.test.ts",
+      "test/e2e/middleware-matcher/index.test.ts",
       "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts"
     ]
   },
@@ -570,14 +570,14 @@
       "docs/01-app/03-api-reference/03-file-conventions/middleware.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
-      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
-      "test/e2e/routing-server/router/middleware-redirects/test/index.test.ts"
+      "test/e2e/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/middleware-responses/test/index.test.ts",
+      "test/e2e/middleware-redirects/test/index.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts",
-      "test/e2e/routing-server/http/middleware-responses/test/index.test.ts",
-      "test/e2e/routing-server/router/middleware-redirects/test/index.test.ts"
+      "test/e2e/middleware-request-header-overrides/test/index.test.ts",
+      "test/e2e/middleware-responses/test/index.test.ts",
+      "test/e2e/middleware-redirects/test/index.test.ts"
     ]
   },
   {
@@ -593,12 +593,12 @@
     "tests": [
       "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
       "test/e2e/routing-server/router/proxy-normalization-config/proxy-normalization-config.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts",
       "test/e2e/routing-server/router/proxy-normalization-config/proxy-normalization-config.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts"
     ]
   },
   {
@@ -702,15 +702,15 @@
     "tests": [
       "test/e2e/getserversideprops/test/index.test.ts",
       "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts",
-      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts"
+      "test/e2e/middleware-matcher/index.test.ts",
+      "test/e2e/middleware-rewrites/test/index.test.ts",
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts",
-      "test/e2e/routing-server/router/middleware-matcher/index.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
-      "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/middleware-matcher/index.test.ts",
+      "test/e2e/middleware-rewrites/test/index.test.ts",
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts",
       {
         "file": "test/e2e/getserversideprops/test/index.test.ts",
         "testNamePattern": "should have original req\\.url for /_next/data request"
@@ -731,10 +731,10 @@
     "tests": [
       "test/e2e/app-dir/app/index.test.ts",
       "test/e2e/app-dir/shallow-routing/shallow-routing.test.ts",
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts"
+      "test/e2e/middleware-rewrites/test/index.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts",
+      "test/e2e/middleware-rewrites/test/index.test.ts",
       "test/e2e/app-dir/shallow-routing/shallow-routing.test.ts",
       {
         "file": "test/e2e/app-dir/app/index.test.ts",
@@ -752,12 +752,12 @@
       "docs/01-app/03-api-reference/03-file-conventions/parallel-routes.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
-      "test/e2e/routing-server/router/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts"
+      "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
+      "test/e2e/app-dir/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
-      "test/e2e/routing-server/router/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts"
+      "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
+      "test/e2e/app-dir/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts"
     ]
   },
   {
@@ -770,12 +770,12 @@
       "docs/01-app/03-api-reference/03-file-conventions/intercepting-routes.mdx"
     ],
     "tests": [
-      "test/e2e/routing-server/router/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts",
-      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts"
+      "test/e2e/app-dir/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts",
+      "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts",
-      "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts"
+      "test/e2e/app-dir/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts",
+      "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts"
     ]
   },
   {
@@ -791,11 +791,11 @@
     "tests": [
       "test/e2e/prerender.test.ts",
       "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
-      "test/e2e/routing-server/router/dynamic-params-request-modes/dynamic-params-request-modes.test.ts"
+      "test/e2e/app-dir/dynamic-params-request-modes/dynamic-params-request-modes.test.ts"
     ],
     "routingTests": [
       "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts",
-      "test/e2e/routing-server/router/dynamic-params-request-modes/dynamic-params-request-modes.test.ts",
+      "test/e2e/app-dir/dynamic-params-request-modes/dynamic-params-request-modes.test.ts",
       {
         "file": "test/e2e/prerender.test.ts",
         "testNamePattern": "should (?:SSR blocking path correctly|not return data for fallback: false|handle fallback only page correctly|always show fallback for page not in getStaticPaths|not show fallback for page in getStaticPaths|never show fallback for page not in getStaticPaths when blocking|support (?:prerendered|lazy|nested lazy) catchall route)"
@@ -1016,12 +1016,12 @@
       "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts",
       "test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts",
       "test/e2e/app-dir/proxy-runtime/proxy-runtime.test.ts",
-      "test/e2e/routing-server/router/custom-page-extension/custom-page-extension.test.ts",
-      "test/e2e/routing-server/router/proxy-page-extensions/proxy-page-extensions.test.ts"
+      "test/e2e/custom-page-extension/custom-page-extension.test.ts",
+      "test/e2e/app-dir/proxy-page-extensions/proxy-page-extensions.test.ts"
     ],
     "routingTests": [
-      "test/e2e/routing-server/router/custom-page-extension/custom-page-extension.test.ts",
-      "test/e2e/routing-server/router/proxy-page-extensions/proxy-page-extensions.test.ts",
+      "test/e2e/custom-page-extension/custom-page-extension.test.ts",
+      "test/e2e/app-dir/proxy-page-extensions/proxy-page-extensions.test.ts",
       "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts",
       "test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts",
       "test/e2e/app-dir/proxy-runtime/proxy-runtime.test.ts"

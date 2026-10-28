@@ -11,7 +11,7 @@ describe('adapter-pages-api-runtime', () => {
     skipStart: true,
   })
 
-  it('loads an external next/head dependency from a Pages API output', async () => {
+  it('invokes a packaged Pages API output with an external next/head dependency', async () => {
     await next.build()
 
     const { outputs, repoRoot }: Parameters<NextAdapter['onBuildComplete']>[0] =
@@ -63,9 +63,37 @@ describe('adapter-pages-api-runtime', () => {
             ? ['--no-experimental-require-module']
             : []),
           '-e',
-          `require('next/setup-node-env'); const mod = require(${JSON.stringify(entryDestination)}); if (typeof mod.handler !== 'function') process.exit(1)`,
+          `
+          require('next/setup-node-env')
+          const assert = require('node:assert/strict')
+          const { createServer } = require('node:http')
+          const { once } = require('node:events')
+          const mod = require(${JSON.stringify(entryDestination)})
+          assert.equal(typeof mod.handler, 'function')
+          async function main() {
+            const pending = []
+            const server = createServer((req, res) => {
+              Promise.resolve(mod.handler(req, res, { waitUntil: (work) => pending.push(work) }))
+                .catch((error) => { console.error(error); res.writeHead(500).end() })
+            })
+            server.listen(0, '127.0.0.1')
+            await once(server, 'listening')
+            try {
+              const response = await fetch('http://127.0.0.1:' + server.address().port + '/api/hello', {
+                signal: AbortSignal.timeout(10000),
+              })
+              assert.equal(response.status, 200)
+              assert.deepEqual(await response.json(), { hello: 'world' })
+              await Promise.all(pending)
+            } finally {
+              server.closeAllConnections()
+              await new Promise((resolve) => server.close(resolve))
+            }
+          }
+          main().catch((error) => { console.error(error); process.exitCode = 1 })
+          `,
         ],
-        { cwd: functionDir, env }
+        { cwd: functionDir, env, extendEnv: false, timeout: 30000 }
       )
     } finally {
       await fs.rm(functionDir, { recursive: true, force: true })

@@ -8,7 +8,7 @@ pnpm test-routing
 
 The command runs production first, then development, using the existing Next.js parallel test scheduler. Up to four independent suites run concurrently; each suite's tests remain sequential. The scheduler shares a dependency starter installation and browser server while each application keeps its own fixture directory, listener, build output, and browser context.
 
-The default includes every test beneath this directory and the focused `routingTests` selections in [contracts.json](./contracts.json). Broad companion suites run only their selected routing cases: metadata endpoint delivery does not also run title/description tests, for example, and Server Action dispatch does not also test action compilation. `--full` adds the original broader feature regressions. Both profiles retain all 44 documentation capability families; the full profile adds regression depth rather than being required to include a capability family.
+The default includes the whole-file suites listed in [suites.mjs](./suites.mjs) and the focused `routingTests` selections in [contracts.json](./contracts.json). Existing fixtures stay in their original feature directories; category comments in the index explain the behaviors they cover. Broad companion suites run only their selected routing cases: metadata endpoint delivery does not also run title/description tests, for example, and Server Action dispatch does not also test action compilation. `--full` adds the original broader feature regressions. Both profiles retain all 44 documentation capability families; the full profile adds regression depth rather than being required to include a capability family.
 
 Tests run once per applicable mode, regardless of how many contracts reference them. A failing mode makes the command fail; it still runs the other selected mode. Retries are disabled so a failure remains visible and the scheduler never resets a developer's fixture source files. Mode and total elapsed times are printed at the end.
 
@@ -38,7 +38,7 @@ pnpm test-routing --group=http
 # Another supported bundler:
 pnpm test-routing --bundler=webpack
 
-# Only the fixtures physically located in this directory:
+# Only the whole-file routing suites in suites.mjs:
 pnpm test-routing --core --mode=start
 
 # Inspect selection without starting servers:
@@ -58,12 +58,50 @@ Supported modes are `all` (local start + dev), `start`, `dev` and `deploy`. Bund
 
 The default concurrency is the smaller of four and the available CPU count. `--concurrency` accepts a positive integer. Turbopack thread pools are also bounded according to the worker count unless `TURBO_TASKS_AVAILABLE_PARALLELISM` is already set. Use fewer workers if the machine has limited memory or is busy with other builds. Jest name filters passed after `--` narrow the routing case selections; they cannot enable unrelated cases from a broad companion suite.
 
+## Server consolidation regression companions
+
+The architecture projects A–H have a separate selection in
+[regression-companions.mjs](./regression-companions.mjs). They do not change
+or increase the 44 public documentation capability families.
+
+```sh
+# All applicable architecture companions, production then dev:
+pnpm test-routing --regressions=all
+
+# Fast project-specific investigation:
+pnpm test-routing --regressions=A,C,G --mode=dev --bundler=turbo
+pnpm test-routing --regressions=A,C,G --mode=dev --bundler=webpack
+pnpm test-routing --regressions=B,C,D,E,H --mode=start --bundler=turbo
+
+# Inspect selected files and registered-case filters before running:
+pnpm test-routing --regressions=all --list
+pnpm test-routing --regressions=E --mode=start --bundler=webpack --dry
+```
+
+Use `--regressions` independently of `--core`, `--full`, and `--group`.
+Each companion records its modes, bundlers, hosting path, and optional case
+filter. Explicit dimensions allow development assertions in a fixture under
+`test/production/`. Native compiler subscription tests run only with
+Turbopack; content-hash tests retain their existing production Turbo scope.
+The F fixture independently launches supported backends inside isolated
+subprocesses, so its outer runner bundler is not evidence of selection.
+
+A selected but gated assertion is a skip. The scheduler rejects filters that
+match no registered assertion. `--mode=all` omits an inapplicable mode;
+an explicitly requested mode with no matches fails. The companion profile
+currently covers local hosting; it supplies no deployment coverage.
+
+See [the coverage and execution review](./consolidation-review.md) for actual
+assertions/results and [the acceptance follow-up plan](./consolidation-acceptance-plan.md)
+for remaining tests and implementation dependencies. Neither selection counts
+nor passing public contracts prove the proposed internal refactors are covered.
+
 ## Organization
 
 - [http/](./http/) checks payloads, body limits, headers/cookies, origin admission, progressive delivery, streaming status behavior, compression and connection lifecycle.
 - [router/](./router/) checks route selection, dynamic paths, custom rules, Proxy, URL handling, navigation, revalidation and request dispatch.
 
-Each subdirectory is an independent real fixture. Whole routing-focused suites were moved here with their test files, assets, configuration and existing routing build-manifest checks. Keep those checks: they are useful build companions even though request/browser assertions supply the public runtime contract.
+Each subdirectory is an independent real fixture. New fixtures live here; existing routing-focused fixtures stay in their original directories, such as `test/e2e/basepath` and `test/e2e/app-dir/parallel-routes-and-interception`. The commented [suite index](./suites.mjs) groups both by HTTP and Router behavior without moving files or changing their existing CI references. Keep the existing routing build-manifest checks: they are useful build companions even though request/browser assertions supply the public runtime contract.
 
 Broader App/Pages/Actions/image/cache suites remain in their feature directories. The manifest distinguishes focused routing assertions (`routingTests`) from the broader regression references (`tests`). A focused reference can select an entire routing-specific file, or supply a `testNamePattern` for the relevant cases in a broader file. Multiple selections of the same file are combined and executed once. This reuses assertions without including unrelated feature tests in the regular development loop. The scheduler checks selectors against Jest's registered assertions and fails if a selector matches no test names. Registered but mode-gated assertions remain visible as skips.
 
@@ -130,11 +168,11 @@ Observed reference-server discrepancies are recorded in [compatibility-notes.md]
 
 ## Adding coverage
 
-Extend the closest real fixture and reference the corresponding contract ID in the test name or a nearby explanation. Add a match, near miss and relevant boundary where the contract calls for them. For a new suite, use `pnpm new-test --args <appDir> <name> e2e`, then move the generated fixture into the appropriate directory. New test files here are discovered automatically; also add them to the relevant contract entries. When reusing a broad companion, add focused routing cases to `routingTests` and keep the whole-file reference in `tests` for `--full`. Avoid adding an entire feature suite to `routingTests` to cover a single routing assertion.
+Extend the closest real fixture and reference the corresponding contract ID in the test name or a nearby explanation. Add a match, near miss and relevant boundary where the contract calls for them. For a new suite, use `pnpm new-test --args <appDir> <name> e2e`, then move the generated fixture into the appropriate directory. Add routing-focused whole files to the relevant commented category in [suites.mjs](./suites.mjs) and to the relevant contract entries. Selection is explicit rather than based on folder discovery. When reusing a broad companion, add focused routing cases to `routingTests` and keep the whole-file reference in `tests` for `--full`. Avoid adding an entire feature suite to `routingTests` to cover a single routing assertion.
 
 Use HTTP for wire outcomes, a browser for navigation/state/cookie behavior and raw sockets when framing or connection lifetime requires them. Prefer controlled release barriers to elapsed-time guesses for streams. Consume streamed content progressively; a final buffered body alone cannot prove early delivery. Query/path normalization expectations beyond the documented examples need an explicit compatibility decision.
 
-Keep mode/bundler/experimental scope honest. A skipped case, known-failure gate or dummy pass is not executed behavioral coverage. Do not add a broad deployment exclusion for a feature that can be tested on a deployment; local-only backend/control, signal and listener assertions can have narrowly explained local gates. Preserve existing manifest entries and explicit CI references when relocating tests.
+Keep mode/bundler/experimental scope honest. A skipped case, known-failure gate or dummy pass is not executed behavioral coverage. Do not add a broad deployment exclusion for a feature that can be tested on a deployment; local-only backend/control, signal and listener assertions can have narrowly explained local gates. Existing fixtures keep their manifest entries and explicit CI references at their original paths.
 
 These assertions currently launch the server supplied by the normal test harness. A replacement must be wired into that startup path, with evidence that its listener handled the requests, before a run can be reported as replacement-server coverage. Custom-server, multi-zone and private adapter/PPR fixtures have distinct launch topologies that must also be supported explicitly.
 

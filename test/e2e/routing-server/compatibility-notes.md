@@ -47,3 +47,42 @@ The Preview Mode assertions remain enabled. The oversized-data fixture accepts o
 ## Scope of these findings
 
 These observations are about the current reference server. They do not establish behavior of the Go replacement, other deployment topologies, or unsupported configuration combinations. The capability manifest remains the index of documentation and tests; this note does not mark a case as passing or introduce a known-failure gate.
+
+## Consolidation companions at f873704c0f5bb13baf900d80b8abdbbf1ea130ba
+
+These additional active expectations describe consolidation behavior. They are separate from the 44 public documentation families. Exact executions and fixture corrections are in [consolidation-review.md](./consolidation-review.md).
+
+### Custom API accepts conflicting bundler pairs (F)
+
+The [isolated bundler suite](../../development/bundler-selection-contract/bundler-selection-contract.test.ts) requires the CLI and custom `next()` constructor to reject conflicting selections. The CLI rejects all tested pairs and the triple. The constructor exits successfully for each of these three separate cases:
+
+- `{ turbopack: true, webpack: true }`.
+- `{ turbo: true }` with `NEXT_RSPACK=1`.
+- `{ webpack: true }` with `NEXT_RSPACK=1`.
+
+The triple is rejected. These failures reproduce with either outer test bundler after removing inherited selection flags from child environments. Default, aliases, explicit/environment Webpack and environment/config Rspack all compile real pages successfully. These are active acceptance expectations for unified selection, not claims that the current two entrypoints already share a selection contract.
+
+### Webpack retains the last good Pages API after a compiler error (A)
+
+In [empty-project](../../development/empty-project/empty-project.test.ts), add a working Pages API route, fetch it, then replace its source with invalid syntax. Webpack reports the syntax error but keeps returning the previous 200 JSON response for 30 seconds of polling. The active expectation is a matched 500 response. The same four-kind live-route lifecycle passes with Turbopack. The Webpack API case fails before its subsequent repair/rename/delete steps; those steps are not executed coverage for that case.
+
+### Webpack alias replacement serves stale modules (G)
+
+The new [tsconfig reload assertion](../../development/tsconfig-path-reloading/index.test.ts) changes `@mybutton` from button-2 to button-3. Requests still render `second button`, rather than `third button`, after 30 seconds. Each existing fixture variant fails independently:
+
+- `tsconfig`.
+- `tsconfig without baseUrl`.
+- `tsconfig added after starting dev`.
+- `tsconfig without baseUrl added after starting dev`.
+
+All 16 assertions pass with Turbopack. Webpack's 12 pre-existing assertions pass; its four new assertions fail at replacement, so their deletion/restoration stages have not passed.
+
+### Same-process custom runtime recreation retains state (E)
+
+The [custom lifecycle test](../custom-server/custom-server.test.ts) prepares and serves a project, closes its listener and `app`, changes the route and config, and recreates it in the same process. Old-port release and the same PID are checked. Both retain the old `x-runtime-generation: 1` header instead of `2`. Turbopack initially serves the replacement, then returns 404 on repeated requests and reports `Worker creator already registered`. Webpack returns 500 for both the replacement and removed route, with missing `_document.js` output. Neither process exits naturally within the final 20-second disposal deadline; cleanup then terminates and awaits the owned child. Correct expectations remain active. Disposal is checked even if replacement assertions fail; final detailed results are in the execution review. A cleanup signal is not successful disposal.
+
+### Existing Webpack conflict assertions also fail (A)
+
+The [page/Route Handler conflict assertion](./router/route-definition-conflicts/route-definition-conflicts.test.ts) observes 404 after the conflict is introduced but no conflict diagnostic in the CLI. Its finally block removes the conflict and verifies the original destination recovers. This diagnostic failure was already present before the recovery enhancement.
+
+The reused [App/Pages conflict suite](../conflicting-app-page-error/index.test.ts) also had one observed Webpack failure in `should error again when there is new conflict`: the browser did not display the expected error overlay after restoring the conflict. Other four selected assertions passed. This existing-suite failure is reported separately; repeatability was not established, and it is not silently treated as passing coverage.

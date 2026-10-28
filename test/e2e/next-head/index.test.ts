@@ -1,7 +1,9 @@
-import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
+import { createServer, type ServerResponse } from 'node:http'
+import { once } from 'node:events'
 
 describe('next/head', () => {
   const { next } = nextTestSetup({
@@ -62,11 +64,8 @@ describe('next/head', () => {
   })
 })
 
+// @force-gate dev
 describe('next/head dev route discovery', () => {
-  if (!isNextDev) {
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'app/pages')),
@@ -76,15 +75,50 @@ describe('next/head dev route discovery', () => {
       ),
     },
     env: { NODE_OPTIONS: '--require ./inject-readdir-delay.cjs' },
+    skipStart: true,
   })
 
   it('waits for the initial route scan before serving pages', async () => {
-    const response = await next.fetch('/')
-
-    expect(response.status).toBe(200)
-    expect(await response.text()).toContain('index page')
-    expect(next.cliOutput).toContain(
-      '[next-head] delaying initial Watchpack pages scan'
-    )
+    let heldScan: ServerResponse | undefined
+    const control = createServer((request, response) => {
+      if (request.url === '/scan') {
+        heldScan = response
+        control.emit('scan-held')
+      } else {
+        control.emit('request-arrived')
+        response.end()
+      }
+    })
+    control.listen(0, '127.0.0.1')
+    await once(control, 'listening')
+    const address = control.address()
+    if (!address || typeof address === 'string')
+      throw new Error('No control listener')
+    next.env.ROUTING_ROUTE_SCAN_CONTROL_ORIGIN = `http://127.0.0.1:${address.port}`
+    const scanHeld = once(control, 'scan-held', {
+      signal: AbortSignal.timeout(15000),
+    })
+    const startup = next.start()
+    try {
+      await scanHeld
+      const arrived = once(control, 'request-arrived', {
+        signal: AbortSignal.timeout(15000),
+      })
+      const response = next.fetch('/?__route_readiness=1', {
+        signal: AbortSignal.timeout(20000),
+      })
+      await arrived
+      // The preload fails the child if this request commits headers before
+      // release. The request has arrived; no sleep estimates its timing.
+      heldScan!.end('release')
+      await startup
+      const result = await response
+      expect(result.status).toBe(200)
+      expect(await result.text()).toContain('index page')
+    } finally {
+      heldScan?.end('release')
+      await startup.catch(() => {})
+      await new Promise<void>((resolve) => control.close(() => resolve()))
+    }
   })
 })

@@ -69,6 +69,95 @@ describe('routing suite execution', () => {
     return path.relative(root, file).split(path.sep).join('/')
   }
 
+  async function selection(...args: string[]) {
+    return execa(
+      process.execPath,
+      ['scripts/run-routing-tests.mjs', '--list', ...args],
+      { cwd: root, reject: false }
+    )
+  }
+
+  it('selects indexed suites at their original paths and keeps HTTP and Router groups separate', async () => {
+    const router = await selection('--core', '--group=router', '--mode=start')
+    expect(router.exitCode).toBe(0)
+    expect(router.stdout).toContain('test/e2e/basepath/basepath.test.ts\n')
+    expect(router.stdout).toContain(
+      'test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts\n'
+    )
+    expect(router.stdout).toContain(
+      'test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts\n'
+    )
+    expect(router.stdout).not.toContain('routing-server/router/basepath/')
+    expect(router.stdout).not.toContain('middleware-responses/')
+    // A broader companion's focused cases stay outside the whole-file profile.
+    expect(router.stdout).not.toContain('test/e2e/app-dir/app/index.test.ts')
+
+    const http = await selection('--core', '--group=http', '--mode=start')
+    expect(http.exitCode).toBe(0)
+    expect(http.stdout).toContain(
+      'test/e2e/middleware-responses/test/index.test.ts\n'
+    )
+    expect(http.stdout).toContain(
+      'test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts\n'
+    )
+    expect(http.stdout).not.toContain('test/e2e/basepath/')
+  })
+
+  it('keeps architecture companions separate and respects native API bundler scope', async () => {
+    const turbo = await selection(
+      '--regressions=A',
+      '--mode=dev',
+      '--bundler=turbo'
+    )
+    expect(turbo.exitCode).toBe(0)
+    expect(turbo.stdout).toContain('test/development/basic/next-rs-api.test.ts')
+    expect(turbo.stdout).toContain('reports route kinds')
+    expect(turbo.stdout).not.toContain('writeToDisk multiple times')
+    const webpack = await selection(
+      '--regressions=A',
+      '--mode=dev',
+      '--bundler=webpack'
+    )
+    expect(webpack.exitCode).toBe(0)
+    expect(webpack.stdout).toContain(
+      'test/development/empty-project/empty-project.test.ts'
+    )
+    expect(webpack.stdout).not.toContain('next-rs-api.test.ts')
+    const ordinary = await selection('--mode=dev')
+    expect(ordinary.exitCode).toBe(0)
+    expect(ordinary.stdout).not.toContain('next-rs-api.test.ts')
+  })
+
+  it('selects explicit dev cases even when their fixture lives under production', async () => {
+    const dev = await selection('--regressions=E', '--mode=dev')
+    expect(dev.exitCode).toBe(0)
+    expect(dev.stdout).toContain(
+      'graceful-shutdown/index.test.ts [cases: (?:Graceful Shutdown development)]'
+    )
+    expect(dev.stdout).not.toContain('Graceful Shutdown production')
+    const start = await selection('--regressions=E', '--mode=start')
+    expect(start.exitCode).toBe(0)
+    expect(start.stdout).toContain('Graceful Shutdown production')
+    expect(start.stdout).not.toContain('Graceful Shutdown development')
+  })
+
+  it('rejects incompatible profiles and explicit unsupported dimensions', async () => {
+    for (const args of [
+      ['--regressions=I'],
+      ['--regressions=A', '--full'],
+      ['--regressions=A', '--group=router'],
+      ['--regressions=A', '--mode=start'],
+    ]) {
+      expect((await selection(...args)).exitCode).not.toBe(0)
+    }
+    const applicable = await selection('--regressions=A')
+    expect(applicable.exitCode).toBe(0)
+    expect(applicable.stdout).toContain(
+      'No applicable regression companions for start'
+    )
+    expect(applicable.stdout).toContain('next-rs-api.test.ts')
+  })
+
   it('intersects developer filters with routing selections', async () => {
     const file = await fixture(
       'filtering',

@@ -5,6 +5,7 @@ import {
   check,
   renderViaHTTP,
   getRedboxSource,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -62,6 +63,34 @@ describe('tsconfig-path-reloading', () => {
           hello: 'world',
         })
       )
+    })
+
+    it('invalidates changed and deleted aliases instead of serving stale compiled modules', async () => {
+      const original = await next.readFile(tsConfigFile)
+      const config = JSON.parse(original)
+      try {
+        config.compilerOptions.paths['@mybutton'] = ['components/button-3.tsx']
+        await next.patchFile(tsConfigFile, JSON.stringify(config))
+        await retry(async () => {
+          const response = await next.fetch('/')
+          expect(response.status).toBe(200)
+          const body = await response.text()
+          expect(body).toContain('third button')
+          expect(body).not.toContain('second button')
+        }, 30000)
+        delete config.compilerOptions.paths['@mybutton']
+        await next.patchFile(tsConfigFile, JSON.stringify(config))
+        await retry(async () => {
+          expect((await next.fetch('/')).status).toBe(500)
+        }, 30000)
+      } finally {
+        await next.patchFile(tsConfigFile, original)
+      }
+      await retry(async () => {
+        const response = await next.fetch('/')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('second button')
+      }, 30000)
     })
 
     it('should recover from module not found when paths is updated', async () => {

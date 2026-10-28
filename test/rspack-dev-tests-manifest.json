@@ -7625,7 +7625,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/dynamic-params-request-modes/dynamic-params-request-modes.test.ts": {
+  "test/e2e/app-dir/dynamic-params-request-modes/dynamic-params-request-modes.test.ts": {
     "passed": [
       "dynamicParams: false request modes admits only generated paths for a bot request",
       "dynamicParams: false request modes admits only generated paths for a document request",
@@ -9267,7 +9267,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts": {
+  "test/e2e/app-dir/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts": {
     "passed": [
       "interception-segments-two-levels-above should intercept consistently with back/forward navigation",
       "interception-segments-two-levels-above should intercept multiple times from same route",
@@ -10123,7 +10123,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/multi-value-search-params-stale/multi-value-search-params-stale.test.ts": {
+  "test/e2e/app-dir/multi-value-search-params-stale/multi-value-search-params-stale.test.ts": {
     "passed": [
       "multi-value-search-params-stale re-renders when a repeated search param goes from multiple values to one"
     ],
@@ -11557,7 +11557,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/pages-to-app-routing/pages-to-app-routing.test.ts": {
+  "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": [
       "pages-to-app-routing with cross-router shadowing should render the app route on a hard reload of the same URL",
       "pages-to-app-routing with cross-router shadowing should still client-navigate to a real pages dynamic route (no spurious hard navigation)"
@@ -11656,7 +11656,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
+  "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
       "parallel-routes-and-interception (trailingSlash: false) parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception (trailingSlash: false) parallel routes should display all parallel route params with useParams",
@@ -11742,7 +11742,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts": {
+  "test/e2e/app-dir/parallel-routes-catchall-default/parallel-routes-catchall-default.test.ts": {
     "passed": [
       "parallel-routes-catchall-default should match default paths before catch-all"
     ],
@@ -12646,7 +12646,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/proxy-page-extensions/proxy-page-extensions.test.ts": {
+  "test/e2e/app-dir/proxy-page-extensions/proxy-page-extensions.test.ts": {
     "passed": [
       "proxy-page-extensions should detect instrumentation.page.ts and run register()",
       "proxy-page-extensions should execute proxy.page.ts and set custom header",
@@ -14697,7 +14697,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
+  "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
       "underscore-ignore-app-paths should serve app path with %5F",
@@ -15508,7 +15508,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/basepath/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should add header with basePath by default",
@@ -15550,7 +15550,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/basepath/error-pages.test.ts": {
+  "test/e2e/basepath/error-pages.test.ts": {
     "passed": [
       "basePath client-side navigation should navigate to /404 correctly client-side",
       "basePath client-side navigation should navigate to /_error correctly client-side",
@@ -15568,7 +15568,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/basepath/query-hash.test.ts": {
+  "test/e2e/basepath/query-hash.test.ts": {
     "passed": [
       "basePath query/hash handling is correct during query updating ## $search",
       "basePath query/hash handling is correct during query updating ##? $search",
@@ -15587,7 +15587,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/basepath/redirect-and-rewrite.test.ts": {
+  "test/e2e/basepath/redirect-and-rewrite.test.ts": {
     "passed": [
       "basePath should not redirect with basePath when set to false",
       "basePath should not redirect without basePath without disabling",
@@ -15603,7 +15603,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/basepath/router-events.test.ts": {
+  "test/e2e/basepath/router-events.test.ts": {
     "passed": [
       "basePath should use urls with basepath in router events",
       "basePath should use urls with basepath in router events for cancelled routes",
@@ -15615,7 +15615,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/basepath/trailing-slash.test.ts": {
+  "test/e2e/basepath/trailing-slash.test.ts": {
     "passed": [
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should allow URL query strings without refresh",
@@ -16134,7 +16134,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/custom-page-extension/custom-page-extension.test.ts": {
+  "test/e2e/custom-page-extension/custom-page-extension.test.ts": {
     "passed": [
       "Custom page extension should work dynamic page",
       "Custom page extension should work with normal page"
@@ -16177,7 +16177,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/custom-routes/custom-routes.test.ts": {
+  "test/e2e/custom-routes/custom-routes.test.ts": {
     "passed": [
       "Custom routes no-op rewrite should not error for no-op rewrite and auto export dynamic route",
       "Custom routes should add refresh header for 308 redirect",
@@ -20512,7 +20512,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-custom-matchers-basepath/test/index.test.ts": {
+  "test/e2e/middleware-custom-matchers-basepath/test/index.test.ts": {
     "passed": [
       "Middleware custom matchers basePath should match",
       "Middleware custom matchers basePath should match has query on client routing",
@@ -20523,7 +20523,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-custom-matchers-i18n/test/index.test.ts": {
+  "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
       "Middleware custom matchers i18n should match /en/hello",
       "Middleware custom matchers i18n should match /hello",
@@ -20544,7 +20544,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-custom-matchers/test/index.test.ts": {
+  "test/e2e/middleware-custom-matchers/test/index.test.ts": {
     "passed": [
       "Middleware custom matchers should match has cookie",
       "Middleware custom matchers should match has cookie on client routing",
@@ -20562,7 +20562,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-custom-matchers/test/node-runtime.test.ts": {
+  "test/e2e/middleware-custom-matchers/test/node-runtime.test.ts": {
     "passed": [
       "Middleware custom matchers should match has cookie",
       "Middleware custom matchers should match has cookie on client routing",
@@ -20802,7 +20802,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-matcher/index.test.ts": {
+  "test/e2e/middleware-matcher/index.test.ts": {
     "passed": [
       "Middleware can set the matcher in its config adds the header for a matched data path (with header)",
       "Middleware can set the matcher in its config adds the header for a matched data path (without header)",
@@ -20854,7 +20854,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-redirects/test/index.test.ts": {
+  "test/e2e/middleware-redirects/test/index.test.ts": {
     "passed": [
       "Middleware Redirect /fr should implement internal redirects",
       "Middleware Redirect /fr should redirect",
@@ -20881,7 +20881,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-redirects/test/node-runtime.test.ts": {
+  "test/e2e/middleware-redirects/test/node-runtime.test.ts": {
     "passed": [
       "Middleware Redirect /fr should implement internal redirects",
       "Middleware Redirect /fr should redirect",
@@ -20908,7 +20908,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/http/middleware-request-header-overrides/test/index.test.ts": {
+  "test/e2e/middleware-request-header-overrides/test/index.test.ts": {
     "passed": [
       "Middleware Request Headers Overrides Edge Functions Backend Adds new headers",
       "Middleware Request Headers Overrides Edge Functions Backend Deletes headers",
@@ -20925,7 +20925,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/http/middleware-responses/test/index.test.ts": {
+  "test/e2e/middleware-responses/test/index.test.ts": {
     "passed": [
       "Middleware Responses /fr responds with multiple cookies",
       "Middleware Responses /fr should not fail when returning a stream",
@@ -20947,7 +20947,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/middleware-rewrites/test/index.test.ts": {
+  "test/e2e/middleware-rewrites/test/index.test.ts": {
     "passed": [
       "Middleware Rewrite /fr can rewrite from path with colon",
       "Middleware Rewrite /fr can rewrite from path with colon and retain query parameter",
@@ -23125,7 +23125,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/skip-trailing-slash-redirect/index.test.ts": {
+  "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
@@ -23499,7 +23499,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/trailing-slashes/basepath.test.ts": {
+  "test/e2e/trailing-slashes/basepath.test.ts": {
     "passed": [
       "Trailing slashes in development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
       "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
@@ -23517,7 +23517,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/trailing-slashes/with-trailing-slash.test.ts": {
+  "test/e2e/trailing-slashes/with-trailing-slash.test.ts": {
     "passed": [
       "Trailing slashes with trailingSlash: true / should client side render /index.js, with router path /",
       "Trailing slashes with trailingSlash: true / should resolve to /index.js, with router path /",
@@ -23561,7 +23561,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/routing-server/router/trailing-slashes/without-trailing-slash.test.ts": {
+  "test/e2e/trailing-slashes/without-trailing-slash.test.ts": {
     "passed": [
       "Trailing slashes with trailingSlash: false / should client side render /index.js, with router path /",
       "Trailing slashes with trailingSlash: false / should resolve to /index.js, with router path /",
