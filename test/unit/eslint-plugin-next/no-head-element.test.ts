@@ -57,6 +57,41 @@ const tests = {
     `,
       filename: './app/layout.js',
     },
+    {
+      code: `
+      export default function Page() {
+        return (
+          <html>
+            <head>
+              <title>pages route in app</title>
+            </head>
+            <body>Content</body>
+          </html>
+        );
+      }
+    `,
+      filename: 'app/pages/page.js',
+    },
+    {
+      code: `
+      export default function Layout({ children }) {
+        return (
+          <html>
+            <head>
+              <title>layout</title>
+            </head>
+            <body>{children}</body>
+          </html>
+        );
+      }
+    `,
+      filename: '/checkout/pages/my-app/app/layout.js',
+      settings: {
+        next: {
+          rootDir: '/checkout/pages/my-app',
+        },
+      },
+    },
   ],
   invalid: [
     {
