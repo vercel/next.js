@@ -24,8 +24,8 @@ describe('build-output-tree-view', () => {
        ├ ○ /cache-life-custom         ≈7m     ≈2h
        ├ ○ /cache-life-hours           1h      1d
        ├ ƒ /dynamic
-       ├   /ppr/[slug]                 1w     30d
-       │ ├ ◐ /ppr/[slug]               1w     30d
+       ├   /ppr/[slug]
+       │ ├ ◐ /ppr/[slug]
        │ ├ ◐ /ppr/days                 1d      1w
        │ └ ◐ /ppr/weeks                1w     30d
        └ ○ /revalidate                15m      1y
