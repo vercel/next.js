@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const config = {
+  httpAgentOptions: { keepAlive: process.env.TEST_KEEP_ALIVE === 'true' },
   rewrites() {
     return [
       {
