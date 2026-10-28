@@ -5798,3 +5798,21 @@ it.each(
     legacyNoSerialization: true,
   })
 })
+
+it.each(['descriptor', 'immutable', 'utilities', 'definition-call'])(
+  'preserves the actual public Locator brand: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'locator-brand.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      ownSameSymbolBrand: true,
+      immutableNonenumerable: true,
+      ordinaryConstructorCall: true,
+      serializedFacadeUnchanged: true,
+    })
+  }
+)

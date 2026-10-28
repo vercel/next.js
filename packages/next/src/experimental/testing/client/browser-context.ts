@@ -437,6 +437,8 @@ interface LocatorCache {
   _pwLocator?: string
 }
 
+const locatorBrand = Symbol.for('$$vitest:locator')
+
 /** Queries execute in the actual document. Input commands stay Playwright-owned. */
 class ElementLocator {
   #nativeElements: () => Element[]
@@ -451,6 +453,12 @@ class ElementLocator {
     readonly container?: Element,
     private readonly actionElement?: Element
   ) {
+    Object.defineProperty(this, locatorBrand, {
+      enumerable: false,
+      writable: false,
+      configurable: false,
+      value: locatorBrand,
+    })
     this.#nativeElements = () => resolve(true)
   }
   get selector(): string {
