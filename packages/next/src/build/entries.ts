@@ -70,6 +70,10 @@ import { getStrictRouteMatchingDefaultWarning } from '../server/lib/router-utils
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { getPageFromPath } from './route-discovery'
+import {
+  createStaticSiblingsIndex,
+  getStaticSiblingsByParentUrl,
+} from './static-siblings-index'
 
 export function getPageFilePath({
   absolutePagePath,
@@ -534,6 +538,18 @@ export async function createEntrypoints(
     )
   }
 
+  // Static siblings of dynamic segments are computed across all app routes
+  // once, and each app entry only receives the parts it can use. Passing all
+  // routes to every entry would make the loader requests grow quadratically
+  // with the number of routes.
+  const staticSiblingsIndex = createStaticSiblingsIndex(
+    Object.keys(appPathsPerRoute)
+  )
+  const getStaticSiblingsLoaderOption = (routeAppPaths: string[] | null) =>
+    JSON.stringify(
+      getStaticSiblingsByParentUrl(staticSiblingsIndex, routeAppPaths ?? [])
+    )
+
   const getEntryHandler =
     (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
@@ -641,7 +657,8 @@ export async function createEntrypoints(
               pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
-              allNormalizedAppPaths: Object.keys(appPathsPerRoute),
+              staticSiblingsByParentUrl:
+                getStaticSiblingsLoaderOption(matchedAppPaths),
               pageExtensions,
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
@@ -727,7 +744,8 @@ export async function createEntrypoints(
                 pagePath: absolutePagePath,
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
-                allNormalizedAppPaths: Object.keys(appPathsPerRoute),
+                staticSiblingsByParentUrl:
+                  getStaticSiblingsLoaderOption(matchedAppPaths),
                 pageExtensions,
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,

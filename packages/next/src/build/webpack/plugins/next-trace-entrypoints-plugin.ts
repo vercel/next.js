@@ -48,10 +48,51 @@ function getModuleFromDependency(
   return compilation.moduleGraph.getModule(dep)
 }
 
+/**
+ * Whether `getFilesMapFromReasons` records `file` for its ancestors.
+ */
+function isTracedForParents(reasons: NodeFileTraceReasons, file: string) {
+  const reason = reasons.get(file)
+  const isInitial = reason?.type.length === 1 && reason.type.includes('initial')
+
+  return !(
+    !reason ||
+    !reason.parents ||
+    (isInitial && reason.parents.size === 0)
+  )
+}
+
+const IGNORED_FILE_INFO: { readonly ignored: boolean } = Object.freeze({
+  ignored: true,
+})
+const NOT_IGNORED_FILE_INFO: { readonly ignored: boolean } = Object.freeze({
+  ignored: false,
+})
+
 export function getFilesMapFromReasons(
   fileList: Set<string>,
   reasons: NodeFileTraceReasons,
-  ignoreFn?: (file: string, parent?: string) => Boolean
+  ignoreFn?: (file: string, parent?: string) => Boolean,
+  {
+    skipIgnored = false,
+    ignoredFiles,
+  }: {
+    /**
+     * Don't record files matched by `ignoreFn` at all, instead of recording
+     * them with `ignored: true` for every ancestor. `ignoreFn` is then called
+     * once per file, without a `parent`.
+     *
+     * The number of recorded (file, ancestor) pairs grows with the number of
+     * files times the number of entries, which uses a lot of memory for apps
+     * with many routes that share the same (ignored, i.e. bundled) modules.
+     */
+    skipIgnored?: boolean
+    /**
+     * With `skipIgnored`, collects the files that were not recorded because
+     * they are ignored.
+     */
+    ignoredFiles?: Set<string>
+  } = {}
 ) {
   // this uses the reasons tree to collect files specific to a
   // certain parent allowing us to not have to trace each parent
@@ -61,6 +102,7 @@ export function getFilesMapFromReasons(
   function propagateToParents(
     parents: Set<string>,
     file: string,
+    info: { readonly ignored: boolean } | undefined,
     seen = new Set<string>()
   ) {
     for (const parent of parents || []) {
@@ -72,33 +114,168 @@ export function getFilesMapFromReasons(
           parentFiles = new Map()
           parentFilesMap.set(parent, parentFiles)
         }
-        const ignored = Boolean(ignoreFn?.(file, parent))
-        parentFiles.set(file, { ignored })
+        parentFiles.set(
+          file,
+          info ??
+            (ignoreFn?.(file, parent)
+              ? IGNORED_FILE_INFO
+              : NOT_IGNORED_FILE_INFO)
+        )
 
         const parentReason = reasons.get(parent)
 
         if (parentReason?.parents) {
-          propagateToParents(parentReason.parents, file, seen)
+          propagateToParents(parentReason.parents, file, info, seen)
         }
       }
     }
   }
 
   for (const file of fileList!) {
-    const reason = reasons!.get(file)
-    const isInitial =
-      reason?.type.length === 1 && reason.type.includes('initial')
-
-    if (
-      !reason ||
-      !reason.parents ||
-      (isInitial && reason.parents.size === 0)
-    ) {
+    if (!isTracedForParents(reasons, file)) {
       continue
     }
-    propagateToParents(reason.parents, file)
+
+    let info: { readonly ignored: boolean } | undefined
+    if (skipIgnored) {
+      if (ignoreFn?.(file)) {
+        ignoredFiles?.add(file)
+        continue
+      }
+      info = NOT_IGNORED_FILE_INFO
+    }
+    propagateToParents(reasons.get(file)!.parents, file, info)
   }
   return parentFilesMap
+}
+
+/**
+ * All ancestors through which `getFilesMapFromReasons` records `file`.
+ */
+function getTracedAncestors(
+  reasons: NodeFileTraceReasons,
+  fileList: Set<string>,
+  file: string
+): Set<string> {
+  const ancestors = new Set<string>()
+  if (!fileList.has(file) || !isTracedForParents(reasons, file)) {
+    return ancestors
+  }
+  const stack = [...reasons.get(file)!.parents]
+  while (stack.length > 0) {
+    const parent = stack.pop()!
+    if (ancestors.has(parent)) continue
+    ancestors.add(parent)
+    const parentReason = reasons.get(parent)
+    if (parentReason?.parents) {
+      stack.push(...parentReason.parents)
+    }
+  }
+  return ancestors
+}
+
+export interface EntryTrace {
+  /**
+   * Absolute paths of traced files that are not bundled and therefore belong
+   * in the entry's `.nft.json`.
+   */
+  files(): Iterable<string>
+  /**
+   * Whether `file` (absolute) is bundled into the entry, so it must not be
+   * listed in the `.nft.json` even if it's one of the emitted files. This
+   * covers bundled markers for the entry, its extra entries, and bundled
+   * traced dependencies.
+   */
+  isBundled(file: string): boolean
+}
+
+/**
+ * Computes the traced files of a single entry from the shared trace result
+ * (`parentFilesMap` built with `skipIgnored`).
+ *
+ * This is equivalent to recording every traced dependency of the entry
+ * (`entry` and then each of the `extraEntries`, in order, where later records
+ * win) with `bundled: <ignored>`, but only stores the non-bundled ones, so
+ * memory doesn't grow with (bundled files x entries). The bundled state of
+ * the remaining candidates is derived on demand from `reasons`.
+ */
+export function createEntryTrace({
+  tracingRoot,
+  entry,
+  extraEntries,
+  parentFilesMap,
+  fileList,
+  reasons,
+  ignoredFiles,
+}: {
+  tracingRoot: string
+  entry: string
+  extraEntries: readonly string[]
+  parentFilesMap: Map<string, Map<string, { ignored: boolean }>>
+  fileList: Set<string>
+  reasons: NodeFileTraceReasons
+  ignoredFiles: Set<string>
+}): EntryTrace {
+  // `roots[0]` is the entry, `roots[i]` is the i-th extra entry (relative to
+  // the tracing root).
+  const roots = [entry, ...extraEntries].map((root) =>
+    nodePath.relative(tracingRoot, root)
+  )
+  const files = new Map<string, boolean>()
+  // For the entry and extra entries: the index of the root whose record of
+  // the file itself was the last one.
+  const lastOwnRecord = new Map<string, number>()
+
+  // ensure we include entry source file as well for
+  // hash comparison
+  files.set(entry, true)
+  lastOwnRecord.set(entry, 0)
+
+  for (let i = 0; i < roots.length; i++) {
+    if (i > 0) {
+      const extraEntry = extraEntries[i - 1]
+      files.set(extraEntry, false)
+      lastOwnRecord.set(extraEntry, i)
+    }
+    for (const dep of parentFilesMap.get(roots[i])?.keys() || []) {
+      files.set(nodePath.join(tracingRoot, dep), false)
+    }
+  }
+
+  // Whether an ignored (bundled) dependency record of `file` by one of
+  // `roots[fromRoot..]` exists, which marks it as bundled.
+  const hasBundledRecord = (file: string, fromRoot: number) => {
+    const relativeFile = nodePath.relative(tracingRoot, file)
+    if (
+      !ignoredFiles.has(relativeFile) ||
+      nodePath.join(tracingRoot, relativeFile) !== file
+    ) {
+      return false
+    }
+    const ancestors = getTracedAncestors(reasons, fileList, relativeFile)
+    for (let i = fromRoot; i < roots.length; i++) {
+      if (ancestors.has(roots[i])) return true
+    }
+    return false
+  }
+
+  for (const [file, fromRoot] of lastOwnRecord) {
+    if (hasBundledRecord(file, fromRoot)) {
+      files.set(file, true)
+    }
+  }
+
+  return {
+    *files() {
+      for (const [file, bundled] of files) {
+        if (!bundled) yield file
+      }
+    },
+    isBundled(file) {
+      const bundled = files.get(file)
+      return bundled ?? hasBundledRecord(file, 0)
+    },
+  }
 }
 
 export interface TurbotraceAction {
@@ -134,7 +311,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private pagesDir: string | undefined
   private appDirEnabled?: boolean
   private tracingRoot: string
-  private entryTraces: Map<string, Map<string, { bundled: boolean }>>
+  private entryTraces: Map<string, EntryTrace>
   private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
   private compilerType: CompilerNameValues
@@ -263,26 +440,22 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         }
 
         const finalFiles: string[] = []
+        const entryTrace = this.entryTraces.get(entrypoint.name)
 
         await Promise.all(
-          [
-            ...new Set([
-              ...entryFiles,
-              ...(this.entryTraces.get(entrypoint.name)?.keys() || []),
-            ]),
-          ].map(async (file) => {
-            const fileInfo = this.entryTraces.get(entrypoint.name)?.get(file)
+          [...new Set([...entryFiles, ...(entryTrace?.files() || [])])].map(
+            async (file) => {
+              const relativeFile = nodePath
+                .relative(traceOutputPath, file)
+                .replace(/\\/g, '/')
 
-            const relativeFile = nodePath
-              .relative(traceOutputPath, file)
-              .replace(/\\/g, '/')
-
-            if (file) {
-              if (!fileInfo?.bundled) {
-                finalFiles.push(relativeFile)
+              if (file) {
+                if (!entryTrace?.isBundled(file)) {
+                  finalFiles.push(relativeFile)
+                }
               }
             }
-          })
+          )
         )
 
         compilation.emitAsset(
@@ -517,6 +690,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             await finishModulesSpan
               .traceChild('collect-traced-files')
               .traceAsyncFn(() => {
+                const ignoredFiles = new Set<string>()
                 const parentFilesMap = getFilesMapFromReasons(
                   fileList,
                   reasons,
@@ -535,50 +709,29 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                       Array.isArray(depMod?.loaders) &&
                       depMod.loaders.length > 0
                     )
-                  }
+                  },
+                  // Bundled files are excluded from the trace output, don't
+                  // record them for every entry that depends on them.
+                  { skipIgnored: true, ignoredFiles }
                 )
 
                 for (const entry of entryPaths) {
                   const entryName = entryNameMap.get(entry)!
-                  const normalizedEntry = nodePath.relative(
-                    this.tracingRoot,
-                    entry
-                  )
                   const curExtraEntries = additionalEntries.get(entryName)
-                  const finalDeps = new Map<string, { bundled: boolean }>()
-
-                  // ensure we include entry source file as well for
-                  // hash comparison
-                  finalDeps.set(entry, {
-                    bundled: true,
-                  })
-
-                  for (const [dep, info] of parentFilesMap
-                    .get(normalizedEntry)
-                    ?.entries() || []) {
-                    finalDeps.set(nodePath.join(this.tracingRoot, dep), {
-                      bundled: info.ignored,
+                  this.entryTraces.set(
+                    entryName,
+                    createEntryTrace({
+                      tracingRoot: this.tracingRoot,
+                      entry,
+                      extraEntries: curExtraEntries
+                        ? Array.from(curExtraEntries.keys())
+                        : [],
+                      parentFilesMap,
+                      fileList,
+                      reasons,
+                      ignoredFiles,
                     })
-                  }
-
-                  if (curExtraEntries) {
-                    for (const extraEntry of curExtraEntries.keys()) {
-                      const normalizedExtraEntry = nodePath.relative(
-                        this.tracingRoot,
-                        extraEntry
-                      )
-                      finalDeps.set(extraEntry, { bundled: false })
-
-                      for (const [dep, info] of parentFilesMap
-                        .get(normalizedExtraEntry)
-                        ?.entries() || []) {
-                        finalDeps.set(nodePath.join(this.tracingRoot, dep), {
-                          bundled: info.ignored,
-                        })
-                      }
-                    }
-                  }
-                  this.entryTraces.set(entryName, finalDeps)
+                  )
                 }
               })
           })
