@@ -227,15 +227,13 @@ async fn apply_module_type(
         ModuleType::NodeAddon => {
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
         }
-        ModuleType::CssModule => ResolvedVc::upcast(
+        ModuleType::CssModule {
+            source_map_generation_options,
+        } => ResolvedVc::upcast(
             EcmascriptCssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
-                module_asset_context
-                    .module_options_context()
-                    .await?
-                    .css
-                    .source_map_generation_options,
+                *source_map_generation_options,
             )
             .to_resolved()
             .await?,
@@ -243,6 +241,7 @@ async fn apply_module_type(
 
         ModuleType::Css {
             ty,
+            source_map_generation_options,
             environment,
             lightningcss_features,
             module_css_debuggable_idents,
@@ -250,11 +249,7 @@ async fn apply_module_type(
             CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
-                module_asset_context
-                    .module_options_context()
-                    .await?
-                    .css
-                    .source_map_generation_options,
+                *source_map_generation_options,
                 *ty,
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
@@ -725,6 +720,7 @@ async fn process_default_internal(
                     empty_transforms,
                     default_options,
                     None,
+                    module_options_context.css.source_map_generation_options,
                     Default::default(),
                 )
                 .await?;
