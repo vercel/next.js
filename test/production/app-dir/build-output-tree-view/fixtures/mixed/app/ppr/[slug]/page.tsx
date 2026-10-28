@@ -1,13 +1,18 @@
 import { cacheLife } from 'next/cache'
+import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-type CacheLife = Parameters<typeof cacheLife>[0]
-
-async function getCachedValue(profile: CacheLife) {
+async function getCachedValue(profile: string) {
   'use cache'
 
-  cacheLife(profile)
+  if (profile === 'days') {
+    cacheLife('days')
+  } else if (profile === 'weeks') {
+    cacheLife('weeks')
+  } else {
+    notFound()
+  }
 
   return Math.random()
 }
@@ -15,7 +20,7 @@ async function getCachedValue(profile: CacheLife) {
 export default function Page({
   params,
 }: {
-  params: Promise<{ slug: CacheLife }>
+  params: Promise<{ slug: string }>
 }) {
   return (
     <Suspense fallback={null}>
@@ -24,7 +29,7 @@ export default function Page({
   )
 }
 
-async function Content({ params }: { params: Promise<{ slug: CacheLife }> }) {
+async function Content({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
   return (
