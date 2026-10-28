@@ -13,6 +13,7 @@ import {
   getRelativeURL,
 } from '../../shared/lib/router/utils/relativize-url'
 import { NextURL } from './next-url'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -409,6 +410,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
+  let rewriteLocaleWasInferred = false
   if (response && rewrite && (isRSCRequest || !isEdgeRendering)) {
     const destination = new NextURL(rewrite, {
       forceLocale: true,
@@ -419,6 +421,15 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE && !isEdgeRendering) {
       if (destination.host === request.nextUrl.host) {
         destination.buildId = buildId || destination.buildId
+        // App routes must distinguish an adapter-added locale from an
+        // explicit locale in the Proxy's rewrite destination.
+        rewriteLocaleWasInferred = Boolean(
+          destination.locale &&
+            !getNextPathnameInfo(new URL(rewrite).pathname, {
+              nextConfig: params.request.nextConfig,
+              parseData: true,
+            }).locale
+        )
         response.headers.set('x-middleware-rewrite', String(destination))
       }
     }
@@ -488,6 +499,7 @@ export async function adapter(
     if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
       rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
       response.headers.set('x-middleware-rewrite', rewriteURL.toString())
+      rewriteLocaleWasInferred = false
     }
   }
 
@@ -571,5 +583,6 @@ export async function adapter(
     response: finalResponse,
     waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
+    rewriteLocaleWasInferred,
   }
 }

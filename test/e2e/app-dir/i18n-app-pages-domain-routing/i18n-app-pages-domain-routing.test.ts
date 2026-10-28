@@ -24,12 +24,51 @@ describe('i18n-app-pages-domain-routing', () => {
     expect(load(await response.text())('#pages-locale').text()).toBe('nl-NL')
   })
 
-  it('routes a proxy locale rewrite to a dynamic App page', async () => {
-    const response = await fetchFromDomain('/test')
+  it.each([
+    ['en.example.local', 'en-US'],
+    ['nl.example.local', 'nl-NL'],
+  ])(
+    'routes a proxy locale rewrite to a dynamic App page on %s',
+    async (host, locale) => {
+      const response = await fetchFromDomain('/test', host)
 
-    expect(response.status).toBe(200)
-    expect(load(await response.text())('#app-locale').text()).toBe('nl-NL')
-  })
+      expect(response.status).toBe(200)
+      expect(load(await response.text())('#app-locale').text()).toBe(locale)
+    }
+  )
+
+  it.each([
+    ['/rewrite-plain', 'en.example.local'],
+    ['/rewrite-plain', 'nl.example.local'],
+    ['/rewrite-plain-clone', 'en.example.local'],
+    ['/rewrite-plain-clone', 'nl.example.local'],
+  ])(
+    'does not expose an inferred locale through proxy rewrite %s on %s',
+    async (pathname, host) => {
+      const response = await fetchFromDomain(pathname, host)
+
+      expect(response.status).toBe(200)
+      const $ = load(await response.text())
+      expect($('#plain-id').text()).toBe('123')
+      expect($('#app-locale').length).toBe(0)
+    }
+  )
+
+  it.each([
+    ['en.example.local', 'en-US'],
+    ['nl.example.local', 'nl-NL'],
+  ])(
+    'preserves an explicit locale in a proxy rewrite destination on %s',
+    async (host, locale) => {
+      const response = await fetchFromDomain('/rewrite-localized', host)
+
+      expect(response.status).toBe(200)
+      const $ = load(await response.text())
+      expect($('#app-locale').text()).toBe(locale)
+      expect($('#app-slug').text()).toBe('plain/123')
+      expect($('#plain-id').length).toBe(0)
+    }
+  )
 
   it('routes an explicit locale pathname to a dynamic App page', async () => {
     const response = await fetchFromDomain('/en-US/test', 'en.example.local')

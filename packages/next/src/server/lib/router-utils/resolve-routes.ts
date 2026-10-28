@@ -625,6 +625,7 @@ export function getResolveRoutes(
             debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
+            let rewriteLocaleWasInferred = false
             let bodyStream: ReadableStream | undefined = undefined
             try {
               try {
@@ -634,6 +635,8 @@ export function getResolveRoutes(
                   throw err
                 }
                 middlewareRes = err.result.response as Response
+                rewriteLocaleWasInferred =
+                  err.result.rewriteLocaleWasInferred === true
                 res.statusCode = middlewareRes.status
 
                 if (middlewareRes.body) {
@@ -759,7 +762,7 @@ export function getResolveRoutes(
               resHeaders['x-middleware-rewrite'] = destination
 
               parsedUrl = parseUrl(destination)
-              localePathWasInferred = false
+              localePathWasInferred = rewriteLocaleWasInferred
 
               if (parsedUrl.protocol) {
                 return {
