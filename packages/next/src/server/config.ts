@@ -2038,11 +2038,26 @@ async function loadConfigImpl(
   }
 
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
-    // we don't apply assignDefaults or modifyConfig here as it
-    // has already been applied
-    const standaloneConfig = JSON.parse(
-      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
-    )
+    let standaloneConfig: NextConfigComplete
+    if ((globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG) {
+      standaloneConfig = (globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG
+    } else if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG !== '1') {
+      standaloneConfig = JSON.parse(
+        process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+      )
+      ;(globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG = standaloneConfig
+      // Clean up the environment variable so child processes spawned by user code
+      // do not inherit a huge serialized configuration and fail with E2BIG.
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = '1'
+    } else {
+      const cached = configCache.get(cacheKey)
+      if (cached) {
+        return [cached.config, meta]
+      }
+      throw new Error(
+        'Invariant: __NEXT_PRIVATE_STANDALONE_CONFIG was set but standalone config is not available'
+      )
+    }
 
     // Cache the standalone config
     configCache.set(cacheKey, {

@@ -385,4 +385,50 @@ describe('loadConfig', () => {
       expect(result.experimental.durableUseCacheEntries).toBe(true)
     })
   })
+
+  describe('standalone config handling', () => {
+    const origEnv = process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    const origGlobal = (globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG
+
+    afterEach(() => {
+      if (origEnv === undefined) {
+        delete process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+      } else {
+        process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = origEnv
+      }
+      if (origGlobal === undefined) {
+        delete (globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG
+      } else {
+        ;(globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG = origGlobal
+      }
+    })
+
+    it('loads standalone config from globalThis and keeps env as 1', async () => {
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = '1'
+      const standaloneConfig = {
+        distDir: '.next',
+        output: 'standalone',
+      }
+      ;(globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG = standaloneConfig
+
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname)
+      expect(result.output).toBe('standalone')
+      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBe('1')
+    })
+
+    it('cleans up serialized standalone config in process.env to prevent E2BIG', async () => {
+      const hugeConfig = {
+        distDir: '.next',
+        output: 'standalone',
+      }
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(hugeConfig)
+
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname)
+      expect(result.output).toBe('standalone')
+      expect(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG).toBe('1')
+      expect((globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG).toEqual(
+        hugeConfig
+      )
+    })
+  })
 })

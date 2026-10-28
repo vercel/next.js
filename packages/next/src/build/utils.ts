@@ -1655,7 +1655,8 @@ const hostname = process.env.HOSTNAME || '0.0.0.0'
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify(nextConfig)}
 
-process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = '1'
+globalThis.__NEXT_PRIVATE_STANDALONE_CONFIG = nextConfig
 
 require('next')
 const { startServer } = require('next/dist/server/lib/start-server')
