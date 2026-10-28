@@ -2,6 +2,10 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 module.exports = async function (source) {
+  if (!fs.existsSync(this.resourcePath)) {
+    throw new Error(`Expected resourcePath to exist: ${this.resourcePath}`)
+  }
+
   const linkedPackage = fs.realpathSync(path.join(this.rootContext, 'linked'))
   const siblingRelative = '../../node_modules/sibling/index.js'
   const siblingAbsolute = path.resolve(linkedPackage, siblingRelative)

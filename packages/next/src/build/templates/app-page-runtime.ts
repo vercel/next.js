@@ -1496,14 +1496,12 @@ export function createAppPageEntrypoint({
           let hasFullyStaticCacheEntry = false
 
           if (
-            // If this is a dynamic RSC request or a server action request, we should
-            // use the postponed data from the static render (if available). This
-            // ensures that we can utilize the resume data cache (RDC) from the static
-            // render to ensure that the data is consistent between the static and
-            // dynamic renders (for navigations) or when re-rendering after a server
-            // action.
-            // Only enable RDC for Navigations if the feature is enabled.
+            // Dynamic RSC and Server Action requests reuse the static render's
+            // postponed state when RDC for Navigations is enabled. Its RDC
+            // keeps cache values consistent with the static render. Draft mode
+            // requests must generate fresh values without this published RDC.
             supportsRDCForNavigations &&
+            !isDraftMode &&
             process.env.NEXT_RUNTIME !== 'edge' &&
             !isMinimalMode &&
             incrementalCache &&
