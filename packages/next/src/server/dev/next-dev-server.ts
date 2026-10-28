@@ -322,6 +322,11 @@ export default class DevServer extends Server {
       return false
     }
 
+    // Turbopack's effective inventory is authoritative, including a negative
+    // answer. Webpack continues using its existing filesystem lookup.
+    const nativeResult = this.bundlerService.hasPage(pathname)
+    if (nativeResult !== undefined) return nativeResult
+
     if (isMiddlewareFile(normalizedPath)) {
       return findPageFile(
         this.dir,
@@ -648,10 +653,22 @@ export default class DevServer extends Server {
   }
 
   protected async hasMiddleware(): Promise<boolean> {
+    const nativeResult = this.bundlerService.hasPage('/middleware')
+    if (nativeResult !== undefined) return nativeResult
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
   protected async ensureMiddleware(url: string) {
+    const nativeResult = this.bundlerService.hasPage('/middleware')
+    if (nativeResult !== undefined) {
+      if (!(await nativeResult)) return
+      return this.ensurePage({
+        page: '/middleware',
+        clientOnly: false,
+        definition: undefined,
+        url,
+      })
+    }
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
