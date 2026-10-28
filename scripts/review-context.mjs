@@ -104,6 +104,8 @@ const NON_IMPLEMENTATION = [
   '**/__snapshots__/**',
   '**/*.snap',
   '**/tests/**',
+  '**/__testfixtures__/**',
+  '**/fixtures/**',
   'docs/**',
   'examples/**',
   '**/*.md',
@@ -115,7 +117,9 @@ const NON_IMPLEMENTATION = [
 ].map(globToRegExp)
 
 // Reads `git diff --numstat` output: "<added>\t<deleted>\t<path>".
-// Binary files show "-" for both counts.
+// Binary files show "-" for both counts. A rename shows its path as
+// "old => new" or "dir/{old => new}/file"; both paths count as changed, and
+// the lines count once, under the new path.
 function readNumstat(args) {
   const text =
     args[0] === '-'
@@ -125,6 +129,7 @@ function readNumstat(args) {
           [
             'diff',
             '--numstat',
+            '--find-renames',
             `${args[0] && !args[0].startsWith('--') ? args[0] : 'origin/canary'}...HEAD`,
           ],
           { cwd: repoRoot, encoding: 'utf8' }
@@ -132,13 +137,30 @@ function readNumstat(args) {
   return text
     .split('\n')
     .filter(Boolean)
-    .map((line) => {
+    .flatMap((line) => {
       const [added, deleted, ...rest] = line.split('\t')
-      return {
-        file: rest.join('\t'),
-        lines: (Number(added) || 0) + (Number(deleted) || 0),
-      }
+      const lines = (Number(added) || 0) + (Number(deleted) || 0)
+      const [newPath, oldPath] = renamedPaths(rest.join('\t'))
+      return oldPath == null
+        ? [{ file: newPath, lines }]
+        : [
+            { file: newPath, lines },
+            { file: oldPath, lines: 0 },
+          ]
     })
+}
+
+// Returns [newPath, oldPath], or [path] when it isn't a rename.
+function renamedPaths(path) {
+  const braced = path.match(/^(.*)\{(.*) => (.*)\}(.*)$/)
+  if (braced) {
+    const [, prefix, from, to, suffix] = braced
+    // "dir/{ => sub}/file" leaves an empty segment on one side.
+    const join = (middle) => `${prefix}${middle}${suffix}`.replace('//', '/')
+    return [join(to), join(from)]
+  }
+  const parts = path.split(' => ')
+  return parts.length === 2 ? [parts[1], parts[0]] : [path]
 }
 
 // Logins of everyone who committed to the repo in the past week.
