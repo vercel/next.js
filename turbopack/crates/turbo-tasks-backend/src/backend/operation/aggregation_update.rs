@@ -113,6 +113,23 @@ pub fn get_uppers(task: &TaskGuard<'_>) -> TaskIdVec {
     task.iter_upper().map(|(&id, _count)| id).collect()
 }
 
+/// Whether `follower_id` is still connected to `upper_id`, either as an upper edge on the follower
+/// or as a follower edge on the upper. Both tasks are locked together, so an edge that is being
+/// converted from one kind to the other is seen as one of them.
+fn has_upper_or_follower_edge(
+    ctx: &mut ExecuteContext<'_>,
+    upper_id: TaskId,
+    follower_id: TaskId,
+) -> bool {
+    let (upper, follower) = ctx.task_pair(
+        upper_id,
+        follower_id,
+        // For performance reasons this should stay `Meta` and not `All`
+        AGGREGATION_UPDATE_CATEGORY,
+    );
+    follower.get_upper(&upper_id).is_some() || upper.get_followers(&follower_id).is_some()
+}
+
 /// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Used in
 /// the optimize-queue drop paths when the caller doesn't already hold a guard for the task.
 fn lock_and_mark_optimization_pending(ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
@@ -2119,7 +2136,9 @@ impl AggregationUpdateQueue {
         // STEP 17
         if result.is_err() {
             retry = retry.saturating_add(1);
-            if retry > MAX_RETRIES && !self.can_wait_for_matching_add(ctx) {
+            if retry > MAX_RETRIES
+                && self.lost_edges_are_missing(ctx, [(upper_id, lost_follower_id)])
+            {
                 let lost_follower_description = ctx
                     .task(lost_follower_id, TaskDataCategory::Data)
                     .get_task_description();
@@ -2309,7 +2328,14 @@ impl AggregationUpdateQueue {
         // STEP 17
         if result.is_err() {
             retry = retry.saturating_add(1);
-            if retry > MAX_RETRIES && !self.can_wait_for_matching_add(ctx) {
+            if retry > MAX_RETRIES
+                && self.lost_edges_are_missing(
+                    ctx,
+                    upper_ids
+                        .iter()
+                        .map(|&upper_id| (upper_id, lost_follower_id)),
+                )
+            {
                 let lost_follower_description = ctx
                     .task(lost_follower_id, TaskDataCategory::Data)
                     .get_task_description();
@@ -2508,7 +2534,14 @@ impl AggregationUpdateQueue {
         // STEP 17
         if result.is_err() {
             retry = retry.saturating_add(1);
-            if retry > MAX_RETRIES && !self.can_wait_for_matching_add(ctx) {
+            if retry > MAX_RETRIES
+                && self.lost_edges_are_missing(
+                    ctx,
+                    lost_follower_ids
+                        .iter()
+                        .map(|&lost_follower_id| (upper_id, lost_follower_id)),
+                )
+            {
                 let upper_description = ctx
                     .task(upper_id, TaskDataCategory::Data)
                     .get_task_description();
@@ -2550,6 +2583,32 @@ impl AggregationUpdateQueue {
     /// add can't arrive and the edge is missing for real.
     fn can_wait_for_matching_add(&self, ctx: &ExecuteContext<'_>) -> bool {
         self.has_pending_work() || ctx.active_aggregation_update_queues() > 0
+    }
+
+    /// Whether a lost-follower job that has retried more than `MAX_RETRIES` times should report
+    /// `edges` (pairs of upper and follower) as missing.
+    ///
+    /// That is the case when nothing can deliver the matching add anymore (see
+    /// [`Self::can_wait_for_matching_add`]) and the edges are still missing when they are looked up
+    /// again after that check. The job's own lookup ran before the check, and the queue that holds
+    /// the add can install the edge and stop processing work in between. That queue installs the
+    /// edge before it stops counting as active, and the count is read with `Acquire`, so a lookup
+    /// made after reading zero sees the edge.
+    fn lost_edges_are_missing(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        edges: impl IntoIterator<Item = (TaskId, TaskId)>,
+    ) -> bool {
+        #[cfg(test)]
+        if let Some(hook) = AFTER_FAILED_LOST_FOLLOWER_LOOKUP.with_borrow_mut(Option::take) {
+            hook(ctx);
+        }
+        if self.can_wait_for_matching_add(ctx) {
+            return false;
+        }
+        !edges
+            .into_iter()
+            .any(|(upper_id, follower_id)| has_upper_or_follower_edge(ctx, upper_id, follower_id))
     }
 
     /// Re-enqueues a lost-follower job that couldn't find its edges.
@@ -3669,6 +3728,18 @@ const MAX_RETRIES: u16 = 100;
 /// job.
 const WAITING_RETRY_INTERVAL: Duration = Duration::from_millis(1);
 
+/// The type of [`AFTER_FAILED_LOST_FOLLOWER_LOOKUP`].
+#[cfg(test)]
+type LostFollowerLookupHook = Box<dyn for<'a> FnOnce(&mut ExecuteContext<'a>)>;
+
+#[cfg(test)]
+thread_local! {
+    /// Runs once, in tests, between a lost-follower job's failed lookup and its decision to wait
+    /// or to report its edges as missing, so a test can deliver the matching add in that window.
+    static AFTER_FAILED_LOST_FOLLOWER_LOOKUP: std::cell::RefCell<Option<LostFollowerLookupHook>> =
+        const { std::cell::RefCell::new(None) };
+}
+
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
 /// Returns an error if the function was not able to complete and the timeout was reached.
 ///
@@ -3956,7 +4027,10 @@ mod lost_follower_tests {
     use smallvec::smallvec;
     use turbo_tasks::{TaskId, TurboTasks, backend::TransientTaskType};
 
-    use super::{AggregationUpdateJob, AggregationUpdateQueue, MAX_RETRIES};
+    use super::{
+        AFTER_FAILED_LOST_FOLLOWER_LOOKUP, AggregationUpdateJob, AggregationUpdateQueue,
+        MAX_RETRIES,
+    };
     use crate::{
         backend::{
             BackendOptions, TaskDataCategory, TurboTasksBackend, operation::ExecuteContext,
@@ -4071,5 +4145,46 @@ mod lost_follower_tests {
             retry: 0,
         });
         removing_queue.execute(&mut ctx);
+    }
+
+    /// The queue that holds the add can install the edge and stop processing work right between a
+    /// waiting removal's failed lookup and its check for active queues. The removal then sees no
+    /// active queue, but the edge exists, so it has to remove the edge instead of reporting it
+    /// missing.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn lost_follower_finds_an_add_that_lands_after_its_failed_lookup() {
+        let tt = create_turbo_tasks();
+        let backend = tt.backend();
+        let mut ctx = backend.execute_context(&tt);
+
+        let upper = create_task(backend, &mut ctx, 20);
+        let follower = create_task(backend, &mut ctx, 30);
+
+        // The removal overtakes the add and retries until it waits for the add in `waiting`. No
+        // other queue is processing work, so nothing would deliver the add yet.
+        let mut removing_queue = AggregationUpdateQueue::new();
+        removing_queue.push(AggregationUpdateJob::InnerOfUpperLostFollower {
+            upper_id: upper,
+            lost_follower_id: follower,
+            retry: 0,
+        });
+        for _ in 0..=MAX_RETRIES {
+            assert!(!removing_queue.process(&mut ctx));
+        }
+
+        // Its next retry fails its lookup too. Right then, before the removal checks for active
+        // queues, the queue with the add runs from start to finish and stops processing work.
+        let mut adding_queue = AggregationUpdateQueue::new();
+        adding_queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+            upper_id: upper,
+            new_follower_ids: smallvec![follower],
+        });
+        AFTER_FAILED_LOST_FOLLOWER_LOOKUP.set(Some(Box::new(move |ctx| {
+            adding_queue.execute(ctx);
+        })));
+        removing_queue.execute(&mut ctx);
+
+        assert!(AFTER_FAILED_LOST_FOLLOWER_LOOKUP.with_borrow(Option::is_none));
+        assert!(!has_follower(&mut ctx, upper, follower));
     }
 }
