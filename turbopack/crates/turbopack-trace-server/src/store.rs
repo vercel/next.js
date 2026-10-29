@@ -29,7 +29,7 @@ const CUT_OFF_DEPTH: u32 = 80;
 /// `memory_pressure` is an OS-reported value in `0..=100`; `memory_footprint`
 /// is the process resident memory size in bytes. `0` is used when the reporter
 /// platform did not expose the corresponding signal.
-type MemorySample = (Timestamp, u64, u8, u64, u64);
+pub(crate) type MemorySample = (Timestamp, u64, u8, u64, u64);
 
 /// Maximum number of memory samples returned in a query result.
 const MAX_MEMORY_SAMPLES: usize = 200;
@@ -410,19 +410,31 @@ impl Store {
         start: Timestamp,
         end: Timestamp,
     ) -> Vec<MemorySample> {
+        self.memory_samples_for_range_downsampled(start, end, MAX_MEMORY_SAMPLES)
+    }
+
+    /// Like [`Self::memory_samples_for_range_with_ts`], but downsamples to at
+    /// most `max_samples` instead of `MAX_MEMORY_SAMPLES`.
+    pub fn memory_samples_for_range_downsampled(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        max_samples: usize,
+    ) -> Vec<MemorySample> {
+        let max_samples = max_samples.max(1);
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
             return Vec::new();
         }
 
-        if count <= MAX_MEMORY_SAMPLES {
+        if count <= max_samples {
             return slice.to_vec();
         }
 
         // Merge groups of N samples: timestamp and memory come from the
         // max-memory sample, pressure, footprint and workers are column maxes.
-        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        let n = count.div_ceil(max_samples);
         slice
             .chunks(n)
             .map(|chunk| {
@@ -510,7 +522,51 @@ impl Store {
         })
     }
 
-    fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
+    /// Timestamps of the first and last memory sample, or `None` without any.
+    #[allow(
+        dead_code,
+        reason = "only used by the query API in lib.rs, not the binary"
+    )]
+    pub fn memory_sample_range(&self) -> Option<(Timestamp, Timestamp)> {
+        Some((
+            self.memory_samples.first()?.0,
+            self.memory_samples.last()?.0,
+        ))
+    }
+
+    /// Committed bytes and footprint at `ts`, linearly interpolated between the
+    /// samples on either side. Before the first sample or after the last, the
+    /// nearest one: the first sample often lands just after work starts, and
+    /// the longest spans lost their start reading. `None` only without any
+    /// samples.
+    ///
+    /// Short spans often contain no sample at all, so this is what gives them
+    /// a memory reading.
+    #[allow(
+        dead_code,
+        reason = "only used by the query API in lib.rs, not the binary"
+    )]
+    pub fn memory_at(&self, ts: Timestamp) -> Option<(u64, u64)> {
+        let after = self.memory_samples.partition_point(|(t, ..)| *t < ts);
+        let Some(&(after_ts, after_mem, _, after_footprint, _)) = self.memory_samples.get(after)
+        else {
+            let &(_, mem, _, footprint, _) = self.memory_samples.last()?;
+            return Some((mem, footprint));
+        };
+        if after_ts == ts || after == 0 {
+            return Some((after_mem, after_footprint));
+        }
+        let (before_ts, before_mem, _, before_footprint, _) = self.memory_samples[after - 1];
+        let span = (*after_ts - *before_ts) as f64;
+        let t = (*ts - *before_ts) as f64 / span;
+        let lerp = |a: u64, b: u64| (a as f64 + (b as f64 - a as f64) * t).round() as u64;
+        Some((
+            lerp(before_mem, after_mem),
+            lerp(before_footprint, after_footprint),
+        ))
+    }
+
+    pub(crate) fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
         // Binary search for the first sample >= start
         let lo = self.memory_samples.partition_point(|(ts, ..)| *ts < start);
         // Binary search for the first sample > end
@@ -692,6 +748,43 @@ mod tests {
             store
                 .active_worker_threads_samples_for_range(Timestamp::from_micros(202), end)
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn memory_at_interpolates_between_samples() {
+        let mut store = Store::new();
+        // Without samples there is nothing to report.
+        assert_eq!(store.memory_at(Timestamp::from_micros(5)), None);
+        store.add_memory_sample(Timestamp::from_micros(10), 100, 0, 1000, 1);
+        store.add_memory_sample(Timestamp::from_micros(20), 200, 0, 3000, 1);
+
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(10)),
+            Some((100, 1000))
+        );
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(15)),
+            Some((150, 2000))
+        );
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(20)),
+            Some((200, 3000))
+        );
+        // Outside the sampled range, the nearest sample.
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(9)),
+            Some((100, 1000))
+        );
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(21)),
+            Some((200, 3000))
+        );
+        // Decreasing memory interpolates downwards.
+        store.add_memory_sample(Timestamp::from_micros(30), 0, 0, 0, 1);
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(25)),
+            Some((100, 1500))
         );
     }
 

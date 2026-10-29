@@ -1474,6 +1474,18 @@ async function loadWasm(importPath = '') {
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
         )
       },
+      queryTraceFlatProfile(_handle: any, _options: any) {
+        throw new Error(
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
+      queryTraceMemoryTimeline(_handle: any, _options: any) {
+        throw new Error(
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
       databaseCompact(_path: string, _nextVersion: string): Promise<void> {
         throw new Error(
           'Turbopack database compaction is not supported on this platform'
@@ -1723,6 +1735,18 @@ function loadNative(importPath?: string): Binding {
         },
         queryTraceSpans(handle, options) {
           return (customBindings ?? bindings).queryTraceSpans(handle, options)
+        },
+        queryTraceFlatProfile(handle, options) {
+          return (customBindings ?? bindings).queryTraceFlatProfile(
+            handle,
+            options
+          )
+        },
+        queryTraceMemoryTimeline(handle, options) {
+          return (customBindings ?? bindings).queryTraceMemoryTimeline(
+            handle,
+            options
+          )
         },
         databaseCompact(dbPath: string, dbNextVersion: string) {
           return (customBindings ?? bindings).turbopackDatabaseCompact(

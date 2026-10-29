@@ -81,11 +81,42 @@ async function querySpansJson(
   port: number,
   args: Record<string, unknown> = {}
 ): Promise<QuerySpansResult> {
-  const text = await callMcpTool(port, 'query_spans', {
+  return callToolJson(port, 'query_spans', args)
+}
+
+/** Call any tool with outputType:'json' and return the parsed result. */
+async function callToolJson<T>(
+  port: number,
+  toolName: string,
+  args: Record<string, unknown> = {}
+): Promise<T> {
+  const text = await callMcpTool(port, toolName, {
     ...args,
     outputType: 'json',
   })
   return JSON.parse(text)
+}
+
+type ProfileEntry = {
+  name: string
+  count: number
+  correctedSelfDuration: number
+  exampleSpanId: string
+}
+
+type FlatProfileResult = {
+  entries: ProfileEntry[]
+  totalCount: number
+  spanCount: number
+  totalCorrectedSelfDuration: number
+}
+
+type MemoryTimelineResult = {
+  start: number
+  end: number
+  samples: number[][]
+  rawSampleCount: number
+  phases: Array<{ id: string; name: string; start: number; end: number }>
 }
 
 /**
@@ -364,7 +395,10 @@ describe('turbopack-trace-server', () => {
     const md = await callMcpTool(mcpPort, 'query_spans', {
       sort: 'allocations',
     })
-    expect(md).toContain('**Allocations:**')
+    // Groups label theirs as group totals, apart from their example span.
+    expect(md).toMatch(
+      /\*\*Allocations( \(group totals over all members\))?:\*\*/
+    )
     expect(md).toMatch(/- \*\*Allocated:\*\* .+ \(self .+\)/)
     expect(md).toMatch(
       /- \*\*Persistent \(ranking signal, not retained\):\*\* .+ \(self .+\)/
@@ -512,8 +546,8 @@ describe('turbopack-trace-server', () => {
 
   it('should point heaviestSpanId at the group member holding the most bytes', async () => {
     // A group's members are the raw spans under the group's *parent* that
-    // share its name — not the children of the group id, which belong to the
-    // example span alone. So the walk has to keep the parent it descended
+    // share its name — not the children of the group id, which are the
+    // members' children. So the walk has to keep the parent it descended
     // from.
     const isGroup = (s: SpanData) =>
       s.isAggregated && (s.count as number) > 1 && s.heaviestSpanId
@@ -573,6 +607,131 @@ describe('turbopack-trace-server', () => {
     expect(heaviest.persistentAllocations as number).toBeGreaterThanOrEqual(
       first.persistentAllocations as number
     )
+  })
+
+  // ─── absolute times ──────────────────────────────────────────────────────
+
+  it('should report absolute times and units in JSON output', async () => {
+    const data = await callToolJson<
+      QuerySpansResult & { units: unknown; depthLimited: boolean }
+    >(mcpPort, 'query_spans', { sort: 'value' })
+    expect(data.units).toHaveProperty('time')
+    expect(data.depthLimited).toBe(false)
+    for (const span of data.spans) {
+      const start = span.start as number
+      const end = span.end as number
+      expect(typeof start).toBe('number')
+      expect(end).toBeGreaterThanOrEqual(start)
+      expect(typeof span.groupName).toBe('string')
+      // Memory samples share the span clock, so they fall inside its range.
+      // For a group they cover the example span, which lies within it.
+      for (const [ts] of span.memorySamples as number[][]) {
+        expect(ts).toBeGreaterThanOrEqual(start)
+        expect(ts).toBeLessThanOrEqual(end)
+      }
+    }
+  })
+
+  // ─── recursive listing ───────────────────────────────────────────────────
+
+  it('should list the whole subtree with recursive', async () => {
+    const { spans } = await querySpansJson(mcpPort, { sort: 'value' })
+    const parent = spans[0].id
+    const direct = await querySpansJson(mcpPort, {
+      parent,
+      aggregated: false,
+    })
+    const all = await querySpansJson(mcpPort, {
+      parent,
+      aggregated: false,
+      recursive: true,
+    })
+    expect(all.totalCount).toBeGreaterThanOrEqual(direct.totalCount)
+  })
+
+  // ─── field masks ─────────────────────────────────────────────────────────
+
+  it('should return only the requested fields, with larger pages', async () => {
+    const full = await querySpansJson(mcpPort, {
+      aggregated: false,
+      recursive: true,
+    })
+    const masked = await querySpansJson(mcpPort, {
+      aggregated: false,
+      recursive: true,
+      fields: ['name', 'args'],
+      pageSize: 2000,
+    })
+    expect(masked.totalCount).toBe(full.totalCount)
+    // Past the 500 cap of full responses.
+    expect(masked.spans.length).toBe(Math.min(2000, full.totalCount))
+    for (const span of masked.spans) {
+      expect(Object.keys(span).sort()).toEqual(['args', 'id', 'name'])
+    }
+    // Same spans, same order, as the full response's first page.
+    expect(masked.spans.slice(0, full.spans.length).map((s) => s.id)).toEqual(
+      full.spans.map((s) => s.id)
+    )
+  })
+
+  // ─── flat profile ────────────────────────────────────────────────────────
+
+  it('should return a flat profile grouped by name', async () => {
+    const result = await callToolJson<FlatProfileResult>(
+      mcpPort,
+      'flat_profile',
+      { pageSize: 500 }
+    )
+    expect(result.entries.length).toBeGreaterThan(0)
+    expect(result.spanCount).toBeGreaterThan(0)
+
+    // One entry per name, sorted by corrected self time.
+    const names = result.entries.map((e) => e.name)
+    expect(new Set(names).size).toBe(names.length)
+    const values = result.entries.map((e) => e.correctedSelfDuration)
+    expect(values).toEqual([...values].sort((a, b) => b - a))
+
+    // Self times partition the subtree, so they can't exceed its total.
+    const sum = values.reduce((a, b) => a + b, 0)
+    expect(sum).toBeLessThanOrEqual(result.totalCorrectedSelfDuration)
+
+    // The example span is navigable.
+    const example = await querySpansJson(mcpPort, {
+      parent: result.entries[0].exampleSpanId,
+    })
+    expect(example).toHaveProperty('totalCount')
+  })
+
+  it('should render a flat profile as a markdown table', async () => {
+    const md = await callMcpTool(mcpPort, 'flat_profile', {})
+    expect(md).toContain('## Flat profile of whole trace')
+    expect(md).toContain('| Name | Count | Self (corrected) |')
+  })
+
+  // ─── memory timeline ─────────────────────────────────────────────────────
+
+  it('should return a memory timeline with phases', async () => {
+    const timeline = await callToolJson<MemoryTimelineResult>(
+      mcpPort,
+      'memory_timeline',
+      { maxSamples: 10 }
+    )
+    expect(timeline.end).toBeGreaterThanOrEqual(timeline.start)
+    expect(timeline.samples.length).toBeLessThanOrEqual(10)
+    for (const [ts] of timeline.samples) {
+      expect(ts).toBeGreaterThanOrEqual(timeline.start)
+      expect(ts).toBeLessThanOrEqual(timeline.end)
+    }
+    const starts = timeline.phases.map((p) => p.start)
+    expect(starts).toEqual([...starts].sort((a, b) => a - b))
+    // Phases are single spans, so their IDs are raw span IDs.
+    for (const phase of timeline.phases) {
+      expect(phase.id).toMatch(/^\d+$/)
+      expect(phase.end).toBeGreaterThanOrEqual(phase.start)
+    }
+
+    const md = await callMcpTool(mcpPort, 'memory_timeline', {})
+    expect(md).toContain('## Memory timeline of whole trace')
   })
 
   // ─── CLI tests ───────────────────────────────────────────────────────────
@@ -692,5 +851,59 @@ describe('turbopack-trace-server', () => {
     expect(data).toHaveProperty('totalCount')
     expect(Array.isArray(data.spans)).toBe(true)
     expect(data.spans.length).toBeGreaterThan(0)
+  })
+
+  it('CLI: should support --fields', async () => {
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--fields',
+      'name,groupName',
+    ])
+    expect(exitCode).toBe(0)
+    const data = JSON.parse(stdout)
+    expect(data.spans.length).toBeGreaterThan(0)
+    for (const span of data.spans) {
+      expect(Object.keys(span).sort()).toEqual(['groupName', 'id', 'name'])
+    }
+  })
+
+  it('CLI: should support --tool flat_profile', async () => {
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--tool',
+      'flat_profile',
+      '--sort',
+      'count',
+    ])
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Flat profile of whole trace')
+  })
+
+  it('CLI: should support --tool memory_timeline', async () => {
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--tool',
+      'memory_timeline',
+      '--max-samples',
+      '5',
+    ])
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Memory timeline of whole trace')
+  })
+
+  it('CLI: should fail on a sort mode the tool does not take', async () => {
+    const { stderr, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--tool',
+      'flat_profile',
+      '--sort',
+      'value',
+    ])
+    expect(exitCode).toBe(1)
+    expect(stderr).toContain('Error')
   })
 })

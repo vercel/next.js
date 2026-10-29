@@ -11,7 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashSet, FxHasher};
 
 use self::{
     reader::TraceReader,
@@ -22,9 +22,13 @@ use self::{
     timestamp::Timestamp,
 };
 
+#[cfg(test)]
+mod analysis_tests;
 mod bottom_up;
 mod chunked_vec;
+mod flat_profile;
 mod lazy_sorted_vec;
+mod memory_timeline;
 #[cfg(test)]
 mod query_tests;
 mod reader;
@@ -48,6 +52,15 @@ mod viewer;
 )]
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
+pub use self::{
+    flat_profile::{
+        FlatProfileOptions, FlatProfileResult, ProfileEntry, ProfileSort, flat_profile,
+    },
+    memory_timeline::{
+        MemoryReading, MemoryTimeline, MemoryTimelineOptions, TimelinePhase, memory_timeline,
+    },
+};
+
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
 pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
@@ -69,11 +82,13 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
 const DEFAULT_PAGE_SIZE: usize = 20;
 
 /// Upper bound on a caller-supplied page size, so one response stays bounded.
-const MAX_PAGE_SIZE: usize = 500;
+/// Callers that return every field should use smaller pages; a span's memory
+/// samples alone can be a few hundred entries.
+const MAX_PAGE_SIZE: usize = 10_000;
 
-/// Default and cap for `QueryOptions::max_depth`. Also bounds the subtree
-/// walks, which is why they need no cycle detection.
-const DEFAULT_SEARCH_MAX_DEPTH: u32 = 32;
+/// Cap for `QueryOptions::depth`. Each level multiplies the response size, so
+/// unlike `max_depth` this one stays bounded.
+const MAX_INLINE_DEPTH: u32 = 32;
 
 /// How spans should be sorted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -110,17 +125,25 @@ pub struct QueryOptions {
     /// trace walks everything. Setting `parent`, or lowering `max_depth`,
     /// bounds it.
     pub search: Option<String>,
-    /// Maximum depth to descend below `parent` when `search` is set, or when
-    /// `depth` requests a nested subtree. Clamped to `DEFAULT_SEARCH_MAX_DEPTH`.
+    /// List every span in the subtree below `parent`, as if `search` matched
+    /// everything. Ignored when `search` is set.
+    pub recursive: bool,
+    /// Maximum depth to descend below `parent` when `search` or `recursive` is
+    /// set. `u32::MAX` for no limit; the store already flattens spans nested
+    /// deeper than its cut-off depth, so the walk is bounded either way.
+    /// `QueryResult::depth_limited` reports whether this cut anything off.
     pub max_depth: u32,
     /// When greater than 1, each returned span carries this many levels of
-    /// descendants inline in `children`.
+    /// descendants inline in `children`. Clamped to `MAX_INLINE_DEPTH`.
     pub depth: u32,
     /// 1-based page number.
     pub page: usize,
     /// Number of spans per page. Clamped to `MAX_PAGE_SIZE`; `None` uses
     /// `DEFAULT_PAGE_SIZE`.
     pub page_size: Option<usize>,
+    /// Fill in `SpanInfo::memory_samples`. Without it the series is left empty
+    /// (the summary is still computed), which keeps large pages small.
+    pub include_memory_samples: bool,
 }
 
 /// Information about a single span (or aggregated group of spans).
@@ -136,21 +159,35 @@ pub struct SpanInfo {
     /// Pass the full ID as the `parent` option of the next `query_spans` call
     /// to enumerate the children of that span.
     pub id: String,
-    /// Display name: `"category title"` or just `"title"`.
+    /// Display name: `"category title"` or just `"title"`. A lone span's name
+    /// may include its `name` arg (e.g. a module path); `group_name` never
+    /// does.
     pub name: String,
+    /// The name spans are grouped by when aggregating: like `name`, but
+    /// without the `name` arg, so the same work under different paths shares
+    /// one value.
+    pub group_name: String,
     /// Raw CPU total time in internal ticks (100 ticks = 1 µs).
-    /// For aggregated spans, this is the **first (example) span's** value, not the group total.
+    /// For aggregated spans, this is the **example span's** value, not the group total.
     /// See `total_cpu_duration` for the group total.
     pub cpu_duration: u64,
     /// Concurrency-corrected total time in internal ticks.
-    /// For aggregated spans, this is the **first (example) span's** value, not the group total.
+    /// For aggregated spans, this is the **example span's** value, not the group total.
     /// See `total_corrected_duration` for the group total.
     pub corrected_duration: u64,
-    /// Start of span relative to parent start, in internal ticks.
+    /// Absolute start, in internal ticks since the trace started. The same
+    /// clock as `memory_samples` and `memory_timeline`. For aggregated spans,
+    /// the earliest member start.
+    pub start: u64,
+    /// Absolute end, in internal ticks since the trace started. For aggregated
+    /// spans, the latest member end.
+    pub end: u64,
+    /// `start` relative to the parent's start, in internal ticks.
     pub start_relative_to_parent: i64,
-    /// End of span relative to parent start, in internal ticks.
+    /// `end` relative to the parent's start, in internal ticks.
     pub end_relative_to_parent: i64,
-    /// Key-value attributes from the span.
+    /// Key-value attributes from the span (the example span, for aggregated
+    /// spans).
     pub args: Vec<(String, String)>,
     /// True if this entry represents an aggregated group of spans.
     pub is_aggregated: bool,
@@ -164,10 +201,11 @@ pub struct SpanInfo {
     pub total_corrected_duration: Option<u64>,
     /// Average corrected_duration across all spans in the group.
     pub avg_corrected_duration: Option<u64>,
-    /// Raw span ID of the group's example span, whose `cpu_duration`,
-    /// `corrected_duration` and `memory_samples` are the ones reported above.
-    /// First in execution order — *not* the largest, so it can badly understate
-    /// a group's allocations. Use `heaviest_span_id` for those.
+    /// Raw span ID of the group's example span: the member with the largest
+    /// corrected duration. Its `cpu_duration`, `corrected_duration`, `args`
+    /// and `memory_samples` are the ones reported here.
+    pub example_span_id: Option<String>,
+    /// Raw span ID of the group member that came first in execution order.
     pub first_span_id: Option<String>,
     /// Raw span ID of the group member with the largest
     /// `total_persistent_allocations`.
@@ -224,41 +262,50 @@ pub struct SpanInfo {
     /// Rank concurrent work by the allocation fields; use these for absolute
     /// memory over a span that dominates its window.
     ///
-    /// Each tuple is `(ts_offset_from_span_start_in_ticks, bytes, pressure,
-    /// footprint, active_worker_threads)`. `bytes` is TurboMalloc memory
-    /// usage; `pressure` is the memory-pressure byte (0 = no pressure, higher
-    /// = more pressure); `footprint` is the process memory footprint (RSS) in
-    /// bytes (0 = not reported by the platform); and `active_worker_threads`
-    /// counts non-parked Tokio scheduler workers. `100 ticks = 1 µs`. The
-    /// offset is within the span.
+    /// Each tuple is `(ts, bytes, pressure, footprint, active_worker_threads)`.
+    /// `ts` is absolute, on the same clock as `start`/`end`. `bytes` is the
+    /// memory the allocator has committed from the OS (`TurboMalloc::memory_usage`,
+    /// mimalloc's `current_commit`); `pressure` is the memory-pressure byte
+    /// (0 = no pressure, higher = more pressure); `footprint` is the process
+    /// memory footprint (RSS) in bytes (0 = not reported by the platform); and
+    /// `active_worker_threads` counts non-parked Tokio scheduler workers.
+    /// `100 ticks = 1 µs`.
     ///
     /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
     /// exist in the range, consecutive groups are merged: the timestamp and
     /// value come from the group's max-memory sample, while pressure,
     /// footprint and worker count are each the max over the group.
-    pub memory_samples: Vec<(i64, u64, u8, u64, u64)>,
+    pub memory_samples: Vec<(u64, u64, u8, u64, u64)>,
     /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
+    /// Committed bytes and footprint at the span's (example span's) start,
+    /// interpolated between the surrounding samples. Present even for spans
+    /// too short to contain a sample; outside the sampled range it is the
+    /// nearest sample. `None` only for a trace without samples.
+    pub memory_at_start: Option<MemoryPoint>,
+    /// Like `memory_at_start`, at the span's end.
+    pub memory_at_end: Option<MemoryPoint>,
     /// Descendants of this span, populated only when `QueryOptions::depth` is
     /// greater than 1. Sorted and aggregated the same way as this level.
     pub children: Vec<SpanInfo>,
 }
 
-/// Aggregate view of a span's TurboMalloc memory samples.
+/// Aggregate view of a span's memory samples.
 ///
-/// Unlike the allocation counters these are absolute live-heap readings, so
-/// `peak` is the figure to quote for memory actually in use.
+/// Unlike the allocation counters these are absolute readings of the
+/// allocator's committed memory, so `peak` is the figure to quote for memory
+/// actually in use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemorySummary {
     /// Number of samples in the span's range (after the store's downsampling).
     pub count: usize,
-    /// Live bytes at the first sample in the range.
+    /// Committed bytes at the first sample in the range.
     pub start: u64,
-    /// Live bytes at the last sample in the range.
+    /// Committed bytes at the last sample in the range.
     pub end: u64,
-    /// Smallest live-bytes reading in the range.
+    /// Smallest committed-bytes reading in the range.
     pub min: u64,
-    /// Largest live-bytes reading in the range — the span's peak memory.
+    /// Largest committed-bytes reading in the range — the span's peak memory.
     pub peak: u64,
     /// Highest memory-pressure byte seen in the range (0 = no pressure).
     pub max_pressure: u8,
@@ -269,7 +316,7 @@ pub struct MemorySummary {
 
 impl MemorySummary {
     /// Summarize a sample series, or `None` if it is empty.
-    fn from_samples(samples: &[(i64, u64, u8, u64, u64)]) -> Option<Self> {
+    fn from_samples(samples: &[(u64, u64, u8, u64, u64)]) -> Option<Self> {
         let (_, first_bytes, first_pressure, first_footprint, _) = *samples.first()?;
         let mut summary = MemorySummary {
             count: samples.len(),
@@ -290,12 +337,33 @@ impl MemorySummary {
     }
 }
 
+/// Memory readings at one point in time, interpolated between samples.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemoryPoint {
+    /// Bytes the allocator has committed from the OS.
+    pub bytes: u64,
+    /// Process memory footprint (RSS) in bytes (0 = not reported by the
+    /// platform).
+    pub footprint: u64,
+}
+
+impl MemoryPoint {
+    fn at(store: &store::Store, ts: Timestamp) -> Option<Self> {
+        store
+            .memory_at(ts)
+            .map(|(bytes, footprint)| MemoryPoint { bytes, footprint })
+    }
+}
+
 /// Result of a `query_spans` call.
 pub struct QueryResult {
     pub spans: Vec<SpanInfo>,
     pub page: usize,
     pub total_pages: usize,
     pub total_count: usize,
+    /// True when `max_depth` stopped the walk above spans that have
+    /// descendants, so results below that depth may be missing.
+    pub depth_limited: bool,
 }
 /// Paginate a vec of items. Returns `(page_items, clamped_page, total_pages, total_count)`.
 fn paginate<T>(items: Vec<T>, page: usize, page_size: usize) -> (Vec<T>, usize, usize, usize) {
@@ -391,8 +459,107 @@ fn span_graph_children<'a>(span: &SpanRef<'a>) -> Vec<SpanGraphRef<'a>> {
         .collect()
 }
 
+/// What a `parent` ID resolves to.
+#[derive(Clone)]
+enum Parent<'a> {
+    /// A raw span, or the trace root.
+    Span(SpanRef<'a>),
+    /// An aggregated group, standing for all of its members at once.
+    Graph(SpanGraphRef<'a>),
+}
+
+impl<'a> Parent<'a> {
+    /// Resolve a span ID as produced by `SpanInfo::id`, or the trace root for
+    /// `None`. `None` when the ID names no span.
+    ///
+    /// IDs use the format `[a]<index>[-[a]<index>...]`:
+    /// - A plain decimal segment (e.g. `"123"`) is the raw span at that store index.
+    /// - A segment prefixed with `"a"` (e.g. `"a123"`) is the aggregated group whose first span has
+    ///   that store index. A group only exists below a particular parent, so these are resolved
+    ///   along the path: each one is looked up among the groups below the previous segment.
+    ///
+    /// If an `a` segment doesn't match a group below the previous one (a hand-built ID, say), it
+    /// falls back to the raw span at that index.
+    fn resolve(store: &'a store::Store, id: Option<&str>) -> Option<Self> {
+        let mut current = Parent::Span(store.root_span());
+        let Some(id) = id else {
+            return Some(current);
+        };
+        for segment in id.split('-') {
+            current = match segment.strip_prefix('a') {
+                Some(index) => {
+                    let index: usize = index.parse().ok()?;
+                    match current
+                        .graph_children()
+                        .into_iter()
+                        .find(|graph| graph.first_span().index == index)
+                    {
+                        Some(graph) => Parent::Graph(graph),
+                        None => Parent::Span(span_at(store, index)?),
+                    }
+                }
+                None => Parent::Span(span_at(store, segment.parse().ok()?)?),
+            };
+        }
+        Some(current)
+    }
+
+    /// The raw spans this parent stands for: the group's members, or the span
+    /// itself.
+    fn members(&self) -> Vec<SpanRef<'a>> {
+        match self {
+            Parent::Span(span) => vec![*span],
+            Parent::Graph(graph) => graph.root_spans().collect(),
+        }
+    }
+
+    /// Aggregated children, merged across every member of a group.
+    fn graph_children(&self) -> Vec<SpanGraphRef<'a>> {
+        match self {
+            Parent::Span(span) => span_graph_children(span),
+            Parent::Graph(graph) => graph_children(graph),
+        }
+    }
+
+    /// Start and end on the store clock. The trace root starts at zero.
+    fn extent(&self) -> (Timestamp, Timestamp) {
+        match self {
+            Parent::Span(span) if span.is_root() => (Timestamp::ZERO, span.end()),
+            Parent::Span(span) => (span.start(), span.end()),
+            Parent::Graph(graph) => group_extent(graph),
+        }
+    }
+}
+
+fn span_at(store: &store::Store, index: usize) -> Option<SpanRef<'_>> {
+    store
+        .spans
+        .get(index)
+        .map(|span| SpanRef { span, store, index })
+}
+
+/// Earliest member start and latest member end of a group.
+fn group_extent(graph: &SpanGraphRef<'_>) -> (Timestamp, Timestamp) {
+    graph
+        .root_spans()
+        .fold((Timestamp::MAX, Timestamp::ZERO), |(start, end), span| {
+            (start.min(span.start()), end.max(span.end()))
+        })
+}
+
+/// The member a group reports durations, args and memory for: the one with
+/// the largest corrected duration. The first member is often a trivial one,
+/// which made groups look cheap when their heavy member dominated.
+fn group_example<'a>(graph: &SpanGraphRef<'a>) -> SpanRef<'a> {
+    graph
+        .root_spans()
+        .max_by_key(|span| (span.corrected_total_time(), span.total_time()))
+        .unwrap_or_else(|| graph.first_span())
+}
+
 /// Walk the aggregated graph below `roots`, returning every node whose name
-/// matches `query`, each tagged with its full path ID.
+/// matches `query`, each tagged with its full path ID, and whether `max_depth`
+/// cut off any descendants.
 ///
 /// Raw spans get recursion from the store's search index, but graph nodes are
 /// built on demand and have no index, so this walks them directly.
@@ -403,8 +570,9 @@ fn search_graph_recursive<'a>(
     roots: Vec<Located<SpanGraphRef<'a>>>,
     query: &str,
     max_depth: u32,
-) -> Vec<Located<SpanGraphRef<'a>>> {
+) -> (Vec<Located<SpanGraphRef<'a>>>, bool) {
     let mut matches = Vec::new();
+    let mut depth_limited = false;
     let mut queue: VecDeque<(Located<SpanGraphRef<'a>>, u32)> =
         roots.into_iter().map(|located| (located, 1)).collect();
 
@@ -412,12 +580,15 @@ fn search_graph_recursive<'a>(
         let (cat, title) = located.item.nice_name();
         let is_match = name_matches(cat, title, query);
 
+        let children = graph_children(&located.item);
         if depth < max_depth {
-            for child in graph_children(&located.item) {
+            for child in children {
                 let leaf = format!("a{}", child.first_span().index);
                 let id = build_span_id(Some(&located.id), &leaf);
                 queue.push_back((Located { item: child, id }, depth + 1));
             }
+        } else if !children.is_empty() {
+            depth_limited = true;
         }
 
         if is_match {
@@ -425,20 +596,48 @@ fn search_graph_recursive<'a>(
         }
     }
 
-    matches
+    (matches, depth_limited)
+}
+
+/// Raw spans below `members` whose name matches `query`, through the store's
+/// search index, in no particular order.
+///
+/// The index keys a span's category, title and arg values separately (it is
+/// shared with the WebSocket viewer), and matches each comma-separated term as
+/// a substring of one key. A term with spaces can straddle category and title,
+/// as a `name` copied from a result does, so it can't be looked up as is.
+/// Instead each of its words is, which narrows the spans to those containing
+/// every word somewhere, and those candidates are checked against the query.
+fn index_search<'a>(members: &[SpanRef<'a>], query: &str) -> Vec<SpanRef<'a>> {
+    if !query.split(',').any(|term| term.trim().contains(' ')) {
+        return members.iter().flat_map(|span| span.search(query)).collect();
+    }
+    let words = query
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>()
+        .join(",");
+    members
+        .iter()
+        .flat_map(|span| span.search(&words))
+        .filter(|span| {
+            let (cat, title) = span.nice_name();
+            name_matches(cat, title, query)
+        })
+        .collect()
 }
 
 /// Walk raw spans below `roots`, returning every span whose name matches
-/// `query`.
+/// `query`, and whether `max_depth` cut off any descendants.
 ///
-/// Used for multi-word terms, which the store's index cannot answer; see the
-/// call site.
+/// Used for groups, where the store's index can't answer; see the call site.
 fn search_spans_recursive<'a>(
     roots: Vec<SpanRef<'a>>,
     query: &str,
     max_depth: u32,
-) -> Vec<SpanRef<'a>> {
+) -> (Vec<SpanRef<'a>>, bool) {
     let mut matches = Vec::new();
+    let mut depth_limited = false;
     let mut queue: VecDeque<(SpanRef<'a>, u32)> = roots.into_iter().map(|span| (span, 1)).collect();
 
     while let Some((span, depth)) = queue.pop_front() {
@@ -450,10 +649,12 @@ fn search_spans_recursive<'a>(
             for child in span.children() {
                 queue.push_back((child, depth + 1));
             }
+        } else if span.children().next().is_some() {
+            depth_limited = true;
         }
     }
 
-    matches
+    (matches, depth_limited)
 }
 
 /// Sort located aggregated nodes in place.
@@ -480,40 +681,61 @@ fn sort_graph(items: &mut [Located<SpanGraphRef<'_>>], sort: SortMode) {
     }
 }
 
-/// Sort located raw spans in place.
-fn sort_spans(items: &mut [Located<SpanRef<'_>>], sort: SortMode) {
+/// Sort raw spans in place. Stable, so ties keep their order.
+fn sort_spans(items: &mut [SpanRef<'_>], sort: SortMode) {
     match sort {
         SortMode::Value => items.sort_by(|a, b| {
-            b.item
-                .corrected_total_time()
-                .cmp(&a.item.corrected_total_time())
-                .then_with(|| b.item.total_time().cmp(&a.item.total_time()))
+            b.corrected_total_time()
+                .cmp(&a.corrected_total_time())
+                .then_with(|| b.total_time().cmp(&a.total_time()))
         }),
         SortMode::Name => items.sort_by(|a, b| {
-            let (a_cat, a_title) = a.item.nice_name();
-            let (b_cat, b_title) = b.item.nice_name();
+            let (a_cat, a_title) = a.nice_name();
+            let (b_cat, b_title) = b.nice_name();
             a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
         }),
         SortMode::Allocations => {
-            items.sort_by_key(|s| Reverse(s.item.total_allocations()));
+            items.sort_by_key(|s| Reverse(s.total_allocations()));
         }
         SortMode::PersistentAllocations => {
-            items.sort_by_key(|s| Reverse(s.item.total_persistent_allocations()));
+            items.sort_by_key(|s| Reverse(s.total_persistent_allocations()));
         }
         SortMode::ExecutionOrder => {}
     }
 }
 
-/// Memory samples recorded while `span` was live, offset from its start.
-fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64, u8, u64, u64)> {
-    let span_start = *span.start() as i64;
-    store
-        .memory_samples_for_range_with_ts(span.start(), span.end())
-        .into_iter()
-        .map(|(ts, mem, pressure, footprint, workers)| {
-            ((*ts as i64) - span_start, mem, pressure, footprint, workers)
-        })
-        .collect()
+/// The memory fields of a `SpanInfo` for `span`.
+struct SpanMemory {
+    samples: Vec<(u64, u64, u8, u64, u64)>,
+    summary: Option<MemorySummary>,
+    at_start: Option<MemoryPoint>,
+    at_end: Option<MemoryPoint>,
+}
+
+impl SpanMemory {
+    /// `include_samples` keeps the series; the summary is computed either way.
+    fn of(store: &store::Store, span: &SpanRef<'_>, include_samples: bool) -> Self {
+        let mut samples: Vec<_> = store
+            .memory_samples_for_range_with_ts(span.start(), span.end())
+            .into_iter()
+            .map(|(ts, mem, pressure, footprint, workers)| (*ts, mem, pressure, footprint, workers))
+            .collect();
+        let summary = MemorySummary::from_samples(&samples);
+        if !include_samples {
+            samples = Vec::new();
+        }
+        SpanMemory {
+            summary,
+            samples,
+            at_start: MemoryPoint::at(store, span.start()),
+            at_end: MemoryPoint::at(store, span.end()),
+        }
+    }
+}
+
+fn group_name_of(span: &SpanRef<'_>) -> String {
+    let (cat, title) = span.group_name();
+    format_span_name(cat, title)
 }
 
 /// Build a `SpanInfo` for an aggregated graph node, recursing into children
@@ -524,9 +746,12 @@ fn build_graph_span_info(
     parent_start: Timestamp,
     sort: SortMode,
     depth: u32,
+    include_memory_samples: bool,
 ) -> SpanInfo {
     let Located { item: graph, id } = located;
     let first = graph.first_span();
+    let example = group_example(&graph);
+    let (start, end) = group_extent(&graph);
     let (cat, title) = graph.nice_name();
     let count = graph.count() as u64;
     let total_cpu = *graph.total_time();
@@ -537,8 +762,7 @@ fn build_graph_span_info(
         .max_by_key(|span| span.total_persistent_allocations())
         .map(|span| span.index.to_string());
 
-    let memory_samples = memory_samples_for(store, &first);
-    let memory_summary = MemorySummary::from_samples(&memory_samples);
+    let memory = SpanMemory::of(store, &example, include_memory_samples);
 
     let children = if depth > 1 {
         let mut located_children: Vec<_> = graph_children(&graph)
@@ -554,7 +778,9 @@ fn build_graph_span_info(
         sort_graph(&mut located_children, sort);
         located_children
             .into_iter()
-            .map(|child| build_graph_span_info(store, child, first.start(), sort, depth - 1))
+            .map(|child| {
+                build_graph_span_info(store, child, start, sort, depth - 1, include_memory_samples)
+            })
             .collect()
     } else {
         Vec::new()
@@ -563,11 +789,14 @@ fn build_graph_span_info(
     SpanInfo {
         id,
         name: format_span_name(cat, title),
-        cpu_duration: *first.total_time(),
-        corrected_duration: *first.corrected_total_time(),
-        start_relative_to_parent: (*first.start() as i64) - (*parent_start as i64),
-        end_relative_to_parent: (*first.end() as i64) - (*parent_start as i64),
-        args: first
+        group_name: group_name_of(&first),
+        cpu_duration: *example.total_time(),
+        corrected_duration: *example.corrected_total_time(),
+        start: *start,
+        end: *end,
+        start_relative_to_parent: (*start as i64) - (*parent_start as i64),
+        end_relative_to_parent: (*end as i64) - (*parent_start as i64),
+        args: example
             .args()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect(),
@@ -577,6 +806,7 @@ fn build_graph_span_info(
         avg_cpu_duration: Some(total_cpu.checked_div(count).unwrap_or(0)),
         total_corrected_duration: Some(total_corrected),
         avg_corrected_duration: Some(total_corrected.checked_div(count).unwrap_or(0)),
+        example_span_id: Some(example.index.to_string()),
         first_span_id: Some(first.index.to_string()),
         heaviest_span_id: heaviest,
         allocations: graph.total_allocations(),
@@ -587,8 +817,10 @@ fn build_graph_span_info(
         self_deallocations: graph.self_deallocations(),
         self_persistent_allocations: graph.self_persistent_allocations(),
         self_allocation_count: graph.self_allocation_count(),
-        memory_samples,
-        memory_summary,
+        memory_samples: memory.samples,
+        memory_summary: memory.summary,
+        memory_at_start: memory.at_start,
+        memory_at_end: memory.at_end,
         children,
     }
 }
@@ -600,25 +832,32 @@ fn build_raw_span_info(
     parent_start: Timestamp,
     sort: SortMode,
     depth: u32,
+    include_memory_samples: bool,
 ) -> SpanInfo {
     let Located { item: span, id } = located;
     let (cat, title) = span.nice_name();
 
-    let memory_samples = memory_samples_for(store, &span);
-    let memory_summary = MemorySummary::from_samples(&memory_samples);
+    let memory = SpanMemory::of(store, &span, include_memory_samples);
 
     let children = if depth > 1 {
-        let mut located_children: Vec<_> = span
-            .children()
-            .map(|child| Located {
-                id: build_span_id(Some(&id), &child.index.to_string()),
-                item: child,
-            })
-            .collect();
-        sort_spans(&mut located_children, sort);
-        located_children
+        let mut children: Vec<_> = span.children().collect();
+        sort_spans(&mut children, sort);
+        children
             .into_iter()
-            .map(|child| build_raw_span_info(store, child, span.start(), sort, depth - 1))
+            .map(|child| {
+                let located = Located {
+                    id: build_span_id(Some(&id), &child.index.to_string()),
+                    item: child,
+                };
+                build_raw_span_info(
+                    store,
+                    located,
+                    span.start(),
+                    sort,
+                    depth - 1,
+                    include_memory_samples,
+                )
+            })
             .collect()
     } else {
         Vec::new()
@@ -627,8 +866,11 @@ fn build_raw_span_info(
     SpanInfo {
         id,
         name: format_span_name(cat, title),
+        group_name: group_name_of(&span),
         cpu_duration: *span.total_time(),
         corrected_duration: *span.corrected_total_time(),
+        start: *span.start(),
+        end: *span.end(),
         start_relative_to_parent: (*span.start() as i64) - (*parent_start as i64),
         end_relative_to_parent: (*span.end() as i64) - (*parent_start as i64),
         args: span
@@ -641,6 +883,7 @@ fn build_raw_span_info(
         avg_cpu_duration: None,
         total_corrected_duration: None,
         avg_corrected_duration: None,
+        example_span_id: None,
         first_span_id: None,
         heaviest_span_id: None,
         allocations: span.total_allocations(),
@@ -651,18 +894,17 @@ fn build_raw_span_info(
         self_deallocations: span.self_deallocations(),
         self_persistent_allocations: span.self_persistent_allocations(),
         self_allocation_count: span.self_allocation_count(),
-        memory_samples,
-        memory_summary,
+        memory_samples: memory.samples,
+        memory_summary: memory.summary,
+        memory_at_start: memory.at_start,
+        memory_at_end: memory.at_end,
         children,
     }
 }
 
-/// Query spans from the store.
-///
-/// Waits up to 10 seconds for at least some data to be loaded before
-/// returning, so callers don't need to poll separately.
-pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryResult {
-    // Wait briefly for initial data if the store is empty.
+/// Waits up to 10 seconds for at least some data to be loaded, so callers
+/// don't need to poll separately.
+fn wait_for_data(store: &StoreContainer) {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         {
@@ -677,43 +919,59 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         }
         thread::sleep(Duration::from_millis(50));
     }
+}
+
+/// Query spans from the store.
+///
+/// Waits up to 10 seconds for at least some data to be loaded before
+/// returning, so callers don't need to poll separately.
+pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryResult {
+    wait_for_data(store);
 
     let store_guard = store.read();
     let store_ref = &*store_guard;
 
-    let parent_span: Option<SpanRef<'_>> = if let Some(ref parent_id) = options.parent {
-        resolve_span_by_id(store_ref, parent_id)
-    } else {
-        None
+    let Some(parent) = Parent::resolve(store_ref, options.parent.as_deref()) else {
+        return QueryResult {
+            spans: Vec::new(),
+            page: 1,
+            total_pages: 1,
+            total_count: 0,
+            depth_limited: false,
+        };
     };
 
-    let parent_start = parent_span.as_ref().map(|s| s.start()).unwrap_or_default();
-    let max_depth = options.max_depth.clamp(1, DEFAULT_SEARCH_MAX_DEPTH);
-    let depth = options.depth.clamp(1, DEFAULT_SEARCH_MAX_DEPTH);
+    let (parent_start, _) = parent.extent();
+    let max_depth = options.max_depth.max(1);
+    let depth = options.depth.clamp(1, MAX_INLINE_DEPTH);
     let page_size = options
         .page_size
         .unwrap_or(DEFAULT_PAGE_SIZE)
         .clamp(1, MAX_PAGE_SIZE);
+    // `recursive` lists the whole subtree, which is a search that matches
+    // everything: a query without terms.
+    let search = options
+        .search
+        .clone()
+        .or_else(|| options.recursive.then(String::new));
 
     if options.aggregated {
-        let direct: Vec<Located<SpanGraphRef<'_>>> = match parent_span {
-            Some(ref parent) => span_graph_children(parent),
-            None => span_graph_children(&store_ref.root_span()),
-        }
-        .into_iter()
-        .map(|graph| {
-            let leaf = format!("a{}", graph.first_span().index);
-            Located {
-                id: build_span_id(options.parent.as_deref(), &leaf),
-                item: graph,
-            }
-        })
-        .collect();
+        let direct: Vec<Located<SpanGraphRef<'_>>> = parent
+            .graph_children()
+            .into_iter()
+            .map(|graph| {
+                let leaf = format!("a{}", graph.first_span().index);
+                Located {
+                    id: build_span_id(options.parent.as_deref(), &leaf),
+                    item: graph,
+                }
+            })
+            .collect();
 
         // A search descends the subtree; without one we stay at this level.
-        let mut filtered = match options.search {
+        let (mut filtered, depth_limited) = match search {
             Some(ref query) => search_graph_recursive(direct, query, max_depth),
-            None => direct,
+            None => (direct, false),
         };
 
         sort_graph(&mut filtered, options.sort);
@@ -724,7 +982,14 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         let spans = page_items
             .into_iter()
             .map(|located| {
-                build_graph_span_info(store_ref, located, parent_start, options.sort, depth)
+                build_graph_span_info(
+                    store_ref,
+                    located,
+                    parent_start,
+                    options.sort,
+                    depth,
+                    options.include_memory_samples,
+                )
             })
             .collect();
 
@@ -733,50 +998,60 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             page,
             total_pages,
             total_count,
+            depth_limited,
         }
     } else {
-        // The store's index keys category and title separately, so a term
-        // spanning both (a `name` copied from a result) matches no key. It is
-        // shared with the WebSocket viewer, so rather than change its keys,
-        // walk the subtree ourselves whenever any term contains a space.
-        // Single-word queries still take the index, which is much faster.
-        let filtered: Vec<Located<SpanRef<'_>>> = if let Some(ref query) = options.search {
-            let needs_scan = query.split(',').any(|term| term.trim().contains(' '));
-            let matches: Vec<SpanRef<'_>> = if needs_scan {
-                let roots: Vec<SpanRef<'_>> = match parent_span {
-                    Some(ref parent) => parent.children().collect(),
-                    None => store_ref.root_spans().collect(),
-                };
-                search_spans_recursive(roots, query, max_depth)
+        let members = parent.members();
+        let mut depth_limited = false;
+        // What a search's results are pathed from. Without a search every
+        // result is a direct child, whose ID is just its index.
+        let mut ancestors = None;
+        let mut filtered: Vec<SpanRef<'_>> = if let Some(ref query) = search {
+            let matches = if let Parent::Graph(_) = parent {
+                // A group would need an index built for each of its members,
+                // so walk them instead.
+                let roots = members.iter().flat_map(|span| span.children()).collect();
+                let (matches, limited) = search_spans_recursive(roots, query, max_depth);
+                depth_limited = limited;
+                matches
             } else {
-                match parent_span {
-                    Some(ref parent) => parent.search(query).collect(),
-                    None => store_ref.root_span().search(query).collect(),
-                }
+                index_search(&members, query)
             };
-            matches
-                .into_iter()
-                .filter_map(|span| {
-                    raw_span_path(&span, parent_span.as_ref(), max_depth).map(|id| Located {
-                        item: span,
-                        id: build_span_id(options.parent.as_deref(), &id),
+            let set: FxHashSet<usize> = members.iter().map(|span| span.index).collect();
+            let mut matches: Vec<_> = if max_depth == u32::MAX {
+                // A span's index covers its own subtree, so every match is a
+                // descendant, apart from the span itself. Walking up to check
+                // the depth was most of a page's cost, so skip it when there
+                // is no limit to check.
+                matches
+                    .into_iter()
+                    .filter(|span| !set.contains(&span.index))
+                    .collect()
+            } else {
+                // The index isn't depth-limited, so apply the limit here. Only
+                // the depth is needed; IDs are built for the returned page
+                // alone, since building them for every match also dominated.
+                matches
+                    .into_iter()
+                    .filter(|span| match walk_to_ancestor(span, &set, |_| {}) {
+                        Some(depth) if depth <= max_depth as usize => true,
+                        Some(_) => {
+                            depth_limited = true;
+                            false
+                        }
+                        None => false,
                     })
-                })
-                .collect()
+                    .collect()
+            };
+            // The index answers in hash order; restore execution order so
+            // that is what an unsorted search returns, and pages are stable.
+            matches.sort_unstable_by_key(|span| span.index);
+            ancestors = Some(set);
+            matches
         } else {
-            match parent_span {
-                Some(ref parent) => parent.children().collect::<Vec<_>>(),
-                None => store_ref.root_spans().collect::<Vec<_>>(),
-            }
-            .into_iter()
-            .map(|span| Located {
-                id: build_span_id(options.parent.as_deref(), &span.index.to_string()),
-                item: span,
-            })
-            .collect()
+            members.iter().flat_map(|span| span.children()).collect()
         };
 
-        let mut filtered = filtered;
         sort_spans(&mut filtered, options.sort);
 
         let (page_items, page, total_pages, total_count) =
@@ -784,8 +1059,25 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
 
         let spans = page_items
             .into_iter()
-            .map(|located| {
-                build_raw_span_info(store_ref, located, parent_start, options.sort, depth)
+            .map(|span| {
+                let leaf = match &ancestors {
+                    Some(ancestors) => raw_span_path(&span, ancestors)
+                        .expect("filtered to descendants")
+                        .join("-"),
+                    None => span.index.to_string(),
+                };
+                let located = Located {
+                    id: build_span_id(options.parent.as_deref(), &leaf),
+                    item: span,
+                };
+                build_raw_span_info(
+                    store_ref,
+                    located,
+                    parent_start,
+                    options.sort,
+                    depth,
+                    options.include_memory_samples,
+                )
             })
             .collect();
 
@@ -794,69 +1086,48 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             page,
             total_pages,
             total_count,
+            depth_limited,
         }
     }
 }
 
-/// Build the dash-separated index path from `ancestor` (exclusive) down to
-/// `span` (inclusive), e.g. `"12-48-91"`.
+/// Walk up from `span` to just below one of `ancestors`, calling `visit` for
+/// each span on the way (`span` first), and return how many there were: the
+/// depth of `span` below that ancestor.
 ///
-/// `None` when `span` is not a descendant of `ancestor`, or when the chain is
-/// longer than `max_depth`. Passing `None` for `ancestor` walks up to the
-/// trace root.
-fn raw_span_path(
-    span: &SpanRef<'_>,
-    ancestor: Option<&SpanRef<'_>>,
-    max_depth: u32,
-) -> Option<String> {
-    let stop_at = ancestor.map(|a| a.index);
-    let mut segments = Vec::new();
-    let mut current = *span;
-
+/// `None` when `span` is not a strict descendant of any of `ancestors`. The
+/// trace root, index 0, is the ancestor of every top-level span.
+fn walk_to_ancestor<'a>(
+    span: &SpanRef<'a>,
+    ancestors: &FxHashSet<usize>,
+    mut visit: impl FnMut(&SpanRef<'a>),
+) -> Option<usize> {
+    let mut depth = 0;
+    let mut current = Some(*span);
     loop {
-        if Some(current.index) == stop_at {
+        // Top-level spans have no parent; the trace root stands in for it.
+        let index = current.map_or(0, |span| span.index);
+        if ancestors.contains(&index) {
             break;
         }
-        if segments.len() as u32 >= max_depth {
-            return None;
-        }
-        segments.push(current.index.to_string());
-        match current.parent() {
-            Some(parent) => current = parent,
-            // Reached the root without finding `ancestor`.
-            None => {
-                if stop_at.is_some() {
-                    return None;
-                }
-                break;
-            }
-        }
+        let span = current?;
+        visit(&span);
+        depth += 1;
+        current = span.parent();
     }
-
-    segments.reverse();
-    Some(segments.join("-"))
+    // Zero when `span` is one of the ancestors itself.
+    (depth > 0).then_some(depth)
 }
 
-/// Resolve a span by its MCP ID string.
-///
-/// IDs use the format `[a]<index>[-[a]<index>...]`:
-/// - A plain decimal segment (e.g. `"123"`) refers to a raw span at that store index.
-/// - A segment prefixed with `"a"` (e.g. `"a123"`) refers to the first span of an aggregated group
-///   at that store index.
-/// - Segments are separated by `-` to form a navigation path, e.g. `"a5-a34-20"`. Only the **last**
-///   segment is needed to look up the span whose children we want to enumerate; the earlier
-///   segments provide navigation context for the caller.
-fn resolve_span_by_id<'a>(store: &'a store::Store, id: &str) -> Option<SpanRef<'a>> {
-    // Take only the last path segment (everything after the final `-`).
-    let last = id.split('-').next_back().unwrap_or(id);
-    // Strip the optional "a" prefix that marks aggregated spans.
-    let index_str = last.strip_prefix('a').unwrap_or(last);
-    let index: usize = index_str.parse().ok()?;
-    store.spans.get(index).map(|s| SpanRef {
-        span: s,
-        store,
-        index,
-    })
+/// The store indices from just below one of `ancestors` down to `span`
+/// (inclusive), top first. `None` like [`walk_to_ancestor`].
+fn raw_span_path(span: &SpanRef<'_>, ancestors: &FxHashSet<usize>) -> Option<Vec<String>> {
+    let mut segments = Vec::new();
+    walk_to_ancestor(span, ancestors, |span| {
+        segments.push(span.index.to_string())
+    })?;
+    segments.reverse();
+    Some(segments)
 }
 
 #[cfg(test)]
@@ -945,10 +1216,12 @@ mod tests {
             aggregated: true,
             sort: SortMode::ExecutionOrder,
             search: None,
-            max_depth: DEFAULT_SEARCH_MAX_DEPTH,
+            recursive: false,
+            max_depth: u32::MAX,
             depth: 1,
             page: 1,
             page_size: None,
+            include_memory_samples: true,
         }
     }
 
@@ -1269,7 +1542,7 @@ mod tests {
     #[test]
     fn memory_summary_reports_peak_not_last() {
         let samples = [
-            (0i64, 100u64, 0u8, 5000u64, 2u64),
+            (0u64, 100u64, 0u8, 5000u64, 2u64),
             (1, 900, 3, 4000, 1),
             (2, 200, 1, 7000, 3),
         ];

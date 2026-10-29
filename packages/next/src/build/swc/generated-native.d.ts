@@ -748,6 +748,24 @@ export declare function projectWriteAnalyzeData(
   appDirOnly: boolean
 ): Promise<TurbopackResult<undefined>>
 
+/**
+ * Group every span below a parent by name, wherever in the tree each one
+ * sits, and sum their self time and allocations.
+ */
+export declare function queryTraceFlatProfile(
+  handle: TraceServerHandle,
+  options: TraceFlatProfileOptions
+): TraceFlatProfileResult
+
+/**
+ * The process memory series over a time range, with the spans running in it
+ * as phase markers.
+ */
+export declare function queryTraceMemoryTimeline(
+  handle: TraceServerHandle,
+  options: TraceMemoryTimelineOptions
+): TraceMemoryTimeline
+
 /** Query spans from the trace store held by a `TraceServerHandle`. */
 export declare function queryTraceSpans(
   handle: TraceServerHandle,
@@ -789,17 +807,74 @@ export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell<FlushGuard | undefined | null>>
 ): void
 
-/** Aggregate view of a span's TurboMalloc memory samples. */
+/** Options for `query_trace_flat_profile`. */
+export interface TraceFlatProfileOptions {
+  /**
+   * Span ID whose subtree to profile. Omit for the whole trace. For an
+   * aggregated group, every member's subtree is included.
+   */
+  parent?: string
+  /**
+   * Keep only entries whose name matches (substring, comma-separated terms
+   * ANDed).
+   */
+  search?: string
+  /**
+   * `"self"` (default) for corrected self time, `"total"` for corrected
+   * total time, `"self-allocations"`, `"self-persistent-allocations"` or
+   * `"count"`. All descending.
+   */
+  sort?: string
+  /** 1-based page number. Default `1`. */
+  page?: number
+  /** Entries per page. Default `20`, capped at `10000`. */
+  pageSize?: number
+}
+
+/** The result of a `query_trace_flat_profile` call. */
+export interface TraceFlatProfileResult {
+  entries: Array<TraceProfileEntry>
+  page: number
+  totalPages: number
+  /** Number of entries (distinct names) across all pages. */
+  totalCount: number
+  /** Number of spans in the profiled subtree. */
+  spanCount: number
+  /** Corrected self time of the whole subtree. */
+  totalCorrectedSelfDuration: number
+  /** Self allocations of the whole subtree. */
+  totalSelfAllocations: number
+}
+
+/** Memory readings at one point in time, interpolated between samples. */
+export interface TraceMemoryPoint {
+  /** Bytes the allocator has committed from the OS. */
+  bytes: number
+  /** Process memory footprint (RSS) in bytes (0 = not reported). */
+  footprint: number
+}
+
+/** A memory reading at one point in time. */
+export interface TraceMemoryReading {
+  /** Absolute time in internal ticks. */
+  ts: number
+  /** Bytes the allocator has committed from the OS. */
+  bytes: number
+  /** Process memory footprint (RSS) in bytes (0 = not reported). */
+  footprint: number
+}
+
+/** Aggregate view of a span's memory samples. */
 export interface TraceMemorySummary {
   /** Number of samples in the span's range, after downsampling. */
   count: number
-  /** Live bytes at the first sample in the range. */
+  /** Committed bytes at the first sample in the range. */
   start: number
-  /** Live bytes at the last sample in the range. */
+  /** Committed bytes at the last sample in the range. */
   end: number
-  /** Smallest live-bytes reading in the range. */
+  /** Smallest committed-bytes reading in the range. */
   min: number
-  /** Largest live-bytes reading in the range — the span's peak memory. */
+  /** Largest committed-bytes reading in the range — the span's peak memory. */
   peak: number
   /** Highest memory-pressure byte in the range (0 = no pressure). */
   maxPressure: number
@@ -808,6 +883,83 @@ export interface TraceMemorySummary {
    * reported by the platform).
    */
   maxFootprint: number
+}
+
+/** The result of a `query_trace_memory_timeline` call. */
+export interface TraceMemoryTimeline {
+  /** Absolute start of the covered range, in internal ticks. */
+  start: number
+  /** Absolute end of the covered range, in internal ticks. */
+  end: number
+  /**
+   * `[ts, bytes, pressure, footprint, active_worker_threads]`, like
+   * `memorySamples` on a span.
+   */
+  samples: Array<Array<number>>
+  /** Number of samples in the range before downsampling. */
+  rawSampleCount: number
+  /** The sample with the most committed bytes. */
+  peakBytes?: TraceMemoryReading
+  /** The sample with the largest footprint. */
+  peakFootprint?: TraceMemoryReading
+  /**
+   * The sample where footprint minus committed bytes is largest (negative
+   * when committed pages aren't resident). Absent when the platform doesn't
+   * report footprint.
+   */
+  maxGap?: TraceMemoryReading
+  /** The phases with the largest corrected duration, in start order. */
+  phases: Array<TraceTimelinePhase>
+}
+
+/** Options for `query_trace_memory_timeline`. */
+export interface TraceMemoryTimelineOptions {
+  /**
+   * Span ID whose range to cover and whose children are the phases. Omit
+   * for the whole trace with top-level spans as phases.
+   */
+  parent?: string
+  /** Absolute start in internal ticks, overriding the parent's. */
+  start?: number
+  /** Absolute end in internal ticks, overriding the parent's. */
+  end?: number
+  /** Samples to downsample to. Default `100`, capped at `2000`. */
+  maxSamples?: number
+  /**
+   * Phases to return, the ones with the largest corrected duration.
+   * Default `20`, capped at `200`.
+   */
+  maxPhases?: number
+}
+
+/**
+ * All spans with one name in a flat profile. Durations are in internal ticks
+ * (100 ticks = 1 µs).
+ */
+export interface TraceProfileEntry {
+  /** Group name, without the `name` arg. */
+  name: string
+  /** Number of spans with this name. */
+  count: number
+  /** Summed self time. */
+  selfDuration: number
+  /** Summed concurrency-corrected self time. */
+  correctedSelfDuration: number
+  /**
+   * Summed total time, counting only the outermost of nested same-named
+   * spans.
+   */
+  totalDuration: number
+  /** Like `totalDuration`, concurrency-corrected. */
+  correctedTotalDuration: number
+  selfAllocations: number
+  selfDeallocations: number
+  selfPersistentAllocations: number
+  selfAllocationCount: number
+  /** Raw span ID of the span with the largest corrected total time. */
+  exampleSpanId: string
+  /** Corrected total time of the example span. */
+  exampleCorrectedDuration: number
 }
 
 /** Options for `query_trace_spans`. */
@@ -837,19 +989,31 @@ export interface TraceQueryOptions {
    */
   search?: string
   /**
-   * Maximum depth to descend below `parent` for `search` and `depth`.
-   * Default `32`, which is also the cap.
+   * When `true`, list every span in the subtree below `parent`, as if
+   * `search` matched everything. Ignored when `search` is set.
+   */
+  recursive?: boolean
+  /**
+   * Maximum depth to descend below `parent` for `search` and `recursive`.
+   * Unlimited by default. `depthLimited` in the result reports whether it
+   * cut anything off.
    */
   maxDepth?: number
   /**
    * When greater than `1`, each returned span carries this many levels of
-   * descendants inline in `children`. Default `1` (no nesting).
+   * descendants inline in `children`. Default `1` (no nesting), capped at
+   * `32`.
    */
   depth?: number
   /** 1-based page number. Default `1`. */
   page?: number
-  /** Spans per page. Default `20`, capped at `500`. */
+  /** Spans per page. Default `20`, capped at `10000`. */
   pageSize?: number
+  /**
+   * When `false`, leave `memorySamples` empty (`memorySummary` is still
+   * computed). Default `true`.
+   */
+  includeMemorySamples?: boolean
 }
 
 /** The result of a `query_trace_spans` call. */
@@ -861,23 +1025,56 @@ export interface TraceQueryResult {
   totalPages: number
   /** Total number of matching spans across all pages. */
   totalCount: number
+  /**
+   * True when `maxDepth` stopped the walk above spans that have
+   * descendants, so matches below that depth may be missing.
+   */
+  depthLimited: boolean
 }
 
 /** Information about a single span or aggregated span group. */
 export interface TraceSpanInfo {
-  /** Span ID. Pass this as `parent` in a follow-up call to get children. */
+  /**
+   * Span ID. Pass this as `parent` in a follow-up call to get children.
+   * For an aggregated group, the children of every member, merged.
+   */
   id: string
-  /** Display name of the span. */
+  /**
+   * Display name of the span. A lone span's name may include its `name`
+   * arg (e.g. a module path); `groupName` never does.
+   */
   name: string
-  /** Raw CPU total time in internal ticks (100 ticks = 1 µs). */
+  /** The name spans are aggregated by: `name` without the `name` arg. */
+  groupName: string
+  /**
+   * Raw CPU total time in internal ticks (100 ticks = 1 µs). For aggregated
+   * groups, the example span's.
+   */
   cpuDuration: number
-  /** Concurrency-corrected total time in internal ticks (100 ticks = 1 µs). */
+  /**
+   * Concurrency-corrected total time in internal ticks (100 ticks = 1 µs).
+   * For aggregated groups, the example span's.
+   */
   correctedDuration: number
-  /** Start time relative to parent start, in internal ticks. */
+  /**
+   * Absolute start in internal ticks since the trace started, on the same
+   * clock as memory samples. For aggregated groups, the earliest member
+   * start.
+   */
+  start: number
+  /**
+   * Absolute end in internal ticks. For aggregated groups, the latest
+   * member end.
+   */
+  end: number
+  /** `start` relative to the parent's start, in internal ticks. */
   startRelativeToParent: number
-  /** End time relative to parent start, in internal ticks. */
+  /** `end` relative to the parent's start, in internal ticks. */
   endRelativeToParent: number
-  /** Key-value attributes attached to the span. */
+  /**
+   * Key-value attributes attached to the span (the example span, for
+   * aggregated groups).
+   */
   args: Array<Array<string>>
   /** True if this entry represents an aggregated group of spans. */
   isAggregated: boolean
@@ -892,11 +1089,12 @@ export interface TraceSpanInfo {
   /** Average corrected duration across spans in the group. */
   avgCorrectedDuration?: number
   /**
-   * Raw span ID of the group's example span, whose `cpuDuration`,
-   * `correctedDuration` and `memorySamples` are the ones reported here.
-   * First in execution order — *not* the largest, so it can badly understate
-   * a group's allocations. Use `heaviestSpanId` for those.
+   * Raw span ID of the group's example span: the member with the largest
+   * corrected duration. Its `cpuDuration`, `correctedDuration`, `args` and
+   * `memorySamples` are the ones reported here.
    */
+  exampleSpanId?: string
+  /** Raw span ID of the group member that came first in execution order. */
   firstSpanId?: string
   /**
    * Raw span ID of the group member with the largest persistent
@@ -970,23 +1168,55 @@ export interface TraceSpanInfo {
    * no matter what each allocated. Rank concurrent work by the allocation
    * fields instead.
    *
-   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-   * footprint, active_worker_threads]`: `bytes` is TurboMalloc memory usage,
-   * `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-   * pressure), `footprint` is the process memory footprint (RSS) in bytes
-   * (0 = not reported by the platform), and `active_worker_threads` counts
-   * non-parked Tokio scheduler workers. `100 ticks = 1 µs`. Capped and
-   * downsampled by the store.
+   * Each entry is `[ts, bytes, pressure, footprint, active_worker_threads]`:
+   * `ts` is absolute in internal ticks, on the same clock as `start`/`end`;
+   * `bytes` is the memory the allocator has committed from the OS
+   * (mimalloc's `current_commit`); `pressure` is the memory-pressure byte
+   * (0 = no pressure, higher = more pressure); `footprint` is the process
+   * memory footprint (RSS) in bytes (0 = not reported by the platform); and
+   * `active_worker_threads` counts non-parked Tokio scheduler workers.
+   * `100 ticks = 1 µs`. Capped and downsampled by the store.
    */
   memorySamples: Array<Array<number>>
   /**
    * Summary of `memorySamples`; absent when the span's range holds none.
-   * Unlike the allocation counters these are absolute live-heap readings, so
-   * `peak` is the figure to quote for memory actually in use.
+   * Unlike the allocation counters these are absolute readings of committed
+   * memory, so `peak` is the figure to quote for memory actually in use.
    */
   memorySummary?: TraceMemorySummary
+  /**
+   * Committed bytes and footprint at the span's start, interpolated between
+   * the surrounding samples, so present even for spans too short to hold a
+   * sample. Outside the sampled range, the nearest sample. Absent only for
+   * a trace without samples.
+   */
+  memoryAtStart?: TraceMemoryPoint
+  /** Like `memoryAtStart`, at the span's end. */
+  memoryAtEnd?: TraceMemoryPoint
   /** Descendants of this span, populated only when `depth > 1`. */
   children: Array<TraceSpanInfo>
+}
+
+/**
+ * A span running during a memory timeline. Always a single span, never an
+ * aggregated group, whose extent would cover the gaps between its members.
+ */
+export interface TraceTimelinePhase {
+  /** Raw span ID, usable as `parent`. */
+  id: string
+  name: string
+  /** Absolute start in internal ticks. */
+  start: number
+  /** Absolute end in internal ticks. */
+  end: number
+  /** Concurrency-corrected duration. */
+  correctedDuration: number
+  memoryAtStart?: TraceMemoryPoint
+  memoryAtEnd?: TraceMemoryPoint
+  /** Largest committed-bytes sample during the phase. */
+  peakBytes?: number
+  /** Largest footprint sample during the phase. */
+  peakFootprint?: number
 }
 
 export declare function transform(
