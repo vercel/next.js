@@ -28,58 +28,27 @@ async fn split_chunk() {
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
-            SourceMaps::new(
-                Some(Rope::from(serde_json::to_string(&json!({
-                    "version": 3,
-                    "mappings": "AAAA",
-                    "sources": ["original-source.ts"],
-                    "names": []
-                }))?)),
-                Some(Rope::from(serde_json::to_string_pretty(&json! ({
-                    "version": 3,
-                    "mappings": "AAAA;AACA",
-                    "sources": ["source1.js"],
-                    "names": [],
-                    "sourcesContent": ["console.log('Hello world!');"]
-                }))?)),
-            ),
+            SourceMaps::Partial(Rope::from(serde_json::to_string_pretty(&json! ({
+                "version": 3,
+                "mappings": "AAAA;AACA",
+                "sources": ["source1.js"],
+                "names": [],
+                "sourcesContent": ["console.log('Hello world!');"]
+            }))?)),
         );
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
-            SourceMaps::new(
-                Some(Rope::from(serde_json::to_string(&json!({
-                    "version": 3,
-                    "mappings": "AAAA",
-                    "sources": ["original-source.ts"],
-                    "names": []
-                }))?)),
-                Some(Rope::from(serde_json::to_string_pretty(&json! ({
-                    "version": 3,
-                    "mappings": "AAAA",
-                    "sources": ["source2.js"],
-                    "names": [],
-                    "sourcesContent": ["console.log('Middle of file');"]
-                }))?)),
-            ),
+            SourceMaps::Partial(Rope::from(serde_json::to_string_pretty(&json! ({
+                "version": 3,
+                "mappings": "AAAA",
+                "sources": ["source2.js"],
+                "names": [],
+                "sourcesContent": ["console.log('Middle of file');"]
+            }))?)),
         );
         code += "This is the end of the file.\n";
         let code = code.build();
-
-        let mut combined = CodeBuilder::new(false);
-        combined.push_code(&code);
-        let code = combined.build();
-        assert!(
-            code.generate_source_map_ref(None, SourceMapType::Full)?
-                .to_str()?
-                .contains("original-source.ts")
-        );
-        assert!(
-            !code
-                .generate_source_map_ref(None, SourceMapType::Partial)?
-                .to_str()?
-                .contains("original-source.ts")
-        );
 
         let asset = TestAsset {
             code: code.resolved_cell(),
