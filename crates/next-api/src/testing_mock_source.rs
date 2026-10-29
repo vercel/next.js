@@ -823,6 +823,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             actual_apis: &bindings,
             allow_imports: true,
             allow_globals: true,
+            allow_nested_this: false,
+            owns_this: false,
             invalid: None,
         };
         call.args[0].expr.visit_with(&mut captures);
@@ -986,9 +988,11 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             actual_apis: &bindings,
             allow_imports: false,
             allow_globals: false,
+            allow_nested_this: true,
+            owns_this: false,
             invalid: None,
         };
-        factory.visit_with(&mut captures);
+        captures.visit_factory_root(factory);
         if let Some(reason) = captures.invalid {
             bail!(
                 "Unsupported vi.mock factory in {filename}: {reason}. Factories are hoisted \
@@ -1506,9 +1510,129 @@ struct FactoryReferences<'a> {
     actual_apis: &'a HashSet<Id>,
     allow_imports: bool,
     allow_globals: bool,
+    allow_nested_this: bool,
+    owns_this: bool,
     invalid: Option<String>,
 }
+impl FactoryReferences<'_> {
+    fn in_this_scope(
+        &mut self,
+        owns_this: bool,
+        allow_nested_this: bool,
+        visit: impl FnOnce(&mut Self),
+    ) {
+        let previous = (self.owns_this, self.allow_nested_this);
+        self.owns_this = owns_this;
+        self.allow_nested_this = allow_nested_this;
+        visit(self);
+        (self.owns_this, self.allow_nested_this) = previous;
+    }
+
+    fn visit_factory_root(&mut self, factory: &Expr) {
+        // The factory itself keeps its old captured-this rule, including when
+        // it is an ordinary function. Only nested callables gain a local this.
+        if let Expr::Fn(function) = factory {
+            function.ident.visit_with(self);
+            function.function.visit_children_with(self);
+        } else {
+            factory.visit_with(self);
+        }
+    }
+
+    fn visit_function_parts(
+        &mut self,
+        function: &Function,
+        owns_this: bool,
+        allow_nested_this: bool,
+    ) {
+        function.this_param.visit_with(self);
+        for parameter in &function.params {
+            // Decorators execute outside the callable whose parameter they
+            // annotate. Parameter defaults execute with its actual receiver.
+            parameter.decorators.visit_with(self);
+            self.in_this_scope(owns_this, allow_nested_this, |visitor| {
+                parameter.pat.visit_with(visitor);
+            });
+        }
+        function.decorators.visit_with(self);
+        self.in_this_scope(owns_this, allow_nested_this, |visitor| {
+            function.body.visit_with(visitor);
+            function.type_params.visit_with(visitor);
+            function.return_type.visit_with(visitor);
+        });
+    }
+}
 impl Visit for FactoryReferences<'_> {
+    fn visit_function(&mut self, function: &Function) {
+        if self.allow_nested_this {
+            self.visit_function_parts(function, true, true);
+        } else {
+            function.visit_children_with(self);
+        }
+    }
+
+    // Class receivers remain outside this bounded ordinary-callable role.
+    // Keys and decorators still execute in the enclosing evaluation scope.
+    fn visit_class_method(&mut self, method: &ClassMethod) {
+        method.key.visit_with(self);
+        self.visit_function_parts(&method.function, false, false);
+    }
+    fn visit_private_method(&mut self, method: &PrivateMethod) {
+        method.key.visit_with(self);
+        self.visit_function_parts(&method.function, false, false);
+    }
+    fn visit_constructor(&mut self, constructor: &Constructor) {
+        constructor.key.visit_with(self);
+        for parameter in &constructor.params {
+            match parameter {
+                ParamOrTsParamProp::Param(parameter) => {
+                    parameter.decorators.visit_with(self);
+                    self.in_this_scope(false, false, |visitor| {
+                        parameter.pat.visit_with(visitor);
+                    });
+                }
+                ParamOrTsParamProp::TsParamProp(parameter) => {
+                    parameter.decorators.visit_with(self);
+                    self.in_this_scope(false, false, |visitor| {
+                        parameter.param.visit_with(visitor);
+                    });
+                }
+            }
+        }
+        self.in_this_scope(false, false, |visitor| {
+            constructor.body.visit_with(visitor);
+        });
+    }
+    fn visit_class_prop(&mut self, property: &ClassProp) {
+        property.key.visit_with(self);
+        self.in_this_scope(false, false, |visitor| {
+            property.value.visit_with(visitor);
+        });
+        property.type_ann.visit_with(self);
+        property.decorators.visit_with(self);
+    }
+    fn visit_private_prop(&mut self, property: &PrivateProp) {
+        property.key.visit_with(self);
+        self.in_this_scope(false, false, |visitor| {
+            property.value.visit_with(visitor);
+        });
+        property.type_ann.visit_with(self);
+        property.decorators.visit_with(self);
+    }
+    fn visit_static_block(&mut self, block: &StaticBlock) {
+        self.in_this_scope(false, false, |visitor| {
+            block.body.visit_with(visitor);
+        });
+    }
+    fn visit_auto_accessor(&mut self, accessor: &AutoAccessor) {
+        accessor.key.visit_with(self);
+        self.in_this_scope(false, false, |visitor| {
+            accessor.value.visit_with(visitor);
+        });
+        accessor.type_ann.visit_with(self);
+        accessor.decorators.visit_with(self);
+    }
+
     fn visit_jsx_element_name(&mut self, name: &JSXElementName) {
         if matches!(name, JSXElementName::Ident(ident) if ident.sym.starts_with(|character: char| character.is_ascii_lowercase()) || ident.sym.contains('-'))
         {
@@ -1573,7 +1697,9 @@ impl Visit for FactoryReferences<'_> {
             Some("import.meta/new.target context cannot be preserved in a hoisted factory".into());
     }
     fn visit_this_expr(&mut self, _: &ThisExpr) {
-        self.invalid = Some("this capture is unsupported".into());
+        if !self.owns_this {
+            self.invalid = Some("this capture is unsupported".into());
+        }
     }
 }
 
@@ -1729,6 +1855,16 @@ impl FactoryExports {
                             Some(name) => self.names.push(name.into()),
                             None => self.invalid = true,
                         },
+                        PropName::Computed(name) if matches!(&**prop, Prop::Method(_)) => {
+                            if let Expr::Lit(Lit::Str(value)) = &*name.expr {
+                                match value.value.as_str() {
+                                    Some(name) => self.names.push(name.into()),
+                                    None => self.invalid = true,
+                                }
+                            } else {
+                                self.invalid = true;
+                            }
+                        }
                         _ => self.invalid = true,
                     }
                 }
@@ -2785,6 +2921,99 @@ mod import_mock_unmock_tests {
             assert!(
                 crate::testing_mock_source::runtime_namespace_exports(source, "module.ts").is_err(),
                 "{source}"
+            );
+        }
+    }
+    #[test]
+    fn admits_only_nested_ordinary_callable_this_without_rewriting_factory() {
+        for factory in [
+            "()=>({fn(){return this.value}})",
+            "()=>({fn:function(){return this.value}})",
+            "()=>{function read(){return this.value}return {fn:read}}",
+            "function(){return {fn(){return this.value}}}",
+            "()=>({fn(value=this.value){return (()=>[this.value,value])()}})",
+            "()=>({['fn'](){return this.value}})",
+            "()=>({fn(){return class { [(this,'key')](){return 1} }}})",
+        ] {
+            let source = format!("import{{vi}}from'vitest';vi.mock('./dep',{factory});");
+            let plan = extract_static_mocks(&source, "spec.ts")
+                .unwrap_or_else(|error| panic!("{factory}: {error}"));
+            assert_eq!(plan.declarations.len(), 1, "{factory}");
+            assert_eq!(plan.declarations[0].factory_source, factory);
+            assert_eq!(plan.declarations[0].original_factory_source, factory);
+        }
+    }
+
+    #[test]
+    fn retains_literal_computed_method_names_without_accepting_dynamic_or_data_keys() {
+        for factory in [
+            "()=>({['fn'](){return 1}})",
+            "()=>({['fn'](){return this.value}})",
+        ] {
+            let source = format!("import{{vi}}from'vitest';vi.mock('./dep',{factory});");
+            let plan = extract_static_mocks(&source, "spec.ts").unwrap();
+            assert_eq!(plan.declarations[0].export_names, ["fn"]);
+            assert_eq!(plan.declarations[0].original_factory_source, factory);
+        }
+        for factory in [
+            "()=>({['fn']:1})",
+            "()=>({[1](){return 1}})",
+            "()=>({[('f'+'n')](){return 1}})",
+        ] {
+            let source = format!("import{{vi}}from'vitest';vi.mock('./dep',{factory});");
+            assert!(
+                extract_static_mocks(&source, "spec.ts").is_err(),
+                "{factory}"
+            );
+        }
+    }
+
+    #[test]
+    fn keeps_root_factory_arrow_and_class_this_refusals() {
+        for factory in [
+            "()=>({value:this})",
+            "function(){return {value:this}}",
+            "()=>({fn:()=>this})",
+            "(value=this)=>({value})",
+            "()=>({[(this,'fn')](){return 1}})",
+            "()=>({value:class { field=this }})",
+            "()=>({value:class { constructor(){this.value=1} }})",
+            "()=>({value:class { static {this.value=1} }})",
+            "()=>({fn(){return class {field=this}}})",
+            "()=>({fn(){return class {constructor(){this.value=1}}}})",
+            "()=>({fn(){return class {static {this.value=1}}}})",
+            "()=>({fn(){return class {method(){return this}}}})",
+        ] {
+            let source = format!("import{{vi}}from'vitest';vi.mock('./dep',{factory});");
+            let error = extract_static_mocks(&source, "spec.ts").err().unwrap();
+            assert!(
+                error.to_string().contains("this capture is unsupported"),
+                "{factory}: {error}"
+            );
+        }
+        assert!(
+            extract_static_mocks(
+                "import{vi}from'vitest';const state=vi.hoisted(()=>({fn(){return this}}));",
+                "spec.ts"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn nested_callable_this_never_skips_existing_capture_and_meta_analysis() {
+        for body in [
+            "const secret=1;vi.mock('./dep',()=>({fn(){return secret+this.value}}));",
+            "import{secret}from'./secret';vi.mock('./dep',()=>({fn:function(){return \
+             [this,secret]}}));",
+            "vi.mock('./dep',()=>({fn(){return [this,import('./secret')]}}));",
+            "vi.mock('./dep',()=>({fn(){return [this,import.meta.url]}}));",
+            "vi.mock('./dep',()=>({fn:function(){return [this,new.target]}}));",
+        ] {
+            let source = format!("import{{vi}}from'vitest';{body}");
+            assert!(
+                extract_static_mocks(&source, "spec.ts").is_err(),
+                "accepted {body}"
             );
         }
     }

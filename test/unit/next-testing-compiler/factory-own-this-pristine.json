@@ -1,0 +1,1643 @@
+{
+  "referenceVersion": "5.0.4",
+  "scope": "Actual Node26 nested ordinary callable dynamic this; root factory receiver is not broadened; literal computed method keys, parameter defaults, borrowed receivers and arrow scope",
+  "authoredSHA256": {
+    "own-this-arrow": {
+      "contract.test.mjs": "074a309bd65b813b1d281e61f9852cbd8f1d5fe7d709eef39262686e0f2239a3",
+      "node_modules/next-test-ownthis/index.cjs": "4172a94669f98289322ef02483712a1cc816fd84cf70c78b5a00e1ac9a91e9e8",
+      "node_modules/next-test-ownthis/package.json": "9d887aceb0f8526339b0f107be8a16bb1de46d2c6a52b562bd3e88c055da75e7"
+    },
+    "own-this-function": {
+      "contract.test.mjs": "f422d3c98906ee389e5f47ffa84aeab2ea6f56013b72103d9b9ca6e81017c189",
+      "node_modules/next-test-ownthis/index.cjs": "4172a94669f98289322ef02483712a1cc816fd84cf70c78b5a00e1ac9a91e9e8",
+      "node_modules/next-test-ownthis/package.json": "9d887aceb0f8526339b0f107be8a16bb1de46d2c6a52b562bd3e88c055da75e7"
+    }
+  },
+  "packages": {
+    "own-this-arrow": ["next-test-ownthis"],
+    "own-this-function": ["next-test-ownthis"]
+  },
+  "engines": {
+    "26": {
+      "runtime": "v26.12.1",
+      "groups": {
+        "own-this-arrow": {
+          "development": {
+            "cases": [
+              {
+                "name": "measures nested callable dynamic this without changing factory receiver",
+                "status": "passed",
+                "failureMessages": []
+              }
+            ],
+            "rows": [
+              {
+                "type": "stdout",
+                "value": {
+                  "label": "own-this",
+                  "namespace": {
+                    "type": "object",
+                    "brand": false,
+                    "tag": null,
+                    "keys": [
+                      "value",
+                      "phase",
+                      "method",
+                      "expression",
+                      "declaration",
+                      "arrowInside",
+                      "computed"
+                    ],
+                    "prototype": "Object.prototype",
+                    "extensible": true,
+                    "sealed": false,
+                    "frozen": false,
+                    "descriptors": [
+                      {
+                        "key": "value",
+                        "valueType": "number",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "phase",
+                        "valueType": "string",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "method",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "expression",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "declaration",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "arrowInside",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "computed",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      }
+                    ]
+                  },
+                  "probes": [
+                    {
+                      "key": "method",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "method",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "expression",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "expression",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "declaration",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "declared",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "arrowInside",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "arrowInside",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "computed",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "computed",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    }
+                  ],
+                  "actualValue": 20,
+                  "runtimeValue": 73,
+                  "unmockedValue": 20,
+                  "actualIdentity": true
+                }
+              }
+            ],
+            "fileMessages": [""],
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "exit": 0
+          },
+          "production": {
+            "cases": [
+              {
+                "name": "measures nested callable dynamic this without changing factory receiver",
+                "status": "passed",
+                "failureMessages": []
+              }
+            ],
+            "rows": [
+              {
+                "type": "stdout",
+                "value": {
+                  "label": "own-this",
+                  "namespace": {
+                    "type": "object",
+                    "brand": false,
+                    "tag": null,
+                    "keys": [
+                      "value",
+                      "phase",
+                      "method",
+                      "expression",
+                      "declaration",
+                      "arrowInside",
+                      "computed"
+                    ],
+                    "prototype": "Object.prototype",
+                    "extensible": true,
+                    "sealed": false,
+                    "frozen": false,
+                    "descriptors": [
+                      {
+                        "key": "value",
+                        "valueType": "number",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "phase",
+                        "valueType": "string",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "method",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "expression",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "declaration",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "arrowInside",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "computed",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      }
+                    ]
+                  },
+                  "probes": [
+                    {
+                      "key": "method",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "method",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "expression",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "expression",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "declaration",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "declared",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "arrowInside",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "arrowInside",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "computed",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "computed",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    }
+                  ],
+                  "actualValue": 20,
+                  "runtimeValue": 73,
+                  "unmockedValue": 20,
+                  "actualIdentity": true
+                }
+              }
+            ],
+            "fileMessages": [""],
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "exit": 0
+          }
+        },
+        "own-this-function": {
+          "development": {
+            "cases": [
+              {
+                "name": "measures nested callable dynamic this without changing factory receiver",
+                "status": "passed",
+                "failureMessages": []
+              }
+            ],
+            "rows": [
+              {
+                "type": "stdout",
+                "value": {
+                  "label": "own-this",
+                  "namespace": {
+                    "type": "object",
+                    "brand": false,
+                    "tag": null,
+                    "keys": [
+                      "value",
+                      "phase",
+                      "method",
+                      "expression",
+                      "declaration",
+                      "arrowInside",
+                      "computed"
+                    ],
+                    "prototype": "Object.prototype",
+                    "extensible": true,
+                    "sealed": false,
+                    "frozen": false,
+                    "descriptors": [
+                      {
+                        "key": "value",
+                        "valueType": "number",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "phase",
+                        "valueType": "string",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "method",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "expression",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "declaration",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "arrowInside",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "computed",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      }
+                    ]
+                  },
+                  "probes": [
+                    {
+                      "key": "method",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "method",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "expression",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "expression",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "declaration",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "declared",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "arrowInside",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "arrowInside",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "computed",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "computed",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    }
+                  ],
+                  "actualValue": 20,
+                  "runtimeValue": 73,
+                  "unmockedValue": 20,
+                  "actualIdentity": true
+                }
+              }
+            ],
+            "fileMessages": [""],
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "exit": 0
+          },
+          "production": {
+            "cases": [
+              {
+                "name": "measures nested callable dynamic this without changing factory receiver",
+                "status": "passed",
+                "failureMessages": []
+              }
+            ],
+            "rows": [
+              {
+                "type": "stdout",
+                "value": {
+                  "label": "own-this",
+                  "namespace": {
+                    "type": "object",
+                    "brand": false,
+                    "tag": null,
+                    "keys": [
+                      "value",
+                      "phase",
+                      "method",
+                      "expression",
+                      "declaration",
+                      "arrowInside",
+                      "computed"
+                    ],
+                    "prototype": "Object.prototype",
+                    "extensible": true,
+                    "sealed": false,
+                    "frozen": false,
+                    "descriptors": [
+                      {
+                        "key": "value",
+                        "valueType": "number",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "phase",
+                        "valueType": "string",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "method",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "expression",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "declaration",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "arrowInside",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      },
+                      {
+                        "key": "computed",
+                        "valueType": "function",
+                        "get": "undefined",
+                        "set": "undefined",
+                        "writable": true,
+                        "enumerable": true,
+                        "configurable": true
+                      }
+                    ]
+                  },
+                  "probes": [
+                    {
+                      "key": "method",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "method",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "expression",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "expression",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "declaration",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name", "prototype"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "prototype",
+                            "valueType": "object",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": true,
+                            "enumerable": false,
+                            "configurable": false
+                          }
+                        ]
+                      },
+                      "name": "declared",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "arrowInside",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "arrowInside",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    },
+                    {
+                      "key": "computed",
+                      "fn": {
+                        "type": "function",
+                        "brand": false,
+                        "tag": null,
+                        "keys": ["length", "name"],
+                        "prototype": "Function.prototype",
+                        "extensible": true,
+                        "sealed": false,
+                        "frozen": false,
+                        "descriptors": [
+                          {
+                            "key": "length",
+                            "valueType": "number",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          },
+                          {
+                            "key": "name",
+                            "valueType": "string",
+                            "get": "undefined",
+                            "set": "undefined",
+                            "writable": false,
+                            "enumerable": false,
+                            "configurable": true
+                          }
+                        ]
+                      },
+                      "name": "computed",
+                      "length": 0,
+                      "result": {
+                        "phase": "borrowed-phase",
+                        "value": "borrowed-phase",
+                        "selfSame": true
+                      },
+                      "namespace": {
+                        "phase": "static-own",
+                        "value": "named-value",
+                        "selfSame": true
+                      },
+                      "trace": [
+                        {
+                          "receiver": true
+                        },
+                        {
+                          "receiver": true
+                        }
+                      ]
+                    }
+                  ],
+                  "actualValue": 20,
+                  "runtimeValue": 73,
+                  "unmockedValue": 20,
+                  "actualIdentity": true
+                }
+              }
+            ],
+            "fileMessages": [""],
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "exit": 0
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+const shape=value=>{if(value===null||(typeof value!=='object'&&typeof value!=='function'))return{type:typeof value,value};return{type:typeof value,brand:types.isModuleNamespaceObject(value),tag:value[Symbol.toStringTag]??null,keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':'other',extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}}
+const same=values=>values.map(x=>values.map(y=>x===y))
+const view=ns=>{const ownDefault=Object.hasOwn(ns,'default'),root=ownDefault?ns.default:null;return{namespace:shape(ns),default:root?shape(root):null,value:ns.value,phase:ns.phase,fn:shape(ns.fn),fnName:ns.fn?.name,fnLength:ns.fn?.length,namedCall:typeof ns.fn==='function'?ns.fn('named'):null,defaultFnSame:root&&typeof root.fn==='function'?ns.fn===root.fn:null,defaultCall:root&&typeof root.fn==='function'?root.fn('default'):null}}
+const row=(label,value)=>console.log('MOCKPAIR:'+JSON.stringify({label,...value}))
+
+vi.mock('next-test-ownthis',function(){
+ function declared(value=this.phase){return{phase:this.phase,value,self:this}}
+ return{value:5,phase:'static-own',method(value=this.phase){return{phase:this.phase,value,self:this}},expression:function(value=this.phase){return{phase:this.phase,value,self:this}},declaration:declared,arrowInside(value=this.phase){return(()=>({phase:this.phase,value,self:this}))()},['computed'](value=this.phase){return{phase:this.phase,value,self:this}}}
+})
+
+import * as own from 'next-test-ownthis'
+test('measures nested callable dynamic this without changing factory receiver',async()=>{
+ const probes=[]
+ for(const key of ['method','expression','declaration','arrowInside','computed']){
+  const trace=[],receiver={get phase(){trace.push({receiver:this===receiver});return 'borrowed-phase'}}
+  const fn=own[key],result=Reflect.apply(fn,receiver,[]),namespaceResult=Reflect.apply(fn,own,['named-value'])
+  probes.push({key,fn:shape(fn),name:fn.name,length:fn.length,result:{phase:result.phase,value:result.value,selfSame:result.self===receiver},namespace:{phase:namespaceResult.phase,value:namespaceResult.value,selfSame:namespaceResult.self===own},trace})
+ }
+ const actual=await vi.importActual('next-test-ownthis')
+ vi.doMock('next-test-ownthis',()=>({value:73,phase:'runtime',method(){return null},expression(){return null},declaration(){return null},arrowInside(){return null},computed(){return null}}))
+ const runtime=await import('next-test-ownthis')
+ vi.doUnmock('next-test-ownthis')
+ const unmocked=await import('next-test-ownthis')
+ row('own-this',{namespace:shape(own),probes,actualValue:actual.value,runtimeValue:runtime.value,unmockedValue:unmocked.value,actualIdentity:actual===unmocked})
+ expect(probes.every(p=>p.result.phase==='borrowed-phase'&&p.result.value==='borrowed-phase'&&p.result.selfSame&&p.namespace.phase==='static-own'&&p.namespace.value==='named-value'&&p.namespace.selfSame&&p.trace.length===2)).toBe(true)
+ expect(runtime.value).toBe(73)
+})

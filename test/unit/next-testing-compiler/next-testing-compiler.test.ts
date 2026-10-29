@@ -9534,3 +9534,55 @@ it.each([
   },
   130000
 )
+
+if (process.versions.node.startsWith('26.')) {
+  it.each([
+    ['development', 'own-this-arrow'],
+    ['production', 'own-this-arrow'],
+    ['development', 'own-this-function'],
+    ['production', 'own-this-function'],
+  ] as const)(
+    'preserves nested factory callable this on Node26 in %s %s',
+    (mode, group) => {
+      const { execFileSync } = require('node:child_process')
+      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-factory-own-this-'))
+      let complete = false
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'factory-own-this.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+            'source',
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          mode,
+          group,
+          cases: 1,
+          rows: 1,
+          completeAuthoredCasesAndRows: true,
+          completeNamespaceAndFunctionDescriptors: true,
+          borrowedReceiversDefaultsAndArrowScope: true,
+          literalComputedMethodKeys: true,
+          actualRuntimeAndUnmockIdentities: true,
+          completeCountsAndFileMessages: true,
+          allAuthoredBytesHeld: true,
+          allOwnersJoined: true,
+        })
+        complete = true
+      } finally {
+        if (complete) rmSync(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+}
