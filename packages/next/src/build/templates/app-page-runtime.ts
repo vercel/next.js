@@ -2207,6 +2207,13 @@ export function createAppPageEntrypoint({
         if (cachedData.headers) {
           const headers = { ...cachedData.headers }
 
+          // The handler may have already set this singleton header. Keep the
+          // saved value for shells that weren't marked above, without appending
+          // a second value for fully static responses.
+          if (res.hasHeader(NEXT_IS_PRERENDER_HEADER)) {
+            delete headers[NEXT_IS_PRERENDER_HEADER]
+          }
+
           if (!isMinimalMode || !isSSG) {
             delete headers[NEXT_CACHE_TAGS_HEADER]
           }
