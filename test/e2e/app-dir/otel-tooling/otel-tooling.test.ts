@@ -26,6 +26,12 @@ type Message = {
   time?: number
   localHasRoot?: boolean
   spans?: ExportedSpan[]
+  unfinished?: {
+    name: string
+    spanId: string
+    traceId: string
+    toolingId: unknown
+  }[]
 }
 const milliseconds = ([seconds, ns]: [number, number]) =>
   seconds * 1000 + ns / 1e6
@@ -157,8 +163,22 @@ describe('experimental tooling OTel', () => {
       const orphans = tooling.filter(
         (span) => span.parentSpanId && !spansById.has(span.parentSpanId)
       )
+      const unfinishedById = new Map(
+        flushes[0].unfinished?.map((span) => [span.spanId, span])
+      )
+      // A framework operation that never ends is absent from both the local
+      // file and completed SDK exports. Require proof that its real parent
+      // remains live, rather than fabricating an end or ignoring lost exports.
+      const missingParents = orphans.filter((span) => {
+        const parent = unfinishedById.get(span.parentSpanId!)
+        return (
+          !parent ||
+          parent.traceId !== span.traceId ||
+          parent.toolingId !== span.attributes['next.tooling.parent_id']
+        )
+      })
       expect(
-        orphans.slice(0, 5).map((span) => {
+        missingParents.slice(0, 5).map((span) => {
           const parent = allSpansById.get(span.parentSpanId!)
           return {
             name: span.name,
@@ -166,9 +186,20 @@ describe('experimental tooling OTel', () => {
             parentSpanId: span.parentSpanId,
             parentName: parent?.name,
             parentAttributeCount: Object.keys(parent?.attributes ?? {}).length,
+            parentToolingId: span.attributes['next.tooling.parent_id'],
+            localParentName: local.find(
+              (event) => event.id === span.attributes['next.tooling.parent_id']
+            )?.name,
+            unfinishedParent: flushes[0].unfinished?.find(
+              (unfinishedSpan) => unfinishedSpan.spanId === span.parentSpanId
+            ),
           }
         })
       ).toEqual([])
+      for (const span of orphans) {
+        const parent = unfinishedById.get(span.parentSpanId!)!
+        expect(local.some((event) => event.id === parent.toolingId)).toBe(false)
+      }
       for (const span of tooling) {
         expect(span.traceId).toBe(root.traceId)
       }

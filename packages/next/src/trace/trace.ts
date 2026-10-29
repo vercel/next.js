@@ -61,6 +61,8 @@ export class Span {
     name: string
     parentId?: SpanId
     startTime?: bigint
+    // Wall-clock start time in milliseconds since epoch, matching `startTime`.
+    // Defaults to the construction time.
     wallStartTimeMs?: number
     attrs?: Attributes
     reportingParent?: ReportingRecord
@@ -152,6 +154,12 @@ export class Span {
       attrs,
       reportingParent: this.reporting,
       startTime: startTime ? startTime + correction : process.hrtime.bigint(),
+      // The span is constructed when the event is recorded, which may be long
+      // after the work started (e.g. compilation events forwarded from
+      // Turbopack), so derive the wall-clock start from the given epoch time.
+      wallStartTimeMs: startTime
+        ? Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC)
+        : undefined,
     })
     span.stop(stopTime ? stopTime + correction : process.hrtime.bigint())
   }

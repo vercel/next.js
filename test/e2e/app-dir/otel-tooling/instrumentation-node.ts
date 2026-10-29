@@ -11,6 +11,11 @@ import { readFileSync } from 'node:fs'
 let registrations = 0
 let provider: TracerProvider
 let registeredProvider: ReturnType<typeof trace.getTracerProvider>
+// Observe live SDK parents without inventing an end for unfinished tooling work.
+const unfinished = new Map<
+  string,
+  { name: string; spanId: string; traceId: string; toolingId: unknown }
+>()
 
 async function send(body: unknown) {
   const response = await fetch(process.env.TOOLING_ENDPOINT!, {
@@ -51,6 +56,22 @@ export async function register() {
         ? new AlwaysOffSampler()
         : new AlwaysOnSampler(),
     spanProcessors: [
+      {
+        onStart(span) {
+          const spanId = span.spanContext().spanId
+          unfinished.set(spanId, {
+            name: span.name,
+            spanId,
+            traceId: span.spanContext().traceId,
+            toolingId: span.attributes['next.tooling.id'],
+          })
+        },
+        onEnd(span) {
+          unfinished.delete(span.spanContext().spanId)
+        },
+        async forceFlush() {},
+        async shutdown() {},
+      },
       new BatchSpanProcessor({
         exporter,
         maxQueueSize: 20000,
@@ -83,6 +104,7 @@ export async function flushTraces() {
     pid: process.pid,
     registrations,
     identityStable: trace.getTracerProvider() === registeredProvider,
+    unfinished: [...unfinished.values()],
     localHasRoot: events.some(
       (event) =>
         event.name ===
