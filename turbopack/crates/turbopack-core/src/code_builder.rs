@@ -128,8 +128,8 @@ impl Code {
 
     pub fn source_maps(&self) -> Result<SourceMaps<Rope>> {
         let full = self.has_source_map_for(SourceMapType::Full);
-        let partial = self.has_source_map_for(SourceMapType::Partial);
-        if full && partial && self.mappings.is_shared() {
+        let shallow = self.has_source_map_for(SourceMapType::Shallow);
+        if full && shallow && self.mappings.is_shared() {
             return Ok(SourceMaps::Shared(
                 self.generate_source_map_ref(None, SourceMapType::Full)?,
             ));
@@ -137,8 +137,8 @@ impl Code {
         Ok(SourceMaps::new(
             full.then(|| self.generate_source_map_ref(None, SourceMapType::Full))
                 .transpose()?,
-            partial
-                .then(|| self.generate_source_map_ref(None, SourceMapType::Partial))
+            shallow
+                .then(|| self.generate_source_map_ref(None, SourceMapType::Shallow))
                 .transpose()?,
         ))
     }

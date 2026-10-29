@@ -9,7 +9,7 @@ import path from 'node:path'
 describe('next analyze source maps', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-  it.each(['default', 'none', 'partial', 'full'] as const)(
+  it.each(['default', 'none', 'shallow', 'full'] as const)(
     'preserves emitted assets with %s source maps',
     async (sourceMaps) => {
       const originalConfig = await next.readFile('next.config.js')

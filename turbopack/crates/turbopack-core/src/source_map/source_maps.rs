@@ -12,10 +12,10 @@ pub enum SourceMaps<T: NonLocalValue> {
     #[default]
     None,
     Full(T),
-    Partial(T),
+    Shallow(T),
     Both {
         full: T,
-        partial: T,
+        shallow: T,
     },
     Shared(T),
 }
@@ -25,23 +25,23 @@ impl<T: NonLocalValue + DeterministicHash> DeterministicHash for SourceMaps<T> {
         std::mem::discriminant(self).deterministic_hash(state);
         match self {
             Self::None => {}
-            Self::Full(map) | Self::Partial(map) | Self::Shared(map) => {
+            Self::Full(map) | Self::Shallow(map) | Self::Shared(map) => {
                 map.deterministic_hash(state);
             }
-            Self::Both { full, partial } => {
+            Self::Both { full, shallow } => {
                 full.deterministic_hash(state);
-                partial.deterministic_hash(state);
+                shallow.deterministic_hash(state);
             }
         }
     }
 }
 
 impl<T: NonLocalValue> SourceMaps<T> {
-    pub fn new(full: Option<T>, partial: Option<T>) -> Self {
-        match (full, partial) {
-            (Some(full), Some(partial)) => Self::Both { full, partial },
+    pub fn new(full: Option<T>, shallow: Option<T>) -> Self {
+        match (full, shallow) {
+            (Some(full), Some(shallow)) => Self::Both { full, shallow },
             (Some(full), None) => Self::Full(full),
-            (None, Some(partial)) => Self::Partial(partial),
+            (None, Some(shallow)) => Self::Shallow(shallow),
             (None, None) => Self::None,
         }
     }
@@ -50,9 +50,9 @@ impl<T: NonLocalValue> SourceMaps<T> {
         match (self, ty) {
             (Self::Shared(map), _)
             | (Self::Full(map), SourceMapType::Full)
-            | (Self::Partial(map), SourceMapType::Partial) => Some(map),
+            | (Self::Shallow(map), SourceMapType::Shallow) => Some(map),
             (Self::Both { full, .. }, SourceMapType::Full) => Some(full),
-            (Self::Both { partial, .. }, SourceMapType::Partial) => Some(partial),
+            (Self::Both { shallow, .. }, SourceMapType::Shallow) => Some(shallow),
             _ => None,
         }
     }
@@ -61,10 +61,10 @@ impl<T: NonLocalValue> SourceMaps<T> {
         match self {
             Self::None => SourceMaps::None,
             Self::Full(map) => SourceMaps::Full(f(map)),
-            Self::Partial(map) => SourceMaps::Partial(f(map)),
-            Self::Both { full, partial } => SourceMaps::Both {
+            Self::Shallow(map) => SourceMaps::Shallow(f(map)),
+            Self::Both { full, shallow } => SourceMaps::Both {
                 full: f(full),
-                partial: f(partial),
+                shallow: f(shallow),
             },
             Self::Shared(map) => SourceMaps::Shared(f(map)),
         }
@@ -77,10 +77,10 @@ impl<T: NonLocalValue> SourceMaps<T> {
         Ok(match self {
             Self::None => SourceMaps::None,
             Self::Full(map) => SourceMaps::Full(f(map)?),
-            Self::Partial(map) => SourceMaps::Partial(f(map)?),
-            Self::Both { full, partial } => SourceMaps::Both {
+            Self::Shallow(map) => SourceMaps::Shallow(f(map)?),
+            Self::Both { full, shallow } => SourceMaps::Both {
                 full: f(full)?,
-                partial: f(partial)?,
+                shallow: f(shallow)?,
             },
             Self::Shared(map) => SourceMaps::Shared(f(map)?),
         })
@@ -96,10 +96,10 @@ impl<T: NonLocalValue> SourceMaps<T> {
         Ok(match self {
             Self::None => SourceMaps::None,
             Self::Full(map) => SourceMaps::Full(f(map).await?),
-            Self::Partial(map) => SourceMaps::Partial(f(map).await?),
-            Self::Both { full, partial } => SourceMaps::Both {
+            Self::Shallow(map) => SourceMaps::Shallow(f(map).await?),
+            Self::Both { full, shallow } => SourceMaps::Both {
                 full: f(full).await?,
-                partial: f(partial).await?,
+                shallow: f(shallow).await?,
             },
             Self::Shared(map) => SourceMaps::Shared(f(map).await?),
         })

@@ -1349,7 +1349,7 @@ impl EcmascriptModuleContent {
                 SourceMapGenerationOptions::NONE,
                 |mut generation, (_, content)| {
                     generation.full |= content.source_map_generation_options.full;
-                    generation.partial |= content.source_map_generation_options.partial;
+                    generation.shallow |= content.source_map_generation_options.shallow;
                     generation
                 },
             );
@@ -2421,7 +2421,7 @@ async fn emit_content(
         drop(program);
     }
 
-    let partial_source_map = if generate_source_map && source_map_generation_options.partial {
+    let shallow_source_map = if generate_source_map && source_map_generation_options.shallow {
         Some(generate_js_source_map(
             &*source_map,
             &mappings,
@@ -2446,7 +2446,7 @@ async fn emit_content(
             .map(|map| map.content())
             .collect::<Vec<_>>();
 
-        if let (true, Some(map)) = (original_source_maps.is_empty(), partial_source_map.as_ref()) {
+        if let (true, Some(map)) = (original_source_maps.is_empty(), shallow_source_map.as_ref()) {
             SourceMaps::Shared(map.clone())
         } else {
             SourceMaps::new(
@@ -2461,11 +2461,11 @@ async fn emit_content(
                     true,
                     &source_map_names,
                 )?),
-                partial_source_map,
+                shallow_source_map,
             )
         }
     } else {
-        SourceMaps::new(None, partial_source_map)
+        SourceMaps::new(None, shallow_source_map)
     };
 
     Ok(EcmascriptModuleContent {

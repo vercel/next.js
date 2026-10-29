@@ -793,10 +793,10 @@ async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
     for generation in [
         SourceMapGenerationOptions::NONE,
         SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Full)),
-        SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Partial)),
+        SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Shallow)),
         SourceMapGenerationOptions {
             full: true,
-            partial: true,
+            shallow: true,
         },
     ] {
         let asset_context = turbopack::get_runtime_asset_context(environment, generation);
@@ -817,10 +817,10 @@ async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
             generation.full && generation.should_generate_any_source_maps()
         );
         assert_eq!(
-            code.has_source_map_for(SourceMapType::Partial),
-            generation.partial && generation.should_generate_any_source_maps()
+            code.has_source_map_for(SourceMapType::Shallow),
+            generation.shallow && generation.should_generate_any_source_maps()
         );
-        if generation.full && generation.partial {
+        if generation.full && generation.shallow {
             assert!(matches!(code.source_maps()?, SourceMaps::Shared(_)));
         }
     }

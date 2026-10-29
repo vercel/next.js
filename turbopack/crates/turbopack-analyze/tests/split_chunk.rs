@@ -28,7 +28,7 @@ async fn split_chunk() {
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
-            SourceMaps::Partial(Rope::from(serde_json::to_string_pretty(&json! ({
+            SourceMaps::Shallow(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA;AACA",
                 "sources": ["source1.js"],
@@ -39,7 +39,7 @@ async fn split_chunk() {
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
-            SourceMaps::Partial(Rope::from(serde_json::to_string_pretty(&json! ({
+            SourceMaps::Shallow(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA",
                 "sources": ["source2.js"],
@@ -161,29 +161,29 @@ impl GenerateSourceMap for TestAsset {
 
 #[test]
 fn rejects_missing_source_map_variants() {
-    let mut partial = CodeBuilder::new(false);
-    partial.push_source(
-        &Rope::from("partial"),
+    let mut shallow = CodeBuilder::new(false);
+    shallow.push_source(
+        &Rope::from("shallow"),
         SourceMaps::new(
             None,
             Some(turbopack_core::source_map::SourceMap::empty_rope()),
         ),
     );
-    let partial = partial.build();
+    let shallow = shallow.build();
     assert!(
-        partial
+        shallow
             .generate_source_map_ref(None, SourceMapType::Full)
             .is_err()
     );
     assert!(
-        partial
-            .generate_source_map_ref(None, SourceMapType::Partial)
+        shallow
+            .generate_source_map_ref(None, SourceMapType::Shallow)
             .is_ok()
     );
 
     let mut combined = CodeBuilder::new(false);
     combined += "synthetic prefix";
-    combined.push_code(&partial);
+    combined.push_code(&shallow);
     let combined = combined.build();
     assert!(
         combined
@@ -208,7 +208,7 @@ fn rejects_missing_source_map_variants() {
     );
     assert!(
         incompatible
-            .generate_source_map_ref(None, SourceMapType::Partial)
+            .generate_source_map_ref(None, SourceMapType::Shallow)
             .is_err()
     );
 }
@@ -228,7 +228,7 @@ fn shared_maps_survive_concatenation() -> anyhow::Result<()> {
     assert!(matches!(combined.source_maps()?, SourceMaps::Shared(_)));
     assert_eq!(
         combined.generate_source_map_ref(None, SourceMapType::Full)?,
-        combined.generate_source_map_ref(None, SourceMapType::Partial)?,
+        combined.generate_source_map_ref(None, SourceMapType::Shallow)?,
     );
     Ok(())
 }
@@ -241,15 +241,15 @@ fn shared_maps_split_when_variants_diverge() -> anyhow::Result<()> {
         SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
     );
     code.push_source(
-        &Rope::from("partial"),
-        SourceMaps::Partial(turbopack_core::source_map::SourceMap::empty_rope()),
+        &Rope::from("shallow"),
+        SourceMaps::Shallow(turbopack_core::source_map::SourceMap::empty_rope()),
     );
     let code = code.build();
     assert!(
         code.generate_source_map_ref(None, SourceMapType::Full)
             .is_err()
     );
-    assert!(matches!(code.source_maps()?, SourceMaps::Partial(_)));
+    assert!(matches!(code.source_maps()?, SourceMaps::Shallow(_)));
     Ok(())
 }
 
@@ -261,7 +261,7 @@ fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()
         "sources": ["original.ts"],
         "names": [],
     });
-    let partial = json!({
+    let shallow = json!({
         "version": 3,
         "mappings": "AAAA",
         "sources": ["input.js"],
@@ -279,7 +279,7 @@ fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()
         &Rope::from("mapped"),
         SourceMaps::Both {
             full: Rope::from(serde_json::to_string(&full)?),
-            partial: Rope::from(serde_json::to_string(&partial)?),
+            shallow: Rope::from(serde_json::to_string(&shallow)?),
         },
     );
     let mut combined = CodeBuilder::new(false);
@@ -294,7 +294,7 @@ fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()
 
     for (ty, map) in [
         (SourceMapType::Full, full),
-        (SourceMapType::Partial, partial),
+        (SourceMapType::Shallow, shallow),
     ] {
         let generated = combined.generate_source_map_ref(None, ty)?;
         let generated: serde_json::Value = serde_json::from_slice(&generated.to_bytes())?;

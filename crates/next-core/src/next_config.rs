@@ -2591,7 +2591,7 @@ impl NextConfig {
             });
         Ok(Vc::cell(match (source_maps, input_source_maps) {
             (true, true) => Some(SourceMapType::Full),
-            (true, false) => Some(SourceMapType::Partial),
+            (true, false) => Some(SourceMapType::Shallow),
             (false, _) => None,
         }))
     }
@@ -2609,7 +2609,7 @@ impl NextConfig {
             .unwrap_or(true);
         Ok(Vc::cell(match (source_maps, input_source_maps) {
             (true, true) => Some(SourceMapType::Full),
-            (true, false) => Some(SourceMapType::Partial),
+            (true, false) => Some(SourceMapType::Shallow),
             (false, _) => None,
         }))
     }

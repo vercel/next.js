@@ -238,7 +238,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             } else {
                 None
             };
-            let partial_source_map = if generation.partial
+            let shallow_source_map = if generation.shallow
                 || (generation.full && source_map.is_none())
             {
                 let mut map = swc_sourcemap::SourceMapBuilder::new(None);
@@ -253,17 +253,17 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             } else {
                 None
             };
-            let source_maps = if generation.full && generation.partial && source_map.is_none() {
-                SourceMaps::Shared(partial_source_map.unwrap())
+            let source_maps = if generation.full && generation.shallow && source_map.is_none() {
+                SourceMaps::Shared(shallow_source_map.unwrap())
             } else {
                 SourceMaps::new(
                     if generation.full {
-                        source_map.or_else(|| partial_source_map.clone())
+                        source_map.or_else(|| shallow_source_map.clone())
                     } else {
                         None
                     },
-                    if generation.partial {
-                        partial_source_map
+                    if generation.shallow {
+                        shallow_source_map
                     } else {
                         None
                     },

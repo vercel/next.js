@@ -22,7 +22,7 @@ impl Default for Mappings {
             mappings: Arc::default(),
             available: SourceMapGenerationOptions {
                 full: true,
-                partial: true,
+                shallow: true,
             },
         }
     }
@@ -37,14 +37,14 @@ impl Mappings {
         } else {
             // Synthetic sections impose no completeness constraint.
             self.available.full &= maps.get(SourceMapType::Full).is_some();
-            self.available.partial &= maps.get(SourceMapType::Partial).is_some();
+            self.available.shallow &= maps.get(SourceMapType::Shallow).is_some();
         }
         Arc::make_mut(&mut self.mappings).push((offset, maps));
     }
 
     pub(super) fn append(&mut self, offset: usize, other: &Self) {
         self.available.full &= other.available.full;
-        self.available.partial &= other.available.partial;
+        self.available.shallow &= other.available.shallow;
         if other.mappings.first().is_none_or(|(index, _)| *index > 0) {
             // Synthetic prefixes must end the previous section's mappings.
             self.push(offset, SourceMaps::None);
@@ -64,7 +64,7 @@ impl Mappings {
     pub(super) fn is_complete(&self, ty: SourceMapType) -> bool {
         match ty {
             SourceMapType::Full => self.available.full,
-            SourceMapType::Partial => self.available.partial,
+            SourceMapType::Shallow => self.available.shallow,
         }
     }
 
