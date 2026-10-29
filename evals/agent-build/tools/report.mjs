@@ -1,7 +1,7 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
-// request: one dense table with a row per model and treatment, a cell per
-// task, the runs passed, then price per million tokens,
-// tokens, cost, and time per run, as in the agent-eval result PRs,
+// request: one dense table with a row per model and treatment, the runs passed
+// across all tasks, then cost, time, price per million tokens, and tokens per
+// run, as in the agent-eval result PRs,
 // then pass@1 against cost per run as a Mermaid chart GitHub renders inline.
 //
 // Scores are pass@1 over scored runs. An agent that runs out of time is scored
@@ -175,20 +175,8 @@ models.sort(
 
 const cell = (t) => (t.scored ? `${t.passed}/${t.scored}` : 'pending')
 
-// One dense table: a row per model and treatment, a short numbered column per
-// task (named in a key above the table), runs passed, and what a run costs.
-const taskCell = (r) =>
-  !r
-    ? 'queued'
-    : r.state === 'pass'
-      ? 'pass'
-      : r.state === 'fail'
-        ? r.confirmed
-          ? `fail (${r.repeated}/${r.confirmed} reruns)`
-          : 'fail'
-        : r.state === 'running'
-          ? 'running'
-          : 'rerun'
+// One dense table: a row per model and treatment with the runs passed across
+// all tasks and what a run costs.
 const costs = (rs) => {
   const s = rs.filter(scored)
   const avg = (key) => mean(s.map((r) => r[key]).filter((x) => x != null))
@@ -197,16 +185,12 @@ const costs = (rs) => {
   const tout = avg('tokensOut')
   return `${usd(cost)} | ${duration(avg('minutes'))} | ${perMillion(cost, tin, tout)} | ${tin == null ? '' : `${count(tin)} / ${count(tout)}`}`
 }
-console.log(
-  `Tasks: ${tasks.map((t, i) => `**${i + 1}** \`${t}\``).join(', ')}.`
-)
+console.log(`Tasks: ${tasks.map((t) => `\`${t}\``).join(', ')}.`)
 console.log()
 console.log(
-  `| Model | Treatment | ${tasks.map((_, i) => i + 1).join(' | ')} | Passed | Cost per run | Time per run | Price per 1M tokens | Tokens in / out |`
+  '| Model | Treatment | Passed | Cost per run | Time per run | Price per 1M tokens | Tokens in / out |'
 )
-console.log(
-  `| --- | --- | ${tasks.map(() => ':---:').join(' | ')} | ---: | ---: | ---: | ---: | ---: |`
-)
+console.log('| --- | --- | ---: | ---: | ---: | ---: | ---: |')
 const treatments = [
   ['base', 'Base'],
   ['agents-md', 'AGENTS.md'],
@@ -214,12 +198,9 @@ const treatments = [
 for (const m of models) {
   for (const [t, name] of treatments) {
     const mine = runs.filter((r) => r.model === m.model && r.treatment === t)
-    const cells = tasks.map((task) =>
-      taskCell(mine.find((r) => r.task === task))
-    )
     const passed = t === 'base' ? m.base : m.docs
     console.log(
-      `| ${t === 'base' ? m.model : ''} | ${name} | ${cells.join(' | ')} | ${cell(passed)} | ${costs(mine)} |`
+      `| ${t === 'base' ? m.model : ''} | ${name} | ${cell(passed)} | ${costs(mine)} |`
     )
   }
 }
@@ -231,7 +212,7 @@ if (all.base.scored || all.docs.scored) {
   for (const [t, name] of treatments) {
     const mine = runs.filter((r) => r.treatment === t)
     console.log(
-      `| ${t === 'base' ? '**All models**' : ''} | ${name} | ${tasks.map((task) => cell(tally(mine.filter((r) => r.task === task)))).join(' | ')} | ${cell(t === 'base' ? all.base : all.docs)} | ${costs(mine)} |`
+      `| ${t === 'base' ? '**All models**' : ''} | ${name} | ${cell(t === 'base' ? all.base : all.docs)} | ${costs(mine)} |`
     )
   }
 }
