@@ -1,14 +1,16 @@
 use std::{
-    collections::{BinaryHeap, VecDeque},
+    collections::{BTreeSet, BinaryHeap, VecDeque},
     future::Future,
     iter::FusedIterator,
     ops::Deref,
+    pin::Pin,
     sync::OnceLock,
 };
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use fixedbitset::FixedBitSet;
+use futures::{StreamExt, stream::FuturesUnordered};
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -17,12 +19,13 @@ use petgraph::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
+use turbo_bitset::Bitset;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
+    graph::{AdjacencyMap, Visit, VisitControlFlow},
     keyed::KeyedAccess,
     util::SharedError,
 };
@@ -30,6 +33,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
+    emit_collect::CollectingModule,
     issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::Module,
     module_graph::{
@@ -328,6 +332,25 @@ pub struct RefData {
     pub reference: ResolvedVc<Box<dyn ModuleReference>>,
 }
 
+#[turbo_tasks::task_input]
+#[derive(Default, Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+pub enum GraphCollectingMode {
+    #[default]
+    /// The module graph being built is the complete graph.
+    ///
+    /// Any ChunkingType::Emitted referenecs that don't have a corresponding collecting module are
+    /// completely ignored.
+    CompleteGraph,
+    /// The graph is incomplete, for example because it's being built in layers to improve caching.
+    ///
+    /// Emitted references without a corresponding collecting module cannot be ignored (because the
+    /// collecting module is only contained in a subsequent graph), but the explicitly listed
+    /// namespaces are ignored.
+    IncompleteGraph {
+        ignored_collected_namespace: BTreeSet<RcStr>,
+    },
+}
+
 impl SingleModuleGraph {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
@@ -337,17 +360,49 @@ impl SingleModuleGraph {
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
-        let root_nodes = entries
-            .all_modules_with_is_traced()
-            .map(|(e, is_traced)| {
-                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
-            })
-            .try_join()
-            .await?;
+        let mut root_nodes = Vec::new();
+        let mut entry_index = 0;
+        for chunk_group in &entries.chunk_groups {
+            let mut entry_membership = Bitset::default();
+            if matches!(chunk_group, ChunkGroupEntry::Entry { .. }) {
+                entry_membership.insert(entry_index);
+                entry_index += 1;
+            }
+            root_nodes.extend(
+                chunk_group
+                    .entries()
+                    .map(|module| {
+                        let entry_membership = entry_membership.clone();
+                        async move {
+                            Ok((
+                                SingleModuleGraphBuilderNode::new_module(emit_spans, module, false)
+                                    .await?,
+                                entry_membership,
+                            ))
+                        }
+                    })
+                    .try_join()
+                    .await?,
+            );
+        }
+        root_nodes.extend(
+            entries
+                .traced_modules
+                .iter()
+                .map(|module| async {
+                    Ok((
+                        SingleModuleGraphBuilderNode::new_module(emit_spans, *module, true).await?,
+                        Bitset::default(),
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
 
-        let children_nodes_iter = AdjacencyMap::new()
+        let children_nodes_iter = DeferringAdjacencyMap::new(collecting_mode)
             .visit(
                 root_nodes,
                 SingleModuleGraphBuilder {
@@ -357,8 +412,7 @@ impl SingleModuleGraph {
                     include_binding_usage,
                 },
             )
-            .await
-            .completed()?;
+            .await?;
         let node_count = children_nodes_iter.len();
 
         let mut graph: DiGraph<SingleModuleGraphNode, RefData> = DiGraph::with_capacity(
@@ -805,7 +859,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 #[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
-    input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
+    pub input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
 
     snapshot: ModuleGraphSnapshot,
 }
@@ -1843,12 +1897,14 @@ impl SingleModuleGraph {
         entry: ChunkGroupEntry,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1858,12 +1914,14 @@ impl SingleModuleGraph {
         entries: ResolvedVc<GraphEntries>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &Default::default(),
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1874,12 +1932,14 @@ impl SingleModuleGraph {
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1891,12 +1951,14 @@ impl SingleModuleGraph {
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &entries,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1988,6 +2050,228 @@ impl SingleModuleGraphBuilderNode {
     }
     fn new_visited_module(module: ResolvedVc<Box<dyn Module>>, idx: GraphNodeIndex) -> Self {
         Self::VisitedModule { module, idx }
+    }
+}
+
+type EdgesFutureOutput = (
+    SingleModuleGraphBuilderNode,
+    Span,
+    Result<Vec<(SingleModuleGraphBuilderNode, RefData)>>,
+);
+
+/// A graph traversal wrapper that defers visiting `ChunkingType::Emitted` references based on
+/// [`GraphCollectingMode`]:
+/// - `CompleteGraph`: defers emitted references until a [`CollectingModule`] with a matching
+///   `namespace()` is reachable from the required entry scope. Unmatched emitted references are
+///   discarded.
+/// - `IncompleteGraph`: excludes emitted references whose `namespace` is in
+///   `ignored_collected_namespace`. Other emitted references are traversed normally.
+struct DeferringAdjacencyMap {
+    collecting_mode: GraphCollectingMode,
+}
+
+impl DeferringAdjacencyMap {
+    fn new(collecting_mode: GraphCollectingMode) -> Self {
+        Self { collecting_mode }
+    }
+
+    async fn visit<'a>(
+        self,
+        root_nodes: Vec<(SingleModuleGraphBuilderNode, Bitset)>,
+        mut visit: SingleModuleGraphBuilder<'a>,
+    ) -> Result<AdjacencyMap<SingleModuleGraphBuilderNode, RefData>> {
+        use turbo_tasks::graph::{GraphStore, VisitControlFlow};
+
+        let mut store = AdjacencyMap::<SingleModuleGraphBuilderNode, RefData>::new();
+        let mut futures: FuturesUnordered<
+            Pin<Box<dyn Future<Output = EdgesFutureOutput> + Send + 'a>>,
+        > = FuturesUnordered::new();
+
+        // Deferred emitted references: (parent_handle, target_node, edge_data)
+        let mut deferred: Vec<(
+            SingleModuleGraphBuilderNode,
+            SingleModuleGraphBuilderNode,
+            RefData,
+        )> = Vec::new();
+        let root_entry_memberships = root_nodes.clone();
+
+        // Process root nodes
+        for (node, _) in root_nodes {
+            match visit.visit(&node, None) {
+                VisitControlFlow::Continue => {
+                    if let Some(handle) = store.try_enter(&node) {
+                        let span = visit.span(&node, None);
+                        let edges_future = visit.edges(&node);
+                        futures.push(Box::pin(async move {
+                            let result = edges_future.await;
+                            (handle, span, result)
+                        }));
+                    }
+                    store.insert(None, node);
+                }
+                VisitControlFlow::Skip => {
+                    store.insert(None, node);
+                }
+                VisitControlFlow::Exclude => {
+                    // do nothing
+                }
+            }
+        }
+
+        let mut result = Ok(());
+        'outer: loop {
+            while let Some(output) = futures.next().await {
+                match output {
+                    (parent_handle, span, Ok(edges)) => {
+                        let _guard = span.enter();
+                        for (node, edge) in edges {
+                            let control_flow = visit.visit(&node, Some(&edge));
+                            if let ChunkingType::Emitted { namespace, .. } = &edge.chunking_type {
+                                match &self.collecting_mode {
+                                    GraphCollectingMode::CompleteGraph => {
+                                        if !matches!(control_flow, VisitControlFlow::Exclude) {
+                                            deferred.push((parent_handle.clone(), node, edge));
+                                        }
+                                        continue;
+                                    }
+                                    GraphCollectingMode::IncompleteGraph {
+                                        ignored_collected_namespace,
+                                    } => {
+                                        if ignored_collected_namespace.contains(namespace) {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+
+                            match control_flow {
+                                VisitControlFlow::Continue => {
+                                    if let Some(handle) = store.try_enter(&node) {
+                                        let span = visit.span(&node, Some(&edge));
+                                        let edges_future = visit.edges(&node);
+                                        futures.push(Box::pin(async move {
+                                            let result = edges_future.await;
+                                            (handle, span, result)
+                                        }));
+                                    }
+                                    store.insert(Some((&parent_handle, edge)), node);
+                                }
+                                VisitControlFlow::Skip => {
+                                    store.insert(Some((&parent_handle, edge)), node);
+                                }
+                                VisitControlFlow::Exclude => {
+                                    // do nothing
+                                }
+                            }
+                        }
+                    }
+                    (_, _, Err(err)) => {
+                        result = Err(err);
+                    }
+                }
+            }
+
+            if result.is_err()
+                || !matches!(self.collecting_mode, GraphCollectingMode::CompleteGraph)
+            {
+                break;
+            }
+
+            // Recompute membership after each wave because released emitted references can reveal
+            // additional modules and collecting modules.
+            let mut module_entry_membership: FxHashMap<SingleModuleGraphBuilderNode, Bitset> =
+                FxHashMap::default();
+            let mut queue = VecDeque::new();
+            for (node, membership) in &root_entry_memberships {
+                if membership.is_zero() {
+                    continue;
+                }
+                let current = module_entry_membership.entry(node.clone()).or_default();
+                if current.union_with(membership) {
+                    queue.push_back(node.clone());
+                }
+            }
+            while let Some(parent) = queue.pop_front() {
+                let parent_membership = module_entry_membership[&parent].clone();
+                let Some(children) = store.get(&parent) else {
+                    continue;
+                };
+                for (node, _) in children {
+                    let current = module_entry_membership.entry(node.clone()).or_default();
+                    if current.union_with(&parent_membership) {
+                        queue.push_back(node.clone());
+                    }
+                }
+            }
+
+            let mut collecting_entry_membership: FxHashMap<RcStr, Bitset> = FxHashMap::default();
+            for (node, membership) in &module_entry_membership {
+                let module = match node {
+                    SingleModuleGraphBuilderNode::Module { module, .. }
+                    | SingleModuleGraphBuilderNode::VisitedModule { module, .. } => *module,
+                };
+                let Some(module) = ResolvedVc::try_downcast::<Box<dyn CollectingModule>>(module)
+                else {
+                    continue;
+                };
+                let namespace = module.namespace().await?;
+                let current = collecting_entry_membership
+                    .entry((*namespace).clone())
+                    .or_default();
+                current.union_with(membership);
+            }
+
+            let mut released = false;
+            let mut i = 0;
+            while i < deferred.len() {
+                let ChunkingType::Emitted {
+                    namespace,
+                    emit_to_all_entries,
+                } = &deferred[i].2.chunking_type
+                else {
+                    unreachable!();
+                };
+                let Some(collecting_membership) = collecting_entry_membership.get(namespace) else {
+                    i += 1;
+                    continue;
+                };
+                let should_release = *emit_to_all_entries
+                    || module_entry_membership.get(&deferred[i].0).is_some_and(
+                        |emitting_membership| {
+                            !emitting_membership.is_disjoint(collecting_membership)
+                        },
+                    );
+                if !should_release {
+                    i += 1;
+                    continue;
+                }
+
+                let (parent_handle, node, edge) = deferred.swap_remove(i);
+                match visit.visit(&node, Some(&edge)) {
+                    VisitControlFlow::Continue => {
+                        if let Some(handle) = store.try_enter(&node) {
+                            let span = visit.span(&node, Some(&edge));
+                            let edges_future = visit.edges(&node);
+                            futures.push(Box::pin(async move {
+                                let result = edges_future.await;
+                                (handle, span, result)
+                            }));
+                        }
+                        store.insert(Some((&parent_handle, edge)), node);
+                    }
+                    VisitControlFlow::Skip => {
+                        store.insert(Some((&parent_handle, edge)), node);
+                    }
+                    VisitControlFlow::Exclude => {}
+                }
+                released = true;
+            }
+            if !released {
+                break 'outer;
+            }
+        }
+
+        result.map(|()| store)
     }
 }
 
@@ -2226,6 +2510,7 @@ pub mod tests {
             )),
             false,
             false,
+            GraphCollectingMode::CompleteGraph,
         )
         .connect()
         .to_resolved()
@@ -2668,6 +2953,7 @@ pub mod tests {
                     .resolved_cell(),
                     false,
                     false,
+                    GraphCollectingMode::CompleteGraph,
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2682,6 +2968,7 @@ pub mod tests {
                             VisitedModules::from_graph(parent_graph),
                             false,
                             false,
+                            GraphCollectingMode::CompleteGraph,
                         ),
                     ],
                     None,
@@ -2850,6 +3137,7 @@ pub mod tests {
                     .resolved_cell(),
                     true,
                     false,
+                    GraphCollectingMode::CompleteGraph,
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2864,6 +3152,7 @@ pub mod tests {
                             VisitedModules::from_graph(parent_graph),
                             true,
                             false,
+                            GraphCollectingMode::CompleteGraph,
                         ),
                     ],
                     None,
@@ -3345,6 +3634,7 @@ pub mod tests {
                 )),
                 false,
                 false,
+                GraphCollectingMode::CompleteGraph,
             );
 
             // Create a simple name mapping to make analyzing the visitors easier.
@@ -3568,6 +3858,7 @@ pub mod tests {
                     .resolved_cell(),
                     false,
                     false,
+                    GraphCollectingMode::CompleteGraph,
                 );
                 let module_graph = ModuleGraph::from_graphs(
                     vec![
@@ -3581,6 +3872,7 @@ pub mod tests {
                             VisitedModules::from_graph(parent_graph),
                             false,
                             false,
+                            GraphCollectingMode::CompleteGraph,
                         ),
                     ],
                     None,
@@ -3704,6 +3996,7 @@ pub mod tests {
                         .resolved_cell(),
                         false,
                         false,
+                        GraphCollectingMode::CompleteGraph,
                     );
                     let graph = ModuleGraph::from_graphs(vec![graph], None)
                         .connect()
@@ -3776,6 +4069,7 @@ pub mod tests {
                     .resolved_cell(),
                     false,
                     false,
+                    GraphCollectingMode::CompleteGraph,
                 );
                 let layers = ModuleGraph::from_graphs(vec![graph], None)
                     .connect()
@@ -3898,6 +4192,7 @@ pub mod tests {
             GraphEntries::resolved_cell(GraphEntries::new(entries, vec![])),
             false,
             false,
+            GraphCollectingMode::CompleteGraph,
         );
         let module_to_name = graph
             .connect()

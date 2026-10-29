@@ -1,0 +1,12 @@
+import { redirect } from 'next/navigation'
+
+export async function submit() {
+  'use server'
+  redirect('/import?from=mdx-action')
+}
+
+# MDX Server Action
+
+<form action={submit}>
+  <button id="submit-mdx-action">Submit</button>
+</form>

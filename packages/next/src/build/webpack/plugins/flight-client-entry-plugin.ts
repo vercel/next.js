@@ -66,7 +66,9 @@ const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
 type Actions = {
   [actionId: string]: {
+    // Purely for error messages and debugging
     exportedName?: string
+    // Purely for error messages and debugging
     filename?: string
     workers: {
       [name: string]: {
@@ -81,6 +83,8 @@ type Actions = {
           runtimeEnvVarsRead: string[]
           runtimeEnvVarsExistence: string[]
         }
+        // When set, load `require(moduleId)[exportedName]` instead of `require(moduleId)[actionId]`
+        exportedName?: string
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry

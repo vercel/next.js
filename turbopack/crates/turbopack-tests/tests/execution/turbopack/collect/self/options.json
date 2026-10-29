@@ -1,0 +1,4 @@
+{
+  "scopeHoisting": false,
+  "inferModuleSideEffects": false
+}

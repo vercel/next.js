@@ -1,0 +1,5 @@
+{
+  "scopeHoisting": false,
+  "inferModuleSideEffects": false,
+  "moduleFragmentsEnabled": true
+}

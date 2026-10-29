@@ -56,7 +56,7 @@ use turbopack_core::{
     json::RcJsonRawValue,
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
@@ -848,6 +848,7 @@ impl PageEndpoint {
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
+                GraphCollectingMode::CompleteGraph,
             );
             graphs.push(graph);
             visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -861,6 +862,7 @@ impl PageEndpoint {
             visited_modules,
             should_trace,
             should_read_binding_usage,
+            GraphCollectingMode::CompleteGraph,
         );
         graphs.push(graph);
 
@@ -896,6 +898,9 @@ impl PageEndpoint {
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
+                    GraphCollectingMode::IncompleteGraph {
+                        ignored_collected_namespace: Default::default(),
+                    },
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -909,6 +914,7 @@ impl PageEndpoint {
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
+                GraphCollectingMode::CompleteGraph,
             );
             graphs.push(graph);
 
@@ -916,10 +922,14 @@ impl PageEndpoint {
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)
                 .await?;
+            let remove_unused_exports = *project
+                .next_config()
+                .turbopack_remove_unused_exports(next_mode)
+                .await?;
 
-            let graph = if remove_unused_imports {
+            let graph = if remove_unused_imports || remove_unused_exports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
-                let binding_usage_info = compute_binding_usage_info(graph, true);
+                let binding_usage_info = compute_binding_usage_info(graph, remove_unused_imports);
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
                 ModuleGraph::from_graphs(graphs, None)
@@ -927,7 +937,7 @@ impl PageEndpoint {
 
             Ok(graph.connect())
         } else {
-            Ok(*project.whole_app_module_graphs().await?.full)
+            Ok(project.whole_app_module_graph())
         }
     }
 

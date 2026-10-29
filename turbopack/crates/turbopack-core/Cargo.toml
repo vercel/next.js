@@ -25,6 +25,7 @@ data-encoding = { workspace = true }
 either = { workspace = true }
 erased-serde = { workspace = true }
 fixedbitset = { workspace = true }
+futures = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 num-bigint = "0.4"

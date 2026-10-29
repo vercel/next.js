@@ -15,9 +15,12 @@ import {
 
 export interface ServerModuleMap {
   readonly [name: string]: {
+    /** This is the module id */
     readonly id: string | number
+    /** This is the name under which the action is exported. Could be the action id or the binding name from the source code */
     readonly name: string
-    readonly chunks: Readonly<Array<string>> // currently not used
+    /** currently unused */
+    readonly chunks: Readonly<Array<string>>
     readonly async?: boolean
   }
 }
@@ -373,6 +376,7 @@ function createServerModuleMap(): ServerModuleMap {
         | {
             moduleId: string | number
             async: boolean
+            exportedName?: string
             durability?: {
               codeHash: string
               runtimeEnvVarsRead: readonly string[]
@@ -398,11 +402,11 @@ function createServerModuleMap(): ServerModuleMap {
         throw getActionNotFoundError(id)
       }
 
-      const { moduleId, async, durability } = workerEntry
+      const { moduleId, async, durability, exportedName } = workerEntry
 
       return {
         id: moduleId,
-        name: id,
+        name: exportedName ?? id,
         chunks: [],
         async,
         durability,

@@ -3432,13 +3432,17 @@ where
         }
         WellKnownFunctionKind::TurbopackEmit => {
             let args = linked_args().await?;
-            let (specifier, options) = match &args[..] {
+            let (specifier, options, is_self_reference) = match &args[..] {
                 [
                     JsValue::Constant(JsConstantValue::Str(specifier)),
                     JsValue::Object { parts: options, .. },
-                ] => (Some(specifier), Some(options)),
-                [JsValue::Object { parts: options, .. }] => (None, Some(options)),
-                _ => (None, None),
+                ] => (Some(specifier), Some(options), false),
+                [
+                    JsValue::Constant(JsConstantValue::Null),
+                    JsValue::Object { parts: options, .. },
+                ] => (None, Some(options), true),
+                [JsValue::Object { parts: options, .. }] => (None, Some(options), false),
+                _ => (None, None, false),
             };
 
             if let Some(options) = options {
@@ -3523,9 +3527,10 @@ where
                     _ => return invalid_args("exports"),
                 };
 
-                analysis.add_reference_code_gen(
-                    EmitReference::new(
-                        origin,
+                let request = if is_self_reference {
+                    None
+                } else {
+                    Some(
                         Request::parse_string(
                             specifier
                                 // TODO support data-only emit
@@ -3534,6 +3539,13 @@ where
                         )
                         .to_resolved()
                         .await?,
+                    )
+                };
+                analysis.add_reference_code_gen(
+                    EmitReference::new(
+                        origin,
+                        parent_module,
+                        request,
                         issue_source(source, span),
                         annotations,
                         ResolveErrorMode::Error,

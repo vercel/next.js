@@ -5,6 +5,7 @@ import {
 import { retry } from 'next-test-utils'
 
 // TODO: revisit when we have a better side-effect free transform approach for server action
+// See the explaination in test/production/app-dir/actions-tree-shaking/basic/basic.test.ts
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'actions-tree-shaking - reexport',
   () => {
@@ -19,6 +20,8 @@ import { retry } from 'next-test-utils'
        {
          "app/named-reexport/client/page": [
            "app/named-reexport/client/actions.js#sharedClientLayerAction",
+           "app/named-reexport/client/actions.js#unusedClientLayerAction1",
+           "app/named-reexport/client/actions.js#unusedClientLayerAction2",
          ],
          "app/named-reexport/server/page": [
            "app/named-reexport/server/actions.js#sharedServerLayerAction",
@@ -27,6 +30,7 @@ import { retry } from 'next-test-utils'
          ],
          "app/namespace-reexport-2/client/page": [
            "app/namespace-reexport-2/actions/action-modules.js#action",
+           "app/namespace-reexport-2/nested.js#foo",
            "app/namespace-reexport-2/nested.js#getFoo",
          ],
          "app/namespace-reexport-2/server/page": [
@@ -36,6 +40,8 @@ import { retry } from 'next-test-utils'
          ],
          "app/namespace-reexport/client/page": [
            "app/namespace-reexport/client/actions.js#sharedClientLayerAction",
+           "app/namespace-reexport/client/actions.js#unusedClientLayerAction1",
+           "app/namespace-reexport/client/actions.js#unusedClientLayerAction2",
          ],
          "app/namespace-reexport/server/page": [
            "app/namespace-reexport/server/actions.js#sharedServerLayerAction",
