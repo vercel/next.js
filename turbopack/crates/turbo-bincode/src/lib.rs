@@ -1,3 +1,4 @@
+pub mod fixed_width;
 mod len_prefixed;
 #[doc(hidden)]
 pub mod macro_helpers;

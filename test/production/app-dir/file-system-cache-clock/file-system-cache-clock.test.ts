@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { gate } from 'next-test-utils'
 import { load } from 'cheerio'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -99,13 +98,7 @@ describe('file-system-cache-clock', () => {
       expect(await readPageEntry(pathname)).toContain(rendered.data)
       const cached = await request(pathname)
       expect(cached.data).toBe(rendered.data)
-      // The file-system cache doesn't write the RSC payload of a PPR page, so
-      // it can't read that entry back. With the memory cache off, the page is
-      // rendered again from the cached fetch.
-      const isPPR = await gate((c) => c.cacheComponents)
-      expect(cached.cache).toBe(
-        isPPR && cacheMaxMemorySize === '0' ? 'MISS' : 'HIT'
-      )
+      expect(cached.cache).toBe('HIT')
 
       await revalidate()
       const fresh = await request(pathname)

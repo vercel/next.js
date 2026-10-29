@@ -6,7 +6,7 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType},
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ActivatableModule, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
@@ -230,6 +230,9 @@ impl Module for LazyCompilationProxyModule {
         ModuleSideEffects::SideEffectful.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl ActivatableModule for LazyCompilationProxyModule {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for LazyCompilationProxyModule {

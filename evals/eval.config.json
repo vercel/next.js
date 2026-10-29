@@ -1,4 +1,10 @@
 {
+  "agent-026-no-serial-await": {
+    "publish": false
+  },
+  "agent-030-app-router-migration-hard": {
+    "publish": false
+  },
   "agent-046-adopt-partial-prefetching": {
     "skills": ["next-partial-prefetching-adoption"],
     "publish": false,
@@ -41,6 +47,21 @@
     "timeout": 1200
   },
   "agent-058-agent-feedback-distinct-issues": {
+    "agentFeedback": true,
+    "publish": false,
+    "timeout": 900
+  },
+  "agent-059-bundle-audit-server-leaks": {
+    "skills": ["next-bundle-optimizer"],
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-060-bundle-fix-server-leaks": {
+    "skills": ["next-bundle-optimizer"],
+    "publish": false,
+    "timeout": 2700
+  },
+  "agent-061-agent-feedback-upgrade-nudge": {
     "agentFeedback": true,
     "publish": false,
     "timeout": 900

@@ -1,3 +1,4 @@
+// run deploy tests: v1
 import path from 'path'
 import { isReact18, nextTestSetup, isNextStart } from 'e2e-utils'
 

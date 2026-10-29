@@ -529,6 +529,12 @@ export interface ExperimentalConfig {
     string,
     { path: string; ignoreIfMissing?: boolean }
   >
+  /**
+   * Detect pnpm's global virtual store and add it as an additional root. Requires pnpm 11 or later.
+   *
+   * @default false
+   */
+  turbopackDetectGlobalVirtualStore?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -1295,6 +1301,18 @@ export interface ExperimentalConfig {
    * `transitionIndicator`, or `gestureTransition`) requires it.
    */
   blockingSSR?: boolean
+
+  /**
+   * Opts the `app` directory into React's experimental release channel
+   * (`react@experimental`), which ships React's internal
+   * `enableHydrationChangeEvent` feature flag. This lets teams try that flag
+   * before it lands in React's canary channel. The name mirrors React's
+   * underlying feature flag.
+   *
+   * This flag has no effect of its own beyond selecting the experimental
+   * React build.
+   */
+  hydrationChangeEvent?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -2479,6 +2497,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    hydrationChangeEvent: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,

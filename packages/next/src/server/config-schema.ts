@@ -213,6 +213,7 @@ export const experimentalSchema = {
       })
     )
     .optional(),
+  turbopackDetectGlobalVirtualStore: z.boolean().optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -392,6 +393,7 @@ export const experimentalSchema = {
     .optional(),
   transitionIndicator: z.boolean().optional(),
   gestureTransition: z.boolean().optional(),
+  hydrationChangeEvent: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),

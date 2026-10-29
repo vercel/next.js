@@ -769,6 +769,19 @@ internal
   )
 
 internal
+  .command('agent-feedback', { hidden: true })
+  .argument(
+    '[report]',
+    'An unpadded base64url-encoded schema version 5 report. Reads from standard input when omitted.'
+  )
+  .option('--dry-run', 'Print the review URL without opening a browser.')
+  .action((report: string | undefined, options: { dryRun?: boolean }) => {
+    return import('../cli/internal/agent-feedback.js').then((mod) =>
+      mod.nextFeedback(report, options)
+    )
+  })
+
+internal
   .command('trace')
   .alias('turbo-trace-server')
   .argument('file', 'Trace file to serve.')

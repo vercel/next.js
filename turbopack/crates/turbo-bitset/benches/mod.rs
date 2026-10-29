@@ -10,6 +10,10 @@
 //! The `hash` group hashes the sets with `FxHasher` through `std::hash::Hash`, and `hash_encode`
 //! hashes a `Bitset` like a task input is hashed for the persistent cache: encoded with
 //! `turbo_bincode`'s hash encoder into an `Xxh3Hash64Hasher`.
+//!
+//! The `storage_*` groups compare the block storages on a few operations, with the ids
+//! `<storage>/<input>`: `Vec` (the default), `SmallVec4` (`SmallVec<[usize; 4]>`) and
+//! `ArrayVec` (an `ArrayVec<usize, N>` with enough blocks for the largest universe).
 
 #[path = "common/inputs.rs"]
 mod inputs;
@@ -20,17 +24,22 @@ use std::{
     hint::black_box,
 };
 
+use arrayvec::ArrayVec;
 use bincode::Encode;
-use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{
+    BatchSize, BenchmarkGroup, BenchmarkId, Criterion, criterion_group, criterion_main,
+    measurement::WallTime,
+};
 use rand::seq::SliceRandom;
 use rustc_hash::FxBuildHasher;
+use smallvec::SmallVec;
 use turbo_bincode::{
     TurboBincodeBuffer, new_hash_encoder, turbo_bincode_decode, turbo_bincode_encode,
 };
-use turbo_bitset::Bitset;
+use turbo_bitset::{Bitset, BlockStorage};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use self::inputs::{Input, inputs, rng};
+use self::inputs::{Input, UNIVERSES, inputs, rng};
 
 fn bitset(bits: &[u32]) -> Bitset {
     bits.iter().copied().collect()
@@ -141,13 +150,102 @@ fn bench_insert(c: &mut Criterion, name: &str, inputs: &[Input], order: fn(&[u32
         inputs,
         |i| order(&i.bits),
         |bits| {
-            let mut set = Bitset::new();
+            let mut set: Bitset = Bitset::new();
             for &bit in bits {
                 black_box(set.insert(bit));
             }
             black_box(set);
         },
     );
+}
+
+/// The `ArrayVec` capacity of the storage benchmarks, enough for the largest universe.
+const ARRAY_BLOCKS: usize =
+    (UNIVERSES[UNIVERSES.len() - 1] as usize).div_ceil(usize::BITS as usize);
+
+/// Inserting the bits of `input` one by one in a fixed random order, with the storage `S`.
+fn storage_insert<S: BlockStorage>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    storage: &str,
+    input: &Input,
+) {
+    let bits = shuffled(&input.bits);
+    group.bench_function(BenchmarkId::new(storage, &input.name), |b| {
+        b.iter(|| {
+            let mut set = Bitset::<S>::new();
+            for &bit in black_box(&bits) {
+                black_box(set.insert(bit));
+            }
+            black_box(set);
+        })
+    });
+}
+
+/// `contains` for the probes of `input`, with the storage `S`.
+fn storage_contains<S: BlockStorage>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    storage: &str,
+    input: &Input,
+) {
+    let set = input.bits.iter().copied().collect::<Bitset<S>>();
+    group.bench_function(BenchmarkId::new(storage, &input.name), |b| {
+        b.iter(|| {
+            for &bit in black_box(&input.probes) {
+                black_box(black_box(&set).contains(bit));
+            }
+        })
+    });
+}
+
+/// `a |= b` like the `union` group, with the storage `S`.
+fn storage_union<S: BlockStorage>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    storage: &str,
+    input: &Input,
+) {
+    let a = input.bits.iter().copied().collect::<Bitset<S>>();
+    let b = input.other_bits.iter().copied().collect::<Bitset<S>>();
+    group.bench_function(BenchmarkId::new(storage, &input.name), |bencher| {
+        bencher.iter_batched_ref(
+            || a.clone(),
+            |a| {
+                *a |= black_box(&b);
+                black_box(&*a);
+            },
+            BatchSize::SmallInput,
+        )
+    });
+}
+
+/// Runs a `storage_*` function for every compared storage.
+macro_rules! for_each_storage {
+    ($bench:ident, $group:expr, $input:expr) => {
+        $bench::<Vec<usize>>($group, "Vec", $input);
+        $bench::<SmallVec<[usize; 4]>>($group, "SmallVec4", $input);
+        $bench::<ArrayVec<usize, ARRAY_BLOCKS>>($group, "ArrayVec", $input);
+    };
+}
+
+/// Compares the block storages on inserting, `contains` and `|=`.
+fn bench_storages(c: &mut Criterion, inputs: &[Input]) {
+    for input in inputs {
+        assert!(input.universe as usize <= ARRAY_BLOCKS * usize::BITS as usize);
+    }
+    let mut group = c.benchmark_group("bitset/storage_insert");
+    for input in inputs {
+        for_each_storage!(storage_insert, &mut group, input);
+    }
+    group.finish();
+    let mut group = c.benchmark_group("bitset/storage_contains");
+    for input in inputs {
+        for_each_storage!(storage_contains, &mut group, input);
+    }
+    group.finish();
+    let mut group = c.benchmark_group("bitset/storage_union");
+    for input in inputs {
+        for_each_storage!(storage_union, &mut group, input);
+    }
+    group.finish();
 }
 
 pub fn bench(c: &mut Criterion) {
@@ -359,6 +457,8 @@ pub fn bench(c: &mut Criterion) {
             black_box(hash_encode(black_box(set)));
         },
     );
+
+    bench_storages(c, &inputs);
 }
 
 /// The bits in a fixed pseudo-random order.
