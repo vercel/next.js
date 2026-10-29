@@ -1862,7 +1862,7 @@ impl TaskStorageAccessors for TaskGuard<'_> {
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, CollectiblesUpdateVec, get_aggregation_number,
-        get_uppers, is_aggregating_node, is_root_node,
+        get_uppers, is_aggregating_node, is_root_node, release_held_dirty_uppers,
     },
     cleanup_old_edges::{
         OutdatedEdge, capture_all_edges, cleanup_old_edges, cleanup_old_edges_deletions_only,

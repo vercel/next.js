@@ -247,12 +247,30 @@ pub struct InProgressStateInner {
     /// Early marking as completed. This is set before the output is available and will ignore full
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
+    /// Set once the execution has finished and its completion has started to change the task's
+    /// edges (removing old children, connecting new ones). These changes are propagated to the
+    /// uppers the task had at that time, while the task is still dirty.
+    pub completing: bool,
+    /// Uppers that lost their last inner edge to this task while it was `completing`. They still
+    /// count the task's dirty state, so they can't become clean before the completion's pending
+    /// changes have reached them. Released when the completion ends (finished, rescheduled or
+    /// canceled). Usually empty.
+    pub held_dirty_uppers: Vec<HeldDirtyUpper>,
     /// Event that is triggered when the task output is available (completed flag set).
     /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
     pub new_children: FxHashSet<TaskId>,
+}
+
+/// A dirty container contribution of a task that an upper keeps after it lost its last inner edge
+/// to the task, see [`InProgressStateInner::held_dirty_uppers`].
+#[derive(Debug, Clone, Copy)]
+pub struct HeldDirtyUpper {
+    pub upper_id: TaskId,
+    pub dirty_count: i32,
+    pub current_session_clean_count: i32,
 }
 
 #[derive(Debug)]
