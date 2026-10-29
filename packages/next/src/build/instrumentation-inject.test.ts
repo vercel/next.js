@@ -82,7 +82,9 @@ describe('resolveInstrumentationInject', () => {
         dir: root,
         config: { injectInstrumentation: ['./missing-inject.js'] },
       })
-    ).toThrow('does not resolve from the project')
+    ).toThrow(
+      /does not resolve from the project[\s\S]*paths must include the file extension/
+    )
   })
 
   it('checks every entry, not only the first', async () => {

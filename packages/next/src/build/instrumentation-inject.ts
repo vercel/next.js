@@ -25,10 +25,11 @@ export type InstrumentationInject = {
 }
 
 /**
- * Resolves `injectInstrumentation`. Returns `undefined` when it is unset.
+ * Resolves `injectInstrumentation`. Returns `undefined` when it is empty.
  *
- * Throws when any entry does not resolve from the project. Whoever sets the
- * option owns making those modules resolvable.
+ * Throws when any entry does not resolve from the project. Entries resolve
+ * with Node's rules, so paths must include the file extension. Whoever sets
+ * the option owns making those modules resolvable.
  */
 export function resolveInstrumentationInject(opts: {
   readonly dir: string
@@ -45,7 +46,7 @@ export function resolveInstrumentationInject(opts: {
     } catch {
       throw new Error(
         `\`injectInstrumentation\` entry ${JSON.stringify(entry)} does not resolve from the project.\n` +
-          'The module must be resolvable from the project root. Next.js does not install it.'
+          'The module must be resolvable from the project root, and paths must include the file extension. Next.js does not install it.'
       )
     }
   }
