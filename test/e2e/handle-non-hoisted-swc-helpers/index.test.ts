@@ -4,8 +4,8 @@ import { renderViaHTTP } from 'next-test-utils'
 describe('handle-non-hoisted-swc-helpers', () => {
   const { next } = nextTestSetup({
     files: {
-      '.npmrc': `# The helper move below needs real package directories, not pnpm symlinks.
-node-linker=hoisted
+      'pnpm-workspace.yaml': `# The helper move below needs real package directories, not pnpm symlinks.
+nodeLinker: hoisted
 `,
       'pages/index.js': `
         export default function Page() {

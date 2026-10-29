@@ -151,7 +151,7 @@ pub(crate) struct ItemData {
     /// - Note: ImportBinding should depend on actual import statements because those imports may
     ///   have side effects.
     ///
-    /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
+    /// See <https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084> for the problematic
     /// test case.
     pub explicit_deps: Vec<ItemId>,
 

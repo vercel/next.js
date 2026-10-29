@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ExternalIcon } from '../../icons/external'
+import { OpenInEditorButton } from '../open-in-editor-button'
 
 type CodeFrameShellProps = {
   header: ReactNode
@@ -24,14 +24,11 @@ export function CodeFrameShell({
         <p className="code-frame-link">
           {header}
           {onOpen && (
-            <button
-              aria-label={openLabel ?? 'Open in editor'}
+            <OpenInEditorButton
+              aria-label={openLabel}
               data-with-open-in-editor-link-source-file
               onClick={onOpen}
-              type="button"
-            >
-              <ExternalIcon />
-            </button>
+            />
           )}
         </p>
       </div>

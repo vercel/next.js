@@ -300,8 +300,7 @@ impl<'l> From<WriteBuffer<'l>> for ValueBuffer<'l> {
     fn from(val: WriteBuffer<'l>) -> Self {
         match val {
             WriteBuffer::Borrowed(b) => ValueBuffer::Borrowed(b),
-            WriteBuffer::Vec(v) => ValueBuffer::Vec(v),
-            WriteBuffer::SmallVec(sv) => ValueBuffer::SmallVec(sv),
+            WriteBuffer::Owned(b) => ValueBuffer::Owned(b),
         }
     }
 }

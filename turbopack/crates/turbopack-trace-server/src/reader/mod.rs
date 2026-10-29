@@ -6,16 +6,17 @@ pub(crate) mod turbopack;
 use std::{
     any::Any,
     env,
-    fs::File,
+    fs::{self, File, Metadata},
     io::{self, BufReader, Read, Seek, SeekFrom, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use turbopack_trace_utils::tracing::{TRACE_HEADER, TRACE_HEADER_PREFIX, check_trace_header};
 
 use crate::{
     reader::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat},
@@ -28,6 +29,42 @@ use crate::{
 const BATCH_SIZE: usize = 1024 * 1024;
 
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
+
+#[derive(Debug, PartialEq, Eq)]
+enum FormatKind {
+    Turbopack,
+    NextJs,
+    Heaptrack,
+}
+
+const NEXT_JS_PREFIX: &[u8] = b"[{\"name\"";
+const HEAPTRACK_PREFIX: &[u8] = b"v ";
+
+/// Detects the format of a trace file from its (decompressed) start. Returns `None` when more
+/// data is needed to decide.
+fn detect_format(buffer: &[u8]) -> Result<Option<FormatKind>> {
+    let could_be = |prefix: &[u8]| {
+        let len = buffer.len().min(prefix.len());
+        buffer[..len] == prefix[..len]
+    };
+    if could_be(TRACE_HEADER_PREFIX) {
+        if buffer.len() < TRACE_HEADER.len() {
+            return Ok(None);
+        }
+        check_trace_header(buffer)?;
+        return Ok(Some(FormatKind::Turbopack));
+    }
+    if could_be(NEXT_JS_PREFIX) {
+        return Ok((buffer.len() >= NEXT_JS_PREFIX.len()).then_some(FormatKind::NextJs));
+    }
+    if could_be(HEAPTRACK_PREFIX) {
+        return Ok((buffer.len() >= HEAPTRACK_PREFIX.len()).then_some(FormatKind::Heaptrack));
+    }
+    anyhow::bail!(
+        "Unknown trace file format (expected a {} header, a Next.js trace or a heaptrack file)",
+        String::from_utf8_lossy(TRACE_HEADER)
+    );
+}
 
 pub(crate) trait TraceFormat {
     type Reused: Default;
@@ -115,6 +152,15 @@ impl TraceFile {
         }
     }
 
+    /// Metadata of the opened file on disk.
+    fn metadata(&self) -> io::Result<Metadata> {
+        match self {
+            Self::Raw(file) => file.get_ref().metadata(),
+            Self::Compressed { file, .. } => file.metadata(),
+            Self::Unloaded => unreachable!(),
+        }
+    }
+
     /// Size of the opened file on disk.
     fn size(&mut self) -> io::Result<u64> {
         match self {
@@ -122,6 +168,39 @@ impl TraceFile {
             Self::Compressed { file, .. } => file.metadata().map(|m| m.len()),
             Self::Unloaded => unreachable!(),
         }
+    }
+}
+
+/// Identifies one version of the trace file on disk, to notice when it is written to, truncated or
+/// replaced. Only uses metadata, so a rewrite that keeps all of these the same isn't noticed.
+#[derive(Debug, PartialEq, Eq)]
+struct FileVersion {
+    len: u64,
+    modified: Option<SystemTime>,
+    created: Option<SystemTime>,
+    /// Device and inode, which identify the file itself on unix.
+    #[cfg(unix)]
+    file_id: (u64, u64),
+}
+
+impl FileVersion {
+    fn from_metadata(metadata: &Metadata) -> Self {
+        Self {
+            len: metadata.len(),
+            modified: metadata.modified().ok(),
+            created: metadata.created().ok(),
+            #[cfg(unix)]
+            file_id: {
+                use std::os::unix::fs::MetadataExt;
+                (metadata.dev(), metadata.ino())
+            },
+        }
+    }
+
+    fn of_path(path: &Path) -> Option<Self> {
+        fs::metadata(path)
+            .ok()
+            .map(|metadata| Self::from_metadata(&metadata))
     }
 }
 
@@ -247,24 +326,30 @@ impl TraceReader {
                             index = 0;
                         }
                         buffer.extend_from_slice(&chunk[..bytes_read]);
-                        if format.is_none() && buffer.len() >= 8 {
-                            let erased_format = if buffer.starts_with(b"TRACEv0") {
-                                index = 7;
-                                ErasedTraceFormat(Box::new(TurbopackFormat::new(
-                                    self.store.clone(),
-                                )))
-                            } else if buffer.starts_with(b"[{\"name\"") {
-                                ErasedTraceFormat(Box::new(NextJsFormat::new(self.store.clone())))
-                            } else if buffer.starts_with(b"v ") {
-                                ErasedTraceFormat(Box::new(HeaptrackFormat::new(
-                                    self.store.clone(),
-                                )))
-                            } else {
-                                // Fallback to the format without magic bytes
-                                // TODO Remove this after a while and show an error instead
-                                ErasedTraceFormat(Box::new(TurbopackFormat::new(
-                                    self.store.clone(),
-                                )))
+                        if format.is_none() {
+                            let kind = match detect_format(&buffer) {
+                                Ok(Some(kind)) => kind,
+                                // Not enough data yet
+                                Ok(None) => continue,
+                                Err(err) => {
+                                    println!("Trace file error: {err}");
+                                    self.wait_for_file_change(&file);
+                                    return true;
+                                }
+                            };
+                            let erased_format = match kind {
+                                FormatKind::Turbopack => {
+                                    index = TRACE_HEADER.len();
+                                    ErasedTraceFormat(Box::new(TurbopackFormat::new(
+                                        self.store.clone(),
+                                    )))
+                                }
+                                FormatKind::NextJs => ErasedTraceFormat(Box::new(
+                                    NextJsFormat::new(self.store.clone()),
+                                )),
+                                FormatKind::Heaptrack => ErasedTraceFormat(Box::new(
+                                    HeaptrackFormat::new(self.store.clone()),
+                                )),
                             };
                             let reuse = erased_format.create_reused();
                             format = Some((erased_format, reuse));
@@ -276,6 +361,7 @@ impl TraceReader {
                                 }
                                 Err(err) => {
                                     println!("Trace file error: {err}");
+                                    self.wait_for_file_change(&file);
                                     return true;
                                 }
                             }
@@ -399,6 +485,18 @@ impl TraceReader {
         }
     }
 
+    /// Waits until the file at the trace path differs from `file`, which was rejected with a
+    /// format error, so the same error isn't reported again and again. Only checks metadata, at
+    /// most once per second. Also returns when the file is removed.
+    fn wait_for_file_change(&self, file: &TraceFile) {
+        println!("Waiting for the trace file to change...");
+        let version = file
+            .metadata()
+            .ok()
+            .map(|metadata| FileVersion::from_metadata(&metadata));
+        wait_for_file_version_change(&self.path, version.as_ref(), Duration::from_secs(1));
+    }
+
     fn wait_for_new_file(&self, file: &mut TraceFile) {
         let Ok(pos) = file.stream_position() else {
             return;
@@ -415,23 +513,45 @@ impl TraceReader {
     }
 }
 
+/// Polls the metadata of `path` every `interval` until it no longer matches `version`, or the file
+/// is removed.
+fn wait_for_file_version_change(path: &Path, version: Option<&FileVersion>, interval: Duration) {
+    loop {
+        thread::sleep(interval);
+        match FileVersion::of_path(path) {
+            Some(current) if Some(&current) == version => {}
+            _ => return,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{borrow::Cow, io::Write, time::Duration};
 
-    use turbopack_trace_utils::tracing::TraceRow;
+    use turbopack_trace_utils::tracing::{TimestampEncoder, TraceRow};
 
     use super::*;
 
     const TIMEOUT: Duration = Duration::from_secs(30);
 
-    /// Serialized rows for `count` child spans of a root span, plus the root span itself.
+    /// Serialized rows for `count` child spans of a root span, plus the root span itself. Like a
+    /// buffer of the trace writer, the timestamps are delta encoded after a
+    /// [`TraceRow::TimestampBase`].
     fn span_rows(first_id: u64, count: u64) -> Vec<u8> {
         let mut bytes = Vec::new();
-        let mut push = |row: TraceRow<'_>| bytes.extend(postcard::to_stdvec(&row).unwrap());
+        let mut encoder = TimestampEncoder::default();
+        let mut push = |row: TraceRow<'_, u64>| {
+            let (base, row) = encoder.encode_row(row);
+            if let Some(base) = base {
+                bytes.extend(postcard::to_stdvec(&base).unwrap());
+            }
+            bytes.extend(postcard::to_stdvec(&row).unwrap());
+        };
         for id in first_id..first_id + count {
+            let ts = id;
             push(TraceRow::Start {
-                ts: id,
+                ts,
                 id,
                 parent: (id != 1).then_some(1),
                 name: Cow::Borrowed("span"),
@@ -439,26 +559,26 @@ mod tests {
                 values: Vec::new(),
             });
             push(TraceRow::Enter {
-                ts: id,
+                ts,
                 id,
                 thread_id: 1,
                 allocations: None,
             });
             push(TraceRow::Exit {
-                ts: id + 1,
+                ts: ts + 1,
                 id,
                 thread_id: 1,
                 allocations: None,
             });
             if id != 1 {
-                push(TraceRow::End { ts: id + 1, id });
+                push(TraceRow::End { ts: ts + 1, id });
             }
         }
         bytes
     }
 
     fn trace(spans: u64) -> Vec<u8> {
-        let mut bytes = b"TRACEv0".to_vec();
+        let mut bytes = TRACE_HEADER.to_vec();
         bytes.extend(span_rows(1, spans));
         bytes
     }
@@ -502,6 +622,28 @@ mod tests {
                 store,
                 thread: Some(thread),
             }
+        }
+
+        fn is_finished(&self) -> bool {
+            self.thread
+                .as_ref()
+                .is_none_or(|thread| thread.is_finished())
+        }
+
+        /// Waits for the current [`TraceReader::try_read`] pass to return, then starts the next
+        /// one on the same file, like [`TraceReader::run`] does.
+        fn restart_after_return(&mut self) {
+            let start = Instant::now();
+            while !self.is_finished() {
+                assert!(start.elapsed() < TIMEOUT, "reader did not return");
+                thread::sleep(Duration::from_millis(20));
+            }
+            self.thread.take().unwrap().join().unwrap();
+            let mut reader = TraceReader {
+                store: self.store.clone(),
+                path: self.path.clone(),
+            };
+            self.thread = Some(thread::spawn(move || reader.try_read()));
         }
 
         fn append(&self, data: &[u8]) {
@@ -587,5 +729,133 @@ mod tests {
                 "{name}: loaded more than the prefix"
             );
         }
+    }
+
+    /// A file that is rejected with a format error is not read again until it changes, so the
+    /// error isn't repeated twice a second. Replacing it with a valid trace loads that trace.
+    #[test]
+    fn waits_for_change_after_format_error() {
+        for (name, data) in [
+            // Unsupported version (header detection error)
+            ("old-version.trace", b"TRACEv0\x00\x01\x02".to_vec()),
+            // Corrupt data after a valid header (decode error)
+            ("corrupt.trace", [TRACE_HEADER, &[0xff; 12]].concat()),
+        ] {
+            let mut reader = ReaderFixture::new(name, &data);
+            // Previously, `try_read` returned right away and `run` read the file again after
+            // 500 ms. Several of those retry intervals pass here without the file changing.
+            thread::sleep(Duration::from_millis(2_500));
+            assert!(
+                !reader.is_finished(),
+                "{name}: reader returned without the file changing"
+            );
+            std::fs::write(&reader.path, trace(1_000)).unwrap();
+            reader.restart_after_return();
+            reader.wait_for_span_count(1_000);
+        }
+    }
+
+    /// Each kind of change to a rejected file ends the wait: a different size, a rewrite with the
+    /// same size (new modification time), a replacement by another file, and removal.
+    #[test]
+    fn file_version_detects_changes() {
+        let dir = env::temp_dir().join(format!("trace-server-test-{}-version", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("version.trace");
+        let version = |path: &Path| FileVersion::of_path(path).unwrap();
+        let modified_at = |path: &Path, time: SystemTime| {
+            File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(time)
+                .unwrap();
+        };
+        let time = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+
+        fs::write(&path, b"aaaa").unwrap();
+        modified_at(&path, time);
+        let original = version(&path);
+        assert_eq!(version(&path), original, "unchanged file");
+
+        fs::write(&path, b"aaaaa").unwrap();
+        modified_at(&path, time);
+        assert_ne!(version(&path), original, "different size");
+
+        fs::write(&path, b"bbbb").unwrap();
+        modified_at(&path, time + Duration::from_secs(1));
+        assert_ne!(version(&path), original, "same size, rewritten");
+
+        fs::write(&path, b"aaaa").unwrap();
+        modified_at(&path, time);
+        let before_replace = version(&path);
+        let replacement = dir.join("replacement.trace");
+        fs::write(&replacement, b"aaaa").unwrap();
+        modified_at(&replacement, time);
+        fs::rename(&replacement, &path).unwrap();
+        // Same size and modification time, but on unix another inode.
+        #[cfg(unix)]
+        assert_ne!(version(&path), before_replace, "replaced file");
+        #[cfg(not(unix))]
+        let _ = before_replace;
+
+        // Waiting returns once the file is removed.
+        let waiting_for = version(&path);
+        let wait_path = path.clone();
+        let waiter = thread::spawn(move || {
+            wait_for_file_version_change(&wait_path, Some(&waiting_for), Duration::from_millis(20))
+        });
+        thread::sleep(Duration::from_millis(200));
+        assert!(!waiter.is_finished(), "returned for an unchanged file");
+        fs::remove_file(&path).unwrap();
+        let start = Instant::now();
+        while !waiter.is_finished() {
+            assert!(start.elapsed() < TIMEOUT, "did not return after removal");
+            thread::sleep(Duration::from_millis(20));
+        }
+        waiter.join().unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn detects_trace_formats() {
+        assert_eq!(detect_format(b"").unwrap(), None);
+        assert_eq!(detect_format(b"TRACE").unwrap(), None);
+        assert_eq!(
+            detect_format(b"TRACEv1").unwrap(),
+            Some(FormatKind::Turbopack)
+        );
+        assert_eq!(
+            detect_format(b"TRACEv1\x00\x01").unwrap(),
+            Some(FormatKind::Turbopack)
+        );
+        assert_eq!(detect_format(b"[{\"na").unwrap(), None);
+        assert_eq!(
+            detect_format(b"[{\"name\":").unwrap(),
+            Some(FormatKind::NextJs)
+        );
+        assert_eq!(detect_format(b"v").unwrap(), None);
+        assert_eq!(
+            detect_format(b"v 1.0").unwrap(),
+            Some(FormatKind::Heaptrack)
+        );
+    }
+
+    #[test]
+    fn rejects_old_and_unknown_formats() {
+        // Also a file that only consists of the old header
+        for data in [&b"TRACEv0"[..], b"TRACEv0\x00\x01"] {
+            assert_eq!(
+                detect_format(data).unwrap_err().to_string(),
+                "Unsupported trace file version: expected TRACEv1, found TRACEv0"
+            );
+        }
+        // Old files without any header
+        assert!(
+            detect_format(b"\x00\x01\x02")
+                .unwrap_err()
+                .to_string()
+                .starts_with("Unknown trace file format")
+        );
     }
 }

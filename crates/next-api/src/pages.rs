@@ -26,13 +26,16 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    segment_config::{NextSegmentRegion, ParseSegmentMode},
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
+use rustc_hash::FxHashSet;
 use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset};
+use turbo_tasks::{
+    Completion, FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
+};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
@@ -50,11 +53,12 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
+    json::RcJsonRawValue,
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -72,7 +76,9 @@ use crate::{
     },
     font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::{NextDynamicGraphs, validate_pages_css_imports},
+    module_graph::{
+        DynamicImportEntriesWithImporter, NextDynamicGraphs, validate_pages_css_imports,
+    },
     nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
@@ -653,6 +659,76 @@ async fn client_entry_modules(
         .collect())
 }
 
+/// The chunks to preload for the `next/dynamic` imports of a page's client graph, including the
+/// ones of `/_app` (which is rendered as part of every page).
+async fn page_next_dynamic_chunks(
+    endpoint: Vc<PageEndpoint>,
+    next_dynamic_imports: ReadRef<DynamicImportEntriesWithImporter>,
+    client_availability_info: AvailabilityInfo,
+) -> Result<ResolvedVc<DynamicImportedChunks>> {
+    let this = endpoint.await?;
+    let project = this.pages_project.project();
+    let client_chunking_context = project.client_chunking_context();
+
+    if this.pathname == "/_app" {
+        return collect_next_dynamic_chunks(
+            endpoint.client_module_graph(),
+            client_chunking_context,
+            next_dynamic_imports,
+            NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+        )
+        .await;
+    }
+
+    // `/_app`'s `next/dynamic` imports are loaded by `/_app`'s async loaders, which are chunked
+    // with `/_app`'s graph and availability, so preload them with the chunks `/_app` itself
+    // lists. Chunked with the page's availability, they would name chunks that don't match what
+    // those loaders request (and that may not be emitted at all).
+    // With a per-page module graph, a page's client graph is chained after `/_app`'s (see
+    // `client_module_graph`), so `next_dynamic_imports` also contains `/_app`'s imports: chunk
+    // only the page's own imports with the page's graph and availability. With a whole-app graph
+    // they aren't reachable from the page, so `/_app`'s imports are only added here.
+    let per_page_module_graph = *project.per_page_module_graph().await?;
+    let app_endpoint = this.pages_project.app_page_endpoint();
+    let app_module_graph = app_endpoint.client_module_graph();
+    let app_next_dynamic_imports = NextDynamicGraphs::new(app_module_graph, per_page_module_graph)
+        .get_next_dynamic_imports_for_endpoint(app_endpoint.client_module())
+        .await?;
+    let app_dynamic_entries = app_next_dynamic_imports
+        .iter()
+        .map(|(dynamic_entry, _)| *dynamic_entry)
+        .collect::<FxHashSet<_>>();
+    let page_next_dynamic_imports = Vc::<DynamicImportEntriesWithImporter>::cell(
+        next_dynamic_imports
+            .iter()
+            .filter(|(dynamic_entry, _)| !app_dynamic_entries.contains(dynamic_entry))
+            .cloned()
+            .collect(),
+    )
+    .await?;
+
+    let page_chunks = collect_next_dynamic_chunks(
+        endpoint.client_module_graph(),
+        client_chunking_context,
+        page_next_dynamic_imports,
+        NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+    )
+    .await?;
+    let app_chunks = collect_next_dynamic_chunks(
+        app_module_graph,
+        client_chunking_context,
+        app_next_dynamic_imports,
+        NextDynamicChunkAvailability::AvailabilityInfo(
+            app_endpoint.client_chunk_group().await?.availability_info,
+        ),
+    )
+    .await?;
+
+    let mut chunks = (*app_chunks.await?).clone();
+    chunks.extend(page_chunks.await?.iter().map(|(k, v)| (*k, *v)));
+    Ok(ResolvedVc::cell(chunks))
+}
+
 #[turbo_tasks::value_impl]
 impl PageEndpoint {
     #[turbo_tasks::function]
@@ -866,21 +942,31 @@ impl PageEndpoint {
             let module_graph = self.client_module_graph();
 
             let evaluatable_assets = client_entry_modules(self.client_evaluatable_assets()).await?;
-            // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
-            // the page's chunks don't include modules that the browser already downloaded with
-            // `/_app`.
+            // Like App Router layouts, `/_app` is always loaded before the page. Treat it as
+            // already available so the page's chunks don't include modules that the browser
+            // already downloaded with `/_app`. `client_module_graph` chains `/_app`'s entry group
+            // into this page's graph, so the group resolves within the very graph this page is
+            // chunked with.
             let availability_info = if this.pathname == "/_app" {
                 AvailabilityInfo::root()
             } else {
-                this.pages_project
-                    .app_page_endpoint()
-                    .client_chunk_group()
+                AvailabilityInfo::root()
+                    .with_chunk_group(
+                        module_graph.to_resolved().await?,
+                        ChunkGroupKey::Entry(
+                            client_entry_modules(
+                                this.pages_project
+                                    .app_page_endpoint()
+                                    .client_evaluatable_assets(),
+                            )
+                            .await?,
+                        ),
+                    )
                     .await?
-                    .availability_info
             };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
-                ChunkGroup::Entry(evaluatable_assets),
+                ChunkGroupKey::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
                 availability_info,
@@ -966,7 +1052,10 @@ impl PageEndpoint {
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
-                    regions: config.preferred_region.clone(),
+                    regions: config
+                        .preferred_region
+                        .as_ref()
+                        .map(NextSegmentRegion::to_vec),
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
@@ -991,7 +1080,10 @@ impl PageEndpoint {
                     app_module: modules.app_module,
                     document_module: modules.document_module,
                     runtime,
-                    regions: config.preferred_region.clone(),
+                    regions: config
+                        .preferred_region
+                        .as_ref()
+                        .map(NextSegmentRegion::to_vec),
                 }
             }
             .cell(),
@@ -1056,13 +1148,8 @@ impl PageEndpoint {
                 client_availability_info,
             )) = next_dynamic_imports
             {
-                collect_next_dynamic_chunks(
-                    self.client_module_graph(),
-                    project.client_chunking_context(),
-                    next_dynamic_imports,
-                    NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
-                )
-                .await?
+                page_next_dynamic_chunks(self, next_dynamic_imports, client_availability_info)
+                    .await?
             } else {
                 DynamicImportedChunks::default().resolved_cell()
             };
@@ -1082,7 +1169,7 @@ impl PageEndpoint {
                     // Registered as an entry group by `layout_chunk_group_entry`.
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        smallvec![ChunkGroup::Entry(vec![layout])],
+                        smallvec![ChunkGroupKey::Entry(vec![layout])],
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
@@ -1102,7 +1189,7 @@ impl PageEndpoint {
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ssr_module]),
+                    ChunkGroupKey::Entry(vec![ssr_module]),
                     ssr_module_graph,
                     OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
@@ -1131,7 +1218,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        ChunkGroup::Entry(vec![ssr_module]),
+                        ChunkGroupKey::Entry(vec![ssr_module]),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
@@ -1203,7 +1290,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            project.server_chunking_context(true),
+            project.server_chunking_context(
+                true, // client_assets
+                true, // supports_lazy_dynamic_imports
+            ),
             project.edge_chunking_context(true),
         ))
     }
@@ -1219,7 +1309,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server/data")?,
-            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().server_chunking_context(
+                true, // client_assets
+                true, // supports_lazy_dynamic_imports
+            ),
             this.pages_project.project().edge_chunking_context(true),
         ))
     }
@@ -1235,7 +1328,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            this.pages_project.project().server_chunking_context(false),
+            this.pages_project.project().server_chunking_context(
+                false, // client_assets
+                true,  // supports_lazy_dynamic_imports
+            ),
             this.pages_project.project().edge_chunking_context(false),
         ))
     }
@@ -1308,7 +1404,7 @@ impl PageEndpoint {
         client_chunks: ResolvedVc<OutputAssets>,
         // Inline bootstrap params, present when the bootstrap is inlined rather
         // than emitted as a per-route chunk.
-        chunk_group_bootstrap_params: Option<RcStr>,
+        chunk_group_bootstrap_params: Option<RcJsonRawValue>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root().owned().await?;
         let client_relative_path = self
@@ -1704,7 +1800,7 @@ pub struct InternalSsrChunkModule {
 /// A layout is an entry group of its own, like the standalone `/_document` and `/_app`
 /// endpoints register their module, so the graph never has to choose between a shared and an
 /// entry group for the same module and `internal_ssr_chunk` can always chunk it as
-/// `ChunkGroup::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
+/// `ChunkGroupKey::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
 /// groups shared between pages.
 fn layout_chunk_group_entry(layout: ResolvedVc<Box<dyn Module>>) -> ChunkGroupEntry {
     ChunkGroupEntry::Entry {

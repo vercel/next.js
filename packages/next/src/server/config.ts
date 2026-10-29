@@ -516,8 +516,8 @@ function assignDefaultsAndValidate(
   // rootTtlMs? } | undefined`) into the object napi expects
   const turbopackGc = result.experimental.turbopackGc
   let turbopackGcOptions: TurbopackGcOptions | undefined
-  if (turbopackGc === true) {
-    turbopackGcOptions = {}
+  if (typeof turbopackGc === 'boolean') {
+    turbopackGcOptions = turbopackGc ? {} : undefined
   } else if (typeof turbopackGc === 'object' && turbopackGc !== null) {
     turbopackGcOptions = {
       minProgressMs: turbopackGc.minProgressMs,

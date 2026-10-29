@@ -12,6 +12,7 @@ use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_bitset::Bitset;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
@@ -23,8 +24,8 @@ use crate::{
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph,
-        chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
-        module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
+        chunk_group_info::{ChunkGroupInfo, ChunkGroupKey},
+        module_batch::{ChunkableModuleOrBatch, ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
 };
@@ -71,6 +72,8 @@ pub struct ModuleBatchesGraph {
     #[bincode(with_serde)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
     batch_groups: FxHashMap<ModuleOrBatch, ResolvedVc<ModuleBatchGroup>>,
+    /// The first module of each batch. All modules in a batch have the same chunk groups.
+    batch_first_modules: FxHashMap<ResolvedVc<ModuleBatch>, ResolvedVc<Box<dyn Module>>>,
 
     /// For chunk groups where the postorder of entries is different than the order of the
     /// `ChunkGroup::entries()` this contains Some with the postorder list of entries of that chunk
@@ -135,6 +138,17 @@ impl ModuleBatchesGraph {
     pub async fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<ModuleOrBatch> {
         let entry = self.get_entry_index(entry).await?;
         Ok(*self.graph.node_weight(entry).unwrap())
+    }
+
+    pub(crate) fn get_first_module(
+        &self,
+        item: ChunkableModuleOrBatch,
+    ) -> Option<ResolvedVc<Box<dyn Module>>> {
+        match item {
+            ChunkableModuleOrBatch::Module(module) => Some(ResolvedVc::upcast(module)),
+            ChunkableModuleOrBatch::Batch(batch) => self.batch_first_modules.get(&batch).copied(),
+            ChunkableModuleOrBatch::None(_) => None,
+        }
     }
 
     // Clippy complains but there's a type error without the bound
@@ -243,11 +257,11 @@ enum PreBatchItem {
 
 struct PreBatch {
     items: FxIndexSet<PreBatchItem>,
-    chunk_groups: RoaringBitmapWrapper,
+    chunk_groups: Bitset,
 }
 
 impl PreBatch {
-    fn new(chunk_groups: RoaringBitmapWrapper) -> Self {
+    fn new(chunk_groups: Bitset) -> Self {
         Self {
             items: FxIndexSet::default(),
             chunk_groups,
@@ -280,7 +294,7 @@ impl PreBatches {
     fn ensure_pre_batch_for_module(
         &mut self,
         module: ResolvedVc<Box<dyn Module>>,
-        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<PreBatchIndex> {
         Ok(match self.entries.entry(module) {
@@ -302,7 +316,7 @@ impl PreBatches {
     async fn get_pre_batch_items(
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
-        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
         module_graph: &ModuleGraph,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
@@ -354,6 +368,7 @@ impl PreBatches {
                 state.items.push(item);
                 Ok(())
             },
+            false,
             false,
         )?;
         Ok(state.items)
@@ -820,6 +835,26 @@ pub async fn compute_module_batches(
             .try_join()
             .await?;
 
+        let batch_first_modules = pre_batches
+            .batches
+            .iter()
+            .zip(&batches)
+            .filter_map(|(pre_batch, item)| {
+                let ModuleOrBatch::Batch(batch) = item else {
+                    return None;
+                };
+                pre_batch.items.iter().find_map(|item| match item {
+                    PreBatchItem::ParallelModule(module)
+                        if ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+                            .is_some() =>
+                    {
+                        Some((*batch, *module))
+                    }
+                    _ => None,
+                })
+            })
+            .collect();
+
         // Create the batch groups by grouping batches with the same chunk groups
         let mut batch_groups: FxHashMap<_, Vec<_>> = FxHashMap::default();
         for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
@@ -1028,6 +1063,7 @@ pub async fn compute_module_batches(
             graph: TracedDiGraph(graph),
             entries,
             batch_groups,
+            batch_first_modules,
             ordered_entries,
         }
         .cell())

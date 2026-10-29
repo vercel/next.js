@@ -12,7 +12,7 @@ use crate::{DiskFileSystem, FileSystemPath, canonicalized_path_cache::Canonicali
 
 /// An ordered set of canonical system roots and their owning filesystems.
 ///
-/// The roots must not overlap: no root may be an ancestor of another root. [`Self::lookup`]
+/// The roots must not overlap: no root may be an ancestor of another root. [`Self::lookup_fs_path`]
 /// relies on this invariant when selecting the nearest preceding root in path order.
 #[turbo_tasks::value(shared, eq = "manual")]
 pub struct DiskFileSystemMap {

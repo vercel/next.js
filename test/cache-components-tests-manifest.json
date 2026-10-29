@@ -106,6 +106,7 @@
       "test/e2e/app-dir/actions/app-action-size-limit-invalid-node-middleware.test.ts",
       "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts",
       "test/e2e/app-dir/actions/app-action.test.ts",
+      "test/e2e/app-dir/adapter-dynamic-metadata-runtime/adapter-dynamic-metadata-runtime.test.ts",
       "test/e2e/app-dir/app-a11y/index.test.ts",
       "test/e2e/app-dir/app-catch-all-optional/app-catch-all-optional.test.ts",
       "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts",

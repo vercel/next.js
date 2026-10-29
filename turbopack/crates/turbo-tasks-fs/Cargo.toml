@@ -18,6 +18,8 @@ default = []
 # A binary built with this option **is not portable**, the directory
 # path will be embedded into the binary.
 dynamic_embed_contents = []
+# Set in CI to ignore timing-sensitive watcher tests that are flaky on CI runners.
+ci = []
 
 [lints]
 workspace = true

@@ -29,8 +29,9 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        AdditionalRootConfig, DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions,
-        Project, ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
+        AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
+        PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
+        activate_lazy_chunk_operation,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -327,7 +328,7 @@ impl NapiProjectOptions {
             additional_roots: additional_roots
                 .into_iter()
                 .map(|root| AdditionalRootConfig {
-                    key: root.key,
+                    name: AdditionalRootName::Configured(root.key),
                     path: root.path,
                     ignore_if_missing: root.ignore_if_missing.unwrap_or(false),
                 })
@@ -743,8 +744,8 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// more than `SLOW_FILESYSTEM_THRESHOLD`.
 ///
 /// This idea is copied from Bun:
-/// - https://x.com/jarredsumner/status/1637549427677364224
-/// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+/// - <https://x.com/jarredsumner/status/1637549427677364224>
+/// - <https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038>
 async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<()> {
     let temp_path = dir.join(format!(
         "tmp_file_io_benchmark_{:x}",

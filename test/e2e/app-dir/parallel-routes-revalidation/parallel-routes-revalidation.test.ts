@@ -13,13 +13,13 @@ describe('parallel-routes-revalidation', () => {
   // this could hit a separate lambda instance that won't share the same reference
   if (!isNextDeploy) {
     it('should submit the action and revalidate the page data', async () => {
-      const browser = await next.browser('/')
+      const browser = await next.browser('/prr')
       await check(() => browser.hasElementByCssSelector('#create-entry'), false)
 
       // there shouldn't be any data yet
       expect((await browser.elementsByCss('#entries li')).length).toBe(0)
 
-      await browser.elementByCss("[href='/revalidate-modal']").click()
+      await browser.elementByCss("[href='/prr/revalidate-modal']").click()
 
       await check(() => browser.hasElementByCssSelector('#create-entry'), true)
 
@@ -37,7 +37,7 @@ describe('parallel-routes-revalidation', () => {
         expect((await browser.elementsByCss('#entries li')).length).toBe(2)
       })
 
-      await browser.elementByCss("[href='/']").click()
+      await browser.elementByCss("[href='/prr']").click()
 
       // following a link back to `/` should close the modal
       await check(() => browser.hasElementByCssSelector('#create-entry'), false)
@@ -47,7 +47,7 @@ describe('parallel-routes-revalidation', () => {
 
   it('refreshes a retained slot using its original URL after multiple navigations', async () => {
     let act: ReturnType<typeof createRouterAct>
-    const browser = await next.browser('/retained-search/one?value=first', {
+    const browser = await next.browser('/prr/retained-search/one?value=first', {
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
       },
@@ -61,7 +61,7 @@ describe('parallel-routes-revalidation', () => {
     ]) {
       await act(async () => {
         await browser
-          .elementByCss(`a[href="/retained-search/${page}?value=${value}"]`)
+          .elementByCss(`a[href="/prr/retained-search/${page}?value=${value}"]`)
           .click()
       })
       expect(await browser.elementById('active-page').text()).toBe(page)
@@ -83,12 +83,12 @@ describe('parallel-routes-revalidation', () => {
   })
 
   it('should handle router.refresh() when called in a slot', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/prr')
     await check(() => browser.hasElementByCssSelector('#refresh-router'), false)
     const currentRandomNumber = (
       await browser.elementById('random-number')
     ).text()
-    await browser.elementByCss("[href='/refresh-modal']").click()
+    await browser.elementByCss("[href='/prr/refresh-modal']").click()
     await check(() => browser.hasElementByCssSelector('#refresh-router'), true)
     await browser.elementById('refresh-router').click()
 
@@ -97,7 +97,7 @@ describe('parallel-routes-revalidation', () => {
       return randomNumber !== currentRandomNumber
     }, true)
 
-    await browser.elementByCss("[href='/']").click()
+    await browser.elementByCss("[href='/prr']").click()
 
     // following a link back to `/` should close the modal
     await check(() => browser.hasElementByCssSelector('#create-entry'), false)
@@ -105,9 +105,9 @@ describe('parallel-routes-revalidation', () => {
   })
 
   it('should handle a redirect action when called in a slot', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/prr')
     await check(() => browser.hasElementByCssSelector('#redirect'), false)
-    await browser.elementByCss("[href='/redirect-modal']").click()
+    await browser.elementByCss("[href='/prr/redirect-modal']").click()
     await check(() => browser.hasElementByCssSelector('#redirect'), true)
     await browser.elementById('redirect').click()
 
@@ -116,9 +116,9 @@ describe('parallel-routes-revalidation', () => {
   })
 
   it.each([
-    { path: '/detail-page' },
-    { path: '/dynamic/foobar', param: 'foobar' },
-    { path: '/catchall/foobar', param: 'foobar' },
+    { path: '/prr/detail-page' },
+    { path: '/prr/dynamic/foobar', param: 'foobar' },
+    { path: '/prr/catchall/foobar', param: 'foobar' },
   ])(
     'should not trigger interception when calling router.refresh() on an intercepted route ($path)',
     async (route) => {
@@ -160,7 +160,7 @@ describe('parallel-routes-revalidation', () => {
   )
 
   it('should not trigger full page when calling router.refresh() on an intercepted route', async () => {
-    const browser = await next.browser('/dynamic')
+    const browser = await next.browser('/prr/dynamic')
     await browser.elementByCss('a').click()
 
     // we soft-navigated to the route, so it should be intercepted
@@ -192,10 +192,10 @@ describe('parallel-routes-revalidation', () => {
   })
 
   it('should not trigger the intercepted route when lazy-fetching missing data', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/prr')
 
     // trigger the interception page
-    await browser.elementByCss("[href='/detail-page']").click()
+    await browser.elementByCss("[href='/prr/detail-page']").click()
 
     // we should see the intercepted page
     expect(await browser.elementById('detail-title').text()).toBe(
@@ -230,10 +230,10 @@ describe('parallel-routes-revalidation', () => {
   // this could hit a separate lambda instance that won't share the same reference
   if (!isNextDeploy) {
     it('should refresh the correct page when a server action triggers a redirect', async () => {
-      const browser = await next.browser('/redirect')
+      const browser = await next.browser('/prr/redirect')
       await browser.elementByCss('button').click()
 
-      await browser.elementByCss("[href='/revalidate-modal']").click()
+      await browser.elementByCss("[href='/prr/revalidate-modal']").click()
 
       await check(() => browser.hasElementByCssSelector('#create-entry'), true)
 
@@ -254,15 +254,15 @@ describe('parallel-routes-revalidation', () => {
   }
 
   describe.each([
-    { basePath: '/refreshing', label: 'regular', withSearchParams: false },
-    { basePath: '/refreshing', label: 'regular', withSearchParams: true },
+    { basePath: '/prr/refreshing', label: 'regular', withSearchParams: false },
+    { basePath: '/prr/refreshing', label: 'regular', withSearchParams: true },
     {
-      basePath: '/dynamic-refresh/foo',
+      basePath: '/prr/dynamic-refresh/foo',
       label: 'dynamic',
       withSearchParams: false,
     },
     {
-      basePath: '/dynamic-refresh/foo',
+      basePath: '/prr/dynamic-refresh/foo',
       label: 'dynamic',
       withSearchParams: true,
     },
@@ -420,7 +420,7 @@ describe('parallel-routes-revalidation', () => {
 
   describe('server action revalidation', () => {
     it('handles refreshing when multiple parallel slots are active', async () => {
-      const browser = await next.browser('/nested-revalidate')
+      const browser = await next.browser('/prr/nested-revalidate')
 
       const currentPageTime = await browser.elementById('page-now').text()
 
@@ -428,11 +428,15 @@ describe('parallel-routes-revalidation', () => {
       expect(await browser.hasElementByCssSelector('#drawer')).toBe(false)
 
       // renders the drawer parallel slot
-      await browser.elementByCss("[href='/nested-revalidate/drawer']").click()
+      await browser
+        .elementByCss("[href='/prr/nested-revalidate/drawer']")
+        .click()
       await browser.waitForElementByCss('#drawer')
 
       // renders the modal slot
-      await browser.elementByCss("[href='/nested-revalidate/modal']").click()
+      await browser
+        .elementByCss("[href='/prr/nested-revalidate/modal']")
+        .click()
       await browser.waitForElementByCss('#modal')
 
       // Both should be visible, despite only one "matching"
@@ -468,7 +472,7 @@ describe('parallel-routes-revalidation', () => {
     it.skip('should not trigger a refresh for the page that is being redirected to', async () => {
       const rscRequests = []
       const prefetchRequests = []
-      const browser = await next.browser('/redirect', {
+      const browser = await next.browser('/prr/redirect', {
         beforePageLoad(page) {
           page.on('request', async (req) => {
             const headers = await req.allHeaders()
