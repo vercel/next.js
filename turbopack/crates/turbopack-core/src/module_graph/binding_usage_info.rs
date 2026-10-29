@@ -194,6 +194,8 @@ pub async fn compute_binding_usage_info(
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
                     // and Named/All references
+                    // RequiredEvaluation edges preserve internal initialization even when the
+                    // containing module is declared side-effect-free.
                     if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
                         && side_effect_free_modules
                             .as_ref()
@@ -430,7 +432,7 @@ pub async fn compute_binding_usage_info(
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub enum ModuleExportUsageInfo {
-    /// Only the side effects are needed, no exports is used.
+    /// Evaluation is needed, but no exports are used.
     #[default]
     Evaluation,
     Exports(AutoSet<RcStr>),
@@ -474,7 +476,7 @@ impl ModuleExportUsageInfo {
                 }
                 changed
             }
-            (_, ExportUsage::Evaluation) => false,
+            (_, ExportUsage::Evaluation | ExportUsage::RequiredEvaluation) => false,
             (_, ExportUsage::Passthrough { .. }) => {
                 // Passthrough is normally resolved before `add`. If it reaches this fallback,
                 // preserve correctness by widening rather than panicking during graph analysis.
@@ -658,6 +660,7 @@ mod graph_tests {
                 ExportUsage::partial_namespace_object(names.to_vec())
             }
             ExportUsage::Evaluation => ExportUsage::evaluation(),
+            ExportUsage::RequiredEvaluation => ExportUsage::required_evaluation(),
             ExportUsage::Passthrough {
                 namespace_object_may_escape,
             } => ExportUsage::passthrough(*namespace_object_may_escape),

@@ -787,7 +787,7 @@ impl ModuleReference for EsmAssetReference {
                 // corresponding import forwards export usage.
                 (Some(ModulePart::Evaluation), _) => ExportUsage::Evaluation,
                 _ if self.extras.as_deref().is_some_and(|e| e.evaluation_only) => {
-                    ExportUsage::Evaluation
+                    ExportUsage::RequiredEvaluation
                 }
                 _ if let Some(binding) = self
                     .extras
