@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use fixedbitset::FixedBitSet;
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -23,6 +24,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     keyed::KeyedAccess,
+    util::SharedError,
 };
 use turbo_tasks_fs::FileSystemPath;
 
@@ -841,6 +843,7 @@ impl ModuleGraph {
                 } else {
                     None
                 },
+                entry_ranks: OnceLock::new(),
             },
         }
         .cell())
@@ -981,6 +984,7 @@ impl ModuleGraphLayer {
                 } else {
                     None
                 },
+                entry_ranks: OnceLock::new(),
             },
         }
         .cell())
@@ -997,6 +1001,9 @@ impl Deref for ModuleGraphLayer {
 
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
+
+/// The reverse postorder rank of each module, see [`ModuleGraphSnapshot::reverse_postorder_ranks`].
+type ModuleRanks = FxHashMap<ResolvedVc<Box<dyn Module>>, usize>;
 
 /// This struct provides traversal functionality for the module graph.
 ///
@@ -1021,6 +1028,11 @@ pub struct ModuleGraphSnapshot {
     /// The edges of unused references (from [`BindingUsageInfo::unused_references_edges`]), which
     /// are skipped during traversals.
     unused_references_edges: Option<ReadRef<UnusedReferenceEdges>>,
+
+    /// Lazily computed [`Self::entry_ranks`] (or the error computing them). Derived from the
+    /// immutable graphs, so it never needs to be invalidated.
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    entry_ranks: OnceLock<Result<ModuleRanks, SharedError>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -1520,10 +1532,20 @@ impl ModuleGraphSnapshot {
     /// visited multiple times.
     ///
     /// Runs in linear time and without recursion.
-    pub fn reverse_postorder_ranks(
+    ///
+    /// Must be called on the whole graph, not on an individual graph layer (where `VisitedModule`
+    /// nodes can't be resolved).
+    ///
+    /// Use [`Self::entry_ranks`] for the ranks from the entries of the graph, which are computed
+    /// once per snapshot. This is only for other roots, e.g. a subset of the entries.
+    fn reverse_postorder_ranks(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     ) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
+        assert!(
+            !self.skip_visited_module_children && self.graph_idx_override.is_none(),
+            "reverse_postorder_ranks musn't be called on individual graphs"
+        );
         // Nodes are identified by their canonical node (i.e. never a `VisitedModule`), which is
         // the node the fixed point traversal expands.
         let canonical = |node: GraphNodeIndex| -> Result<GraphNodeIndex> {
@@ -1533,21 +1555,36 @@ impl ModuleGraphSnapshot {
                 .unwrap_or(node))
         };
 
-        let mut visited: FxHashSet<GraphNodeIndex> = FxHashSet::default();
-        let mut postorder: Vec<GraphNodeIndex> = Vec::new();
+        // Node indices of a `DiGraph` are dense, so a bitset per graph tracks the visited nodes.
+        let mut visited = self
+            .graphs
+            .iter()
+            .map(|g| FixedBitSet::with_capacity(g.graph.node_count()))
+            .collect::<Vec<_>>();
+        // Marks `node` as visited, returns whether it wasn't visited before.
+        let mut visit =
+            |node: GraphNodeIndex| !visited[node.graph_idx as usize].put(node.node_idx.index());
+
+        let mut postorder: Vec<GraphNodeIndex> = Vec::with_capacity(
+            self.graphs
+                .iter()
+                .map(|g| g.graph.node_count())
+                .sum::<usize>(),
+        );
+        let mut stack = Vec::new();
         for entry in entries {
             let entry = canonical(self.get_entry(entry)?)?;
-            if !visited.insert(entry) {
+            if !visit(entry) {
                 continue;
             }
-            let mut stack = vec![(
+            stack.push((
                 entry,
                 self.iter_graphs_neighbors_rev(entry, Direction::Outgoing, false, false),
-            )];
+            ));
             while let Some((node, children)) = stack.last_mut() {
                 if let Some((_, child)) = children.next() {
                     let child = canonical(child)?;
-                    if visited.insert(child) {
+                    if visit(child) {
                         stack.push((
                             child,
                             self.iter_graphs_neighbors_rev(
@@ -1566,11 +1603,38 @@ impl ModuleGraphSnapshot {
         }
 
         let count = postorder.len();
-        postorder
-            .into_iter()
-            .enumerate()
-            .map(|(i, node)| Ok((self.get_node(node)?.module(), count - 1 - i)))
-            .collect()
+        let mut ranks = FxHashMap::with_capacity_and_hasher(count, Default::default());
+        for (i, node) in postorder.into_iter().enumerate() {
+            ranks.insert(self.get_node(node)?.module(), count - 1 - i);
+        }
+        Ok(ranks)
+    }
+
+    /// A priority for [`Self::traverse_edges_fixed_point_with_priority`] that minimizes the number
+    /// of retraversals: the rank of every module reachable from the entries of the graph, i.e. the
+    /// entries of its chunk groups ([`Self::all_chunk_group_entry_modules`]), in the *reverse
+    /// postorder* of a depth-first search from them.
+    ///
+    /// Traced and unused references are ignored, like in the fixed point traversal. For every
+    /// reference outside of a cycle, the importing module has a lower rank than the imported
+    /// module. So when the graph has no cycles, visiting lower ranks first (e.g. using
+    /// [`std::cmp::Reverse`] as the priority, as the traversal visits high priorities first) visits
+    /// every module only after all of the modules importing it, i.e. exactly once. Modules in or
+    /// after a cycle can still be visited multiple times.
+    ///
+    /// They are computed on the first call and cached in this snapshot, so that all analyses of
+    /// the same graph that need exactly these ranks share one computation. As the snapshot is
+    /// immutable, the cached ranks always match the graph. They are computed only once, even with
+    /// concurrent callers (which wait for the first one). An error is cached as well and returned
+    /// to every caller.
+    pub fn entry_ranks(&self) -> Result<&FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
+        self.entry_ranks
+            .get_or_init(|| {
+                self.reverse_postorder_ranks(self.all_chunk_group_entry_modules())
+                    .map_err(SharedError::new)
+            })
+            .as_ref()
+            .map_err(|err| err.clone().into())
     }
 
     /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
@@ -1580,7 +1644,7 @@ impl ModuleGraphSnapshot {
     ///
     /// Nodes are (re)visited according to the returned priority of the node, prioritizing high
     /// values. This priority is intended to be used a heuristic to reduce the number of
-    /// retraversals. [`ModuleGraphSnapshot::reverse_postorder_ranks`] computes a priority that
+    /// retraversals. [`ModuleGraphSnapshot::entry_ranks`] computes a priority that
     /// avoids retraversals for all modules not in or after a cycle.
     ///
     /// * `entries` - The entry modules to start the traversal from
@@ -3424,6 +3488,171 @@ pub mod tests {
             assert_eq!(results.ranks_from_child_entry, expected);
             assert_eq!(results.ranks_from_all_entries, expected);
 
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_entry_ranks_cached() {
+        run_graph_test(
+            vec![rcstr!("a.js"), rcstr!("e.js")],
+            {
+                // A diamond (a -> b, c -> d) and a cycle (d -> a)
+                let mut deps = FxHashMap::default();
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("c.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("d.js"), vec![rcstr!("a.js")]);
+                deps.insert(rcstr!("e.js"), vec![rcstr!("c.js")]);
+                deps
+            },
+            |graph, _, _| {
+                let shared = graph.entry_ranks()?;
+                let expected =
+                    graph.reverse_postorder_ranks(graph.all_chunk_group_entry_modules())?;
+                assert_eq!(shared, &expected);
+                assert_eq!(shared.len(), 5);
+                // The second call returns the cached map
+                assert!(std::ptr::eq(shared, graph.entry_ranks()?));
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_entry_ranks_new_snapshot() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value]
+            struct Results {
+                old_len_before: usize,
+                old_len_after: usize,
+                old_unchanged: bool,
+                new_len: usize,
+                new_matches_fresh: bool,
+                new_contains_c: bool,
+                old_contains_c: bool,
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn new_snapshot_operation() -> Result<Vc<Results>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+
+                async fn graph_for(
+                    root: &FileSystemPath,
+                    deps: Vec<(&'static str, Vec<&'static str>)>,
+                ) -> Result<(ReadRef<ModuleGraph>, ResolvedVc<Box<dyn Module>>)> {
+                    let repo = TestRepo::new(root, deps);
+                    let module = |name| {
+                        Vc::upcast::<Box<dyn Module>>(MockModule::new(
+                            root.join(name).unwrap(),
+                            repo,
+                        ))
+                        .to_resolved()
+                    };
+                    let a = module("a.js").await?;
+                    let c = module("c.js").await?;
+                    let graph = SingleModuleGraph::new_with_entries(
+                        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                            modules: vec![a],
+                            heuristics: EntryHeuristics::default(),
+                        }])
+                        .resolved_cell(),
+                        false,
+                        false,
+                    );
+                    let graph = ModuleGraph::from_graphs(vec![graph], None)
+                        .connect()
+                        .await?;
+                    Ok((graph, c))
+                }
+
+                // The first graph: a -> b
+                let (old_graph, old_c_module) =
+                    graph_for(&root, vec![("a.js", vec!["b.js"])]).await?;
+                let old_ranks = old_graph.entry_ranks()?;
+                let old_len_before = old_ranks.len();
+
+                // The edited graph: a -> b -> c
+                let (new_graph, c_module) =
+                    graph_for(&root, vec![("a.js", vec!["b.js"]), ("b.js", vec!["c.js"])]).await?;
+                let new_ranks = new_graph.entry_ranks()?;
+                let fresh =
+                    new_graph.reverse_postorder_ranks(new_graph.all_chunk_group_entry_modules())?;
+
+                Ok(Results {
+                    old_len_before,
+                    old_len_after: old_graph.entry_ranks()?.len(),
+                    old_unchanged: std::ptr::eq(old_ranks, old_graph.entry_ranks()?),
+                    new_len: new_ranks.len(),
+                    new_matches_fresh: new_ranks == &fresh,
+                    new_contains_c: new_ranks.contains_key(&c_module),
+                    old_contains_c: old_ranks.contains_key(&old_c_module),
+                }
+                .cell())
+            }
+
+            let results = new_snapshot_operation().read_strongly_consistent().await?;
+            assert_eq!(results.old_len_before, 2);
+            assert_eq!(results.old_len_after, 2);
+            assert!(results.old_unchanged);
+            assert!(!results.old_contains_c);
+            assert_eq!(results.new_len, 3);
+            assert!(results.new_matches_fresh);
+            assert!(results.new_contains_c);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_layer_snapshot_panics() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn layer_panics_operation() -> Result<Vc<bool>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+                let repo = TestRepo::new(&root, [("a.js", vec!["b.js"])]);
+                let a = Vc::upcast::<Box<dyn Module>>(MockModule::new(
+                    root.join("a.js").unwrap(),
+                    repo,
+                ))
+                .to_resolved()
+                .await?;
+                let graph = SingleModuleGraph::new_with_entries(
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![a],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    false,
+                    false,
+                );
+                let layers = ModuleGraph::from_graphs(vec![graph], None)
+                    .connect()
+                    .iter_graphs()
+                    .await?;
+                let layer = layers[0].connect().await?;
+                let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let _ = layer.reverse_postorder_ranks([a]);
+                }))
+                .is_err();
+                Ok(Vc::cell(panicked))
+            }
+
+            assert!(*layer_panics_operation().read_strongly_consistent().await?);
             Ok(())
         })
         .await

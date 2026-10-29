@@ -18,7 +18,7 @@ struct ActiveIterator<T: Iterator<Item = Result<LookupEntry>>> {
 /// A heap node that keeps the hash inline alongside a boxed `ActiveIterator`. By hoisting the hash
 /// out of the Box we avoid a pointer chase on every comparison when the heap is re-ordered Only
 /// when hashes collide (extremely rare with u64) do we dereference the Box to compare keys.
-/// Note: we cannot use [Prehashed] because we need an non-trivial `Ord` implementation for the heap
+/// Note: we cannot use `Prehashed` because we need an non-trivial `Ord` implementation for the heap
 /// (see below)
 struct HeapNode<T: Iterator<Item = Result<LookupEntry>>> {
     /// Cached copy of the current entry's hash, kept in sync with `inner.entry.hash`.

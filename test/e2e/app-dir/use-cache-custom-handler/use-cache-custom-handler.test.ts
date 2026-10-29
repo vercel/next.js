@@ -102,7 +102,7 @@ describe('use-cache-custom-handler', () => {
 
     await retry(async () => {
       expect(next.cliOutput.slice(outputIndex)).toContain(
-        'ModernCustomCacheHandler::updateTags ["modern"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:modern"]'
       )
 
       const data = await browser.elementById('data').text()
@@ -148,10 +148,10 @@ describe('use-cache-custom-handler', () => {
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toInclude(
-        'ModernCustomCacheHandler::updateTags ["modern"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:modern"]'
       )
       expect(cliOutput).toInclude(
-        'ModernCustomCacheHandler::updateTags ["other"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:other"]'
       )
     })
   })

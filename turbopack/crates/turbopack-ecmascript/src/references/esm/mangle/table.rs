@@ -94,9 +94,9 @@ const fn reserved_in_table(len: u32) -> u64 {
 ///
 /// Precomputed rather than evaluated on the fly, because [`decode_js_identifier`] needs it for
 /// every name it decodes and the formula costs a `pow` and a multiply.
-/// [`capacity_for_len_matches_the_formula`] keeps the table honest. From `len == 11` the true value
-/// exceeds `u64::MAX` (`54 * 64^10` alone is ≈ 6.2e19 against `u64::MAX`'s ≈ 1.8e19), so it
-/// saturates there; no real export table comes anywhere near needing that many characters.
+/// The `capacity_for_len_matches_the_formula` test keeps the table honest. From `len == 11` the
+/// true value exceeds `u64::MAX` (`54 * 64^10` alone is ≈ 6.2e19 against `u64::MAX`'s ≈ 1.8e19), so
+/// it saturates there; no real export table comes anywhere near needing that many characters.
 fn capacity_for_len(len: u32) -> u64 {
     CAPACITY_FOR_LEN
         .get(len as usize)
