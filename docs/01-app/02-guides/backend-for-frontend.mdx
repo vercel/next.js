@@ -378,6 +378,226 @@ export async function POST(request) {
 }
 ```
 
+## Handling files
+
+Next.js doesn't store uploaded files for you. On serverless and multi-instance hosts each instance has its own temporary file system, see [Deployment environment](#deployment-environment), and `next start` only serves files that were in `public` when it started.
+
+To handle file uploads and serve dynamically generated files, use a dedicated storage service.
+
+Uploading and serving files usually requires checking that the user is allowed to access the resource, see [Authentication](/docs/app/guides/authentication) and [Access to protected resources](#access-to-protected-resources). The examples below use an `auth()` helper that returns the current session.
+
+### Upload directly to storage
+
+Uploading from the browser straight to your storage provider is the recommended approach, since the file never passes through Next.js:
+
+1. The client asks your app for an upload URL, for example through a Server Action.
+2. On the server, verify the user and create a short-lived, pre-authorized upload URL with your storage provider's SDK. Many object storage services call this a presigned or signed URL.
+3. The client sends the file directly to that URL with `fetch`.
+4. Optionally, the client tells your app the upload finished, so you can record it.
+
+Because the browser sends the file to a different origin, the storage service must allow the request with [CORS](https://developer.mozilla.org/docs/Web/HTTP/CORS): configure it to accept uploads from your app's origin, or the browser blocks them. Check your storage provider's documentation for how to create upload URLs and configure CORS.
+
+### Receive uploads in a Route Handler
+
+When a file must go through your server, stream [`request.body`](https://developer.mozilla.org/docs/Web/API/Request/body) to its destination as it arrives, instead of reading the whole body into memory with `request.formData()`. On the client, send the `File` as the request body, not `FormData`.
+
+```ts filename="app/api/upload/route.ts" switcher
+import { createWriteStream } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import type { ReadableStream } from 'node:stream/web'
+import { auth } from '@/lib/auth'
+import { createUpload } from '@/lib/uploads'
+
+export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!request.body) {
+    return Response.json({ error: 'Missing file' }, { status: 400 })
+  }
+
+  // Generate the name on the server instead of trusting the client
+  const id = crypto.randomUUID()
+  const filePath = path.join(process.cwd(), 'uploads', id)
+  try {
+    await pipeline(
+      Readable.fromWeb(request.body as ReadableStream),
+      createWriteStream(filePath)
+    )
+  } catch (error) {
+    // Remove the partial file if the upload was interrupted
+    await rm(filePath, { force: true })
+    throw error
+  }
+
+  // Record who owns the file, so it can be checked before serving it
+  await createUpload({ id, ownerId: session.user.id })
+
+  return Response.json({ id })
+}
+```
+
+```js filename="app/api/upload/route.js" switcher
+import { createWriteStream } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { auth } from '@/lib/auth'
+import { createUpload } from '@/lib/uploads'
+
+export async function POST(request) {
+  const session = await auth()
+  if (!session?.user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!request.body) {
+    return Response.json({ error: 'Missing file' }, { status: 400 })
+  }
+
+  // Generate the name on the server instead of trusting the client
+  const id = crypto.randomUUID()
+  const filePath = path.join(process.cwd(), 'uploads', id)
+  try {
+    await pipeline(Readable.fromWeb(request.body), createWriteStream(filePath))
+  } catch (error) {
+    // Remove the partial file if the upload was interrupted
+    await rm(filePath, { force: true })
+    throw error
+  }
+
+  // Record who owns the file, so it can be checked before serving it
+  await createUpload({ id, ownerId: session.user.id })
+
+  return Response.json({ id })
+}
+```
+
+This example writes to an existing `uploads` directory on the local file system, so it needs the Node.js runtime and a persistent disk. To keep files in a storage service, pipe the stream to its upload API instead. It also doesn't cap the upload size: reject requests above your limit, for example by counting the bytes as they arrive, so a client can't fill your disk.
+
+[Proxy](#proxy) buffers request bodies so that both Proxy and the route can read them, and cuts off bodies above its limit. If Proxy runs for this route, you might want to exclude the route from its `matcher`, keeping in mind that any checks Proxy performs, such as authentication, then need to happen in the Route Handler.
+
+### Server Actions for small files
+
+When a Server Action is used as a form `action`, it receives the form's [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData), and a file input appears in it as a [`File`](https://developer.mozilla.org/docs/Web/API/File). See [Forms](/docs/app/guides/forms) for how Server Actions handle forms. Parsing `FormData` holds the whole file in memory, and the request body is limited to 1MB by default, see [`serverActions.bodySizeLimit`](/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit) for how to raise and estimate it. For larger files, upload directly to storage or use a Route Handler.
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { auth } from '@/lib/auth'
+
+export async function uploadAvatar(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
+  const file = formData.get('avatar')
+  if (!(file instanceof File)) return
+  // Save `file` with your storage provider's SDK
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { auth } from '@/lib/auth'
+
+export async function uploadAvatar(formData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
+  const file = formData.get('avatar')
+  if (!(file instanceof File)) return
+  // Save `file` with your storage provider's SDK
+}
+```
+
+### Serve files
+
+Files in the `public` folder are served for you. Use a Route Handler for files that need an access check or are created after the build, such as user uploads. Verify that the user is allowed to access the file before sending it: the ownership check is what protects the file, not a hard-to-guess name. In this example, `getUpload` reads the record your app stored when the file was uploaded, including its owner, and the file is streamed instead of read into memory with `fs.readFile()`:
+
+```ts filename="app/api/files/[id]/route.ts" switcher
+import { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { auth } from '@/lib/auth'
+import { getUpload } from '@/lib/uploads'
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth()
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const { id } = await params
+  const upload = await getUpload(id)
+  // A 404 doesn't reveal whether a file the user can't access exists
+  if (!upload || upload.ownerId !== session.user.id) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', upload.id)
+  const stats = await stat(filePath)
+  const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
+
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stats.size.toString(),
+      'Content-Disposition': 'attachment',
+    },
+  })
+}
+```
+
+```js filename="app/api/files/[id]/route.js" switcher
+import { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { auth } from '@/lib/auth'
+import { getUpload } from '@/lib/uploads'
+
+export async function GET(request, { params }) {
+  const session = await auth()
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const { id } = await params
+  const upload = await getUpload(id)
+  // A 404 doesn't reveal whether a file the user can't access exists
+  if (!upload || upload.ownerId !== session.user.id) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', upload.id)
+  const stats = await stat(filePath)
+  const data = Readable.toWeb(createReadStream(filePath))
+
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stats.size.toString(),
+      'Content-Disposition': 'attachment',
+    },
+  })
+}
+```
+
+The [`Content-Disposition`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Disposition) header set to `attachment` tells the browser to download the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
+
 ## Manipulating data
 
 Route Handlers can transform, filter, and aggregate data from one or more sources. This keeps logic out of the frontend and avoids exposing internal systems.
@@ -785,6 +1005,8 @@ export function proxy(request) {
 }
 ```
 
+> **Good to know**: When Proxy runs for a request, Next.js buffers the request body in memory so that both Proxy and the route can read it. Bodies larger than [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) (10MB by default) are cut off without an error, so exclude routes that receive uploads with a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher), and perform any checks Proxy does for them, such as authentication, in the route itself.
+
 ## Security
 
 ### Working with headers
@@ -836,7 +1058,7 @@ Never trust incoming request data. Validate content type and size, and sanitize 
 
 Use timeouts to prevent abuse and protect server resources.
 
-Store user-generated static assets in dedicated services. When possible, upload them from the browser and store the returned URI in your database to reduce request size.
+Store user-generated static assets in dedicated services. When possible, upload them from the browser and store the returned URI in your database to reduce request size. See [Handling files](#handling-files).
 
 ### Access to protected resources
 
