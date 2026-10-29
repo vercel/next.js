@@ -22,6 +22,10 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { buildCustomRoute } from './filesystem'
 import { createTurbopackDevRouteSnapshot } from './dev-route-snapshot'
 import {
+  createMiddlewareCandidates,
+  reportMiddlewareDiagnostics,
+} from './dev-root-file-diagnostics'
+import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
@@ -42,6 +46,10 @@ export async function createTurbopackRoutePublisher(
   distDir: string
 ) {
   const { nextConfig, dir } = opts
+  const middlewareCandidates = createMiddlewareCandidates(
+    dir,
+    nextConfig.pageExtensions
+  )
   const typesDir = path.join(distDir, 'types')
   const validatorFilePath = path.join(typesDir, 'validator.ts')
   let sortedRoutes: string[] = []
@@ -343,7 +351,8 @@ export async function createTurbopackRoutePublisher(
         path.join(dir, nextConfig.typescript.tsconfigPath || 'tsconfig.json'),
         path.join(dir, 'jsconfig.json'),
       ]
-      const files = [...envFiles, ...configFiles]
+      const middlewareFiles = middlewareCandidates.map((file) => file.filePath)
+      const files = [...envFiles, ...configFiles, ...middlewareFiles]
       const watcher = new Watchpack({ aggregateTimeout: 5 })
       let pending = Promise.resolve()
       watcher.on(
@@ -353,6 +362,12 @@ export async function createTurbopackRoutePublisher(
             .then(() =>
               enqueue(async () => {
                 const changed = new Set([...changes, ...removals])
+                if (middlewareFiles.some((file) => changed.has(file))) {
+                  await reportMiddlewareDiagnostics(
+                    middlewareCandidates,
+                    nextConfig
+                  )
+                }
                 const envChanged = envFiles.some((file) => changed.has(file))
                 if (
                   !envChanged &&
@@ -427,7 +442,10 @@ export async function createTurbopackRoutePublisher(
         await pending
         await pendingPublication
       })
-      await enqueue(writeEnvTypes)
+      await enqueue(async () => {
+        await reportMiddlewareDiagnostics(middlewareCandidates, nextConfig)
+        await writeEnvTypes()
+      })
     },
   }
 }
