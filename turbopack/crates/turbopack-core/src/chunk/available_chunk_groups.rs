@@ -1,6 +1,6 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use turbo_bitset::Bitset;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::module_graph::{
@@ -56,26 +56,6 @@ impl AvailableChunkGroups {
             chunk_groups,
         }
         .cell()
-    }
-
-    /// Creates the set of `chunk_groups`, which must not be empty.
-    ///
-    /// Equal sets of the same graph share one cell, no matter how they were computed. Narrowing an
-    /// availability down to the chunk groups that matter for a chunk group goes through here, so
-    /// availabilities that only differed in irrelevant chunk groups become identical task inputs.
-    #[turbo_tasks::function]
-    pub fn from_chunk_groups(
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunk_groups: Bitset,
-    ) -> Result<Vc<Self>> {
-        if chunk_groups.is_zero() {
-            bail!("AvailableChunkGroups must not be empty");
-        }
-        Ok(Self {
-            module_graph,
-            chunk_groups,
-        }
-        .cell())
     }
 
     /// Adds `chunk_group` to the set. Adding a chunk group that is already available is a no-op:
@@ -143,49 +123,42 @@ impl AvailableChunkGroups {
     /// only meaningful within one [`ModuleGraph`]'s `ChunkGroupInfo` and denotes an unrelated chunk
     /// group in any other graph. Hashing indices would let two different availabilities, coming
     /// from two graphs, claim the same output path with different content.
-    ///
-    /// The identity hashes come from [`ChunkGroupInfo::chunk_group_ident_hashes`], computed once
-    /// per graph, so this reads a single cell and does no string work, however many chunk
-    /// groups are available.
-    ///
-    /// [`ChunkGroupInfo::chunk_group_ident_hashes`]:
-    /// crate::module_graph::chunk_group_info::ChunkGroupInfo::chunk_group_ident_hashes
     #[turbo_tasks::function]
     pub async fn hash(&self) -> Result<Vc<u64>> {
-        let ident_hashes = self
-            .module_graph
-            .chunk_group_info()
-            .chunk_group_ident_hashes()
-            .await?;
+        let chunk_group_info = self.module_graph.chunk_group_info().await?;
+        let keys = &chunk_group_info.chunk_group_keys;
 
-        let hashes = self
+        let idents = self
             .chunk_groups
             .iter()
-            .map(|id| {
-                ident_hashes.get(id as usize).copied().with_context(|| {
+            .map(async |id| {
+                let key = keys.get_index(id as usize).with_context(|| {
                     format!(
                         "available chunk group {id} is not a chunk group of the module graph it \
                          belongs to"
                     )
-                })
+                })?;
+                key.ident_str(keys).await
             })
-            .collect::<Result<Vec<_>>>()?;
+            .try_join()
+            .await?;
 
-        Ok(Vc::cell(hash_chunk_group_ident_hashes(hashes)))
+        Ok(Vc::cell(hash_chunk_group_idents(idents)))
     }
 }
 
-/// Hashes the identity hashes of the available chunk groups.
+/// Hashes the identities of the available chunk groups.
 ///
-/// The hashes are sorted first: chunk groups are iterated in index order, which differs between
-/// graphs, so the set has to be put into an order that only depends on the identities themselves.
-fn hash_chunk_group_ident_hashes(mut hashes: Vec<u64>) -> u64 {
-    hashes.sort_unstable();
+/// The identities are sorted first: chunk groups are iterated in index order, which differs
+/// between graphs, so the set has to be put into an order that only depends on the identities
+/// themselves.
+fn hash_chunk_group_idents(mut idents: Vec<String>) -> u64 {
+    idents.sort_unstable();
 
     let mut hasher = Xxh3Hash64Hasher::new();
-    hasher.write_value(hashes.len());
-    for hash in hashes {
-        hasher.write_value(hash);
+    hasher.write_value(idents.len());
+    for ident in &idents {
+        hasher.write_value(ident);
     }
     hasher.finish()
 }
@@ -221,8 +194,8 @@ mod tests {
     use turbo_tasks::FxIndexSet;
 
     use crate::{
-        chunk::available_chunk_groups::{hash_chunk_group_ident_hashes, translate_chunk_group},
-        module_graph::chunk_group_info::{ChunkGroupId, ChunkGroupKey, chunk_group_ident_hash},
+        chunk::available_chunk_groups::{hash_chunk_group_idents, translate_chunk_group},
+        module_graph::chunk_group_info::{ChunkGroupId, ChunkGroupKey},
     };
 
     fn isolated_merged(parent: usize, merge_tag: &str) -> ChunkGroupKey {
@@ -234,19 +207,19 @@ mod tests {
 
     /// The hash `AvailableChunkGroups::hash` produces for the chunk groups `ids` of `keys`.
     ///
-    /// Hashes the keys the way `ChunkGroupInfo::chunk_group_ident_hashes` does. Every key here is
-    /// module-free, so rendering resolves no module idents and needs no turbo-tasks context.
+    /// Renders the keys the way `hash` does. Every key here is module-free, so rendering resolves
+    /// no module idents and needs no turbo-tasks context.
     async fn hash_of(keys: &FxIndexSet<ChunkGroupKey>, ids: &[u32]) -> u64 {
-        let mut hashes = Vec::new();
+        let mut idents = Vec::new();
         for &id in ids {
-            hashes.push(chunk_group_ident_hash(
-                &keys[id as usize]
+            idents.push(
+                keys[id as usize]
                     .ident_str(keys)
                     .await
                     .expect("rendering a chunk group without modules cannot fail"),
-            ));
+            );
         }
-        hash_chunk_group_ident_hashes(hashes)
+        hash_chunk_group_idents(idents)
     }
 
     #[test]
