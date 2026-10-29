@@ -78,10 +78,10 @@ overrides:
   '@types/react-dom': 19.2.4
   '@types/retry': 0.12.0
   jest-snapshot: 30.0.0-alpha.6
-  react: 'npm:react@19.3.0-canary-dc9aed36-20261027'
-  react-dom: 'npm:react-dom@19.3.0-canary-dc9aed36-20261027'
-  react-is: 'npm:react-is@19.3.0-canary-dc9aed36-20261027'
-  scheduler: 'npm:scheduler@0.28.0-canary-dc9aed36-20261027'
+  react: 'npm:react@19.3.0-canary-c5ec5c6d-20261029'
+  react-dom: 'npm:react-dom@19.3.0-canary-c5ec5c6d-20261029'
+  react-is: 'npm:react-is@19.3.0-canary-c5ec5c6d-20261029'
+  scheduler: 'npm:scheduler@0.28.0-canary-c5ec5c6d-20261029'
 
 packageExtensions:
   # alex requires supports-color from its CLI but does not declare it. v9 is ESM-only.
