@@ -186,9 +186,10 @@ test('the invoice filter reads the URL', async ({ request }) => {
 
 test('workspace navigation is instant once signed in', async ({ page }) => {
   await page.goto(baseURL + '/login/as?user=ada')
-  await expect(page.getByTestId('greeting')).toHaveText(
-    'Welcome back, Ada Lovelace.'
-  )
+  // A loading fallback may reuse the test id, so match only what is shown.
+  await expect(
+    page.getByTestId('greeting').filter({ visible: true })
+  ).toHaveText('Welcome back, Ada Lovelace.')
 
   await instant(page, async () => {
     await page.getByRole('link', { name: 'Invoices', exact: true }).click()
@@ -200,9 +201,9 @@ test('workspace navigation is instant once signed in', async ({ page }) => {
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   })
-  await expect(page.getByTestId('settings-team')).toHaveText(
-    'Analytical Engines'
-  )
+  await expect(
+    page.getByTestId('settings-team').filter({ visible: true })
+  ).toHaveText('Analytical Engines')
 
   await page.goto(baseURL + '/')
   await instant(page, async () => {
