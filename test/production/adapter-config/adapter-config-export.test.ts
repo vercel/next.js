@@ -20,6 +20,8 @@ describe('adapter-config export', () => {
       'app/preferred-region/route.ts',
       'app/isr-route/route.ts',
       'app/isr-route/[slug]/route.ts',
+      'app/revalidating/sitemap.ts',
+      'app/tagged/sitemap.ts',
       'app/edge-app/page.tsx',
       'pages/api/edge-pages.ts',
       'pages/api/node-pages.ts',
