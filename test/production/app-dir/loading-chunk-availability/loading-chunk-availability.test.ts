@@ -10,9 +10,10 @@ import { SHARED_MARKER } from './app/segment/shared-module'
 // are chunked as a separate chunk group. Modules of the server components that
 // are rendered whenever the following ones are (parent layouts, and the
 // `loading.tsx` and `template.tsx` of a segment) are treated as already
-// available when chunking the following ones, so a module shared by
+// available when chunking the following ones, so the code of a module shared by
 // `loading.tsx` and `page.tsx` is emitted into the chunks of `loading.tsx`
-// only, and the page's chunk list includes those chunks.
+// only, and the page's chunk list includes those chunks. Styles of
+// `loading.tsx` are not made available that way.
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'loading-chunk-availability',
   () => {
@@ -28,8 +29,11 @@ import { SHARED_MARKER } from './app/segment/shared-module'
     type ManifestChunk = string | [string, ...unknown[]]
 
     /** The chunk URLs of the client references whose module path contains `file`. */
-    function clientReferenceChunks(file: string): string[] {
-      const manifest = getClientReferenceManifest(next, '/segment/page')
+    function clientReferenceChunks(
+      file: string,
+      page = '/segment/page'
+    ): string[] {
+      const manifest = getClientReferenceManifest(next, page)
       const chunks = new Set<string>()
       for (const [key, node] of Object.entries(manifest.clientModules)) {
         if (!key.includes(file)) continue
@@ -113,6 +117,105 @@ import { SHARED_MARKER } from './app/segment/shared-module'
       expect(await chunksContaining(pageChunks, SHARED_MARKER)).toHaveLength(1)
       expect(await chunksContaining(pageChunks, NOT_FOUND_MARKER)).toEqual([])
       expect(await chunksContaining(pageChunks, ERROR_MARKER)).toEqual([])
+    })
+
+    // The styles of `loading.tsx` are rendered inside the Suspense fallback, so
+    // they only apply while the fallback is shown.
+    describe('CSS', () => {
+      const LOADING_ONLY_CSS_MARKER = 'loading-only-marker-3f9a'
+
+      /** The CSS files the manifest of `page` lists for the server component `entry`. */
+      function entryCssFiles(page: string, entry: string): string[] {
+        const manifest = getClientReferenceManifest(next, page)
+        const files = Object.entries(manifest.entryCSSFiles).find(([key]) =>
+          key.endsWith(entry)
+        )?.[1] as { path: string }[] | undefined
+        expect(files).toBeDefined()
+        return files!.map(({ path }) => `/_next/${path}`)
+      }
+
+      async function filesContaining(
+        urls: string[],
+        marker: string
+      ): Promise<string[]> {
+        const matching: string[] = []
+        for (const url of urls) {
+          const res = await next.fetch(url)
+          expect(res.status).toBe(200)
+          if ((await res.text()).includes(marker)) {
+            matching.push(url)
+          }
+        }
+        return matching
+      }
+
+      it("includes loading.tsx's chunks in the page's chunk list when loading.tsx has styles", () => {
+        const loadingChunks = clientReferenceChunks(
+          'app/css/css-skeleton.tsx',
+          '/css/page'
+        )
+        const pageChunks = clientReferenceChunks(
+          'app/css/css-content.tsx',
+          '/css/page'
+        )
+
+        expect(pageChunks).toEqual(expect.arrayContaining(loadingChunks))
+      })
+
+      it("does not list loading.tsx's CSS for the page", async () => {
+        // The marker does exist in the build, so its absence from the page's
+        // CSS files below is meaningful.
+        expect(
+          await filesContaining(
+            entryCssFiles('/css/page', 'app/css/loading'),
+            LOADING_ONLY_CSS_MARKER
+          )
+        ).toHaveLength(1)
+
+        expect(
+          await filesContaining(
+            entryCssFiles('/css/page', 'app/css/page'),
+            LOADING_ONLY_CSS_MARKER
+          )
+        ).toEqual([])
+      })
+
+      it("does not link or apply loading.tsx's CSS when the fallback is not shown", async () => {
+        const $ = await next.render$('/loading-css')
+        expect($('#loading-css-content').text()).toBe('page')
+        expect($('#loading-css-skeleton')).toHaveLength(0)
+        const hrefs = $('link[rel="stylesheet"]')
+          .toArray()
+          .map((link) => $(link).attr('href')!)
+        expect(await filesContaining(hrefs, LOADING_ONLY_CSS_MARKER)).toEqual(
+          []
+        )
+
+        const browser = await next.browser('/loading-css')
+        await browser.waitForElementByCss('#loading-css-content')
+        expect(
+          await browser.eval(`getComputedStyle(document.body).backgroundColor`)
+        ).toBe('rgba(0, 0, 0, 0)')
+      })
+
+      it('applies a CSS module that loading.tsx and page.tsx both import', async () => {
+        const browser = await next.browser('/css')
+        expect(
+          await browser.eval(
+            `getComputedStyle(document.querySelector('#css-content')).color`
+          )
+        ).toBe('rgb(7, 8, 9)')
+      })
+
+      it('applies a CSS module that loading.tsx imports and the page imports dynamically', async () => {
+        const browser = await next.browser('/lazy-css')
+        await browser.waitForElementByCss('#lazy-panel')
+        expect(
+          await browser.eval(
+            `getComputedStyle(document.querySelector('#lazy-panel')).color`
+          )
+        ).toBe('rgb(10, 20, 30)')
+      })
     })
   }
 )

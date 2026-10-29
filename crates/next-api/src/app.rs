@@ -8,9 +8,10 @@ use next_core::{
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
-        get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
-        is_segment_wrapper, metadata::route::get_app_metadata_route_entry,
+        AppEntry, AppPage, FollowingAvailability, following_availability,
+        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
+        get_app_route_entry, get_client_references_chunks_for_hmr,
+        metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -960,11 +961,14 @@ impl AppProject {
                             should_read_binding_usage,
                         );
                         graphs.push(graph);
-                        visited_modules = if is_segment_wrapper(&*module.server_path().await?) {
-                            // Only propagate the visited_modules of parent layout(s) and of the
-                            // loading.js and template.js of a segment, which are rendered
-                            // whenever the following server components are. Not across siblings
-                            // such as error.js and page.js.
+                        visited_modules = if following_availability(&*module.server_path().await?)
+                            == FollowingAvailability::CodeAndStyles
+                        {
+                            // Only propagate the visited_modules of parent layout(s) and templates,
+                            // whose code and styles the following server components can rely on.
+                            // Not across siblings such as loading.js and page.js: a page may
+                            // re-chunk the styles of modules it shares with loading.js, so its
+                            // graph has to contain them.
                             VisitedModules::concatenate(visited_modules, graph)
                         } else {
                             // Prevents graph index from getting out of sync.
