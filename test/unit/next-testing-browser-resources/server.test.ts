@@ -5959,3 +5959,46 @@ it.each([
     actualLifetimePreserved: true,
   })
 })
+
+it.each([
+  'wire',
+  'descriptors',
+  'default',
+  'errors',
+  'receiver',
+  'legacy',
+  'late',
+])('consumes actual serialized drag targets and delegation: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-drop-target.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    actualDualTargetConsumer: true,
+    descriptorAndReceiverOrder: true,
+    legacyAndLifetimePreserved: true,
+  })
+})
+it.each(['success', 'native-error', 'invalid-target', 'legacy', 'cancel'])(
+  'retains owned native drag execution and cleanup: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'client-serialized-drag.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/execute'),
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toMatchObject({
+      mode,
+      actualNativeOptionsPreserved: true,
+      legacyAndNoUnusedLocatorDescription: true,
+      originalErrorIdentityRetained: true,
+      cleanupJoined: true,
+    })
+  }
+)

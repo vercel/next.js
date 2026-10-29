@@ -344,7 +344,8 @@ async function dispatchBrowserCommandResult(
     method === 'hover' ||
     method === 'clear' ||
     method === 'fill' ||
-    method === 'selectOptions'
+    method === 'selectOptions' ||
+    method === 'dragAndDrop'
       ? method
       : undefined
   if (serializedTarget && serializedMethod === undefined)
@@ -623,6 +624,13 @@ class ElementLocator {
     })
   }
   dropTo(target: ElementLocator, options?: DragOptions): Promise<void> {
+    if (serializedClickTargets)
+      return this.action(
+        '__vitest_dragAndDrop',
+        [target.toJSON()],
+        options === undefined ? {} : options,
+        this.toJSON()
+      )
     return createAction(
       this,
       async () => {
@@ -791,13 +799,14 @@ class ElementLocator {
     return createQueryLocator(this, 'TestId', args)
   }
   private action(
-    method: '__vitest_hover',
+    method: '__vitest_hover' | '__vitest_dragAndDrop',
     args: unknown[],
-    options?: HoverOptions,
+    options?: HoverOptions | DragOptions,
     locator: SerializedLocator = this.serialize()
   ): Promise<void> {
-    if (method !== '__vitest_hover')
+    if (method !== '__vitest_hover' && method !== '__vitest_dragAndDrop')
       throw new Error('Unsupported Browser locator action.')
+    const nativeMethod = method === '__vitest_hover' ? 'hover' : 'dragAndDrop'
     const errorSource = (this as ElementLocator & { _errorSource?: Error })
       ._errorSource
     const work: LocatorWork<void> = async (
@@ -808,7 +817,7 @@ class ElementLocator {
     ) => {
       await dispatchBrowserCommand(
         undefined,
-        'hover',
+        nativeMethod,
         actionOptions === undefined ? values : [...values, actionOptions],
         undefined,
         undefined,

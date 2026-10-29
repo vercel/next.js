@@ -3,6 +3,7 @@ import type { Frame, Locator, Page } from 'playwright'
 export type ClientCommandTarget =
   | { kind: 'element'; id: string; deferred: boolean }
   | { kind: 'locator'; selector: string; description: string }
+  | { kind: 'drag'; sourceSelector: string; targetSelector: string }
 
 /** Decode target forms at the existing host command boundary. */
 export function resolveClientCommandTarget(
@@ -19,6 +20,28 @@ export function resolveClientCommandTarget(
   const hasElement = 'element' in value
   if (hasLocator === hasElement) return invalid()
   if (hasLocator) {
+    if (value.method === 'dragAndDrop') {
+      const source = value.locator as Record<string, unknown> | null
+      const target = value.args[0] as Record<string, unknown> | null
+      if (
+        value.args.length < 1 ||
+        value.args.length > 2 ||
+        !source ||
+        typeof source !== 'object' ||
+        Array.isArray(source) ||
+        !target ||
+        typeof target !== 'object' ||
+        Array.isArray(target) ||
+        typeof source.selector !== 'string' ||
+        typeof target.selector !== 'string'
+      )
+        return invalid()
+      return {
+        kind: 'drag',
+        sourceSelector: source.selector,
+        targetSelector: target.selector,
+      }
+    }
     if (
       (value.method !== 'click' &&
         value.method !== 'dblClick' &&
@@ -69,7 +92,7 @@ export function resolveClientCommandTarget(
 /** Use the actual serialized selector and provider action description. */
 export function getClientCommandLocator(
   frame: Page | Frame,
-  target: ClientCommandTarget,
+  target: Exclude<ClientCommandTarget, { kind: 'drag' }>,
   locatorEngine: string
 ): Locator {
   const locator = frame.locator(

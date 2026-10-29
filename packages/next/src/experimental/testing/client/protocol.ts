@@ -100,9 +100,16 @@ interface ClientSerializedLocatorCommand {
   element?: never
   args: unknown[]
 }
+interface ClientSerializedDragCommand {
+  method: 'dragAndDrop'
+  locator: Pick<ClientSerializedLocator, 'selector'>
+  element?: never
+  args: unknown[]
+}
 export type ClientBrowserCommand =
   | ClientElementBrowserCommand
   | ClientSerializedLocatorCommand
+  | ClientSerializedDragCommand
 /** Captured from the actual private attempt when its command starts. */
 export interface ClientCommandAttemptOrigin {
   readonly fileId: string

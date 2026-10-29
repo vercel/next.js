@@ -346,6 +346,17 @@ export async function executeClient(
         }
         const actionPage = page
         const actionFrame = testFrame ?? actionPage
+        if (commandTarget.kind === 'drag') {
+          const frame = testFrame ?? actionPage.mainFrame()
+          await runAction(() =>
+            frame.dragAndDrop(
+              commandTarget.sourceSelector,
+              commandTarget.targetSelector,
+              command.args[1] as Parameters<typeof frame.dragAndDrop>[2]
+            )
+          )
+          return null
+        }
         const locator = getClientCommandLocator(
           actionFrame,
           commandTarget,
