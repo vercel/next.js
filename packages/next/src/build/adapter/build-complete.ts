@@ -1781,10 +1781,6 @@ export async function handleBuildComplete({
       }
 
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
-        if (isStaticMetadataFile(dynamicRoute)) {
-          continue
-        }
-
         const {
           fallback,
           fallbackExpire,
