@@ -11,6 +11,11 @@ import {
 import fetch from 'node-fetch'
 import { Span } from 'next/dist/trace'
 
+// The Node.js version deployments are pinned to via `engines.node`. Must use
+// the exact `N.x` form: a range like `>=22.0.0` maps to the newest available
+// major. Matches NODE_LTS_VERSION in build_and_test.yml.
+const DEPLOY_TEST_NODE_VERSION = '22.x'
+
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
@@ -21,11 +26,34 @@ export class NextDeployInstance extends NextInstance {
     return this._buildId
   }
 
+  // `engines.node` overrides the project-level Node.js version on Vercel, so
+  // it is the only place the pin can live: the weekly project reset recreates
+  // the projects, and the create-project API does not accept `nodeVersion`.
+  private async pinNodeVersion(): Promise<void> {
+    const packageJsonPath = path.join(this.testDir, 'package.json')
+    const packageJson: {
+      engines?: Record<string, string>
+    } = await fs.readJSON(packageJsonPath)
+    packageJson.engines = {
+      ...packageJson.engines,
+      // A fixture's own `engines.node` wins so it can deliberately deploy
+      // with a different version.
+      node: packageJson.engines?.node ?? DEPLOY_TEST_NODE_VERSION,
+    }
+    await fs.writeFile(
+      packageJsonPath,
+      JSON.stringify(packageJson, null, 2) + '\n'
+    )
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
     await this.writeMirrorNpmrcIfNecessary()
+
+    await this.pinNodeVersion()
+
     // ensure Vercel CLI is installed
     try {
       const res = await execa('vercel', ['--version'])
