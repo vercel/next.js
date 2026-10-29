@@ -20,8 +20,8 @@ let flush: (() => void | Promise<void>) | undefined
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // An application-owned module that initializes the provider/exporter.
-    const telemetry = await import('./telemetry.node')
+    // Your application-owned telemetry-node.ts module initializes the SDK.
+    const telemetry = await import('./telemetry-node')
     await telemetry.start()
     flush = () => telemetry.forceFlush()
   }
