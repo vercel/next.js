@@ -261,11 +261,17 @@ async function createCachedPrerenderResponse(
   await handleUnlock()
 
   // We return a new Response to the caller.
-  return new Response(bodyBuffer, {
+  const response = new Response(bodyBuffer, {
     headers: res.headers,
     status: res.status,
     statusText: res.statusText,
   })
+
+  Object.defineProperty(response, 'url', {
+    value: res.url,
+  })
+
+  return response
 }
 
 async function createCachedDynamicResponse(
@@ -1305,12 +1311,19 @@ export function createPatchedFetcher(
               headers: Headers
               status: number
               statusText: string
+              url: string
             } = await pendingRevalidate
-            return new Response(revalidatedResult.body, {
+            const response = new Response(revalidatedResult.body, {
               headers: revalidatedResult.headers,
               status: revalidatedResult.status,
               statusText: revalidatedResult.statusText,
             })
+
+            Object.defineProperty(response, 'url', {
+              value: revalidatedResult.url,
+            })
+
+            return response
           }
 
           // We used to just resolve the Response and clone it however for
@@ -1336,6 +1349,7 @@ export function createPatchedFetcher(
                 headers: response.headers,
                 status: response.status,
                 statusText: response.statusText,
+                url: response.url,
               }
             })
             .finally(() => {
