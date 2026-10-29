@@ -25,7 +25,8 @@ describe('documented route definition conflicts', () => {
       )
 
       // The public constraint does not prescribe exact compiler wording.
-      const conflict = /conflict[^\n]*(?:page|route)/i
+      const conflict =
+        /conflict[^\n]*(?:page|route)|two parallel pages that resolve to the same path/i
       if (isNextDev) {
         await retry(async () => {
           const response = await next.fetch('/')

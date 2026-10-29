@@ -208,7 +208,13 @@ describe('documented HTTP contracts', () => {
     const response = await next.fetch('/contract.txt')
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('Public routing contract asset.\n')
-    expect(response.headers.get('cache-control')).toBe('public, max-age=0')
+    // A deployment may additionally require caches to revalidate stale assets.
+    const directives = response.headers
+      .get('cache-control')!
+      .split(/\s*,\s*/)
+      .filter((directive) => directive !== 'must-revalidate')
+      .sort()
+    expect(directives).toEqual(['max-age=0', 'public'])
   })
 
   // Development bundles are intentionally mutable.

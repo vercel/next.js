@@ -59,6 +59,7 @@ describe('documented remote image source admission', () => {
       'next.config.ts',
       `export default {
         cacheComponents: false,
+        experimental: { cachedNavigations: false },
         images: {
           qualities: [75],
           dangerouslyAllowLocalIP: true,

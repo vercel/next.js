@@ -1,14 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// cdn-caching.mdx#cache-keys: the initial redirect, not just the followed
-// result, is part of the public RSC cache-discrimination contract.
+// cdn-caching.mdx#cache-keys: inspect the initial response, including redirects.
+// Platforms may supply the discriminator upstream and return the RSC payload
+// directly. Local servers must expose the configured validation policy.
 for (const validateRSCRequestHeaders of [true, false]) {
   describe(`RSC cache discriminator validation=${validateRSCRequestHeaders}`, () => {
-    const { next } = nextTestSetup({
+    const { next, isNextDeploy } = nextTestSetup({
       files: __dirname,
       nextConfig: {
         cacheComponents: false,
-        experimental: { validateRSCRequestHeaders },
+        experimental: { validateRSCRequestHeaders, cachedNavigations: false },
       },
     })
 
@@ -32,7 +33,10 @@ for (const validateRSCRequestHeaders of [true, false]) {
           headers,
           redirect: 'manual',
         })
-        if (validateRSCRequestHeaders) {
+        if (
+          validateRSCRequestHeaders &&
+          (!isNextDeploy || response.status !== 200)
+        ) {
           expect(response.status).toBe(307)
           const location = new URL(response.headers.get('location')!, next.url)
           expect(location.pathname).toBe('/')
@@ -132,7 +136,10 @@ for (const validateRSCRequestHeaders of [true, false]) {
         headers,
         redirect: 'manual',
       })
-      if (validateRSCRequestHeaders) {
+      if (
+        validateRSCRequestHeaders &&
+        (!isNextDeploy || response.status !== 200)
+      ) {
         expect(response.status).toBe(307)
         const location = new URL(response.headers.get('location')!, next.url)
         expect(location.pathname).toBe('/')

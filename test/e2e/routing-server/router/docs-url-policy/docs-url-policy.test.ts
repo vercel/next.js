@@ -6,7 +6,11 @@ for (const trailingSlash of [false, true]) {
   describe(`documented trailing slash policy=${trailingSlash}`, () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      nextConfig: { cacheComponents: false, trailingSlash },
+      nextConfig: {
+        cacheComponents: false,
+        experimental: { cachedNavigations: false },
+        trailingSlash,
+      },
     })
 
     for (const path of ['/about', '/folder.v1/about']) {
@@ -56,6 +60,7 @@ for (const trailingSlash of [false, true]) {
       files: __dirname,
       nextConfig: {
         cacheComponents: false,
+        experimental: { cachedNavigations: false },
         trailingSlash,
         skipTrailingSlashRedirect: true,
       },

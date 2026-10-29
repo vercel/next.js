@@ -6,7 +6,7 @@ Run the local production and development suite with:
 pnpm test-routing
 ```
 
-The command runs production first, then development, using the existing Next.js parallel test scheduler. Up to four independent suites run concurrently; each suite's tests remain sequential. The scheduler shares a dependency starter installation and browser server while each application keeps its own fixture directory, listener, build output, and browser context.
+The command runs production first, then development, using the existing Next.js parallel test scheduler. Up to four independent suites run concurrently; each suite's tests stay sequential. The scheduler shares a dependency starter installation and browser server while each application keeps its own fixture directory, listener, build output, and browser context.
 
 The default includes the whole-file suites listed in [suites.mjs](./suites.mjs) and the focused `routingTests` selections in [contracts.json](./contracts.json). Existing fixtures stay in their original feature directories; category comments in the index explain the behaviors they cover. Broad companion suites run only their selected routing cases: metadata endpoint delivery does not also run title/description tests, for example, and Server Action dispatch does not also test action compilation. `--full` adds the original broader feature regressions. Both profiles retain all 44 documentation capability families; the full profile adds regression depth rather than being required to include a capability family.
 
@@ -14,7 +14,7 @@ Tests run once per applicable mode, regardless of how many contracts reference t
 
 Bootstrap the repository and build the local JavaScript packages before running tests. Test-only edits need no watch build or rebuild when the framework output is current. The isolated harness installs fixture dependencies, starts local listeners, and uses the existing browser driver.
 
-Use Node 24.22.1 LTS, verified with both Preview Mode and the pnpm symlink/realpath-sensitive fixtures. Node 20.20.2 intermittently loads duplicate React modules under different paths, producing invalid-hook errors or missing transitive imports in development; use a runtime containing the [realpath fix](https://github.com/nodejs/node/pull/65113). Node 26.12.1 fixes that issue but removes `buffer.SlowBuffer`, which the bundled Preview JWT dependency still requires. Preview assertions remain enabled; see [compatibility-notes.md](./compatibility-notes.md) for the runtime evidence.
+Use Node 24.22.1 LTS, verified with both Preview Mode and the pnpm symlink/realpath-sensitive fixtures. Node 20.20.2 intermittently loads duplicate React modules under different paths, producing invalid-hook errors or missing transitive imports in development; use a runtime containing the [realpath fix](https://github.com/nodejs/node/pull/65113). Node 26.12.1 fixes that issue but removes `buffer.SlowBuffer`, which the bundled Preview JWT dependency still requires. Preview assertions stay enabled; see [compatibility-notes.md](./compatibility-notes.md) for the runtime evidence.
 
 ## Focused runs
 
@@ -86,7 +86,7 @@ Turbopack; content-hash tests retain their existing production Turbo scope.
 The F fixture independently launches supported backends inside isolated
 subprocesses, so its outer runner bundler is not evidence of selection.
 
-A selected but gated assertion is a skip. The scheduler rejects filters that
+A selected but gated assertion is a skip. The scheduler disallows filters that
 match no registered assertion. `--mode=all` omits an inapplicable mode;
 an explicitly requested mode with no matches fails. A selection with no
 applicable tests across either mode also fails, including `--list` and `--dry`.
@@ -105,7 +105,7 @@ nor passing public contracts prove the proposed internal refactors are covered.
 
 Each subdirectory is an independent real fixture. New fixtures live here; existing routing-focused fixtures stay in their original directories, such as `test/e2e/basepath` and `test/e2e/app-dir/parallel-routes-and-interception`. The commented [suite index](./suites.mjs) groups both by HTTP and Router behavior without moving files or changing their existing CI references. Keep the existing routing build-manifest checks: they are useful build companions even though request/browser assertions supply the public runtime contract.
 
-Broader App/Pages/Actions/image/cache suites remain in their feature directories. The manifest distinguishes focused routing assertions (`routingTests`) from the broader regression references (`tests`). A focused reference can select an entire routing-specific file, or supply a `testNamePattern` for the relevant cases in a broader file. Multiple selections of the same file are combined and executed once. This reuses assertions without including unrelated feature tests in the regular development loop. The scheduler checks selectors against Jest's registered assertions and fails if a selector matches no test names. Registered but mode-gated assertions remain visible as skips.
+Broader App/Pages/Actions/image/cache suites stay in their feature directories. The manifest distinguishes focused routing assertions (`routingTests`) from the broader regression references (`tests`). A focused reference can select an entire routing-specific file, or supply a `testNamePattern` for the relevant cases in a broader file. Multiple selections of the same file are combined and executed once. This reuses assertions without including unrelated feature tests in the regular development loop. The scheduler checks selectors against Jest's registered assertions and fails if a selector matches no test names. Registered but mode-gated assertions stay visible as skips.
 
 `--full` runs whole companion files without these case filters. `--core` deliberately excludes all companions and therefore is a narrower gate; it cannot be combined with `--full`.
 
@@ -115,11 +115,11 @@ The HTTP–Router boundary is already exercised by public HTTP/browser requests.
 
 ## Documentation contract
 
-[contracts.json](./contracts.json) records the documented behavior, applicable scope, canonical documentation files and existing/new e2e files for each capability family. Each family must have focused routing references as well as full regression references. It is the case-selection index, not a generated code-coverage percentage. The runner rejects missing IDs, missing references and invalid case filters, so a renamed companion cannot silently fall out of the gate.
+[contracts.json](./contracts.json) records the documented behavior, applicable scope, canonical documentation files and existing/new e2e files for each capability family. Each family must have focused routing references as well as full regression references. It is the case-selection index, not a generated code-coverage percentage. The runner disallows missing IDs, missing references and invalid case filters, so a renamed companion cannot silently fall out of the gate.
 
 The documentation defines the expected public result. An existing implementation, fixture title or passing status is not a substitute for the documentation. Preserve a real failing documented assertion when it finds a framework discrepancy; do not add a skip or reverse an expectation simply to make the gate green. Record the discrepancy and fix the implementation or clarify the public contract separately.
 
-Observed reference-server discrepancies are recorded in [compatibility-notes.md](./compatibility-notes.md). Their assertions remain active; a listed discrepancy is not a passing result.
+Observed reference-server discrepancies are recorded in [compatibility-notes.md](./compatibility-notes.md). Their assertions stay active; a listed discrepancy is not a passing result.
 
 | ID  | Capability family                                  |
 | --- | -------------------------------------------------- |
@@ -174,7 +174,9 @@ Extend the closest real fixture and reference the corresponding contract ID in t
 
 Use HTTP for wire outcomes, a browser for navigation/state/cookie behavior and raw sockets when framing or connection lifetime requires them. Prefer controlled release barriers to elapsed-time guesses for streams. Consume streamed content progressively; a final buffered body alone cannot prove early delivery. Query/path normalization expectations beyond the documented examples need an explicit compatibility decision.
 
-Keep mode/bundler/experimental scope honest. A skipped case, known-failure gate or dummy pass is not executed behavioral coverage. Do not add a broad deployment exclusion for a feature that can be tested on a deployment; local-only backend/control, signal and listener assertions can have narrowly explained local gates. Existing fixtures keep their manifest entries and explicit CI references at their original paths.
+Keep mode/bundler/experimental scope honest. A skipped case, known-failure gate or placeholder pass is not executed behavioral coverage. Do not add a broad deployment exclusion for a feature that can be tested on a deployment; local-only backend/control, signal and listener assertions can have narrowly explained local gates. Existing fixtures keep their manifest entries and explicit CI references at their original paths.
+
+Fixtures that explicitly disable `cacheComponents` must also disable `experimental.cachedNavigations`. The Cache Components CI jobs enable both through environment variables, and cached navigations requires Cache Components. Pinning both options keeps these fixtures on their intended routing model without failing configuration validation before any assertions run.
 
 These assertions currently launch the server supplied by the normal test harness. A replacement must be wired into that startup path, with evidence that its listener handled the requests, before a run can be reported as replacement-server coverage. Custom-server, multi-zone and private adapter/PPR fixtures have distinct launch topologies that must also be supported explicitly.
 

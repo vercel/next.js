@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   compress: false,
   cacheComponents: false,
   poweredByHeader: false,
-  experimental: { authInterrupts: true },
+  experimental: { authInterrupts: true, cachedNavigations: false },
   async headers() {
     return [
       {

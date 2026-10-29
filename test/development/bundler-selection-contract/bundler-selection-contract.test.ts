@@ -90,15 +90,17 @@ describe('bundler selection contract', () => {
         })
         try {
           await retry(async () => {
-            const response = await fetch(`http://localhost:${port}`, {
-              signal: AbortSignal.timeout(5000),
-            })
             if (child.exitCode !== null) {
               const result = await child
               throw new Error(
-                result.stderr + result.stdout || 'Bundler child exited'
+                `Bundler child exited (code ${result.exitCode}, signal ${result.signal}):\n` +
+                  result.stderr +
+                  result.stdout
               )
             }
+            const response = await fetch(`http://localhost:${port}`, {
+              signal: AbortSignal.timeout(5000),
+            })
             expect(response.status).toBe(200)
             expect(await response.text()).toContain(
               'bundler selection destination'

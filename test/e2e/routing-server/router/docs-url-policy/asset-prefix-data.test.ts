@@ -21,6 +21,7 @@ describe('documented Pages data origin with assetPrefix', () => {
       'next.config.js',
       `module.exports = {
       cacheComponents: false,
+      experimental: { cachedNavigations: false },
       assetPrefix: '${getAssetOrigin()}',
       async headers() {
         return [{ source: '/:path*', headers: [

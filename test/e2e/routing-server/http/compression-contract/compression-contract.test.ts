@@ -13,7 +13,11 @@ for (const variant of [
   describe('documented compression: ' + variant.name, () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      nextConfig: { compress: variant.compress, cacheComponents: false },
+      nextConfig: {
+        compress: variant.compress,
+        cacheComponents: false,
+        experimental: { cachedNavigations: false },
+      },
       ...(variant.custom
         ? {
             startCommand: 'node server.cjs',

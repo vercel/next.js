@@ -1,5 +1,6 @@
 module.exports = {
   cacheComponents: false,
+  experimental: { cachedNavigations: false },
   async headers() {
     return [
       {

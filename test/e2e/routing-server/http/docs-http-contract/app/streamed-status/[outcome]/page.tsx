@@ -12,9 +12,10 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ outcome: string }>
-  searchParams: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const [{ outcome: name }, { id }] = await Promise.all([params, searchParams])
+  if (typeof id !== 'string') throw new Error('Expected one release id')
   return (
     <Suspense fallback={<p id="pending-shell">Pending outcome</p>}>
       <Delayed name={name} id={id} />
