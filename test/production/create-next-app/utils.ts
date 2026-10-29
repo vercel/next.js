@@ -3,6 +3,7 @@ import { join } from 'path'
 import { spawn } from 'child_process'
 import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import { getPreferencesDir } from './lib/utils'
 import {
   resolveTestPkgPaths,
   serializeTestPkgPathsEnv,
@@ -46,6 +47,7 @@ export const run = async (
   options:
     | execa.Options
     | {
+        cwd?: string
         reject?: boolean
         env?: Record<string, string>
       }
@@ -68,6 +70,7 @@ export const run = async (
       // when running tests directly (without `run-tests.js`).
       NEXT_TEST_PKG_PATHS: serializeTestPkgPathsEnv(),
       ...options.env,
+      NEXT_PRIVATE_TEST_CONFIG_DIR: getPreferencesDir(options.cwd),
       NEXT_PRIVATE_TEST_VERSION: nextJSVersion,
     },
   })
@@ -213,6 +216,7 @@ export async function tryNextDev({
 
 export {
   createNextApp,
+  getPreferencesDir,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
   projectShouldHaveNoGitChanges,
