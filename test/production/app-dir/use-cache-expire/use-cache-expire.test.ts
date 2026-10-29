@@ -29,11 +29,16 @@ describe('use-cache-expire', () => {
     })
     const v1 = $second('#value').text()
 
+    expect(v1).toBeTruthy()
     expect(v1).not.toBe(v0)
   }
 
   it('should blocking-revalidate a fully static shell past expire', async () => {
     await expectBlockingRevalidation('/static')
+  })
+
+  it('should blocking-revalidate a fully static shell with unstable_cache data past expire', async () => {
+    await expectBlockingRevalidation('/unstable-cache')
   })
 
   it('should blocking-revalidate a partially-static route shell past expire', async () => {
