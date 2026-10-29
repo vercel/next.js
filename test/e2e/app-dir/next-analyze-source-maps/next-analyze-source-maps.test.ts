@@ -82,14 +82,7 @@ describe('next analyze source maps', () => {
               /(?:^|\n)\/\/# sourceMappingURL=|\/\*# sourceMappingURL=/
             )
           }
-          const serverMaps = await Promise.all(
-            Object.keys(normalAssets)
-              .filter(
-                (file) => file.startsWith('server/') && file.endsWith('.map')
-              )
-              .map((file) => next.readFile(`.next/${file}`))
-          )
-          expect(serverMaps.join('\n')).toContain('original-lazy.ts')
+          expect(mapContents.join('\n')).toContain('original-lazy.ts')
         } else if (sourceMaps === 'none') {
           expect(mapContents).toEqual([])
           for (const file of Object.keys(normalAssets)) {

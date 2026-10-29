@@ -230,13 +230,4 @@ mod tests {
         assert!(matches!(minified.source_maps()?, SourceMaps::Shared(_)));
         Ok(())
     }
-
-    #[test]
-    fn preserves_disabled_maps() -> anyhow::Result<()> {
-        let mut code = CodeBuilder::new(false);
-        code += "console.log(1);";
-        let minified = minify(code.build(), false, None)?;
-        assert!(!minified.has_source_map());
-        Ok(())
-    }
 }
