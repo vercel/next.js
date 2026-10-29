@@ -25,9 +25,9 @@
 //! reference: debt does not pin its owning upper. When persistence is enabled, normal queues run
 //! under an operation guard; snapshot/GC exclusion waits for these operations to settle. Within GC,
 //! parallel deletion finishes before its deferred rebalancing runs (see [`crate::backend::gc`]).
-//! These phase rules, not debt itself, keep GC from observing an in-flight normal update. Once all
-//! updates are processed there is no debt left. Removing the last raw debt entry still reports
-//! possible collectibility, separately from semantic edge effects.
+//! These phase rules, not debt itself, keep GC from observing an in-flight normal update. If the
+//! assumption below holds, no debt is left once all updates are processed. Removing the last raw
+//! debt entry still reports possible collectibility, separately from semantic edge effects.
 //!
 //! A removal (`inner_of_upper(s)_lost_follower(s)`):
 //! 1. Locks `F`. If `F.upper[U] > 0`, it decrements that inner edge.
@@ -48,6 +48,18 @@
 //! Another update may already have paid the debt or removed the inner edge. `balance_edge` locks
 //! both tasks and nets the debt against the inner count (see
 //! [`crate::backend::operation::aggregation_edge::net_debt`]).
+//!
+//! ## Assumption: every debt is eventually paid
+//!
+//! Debt is only valid if the matching addition is eventually generated and processed. Producers
+//! must push edge additions into a queue that their operation executes to completion. This is a
+//! requirement on the producers, separate from the GC and snapshot rules above, and it only covers
+//! normal completion: a panic or cancellation that drops a queue is outside this model. If an
+//! addition is lost, the debt stays and a later, logically unrelated addition of the same task pair
+//! silently pays it instead of creating the edge. That can leave a missing edge and skew
+//! propagation. Unlike the previous retry loop, which panicked when the addition never arrived,
+//! nothing reports this unless the `verify_aggregation_graph` feature is enabled; its stop-time
+//! check reports residual debt on restored resident tasks.
 
 use std::{
     cmp::max,
