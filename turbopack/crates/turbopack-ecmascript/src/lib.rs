@@ -2176,7 +2176,8 @@ async fn process_parse_result(
                 // SWC needs source positions to preserve PURE annotations even without maps.
                 source_map: CodeGenResultSourceMap::Single {
                     source_map: source_map.clone(),
-                    source_map_generation_options,
+                    include_in_source_map: source_map_generation_options
+                        .should_generate_any_source_maps(),
                 },
                 comments: CodeGenResultComments::Single {
                     comments,
@@ -2618,7 +2619,9 @@ enum CodeGenResultSourceMap {
     None,
     Single {
         source_map: Arc<SourceMap>,
-        source_map_generation_options: SourceMapGenerationOptions,
+        // False excludes this module's mappings from generated source maps;
+        // SWC positions remain available for PURE annotations.
+        include_in_source_map: bool,
     },
     ScopeHoisting {
         /// The bitwidth of the modules header in the spans, see
@@ -2672,9 +2675,9 @@ impl Files for CodeGenResultSourceMap {
             CodeGenResultSourceMap::None => Ok(None),
             CodeGenResultSourceMap::Single {
                 source_map,
-                source_map_generation_options,
+                include_in_source_map,
             } => {
-                if source_map_generation_options.should_generate_any_source_maps() {
+                if *include_in_source_map {
                     source_map.try_lookup_source_file(pos)
                 } else {
                     Ok(None)
