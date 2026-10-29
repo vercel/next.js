@@ -71,7 +71,7 @@ describe.each(['', 'web', 'apps/site'])(
     it.each(['/', '/dynamic'])(
       'serves %s with the custom cache handler',
       async (pathname) => {
-        const res = await fetchViaHTTP(port, pathname)
+        const res = await fetchViaHTTP(`http://127.0.0.1:${port}`, pathname)
 
         expect(res.status).toBe(200)
         expect(output).toContain('custom cache handler loaded')
