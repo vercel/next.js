@@ -16,7 +16,7 @@ export function getPreloadableFonts(
   if (!nextFontManifest || !filePath) {
     return null
   }
-  const filepathWithoutExtension = filePath.replace(/\.[^.]+$/, '')
+  const filepathWithoutExtension = filePath.replace(/(\.[^./\\]+)+$/, '')
   const fontFiles = new Set<string>()
   let foundFontUsage = false
 
