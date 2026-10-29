@@ -86,6 +86,7 @@ import {
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
+import { DecodeError } from '../../shared/lib/utils' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { isRouteCacheOwner } from '../../server/lib/route-cache-key' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
@@ -2481,6 +2482,16 @@ export function createAppPageEntrypoint({
           'Set-Cookie',
           `${NEXT_INSTANT_TEST_COOKIE}=; Path=/; Max-Age=0`
         )
+      }
+
+      if (err instanceof DecodeError) {
+        res.statusCode = 400
+        requestSpan?.setAttributes({
+          'http.status_code': 400,
+        })
+        res.end('Bad Request')
+        ctx.waitUntil?.(Promise.resolve())
+        return null
       }
 
       if (!(err instanceof NoFallbackError)) {

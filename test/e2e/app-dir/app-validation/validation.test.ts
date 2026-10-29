@@ -48,10 +48,28 @@ describe('app dir - validation', () => {
     }
 
     const res = await next.fetch(url1.toString(), { headers: headers1 })
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(400)
 
     const res2 = await next.fetch(url2.toString(), { headers: headers2 })
     expect(res2.status).toBe(200)
+
+    // Unparseable malformed string
+    const malformedHeaders = {
+      rsc: '1',
+      'next-router-state-tree': 'xyzzy',
+    }
+    const resMalformed = await next.fetch('/', { headers: malformedHeaders })
+    expect(resMalformed.status).toBe(400)
+
+    // Valid JSON but invalid schema
+    const invalidSchemaHeaders = {
+      rsc: '1',
+      'next-router-state-tree': JSON.stringify({ a: 1 }),
+    }
+    const resInvalidSchema = await next.fetch('/', {
+      headers: invalidSchemaHeaders,
+    })
+    expect(resInvalidSchema.status).toBe(400)
   })
 
   it('should generate distinct cache-busting params for known colliding RSC variants', async () => {
