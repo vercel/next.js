@@ -262,14 +262,28 @@ impl TurboTasksBackend {
                 }
 
                 let old_edges = capture_all_edges(&task);
-                // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
-                // it needs to
-                task.set_immutable(false);
                 // Drop the whole cell payload. This recovers most of the RAM while persistence
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
+                let task_type = task.get_persistent_task_type().cloned();
                 drop(task); // drop the lock so edge cleanup can run
+                // Remove the task_cache mapping now, so this deleted task cannot be found via a
+                // task launch.
+                // This must run after dropping the task lock: `get_or_create_task` takes
+                // `task_cache` before `storage.map`.
+                if let Some(task_type) = task_type {
+                    let removed_id = self
+                        .storage
+                        .task_cache
+                        .remove(task_type.as_ref())
+                        .map(|(_, id)| id);
+                    debug_assert!(
+                        removed_id.is_none_or(|id| id == task_id),
+                        "task_cache mapped the type of collected task {task_id} to another task: \
+                         {removed_id:?}"
+                    );
+                }
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
                 // If we happened to delete a known root at this point record it so we can reconcile

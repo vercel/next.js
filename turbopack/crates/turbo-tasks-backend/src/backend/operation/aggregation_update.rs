@@ -40,10 +40,7 @@ use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::
 use crate::{
     backend::{
         TaskDataCategory,
-        operation::{
-            ExecuteContext, TaskGuard, connect_child::resurrect_deleted,
-            invalidate::make_task_dirty_internal,
-        },
+        operation::{ExecuteContext, TaskGuard, invalidate::make_task_dirty_internal},
         storage_schema::TaskStorageAccessors,
     },
     data::{ActivenessState, AggregationNumber, CollectibleRef, CollectiblesRef},
@@ -1569,7 +1566,7 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
-            optimization_pending_flag_already_set,
+            optimization_pending_flag_already_set: _,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
@@ -1585,7 +1582,7 @@ impl AggregationUpdateQueue {
                 self.stats.optimize_task += 1;
             }
             self.optimizations_executed += 1;
-            self.optimize_task(ctx, task_id, optimization_pending_flag_already_set);
+            self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -3219,14 +3216,13 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        let task = ctx.task(
+        let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Revive the task if GC soft-deleted it.
-        let mut task = resurrect_deleted(task, task_id, self, ctx);
+        task.assert_not_deleted("increase_active_count");
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -3277,12 +3273,11 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Skip deleted tasks, which can be encountered while processing GC's deferred cleanup.
-        // This just means there is no point in rebalancing the subgraph here since this 'root' is
-        // dead.
-        if task.deleted() {
-            return;
-        }
+        // Only balance and optimize jobs and normal operations update aggregation numbers. GC's
+        // parallel collect runs neither, and its deferred rebalance starts from edges whose
+        // endpoints were filtered for deletion, so reaching a deleted task means edge removal left
+        // an aggregation or child edge to it.
+        task.assert_not_deleted("update_aggregation_number");
         self.check_optimization_pending(&task);
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
@@ -3361,16 +3356,7 @@ impl AggregationUpdateQueue {
     /// than the number of upper edges. Increasing the aggregation reduces the number of upper
     /// edges, as it places the task in a bigger aggregation group. We want to avoid having too many
     /// upper edges as this amplifies the updates needed when changes to that task occur.
-    ///
-    /// `optimization_pending_flag_already_set` is the snapshot recorded on the `OptimizeJob`: when
-    /// `true`, we also need to clear `optimization_pending` here (this is the only path that
-    /// does so); when `false`, the flag is known to be unset already and we can skip the write.
-    fn optimize_task(
-        &mut self,
-        ctx: &mut ExecuteContext<'_>,
-        task_id: TaskId,
-        optimization_pending_flag_already_set: bool,
-    ) {
+    fn optimize_task(&mut self, ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
@@ -3379,18 +3365,13 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        if optimization_pending_flag_already_set {
-            // Clear the pending flag — this is the only path that does so. We skip the
-            // write when our snapshot says the flag wasn't set (push path / self-re-enqueue
-            // path); the setter would just no-op in that case, but reading the snapshot is
-            // free and lets us elide the write entirely.
-            task.set_optimization_pending(false);
-        }
-        // A racing GC pass may have deleted this task, just return
-        // still clear the `optimization_pending` flag just in case we get resurrected.
-        if task.deleted() {
-            return;
-        }
+
+        // Optimize jobs only target live tasks: GC's parallel collect never optimizes, and its
+        // deferred rebalance starts from edges whose endpoints were filtered for deletion. An
+        // optimization reaching a deleted task means edge removal left an aggregation edge to it.
+        task.assert_not_deleted("optimize_task");
+        // We are about to optimize, so optimization is no longer pending.
+        task.set_optimization_pending(false);
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
