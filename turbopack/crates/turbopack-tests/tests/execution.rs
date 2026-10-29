@@ -598,6 +598,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         Some(compute_binding_usage_info(
             module_graph,
             options.remove_unused_imports,
+            /* drop_unused_module_data */ false,
         ))
     } else {
         None

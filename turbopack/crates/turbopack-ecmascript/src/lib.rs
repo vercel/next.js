@@ -885,7 +885,16 @@ impl EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
+#[async_trait::async_trait]
 impl Module for EcmascriptModuleAsset {
+    /// Drops the parsed AST. Analysis keeps it in memory for code generation, which drops it with
+    /// `final_read_hint` after its final read.
+    async fn drop_code_gen_data_hint(&self) -> Result<()> {
+        // Analysis and code generation read the AST through `failsafe_parse`, which returns this
+        // cell, unless parsing failed and the last successful parse is kept.
+        self.parse().await?.drop_content_hint().await
+    }
+
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.source.ident().owned().await?;

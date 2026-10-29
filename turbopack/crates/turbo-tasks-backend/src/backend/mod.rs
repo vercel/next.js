@@ -1189,6 +1189,19 @@ impl TurboTasksBackend {
         Ok(ReadOutcome::Scheduled(listener))
     }
 
+    fn drop_task_cell_content_hint(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        // Only drop the content, if it's there. A later read recomputes the task, exactly like
+        // after a `final_read_hint` read.
+        let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
+    }
+
     fn listen_to_cell(
         &self,
         task: &mut TaskGuard<'_>,
@@ -3955,6 +3968,15 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent> {
         self.try_read_own_task_cell(task_id, cell, turbo_tasks)
+    }
+
+    fn drop_task_cell_content_hint(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.drop_task_cell_content_hint(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(

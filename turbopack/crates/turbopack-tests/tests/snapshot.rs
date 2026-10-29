@@ -509,6 +509,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Some(compute_binding_usage_info(
             module_graph,
             options.remove_unused_imports,
+            /* drop_unused_module_data */ false,
         ))
     } else {
         None

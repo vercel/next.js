@@ -1015,6 +1015,7 @@ impl AppProject {
                     let binding_usage_info = compute_binding_usage_info(
                         full_with_unused_references,
                         should_read_binding_usage,
+                        /* drop_unused_module_data */ false,
                     );
                     (
                         ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),

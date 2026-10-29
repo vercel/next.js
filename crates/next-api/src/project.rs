@@ -2942,7 +2942,10 @@ async fn whole_app_module_graph_operation(
         let base = if turbopack_remove_unused_imports {
             // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
             // graph and later for the full graph)
-            let binding_usage_info = compute_binding_usage_info(base, true);
+            let binding_usage_info = compute_binding_usage_info(
+                base, /* remove_unused_imports */ true,
+                /* drop_unused_module_data */ false,
+            );
             ModuleGraph::from_graphs(vec![base_single_module_graph], Some(binding_usage_info))
         } else {
             base
@@ -2989,7 +2992,11 @@ async fn whole_app_module_graph_operation(
 
         let (full, binding_usage_info) = if turbopack_remove_unused_imports {
             let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone(), None);
-            let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
+            let binding_usage_info = compute_binding_usage_info(
+                full_with_unused_references,
+                /* remove_unused_imports */ true,
+                /* drop_unused_module_data */ true,
+            );
             (
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
                 Some(binding_usage_info),

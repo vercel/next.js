@@ -919,7 +919,10 @@ impl PageEndpoint {
 
             let graph = if remove_unused_imports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
-                let binding_usage_info = compute_binding_usage_info(graph, true);
+                let binding_usage_info = compute_binding_usage_info(
+                    graph, /* remove_unused_imports */ true,
+                    /* drop_unused_module_data */ false,
+                );
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
                 ModuleGraph::from_graphs(graphs, None)

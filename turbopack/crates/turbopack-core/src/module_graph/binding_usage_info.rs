@@ -5,7 +5,7 @@ use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::chunking_context::UnusedReferences,
@@ -113,10 +113,17 @@ impl BindingUsageInfo {
     }
 }
 
+/// Computes which exports and references of the modules in `graph` are used.
+///
+/// With `drop_unused_module_data`, modules that are not reachable via used references (i.e. that
+/// tree shaking removes) are hinted to drop data they only retain for code generation, see
+/// [`Module::drop_code_gen_data_hint`]. Only enable this when this graph decides which modules
+/// are code generated, otherwise the data might be needed again and has to be recomputed.
 #[turbo_tasks::function(operation)]
 pub async fn compute_binding_usage_info(
     graph: OperationVc<ModuleGraph>,
     remove_unused_imports: bool,
+    drop_unused_module_data: bool,
 ) -> Result<Vc<BindingUsageInfo>> {
     let span_outer = tracing::info_span!(
         "compute binding usage info",
@@ -373,6 +380,23 @@ pub async fn compute_binding_usage_info(
 
         span.record("visit_count", visit_count);
         span.record("unused_reference_count", unused_references.len());
+
+        if drop_unused_module_data {
+            // The traversal visits every module that is reachable via used references (and sets
+            // its usage), so the remaining ones are unused.
+            graph_ref
+                .iter_nodes()
+                .filter(|module| !used_exports.contains_key(module))
+                .map(async |module| {
+                    module
+                        .into_trait_ref()
+                        .await?
+                        .drop_code_gen_data_hint()
+                        .await
+                })
+                .try_join()
+                .await?;
+        }
 
         #[cfg(debug_assertions)]
         {
@@ -713,7 +737,11 @@ mod graph_tests {
             true,
         );
         let graph = ModuleGraph::from_graphs(vec![single_graph], None);
-        let binding_usage = compute_binding_usage_info(graph, false).connect().await?;
+        let binding_usage = compute_binding_usage_info(
+            graph, /* remove_unused_imports */ false, /* drop_unused_module_data */ false,
+        )
+        .connect()
+        .await?;
 
         let escapes = names
             .iter()
