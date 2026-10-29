@@ -387,6 +387,13 @@ describe('loadConfig', () => {
   })
 
   describe('injectInstrumentation', () => {
+    it('defaults to an empty array, so modifyConfig can push to it', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      expect(result.injectInstrumentation).toEqual([])
+    })
+
     it('is accepted by the config schema', () => {
       expect(
         configSchema.safeParse({ injectInstrumentation: ['./script.js'] })

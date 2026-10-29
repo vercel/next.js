@@ -2340,6 +2340,7 @@ export const defaultConfig = Object.freeze({
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
+  injectInstrumentation: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
