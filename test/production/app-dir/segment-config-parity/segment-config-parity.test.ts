@@ -47,6 +47,8 @@ async function expectNodeNotFound(next: NextInstance) {
   return $
 }
 
+// Cache Components does not support the legacy route-segment exports tested here.
+// @force-gate !cacheComponents
 describe('segment-config-parity', () => {
   describe('synthetic not-found', () => {
     const { next } = nextTestSetup({
