@@ -743,13 +743,14 @@ export default abstract class Server<
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
-      const middleware = await this.getMiddleware()
       const params = matchNextDataPathname(parsedUrl.pathname)
 
       // ignore for non-next data URLs
       if (!params || !params.path) {
         return false
       }
+
+      const middleware = await this.getMiddleware()
 
       if (params.path[0] !== this.buildId) {
         // Ignore if its a middleware request when we aren't on edge.
