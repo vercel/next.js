@@ -90,6 +90,31 @@ describe('combineInstrumentation', () => {
     expect(calls).toEqual(['b'])
   })
 
+  it('does not leave a later module rejection unhandled while an earlier hook awaits', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => void unhandled.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const failure = new Error('load failed')
+      let rejectLater!: (err: unknown) => void
+      const later = new Promise((_, reject) => (rejectLater = reject))
+      const combined = combineInstrumentation([
+        {
+          register: async () => {
+            rejectLater(failure)
+            // Let Node detect unhandled rejections while this hook waits.
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          },
+        },
+        later,
+      ])
+      await expect(combined.register()).rejects.toBe(failure)
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+
   it('skips missing hooks and reads hooks from a default export', async () => {
     const calls: string[] = []
     const combined = combineInstrumentation([

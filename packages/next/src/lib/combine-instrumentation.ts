@@ -29,6 +29,15 @@ function getHook(mod: unknown, name: Hook) {
 export function combineInstrumentation(
   modules: readonly unknown[]
 ): CombinedInstrumentation {
+  // Every module is required before any hook runs, so an async module can
+  // reject while an earlier hook is still awaiting. Mark those promises as
+  // handled now. `callEach` still awaits them and collects the error.
+  for (const mod of modules) {
+    if (typeof (mod as PromiseLike<unknown> | undefined)?.then === 'function') {
+      ;(mod as PromiseLike<unknown>).then(undefined, () => {})
+    }
+  }
+
   async function callEach(name: Hook, args: unknown[]) {
     const errors: unknown[] = []
     for (const mod of modules) {
