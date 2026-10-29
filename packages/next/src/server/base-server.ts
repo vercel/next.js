@@ -163,7 +163,9 @@ import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
-import type { CacheControl } from './lib/cache-control'
+import { getCacheControlHeader, type CacheControl } from './lib/cache-control'
+import { CachedRouteKind, IncrementalCacheKind } from './response-cache/types'
+import { getResponseCacheOwner, isRouteCacheOwner } from './lib/route-cache-key'
 import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
@@ -3043,6 +3045,82 @@ export default abstract class Server<
     return null
   }
 
+  private async getPrerenderedAppPage(
+    { req, res, pathname }: RequestContext<ServerRequest, ServerResponse>,
+    page: string,
+    prerendered: DeepReadonly<PrerenderManifest['routes'][string]>
+  ): Promise<ResponsePayload | undefined> {
+    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+    if (
+      !isNodeNextResponse(res) ||
+      !incrementalCache ||
+      this.nextConfig.cacheComponents ||
+      this.nextConfig.cacheHandler ||
+      this.nextConfig.cacheMaxMemorySize === 0 ||
+      (req.method !== 'GET' && req.method !== 'HEAD') ||
+      res.statusCode !== 200 ||
+      req.headers.cookie ||
+      req.headers['next-action'] ||
+      req.headers['content-type'] ||
+      req.headers['x-prerender-revalidate'] ||
+      req.headers[NEXT_RESUME_HEADER] ||
+      getRequestMeta(req, 'isRSCRequest') ||
+      getRequestMeta(req, 'isNextDataReq') ||
+      getRequestMeta(req, 'onCacheEntry') ||
+      getRequestMeta(req, 'onCacheEntryV2')
+    ) {
+      return
+    }
+
+    const route = getResponseCacheOwner({
+      kind: RouteKind.APP_PAGE,
+      page,
+      pathname,
+    })
+    if (!isRouteCacheOwner(pathname, route, prerendered)) return
+
+    await this.prepare()
+    const cached = await incrementalCache.get(pathname, {
+      kind: IncrementalCacheKind.APP_PAGE,
+      route,
+      isFallback: false,
+      isRoutePPREnabled: false,
+    })
+    if (
+      !cached ||
+      cached.isStale ||
+      cached.cacheControl?.revalidate !== false ||
+      cached.value?.kind !== CachedRouteKind.APP_PAGE ||
+      cached.value.postponed ||
+      (cached.value.status !== undefined && cached.value.status !== 200)
+    ) {
+      return
+    }
+
+    this.setVaryHeader(req, res, true, pathname)
+    res.setHeader('x-nextjs-cache', 'HIT')
+    res.setHeader('x-nextjs-prerender', '1')
+    for (const [name, value] of Object.entries(cached.value.headers ?? {})) {
+      if (name === 'x-next-cache-tags' || value === undefined) continue
+      for (const item of Array.isArray(value) ? value : [value]) {
+        res.originalResponse.appendHeader(name, String(item))
+      }
+    }
+    if (!res.getHeader('Cache-Control')) {
+      res.setHeader(
+        'Cache-Control',
+        getCacheControlHeader({ revalidate: false, expire: undefined })
+      )
+    }
+    getTracer().setRootSpanAttribute('next.route', pathname)
+    return {
+      body: RenderResult.fromStatic(
+        cached.value.html,
+        HTML_CONTENT_TYPE_HEADER
+      ),
+    }
+  }
+
   protected async renderPageComponent(
     ctx: RequestContext<ServerRequest, ServerResponse>,
     bubbleNoFallback: boolean
@@ -3065,6 +3143,19 @@ export default abstract class Server<
       page = selectAppPageEntry(pathname, appPaths)
     } else if (match?.definition.kind === RouteKind.APP_ROUTE) {
       page = match.definition.page
+    }
+
+    const prerendered =
+      isAppPath && !this.dev && !this.minimalMode
+        ? this.getPrerenderManifest().routes[pathname]
+        : undefined
+    if (
+      prerendered?.response === 'complete' &&
+      prerendered.compute === 'static' &&
+      prerendered.initialRevalidateSeconds === false
+    ) {
+      const cached = await this.getPrerenderedAppPage(ctx, page, prerendered)
+      if (cached) return cached
     }
 
     const result = await this.findPageComponents({
