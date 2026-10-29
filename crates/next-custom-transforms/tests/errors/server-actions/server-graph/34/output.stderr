@@ -2,18 +2,18 @@
   | 
   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
-   ,-[input.js:2:1]
- 1 | export async function fn() {
- 2 |   ;('use client')
-   :    ^^^^^^^^^^^^^^
- 3 | }
+   ,-[input.js:3:1]
+ 2 |   method() {
+ 3 |     'use client'
+   :     ^^^^^^^^^^^^
+ 4 |   }
    `----
   x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
   | 
   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
    ,-[input.js:7:1]
- 6 |   method() {
+ 6 |   static create() {
  7 |     'use client'
    :     ^^^^^^^^^^^^
  8 |   }
@@ -22,19 +22,9 @@
   | 
   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
-    ,-[input.js:11:1]
- 10 |   static create() {
- 11 |     'use client'
+    ,-[input.js:13:1]
+ 12 |   method() {
+ 13 |     'use client'
     :     ^^^^^^^^^^^^
- 12 |   }
-    `----
-  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
-  | 
-  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
-  | 
-    ,-[input.js:17:1]
- 16 |   method() {
- 17 |     'use client'
-    :     ^^^^^^^^^^^^
- 18 |   },
+ 14 |   },
     `----

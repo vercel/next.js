@@ -13,7 +13,7 @@ export const obj = {
   },
 }
 
-class Bar {
+export class Bar {
   static {
     'use client'
   }

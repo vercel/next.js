@@ -1,21 +1,21 @@
 export async function foo() {
   if (true) {
-    ;('use server')
+    'use server'
   }
 }
 
 export async function bar() {
   try {
-    ;('use cache')
+    'use cache'
   } catch (e) {
-    ;('use cache')
+    'use server'
   } finally {
-    ;('use client')
+    'use client'
   }
 }
 
 export async function baz() {
   while (true) {
-    ;('use cache: remote')
+    'use cache: remote'
   }
 }

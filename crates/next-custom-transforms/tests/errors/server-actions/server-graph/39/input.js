@@ -1,6 +1,6 @@
 export async function foo() {
   for (;;) {
-    ;('use server')
+    'use server'
   }
 
   switch (true) {
@@ -9,7 +9,7 @@ export async function foo() {
   }
 
   label: {
-    ;('use client')
+    'use client'
   }
 }
 

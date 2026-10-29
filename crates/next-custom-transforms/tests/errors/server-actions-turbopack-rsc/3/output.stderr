@@ -1,3 +1,11 @@
+  x The "use cache" directive must be at the top of the file.
+  | 
+   ,-[input.js:7:1]
+ 6 | if (true) {
+ 7 |   'use cache'
+   :   ^^^^^^^^^^^
+ 8 | }
+   `----
   x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
   | 
   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
@@ -7,12 +15,4 @@
  2 |   'use client'
    :   ^^^^^^^^^^^^
  3 |   return null
-   `----
-  x The "use cache" directive must be at the top of the file.
-  | 
-   ,-[input.js:7:1]
- 6 | if (true) {
- 7 |   'use cache'
-   :   ^^^^^^^^^^^
- 8 | }
    `----

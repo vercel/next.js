@@ -5,6 +5,5 @@ if (true) {
 {
     'use server';
 }try {
-    ;
     'use client';
 } catch  {}

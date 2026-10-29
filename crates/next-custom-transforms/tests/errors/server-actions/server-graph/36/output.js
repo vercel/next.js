@@ -7,8 +7,7 @@ export async function bar() {
     try {
         'use cache';
     } catch (e) {
-        ;
-        'use cache';
+        'use server';
     } finally{
         'use client';
     }

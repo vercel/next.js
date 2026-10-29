@@ -8,5 +8,5 @@ export const fnExpr = function named() {
 
 export async function foo() {
   return null
-  ;('use client')
+  'use client'
 }

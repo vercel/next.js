@@ -11,7 +11,7 @@ export const obj = {
         'use client';
     }
 };
-class Bar {
+export class Bar {
     static{
         'use client';
     }
