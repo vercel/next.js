@@ -192,3 +192,77 @@ describe('app-custom-cache-handler-errors - lookup recovery', () => {
     }
   })
 })
+
+// The handler and control route share process-local state. Development's
+// in-memory front handler does not exercise the configured write failure.
+// @force-gate start
+describe('app-custom-cache-handler-errors - shared write failure', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { CACHE_HANDLER_THROW_ON: 'shared-write-failure' },
+  })
+
+  it("completes a joining server action and its re-render when the producer's cache write fails", async () => {
+    const id = randomUUID()
+    const control = (action: string) =>
+      next.fetch(`/shared-write-control?id=${id}`, {
+        method: 'POST',
+        body: action,
+      })
+    const readState = () =>
+      next.fetch('/shared-write-control').then(
+        (response) =>
+          response.json() as Promise<{
+            generatedValues: string[]
+            writeStarted: boolean
+            writeFailed: boolean
+            joinerStarted: boolean
+            joinerReadCompleted: boolean
+          }>
+      )
+    const browser = await next.browser(`/shared-write-failure?id=${id}`)
+    const initialRender = await browser
+      .elementById('shared-write-render')
+      .text()
+
+    // The held write keeps the producer's fill available for the action to join.
+    await control('hold-write')
+    const producer = next.render$(`/shared-write-failure/producer?id=${id}`)
+    try {
+      await retry(async () => {
+        expect((await readState()).writeStarted).toBe(true)
+      })
+
+      await browser.elementById('join-fill').click()
+      await retry(async () => {
+        expect((await readState()).joinerStarted).toBe(true)
+      })
+      await control('release-write')
+      const producerPage = await producer
+      const value = producerPage('#shared-write-producer').text()
+
+      await retry(async () => {
+        expect(
+          await browser.elementById('shared-write-result').text()
+        ).not.toBe('')
+      })
+      expect(await browser.elementById('shared-write-result').text()).toBe(
+        value
+      )
+
+      // The shared read can succeed before the action fails while awaiting
+      // writes. The action must also complete the re-render it requests with
+      // refresh().
+      expect(await browser.elementById('shared-write-render').text()).not.toBe(
+        initialRender
+      )
+      const state = await readState()
+      expect(state.generatedValues).toEqual([value])
+      expect(state.writeFailed).toBe(true)
+      expect(state.joinerReadCompleted).toBe(true)
+    } finally {
+      await control('release-write')
+      await Promise.allSettled([producer])
+    }
+  })
+})
