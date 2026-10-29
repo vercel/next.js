@@ -387,8 +387,10 @@ export class Playwright<TCurrent = undefined> {
           page
             // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
             // Instead, serialize the whole message into a string literal expression so that
-            // any quotes or backslashes in the payload are escaped.
-            .evaluate(JSON.stringify(`received ws message ${text}`))
+            // any quotes or backslashes in the JSON-encoded payload are escaped.
+            .evaluate(
+              JSON.stringify(`received ws message ${JSON.stringify(text)}`)
+            )
             .catch(() => {})
         }
       })
