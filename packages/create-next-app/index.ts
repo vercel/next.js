@@ -145,7 +145,10 @@ const packageManager: PackageManager = !!opts.useNpm
         : getPkgManager()
 
 async function run(): Promise<void> {
-  const conf = new Conf({ projectName: 'create-next-app' })
+  const conf = new Conf({
+    projectName: 'create-next-app',
+    cwd: process.env.NEXT_PRIVATE_TEST_CONFIG_DIR,
+  })
 
   if (opts.resetPreferences) {
     const { resetPreferences } = await prompts({

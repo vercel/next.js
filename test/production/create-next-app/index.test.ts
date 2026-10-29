@@ -8,6 +8,7 @@ import {
 import {
   resolveNextTgzFilename,
   run,
+  getPreferencesDir,
   useTempDir,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
@@ -51,7 +52,10 @@ describe('create-next-app', () => {
       const Conf = require('next/dist/compiled/conf')
 
       await useTempDir(async (cwd) => {
-        const conf = new Conf({ projectName: 'create-next-app' })
+        const conf = new Conf({
+          projectName: 'create-next-app',
+          cwd: getPreferencesDir(cwd),
+        })
         conf.clear()
         const projectName = 'cache-components'
         const res = await run(

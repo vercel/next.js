@@ -4,6 +4,7 @@ import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 import {
   createNextApp,
+  getPreferencesDir,
   projectFilesShouldExist,
   resolveNextTgzFilename,
   useTempDir,
@@ -296,7 +297,10 @@ describe('create-next-app prompts', () => {
       const Conf = require('next/dist/compiled/conf')
 
       await useTempDir(async (cwd) => {
-        const conf = new Conf({ projectName: 'create-next-app' })
+        const conf = new Conf({
+          projectName: 'create-next-app',
+          cwd: getPreferencesDir(cwd),
+        })
         conf.clear()
         if (saved !== undefined) {
           conf.set('preferences', { cacheComponents: saved })
@@ -367,7 +371,10 @@ describe('create-next-app prompts', () => {
 
     await useTempDir(async (cwd) => {
       // Manually set preferences to simulate a previous run
-      const conf = new Conf({ projectName: 'create-next-app' })
+      const conf = new Conf({
+        projectName: 'create-next-app',
+        cwd: getPreferencesDir(cwd),
+      })
       conf.set('preferences', {
         typescript: false,
         eslint: true,
