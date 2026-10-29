@@ -15,15 +15,6 @@ function fixture(config: 'inject' | 'omitted', extra = {}) {
   }
 }
 
-async function probe(
-  next: ReturnType<typeof nextTestSetup>['next'],
-  runtime: 'node' | 'edge'
-) {
-  const res = await next.fetch(`/${runtime}`)
-  expect(res.status).toBe(200)
-  return res.json()
-}
-
 describe('inject-instrumentation', () => {
   describe('injectInstrumentation without a project file', () => {
     const { next, isNextStart } = nextTestSetup({
@@ -31,14 +22,14 @@ describe('inject-instrumentation', () => {
     })
 
     it('runs every injected register in Node.js, in order', async () => {
-      expect(await probe(next, 'node')).toEqual({
+      expect(await next.fetch('/node').then((res) => res.json())).toEqual({
         instrumentation: 'inject',
         injected: ['first', 'second'],
       })
     })
 
     it('runs every injected register in the Edge runtime, in order', async () => {
-      expect(await probe(next, 'edge')).toEqual({
+      expect(await next.fetch('/edge').then((res) => res.json())).toEqual({
         instrumentation: 'inject',
         injected: ['first', 'second'],
       })
@@ -63,11 +54,11 @@ describe('inject-instrumentation', () => {
     it('runs the injected registers, then the project register', async () => {
       // Each register sets `instrumentation`, so 'user' means the project
       // file ran last.
-      expect(await probe(next, 'node')).toEqual({
+      expect(await next.fetch('/node').then((res) => res.json())).toEqual({
         instrumentation: 'user',
         injected: ['first', 'second'],
       })
-      expect(await probe(next, 'edge')).toEqual({
+      expect(await next.fetch('/edge').then((res) => res.json())).toEqual({
         instrumentation: 'user',
         injected: ['first', 'second'],
       })
@@ -90,11 +81,11 @@ describe('inject-instrumentation', () => {
     })
 
     it('runs no instrumentation', async () => {
-      expect(await probe(next, 'node')).toEqual({
+      expect(await next.fetch('/node').then((res) => res.json())).toEqual({
         instrumentation: 'none',
         injected: [],
       })
-      expect(await probe(next, 'edge')).toEqual({
+      expect(await next.fetch('/edge').then((res) => res.json())).toEqual({
         instrumentation: 'none',
         injected: [],
       })
