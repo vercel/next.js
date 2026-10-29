@@ -1955,8 +1955,9 @@ export default async function getBaseWebpackConfig(
             },
           },
         },
-        // The server instrumentation entry when `injectInstrumentation` fills
-        // the slot. The loader emits one module that runs every entry's hooks.
+        // The server instrumentation entry when `injectInstrumentation` is set.
+        // The loader emits one module that runs every entry's hooks, then the
+        // project's own instrumentation file.
         {
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-inject-stub\.js$/,
           use: {
