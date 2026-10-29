@@ -989,6 +989,17 @@ function bindingToApi(
       )
     }
 
+    // Turbopack resolves a leading `/` from the project root, so make absolute
+    // injectInstrumentation entries relative. Package names stay as they are.
+    if (nextConfigSerializable.injectInstrumentation?.length) {
+      nextConfigSerializable.injectInstrumentation =
+        nextConfigSerializable.injectInstrumentation.map((entry: string) =>
+          path.isAbsolute(entry)
+            ? './' + normalizePathOnWindows(path.relative(projectPath, entry))
+            : entry
+        )
+    }
+
     if (nextConfigSerializable.turbopack != null) {
       // clone to allow in-place mutations
       const turbopack = { ...nextConfigSerializable.turbopack }

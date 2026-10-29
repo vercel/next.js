@@ -1,9 +1,11 @@
+import path from 'path'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   injectInstrumentation: [
     './injected/instrumentation.js',
-    './injected/second.js',
+    // Config wrappers often pass absolute paths.
+    path.join(__dirname, 'injected', 'second.js'),
   ],
 }
 
