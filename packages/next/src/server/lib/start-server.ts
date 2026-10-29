@@ -429,6 +429,11 @@ export async function startServer(
 
             // Flush any remaining traces to the trace file on shutdown
             flushAllTraces()
+            if (isDev && process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING === '1') {
+              const { flushReporting } =
+                require('../../trace/otel') as typeof import('../../trace/otel')
+              await flushReporting()
+            }
 
             // Flush telemetry if this is a dev server
             if (isDev) {

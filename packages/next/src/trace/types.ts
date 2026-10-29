@@ -4,6 +4,8 @@ export interface TraceState {
   lastId: number
   defaultParentSpanId?: SpanId
   shouldSaveTraceEvents?: boolean
+  /** Shared monotonic-to-epoch mapping for app-tracer worker replay. */
+  otelClockOffset?: string
 }
 
 export type TraceEvent = {

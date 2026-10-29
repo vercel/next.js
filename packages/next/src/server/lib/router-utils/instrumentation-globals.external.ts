@@ -102,9 +102,18 @@ export async function getInstrumentationModule(
 
 let instrumentationModulePromise: Promise<any> | null = null
 
-async function registerInstrumentation(projectDir: string, distDir: string) {
-  // Ensure registerInstrumentation is not called in production build
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
+/**
+ * Loads `instrumentation.ts` and calls its `register()`.
+ * Lifecycle spans are backdated and emitted afterward, since registration
+ * commonly installs the application's tracer provider.
+ */
+async function registerInstrumentation(
+  projectDir: string,
+  distDir: string,
+  forToolingBuild = false
+) {
+  // Only the explicit, gated coordinator entry point may register during build.
+  if (process.env.NEXT_PHASE === 'phase-production-build' && !forToolingBuild) {
     return
   }
   if (!instrumentationModulePromise) {
@@ -143,6 +152,47 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   } else {
     traceInstrumentationModuleLoad()
   }
+  if (
+    process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING === '1' &&
+    (process.env.__NEXT_DEV_SERVER || forToolingBuild)
+  ) {
+    const { enableReporting } =
+      require('../../../trace/otel') as typeof import('../../../trace/otel')
+    enableReporting(instrumentation?.flushTraces?.bind(instrumentation))
+  }
+}
+
+let toolingBuildRegistration: Promise<void> | undefined
+/** Coordinator-only: register this build's entry or drain without a hook. */
+export function registerToolingBuildInstrumentation(
+  projectDir: string,
+  distDir: string,
+  hasInstrumentationHook: boolean
+) {
+  if (process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING !== '1') return
+  toolingBuildRegistration ??= (async () => {
+    const previousRuntime = process.env.NEXT_RUNTIME
+    process.env.NEXT_RUNTIME = 'nodejs'
+    try {
+      if (hasInstrumentationHook) {
+        await registerInstrumentation(
+          projectDir,
+          path.relative(projectDir, distDir),
+          true
+        )
+      } else {
+        // cleanDistDir:false can leave an old emitted entry behind. Only the
+        // current build's detected source entry may register application code.
+        const { enableReporting } =
+          require('../../../trace/otel') as typeof import('../../../trace/otel')
+        enableReporting()
+      }
+    } finally {
+      if (previousRuntime === undefined) delete process.env.NEXT_RUNTIME
+      else process.env.NEXT_RUNTIME = previousRuntime
+    }
+  })()
+  return toolingBuildRegistration
 }
 
 export async function instrumentationOnRequestError(
