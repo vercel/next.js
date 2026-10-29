@@ -5,16 +5,14 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
-};
+use turbo_tasks::{NonLocalValue, PrettyPrintError, ResolvedVc, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{CodeBuilder, PersistedCode},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -256,18 +254,9 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     ) -> Result<Vc<EcmascriptChunkItemContent>>;
 }
 
-#[turbo_tasks::value]
-pub struct EcmascriptChunkItemCode {
-    pub code: ResolvedVc<PersistedCode>,
-    pub strict: bool,
-}
-
 pub trait EcmascriptChunkItemExt {
-    /// Generates the module factory and returns whether it must run in strict mode.
-    fn code(
-        self: Vc<Self>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<EcmascriptChunkItemCode>;
+    /// Generates the module factory for this chunk item.
+    fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
 }
 
 impl<T> EcmascriptChunkItemExt for T
@@ -275,11 +264,9 @@ where
     T: Upcast<Box<dyn EcmascriptChunkItem>>,
 {
     /// Generates the module factory for this chunk item.
-    fn code(
-        self: Vc<Self>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<EcmascriptChunkItemCode> {
+    fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
         module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
+            .to_code()
     }
 }
 
@@ -287,25 +274,21 @@ where
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-) -> Result<Vc<EcmascriptChunkItemCode>> {
+) -> Result<Vc<PersistedCode>> {
     async fn get_content(
         chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<ReadRef<EcmascriptChunkItemContent>> {
-        chunk_item
-            .into_trait_ref()
-            .await?
+    ) -> Result<ResolvedVc<PersistedCode>> {
+        let chunk_item_ref = chunk_item.into_trait_ref().await?;
+        let content = chunk_item_ref
             .content_with_async_module_info(async_module_info, false)
             .await?
-            .await
+            .await?;
+        content.module_factory().await
     }
-
-    let (code, strict) = match get_content(chunk_item, async_module_info).await {
-        Ok(content) => (content.module_factory().await, content.options.strict),
-        Err(error) => (Err(error), false),
-    };
-    let code = match code {
-        Ok(factory) => factory,
+    let content = get_content(chunk_item, async_module_info).await;
+    Ok(match content {
+        Ok(factory) => *factory,
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
             let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
@@ -330,10 +313,9 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
-            code.build().cell_persisted()
+            *code.build().cell_persisted()
         }
-    };
-    Ok(EcmascriptChunkItemCode { code, strict }.cell())
+    })
 }
 
 /// Generic chunk item that wraps any EcmascriptChunkPlaceable module.

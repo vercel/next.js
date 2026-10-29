@@ -1,4 +1,4 @@
-(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_reexport-registration_facade-all-reexports_input_1oc31h4h4q924._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_reexport-registration_facade-all-reexports_input_1oc31h4h4q924._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/facade-all-reexports/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -66,6 +66,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$reexport$2d$registration$2f$facade$2d$all$2d$reexports$2f$input$2f$order$2e$js__$5b$test$5d$__$28$ecmascript$29$__["order"].push('y');
 const y = 'y';
 }),
-]);})()
+]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_reexport-registration_facade-all-reexports_input_1oc31h4h4q924._.js.map
