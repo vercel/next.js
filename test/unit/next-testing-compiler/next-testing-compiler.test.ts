@@ -1387,6 +1387,73 @@ describe('test compiler artifact publication', () => {
     }
   )
 
+  it('activates actual native original-initial metadata without a static pair', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleMocking: { version: 1 },
+    }
+    const bytes = JSON.stringify(mockMetadata)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node')
+      throw new Error('Expected native original owner')
+    expect(artifact.dynamicModuleMocking).toEqual({
+      version: 1,
+      nativeOriginalInitial: 1,
+    })
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact.moduleMocking).toEqual({ version: 1 })
+    expect(JSON.stringify(mockMetadata)).toBe(bytes)
+  })
+
+  it.each([
+    { dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 } },
+    {
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleCache: { version: 1 },
+    },
+    {
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleMocking: { version: 1 },
+    },
+    ...[0, 2, true, null, '1'].map((nativeOriginalInitial) => ({
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    })),
+    {
+      dynamicModuleMocking: {
+        version: 1,
+        nativeOriginalInitial: 1,
+        staticMocks: 1,
+      },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    },
+    {
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1, cjsNamedSpy: 1 },
+    },
+  ])('rejects malformed original-initial activation %j', async (metadata) => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = metadata
+    await expect(
+      session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow('Invalid native runtime module mock ownership metadata')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
   it('publishes reset capability only from emitted native cache metadata', async () => {
     const nodeProfile = { ...profile, environment: 'node' as const }
     session = await createTestCompilerSession(dir, nodeProfile)
@@ -9626,6 +9693,62 @@ if (process.versions.node.startsWith('26.')) {
           completeAuthoredCasesAndRows: true,
           completeNamespaceAndFunctionDescriptors: true,
           earlierUnmockKeepsActualStaticRegistration: true,
+          nativeCycleAndPartialExports: true,
+          staticRuntimeActualResetUnmockIdentities: true,
+          exactOriginalAndFactoryEvaluations: true,
+          completeCountsAndFileMessages: true,
+          allAuthoredBytesHeld: true,
+          allOwnersJoined: true,
+        })
+        complete = true
+      } finally {
+        if (complete) rmSync(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+}
+
+if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
+  it.each([
+    ['development', 'after-cut-arrow'],
+    ['production', 'after-cut-arrow'],
+    ['development', 'after-cut-function'],
+    ['production', 'after-cut-function'],
+  ] as const)(
+    'preserves cancelled after-cut native original in %s %s',
+    (mode, group) => {
+      const { execFileSync } = require('node:child_process')
+      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(
+        join(tmpdir(), 'next-native-unmock-after-cut-')
+      )
+      let complete = false
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'native-unmock-after-cut.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+            'source',
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          mode,
+          group,
+          cases: 1,
+          rows: 1,
+          completeAuthoredCasesAndRows: true,
+          completeNamespaceAndFunctionDescriptors: true,
+          laterUnmockCancelsStaticFactory: true,
+          actualProviderNamespaceCacheRecordTurnover: true,
           nativeCycleAndPartialExports: true,
           staticRuntimeActualResetUnmockIdentities: true,
           exactOriginalAndFactoryEvaluations: true,

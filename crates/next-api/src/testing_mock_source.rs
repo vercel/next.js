@@ -29,9 +29,17 @@ pub(crate) struct StaticMockPlan {
     pub throw_only_runtime_requests: Vec<String>,
 }
 impl StaticMockPlan {
-    // Syntax candidate only. Assembly must also prove the same canonical
-    // original, surviving registration and actual static/native provider pair.
+    // Syntax candidates only. Assembly proves the actual cancelled/surviving
+    // declaration, canonical original, helper owner and native provider.
     pub(crate) fn retained_single_native_unmock(&self) -> Option<&str> {
+        self.single_native_unmock(true)
+    }
+
+    pub(crate) fn cancelled_single_native_unmock(&self) -> Option<&str> {
+        self.single_native_unmock(false)
+    }
+
+    fn single_native_unmock(&self, retained: bool) -> Option<&str> {
         let [unmock] = self.unmocks.as_slice() else {
             return None;
         };
@@ -42,11 +50,19 @@ impl StaticMockPlan {
             return None;
         };
         let request = declaration.request.as_str();
+        let factory_end = declaration
+            .factory_start
+            .checked_add(declaration.original_factory_source.len())?;
         if request.is_empty()
             || request.starts_with(['.', '/', '#', '\\'])
             || request.contains(['?', '#', ':'])
             || unmock.request != request
-            || unmock.start >= declaration.factory_start
+            || unmock.start >= unmock.end
+            || if retained {
+                unmock.end > declaration.factory_start
+            } else {
+                unmock.start < factory_end
+            }
             || runtime != request
             || !self.reset_modules
             || self.actual_imports.is_empty()
@@ -93,6 +109,7 @@ pub(crate) struct StaticActualImport {
 pub(crate) struct StaticUnmockDeclaration {
     pub request: String,
     pub start: usize,
+    pub end: usize,
 }
 
 struct SourceEdit {
@@ -546,7 +563,13 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         && native_static_request(&calls.calls[0]).is_some_and(|request| {
             !request.contains(':')
                 && native_static_request(&calls.unmock_calls[0]) == Some(request)
-                && calls.unmock_calls[0].span.hi <= calls.calls[0].span.lo
+                && (calls.unmock_calls[0].span.hi <= calls.calls[0].span.lo
+                    || (calls.unmock_calls[0].span.lo >= calls.calls[0].span.hi
+                        && module.body.iter().any(|item| {
+                            matches!(item,
+                            ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
+                                Expr::Call(top) if top.span == calls.unmock_calls[0].span))
+                        })))
                 && calls.unmock_calls[0].args.len() == 1
         });
     let native_static = !calls.runtime_calls.is_empty()
@@ -959,6 +982,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         unmocks.push(StaticUnmockDeclaration {
             request: request.into(),
             start,
+            end,
         });
     }
     for call in calls.calls {
@@ -3094,8 +3118,6 @@ mod import_mock_unmock_tests {
     #[test]
     fn keeps_after_cut_alias_and_multi_target_native_mixtures_closed() {
         for body in [
-            "vi.mock('package',()=>({value:5}));vi.unmock('package');vi.doMock('package',\
-             ()=>({value:73}));vi.importActual('package');vi.resetModules();",
             "vi.unmock('alias');vi.mock('package',()=>({value:5}));vi.doMock('package',\
              ()=>({value:73}));vi.importActual('package');vi.resetModules();",
             "vi.unmock('package');vi.mock('package',()=>({value:5}));vi.mock('other',()=>({value:\
@@ -3128,6 +3150,49 @@ mod import_mock_unmock_tests {
                 extract_test_mocks(&source, "spec.mjs").is_err(),
                 "accepted {body}"
             );
+        }
+    }
+    #[test]
+    fn cancels_only_one_later_top_level_native_factory() {
+        for factory in ["()=>({value:5})", "function(){return {value:5}}"] {
+            let source = format!(
+                "import{{vi}}from'vitest';vi.mock('package',{factory});vi.unmock('package');vi.\
+                 doMock('package',()=>({{value:73}}));vi.importActual('package');vi.\
+                 resetModules();"
+            );
+            let plan = extract_test_mocks(&source, "spec.mjs").unwrap();
+            assert_eq!(plan.cancelled_single_native_unmock(), Some("package"));
+            assert_eq!(plan.retained_single_native_unmock(), None);
+            assert_eq!(plan.declarations[0].original_factory_source, factory);
+            assert!(plan.unmocks[0].start >= plan.declarations[0].factory_start + factory.len());
+            assert!(!plan.source.contains("vi.mock("));
+            assert!(!plan.source.contains("vi.unmock("));
+            assert!(plan.source.contains("vi.resetModules()"));
+            for change in 0..6 {
+                let mut altered = extract_test_mocks(&source, "spec.mjs").unwrap();
+                match change {
+                    0 => altered.unmocks[0].end = altered.unmocks[0].start,
+                    1 => altered.unmocks[0].start = altered.declarations[0].factory_start,
+                    2 => altered.actual_imports[0].request = "other".into(),
+                    3 => altered.runtime_requests.push("other".into()),
+                    4 => altered.reset_modules = false,
+                    5 => altered.declarations[0].has_spread = true,
+                    _ => unreachable!(),
+                }
+                assert_eq!(altered.cancelled_single_native_unmock(), None, "{change}");
+            }
+        }
+        for tail in [
+            "if(true){vi.unmock('package')}",
+            "function later(){vi.unmock('package')}",
+            "vi.unmock('alias')",
+            "vi.unmock(import('package'))",
+        ] {
+            let source = format!(
+                "import{{vi}}from'vitest';vi.mock('package',()=>({{value:5}}));{tail};vi.doMock('\
+                 package',()=>({{value:73}}));vi.importActual('package');vi.resetModules();"
+            );
+            assert!(extract_test_mocks(&source, "spec.mjs").is_err(), "{tail}");
         }
     }
 }

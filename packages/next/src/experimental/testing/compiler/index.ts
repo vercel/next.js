@@ -1766,7 +1766,9 @@ export async function createTestCompilerSession(
       const mockMetadataPath = `server/next-test/${nativeId}.metadata.json`
       let moduleMocking: CompiledTestArtifact['moduleMocking']
       let moduleCache: { version: 1 } | undefined
-      let dynamicModuleMocking: { version: 1; staticMocks?: 1 } | undefined
+      let dynamicModuleMocking:
+        | { version: 1; staticMocks?: 1; nativeOriginalInitial?: 1 }
+        | undefined
       if (files.includes(mockMetadataPath)) {
         const nativeMockBytes = await readFile(
           artifactPath(staging, mockMetadataPath)
@@ -1774,13 +1776,20 @@ export async function createTestCompilerSession(
         const metadata = JSON.parse(nativeMockBytes.toString('utf8'))
         const staticRuntimeMocks =
           metadata.dynamicModuleMocking?.staticMocks === 1
+        const originalInitialMocks =
+          metadata.dynamicModuleMocking?.nativeOriginalInitial === 1
+        const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
         if (metadata.dynamicModuleMocking !== undefined) {
           if (
             metadata.dynamicModuleMocking?.version !== 1 ||
             metadata.moduleCache?.version !== 1 ||
             (metadata.dynamicModuleMocking.staticMocks !== undefined &&
               !staticRuntimeMocks) ||
-            (staticRuntimeMocks
+            (metadata.dynamicModuleMocking.nativeOriginalInitial !==
+              undefined &&
+              !originalInitialMocks) ||
+            (staticRuntimeMocks && originalInitialMocks) ||
+            (nativeRuntimeMocks
               ? metadata.moduleMocking?.version !== 1 ||
                 Object.keys(metadata.moduleMocking).length !== 1
               : metadata.moduleMocking) ||
@@ -1792,6 +1801,9 @@ export async function createTestCompilerSession(
           dynamicModuleMocking = {
             version: 1,
             ...(staticRuntimeMocks ? { staticMocks: 1 as const } : {}),
+            ...(originalInitialMocks
+              ? { nativeOriginalInitial: 1 as const }
+              : {}),
           }
         }
         if (metadata.moduleCache !== undefined) {
@@ -1799,13 +1811,13 @@ export async function createTestCompilerSession(
             profile.mode === 'production' &&
             profile.route === undefined &&
             ((!metadata.moduleMocking && !metadata.dynamicModuleMocking) ||
-              staticRuntimeMocks)
+              nativeRuntimeMocks)
           if (
             metadata.moduleCache?.version !== 1 ||
             profile.environment !== 'node' ||
             (profile.mode !== 'development' && !productionReset) ||
             cohortInputs ||
-            (metadata.moduleMocking && !staticRuntimeMocks) ||
+            (metadata.moduleMocking && !nativeRuntimeMocks) ||
             setupFiles.length ||
             snapshotSerializers.length ||
             coverage ||
@@ -1816,7 +1828,7 @@ export async function createTestCompilerSession(
               'Module cache resets require isolated development Node without setup, serializers, coverage or custom realms'
             )
           moduleCache = { version: 1 }
-          if (staticRuntimeMocks) moduleMocking = { version: 1 }
+          if (nativeRuntimeMocks) moduleMocking = { version: 1 }
         } else {
           const productionStaticFactory =
             profile.mode === 'production' &&

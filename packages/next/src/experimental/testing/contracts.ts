@@ -361,7 +361,11 @@ export interface CompiledNodeTestArtifact
   /** Native-issued actual module-ID manifest, never a public reset option. */
   moduleCache?: { version: 1 }
   /** Native-issued dynamic target IDs and entry ownership, separate from static mocks. */
-  dynamicModuleMocking?: { version: 1; staticMocks?: 1 }
+  dynamicModuleMocking?: {
+    version: 1
+    staticMocks?: 1
+    nativeOriginalInitial?: 1
+  }
   /** Present only for a compiler-created shared Node worker cohort. */
   cohort?: CompiledTestCohortIdentity
   /** Browser drivers only: resolved evidence required before app-server startup. */

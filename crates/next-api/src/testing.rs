@@ -509,7 +509,8 @@ pub(crate) async fn test_endpoint(
         && !(&*environment == "node"
             && project.next_mode().await?.is_production()
             && route.is_none()
-            && production_plan.retained_single_native_unmock().is_some()
+            && (production_plan.retained_single_native_unmock().is_some()
+                || production_plan.cancelled_single_native_unmock().is_some())
             && production_paired_native_actual_plan(&production_plan))
     {
         return Err(test_input_error(
@@ -651,7 +652,9 @@ fn production_paired_native_actual_plan(plan: &StaticMockPlan) -> bool {
         && !plan.actual_imports.is_empty()
         && plan.hoisted.is_empty()
         && plan.mock_imports.is_empty()
-        && (plan.unmocks.is_empty() || plan.retained_single_native_unmock().is_some())
+        && (plan.unmocks.is_empty()
+            || plan.retained_single_native_unmock().is_some()
+            || plan.cancelled_single_native_unmock().is_some())
         && plan.declarations.iter().all(|declaration| {
             !declaration.automatic
                 && !declaration.spy
@@ -1200,6 +1203,7 @@ async fn module_reset_manifest(
     native_protected: &[crate::testing_external_modules::NativeExternalCertificate],
     compiled_modules: &[ResolvedVc<Box<dyn Module>>],
     static_pairs: &[crate::testing_static_runtime::StaticMockPair],
+    original_initials: &[crate::testing_static_runtime::NativeOriginalInitial],
     commonjs_reset: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
     publish_leaf_promises: bool,
 ) -> Result<(
@@ -1224,12 +1228,27 @@ async fn module_reset_manifest(
     let static_protected = static_pairs
         .iter()
         .flat_map(|pair| pair.protected.iter().copied())
+        .chain(
+            original_initials
+                .iter()
+                .flat_map(|original| original.protected.iter().copied()),
+        )
         .collect::<HashSet<_>>();
-    queue.extend(
-        static_pairs
-            .iter()
-            .flat_map(|pair| pair.protected.iter().copied()),
-    );
+    queue.extend(static_protected.iter().copied());
+    if original_initials.iter().any(|original| {
+        static_protected.contains(&original.provider)
+            || !native_modules.iter().any(|known| {
+                known.original == original.original
+                    && known.module == original.provider
+                    && known.builtin.is_none()
+                    && known.kind == crate::testing_external_modules::NativeOriginalKind::CommonJs
+            })
+    }) {
+        return Err(test_input_error(
+            path.clone(),
+            "Original-initial resets require the actual unprotected native CommonJS provider",
+        ));
+    }
     if static_pairs
         .iter()
         .any(|pair| pair.initial == pair.provider || static_protected.contains(&pair.provider))
@@ -2280,6 +2299,8 @@ async fn prepare_test_module_with_loading(
     let mut target_indexes = FxIndexMap::default();
     let mut native_unmock_cuts = HashMap::new();
     let retained_before_unmock = plan.retained_single_native_unmock().is_some();
+    let cancelled_after_unmock = plan.cancelled_single_native_unmock().is_some();
+    let native_unmock = retained_before_unmock || cancelled_after_unmock;
     let mut retained_unmock_original = None;
     let mut builtin_unmock_cuts = HashMap::new();
     let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
@@ -2303,7 +2324,7 @@ async fn prepare_test_module_with_loading(
     } else {
         false
     };
-    if retained_before_unmock && (!allow_native_actual_imports || inputs.len() != 1) {
+    if native_unmock && (!allow_native_actual_imports || inputs.len() != 1) {
         return Err(test_input_error(
             path.clone(),
             "Retained native unmock pairs require the isolated actual-import owner",
@@ -2338,7 +2359,7 @@ async fn prepare_test_module_with_loading(
                     allow_native_actual_imports,
                 )
                 .await?;
-                if retained_before_unmock {
+                if native_unmock {
                     let Some(external) =
                         ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
                     else {
@@ -2416,13 +2437,18 @@ async fn prepare_test_module_with_loading(
             .await?;
             let resolved = resolved.await?;
             let modules = resolved.primary_modules().await?;
-            if retained_before_unmock {
-                let surviving = modules.len() == 1
+            if native_unmock {
+                let corresponding = modules.len() == 1
                     && retained_unmock_original == Some(modules[0])
                     && native_unmock_cuts.get(&modules[0]).is_some_and(|cut| {
-                        cut.0 == input_index && cut.1 < declaration.factory_start
+                        cut.0 == input_index
+                            && if retained_before_unmock {
+                                cut.1 < declaration.factory_start
+                            } else {
+                                cut.1 > declaration.factory_start
+                            }
                     });
-                if !surviving {
+                if !corresponding {
                     return Err(test_input_error(
                         path.clone(),
                         "Retained native unmock must precede the same actual surviving factory",
@@ -2856,7 +2882,10 @@ async fn prepare_test_module_with_loading(
                 format!("The spec module cannot be its own vi.importActual target: {request}"),
             ));
         }
-        if paired_native_actual_candidate && !external_modules.contains_key(&original) {
+        if paired_native_actual_candidate
+            && !(external_modules.contains_key(&original)
+                || (cancelled_after_unmock && retained_unmock_original == Some(original)))
+        {
             return Err(test_input_error(
                 path.clone(),
                 "Native mixed actual helpers must reuse their paired external original",
@@ -2873,6 +2902,9 @@ async fn prepare_test_module_with_loading(
                         && matches!(&*parsed_request.await?, Request::Uri {query, fragment, ..}
                             if query.is_empty() && fragment.is_empty())))
             {
+                if cancelled_after_unmock && retained_unmock_original == Some(original) {
+                    paired_native_actual_count += 1;
+                }
                 let original_request = if let Some((_, request)) = external_modules.get(&original) {
                     paired_native_actual_count += 1;
                     request.clone()
@@ -3388,6 +3420,17 @@ async fn prepare_test_module_with_loading(
             "Retained native unmock requires its actual registration and original-import links",
         ));
     }
+    if cancelled_after_unmock
+        && (!registrations.is_empty()
+            || !external_modules.is_empty()
+            || retained_unmock_original.is_none()
+            || paired_native_actual_count != plan.actual_imports.len())
+    {
+        return Err(test_input_error(
+            path.clone(),
+            "Cancelled native factories require only their actual original-import links",
+        ));
+    }
     let registration_source = test_source(
         path.clone(),
         Some(rcstr!("next-test-mock-registration")),
@@ -3849,6 +3892,7 @@ impl NodeTestEndpoint {
                         static_native.context,
                         static_native.certificates,
                         static_native.pairs,
+                        static_native.original_initials,
                     )
                 } else {
                     let native = crate::testing_external_modules::runtime_native_external_context(
@@ -3873,7 +3917,7 @@ impl NodeTestEndpoint {
                     } else {
                         native
                     };
-                    (native.context, native.certificates, Vec::new())
+                    (native.context, native.certificates, Vec::new(), Vec::new())
                 })
             } else {
                 None
@@ -3890,6 +3934,9 @@ impl NodeTestEndpoint {
         let static_pairs = native_runtime
             .as_ref()
             .map_or(&[][..], |native| native.2.as_slice());
+        let original_initials = native_runtime
+            .as_ref()
+            .map_or(&[][..], |native| native.3.as_slice());
         let production_reset = isolated_node_runtime
             && self.project.next_mode().await?.is_production()
             && production_reset_plan(&plan);
@@ -3920,7 +3967,7 @@ impl NodeTestEndpoint {
             && commonjs_reset.is_none()
             && !(prepared.paired_native_actuals
                 && !native_certificates.is_empty()
-                && !static_pairs.is_empty())
+                && (!static_pairs.is_empty() || !original_initials.is_empty()))
         {
             return Err(test_input_error(
                 self.path.clone(),
@@ -3956,6 +4003,7 @@ impl NodeTestEndpoint {
                     &prepared.runtime_requests,
                     native_certificates,
                     static_pairs,
+                    original_initials,
                     commonjs_reset.as_ref(),
                     if prepared.paired_native_actuals {
                         prepared.registration
@@ -3996,6 +4044,7 @@ impl NodeTestEndpoint {
                     .as_ref()
                     .map_or(&[][..], |manifest| manifest.compiled_resettable.as_slice()),
                 static_pairs,
+                original_initials,
                 commonjs_reset.as_ref(),
                 publish_leaf_promises,
             )
@@ -4418,10 +4467,13 @@ impl NodeTestEndpoint {
                                     &this.id,
                                     prepared.paired_native_actuals,
                                 ).await?;
-                                if paired.pairs.is_empty() {
-                                    return Err(test_input_error(this.path.clone(), "Static runtime activation requires actual compiler namespace/provider pairs"));
+                                if !paired.pairs.is_empty() && paired.original_initials.is_empty() {
+                                    "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"staticMocks\":1},\"moduleMocking\":{\"version\":1}}".to_string()
+                                } else if paired.pairs.is_empty() && !paired.original_initials.is_empty() {
+                                    "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"nativeOriginalInitial\":1},\"moduleMocking\":{\"version\":1}}".to_string()
+                                } else {
+                                    return Err(test_input_error(this.path.clone(), "Static runtime activation requires actual compiler pairs or original-initial providers"));
                                 }
-                                "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"staticMocks\":1},\"moduleMocking\":{\"version\":1}}".to_string()
                             }
                         } else if plan.reset_modules {
                             "{\"moduleCache\":{\"version\":1}}".to_string()
@@ -5542,6 +5594,32 @@ mod injected_commonjs_producer_tests {
             assert!(
                 !crate::testing::production_paired_native_actual_plan(&plan),
                 "change {change}"
+            );
+        }
+    }
+    #[test]
+    fn production_later_unmock_keeps_exact_original_initial_shape() {
+        let source = "import{vi}from'vitest';vi.mock('package',()=>({value:5}));vi.unmock('\
+                      package');vi.doMock('package',()=>({value:73}));vi.importActual('package');\
+                      vi.resetModules();";
+        let plan = crate::testing_mock_source::extract_test_mocks(source, "entry.mjs").unwrap();
+        assert!(crate::testing::production_paired_native_actual_plan(&plan));
+        for change in 0..7 {
+            let mut plan =
+                crate::testing_mock_source::extract_test_mocks(source, "entry.mjs").unwrap();
+            match change {
+                0 => plan.unmocks[0].start = usize::MAX,
+                1 => plan.unmocks[0].request = "alias".into(),
+                2 => plan.runtime_requests.push("other".into()),
+                3 => plan.actual_imports[0].request = "other".into(),
+                4 => plan.declarations[0].spy = true,
+                5 => plan.reset_modules = false,
+                6 => plan.actual_imports.clear(),
+                _ => unreachable!(),
+            }
+            assert!(
+                !crate::testing::production_paired_native_actual_plan(&plan),
+                "{change}"
             );
         }
     }

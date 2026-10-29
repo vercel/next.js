@@ -497,15 +497,20 @@ async function run({
     const staticRuntimeMocks =
       artifact.kind === 'node' &&
       artifact.dynamicModuleMocking?.staticMocks === 1
+    const originalInitialMocks =
+      artifact.kind === 'node' &&
+      artifact.dynamicModuleMocking?.nativeOriginalInitial === 1
+    const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
     const productionStaticRuntimeMocks =
-      staticRuntimeMocks &&
+      nativeRuntimeMocks &&
       artifact.profile.mode === 'production' &&
       artifact.profile.environment === 'node' &&
       artifact.profile.route === undefined
     if (
-      staticRuntimeMocks &&
-      (artifact.moduleMocking?.version !== 1 ||
-        Object.keys(artifact.moduleMocking).length !== 1)
+      (staticRuntimeMocks && originalInitialMocks) ||
+      (nativeRuntimeMocks &&
+        (artifact.moduleMocking?.version !== 1 ||
+          Object.keys(artifact.moduleMocking).length !== 1))
     )
       throw new Error('Unsupported native static/runtime mock activation')
     if (
@@ -643,7 +648,7 @@ async function run({
         (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
         ('moduleCache' in artifact &&
           artifact.moduleCache !== undefined &&
-          !staticRuntimeMocks) ||
+          !nativeRuntimeMocks) ||
         (artifact.kind === 'rsc' &&
           (artifact.profile.route !== undefined ||
             options.setupFiles.length ||
@@ -668,7 +673,7 @@ async function run({
             ((!artifact.moduleMocking && !artifact.dynamicModuleMocking) ||
               productionStaticRuntimeMocks)
           )) ||
-        (artifact.moduleMocking && !staticRuntimeMocks) ||
+        (artifact.moduleMocking && !nativeRuntimeMocks) ||
         artifact.cohort ||
         options.coverage ||
         options.collectOnly ||
@@ -684,8 +689,10 @@ async function run({
         artifact.dynamicModuleMocking.version !== 1 ||
         (artifact.dynamicModuleMocking.staticMocks !== undefined &&
           !staticRuntimeMocks) ||
+        (artifact.dynamicModuleMocking.nativeOriginalInitial !== undefined &&
+          !originalInitialMocks) ||
         !artifact.moduleCache ||
-        (artifact.moduleMocking && !staticRuntimeMocks) ||
+        (artifact.moduleMocking && !nativeRuntimeMocks) ||
         artifact.cohort ||
         options.inspect
       )

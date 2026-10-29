@@ -3192,3 +3192,42 @@ it.each([
     expect(JSON.parse(result)).toEqual({ mode, ownedActualCache: true })
   }
 )
+
+it.each([
+  'lazy',
+  'initial',
+  'reset',
+  'unregistered-reset',
+  'retire-failure',
+  'pending',
+  'rejection',
+  'dispose-pending',
+  'absent',
+  'foreign-id',
+  'foreign-prototype',
+  'foreign-record',
+  'foreign-alias',
+  'closed-cache',
+  'protected-provider',
+  'owner-overlap',
+  'invalid-false',
+  'invalid-null',
+  'invalid-string',
+  'invalid-number',
+  'invalid-object',
+  'invalid-array',
+  'invalid-esm',
+  'invalid-untyped',
+  'mixed-static',
+  'old-equal-static',
+])(
+  'keeps actual native original initialization component state: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'native-original-initial.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({ mode, originalInitialComponent: true })
+  }
+)

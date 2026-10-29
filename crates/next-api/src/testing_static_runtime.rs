@@ -40,10 +40,20 @@ pub(crate) struct StaticMockPair {
     pub(crate) protected: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
+/// An actual cancelled source factory leaves the real native provider as both
+/// initial import and resettable runtime original. This is never a static pair.
+#[derive(Clone)]
+pub(crate) struct NativeOriginalInitial {
+    pub(crate) original: ResolvedVc<Box<dyn Module>>,
+    pub(crate) provider: ResolvedVc<Box<dyn Module>>,
+    pub(crate) protected: Vec<ResolvedVc<Box<dyn Module>>>,
+}
+
 pub(crate) struct StaticRuntimePreparation {
     pub(crate) context: ResolvedVc<ModuleAssetContext>,
     pub(crate) certificates: Vec<NativeExternalCertificate>,
     pub(crate) pairs: Vec<StaticMockPair>,
+    pub(crate) original_initials: Vec<NativeOriginalInitial>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -125,6 +135,69 @@ async fn resolve_options(
     Ok(options.cell())
 }
 
+async fn collect_registration_protection(
+    registration: ResolvedVc<Box<dyn Module>>,
+    initial: Option<ResolvedVc<Box<dyn Module>>>,
+    initial_module: ResolvedVc<Box<dyn Module>>,
+    certificates: &[NativeExternalCertificate],
+    framework: &FileSystemPath,
+    path: &FileSystemPath,
+) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    let mut queue = vec![registration];
+    queue.extend(initial);
+    let mut protected = Vec::new();
+    let mut seen = HashSet::new();
+    while let Some(module) = queue.pop() {
+        if !seen.insert(module) || certificates.iter().any(|known| known.module == module) {
+            continue;
+        }
+        if module == initial_module {
+            return Err(test_input_error(
+                path.clone(),
+                "Static replacement closure cannot own the explicit test entry",
+            ));
+        }
+        let ident = module.ident().await?;
+        if framework.get_path_to(&ident.path).is_some() {
+            protected.push(module);
+            continue;
+        }
+        if ResolvedVc::try_downcast_type::<CachedExternalModule>(module).is_some() {
+            if !certificates
+                .iter()
+                .any(|known| known.native == module || known.original == module)
+            {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Static replacement closure contains an uncertified native module",
+                ));
+            }
+            protected.push(module);
+            continue;
+        }
+        if ident.path != *path {
+            return Err(test_input_error(
+                ident.path.clone(),
+                "Static/runtime replacement closures cannot include other user modules",
+            ));
+        }
+        protected.push(module);
+        for (_, reference) in primary_chunkable_referenced_modules(*module, false, false)
+            .await?
+            .iter()
+        {
+            if reference.modules.is_empty() {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Static/runtime replacement closure contains an unresolved executable edge",
+                ));
+            }
+            queue.extend(reference.modules.iter().copied());
+        }
+    }
+    Ok(protected)
+}
+
 pub(crate) async fn prepare(
     root: FileSystemPath,
     origin_context: ResolvedVc<ModuleAssetContext>,
@@ -138,11 +211,13 @@ pub(crate) async fn prepare(
 ) -> Result<StaticRuntimePreparation> {
     let plan = static_mock_plan(path).await?;
     let retained_before_unmock = plan.retained_single_native_unmock().is_some();
+    let cancelled_after_unmock = plan.cancelled_single_native_unmock().is_some();
+    let native_unmock = retained_before_unmock || cancelled_after_unmock;
     if plan.declarations.is_empty()
         || !plan.hoisted.is_empty()
         || (!plan.actual_imports.is_empty() && !paired_native_actuals)
         || !plan.mock_imports.is_empty()
-        || (!plan.unmocks.is_empty() && !retained_before_unmock)
+        || (!plan.unmocks.is_empty() && !native_unmock)
         || plan.declarations.iter().any(|declaration| {
             declaration.automatic || declaration.spy || !requests.contains(&declaration.request)
         })
@@ -171,7 +246,7 @@ pub(crate) async fn prepare(
         .to_resolved()
         .await?;
     let original_origin = runtime_resolve_origin(original_module, path).await?;
-    let retained_unmock_original = if retained_before_unmock {
+    let retained_unmock_original = if native_unmock {
         // The certificate's actual original must also be the earlier cut's
         // static-import original, not merely a matching request spelling.
         let unmock_request = Request::parse(RcStr::from(plan.unmocks[0].request.clone()).into())
@@ -207,6 +282,7 @@ pub(crate) async fn prepare(
     let initial_origin = runtime_resolve_origin(initial_module, path).await?;
     let mut consumers = Vec::new();
     let mut pairs: Vec<StaticMockPair> = Vec::new();
+    let mut original_initials = Vec::new();
     let mut rules = Vec::new();
     let framework = get_next_package(root).await?;
     for request in requests {
@@ -236,7 +312,7 @@ pub(crate) async fn prepare(
                 "Static/runtime mixtures require actual certified native targets",
             ));
         };
-        if retained_before_unmock
+        if native_unmock
             && (requests.len() != 1
                 || retained_unmock_original != Some(certificate.original)
                 || certificate.builtin.is_some()
@@ -248,100 +324,79 @@ pub(crate) async fn prepare(
                 "Retained unmock pairs require one actual native CommonJS certificate",
             ));
         }
-        let resolved = esm_resolve(
-            *initial_origin,
-            *parsed,
-            EcmaScriptModulesReferenceSubType::DynamicImport,
-            ResolveErrorMode::Error,
-            None,
-        )
-        .await?;
-        let initials = resolved.await?.primary_modules().await?;
-        if initials.len() != 1
-            || initials[0] == certificate.module
-            || initials[0] == certificate.original
-            || initials[0] == initial_module
-        {
-            return Err(test_input_error(
-                path.clone(),
-                "Static/runtime targets require a distinct actual static replacement",
-            ));
-        }
-        let initial = initials[0];
-        if let Some(previous) = pairs
-            .iter()
-            .find(|pair| pair.initial == initial || pair.provider == certificate.module)
-        {
-            if previous.initial != initial || previous.provider != certificate.module {
+        let initial;
+        if cancelled_after_unmock {
+            // Both actual entry references resolve to this very provider module.
+            // Its cache record remains resettable; only the real helper closure
+            // is retained across resets.
+            initial = certificate.module;
+            let protected = collect_registration_protection(
+                registration,
+                None,
+                initial_module,
+                &native.certificates,
+                &framework,
+                path,
+            )
+            .await?;
+            if protected.contains(&certificate.module) {
                 return Err(test_input_error(
                     path.clone(),
-                    "Static/runtime compiler namespace/provider pairs overlap",
+                    "Original-initial provider cannot be protected",
                 ));
             }
-        } else {
-            let mut queue = vec![initial, registration];
-            let mut protected = Vec::new();
-            let mut seen = HashSet::new();
-            while let Some(module) = queue.pop() {
-                if !seen.insert(module)
-                    || native
-                        .certificates
-                        .iter()
-                        .any(|known| known.module == module)
-                {
-                    continue;
-                }
-                if module == initial_module {
-                    return Err(test_input_error(
-                        path.clone(),
-                        "Static replacement closure cannot own the explicit test entry",
-                    ));
-                }
-                let ident = module.ident().await?;
-                if framework.get_path_to(&ident.path).is_some() {
-                    protected.push(module);
-                    continue;
-                }
-                if ResolvedVc::try_downcast_type::<CachedExternalModule>(module).is_some() {
-                    if !native
-                        .certificates
-                        .iter()
-                        .any(|known| known.native == module || known.original == module)
-                    {
-                        return Err(test_input_error(
-                            path.clone(),
-                            "Static replacement closure contains an uncertified native module",
-                        ));
-                    }
-                    protected.push(module);
-                    continue;
-                }
-                if ident.path != *path {
-                    return Err(test_input_error(
-                        ident.path.clone(),
-                        "Static/runtime replacement closures cannot include other user modules",
-                    ));
-                }
-                protected.push(module);
-                for (_, reference) in primary_chunkable_referenced_modules(*module, false, false)
-                    .await?
-                    .iter()
-                {
-                    if reference.modules.is_empty() {
-                        return Err(test_input_error(
-                            path.clone(),
-                            "Static/runtime replacement closure contains an unresolved executable \
-                             edge",
-                        ));
-                    }
-                    queue.extend(reference.modules.iter().copied());
-                }
-            }
-            pairs.push(StaticMockPair {
-                initial,
+            original_initials.push(NativeOriginalInitial {
+                original: certificate.original,
                 provider: certificate.module,
                 protected,
             });
+        } else {
+            let resolved = esm_resolve(
+                *initial_origin,
+                *parsed,
+                EcmaScriptModulesReferenceSubType::DynamicImport,
+                ResolveErrorMode::Error,
+                None,
+            )
+            .await?;
+            let initials = resolved.await?.primary_modules().await?;
+            if initials.len() != 1
+                || initials[0] == certificate.module
+                || initials[0] == certificate.original
+                || initials[0] == initial_module
+            {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Static/runtime targets require a distinct actual static replacement",
+                ));
+            }
+            initial = initials[0];
+            if let Some(previous) = pairs
+                .iter()
+                .find(|pair| pair.initial == initial || pair.provider == certificate.module)
+            {
+                if previous.initial != initial || previous.provider != certificate.module {
+                    return Err(test_input_error(
+                        path.clone(),
+                        "Static/runtime compiler namespace/provider pairs overlap",
+                    ));
+                }
+            } else {
+                let protected = collect_registration_protection(
+                    registration,
+                    Some(initial),
+                    initial_module,
+                    &native.certificates,
+                    &framework,
+                    path,
+                )
+                .await?;
+                pairs.push(StaticMockPair {
+                    initial,
+                    provider: certificate.module,
+                    protected,
+                });
+            }
         }
         let (initial_source, initial_rule) = resolved_module_bridge(
             initial,
@@ -387,5 +442,6 @@ pub(crate) async fn prepare(
         context,
         certificates: native.certificates,
         pairs,
+        original_initials,
     })
 }

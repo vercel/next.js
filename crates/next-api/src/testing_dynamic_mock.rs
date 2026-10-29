@@ -662,6 +662,7 @@ struct DynamicTarget {
     parts: Vec<ResolvedVc<Box<dyn Module>>>,
     native_original: Option<NativeOriginalKind>,
     static_mock: Option<crate::testing_static_runtime::StaticMockPair>,
+    native_original_initial: bool,
 }
 
 #[cfg(test)]
@@ -672,11 +673,32 @@ fn manifest_value_source(
     manifest_value_source_with_static(owners, targets, &[])
 }
 
+#[cfg(test)]
 fn manifest_value_source_with_static(
     owners: usize,
     targets: &[(usize, &[String], Option<NativeOriginalKind>)],
     static_pairs: &[bool],
 ) -> Result<String> {
+    manifest_value_source_with_original_initials(owners, targets, static_pairs, &[])
+}
+
+fn manifest_value_source_with_original_initials(
+    owners: usize,
+    targets: &[(usize, &[String], Option<NativeOriginalKind>)],
+    static_pairs: &[bool],
+    original_initials: &[bool],
+) -> Result<String> {
+    if (!original_initials.is_empty() && original_initials.len() != targets.len())
+        || original_initials.iter().zip(targets).enumerate().any(
+            |(index, (initial, (_, _, kind)))| {
+                *initial
+                    && (*kind != Some(NativeOriginalKind::CommonJs)
+                        || static_pairs.get(index).copied().unwrap_or_default())
+            },
+        )
+    {
+        bail!("Original-initial runtime manifests require separate native CommonJS targets");
+    }
     if (!static_pairs.is_empty() && static_pairs.len() != targets.len())
         || static_pairs
             .iter()
@@ -695,7 +717,7 @@ fn manifest_value_source_with_static(
             .iter()
             .enumerate()
             .map(|(index, (parts, requests, kind))| Ok(format!(
-                "{{id:target_{index},aliases:[{}],requests:{}{}{}}}",
+                "{{id:target_{index},aliases:[{}],requests:{}{}{}{}}}",
                 (0..*parts)
                     .map(|part_index| format!("part_{index}_{part_index}"))
                     .collect::<Vec<_>>()
@@ -707,6 +729,11 @@ fn manifest_value_source_with_static(
                     format!(",staticMock:{{initial:initial_{index},provider:target_{index}}}")
                 } else {
                     String::new()
+                },
+                if original_initials.get(index).copied().unwrap_or_default() {
+                    ",nativeOriginalInitial:true"
+                } else {
+                    ""
                 }
             )))
             .collect::<Result<Vec<_>>>()?
@@ -885,6 +912,7 @@ pub(crate) async fn manifest(
     requests: &[String],
     native_certificates: &[NativeExternalCertificate],
     static_pairs: &[crate::testing_static_runtime::StaticMockPair],
+    original_initials: &[crate::testing_static_runtime::NativeOriginalInitial],
     commonjs: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
     paired_actual_helper: Option<ResolvedVc<Box<dyn Module>>>,
 ) -> Result<DynamicMockManifest> {
@@ -961,6 +989,7 @@ pub(crate) async fn manifest(
                     parts: vec![certificate.namespace],
                     native_original: None,
                     static_mock: None,
+                    native_original_initial: false,
                 });
             }
             continue;
@@ -1011,6 +1040,12 @@ pub(crate) async fn manifest(
                     .iter()
                     .find(|pair| pair.provider == module)
                     .cloned(),
+                native_original_initial: original_initials.iter().any(|initial| {
+                    initial.original == certificate.original
+                        && initial.provider == module
+                        && certificate.kind == NativeOriginalKind::CommonJs
+                        && certificate.builtin.is_none()
+                }),
             });
             continue;
         }
@@ -1094,6 +1129,7 @@ pub(crate) async fn manifest(
                 parts: graph.aliases,
                 native_original: None,
                 static_mock: None,
+                native_original_initial: false,
             });
             continue;
         }
@@ -1216,11 +1252,17 @@ pub(crate) async fn manifest(
             parts: owned,
             native_original: None,
             static_mock: None,
+            native_original_initial: false,
         });
     }
     let static_protected = static_pairs
         .iter()
         .flat_map(|pair| pair.protected.iter().copied())
+        .chain(
+            original_initials
+                .iter()
+                .flat_map(|original| original.protected.iter().copied()),
+        )
         .collect::<HashSet<_>>();
     let paired_helper_owner = if let Some(helper) = paired_actual_helper {
         if !static_protected.contains(&helper) || helper.ident().await?.path != *path {
@@ -1604,7 +1646,7 @@ pub(crate) async fn manifest(
         assets.insert(RcStr::from(request.clone()), module);
         code.push_str(&format!("require.resolve('{request}');\n"));
     }
-    let mut manifest_source = manifest_value_source_with_static(
+    let mut manifest_source = manifest_value_source_with_original_initials(
         owners.len(),
         &targets
             .iter()
@@ -1619,6 +1661,10 @@ pub(crate) async fn manifest(
         &targets
             .iter()
             .map(|target| target.static_mock.is_some())
+            .collect::<Vec<_>>(),
+        &targets
+            .iter()
+            .map(|target| target.native_original_initial)
             .collect::<Vec<_>>(),
     )?;
     append_static_imports(&mut manifest_source, static_edges.len());
@@ -1852,5 +1898,44 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+    #[test]
+    fn emits_real_original_initial_ids_without_static_pairs() {
+        let requests = vec!["package".to_owned()];
+        let targets = [(1, requests.as_slice(), Some(NativeOriginalKind::CommonJs))];
+        let source =
+            super::manifest_value_source_with_original_initials(1, &targets, &[false], &[true])
+                .unwrap();
+        assert_eq!(
+            source,
+            "export const \
+             manifest={version:1,owners:[owner_0],targets:[{id:target_0,aliases:[part_0_0],\
+             requests:[\"package\"],nativeOriginal:\"commonjs\",nativeOriginalInitial:true}]};\n"
+        );
+        assert!(!source.contains("staticMock"));
+        assert!(
+            extract_test_mocks(&source, "original-initial-manifest.mjs")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            super::manifest_value_source_with_original_initials(1, &targets, &[true], &[true])
+                .is_err()
+        );
+        assert!(
+            super::manifest_value_source_with_original_initials(1, &targets, &[], &[true, true])
+                .is_err()
+        );
+        for kind in [None, Some(NativeOriginalKind::Esm)] {
+            assert!(
+                super::manifest_value_source_with_original_initials(
+                    1,
+                    &[(1, requests.as_slice(), kind)],
+                    &[],
+                    &[true]
+                )
+                .is_err()
+            );
+        }
     }
 }

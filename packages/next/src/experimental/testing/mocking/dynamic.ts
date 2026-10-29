@@ -25,6 +25,7 @@ interface Manifest {
     aliases?: readonly ModuleId[]
     requests: readonly string[]
     nativeOriginal?: 'commonjs' | 'esm'
+    nativeOriginalInitial?: true
     staticMock?: { initial: ModuleId; provider: ModuleId }
   }[]
 }
@@ -171,6 +172,19 @@ export function initializeDynamicModuleMocking(
       state.initial = staticMock.initial
       state.initialActive = true
       initialIds.add(staticMock.initial)
+    }
+    const nativeOriginalInitial = target.nativeOriginalInitial
+    if (nativeOriginalInitial !== undefined) {
+      if (
+        nativeOriginalInitial !== true ||
+        target.nativeOriginal !== 'commonjs' ||
+        staticMock !== undefined
+      )
+        throw new Error(
+          'Invalid runtime native original initialization identity.'
+        )
+      state.initial = target.id
+      state.initialActive = true
     }
     if (target.nativeOriginal !== undefined) {
       assertNativeModuleOwnership(
