@@ -1,6 +1,8 @@
 import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 
+// Cache Components does not support the runtime exports used by this fixture.
+// @force-gate !cacheComponents
 describe('segment-config-not-found-runtime', () => {
   const { next } = nextTestSetup({
     files: __dirname,
