@@ -231,7 +231,15 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
           updates.stale = now
 
           if (durations.expire !== undefined) {
-            updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+            const expired = now + durations.expire * 1000 // Convert seconds to ms
+
+            // Never postpone an expiration that was already requested for this
+            // tag, e.g. `revalidateTag(tag, 'max')` must not undo an earlier
+            // `revalidateTag(tag, { expire: 0 })`.
+            updates.expired =
+              existingEntry.expired !== undefined
+                ? Math.min(existingEntry.expired, expired)
+                : expired
           }
 
           tagsManifest.set(tag, updates)
