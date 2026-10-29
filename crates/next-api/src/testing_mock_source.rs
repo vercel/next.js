@@ -40,9 +40,7 @@ impl StaticMockPlan {
     }
 
     fn single_native_unmock(&self, retained: bool) -> Option<&str> {
-        let [unmock] = self.unmocks.as_slice() else {
-            return None;
-        };
+        let unmock = self.unmocks.last()?;
         let [declaration] = self.declarations.as_slice() else {
             return None;
         };
@@ -56,8 +54,15 @@ impl StaticMockPlan {
         if request.is_empty()
             || request.starts_with(['.', '/', '#', '\\'])
             || request.contains(['?', '#', ':'])
-            || unmock.request != request
-            || unmock.start >= unmock.end
+            || self.unmocks.iter().any(|cut| {
+                cut.request != request
+                    || cut.start >= cut.end
+                    || (cut.start < factory_end && cut.end > declaration.factory_start)
+            })
+            || self
+                .unmocks
+                .windows(2)
+                .any(|cuts| cuts[0].end > cuts[1].start)
             || if retained {
                 unmock.end > declaration.factory_start
             } else {
@@ -549,10 +554,10 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     if calls.reset_calls.iter().any(|call| !call.args.is_empty()) {
         bail!("vi.resetModules currently requires no arguments ({filename}).");
     }
-    // Retain one earlier literal cut, rather than erasing it by spelling.
-    // The actual resolved original and surviving registration are checked later.
-    let retained_single_unmock = allow_runtime
-        && calls.unmock_calls.len() == 1
+    // Retain source-ordered direct cuts for one native target/factory. The
+    // assembly still proves the actual original and surviving registration.
+    let native_unmock_sequence = allow_runtime
+        && !calls.unmock_calls.is_empty()
         && calls.calls.len() == 1
         && !calls.actual_calls.is_empty()
         && !calls.reset_calls.is_empty()
@@ -562,15 +567,17 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             .any(|(registration, _)| *registration)
         && native_static_request(&calls.calls[0]).is_some_and(|request| {
             !request.contains(':')
-                && native_static_request(&calls.unmock_calls[0]) == Some(request)
-                && (calls.unmock_calls[0].span.hi <= calls.calls[0].span.lo
-                    || (calls.unmock_calls[0].span.lo >= calls.calls[0].span.hi
+                && calls.unmock_calls.iter().all(|unmock| {
+                    native_static_request(unmock) == Some(request)
+                        && unmock.args.len() == 1
+                        && (unmock.span.hi <= calls.calls[0].span.lo
+                            || unmock.span.lo >= calls.calls[0].span.hi)
                         && module.body.iter().any(|item| {
                             matches!(item,
                             ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
-                                Expr::Call(top) if top.span == calls.unmock_calls[0].span))
-                        })))
-                && calls.unmock_calls[0].args.len() == 1
+                                Expr::Call(top) if top.span == unmock.span))
+                        })
+                })
         });
     let native_static = !calls.runtime_calls.is_empty()
         && !calls.calls.is_empty()
@@ -588,7 +595,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             })
         })
         && calls.mock_import_calls.is_empty()
-        && (calls.unmock_calls.is_empty() || retained_single_unmock)
+        && (calls.unmock_calls.is_empty() || native_unmock_sequence)
         && calls.calls.iter().all(|call| {
             native_static_request(call).is_some_and(|request| {
                 calls
@@ -3123,8 +3130,6 @@ mod import_mock_unmock_tests {
             "vi.unmock('package');vi.mock('package',()=>({value:5}));vi.mock('other',()=>({value:\
              5}));vi.doMock('package',()=>({value:73}));vi.doMock('other',()=>({value:73}));vi.\
              importActual('package');vi.resetModules();",
-            "vi.unmock('package');vi.unmock('package');vi.mock('package',()=>({value:5}));vi.\
-             doMock('package',()=>({value:73}));vi.importActual('package');vi.resetModules();",
             "vi.unmock(import('package'));vi.mock('package',()=>({value:5}));vi.doMock('package',\
              ()=>({value:73}));vi.importActual('package');vi.resetModules();",
             "vi.unmock('./dep');vi.mock('./dep',()=>({value:5}));vi.doMock('./dep',()=>({value:\
@@ -3193,6 +3198,59 @@ mod import_mock_unmock_tests {
                  package',()=>({{value:73}}));vi.importActual('package');vi.resetModules();"
             );
             assert!(extract_test_mocks(&source, "spec.mjs").is_err(), "{tail}");
+        }
+    }
+    #[test]
+    fn retains_the_last_ordered_literal_cut_for_one_native_factory() {
+        for (body, retained) in [
+            (
+                "vi.unmock('package');vi.unmock('package');vi.mock('package',()=>({value:5}));vi.\
+                 doMock('package',()=>({value:73}));vi.importActual('package');vi.resetModules();",
+                true,
+            ),
+            (
+                "vi.unmock('package');vi.mock('package',()=>({value:5}));vi.unmock('package');vi.\
+                 doMock('package',()=>({value:73}));vi.importActual('package');vi.resetModules();",
+                false,
+            ),
+        ] {
+            let source = format!("import{{vi}}from'vitest';{body}");
+            let plan = extract_test_mocks(&source, "spec.mjs").unwrap();
+            assert_eq!(plan.unmocks.len(), 2);
+            assert_eq!(plan.declarations.len(), 1);
+            assert_eq!(plan.declarations[0].factory_source, "()=>({value:5})");
+            assert_eq!(
+                plan.retained_single_native_unmock(),
+                retained.then_some("package")
+            );
+            assert_eq!(
+                plan.cancelled_single_native_unmock(),
+                (!retained).then_some("package")
+            );
+            assert!(!plan.source.contains("vi.unmock("));
+            assert!(plan.source.contains("vi.resetModules()"));
+            assert!(extract_static_mocks(&source, "spec.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_incoherent_first_cut_even_when_the_last_cut_is_valid() {
+        let source = "import{vi}from'vitest';vi.unmock('package');vi.unmock('package');vi.mock('\
+                      package',()=>({value:5}));vi.doMock('package',()=>({value:73}));vi.\
+                      importActual('package');vi.resetModules();";
+        for change in 0..6 {
+            let mut plan = extract_test_mocks(source, "spec.mjs").unwrap();
+            match change {
+                0 => plan.unmocks[0].request = "other".into(),
+                1 => plan.unmocks[0].end = plan.unmocks[0].start,
+                2 => plan.unmocks.swap(0, 1),
+                3 => plan.unmocks[0].end = plan.unmocks[1].start + 1,
+                4 => plan.unmocks[0].end = plan.declarations[0].factory_start + 1,
+                5 => plan.reset_modules = false,
+                _ => unreachable!(),
+            }
+            assert_eq!(plan.retained_single_native_unmock(), None, "{change}");
+            assert_eq!(plan.cancelled_single_native_unmock(), None, "{change}");
         }
     }
 }

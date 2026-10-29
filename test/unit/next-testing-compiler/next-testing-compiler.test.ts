@@ -9764,3 +9764,61 @@ if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
     130000
   )
 }
+
+if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
+  it.each([
+    ['development', 'bracketing-cuts'],
+    ['production', 'bracketing-cuts'],
+    ['development', 'two-earlier-cuts'],
+    ['production', 'two-earlier-cuts'],
+  ] as const)(
+    'preserves the last ordered native mock cut in %s %s',
+    (mode, group) => {
+      const { execFileSync } = require('node:child_process')
+      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(
+        join(tmpdir(), 'next-native-unmock-multiple-cuts-')
+      )
+      let complete = false
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'native-unmock-multiple-cuts.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+            'source',
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          mode,
+          group,
+          cases: 1,
+          rows: 1,
+          completeAuthoredCasesAndRows: true,
+          completeNamespaceAndFunctionDescriptors: true,
+          orderedLiteralUnmocks: true,
+          lastCutControlsStaticFactory: true,
+          laterUnmockCancelsStaticFactory: group === 'bracketing-cuts',
+          actualProviderNamespaceCacheRecordTurnover: true,
+          nativeCycleAndPartialExports: true,
+          staticRuntimeActualResetUnmockIdentities: true,
+          exactOriginalAndFactoryEvaluations: true,
+          completeCountsAndFileMessages: true,
+          allAuthoredBytesHeld: true,
+          allOwnersJoined: true,
+        })
+        complete = true
+      } finally {
+        if (complete) rmSync(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+}

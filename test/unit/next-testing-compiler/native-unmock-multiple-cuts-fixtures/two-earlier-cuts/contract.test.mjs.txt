@@ -1,0 +1,27 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+const shape=value=>{if(value===null||(typeof value!=='object'&&typeof value!=='function'))return{type:typeof value,value};return{type:typeof value,brand:types.isModuleNamespaceObject(value),tag:value[Symbol.toStringTag]??null,keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':'other',extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}}
+const same=values=>values.map(x=>values.map(y=>x===y))
+const view=ns=>{const ownDefault=Object.hasOwn(ns,'default'),root=ownDefault?ns.default:null;return{namespace:shape(ns),default:root?shape(root):null,value:ns.value,phase:ns.phase,fn:shape(ns.fn),fnName:ns.fn?.name,fnLength:ns.fn?.length,namedCall:typeof ns.fn==='function'?ns.fn('named'):null,defaultFnSame:root&&typeof root.fn==='function'?ns.fn===root.fn:null,defaultCall:root&&typeof root.fn==='function'?root.fn('default'):null}}
+const row=(label,value)=>console.log('MOCKPAIR:'+JSON.stringify({label,...value}))
+
+vi.unmock('next-test-native-cycle2')
+vi.unmock('next-test-native-cycle2')
+vi.mock('next-test-native-cycle2',()=>{globalThis.__nativeCycle2Static=(globalThis.__nativeCycle2Static??0)+1;return{value:5,phase:'static-cycle',fn(value){return['static-cycle',value]}}})
+
+
+import * as staticCycle from 'next-test-native-cycle2'
+const cycleView=ns=>{const root=Object.hasOwn(ns,'default')?ns.default:null,dependency=root?.dependency;return{...view(ns),rootEvaluation:root?.evaluation??null,dependency:dependency?shape(dependency):null,dependencyEvaluation:dependency?.evaluation??null,backedgeSame:dependency?dependency.root===root:null,backedgeFunctionSame:dependency?dependency.root.fn===root.fn:null,rootHadFunctionDuringCycle:dependency?.rootHadFunctionDuringCycle??null}}
+test('retains actual external CommonJS cycle across static runtime actual reset and unmock',async()=>{
+ let calls=0,original
+ const before=await import('next-test-native-cycle2')
+ vi.doMock('next-test-native-cycle2',async importOriginal=>{calls++;original=await importOriginal();return{value:73,phase:'runtime-cycle',fn(value){return['runtime-cycle',value]}}})
+ const runtime=await import('next-test-native-cycle2'),actual=await vi.importActual('next-test-native-cycle2')
+ vi.resetModules()
+ const afterReset=await import('next-test-native-cycle2'),actualAfter=await vi.importActual('next-test-native-cycle2')
+ vi.doUnmock('next-test-native-cycle2')
+ const unmocked=await import('next-test-native-cycle2')
+ const values=[staticCycle,before,runtime,actual,afterReset,actualAfter,unmocked]
+ row('native-cycle',{views:values.map(cycleView),identities:same(values),functions:same(values.map(x=>x.fn)),defaultIdentities:same(values.map(x=>Object.hasOwn(x,'default')?x.default:null)),originalIdentity:values.map(x=>x===original),calls,counts:{root:globalThis.__nativeCycle2Root??0,dependency:globalThis.__nativeCycle2Dependency??0,staticFactories:globalThis.__nativeCycle2Static??0}})
+ expect(runtime.value).toBe(73);expect(actual.value).toBe(30);expect(afterReset.value).toBe(73);expect(actualAfter.value).toBe(30);expect(unmocked.value).toBe(30);expect(actual.default.dependency.root).toBe(actual.default)
+})
