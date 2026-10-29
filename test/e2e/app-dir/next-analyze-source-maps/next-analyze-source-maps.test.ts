@@ -9,7 +9,7 @@ import path from 'node:path'
 describe('next analyze source maps', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-  it.each(['none', 'partial', 'full'] as const)(
+  it.each(['default', 'none', 'partial', 'full'] as const)(
     'preserves emitted assets with %s source maps',
     async (sourceMaps) => {
       const originalConfig = await next.readFile('next.config.js')
@@ -35,14 +35,19 @@ describe('next analyze source maps', () => {
           'next.config.js',
           `module.exports = {
             generateBuildId: () => 'analyze-test-build',
+            productionBrowserSourceMaps: false,
             turbopack: {
               rules: {
                 '*.css': { loaders: ['./source-map-loader.js'] },
               },
             },
             experimental: {
-              turbopackSourceMaps: ${sourceMaps !== 'none'},
-              turbopackInputSourceMaps: ${sourceMaps === 'full'},
+              ${
+                sourceMaps === 'default'
+                  ? 'serverSourceMaps: true,'
+                  : `turbopackSourceMaps: ${sourceMaps !== 'none'},
+                     turbopackInputSourceMaps: ${sourceMaps === 'full'},`
+              }
             },
           }`
         )
@@ -65,7 +70,27 @@ describe('next analyze source maps', () => {
           .filter((file) => file.endsWith('.map'))
           .map((file) => next.readFile(`.next/${file}`))
         const mapContents = await Promise.all(maps)
-        if (sourceMaps === 'none') {
+        if (sourceMaps === 'default') {
+          const browserAssets = Object.keys(normalAssets).filter((file) =>
+            file.startsWith('static/')
+          )
+          expect(browserAssets.some((file) => file.endsWith('.map'))).toBe(
+            false
+          )
+          for (const file of browserAssets) {
+            expect(await next.readFile(`.next/${file}`)).not.toMatch(
+              /(?:^|\n)\/\/# sourceMappingURL=|\/\*# sourceMappingURL=/
+            )
+          }
+          const serverMaps = await Promise.all(
+            Object.keys(normalAssets)
+              .filter(
+                (file) => file.startsWith('server/') && file.endsWith('.map')
+              )
+              .map((file) => next.readFile(`.next/${file}`))
+          )
+          expect(serverMaps.join('\n')).toContain('original-lazy.ts')
+        } else if (sourceMaps === 'none') {
           expect(mapContents).toEqual([])
           for (const file of Object.keys(normalAssets)) {
             expect(await next.readFile(`.next/${file}`)).not.toMatch(
