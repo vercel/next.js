@@ -49,7 +49,7 @@ pub enum SourceMapType {
     #[default]
     Full,
     /// Maps to the input files without tracing through their source maps.
-    Partial,
+    Shallow,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -63,24 +63,24 @@ pub struct SourceMapGenerationOptions {
     /// Generates maps that trace through input source maps to the original sources.
     pub full: bool,
     /// Generates maps to the input files without tracing through their source maps.
-    pub partial: bool,
+    pub shallow: bool,
 }
 
 impl SourceMapGenerationOptions {
     pub const NONE: Self = Self {
         full: false,
-        partial: false,
+        shallow: false,
     };
 
     pub fn from_emitted(ty: Option<SourceMapType>) -> Self {
         Self {
             full: matches!(ty, Some(SourceMapType::Full)),
-            partial: matches!(ty, Some(SourceMapType::Partial)),
+            shallow: matches!(ty, Some(SourceMapType::Shallow)),
         }
     }
 
     pub fn should_generate_any_source_maps(self) -> bool {
-        self.full || self.partial
+        self.full || self.shallow
     }
 }
 
@@ -88,7 +88,7 @@ impl Default for SourceMapGenerationOptions {
     fn default() -> Self {
         Self {
             full: true,
-            partial: false,
+            shallow: false,
         }
     }
 }

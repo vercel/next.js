@@ -98,7 +98,7 @@ impl EcmascriptModuleEntry {
         let ty = if code.await?.has_source_map_for(SourceMapType::Full) {
             SourceMapType::Full
         } else {
-            SourceMapType::Partial
+            SourceMapType::Shallow
         };
         let map = &*code.generate_source_map(ty).await?;
         let map = map.as_content().map(|f| f.content().clone());

@@ -371,7 +371,7 @@ pub struct ProjectOptions {
     /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
 
-    /// Retains partial source maps for analysis without changing emitted source maps.
+    /// Retains shallow source maps for analysis without changing emitted source maps.
     pub analyze: bool,
 }
 
@@ -1064,7 +1064,7 @@ impl ProjectContainer {
             {
                 SourceMapType::Full
             } else {
-                SourceMapType::Partial
+                SourceMapType::Shallow
             };
             Ok(map.get_source_map(file_path, section, ty))
         } else {
@@ -1449,7 +1449,7 @@ impl Project {
         let mut generation = SourceMapGenerationOptions::from_emitted(
             *self.next_config.client_source_maps(*self.mode).await?,
         );
-        generation.partial |= self.analyze;
+        generation.shallow |= self.analyze;
         Ok(generation.cell())
     }
 
@@ -1459,7 +1459,7 @@ impl Project {
     ) -> Result<Vc<SourceMapGenerationOptions>> {
         let mut generation =
             SourceMapGenerationOptions::from_emitted(*self.next_config.server_source_maps().await?);
-        generation.partial |= self.analyze;
+        generation.shallow |= self.analyze;
         Ok(generation.cell())
     }
 

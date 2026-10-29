@@ -134,14 +134,14 @@ async fn stylesheet_to_css(
         ..Default::default()
     })?;
 
-    let shared_source_map = generation.full && generation.partial && origin_source_map.is_none();
-    let partial_source_map = if generation.partial {
-        let mut partial_map = if generation.full && !shared_source_map {
+    let shared_source_map = generation.full && generation.shallow && origin_source_map.is_none();
+    let shallow_source_map = if generation.shallow {
+        let mut shallow_map = if generation.full && !shared_source_map {
             srcmap.as_ref().unwrap().clone()
         } else {
             srcmap.take().unwrap()
         };
-        let map = &mut partial_map;
+        let map = &mut shallow_map;
         map.add_sources(ss.sources.clone());
         map.set_source_content(0, code)?;
         Some(generate_css_source_map(map)?)
@@ -164,9 +164,9 @@ async fn stylesheet_to_css(
     };
 
     let source_maps = if shared_source_map {
-        SourceMaps::Shared(partial_source_map.unwrap())
+        SourceMaps::Shared(shallow_source_map.unwrap())
     } else {
-        SourceMaps::new(source_map, partial_source_map)
+        SourceMaps::new(source_map, shallow_source_map)
     };
     Ok((result, source_maps))
 }
