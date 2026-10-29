@@ -106,11 +106,13 @@ impl ChunkGroupInfo {
         Ok(Vc::cell(
             groups
                 .iter()
-                .map(|index| ChunkGroupWithIndex {
-                    index,
-                    chunk_group: self.chunk_groups[index as usize].clone(),
+                .map(|index| {
+                    Ok(ChunkGroupWithIndex {
+                        index,
+                        chunk_group: self.chunk_group_at(index as usize)?.clone(),
+                    })
                 })
-                .collect(),
+                .collect::<Result<_>>()?,
         ))
     }
 
@@ -141,6 +143,31 @@ impl ChunkGroupInfo {
 }
 
 impl ChunkGroupInfo {
+    /// Stores a hand-built `ChunkGroupInfo` in a cell, for tests that need inconsistent states.
+    #[cfg(test)]
+    pub(crate) fn cell_for_test(self) -> Vc<Self> {
+        self.cell()
+    }
+
+    /// Returns the chunk group at `index`, for an index read from one of the child cells
+    /// ([`ChunkGroupInfo::module_chunk_groups`], [`ChunkGroupInfo::chunk_group_indices`], ...).
+    ///
+    /// [`compute_chunk_group_info`] creates those child cells before it creates this
+    /// `ChunkGroupInfo` cell (with the inline [`ChunkGroupInfo::chunk_groups`]) at the end of the
+    /// computation. So while it recomputes, an eventually consistent reader can pair this
+    /// `ChunkGroupInfo` with a child cell from the newer execution, and the index can be out of
+    /// range. The reader depends on both and is recomputed once both are updated, so an error here
+    /// is transient, but indexing would panic.
+    fn chunk_group_at(&self, index: usize) -> Result<&ChunkGroup> {
+        self.chunk_groups.get_index(index).with_context(|| {
+            format!(
+                "chunk group index {index} is out of range ({} chunk groups), likely read while \
+                 the chunk group info is recomputed",
+                self.chunk_groups.len()
+            )
+        })
+    }
+
     /// Returns the index of the chunk group identified by `key` in
     /// [`ChunkGroupInfo::chunk_groups`].
     ///
@@ -178,7 +205,7 @@ impl ChunkGroupInfo {
     /// the entries of a merged group) always come from the module graph rather than the caller.
     pub async fn get_chunk_group(self: Vc<Self>, key: ChunkGroupKey) -> Result<ChunkGroup> {
         let index = self.get_index_of(key).await?;
-        Ok(self.await?.chunk_groups[index].clone())
+        Ok(self.await?.chunk_group_at(index)?.clone())
     }
 }
 
