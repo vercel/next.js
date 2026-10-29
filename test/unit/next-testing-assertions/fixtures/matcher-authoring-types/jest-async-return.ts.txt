@@ -1,0 +1,5 @@
+import{expect}from'vitest'
+import type{JestAssertion}from'vitest'
+declare const assertion:JestAssertion<Promise<void>,number>
+const result:Promise<void>=assertion.toBe(1)
+const called:Promise<void>=assertion.toHaveBeenCalledWith(1,'text')

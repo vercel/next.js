@@ -1,0 +1,3 @@
+import type {DiffOptions} from 'vitest'
+const extension={contextLines:3,extra:true}
+const options:DiffOptions=extension

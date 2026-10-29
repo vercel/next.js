@@ -1,0 +1,4 @@
+import {expect} from 'vitest'
+import type{DeeplyAllowMatchers}from'vitest'
+const expected:DeeplyAllowMatchers<readonly number[]>=[1,2,3]
+const primitive:DeeplyAllowMatchers<number>=2

@@ -1,0 +1,5 @@
+import {expect} from 'vitest'
+import type{DeeplyAllowMatchers}from'vitest'
+type Model={name:string,values:Array<{value:number}>,optional?:boolean,tuple:[number,string]}
+const expected:DeeplyAllowMatchers<Model>={name:'name',values:[{value:1}],tuple:[1,'one']}
+const asymmetric:DeeplyAllowMatchers<Model>={name:expect.any(String),values:[expect.objectContaining({value:1})],tuple:[expect.any(Number),'one']}

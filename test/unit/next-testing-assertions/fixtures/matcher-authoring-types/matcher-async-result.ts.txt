@@ -1,0 +1,3 @@
+import type {Matcher,MatcherState,MatchersObject} from 'vitest'
+const match:Matcher=async function(received,...expected){return{pass:received===expected[0],message:()=>this.isNot?'not':'yes'}}
+const options:MatchersObject={asyncMatch:match}

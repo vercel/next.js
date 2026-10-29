@@ -1,0 +1,6 @@
+import {expect} from 'vitest'
+import type{DeeplyAllowMatchers}from'vitest'
+function wrap<T>(input:T):DeeplyAllowMatchers<T>{return input as DeeplyAllowMatchers<T>}
+const union:DeeplyAllowMatchers<number|string>=1
+const nullable:DeeplyAllowMatchers<string|null>=null
+const optional:DeeplyAllowMatchers<{value?:number}>={}

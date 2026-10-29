@@ -1,0 +1,2 @@
+import {DiffOptions} from 'vitest'
+const runtime=DiffOptions

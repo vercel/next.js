@@ -732,3 +732,21 @@ it('matches genuine AssertType and snapshot root type exports', async () => {
     typeOnlyExports: true,
   })
 }, 35000)
+
+it('matches genuine matcher authoring root type exports', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'matcher-authoring-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 44,
+    accepted: 16,
+    rejected: 28,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    directRealMatcherTypeIdentity: true,
+    typeOnlyExports: true,
+  })
+}, 35000)

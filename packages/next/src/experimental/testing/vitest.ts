@@ -597,6 +597,13 @@ export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
 export type { TestError } from '../../compiled/next-test-primitives'
 
 export type {
+  DeeplyAllowMatchers,
+  DiffOptions,
+  JestAssertion,
+  RawMatcherFn as Matcher,
+} from '../../compiled/next-test-primitives'
+
+export type {
   MockContext,
   MockResult,
   MockResultIncomplete,
