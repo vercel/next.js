@@ -208,12 +208,19 @@ if [ -n "$CONFIRM" ]; then
             IFS=',' read -ra pairs <<< "$options"
             for pair in "${pairs[@]}"; do args+=(--agent-kwarg "$pair"); done
           fi
-          "$HARBOR" "${args[@]}" > "$JOBS/_confirm/$confirm.log" 2>&1 ||
-            echo "   harbor exited non-zero; see $JOBS/_confirm/$confirm.log"
+          if [ "$PARALLEL" -gt 1 ]; then
+            while [ "$(jobs -rp | wc -l)" -ge "$PARALLEL" ]; do sleep 5; done
+            { "$HARBOR" "${args[@]}" > "$JOBS/_confirm/$confirm.log" 2>&1 ||
+              echo "   harbor exited non-zero; see $JOBS/_confirm/$confirm.log"; } &
+          else
+            "$HARBOR" "${args[@]}" > "$JOBS/_confirm/$confirm.log" 2>&1 ||
+              echo "   harbor exited non-zero; see $JOBS/_confirm/$confirm.log"
+          fi
         done
       done
     done
   done
+  wait
   exit 0
 fi
 
