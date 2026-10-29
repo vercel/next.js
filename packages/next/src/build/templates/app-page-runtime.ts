@@ -2211,22 +2211,18 @@ export function createAppPageEntrypoint({
             delete headers[NEXT_CACHE_TAGS_HEADER]
           }
 
-          for (let [key, value] of Object.entries(headers)) {
+          for (const [key, value] of Object.entries(headers)) {
             if (typeof value === 'undefined') continue
-            // Skip headers the render already set on `res`, like `location`.
-            if (key.toLowerCase() !== 'set-cookie' && res.hasHeader(key)) {
-              continue
-            }
 
-            if (Array.isArray(value)) {
-              for (const v of value) {
+            // Skip values the render already set on `res`, like `location`.
+            const existing = res.getHeader(key)
+            const existingValues =
+              existing === undefined ? [] : [existing].flat().map(String)
+
+            for (const v of Array.isArray(value) ? value : [String(value)]) {
+              if (!existingValues.includes(v)) {
                 res.appendHeader(key, v)
               }
-            } else if (typeof value === 'number') {
-              value = value.toString()
-              res.appendHeader(key, value)
-            } else {
-              res.appendHeader(key, value)
             }
           }
         }
