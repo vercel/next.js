@@ -330,10 +330,13 @@ function InnerLayoutRouter({
   // to `rsc` when the dynamic response streams in.
   //
   // If no prefetch data is available, then we go straight to rendering `rsc`.
+  // There's no initial value to pass in that case: passing `rsc` would make
+  // React schedule a redundant deferred render, which restarts a suspended
+  // hydration (see the comment in `Head` in app-router.tsx).
   const resolvedPrefetchRsc =
     renderTree.data.prefetchRsc !== null
       ? renderTree.data.prefetchRsc
-      : renderTree.data.rsc
+      : undefined
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
