@@ -10,7 +10,7 @@ use next_core::{
     next_app::{
         AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
         get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
-        metadata::route::get_app_metadata_route_entry,
+        is_segment_wrapper, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -960,11 +960,11 @@ impl AppProject {
                             should_read_binding_usage,
                         );
                         graphs.push(graph);
-                        let is_layout = module.server_path().await?.file_stem() == Some("layout");
-                        visited_modules = if is_layout {
-                            // Only propagate the visited_modules of the parent layout(s), not
-                            // across siblings such as loading.js and
-                            // page.js.
+                        visited_modules = if is_segment_wrapper(&*module.server_path().await?) {
+                            // Only propagate the visited_modules of parent layout(s) and of the
+                            // loading.js and template.js of a segment, which are rendered
+                            // whenever the following server components are. Not across siblings
+                            // such as error.js and page.js.
                             VisitedModules::concatenate(visited_modules, graph)
                         } else {
                             // Prevents graph index from getting out of sync.

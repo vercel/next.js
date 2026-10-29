@@ -18,7 +18,7 @@ use turbo_rcstr::RcStr;
 pub use crate::next_app::{
     app_client_references_chunks::{
         ClientReferencesChunks, get_app_client_references_chunks,
-        get_client_references_chunks_for_hmr,
+        get_client_references_chunks_for_hmr, is_segment_wrapper,
     },
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,

@@ -6,6 +6,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
     ValueToStringRef, Vc,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
@@ -65,6 +66,24 @@ fn relevant_parent_indices(
     } else {
         intersection
     }
+}
+
+/// Whether the client references of a server component can be treated as already available for
+/// the server components that follow it in the route (its segment's page, child segments, and
+/// the files after it in the same segment).
+///
+/// `layout`, `loading` and `template` are rendered whenever their segment is: `loading` is the
+/// Suspense fallback around the segment's children and `template` wraps them, so both are part of
+/// the response whenever anything below them is, just like a parent layout.
+///
+/// `error`, `not-found`, `forbidden`, `unauthorized`, `default`, `global-error` and
+/// `global-not-found` are only rendered in some states, so the page must not rely on the modules
+/// they reference.
+pub fn is_segment_wrapper(server_path: &FileSystemPath) -> bool {
+    matches!(
+        server_path.file_stem(),
+        Some("layout" | "loading" | "template")
+    )
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -306,7 +325,7 @@ pub async fn get_app_client_references_chunks(
                 let base_ident = server_component.ident().owned().await?;
 
                 let server_path = server_component.server_path().owned().await?;
-                let is_layout = server_path.file_stem() == Some("layout");
+                let available_to_following = is_segment_wrapper(&server_path);
                 let server_component_path = server_path.to_string_ref().await?;
 
                 let ssr_modules = client_references
@@ -441,7 +460,11 @@ pub async fn get_app_client_references_chunks(
                         .to_resolved()
                         .await?;
 
-                    if is_layout {
+                    // Only server components that are rendered whenever the following ones are
+                    // (layouts, and the loading and template of a segment) make their chunks
+                    // available to them. A module shared by e.g. `loading.js` and `page.js` is
+                    // then emitted once, in the chunks of `loading.js`.
+                    if available_to_following {
                         current_client_chunk_group = client_chunk_group;
                     }
 
@@ -467,7 +490,7 @@ pub async fn get_app_client_references_chunks(
                         .to_resolved()
                         .await?;
 
-                    if is_layout {
+                    if available_to_following {
                         current_ssr_chunk_group = ssr_chunk_group;
                     }
 
