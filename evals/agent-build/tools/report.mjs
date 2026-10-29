@@ -1,6 +1,6 @@
 // Render a calibrate.sh jobs directory as the Results section of an eval pull
 // request: one dense table with a row per model and treatment, a cell per
-// task, the runs passed, the AGENTS.md delta, then price per million tokens,
+// task, the runs passed, then price per million tokens,
 // tokens, cost, and time per run, as in the agent-eval result PRs,
 // then pass@1 against cost per run as a Mermaid chart GitHub renders inline.
 //
@@ -174,15 +174,9 @@ models.sort(
 )
 
 const cell = (t) => (t.scored ? `${t.passed}/${t.scored}` : 'pending')
-const delta = (a, b) => {
-  if (!a.scored || !b.scored) return ''
-  const pp = Math.round(100 * (b.passed / b.scored - a.passed / a.scored))
-  return `${pp >= 0 ? '+' : ''}${pp} pp`
-}
 
 // One dense table: a row per model and treatment, a short numbered column per
-// task (named in a key above the table), runs passed, the AGENTS.md delta, and
-// what a run costs.
+// task (named in a key above the table), runs passed, and what a run costs.
 const taskCell = (r) =>
   !r
     ? 'queued'
@@ -208,10 +202,10 @@ console.log(
 )
 console.log()
 console.log(
-  `| Model | Treatment | ${tasks.map((_, i) => i + 1).join(' | ')} | Passed | Delta | Cost per run | Time per run | Price per 1M tokens | Tokens in / out |`
+  `| Model | Treatment | ${tasks.map((_, i) => i + 1).join(' | ')} | Passed | Cost per run | Time per run | Price per 1M tokens | Tokens in / out |`
 )
 console.log(
-  `| --- | --- | ${tasks.map(() => ':---:').join(' | ')} | ---: | ---: | ---: | ---: | ---: | ---: |`
+  `| --- | --- | ${tasks.map(() => ':---:').join(' | ')} | ---: | ---: | ---: | ---: | ---: |`
 )
 const treatments = [
   ['base', 'Base'],
@@ -225,7 +219,7 @@ for (const m of models) {
     )
     const passed = t === 'base' ? m.base : m.docs
     console.log(
-      `| ${t === 'base' ? m.model : ''} | ${name} | ${cells.join(' | ')} | ${cell(passed)} | ${t === 'base' ? '' : delta(m.base, m.docs)} | ${costs(mine)} |`
+      `| ${t === 'base' ? m.model : ''} | ${name} | ${cells.join(' | ')} | ${cell(passed)} | ${costs(mine)} |`
     )
   }
 }
@@ -237,7 +231,7 @@ if (all.base.scored || all.docs.scored) {
   for (const [t, name] of treatments) {
     const mine = runs.filter((r) => r.treatment === t)
     console.log(
-      `| ${t === 'base' ? '**All models**' : ''} | ${name} | ${tasks.map((task) => cell(tally(mine.filter((r) => r.task === task)))).join(' | ')} | ${cell(t === 'base' ? all.base : all.docs)} | ${t === 'base' ? '' : delta(all.base, all.docs)} | ${costs(mine)} |`
+      `| ${t === 'base' ? '**All models**' : ''} | ${name} | ${tasks.map((task) => cell(tally(mine.filter((r) => r.task === task)))).join(' | ')} | ${cell(t === 'base' ? all.base : all.docs)} | ${costs(mine)} |`
     )
   }
 }
