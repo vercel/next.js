@@ -286,43 +286,61 @@ For example, you can have a dynamic route segment which loads MDX components fro
   height="849"
 />
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. By marking `dynamicParams` as `false`, accessing a route not defined in `generateStaticParams` will 404.
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. Check that the requested slug maps to a real file before importing it, and call [`notFound()`](/docs/app/api-reference/functions/not-found) if the file does not exist:
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
+import { notFound } from 'next/navigation'
+
+const contentSlugs = ['welcome', 'about']
+
 export default async function Page({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+
+  if (!contentSlugs.includes(slug)) {
+    notFound()
+  }
+
   const { default: Post } = await import(`@/content/${slug}.mdx`)
 
   return <Post />
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'welcome' }, { slug: 'about' }]
+  return contentSlugs.map((slug) => ({ slug }))
 }
-
-export const dynamicParams = false
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
+import { notFound } from 'next/navigation'
+
+const contentSlugs = ['welcome', 'about']
+
 export default async function Page({ params }) {
   const { slug } = await params
+
+  if (!contentSlugs.includes(slug)) {
+    notFound()
+  }
+
   const { default: Post } = await import(`@/content/${slug}.mdx`)
 
   return <Post />
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'welcome' }, { slug: 'about' }]
+  return contentSlugs.map((slug) => ({ slug }))
 }
-
-export const dynamicParams = false
 ```
 
-> **Good to know**: Ensure you specify the `.mdx` file extension in your import. While it is not required to use [module path aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) (e.g., `@/content`), it does simplify your import path.
+> **Good to know**:
+>
+> - With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), `generateStaticParams` does not restrict requests to the returned slugs. Do not export `dynamicParams` because the export causes a build error. Call `notFound()` before importing a slug that does not map to content.
+> - Without Cache Components, you can alternatively add [`export const dynamicParams = false`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) to return a 404 for routes not returned by `generateStaticParams`.
+> - Ensure you specify the `.mdx` file extension in your import. While it is not required to use [module path aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) (e.g., `@/content`), it does simplify your import path.
 
 </AppOnly>
 
