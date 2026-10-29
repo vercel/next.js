@@ -112,8 +112,15 @@ describe('use-cache-route-handler-only', () => {
       expect(response.headers.get('allow')).toBe('GET, HEAD')
     } else {
       expect(response.status).toBe(204)
-      expect(response.headers.get('allow')).toContain('GET')
       expect(await response.text()).toBe('')
+
+      if (!isNextDeploy) {
+        // In dev, the auto-implemented OPTIONS handler runs and sets the
+        // `Allow` header. On Vercel the prerendered route is served from the
+        // CDN, which answers the preflight with a bare 204 without invoking
+        // the function, so the `Allow` header never reaches the client.
+        expect(response.headers.get('allow')).toContain('GET')
+      }
     }
   })
 
