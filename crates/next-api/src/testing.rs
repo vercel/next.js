@@ -506,6 +506,11 @@ pub(crate) async fn test_endpoint(
         && ((&*environment != "node" && !browser_helpers)
             || !project.next_mode().await?.is_development()
             || route.is_some())
+        && !(&*environment == "node"
+            && project.next_mode().await?.is_production()
+            && route.is_none()
+            && production_plan.retained_single_native_unmock().is_some()
+            && production_paired_native_actual_plan(&production_plan))
     {
         return Err(test_input_error(
             path.clone(),
@@ -646,7 +651,7 @@ fn production_paired_native_actual_plan(plan: &StaticMockPlan) -> bool {
         && !plan.actual_imports.is_empty()
         && plan.hoisted.is_empty()
         && plan.mock_imports.is_empty()
-        && plan.unmocks.is_empty()
+        && (plan.unmocks.is_empty() || plan.retained_single_native_unmock().is_some())
         && plan.declarations.iter().all(|declaration| {
             !declaration.automatic
                 && !declaration.spy
@@ -2274,6 +2279,8 @@ async fn prepare_test_module_with_loading(
     let mut unmock_cuts = FxIndexMap::default();
     let mut target_indexes = FxIndexMap::default();
     let mut native_unmock_cuts = HashMap::new();
+    let retained_before_unmock = plan.retained_single_native_unmock().is_some();
+    let mut retained_unmock_original = None;
     let mut builtin_unmock_cuts = HashMap::new();
     let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
     let paired_native_actual_candidate = static_runtime && !plan.actual_imports.is_empty();
@@ -2296,6 +2303,12 @@ async fn prepare_test_module_with_loading(
     } else {
         false
     };
+    if retained_before_unmock && (!allow_native_actual_imports || inputs.len() != 1) {
+        return Err(test_input_error(
+            path.clone(),
+            "Retained native unmock pairs require the isolated actual-import owner",
+        ));
+    }
     if inputs.iter().any(|(_, input)| !input.unmocks.is_empty()) {
         for (input_index, (input_path, input)) in inputs.iter().enumerate() {
             // Retain first declaration indices even for cancelled targets. Setup
@@ -2325,6 +2338,23 @@ async fn prepare_test_module_with_loading(
                     allow_native_actual_imports,
                 )
                 .await?;
+                if retained_before_unmock {
+                    let Some(external) =
+                        ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
+                    else {
+                        return Err(test_input_error(
+                            path.clone(),
+                            "Retained native unmock must resolve to the actual external original",
+                        ));
+                    };
+                    if builtin_factory_name(&external.await?.request()).is_some() {
+                        return Err(test_input_error(
+                            path.clone(),
+                            "Retained native unmock pairs do not include builtin targets",
+                        ));
+                    }
+                    retained_unmock_original = Some(original);
+                }
                 if let Some(external) =
                     ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
                 {
@@ -2386,6 +2416,19 @@ async fn prepare_test_module_with_loading(
             .await?;
             let resolved = resolved.await?;
             let modules = resolved.primary_modules().await?;
+            if retained_before_unmock {
+                let surviving = modules.len() == 1
+                    && retained_unmock_original == Some(modules[0])
+                    && native_unmock_cuts.get(&modules[0]).is_some_and(|cut| {
+                        cut.0 == input_index && cut.1 < declaration.factory_start
+                    });
+                if !surviving {
+                    return Err(test_input_error(
+                        path.clone(),
+                        "Retained native unmock must precede the same actual surviving factory",
+                    ));
+                }
+            }
             if allow_virtual_factory && resolved.primary.is_empty() {
                 let index = virtual_keys.len();
                 let key = virtual_keys
@@ -3333,6 +3376,18 @@ async fn prepare_test_module_with_loading(
     )
     .await?;
     let registration_request = format!("next-test-registration:{id}");
+    if retained_before_unmock
+        && (registrations.len() != 1
+            || external_modules.len() != 1
+            || !retained_unmock_original
+                .is_some_and(|original| external_modules.contains_key(&original))
+            || paired_native_actual_count != plan.actual_imports.len())
+    {
+        return Err(test_input_error(
+            path.clone(),
+            "Retained native unmock requires its actual registration and original-import links",
+        ));
+    }
     let registration_source = test_source(
         path.clone(),
         Some(rcstr!("next-test-mock-registration")),
@@ -5461,5 +5516,33 @@ mod injected_commonjs_producer_tests {
             })
             .await?;
         Ok(())
+    }
+    #[test]
+    fn production_unmock_candidate_keeps_one_real_retained_pair_shape() {
+        let source = "import{vi}from'vitest';vi.unmock('package');vi.mock('package',()=>({value:\
+                      5}));vi.doMock('package',()=>({value:73}));vi.importActual('package');vi.\
+                      resetModules();vi.doUnmock('package');";
+        let plan = crate::testing_mock_source::extract_test_mocks(source, "entry.mjs").unwrap();
+        assert!(crate::testing::production_paired_native_actual_plan(&plan));
+        for change in 0..9 {
+            let mut plan =
+                crate::testing_mock_source::extract_test_mocks(source, "entry.mjs").unwrap();
+            match change {
+                0 => plan.unmocks[0].start = usize::MAX,
+                1 => plan.unmocks[0].request = "alias".into(),
+                2 => plan.runtime_requests.push("other".into()),
+                3 => plan.actual_imports[0].request = "other".into(),
+                4 => plan.declarations[0].spy = true,
+                5 => plan.declarations[0].automatic = true,
+                6 => plan.declarations[0].has_spread = true,
+                7 => plan.reset_modules = false,
+                8 => plan.actual_imports.clear(),
+                _ => unreachable!(),
+            }
+            assert!(
+                !crate::testing::production_paired_native_actual_plan(&plan),
+                "change {change}"
+            );
+        }
     }
 }

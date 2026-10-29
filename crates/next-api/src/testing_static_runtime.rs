@@ -137,11 +137,12 @@ pub(crate) async fn prepare(
     paired_native_actuals: bool,
 ) -> Result<StaticRuntimePreparation> {
     let plan = static_mock_plan(path).await?;
+    let retained_before_unmock = plan.retained_single_native_unmock().is_some();
     if plan.declarations.is_empty()
         || !plan.hoisted.is_empty()
         || (!plan.actual_imports.is_empty() && !paired_native_actuals)
         || !plan.mock_imports.is_empty()
-        || !plan.unmocks.is_empty()
+        || (!plan.unmocks.is_empty() && !retained_before_unmock)
         || plan.declarations.iter().any(|declaration| {
             declaration.automatic || declaration.spy || !requests.contains(&declaration.request)
         })
@@ -170,6 +171,31 @@ pub(crate) async fn prepare(
         .to_resolved()
         .await?;
     let original_origin = runtime_resolve_origin(original_module, path).await?;
+    let retained_unmock_original = if retained_before_unmock {
+        // The certificate's actual original must also be the earlier cut's
+        // static-import original, not merely a matching request spelling.
+        let unmock_request = Request::parse(RcStr::from(plan.unmocks[0].request.clone()).into())
+            .to_resolved()
+            .await?;
+        let resolved = esm_resolve(
+            *original_origin,
+            *unmock_request,
+            EcmaScriptModulesReferenceSubType::Import,
+            ResolveErrorMode::Error,
+            None,
+        )
+        .await?;
+        let originals = resolved.await?.primary_modules().await?;
+        if originals.len() != 1 {
+            return Err(test_input_error(
+                path.clone(),
+                "Retained native unmock requires one actual static-import original",
+            ));
+        }
+        Some(originals[0])
+    } else {
+        None
+    };
     let initial_module = context
         .process(
             *source,
@@ -210,6 +236,18 @@ pub(crate) async fn prepare(
                 "Static/runtime mixtures require actual certified native targets",
             ));
         };
+        if retained_before_unmock
+            && (requests.len() != 1
+                || retained_unmock_original != Some(certificate.original)
+                || certificate.builtin.is_some()
+                || certificate.kind
+                    != crate::testing_external_modules::NativeOriginalKind::CommonJs)
+        {
+            return Err(test_input_error(
+                path.clone(),
+                "Retained unmock pairs require one actual native CommonJS certificate",
+            ));
+        }
         let resolved = esm_resolve(
             *initial_origin,
             *parsed,

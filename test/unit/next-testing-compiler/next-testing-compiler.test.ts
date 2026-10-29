@@ -9586,3 +9586,58 @@ if (process.versions.node.startsWith('26.')) {
     130000
   )
 }
+
+if (process.versions.node.startsWith('26.')) {
+  it.each([
+    ['development', 'before-cut-arrow'],
+    ['production', 'before-cut-arrow'],
+    ['development', 'before-cut-function'],
+    ['production', 'before-cut-function'],
+  ] as const)(
+    'preserves retained before-cut native pair on Node26 in %s %s',
+    (mode, group) => {
+      const { execFileSync } = require('node:child_process')
+      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(
+        join(tmpdir(), 'next-native-unmock-before-cut-')
+      )
+      let complete = false
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'native-unmock-before-cut.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+            'source',
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          mode,
+          group,
+          cases: 1,
+          rows: 1,
+          completeAuthoredCasesAndRows: true,
+          completeNamespaceAndFunctionDescriptors: true,
+          earlierUnmockKeepsActualStaticRegistration: true,
+          nativeCycleAndPartialExports: true,
+          staticRuntimeActualResetUnmockIdentities: true,
+          exactOriginalAndFactoryEvaluations: true,
+          completeCountsAndFileMessages: true,
+          allAuthoredBytesHeld: true,
+          allOwnersJoined: true,
+        })
+        complete = true
+      } finally {
+        if (complete) rmSync(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+}
