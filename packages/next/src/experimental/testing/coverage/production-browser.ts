@@ -45,3 +45,17 @@ export function isDevelopmentBrowserCoverageProject(
     project.entries.every((entry) => !entry.executionEnvironment)
   )
 }
+
+/** Restricted project shape for ordinary JavaScript Chromium watch retention. */
+export function isDevelopmentBrowserWatchCoverageProject(
+  project: DiscoveredTestProject
+): boolean {
+  return (
+    isDevelopmentBrowserCoverageProject(project) &&
+    !project.snapshotSerializers?.length &&
+    project.entries.every(
+      (entry) =>
+        !entry.inSource && !entry.typecheck && /\.(?:js|mjs)$/.test(entry.file)
+    )
+  )
+}

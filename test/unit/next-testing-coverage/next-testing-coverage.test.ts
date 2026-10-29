@@ -22953,3 +22953,78 @@ it('retains actual Istanbul typed-entry metadata and unsupported-source boundari
     rmSync(output, { recursive: true, force: true })
   }
 }, 140000)
+
+describe('development Browser V8 watch coverage profile boundaries', () => {
+  const project = {
+    profile: {
+      id: 'browser-watch',
+      mode: 'development',
+      environment: 'browser',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    },
+    entries: [
+      { file: '/project/one.case.js' },
+      { file: '/project/two.case.mjs' },
+    ],
+    setupFiles: [],
+    include: [],
+    exclude: [],
+  } as any
+  it.each([undefined, 'chromium'])(
+    'admits ordinary JavaScript in the actual %s client profile',
+    async (browserEngine) => {
+      const { isDevelopmentBrowserWatchCoverageProject } = await import(
+        'next/dist/experimental/testing/coverage/production-browser'
+      )
+      expect(
+        isDevelopmentBrowserWatchCoverageProject({ ...project, browserEngine })
+      ).toBe(true)
+    }
+  )
+  it.each([
+    { browserEngine: 'firefox' },
+    { browserEngine: 'webkit' },
+    { isolate: false },
+    { setupFiles: ['setup.mjs'] },
+    { snapshotSerializers: ['serializer.mjs'] },
+    { browserFixtures: [{}] },
+    { typecheck: { enabled: true } },
+    { executionEnvironment: {} },
+    { entries: [{ file: '/project/one.case.mjs', executionEnvironment: {} }] },
+    { entries: [{ file: '/project/one.case.mjs', inSource: true }] },
+    { entries: [{ file: '/project/one.case.mjs', typecheck: true }] },
+    ...['ts', 'mts', 'cts', 'cjs', 'jsx', 'tsx'].map((extension) => ({
+      entries: [{ file: `/project/one.case.${extension}` }],
+    })),
+    { profile: { ...project.profile, route: '/' } },
+    { profile: { ...project.profile, mode: 'production' } },
+    { profile: { ...project.profile, runtime: 'edge' } },
+    { profile: { ...project.profile, bundler: 'webpack' } },
+    { profile: { ...project.profile, browserClient: false } },
+    { profile: { ...project.profile, environment: 'node' } },
+  ])('keeps unqualified watch roles closed: %j', async (patch) => {
+    const { isDevelopmentBrowserWatchCoverageProject } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    expect(
+      isDevelopmentBrowserWatchCoverageProject({ ...project, ...patch })
+    ).toBe(false)
+  })
+  it('preserves the one-shot development predicate for typed entries and serializers', async () => {
+    const {
+      isDevelopmentBrowserCoverageProject,
+      isDevelopmentBrowserWatchCoverageProject,
+    } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    const oneShot = {
+      ...project,
+      entries: [{ file: '/project/one.case.tsx' }],
+      snapshotSerializers: ['serializer.mjs'],
+    }
+    expect(isDevelopmentBrowserCoverageProject(oneShot)).toBe(true)
+    expect(isDevelopmentBrowserWatchCoverageProject(oneShot)).toBe(false)
+  })
+})

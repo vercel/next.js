@@ -10,8 +10,10 @@ import { createStandardCoverageGenerationCache } from './coverage/generation-cac
 import {
   prepareStandardCoverageDirectory,
   publishStandardCoverage,
+  type PreparedCoverageMap,
 } from './coverage/report-standard'
 import { resolveProjectStandardCoverage } from './coverage/options'
+import { isDevelopmentBrowserWatchCoverageProject } from './coverage/production-browser'
 import { lstat, readdir, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'path'
 import { serialize } from 'node:v8'
@@ -247,6 +249,29 @@ export async function watchTests(
       throw new Error(
         'Custom coverage watch requires an implemented provider lifecycle.'
       )
+    const developmentBrowserWatchProject =
+      projects.length === 1 &&
+      isDevelopmentBrowserWatchCoverageProject(projects[0])
+    if (
+      developmentBrowserWatchProject &&
+      coverage.enabled &&
+      coverage.options?.provider !== undefined
+    )
+      throw new Error(
+        'Development Browser coverage watch requires normalized V8 coverage options.'
+      )
+    const developmentBrowserWatchCoverage =
+      developmentBrowserWatchProject &&
+      coverage.enabled &&
+      coverage.options !== undefined &&
+      coverage.options.provider === undefined
+    if (
+      developmentBrowserWatchCoverage &&
+      coverage.enabled &&
+      coverage.options &&
+      !coverage.options.formatterReports
+    )
+      coverage.options = { ...coverage.options, formatterReports: true }
     if (
       coverage.configured &&
       coverage.enabled &&
@@ -255,7 +280,8 @@ export async function watchTests(
           project.typecheck?.enabled ||
           project.isolate === false ||
           project.executionEnvironment ||
-          project.profile.environment !== 'node' ||
+          (project.profile.environment !== 'node' &&
+            !developmentBrowserWatchCoverage) ||
           project.profile.route ||
           project.entries.some((entry) => entry.executionEnvironment)
       )
@@ -644,9 +670,30 @@ export async function watchTests(
         const activeConfigReload = [...change.changed, ...change.removed].some(
           (file) => verifiedActiveConfigurationFiles.has(file)
         )
-        // An observed active config reload starts a new complete config run.
-        // Helper-only edits do not gain this source-expansion authority.
-        if (activeConfigReload) coverageAllTestsRun = true
+        const browserCoverageConfigurationReload =
+          !!activeDiscovery?.coverage.options &&
+          activeDiscovery.coverage.options.provider === undefined &&
+          activeDiscovery.projects.length === 1 &&
+          isDevelopmentBrowserWatchCoverageProject(
+            activeDiscovery.projects[0]
+          ) &&
+          [...change.changed, ...change.removed].some((file) =>
+            configuration?.watchInputs.includes(file)
+          )
+        // Observed runtime or owned test-config inputs start a complete run.
+        // Ordinary test helpers do not gain this source-expansion authority.
+        if (activeConfigReload || browserCoverageConfigurationReload) {
+          coverageAllTestsRun = true
+          if (
+            activeDiscovery?.coverage.options &&
+            activeDiscovery.coverage.options.provider === undefined &&
+            activeDiscovery.projects.length === 1 &&
+            isDevelopmentBrowserWatchCoverageProject(
+              activeDiscovery.projects[0]
+            )
+          )
+            closedFileHistory.clear()
+        }
         if (committingSnapshots) changedDuringCommit = true
         else
           session?.invalidate({
@@ -654,7 +701,8 @@ export async function watchTests(
               change.removed.length && !customReporters
                 ? undefined
                 : [...change.changed, ...change.removed],
-            invalidateAll: activeConfigReload,
+            invalidateAll:
+              activeConfigReload || browserCoverageConfigurationReload,
           })
       },
       onError(error) {
@@ -960,6 +1008,15 @@ export async function watchTests(
         const requestedEditorFile = editorFileRerun
         editorFileRerun = undefined
         const coverageConfig = discovery.coverage.options
+        const developmentBrowserWatchCoverage =
+          !!coverageConfig &&
+          coverageConfig.provider === undefined &&
+          discovery.projects.length === 1 &&
+          isDevelopmentBrowserWatchCoverageProject(discovery.projects[0])
+        let preparedCoverageMap: PreparedCoverageMap | undefined
+        let pendingBrowserCoveragePublication:
+          | (() => Promise<boolean>)
+          | undefined
         const browserUserCancellation =
           !discovery.coverage.configured &&
           !coverageConfig &&
@@ -1058,6 +1115,13 @@ export async function watchTests(
               signal,
             })
           : undefined
+        if (
+          developmentBrowserWatchCoverage &&
+          coverageSourcePlan?.requests.length
+        )
+          throw new Error(
+            'Development Browser coverage watch requires JavaScript coverage sources.'
+          )
         const runtimeConfigurationPlan = coverageConfig
           ? await createRuntimeConfigurationPlan({
               projectDir,
@@ -1172,7 +1236,9 @@ export async function watchTests(
         }
         async function publishCoverage(
           facts: unknown,
-          status: 'passed' | 'failed'
+          status: 'passed' | 'failed',
+          preserveExecutionTerminal?: true,
+          prepareBeforeResults?: true
         ) {
           if (!coverageConfig) return false
           const prepared = await coverageCache.prepare({
@@ -1198,6 +1264,70 @@ export async function watchTests(
             },
             signal,
           })
+          if (prepareBeforeResults === true) {
+            if (
+              preserveExecutionTerminal !== true ||
+              pendingBrowserCoveragePublication
+            )
+              throw new Error('Invalid prepared Browser coverage publication.')
+            const request = {
+              projectDir,
+              facts: prepared.facts,
+              expected: prepared.expected,
+              excludedFiles: discovery.projects.flatMap((project) => [
+                ...project.setupFiles,
+                ...project.entries.map((entry) => entry.file),
+              ]),
+              config: coverageConfig,
+              status,
+              includeUnimported,
+              runtimeConfiguration: {
+                receipts: prepared.runtimeConfigurationReceipts!,
+                retainedEntryIds: prepared.retainedEntryIds,
+              },
+              ...(coverageSourcePlan
+                ? {
+                    sourceAnalysis: {
+                      facts: compilerSourceCoverage,
+                      plan: coverageSourcePlan,
+                    },
+                  }
+                : {}),
+              signal,
+            }
+            await publishStandardCoverage({
+              ...request,
+              prepareOnly: true,
+              onCoverageMap(map) {
+                preparedCoverageMap = map
+              },
+            })
+            if (preparedCoverageMap === undefined)
+              throw new Error(
+                'Browser watch coverage did not produce its actual map.'
+              )
+            pendingBrowserCoveragePublication = async () => {
+              const coverage = await publishStandardCoverage(request)
+              if (coverage.textSummary)
+                (coverageConfig.formatterReports
+                  ? (options.writeReport ?? options.write)
+                  : options.write)(coverage.textSummary)
+              for (const error of coverage.thresholdErrors) {
+                ;(options.writeError ?? options.write)(error + '\n')
+                if (preserveExecutionTerminal !== true)
+                  coverageDiagnostic(error)
+              }
+              signal.throwIfAborted()
+              prepared.commit()
+              // Initial related zero maps do not consume the first actual test run.
+              if (!orderlyCancellation) {
+                coverageHasPublished = !initialEmptySelection
+                coverageAllTestsRun = false
+              }
+              return coverage.thresholdErrors.length > 0
+            }
+            return false
+          }
           const coverage = await publishStandardCoverage({
             projectDir,
             facts: prepared.facts,
@@ -1209,6 +1339,13 @@ export async function watchTests(
             config: coverageConfig,
             status,
             includeUnimported,
+            ...(developmentBrowserWatchCoverage && machine
+              ? {
+                  onCoverageMap: (map: PreparedCoverageMap) => {
+                    preparedCoverageMap = map
+                  },
+                }
+              : {}),
             runtimeConfiguration: {
               receipts: prepared.runtimeConfigurationReceipts!,
               retainedEntryIds: prepared.retainedEntryIds,
@@ -1229,7 +1366,7 @@ export async function watchTests(
               : options.write)(coverage.textSummary)
           for (const error of coverage.thresholdErrors) {
             ;(options.writeError ?? options.write)(error + '\n')
-            coverageDiagnostic(error)
+            if (preserveExecutionTerminal !== true) coverageDiagnostic(error)
           }
           signal.throwIfAborted()
           prepared.commit()
@@ -1296,7 +1433,12 @@ export async function watchTests(
             hasRun = true
             releaseTerminal(status)
             publicationStarted = true
-            await machine?.finish({ signal })
+            await machine?.finish({
+              signal,
+              ...(preparedCoverageMap === undefined
+                ? {}
+                : { preparedCoverageMap }),
+            })
             if (customReporters) customReadyInitial = initialCustomRun
             latestStatus = status
             hasFailedRun ||= status === 'failed'
@@ -1407,6 +1549,16 @@ export async function watchTests(
             throw new Error('Test run returned without a terminal result.')
           }
           signal.throwIfAborted()
+          const preserveBrowserExecutionTerminal =
+            developmentBrowserWatchCoverage && !orderlyCancellation
+          const prepareBrowserResults =
+            preserveBrowserExecutionTerminal &&
+            result.status === 'passed' &&
+            !!machine &&
+            options.resultReporters?.includes('json') === true &&
+            options.resultReporters.every(
+              (reporter) => reporter === 'default' || reporter === 'json'
+            )
           let coverageFailed = false
           if (response.standardCoverageUnavailable) {
             if (
@@ -1423,11 +1575,25 @@ export async function watchTests(
               throw new Error(
                 'Standard watch coverage requires clean execution.'
               )
-            coverageFailed = await publishCoverage(
-              result.standardCoverage,
-              result.status
-            )
+            coverageFailed = prepareBrowserResults
+              ? await publishCoverage(
+                  result.standardCoverage,
+                  result.status,
+                  true,
+                  true
+                )
+              : preserveBrowserExecutionTerminal
+                ? await publishCoverage(
+                    result.standardCoverage,
+                    result.status,
+                    true
+                  )
+                : await publishCoverage(result.standardCoverage, result.status)
           }
+          const retainObservedSpecificationOrder =
+            developmentBrowserWatchCoverage &&
+            preparedCoverageMap !== undefined &&
+            !orderlyCancellation
           if (orderlyCancellation && machine) {
             const launched = new Set(orderlyCancellation.launchedEntryIds)
             const unexecuted = discovery.projects
@@ -1446,9 +1612,34 @@ export async function watchTests(
                 .concat([...selected])
             )
           }
-          releaseTerminal(coverageFailed ? 'failed' : result.status)
+          if (retainObservedSpecificationOrder && machine)
+            machine.retainUnexecutedFiles(
+              [],
+              [],
+              [
+                ...[...closedFileHistory.keys()].filter((id) =>
+                  selected.has(id)
+                ),
+                ...[...selected].filter((id) => !closedFileHistory.has(id)),
+              ]
+            )
+          releaseTerminal(
+            preserveBrowserExecutionTerminal
+              ? result.status
+              : coverageFailed
+                ? 'failed'
+                : result.status
+          )
           publicationStarted = true
-          await machine?.finish({ signal })
+          await machine?.finish({
+            signal,
+            ...(preparedCoverageMap === undefined
+              ? {}
+              : { preparedCoverageMap }),
+          })
+          if (retainObservedSpecificationOrder) signal.throwIfAborted()
+          if (pendingBrowserCoveragePublication)
+            coverageFailed = await pendingBrowserCoveragePublication()
           if (customReporters) customReadyInitial = initialCustomRun
           const closed =
             machine?.snapshotClosedFiles(
@@ -1461,7 +1652,10 @@ export async function watchTests(
           )
           const previousRecords = new Map(closedFileHistory)
           for (const id of closedFileHistory.keys())
-            if (selected.has(id) || !discovery.entryIds.includes(id))
+            if (
+              (selected.has(id) && !retainObservedSpecificationOrder) ||
+              !discovery.entryIds.includes(id)
+            )
               closedFileHistory.delete(id)
           for (const id of selected) {
             const record = currentRecords.get(id) ?? previousRecords.get(id)

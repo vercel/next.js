@@ -11,6 +11,7 @@ import type { PreparedCoverageMap } from '../experimental/testing/coverage/repor
 import {
   isProductionBrowserCoverageProject,
   isDevelopmentBrowserCoverageProject,
+  isDevelopmentBrowserWatchCoverageProject,
 } from '../experimental/testing/coverage/production-browser'
 import {
   openCustomCoverageSession,
@@ -528,6 +529,12 @@ export async function nextTestRunner(
       !options.watch &&
       projects.length === 1 &&
       isDevelopmentBrowserCoverageProject(projects[0])
+    const developmentBrowserWatchCoverage =
+      options.watch &&
+      projects.length === 1 &&
+      isDevelopmentBrowserWatchCoverageProject(projects[0]) &&
+      configuredCoverage.options !== undefined &&
+      configuredCoverage.options.provider === undefined
     if (
       options.watch &&
       configuredCoverage.enabled &&
@@ -571,7 +578,8 @@ export async function nextTestRunner(
               project.executionEnvironment ||
               (project.profile.environment !== 'node' &&
                 !productionBrowserCoverage &&
-                !developmentBrowserCoverage) ||
+                !developmentBrowserCoverage &&
+                !developmentBrowserWatchCoverage) ||
               project.profile.route ||
               project.entries.some((entry) => entry.executionEnvironment)
           )

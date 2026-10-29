@@ -31,6 +31,7 @@ import {
   realpath,
   rename,
   rm,
+  stat,
   symlink,
   writeFile,
 } from 'fs/promises'
@@ -6727,6 +6728,880 @@ describe('Node watch machine generations', () => {
       'unimported.mjs',
     ])
   })
+
+  it.each([undefined, true, false])(
+    'executes actual Browser watch registry additions with cleanOnRerun=%s',
+    async (cleanOnRerun) => {
+      await rm(path.join(directory, 'first.spec.ts'))
+      await writeFile(path.join(directory, 'first.case.mjs'), '')
+      await writeFile(
+        path.join(directory, 'subject.mjs'),
+        'export function choose() { return 1 }\n'
+      )
+      await writeFile(
+        path.join(directory, 'unimported.mjs'),
+        'export function untouched() { return 2 }\n'
+      )
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [
+            {
+              name: 'browser',
+              environment: 'browser',
+              include: ['*.case.mjs'],
+              browser: { enabled: true, headless: true },
+            },
+          ],
+        })
+      )
+      watching = observeBrowserWatch({
+        signal: controller.signal,
+        write: jest.fn(),
+        resultReporters: ['json'],
+        outputFile: 'result.json',
+        standardCoverageOptions: {
+          reporter: ['json', 'lcov'],
+          include: ['subject.mjs', 'unimported.mjs'],
+          exclude: [],
+          reportsDirectory: 'coverage',
+          reportOnFailure: false,
+          thresholds: {},
+          cleanOnRerun,
+        },
+      })
+      await expectBrowserGeneration('watch-1')
+      expect(requests[0].standardCoverageOptions?.formatterReports).toBe(true)
+      const before = JSON.parse(
+        await readFile(
+          path.join(directory, 'coverage/coverage-final.json'),
+          'utf8'
+        )
+      )
+      expect((await report()).coverageMap).toEqual(before)
+      expect(Object.keys(before).map((file) => path.basename(file))).toEqual([
+        'subject.mjs',
+        'unimported.mjs',
+      ])
+      expect(
+        await readFile(
+          path.join(directory, 'coverage/lcov-report/index.html'),
+          'utf8'
+        )
+      ).toContain('<!doctype html>')
+      const outputs = jest.mocked(watchTestFiles).mock.calls[0][0]
+      const added = path.join(directory, 'second.case.mjs')
+      await writeFile(added, '')
+      outputs.onChange({ changed: [added], removed: [] })
+      await expectBrowserGeneration('watch-2')
+      expect(
+        requests[1].projects.flatMap((project) =>
+          project.entries.map((entry) => path.basename(entry.file))
+        )
+      ).toEqual(['second.case.mjs'])
+      expect(requests[1].includeUnimportedCoverage).toBe(cleanOnRerun === false)
+      const after = JSON.parse(
+        await readFile(
+          path.join(directory, 'coverage/coverage-final.json'),
+          'utf8'
+        )
+      )
+      expect((await report()).coverageMap).toEqual(after)
+      expect(Object.keys(after).map((file) => path.basename(file))).toEqual(
+        cleanOnRerun === false
+          ? ['subject.mjs', 'unimported.mjs']
+          : ['subject.mjs']
+      )
+      if (cleanOnRerun === false)
+        expect(
+          await readFile(
+            path.join(directory, 'coverage/lcov-report/unimported.mjs.html'),
+            'utf8'
+          )
+        ).toContain('untouched')
+      else
+        await expect(
+          readFile(
+            path.join(directory, 'coverage/lcov-report/unimported.mjs.html')
+          )
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  )
+
+  it('retains actual Browser coverage bytes through a failed generation and publishes only recovered facts', async () => {
+    await rm(path.join(directory, 'first.spec.ts'))
+    await writeFile(path.join(directory, 'first.case.mjs'), '')
+    await writeFile(
+      path.join(directory, 'subject.mjs'),
+      'export function choose() { return 1 }\n'
+    )
+    await writeFile(
+      path.join(directory, 'unimported.mjs'),
+      'export function untouched() { return 2 }\n'
+    )
+    await writeFile(
+      path.join(directory, 'next.test.config.json'),
+      JSON.stringify({
+        projects: [
+          {
+            name: 'browser',
+            environment: 'browser',
+            include: ['*.case.mjs'],
+            browser: { enabled: true, headless: true },
+          },
+        ],
+      })
+    )
+    watching = observeBrowserWatch({
+      signal: controller.signal,
+      write: jest.fn(),
+      resultReporters: ['json'],
+      outputFile: 'result.json',
+      standardCoverageOptions: {
+        reporter: ['json', 'lcov'],
+        include: ['subject.mjs', 'unimported.mjs'],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+        cleanOnRerun: false,
+      },
+    })
+    await expectBrowserGeneration('watch-1')
+    const coveragePath = path.join(directory, 'coverage/coverage-final.json')
+    const indexPath = path.join(directory, 'coverage/lcov-report/index.html')
+    const before = await readFile(coveragePath)
+    const beforeHTML = await readFile(indexPath)
+    compilationFailure = true
+    const outputs = jest.mocked(watchTestFiles).mock.calls[0][0]
+    const added = path.join(directory, 'second.case.mjs')
+    await writeFile(added, '')
+    outputs.onChange({ changed: [added], removed: [] })
+    await expectBrowserGeneration('watch-2')
+    expect((await report()).success).toBe(false)
+    expect((await report()).coverageMap).toBeUndefined()
+    expect(await readFile(coveragePath)).toEqual(before)
+    expect(await readFile(indexPath)).toEqual(beforeHTML)
+    compilationFailure = false
+    invalidate()
+    await expectBrowserGeneration('watch-3')
+    expect((await report()).success).toBe(true)
+    expect((await report()).coverageMap).toEqual(
+      JSON.parse(await readFile(coveragePath, 'utf8'))
+    )
+    expect(
+      requests[2].projects.flatMap((project) => project.entries)
+    ).toHaveLength(2)
+    expect(
+      (await report()).next.events.every(
+        (event: ResultEvent) => event.runId === 'watch-3'
+      )
+    ).toBe(true)
+  })
+
+  let browserReadyRuns: Set<string> | undefined
+  function observeBrowserWatch(options: Parameters<typeof watchTests>[1]) {
+    const readyRuns = new Set<string>()
+    browserReadyRuns = readyRuns
+    let terminalId: string | undefined
+    const { formatWatchStatus } =
+      require('next/dist/experimental/testing/reporting/reporter') as typeof import('next/dist/experimental/testing/reporting/reporter')
+    const readyWrites = new Set(
+      (['passed', 'failed'] as const).flatMap((status) =>
+        [false, true].map((interactive) =>
+          formatWatchStatus(status, options.reporter?.color, interactive)
+        )
+      )
+    )
+    return watchTests(directory, {
+      ...options,
+      write(text) {
+        options.write(text)
+        if (terminalId !== undefined && readyWrites.has(text))
+          readyRuns.add(terminalId)
+      },
+      onEvent(event) {
+        options.onEvent?.(event)
+        if (event.type === 'run-end') terminalId = event.runId
+      },
+    })
+  }
+  async function expectBrowserGeneration(id: string) {
+    await retry(
+      async () => {
+        expect((await report()).next.events[0].runId).toBe(id)
+        expect(browserReadyRuns?.has(id)).toBe(true)
+      },
+      5000,
+      10
+    )
+  }
+  async function prepareBrowserHistoryFixture(first: string) {
+    await rm(path.join(directory, 'first.spec.ts'))
+    await writeFile(path.join(directory, first), '')
+    await writeFile(
+      path.join(directory, 'subject.mjs'),
+      'export function choose() { return 1 }\n'
+    )
+    await writeFile(
+      path.join(directory, 'unimported.mjs'),
+      'export function untouched() { return 2 }\n'
+    )
+    const configFile = path.join(directory, 'next.test.config.json')
+    await writeFile(
+      configFile,
+      JSON.stringify({
+        projects: [
+          {
+            name: 'browser',
+            environment: 'browser',
+            include: ['*.case.mjs'],
+            browser: { enabled: true, headless: true },
+          },
+        ],
+      })
+    )
+    return configFile
+  }
+  it.each(['raw-omitted', 'configured-v8'] as const)(
+    'keeps the Browser watch normalized provider positive: %s',
+    async (kind) => {
+      const configFile = await prepareBrowserHistoryFixture('first.case.mjs')
+      const base = browserHistoryOptions()
+      const original = structuredClone(base.standardCoverageOptions)
+      if (kind === 'configured-v8') {
+        const config = JSON.parse(await readFile(configFile, 'utf8'))
+        config.projects[0].coverage = {
+          ...base.standardCoverageOptions,
+          enabled: true,
+          provider: 'v8',
+        }
+        await writeFile(configFile, JSON.stringify(config))
+      }
+      watching = observeBrowserWatch({
+        ...base,
+        ...(kind === 'configured-v8'
+          ? { standardCoverageOptions: undefined }
+          : {}),
+      })
+      await expectBrowserGeneration('watch-1')
+      expect(requests[0].standardCoverageOptions?.provider).toBeUndefined()
+      expect(requests[0].standardCoverageOptions?.formatterReports).toBe(true)
+      expect(base.standardCoverageOptions).toEqual(original)
+      expect((await report()).coverageMap).toEqual(
+        JSON.parse(
+          await readFile(
+            path.join(directory, 'coverage/coverage-final.json'),
+            'utf8'
+          )
+        )
+      )
+    }
+  )
+  it.each(['istanbul', 'v8', 'unknown-provider'])(
+    'rejects nonnormalized raw Browser watch provider before execution: %s',
+    async (provider) => {
+      await prepareBrowserHistoryFixture('first.case.mjs')
+      const base = browserHistoryOptions()
+      const options = {
+        ...base,
+        standardCoverageOptions: {
+          ...base.standardCoverageOptions,
+          provider: provider as 'istanbul',
+        },
+      }
+      const original = structuredClone(options.standardCoverageOptions)
+      await expect(watchTests(directory, options)).rejects.toThrow(
+        'Development Browser coverage watch requires normalized V8 coverage options.'
+      )
+      expect(requests).toEqual([])
+      expect(runWatchProcess).not.toHaveBeenCalled()
+      expect(watchTestFiles).not.toHaveBeenCalled()
+      expect(options.standardCoverageOptions).toEqual(original)
+      await expect(
+        readFile(path.join(directory, 'result.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(
+        stat(path.join(directory, 'coverage'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  )
+  it('rejects configured Istanbul Browser watch before the new V8 role', async () => {
+    const configFile = await prepareBrowserHistoryFixture('first.case.mjs')
+    const base = browserHistoryOptions()
+    const config = JSON.parse(await readFile(configFile, 'utf8'))
+    config.projects[0].coverage = {
+      ...base.standardCoverageOptions,
+      enabled: true,
+      provider: 'istanbul',
+    }
+    await writeFile(configFile, JSON.stringify(config))
+    await expect(
+      watchTests(directory, {
+        ...base,
+        standardCoverageOptions: undefined,
+      })
+    ).rejects.toThrow(
+      'Development Browser coverage watch requires normalized V8 coverage options.'
+    )
+    expect(requests).toEqual([])
+    expect(runWatchProcess).not.toHaveBeenCalled()
+    expect(watchTestFiles).not.toHaveBeenCalled()
+  })
+  it.each(['raw', 'configured'] as const)(
+    'keeps disabled Browser watch provider outside the new role: %s',
+    async (kind) => {
+      const configFile = await prepareBrowserHistoryFixture('first.case.mjs')
+      const base = browserHistoryOptions()
+      if (kind === 'configured') {
+        const config = JSON.parse(await readFile(configFile, 'utf8'))
+        config.projects[0].coverage = {
+          ...base.standardCoverageOptions,
+          enabled: true,
+          provider: 'istanbul',
+        }
+        await writeFile(configFile, JSON.stringify(config))
+      }
+      watching = observeBrowserWatch({
+        ...base,
+        coverageFlags: { coverage: false },
+        standardCoverageOptions:
+          kind === 'raw'
+            ? { ...base.standardCoverageOptions, provider: 'istanbul' }
+            : undefined,
+      })
+      await expectBrowserGeneration('watch-1')
+      expect(requests[0].coverage).toBeUndefined()
+      expect(requests[0].standardCoverageOptions).toBeUndefined()
+      expect((await report()).coverageMap).toBeUndefined()
+      await expect(
+        stat(path.join(directory, 'coverage'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  )
+  it.each(['browser', 'node'] as const)(
+    'keeps actual test completion distinct from threshold policy for %s watch',
+    async (environment) => {
+      const configFile = await prepareBrowserHistoryFixture('first.case.mjs')
+      if (environment === 'node') {
+        const config = JSON.parse(await readFile(configFile, 'utf8'))
+        config.projects[0].name = 'node'
+        config.projects[0].environment = 'node'
+        delete config.projects[0].browser
+        await writeFile(configFile, JSON.stringify(config))
+      }
+      const { PassThrough } = require('stream') as typeof import('stream')
+      const terminal = new PassThrough()
+      const input = Object.assign(terminal, {
+        isTTY: true,
+        isRaw: false,
+        setRawMode: jest.fn(),
+      }) as unknown as NodeJS.ReadStream
+      const output = {
+        isTTY: true,
+        write: jest.fn(),
+      } as unknown as NodeJS.WriteStream
+      const oldCI = process.env.CI,
+        oldTerm = process.env.TERM
+      delete process.env.CI
+      process.env.TERM = 'xterm-256color'
+      const stderr: string[] = [],
+        events: ResultEvent[] = []
+      let quit = false
+      try {
+        const base = browserHistoryOptions()
+        watching = observeBrowserWatch({
+          ...base,
+          input,
+          output,
+          standardCoverageOptions: {
+            ...base.standardCoverageOptions,
+            thresholds: { functions: 100 },
+          },
+          writeError(text) {
+            stderr.push(text)
+          },
+          onEvent(event) {
+            events.push(structuredClone(event))
+          },
+          write(text) {
+            if (!quit && /Watching for file changes/.test(text)) {
+              quit = true
+              input.emit('data', Buffer.from('q'))
+            }
+          },
+        })
+        expect(await watching).toEqual({ status: 'failed' })
+        expect(quit).toBe(true)
+        const actual = await report()
+        expect(actual.numPassedTests).toBe(1)
+        expect(actual.numFailedTests).toBe(0)
+        expect(actual.testResults[0].status).toBe('passed')
+        expect(actual.success).toBe(environment === 'browser')
+        expect(stderr.join('')).toContain(
+          'Coverage for functions (0%) does not meet global threshold (100%)'
+        )
+        expect(
+          events
+            .filter((event) => event.type === 'run-end')
+            .map((event) => event.type === 'run-end' && event.status)
+        ).toEqual([environment === 'browser' ? 'passed' : 'failed'])
+        const diagnostics = events.filter(
+          (event) => event.type === 'diagnostic'
+        )
+        expect(diagnostics).toHaveLength(environment === 'browser' ? 0 : 1)
+        const coverage = JSON.parse(
+          await readFile(
+            path.join(directory, 'coverage/coverage-final.json'),
+            'utf8'
+          )
+        )
+        expect(
+          Object.keys(coverage).map((file) => path.basename(file))
+        ).toEqual(['subject.mjs', 'unimported.mjs'])
+        if (environment === 'browser')
+          expect(actual.coverageMap).toEqual(coverage)
+        else expect(actual.coverageMap).toBeUndefined()
+      } finally {
+        controller.abort(new Error('Threshold policy control finished'))
+        await watching
+        if (oldCI === undefined) delete process.env.CI
+        else process.env.CI = oldCI
+        if (oldTerm === undefined) delete process.env.TERM
+        else process.env.TERM = oldTerm
+      }
+    }
+  )
+  it('keeps a post-JSON threshold-output observer failure as a failed Browser watch', async () => {
+    await prepareBrowserHistoryFixture('first.case.mjs')
+    const base = browserHistoryOptions()
+    const failure = new Error('actual threshold stderr observer failed')
+    let threw = false
+    const stderr: string[] = []
+    watching = observeBrowserWatch({
+      ...base,
+      standardCoverageOptions: {
+        ...base.standardCoverageOptions,
+        thresholds: { functions: 100 },
+      },
+      writeError(text) {
+        if (!threw) {
+          threw = true
+          throw failure
+        }
+        stderr.push(text)
+      },
+    })
+    expect(await watching).toEqual({ status: 'failed' })
+    expect(threw).toBe(true)
+    const actual = await report()
+    expect(actual.success).toBe(true)
+    expect(actual.coverageMap).toEqual(
+      JSON.parse(
+        await readFile(
+          path.join(directory, 'coverage/coverage-final.json'),
+          'utf8'
+        )
+      )
+    )
+    expect(
+      actual.next.events
+        .filter((event: ResultEvent) => event.type === 'run-end')
+        .map((event: ResultEvent) => event.type === 'run-end' && event.status)
+    ).toEqual(['passed'])
+    expect(
+      actual.next.events.some(
+        (event: ResultEvent) =>
+          event.type === 'diagnostic' &&
+          event.diagnostic.message === failure.message
+      )
+    ).toBe(false)
+    expect(stderr.join('')).toContain(failure.message)
+  })
+  it('writes actual Browser watch JSON before publishing coverage files', async () => {
+    await prepareBrowserHistoryFixture('first.case.mjs')
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const originalRename = fs.rename
+    const coverageFile = path.join(directory, 'coverage/coverage-final.json')
+    const observed: { map: unknown; coverageBefore: string | undefined }[] = []
+    const spy = jest
+      .spyOn(fs, 'rename')
+      .mockImplementation(async (from, to) => {
+        const value = await originalRename(from, to)
+        if (to === path.join(directory, 'result.json')) {
+          const actual = await report()
+          let coverageBefore: string | undefined
+          try {
+            coverageBefore = await readFile(coverageFile, 'utf8')
+          } catch (error) {
+            expect(error).toMatchObject({ code: 'ENOENT' })
+          }
+          observed.push({ map: actual.coverageMap, coverageBefore })
+        }
+        return value
+      })
+    try {
+      watching = observeBrowserWatch(browserHistoryOptions())
+      await retry(
+        async () => {
+          const actual = await report()
+          expect(browserReadyRuns?.has('watch-1')).toBe(true)
+          const coverage = JSON.parse(await readFile(coverageFile, 'utf8'))
+          expect(observed).toHaveLength(1)
+          expect(observed[0].coverageBefore).toBeUndefined()
+          expect(observed[0].map).toEqual(coverage)
+          expect(actual.coverageMap).toEqual(coverage)
+          expect(actual.success).toBe(true)
+          expect(actual.numPassedTests).toBe(1)
+        },
+        5000,
+        10
+      )
+    } finally {
+      controller.abort(new Error('Browser JSON order control finished'))
+      await watching
+      spy.mockRestore()
+    }
+  })
+  it('keeps prior Browser coverage bytes when the actual JSON writer fails', async () => {
+    await prepareBrowserHistoryFixture('first.case.mjs')
+    const coverageDirectory = path.join(directory, 'coverage')
+    const coverageFile = path.join(coverageDirectory, 'coverage-final.json')
+    const previous = 'owned prior coverage bytes\n'
+    await mkdir(coverageDirectory)
+    await writeFile(coverageFile, previous)
+    await mkdir(path.join(directory, 'blocked.json'))
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const originalRename = fs.rename
+    const promotions: string[] = []
+    const spy = jest
+      .spyOn(fs, 'rename')
+      .mockImplementation(async (from, to) => {
+        if (to === coverageDirectory) promotions.push(String(from))
+        return originalRename(from, to)
+      })
+    const writeError = jest.fn()
+    const base = browserHistoryOptions()
+    try {
+      watching = observeBrowserWatch({
+        ...base,
+        standardCoverageOptions: {
+          ...base.standardCoverageOptions,
+          clean: false,
+        },
+        outputFile: 'blocked.json',
+        writeError,
+      })
+      expect(await watching).toEqual({ status: 'failed' })
+      expect(await readFile(coverageFile, 'utf8')).toBe(previous)
+      expect(promotions).toEqual([])
+      expect(
+        (await stat(path.join(directory, 'blocked.json'))).isDirectory()
+      ).toBe(true)
+      expect(writeError.mock.calls.flat().join('')).toContain(
+        'Test watch error:'
+      )
+    } finally {
+      spy.mockRestore()
+    }
+  })
+  it('retains actual Browser JSON and restores prior bytes after a coverage promotion failure', async () => {
+    await prepareBrowserHistoryFixture('first.case.mjs')
+    const coverageDirectory = path.join(directory, 'coverage')
+    const coverageFile = path.join(coverageDirectory, 'coverage-final.json')
+    const previous = 'owned original report before failed promotion\n'
+    await mkdir(coverageDirectory)
+    await writeFile(coverageFile, previous)
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const originalRename = fs.rename
+    const failure = new Error('owned actual Browser coverage promotion failed')
+    let failedPromotions = 0,
+      rollback = false
+    const spy = jest
+      .spyOn(fs, 'rename')
+      .mockImplementation(async (from, to) => {
+        if (
+          to === coverageDirectory &&
+          path.basename(String(from)).startsWith('.next-test-coverage-') &&
+          !String(from).endsWith('-previous') &&
+          failedPromotions === 0
+        ) {
+          failedPromotions++
+          expect((await report()).success).toBe(true)
+          throw failure
+        }
+        const value = await originalRename(from, to)
+        if (to === coverageDirectory && String(from).endsWith('-previous'))
+          rollback = true
+        return value
+      })
+    const writeError = jest.fn()
+    const base = browserHistoryOptions()
+    try {
+      watching = observeBrowserWatch({
+        ...base,
+        standardCoverageOptions: {
+          ...base.standardCoverageOptions,
+          clean: false,
+        },
+        writeError,
+      })
+      expect(await watching).toEqual({ status: 'failed' })
+      expect(failedPromotions).toBe(1)
+      expect(rollback).toBe(true)
+      expect(await readFile(coverageFile, 'utf8')).toBe(previous)
+      const actual = await report()
+      expect(actual.success).toBe(true)
+      expect(actual.numPassedTests).toBe(1)
+      expect(
+        Object.keys(actual.coverageMap).map((file) => path.basename(file))
+      ).toEqual(['subject.mjs', 'unimported.mjs'])
+      expect(
+        actual.next.events
+          .filter((event: ResultEvent) => event.type === 'run-end')
+          .map((event: ResultEvent) => event.type === 'run-end' && event.status)
+      ).toEqual(['passed'])
+      expect(writeError.mock.calls.flat().join('')).toContain(failure.message)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+  it('aborts stale deferred Browser coverage after a same-byte config event during real JSON rename', async () => {
+    const configFile = await prepareBrowserHistoryFixture('a-first.case.mjs')
+    const configBytes = await readFile(configFile)
+    const coverageDirectory = path.join(directory, 'coverage')
+    const coverageFile = path.join(coverageDirectory, 'coverage-final.json')
+    watching = observeBrowserWatch(browserHistoryOptions())
+    let previous!: string
+    await retry(
+      async () => {
+        const actual = await report()
+        expect(browserReadyRuns?.has('watch-1')).toBe(true)
+        previous = await readFile(coverageFile, 'utf8')
+        expect(actual.next.events[0].runId).toBe('watch-1')
+        expect(actual.coverageMap).toEqual(JSON.parse(previous))
+      },
+      5000,
+      10
+    )
+    const changes = jest.mocked(watchTestFiles).mock.calls[0][0]
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const originalRename = fs.rename
+    let arrived!: () => void, release!: () => void
+    const renamed = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let hold = true
+    const promotedRuns: string[] = []
+    const spy = jest
+      .spyOn(fs, 'rename')
+      .mockImplementation(async (from, to) => {
+        const value = await originalRename(from, to)
+        if (hold && to === path.join(directory, 'result.json')) {
+          hold = false
+          expect((await report()).next.events[0].runId).toBe('watch-2')
+          expect(await readFile(coverageFile, 'utf8')).toBe(previous)
+          arrived()
+          await gate
+        }
+        if (to === coverageDirectory && !String(from).endsWith('-previous'))
+          promotedRuns.push((await report()).next.events[0].runId)
+        return value
+      })
+    try {
+      const added = path.join(directory, 'z-added.case.mjs')
+      await writeFile(added, '')
+      changes.onChange({ changed: [added], removed: [] })
+      await renamed
+      changes.onChange({ changed: [configFile], removed: [] })
+      expect(await readFile(configFile)).toEqual(configBytes)
+      release()
+      await retry(
+        async () => {
+          const actual = await report()
+          expect(actual.next.events[0].runId).toBe('watch-3')
+          expect(browserReadyRuns?.has('watch-3')).toBe(true)
+          expect(promotedRuns).toEqual(['watch-3'])
+          expect(actual.coverageMap).toEqual(
+            JSON.parse(await readFile(coverageFile, 'utf8'))
+          )
+          expect(
+            actual.testResults.map((file: any) => path.basename(file.name))
+          ).toEqual(['a-first.case.mjs', 'z-added.case.mjs'])
+        },
+        5000,
+        10
+      )
+    } finally {
+      release()
+      controller.abort(
+        new Error('Deferred Browser coverage cancellation control finished')
+      )
+      await watching
+      spy.mockRestore()
+    }
+  }, 20000)
+  function browserHistoryOptions() {
+    return {
+      signal: controller.signal,
+      write: jest.fn(),
+      resultReporters: ['json'] as const,
+      outputFile: 'result.json',
+      standardCoverageOptions: {
+        reporter: ['json', 'lcov'] as ('json' | 'lcov')[],
+        include: ['subject.mjs', 'unimported.mjs'],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+        cleanOnRerun: false,
+      },
+    }
+  }
+  async function reportedFileNames() {
+    return (await report()).testResults.map((file: any) =>
+      path.basename(file.name)
+    )
+  }
+  it('retains actual Browser specification lifetime order and resets on observed config and removal', async () => {
+    const { PassThrough } = require('stream') as typeof import('stream')
+    const terminal = new PassThrough()
+    const input = Object.assign(terminal, {
+      isTTY: true,
+      isRaw: false,
+      setRawMode: jest.fn(),
+    }) as unknown as NodeJS.ReadStream
+    const output = {
+      isTTY: true,
+      write: jest.fn(),
+    } as unknown as NodeJS.WriteStream
+    const oldCI = process.env.CI,
+      oldTerm = process.env.TERM
+    delete process.env.CI
+    process.env.TERM = 'xterm-256color'
+    try {
+      const configFile = await prepareBrowserHistoryFixture('z-first.case.mjs')
+      const configBytes = await readFile(configFile)
+      watching = observeBrowserWatch({
+        ...browserHistoryOptions(),
+        input,
+        output,
+      })
+      await expectBrowserGeneration('watch-1')
+      const outputs = jest.mocked(watchTestFiles).mock.calls[0][0]
+      const added = path.join(directory, 'a-added.case.mjs')
+      await writeFile(added, '')
+      outputs.onChange({ changed: [added], removed: [] })
+      await expectBrowserGeneration('watch-2')
+      expect(await reportedFileNames()).toEqual(['a-added.case.mjs'])
+      terminal.write('r')
+      await expectBrowserGeneration('watch-3')
+      expect(await reportedFileNames()).toEqual([
+        'z-first.case.mjs',
+        'a-added.case.mjs',
+      ])
+      expect(
+        (await report()).next.events
+          .filter((event: ResultEvent) => event.type === 'file-start')
+          .map((event: any) => path.basename(event.entry.file))
+      ).toEqual(['a-added.case.mjs', 'z-first.case.mjs'])
+      outputs.onChange({ changed: [configFile], removed: [] })
+      await expectBrowserGeneration('watch-4')
+      expect(await readFile(configFile)).toEqual(configBytes)
+      expect(await reportedFileNames()).toEqual([
+        'a-added.case.mjs',
+        'z-first.case.mjs',
+      ])
+      terminal.write('r')
+      await expectBrowserGeneration('watch-5')
+      expect(await reportedFileNames()).toEqual([
+        'a-added.case.mjs',
+        'z-first.case.mjs',
+      ])
+      await rm(added)
+      outputs.onChange({ changed: [], removed: [added] })
+      await expectBrowserGeneration('watch-6')
+      expect(await reportedFileNames()).toEqual(['z-first.case.mjs'])
+      await writeFile(added, '')
+      outputs.onChange({ changed: [added], removed: [] })
+      await expectBrowserGeneration('watch-7')
+      terminal.write('r')
+      await expectBrowserGeneration('watch-8')
+      expect(await reportedFileNames()).toEqual([
+        'z-first.case.mjs',
+        'a-added.case.mjs',
+      ])
+    } finally {
+      controller.abort(new Error('Browser history control finished'))
+      await watching
+      if (oldCI === undefined) delete process.env.CI
+      else process.env.CI = oldCI
+      if (oldTerm === undefined) delete process.env.TERM
+      else process.env.TERM = oldTerm
+    }
+  }, 30000)
+  it('does not repopulate Browser history when a config event occurs during actual JSON rename completion', async () => {
+    const configFile = await prepareBrowserHistoryFixture('a-first.case.mjs')
+    const configBytes = await readFile(configFile)
+    watching = observeBrowserWatch(browserHistoryOptions())
+    await expectBrowserGeneration('watch-1')
+    const outputs = jest.mocked(watchTestFiles).mock.calls[0][0]
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const originalRename = fs.rename
+    let arrived!: () => void, release!: () => void
+    const renamed = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let hold = true
+    const spy = jest
+      .spyOn(fs, 'rename')
+      .mockImplementation(async (from, to) => {
+        const result = await originalRename(from, to)
+        if (hold && to === path.join(directory, 'result.json')) {
+          hold = false
+          arrived()
+          await gate
+        }
+        return result
+      })
+    try {
+      const added = path.join(directory, 'z-added.case.mjs')
+      await writeFile(added, '')
+      outputs.onChange({ changed: [added], removed: [] })
+      await renamed
+      outputs.onChange({ changed: [configFile], removed: [] })
+      release()
+      await expectBrowserGeneration('watch-3')
+      expect(await readFile(configFile)).toEqual(configBytes)
+      expect(await reportedFileNames()).toEqual([
+        'a-first.case.mjs',
+        'z-added.case.mjs',
+      ])
+      expect(
+        (await report()).next.events.every(
+          (event: ResultEvent) => event.runId === 'watch-3'
+        )
+      ).toBe(true)
+      expect((await report()).coverageMap).toEqual(
+        JSON.parse(
+          await readFile(
+            path.join(directory, 'coverage/coverage-final.json'),
+            'utf8'
+          )
+        )
+      )
+    } finally {
+      release()
+      spy.mockRestore()
+    }
+  }, 20000)
+
   it.each([undefined, true, false])(
     'publishes parent-owned watch coverage with cleanOnRerun=%s',
     async (cleanOnRerun) => {
