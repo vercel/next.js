@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "external-dynamic": "file:./external-dynamic",
     "foo": "file:./foo"
   }
 }

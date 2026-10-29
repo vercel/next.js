@@ -529,6 +529,12 @@ export interface ExperimentalConfig {
     string,
     { path: string; ignoreIfMissing?: boolean }
   >
+  /**
+   * Detect pnpm's global virtual store and add it as an additional root. Requires pnpm 11 or later.
+   *
+   * @default false
+   */
+  turbopackDetectGlobalVirtualStore?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -937,7 +943,7 @@ export interface ExperimentalConfig {
      */
     requestCost?: number
     /**
-     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
      * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
      */
     minChunkSize?: number
@@ -947,8 +953,9 @@ export interface ExperimentalConfig {
      */
     maxChunkCountPerGroup?: number
     /**
-     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
-     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
+     * (200 KB).
      */
     maxMergeChunkSize?: number
     /**
@@ -962,6 +969,18 @@ export interface ExperimentalConfig {
      * single remainder chunk. Defaults to `20000` (20 KB).
      */
     minComponentChunkSize?: number
+    /**
+     * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
+     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
+     * apply to Edge runtime chunks.
+     */
+    minServerChunkSize?: number
+    /**
+     * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
+     * (100 KB). Doesn't apply to Edge runtime chunks.
+     */
+    maxMergeServerChunkSize?: number
   }
 
   /**
@@ -1282,6 +1301,18 @@ export interface ExperimentalConfig {
    * `transitionIndicator`, or `gestureTransition`) requires it.
    */
   blockingSSR?: boolean
+
+  /**
+   * Opts the `app` directory into React's experimental release channel
+   * (`react@experimental`), which ships React's internal
+   * `enableHydrationChangeEvent` feature flag. This lets teams try that flag
+   * before it lands in React's canary channel. The name mirrors React's
+   * underlying feature flag.
+   *
+   * This flag has no effect of its own beyond selecting the experimental
+   * React build.
+   */
+  hydrationChangeEvent?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -2466,6 +2497,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    hydrationChangeEvent: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,

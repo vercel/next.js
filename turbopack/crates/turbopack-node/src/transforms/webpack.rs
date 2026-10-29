@@ -17,7 +17,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     glob::{Glob, GlobOptions},
     json::parse_json_with_source_context,
     rope::Rope,
@@ -64,8 +64,8 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
-        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateArg, EvaluateContext, EvaluateEntries, EvaluatePool,
+        EvaluationIssue, custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     format::FormattingMode,
@@ -240,6 +240,30 @@ async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath>
         .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
         .await?
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
+}
+
+/// Resolves a path passed to the loader's `fs`. As elsewhere in Turbopack, `..` is applied
+/// lexically before symlinks are followed. Returns `None` when Node's callback will report the
+/// error instead.
+async fn resolve_loader_path(cwd: &FileSystemPath, path: &str) -> Result<Option<FileSystemPath>> {
+    match loader_path(cwd, path).await?.realpath().await? {
+        Ok(path) => Ok(Some(path)),
+        // Changes behind a symlink leaving the configured roots can't be tracked.
+        Err(error) if matches!(error.kind(), RealPathErrorType::Invalid { .. }) => {
+            Err(error.into())
+        }
+        Err(_) => Ok(None),
+    }
+}
+
+async fn register_loader_stat_dependencies(cwd: &FileSystemPath, file: &str) -> Result<()> {
+    let Some(path) = resolve_loader_path(cwd, file).await? else {
+        return Ok(());
+    };
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs)
+        .expect("resolved loader paths are backed by DiskFileSystem");
+    fs.full_metadata(path).await?;
+    Ok(())
 }
 
 // TODO: This creates a task that's keyed on the list of file paths, which might churn through tasks
@@ -478,13 +502,6 @@ impl WebpackLoadersProcessedAsset {
 
             let source_ident = self.source.ident().await?;
             let resource_fs_path = &source_ident.path;
-            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
-                bail!(
-                    "Resource path \"{}\" needs to be on project filesystem \"{}\"",
-                    resource_fs_path,
-                    project_path
-                );
-            };
             let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
 
             // TODO pass this into additional_invalidation again once we have proper pool handling
@@ -512,14 +529,14 @@ impl WebpackLoadersProcessedAsset {
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
                 args: vec![
-                    ResolvedVc::cell(content),
+                    EvaluateArg::Vc(ResolvedVc::cell(content)),
+                    EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
-                    ResolvedVc::cell(resource_path.to_string().into()),
-                    ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
-                    ResolvedVc::cell(json!(*loaders)),
-                    ResolvedVc::cell(transform.target.await?.to_string().into()),
-                    ResolvedVc::cell(transform.mode.to_string().into()),
-                    ResolvedVc::cell(transform.source_maps.into()),
+                    EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(json!(*loaders))),
+                    EvaluateArg::Vc(ResolvedVc::cell(transform.target.await?.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(transform.source_maps.into())),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
                 loader_names,
@@ -667,6 +684,8 @@ pub enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     TrackFileRead { file: RcStr },
     #[serde(rename_all = "camelCase")]
+    TrackFileStat { file: RcStr },
+    #[serde(rename_all = "camelCase")]
     ImportModule { lookup_path: RcStr, request: RcStr },
 }
 
@@ -690,6 +709,7 @@ pub enum ResponseMessage {
     },
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
+    TrackFileStat {},
     #[serde(rename_all = "camelCase")]
     ImportModule {
         entry_path: RcStr,
@@ -710,7 +730,7 @@ pub struct WebpackLoaderContext {
     pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub args: Vec<ResolvedVc<JsonValue>>,
+    pub args: Vec<EvaluateArg>,
     pub additional_invalidation: ResolvedVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
     /// Used to enrich error messages and issue details so users know which
@@ -765,7 +785,7 @@ impl EvaluateContext for WebpackLoaderContext {
         )
     }
 
-    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
+    fn args(&self) -> &[EvaluateArg] {
         &self.args
     }
 
@@ -935,8 +955,16 @@ impl EvaluateContext for WebpackLoaderContext {
             RequestMessage::TrackFileRead { file } => {
                 // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
                 // await the read though to cover at least one class of race conditions.
-                let _ = &*loader_path(&self.cwd, &file).await?.read().await?;
+                if let Some(path) = resolve_loader_path(&self.cwd, &file).await? {
+                    let _ = &*path.read().await?;
+                }
                 Ok(ResponseMessage::TrackFileRead {})
+            }
+            RequestMessage::TrackFileStat { file } => {
+                register_loader_stat_dependencies(&self.cwd, &file)
+                    .await
+                    .with_context(|| format!("tracking webpack loader stat of {file}"))?;
+                Ok(ResponseMessage::TrackFileStat {})
             }
             RequestMessage::ImportModule {
                 lookup_path,

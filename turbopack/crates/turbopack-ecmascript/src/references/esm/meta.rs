@@ -180,7 +180,7 @@ impl From<ImportMetaRef> for CodeGen {
 }
 
 /// URL encodes special chars that would appear in the "pathname" portion.
-/// https://github.com/nodejs/node/blob/3bed5f11e039153eff5cbfd9513b8f55fd53fc43/lib/internal/url.js#L1513-L1526
+/// <https://github.com/nodejs/node/blob/3bed5f11e039153eff5cbfd9513b8f55fd53fc43/lib/internal/url.js#L1513-L1526>
 fn encode_path(path: &'_ str) -> Cow<'_, str> {
     let mut encoded = String::new();
     let mut start = 0;
