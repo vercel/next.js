@@ -212,6 +212,7 @@ environment.TURBO_TASKS_AVAILABLE_PARALLELISM ??= String(
 environment.NEXT_TEST_SKIP_RESULT_CACHE = '1'
 
 let failed = false
+let hasSelectedTests = false
 const started = performance.now()
 for (const mode of modes) {
   const modeSelection = new Map(selected)
@@ -260,6 +261,7 @@ for (const mode of modes) {
   }
   if (!selections.length)
     throw new Error(`No routing tests selected for ${mode}`)
+  hasSelectedTests = true
   console.log(
     `Routing server: ${mode}, ${values.bundler}, ${selections.length} files, ${concurrency} workers (${values.regressions ? 'regressions ' + values.regressions : values.full ? 'full' : values.core ? 'core' : 'routing'} profile)`
   )
@@ -322,6 +324,11 @@ for (const mode of modes) {
       `Routing ${mode} elapsed: ${((performance.now() - modeStarted) / 1000).toFixed(1)}s`
     )
   }
+}
+if (!hasSelectedTests) {
+  throw new Error(
+    `No routing tests selected for ${values.mode}, ${values.bundler}`
+  )
 }
 if (!values.list)
   console.log(

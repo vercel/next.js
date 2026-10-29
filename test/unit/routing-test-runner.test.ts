@@ -158,6 +158,27 @@ describe('routing suite execution', () => {
     expect(applicable.stdout).toContain('next-rs-api.test.ts')
   })
 
+  it.each(['run', 'list', 'dry'])(
+    'fails an entirely empty regression selection in %s mode',
+    async (action) => {
+      const result = await execa(
+        process.execPath,
+        [
+          'scripts/run-routing-tests.mjs',
+          '--regressions=all',
+          '--bundler=rspack',
+          ...(action === 'run' ? [] : [`--${action}`]),
+        ],
+        { cwd: root, reject: false }
+      )
+      expect(result.exitCode).toBe(1)
+      expect(result.stderr).toContain(
+        'No routing tests selected for all, rspack'
+      )
+      expect(result.stdout).not.toContain('Routing server:')
+    }
+  )
+
   it('intersects developer filters with routing selections', async () => {
     const file = await fixture(
       'filtering',

@@ -88,7 +88,9 @@ subprocesses, so its outer runner bundler is not evidence of selection.
 
 A selected but gated assertion is a skip. The scheduler rejects filters that
 match no registered assertion. `--mode=all` omits an inapplicable mode;
-an explicitly requested mode with no matches fails. The companion profile
+an explicitly requested mode with no matches fails. A selection with no
+applicable tests across either mode also fails, including `--list` and `--dry`.
+The companion profile
 currently covers local hosting; it supplies no deployment coverage.
 
 See [the coverage and execution review](./consolidation-review.md) for actual
