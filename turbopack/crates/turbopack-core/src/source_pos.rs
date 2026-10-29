@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use bincode::{Decode, Encode};
 use serde::Serialize;
 use turbo_tasks_hash::DeterministicHash;
@@ -53,12 +55,27 @@ impl SourcePos {
     /// Line terminators are the classic "\n", "\r", "\r\n" (which counts as
     /// a single terminator), and JS LINE/PARAGRAPH SEPARATORs.
     ///
+    /// `code` is treated as complete: a trailing "\r" is not joined with a "\n" passed to a
+    /// later call, and a truncated trailing UTF-8 sequence is counted as a whole char. Code
+    /// that arrives in multiple chunks needs a scanner that keeps this state between chunks.
+    ///
     /// See <https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators>
     pub fn update(&mut self, code: &[u8]) {
+        let mut scanner = SourcePosScanner::new(*self);
+        scanner.update(code);
+        *self = scanner.finish();
+    }
+
+    /// Advances past `code`. If `after_cr` is set, `code` directly follows a "\r", so a leading
+    /// "\n" completes that "\r\n" terminator instead of starting a new line.
+    ///
+    /// Line terminators split across calls are only recognized with `after_cr`; a LINE or
+    /// PARAGRAPH SEPARATOR must be contained in `code`.
+    fn advance(&mut self, code: &[u8], after_cr: bool) {
         // Only the line terminators need to be found, which `memchr` does with SIMD. The
         // columns of all but the last line don't matter, so only the final line segment is
         // counted.
-        let mut skip_lf_at = None;
+        let mut skip_lf_at = after_cr.then_some(0);
         let mut line_start = None;
         for i in memchr::memchr3_iter(U8_LF, U8_CR, U8_LS_PS_LEAD, code) {
             match code[i] {
@@ -95,6 +112,121 @@ impl SourcePos {
     }
 }
 
+/// Computes a [`SourcePos`] from source code that is provided in multiple chunks (e.g. the
+/// buffers of a rope).
+///
+/// Unlike repeated [`SourcePos::update`] calls, the result does not depend on where the chunk
+/// boundaries are: a "\r\n" or a multi-byte UTF-8 sequence split across two chunks is handled
+/// the same as if the chunks had been concatenated.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SourcePosScanner {
+    pos: SourcePos,
+    /// The last scanned byte was a CR, so a directly following LF belongs to the same line
+    /// terminator.
+    after_cr: bool,
+    /// The leading bytes of a multi-byte UTF-8 sequence that was cut off at the end of the
+    /// previous chunk.
+    partial: [u8; 4],
+    /// The number of valid bytes in `partial`. `0` if there is no pending sequence.
+    partial_len: u8,
+}
+
+impl SourcePosScanner {
+    pub(crate) fn new(pos: SourcePos) -> Self {
+        Self {
+            pos,
+            after_cr: false,
+            partial: [0; 4],
+            partial_len: 0,
+        }
+    }
+
+    /// The position after all completely scanned chars. A multi-byte UTF-8 sequence that is
+    /// still incomplete at the end of the last chunk is not included.
+    pub(crate) fn pos(&self) -> SourcePos {
+        self.pos
+    }
+
+    /// Returns the final position, counting an incomplete trailing UTF-8 sequence (which only
+    /// occurs for invalid input) as a whole char.
+    pub(crate) fn finish(mut self) -> SourcePos {
+        let len = self.partial_len as usize;
+        if len > 0 {
+            let partial = self.partial;
+            self.partial_len = 0;
+            self.advance(&partial[..len]);
+        }
+        self.pos
+    }
+
+    /// Advances the position past the next chunk of source code.
+    pub(crate) fn update(&mut self, mut code: &[u8]) {
+        // First complete a UTF-8 sequence that was split at the end of the previous chunk.
+        if self.partial_len > 0 {
+            let len = self.partial_len as usize;
+            let char_len = utf8_char_len(self.partial[0]);
+            let take = min(char_len - len, code.len());
+            self.partial[len..len + take].copy_from_slice(&code[..take]);
+            code = &code[take..];
+            if len + take < char_len {
+                self.partial_len = (len + take) as u8;
+                return;
+            }
+            self.partial_len = 0;
+            let partial = self.partial;
+            self.advance(&partial[..char_len]);
+        }
+
+        // Keep a sequence that continues in the next chunk for later, so that the scanned code
+        // always ends on a char boundary.
+        let (code, rest) = code.split_at(complete_prefix_len(code));
+        self.advance(code);
+        self.partial[..rest.len()].copy_from_slice(rest);
+        self.partial_len = rest.len() as u8;
+    }
+
+    fn advance(&mut self, code: &[u8]) {
+        if let Some(&last) = code.last() {
+            self.pos.advance(code, self.after_cr);
+            self.after_cr = last == U8_CR;
+        }
+    }
+}
+
+/// The length of the UTF-8 sequence starting with the octet `b`, decoded from its leading bit
+/// pattern. This is not a UTF-8 validator: continuation bytes and invalid octets are treated
+/// like the leading octet of a 4-byte sequence.
+fn utf8_char_len(b: u8) -> usize {
+    if b & 0b10000000 == 0 {
+        1
+    } else if b & 0b11100000 == 0b11000000 {
+        2
+    } else if b & 0b11110000 == 0b11100000 {
+        3
+    } else {
+        4
+    }
+}
+
+/// The length of the longest prefix of `code` that doesn't end inside a multi-byte UTF-8
+/// sequence.
+fn complete_prefix_len(code: &[u8]) -> usize {
+    let len = code.len();
+    // A sequence is at most 4 bytes long, so only its leading byte in the last 3 bytes can
+    // start a sequence that continues past the end.
+    for back in 1..=min(3, len) {
+        let b = code[len - back];
+        if b & 0b11000000 != 0b10000000 {
+            return if utf8_char_len(b) > back {
+                len - back
+            } else {
+                len
+            };
+        }
+    }
+    len
+}
+
 /// Counts the UTF-16 code units of UTF-8 encoded text, as JavaScript string lengths and source
 /// map columns do.
 ///
@@ -120,7 +252,7 @@ impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
 
 #[cfg(test)]
 mod tests {
-    use super::{SourcePos, utf16_len};
+    use super::{SourcePos, SourcePosScanner, utf16_len};
 
     fn pos_after(code: &str) -> SourcePos {
         let mut pos = SourcePos::new(0);
@@ -195,5 +327,86 @@ mod tests {
         assert_eq!(pos, (2, 3));
         pos.update("é\nb".as_bytes());
         assert_eq!(pos, (3, 1));
+    }
+
+    const CHUNKED_INPUTS: &[&str] = &[
+        "abc",
+        "aé€b",
+        "x🦀é€😀y",
+        "a\nb\rc\r\nd",
+        "\r\r\n\n\r",
+        "ab\u{2028}c\u{2029}d\u{2027}\u{202A}",
+        "“a” — …\u{2028}“b”",
+        "🦀\r\n€\u{2028}\r",
+    ];
+
+    fn scan_chunks<'a>(chunks: impl IntoIterator<Item = &'a [u8]>) -> SourcePos {
+        let mut scanner = SourcePosScanner::new(SourcePos::new(0));
+        for chunk in chunks {
+            scanner.update(chunk);
+        }
+        let pos = scanner.pos();
+        assert_eq!(scanner.finish(), pos, "valid input leaves no pending bytes");
+        pos
+    }
+
+    #[test]
+    fn scanner_matches_whole_input_for_every_split() {
+        for input in CHUNKED_INPUTS {
+            let expected = pos_after(input);
+            let bytes = input.as_bytes();
+            assert_eq!(scan_chunks([bytes]), expected, "{input:?}");
+            for split in 0..=bytes.len() {
+                let (a, b) = bytes.split_at(split);
+                assert_eq!(scan_chunks([a, b]), expected, "{input:?} split at {split}");
+            }
+        }
+    }
+
+    #[test]
+    fn scanner_matches_whole_input_byte_by_byte() {
+        for input in CHUNKED_INPUTS {
+            let expected = pos_after(input);
+            assert_eq!(
+                scan_chunks(input.as_bytes().chunks(1)),
+                expected,
+                "{input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn scanner_joins_crlf_across_chunks() {
+        assert_eq!(scan_chunks([&b"a\r"[..], b"\nb"]), (1, 1));
+        // Empty chunks in between don't break the terminator.
+        assert_eq!(scan_chunks([&b"a\r"[..], b"", b"\nb"]), (1, 1));
+    }
+
+    #[test]
+    fn scanner_keeps_partial_char_across_empty_chunks() {
+        let crab = "🦀".as_bytes();
+        assert_eq!(
+            scan_chunks([&crab[..1], b"", &crab[1..3], b"", &crab[3..], b"a"]),
+            (0, 3)
+        );
+    }
+
+    #[test]
+    fn scanner_continues_from_start_position() {
+        let mut scanner = SourcePosScanner::new(SourcePos { line: 4, column: 7 });
+        let bytes = "a🦀\r\nb".as_bytes();
+        scanner.update(&bytes[..3]);
+        scanner.update(&bytes[3..6]);
+        scanner.update(&bytes[6..]);
+        assert_eq!(scanner.finish(), (5, 1));
+    }
+
+    #[test]
+    fn scanner_excludes_incomplete_char_until_finished() {
+        let mut scanner = SourcePosScanner::new(SourcePos::new(0));
+        scanner.update(&"a🦀".as_bytes()[..3]);
+        assert_eq!(scanner.pos(), (0, 1));
+        // A truncated sequence at the end of the input still counts as a char.
+        assert_eq!(scanner.finish(), (0, 3));
     }
 }

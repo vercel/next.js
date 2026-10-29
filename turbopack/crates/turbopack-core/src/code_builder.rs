@@ -20,7 +20,7 @@ use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, structured::StructuredSourceMap},
-    source_pos::SourcePos,
+    source_pos::{SourcePos, SourcePosScanner},
 };
 
 /// A per-section source map: either an opaque serialized map or a structured one whose
@@ -361,7 +361,10 @@ impl Code {
         debug_assert!(debug_id.is_none() || self.should_generate_debug_id);
         // If there is a debug id the first line will be modifying the global object. see
         // `[to_rope_with_magic_comments]` for more details.
-        let mut pos = SourcePos::new(if debug_id.is_some() { 1 } else { 0 });
+        // The code is read buffer by buffer, so the scanner keeps the state of a "\r\n" or a
+        // multi-byte UTF-8 sequence that is split across buffers.
+        let mut scanner =
+            SourcePosScanner::new(SourcePos::new(if debug_id.is_some() { 1 } else { 0 }));
 
         let mut last_byte_pos = 0;
 
@@ -375,12 +378,13 @@ impl Code {
                 debug_assert!(!buf.is_empty());
 
                 let end = min(want, buf.len());
-                pos.update(&buf[0..end]);
+                scanner.update(&buf[0..end]);
 
                 read.consume(end);
                 want -= end;
             }
             last_byte_pos = *byte_pos;
+            let pos = scanner.pos();
 
             if let Some(map) = map {
                 sections.push((pos, map.to_rope()))
@@ -412,6 +416,8 @@ impl Code {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use serde_json::Value;
     use turbo_tasks_fs::rope::Rope;
 
@@ -451,5 +457,77 @@ mod tests {
         let expected_column = "\"🦀é\"; ".encode_utf16().count() as u64;
         assert_eq!(expected_column, 7);
         assert_eq!(section_offsets(&code), vec![(1, expected_column)]);
+    }
+
+    /// Builds code whose prefix is made of separate rope buffers (one per element of
+    /// `prefix_chunks`), followed by a mapped section, and returns its section offsets.
+    fn section_offsets_after_chunks(prefix_chunks: &[&[u8]]) -> Vec<(u64, u64)> {
+        let mut builder = CodeBuilder::default();
+        for chunk in prefix_chunks {
+            builder.push_source(&Rope::from(chunk.to_vec()), None::<Rope>);
+        }
+        builder.push_source(
+            &Rope::from("mapped();".to_string()),
+            Some(Rope::from(SECTION_MAP.to_string())),
+        );
+        let code = builder.build();
+        assert_eq!(
+            code.source_code().read().count(),
+            prefix_chunks.len() + 1,
+            "each chunk must be a separate rope buffer"
+        );
+        section_offsets(&code)
+    }
+
+    /// Splits `text` at every byte index and checks that the generated section offset is the
+    /// same as for the unsplit text.
+    fn assert_offsets_independent_of_split(text: &str, expected: (u64, u64)) {
+        assert_eq!(
+            section_offsets_after_chunks(&[text.as_bytes()]),
+            vec![expected]
+        );
+        let bytes = text.as_bytes();
+        for split in 1..bytes.len() {
+            assert_eq!(
+                section_offsets_after_chunks(&[&bytes[..split], &bytes[split..]]),
+                vec![expected],
+                "split {text:?} at byte {split}"
+            );
+        }
+    }
+
+    #[test]
+    fn section_offsets_handle_crlf_split_across_buffers() {
+        assert_eq!(
+            section_offsets_after_chunks(&[b"a\r", b"\nb"]),
+            vec![(1, 1)]
+        );
+        assert_offsets_independent_of_split("a\r\nb\r\r\nc", (3, 1));
+    }
+
+    #[test]
+    fn section_offsets_handle_utf8_split_across_buffers() {
+        // Astral (4-byte UTF-8, 2 UTF-16 code units) and BMP chars.
+        assert_offsets_independent_of_split("x🦀é€y", (0, 6));
+        // LINE SEPARATOR and PARAGRAPH SEPARATOR (3-byte UTF-8) are line terminators.
+        assert_offsets_independent_of_split("ab\u{2028}c\u{2029}de", (2, 2));
+    }
+
+    #[test]
+    fn section_offsets_handle_sequences_split_across_flushed_writes() {
+        let mut builder = CodeBuilder::default();
+        let crab = "🦀".as_bytes();
+        // Flushing commits the written bytes, so every write ends up in its own rope buffer.
+        for chunk in [&b"a\r"[..], b"\n", &crab[..2], &crab[2..], b"b"] {
+            builder.write_all(chunk).unwrap();
+            builder.flush().unwrap();
+        }
+        builder.push_source(
+            &Rope::from("mapped();".to_string()),
+            Some(Rope::from(SECTION_MAP.to_string())),
+        );
+        let code = builder.build();
+        assert_eq!(code.source_code().read().count(), 6);
+        assert_eq!(section_offsets(&code), vec![(1, 3)]);
     }
 }
