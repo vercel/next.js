@@ -750,3 +750,79 @@ it('matches genuine matcher authoring root type exports', async () => {
     typeOnlyExports: true,
   })
 }, 35000)
+
+it.each(['poll-ownership', 'poll-hook-admission'])(
+  'owns actual lazy polling invocation and Test lifetime: %s',
+  async (profile) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'poll-ownership.cjs'), process.cwd(), profile],
+      { timeout: 15000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      mode: profile,
+      cases: profile === 'poll-ownership' ? 10 : 1,
+      controls: profile === 'poll-ownership' ? 7 : 0,
+      passed: profile === 'poll-ownership' ? 9 : 1,
+      failed: profile === 'poll-ownership' ? 1 : 0,
+      exactGenuineAuthorRows: true,
+    })
+  },
+  20000
+)
+
+it.each([
+  ['development', 'js', 'poll-ownership'],
+  ['development', 'js', 'poll-hook-admission'],
+  ['development', 'mjs', 'poll-ownership'],
+  ['development', 'mjs', 'poll-hook-admission'],
+  ['production', 'js', 'poll-ownership'],
+  ['production', 'js', 'poll-hook-admission'],
+  ['production', 'mjs', 'poll-ownership'],
+  ['production', 'mjs', 'poll-hook-admission'],
+])(
+  'matches genuine public polling ownership in %s %s %s',
+  async (mode, extension, profile) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-poll-ownership-public-')
+    )
+    try {
+      const output = join(directory, profile)
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'poll-ownership-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          profile,
+          extension,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndErrorNamesMessages: true,
+        noSyntheticResults: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  130000
+)

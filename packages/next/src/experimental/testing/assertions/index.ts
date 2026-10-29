@@ -2044,7 +2044,6 @@ export async function createAssertionRuntime(options: {
         scope.kind === 'file-fixtures'
           ? liveFileFixtureAttempt()?.task
           : scope.task
-      if (!task) throw new Error('expect.poll() must be called inside a test')
       if (typeof callback !== 'function')
         throw new TypeError('expect.poll() requires a callback')
       const interval =
@@ -2060,7 +2059,14 @@ export async function createAssertionRuntime(options: {
           'expect.poll() timeout must be a non-negative number'
         )
       const assertion = expect(null, pollOptions.message)
+      const pollCallback = callback.bind(assertion)
       chai.util.flag(assertion, 'poll', true)
+      chai.util.flag(assertion, '_poll.fn', pollCallback)
+      chai.util.flag(assertion, '_poll.timeout', timeout)
+      chai.util.flag(assertion, '_poll.interval', interval)
+      const actualTest = chai.util.flag(assertion, 'vitest-test')
+      if (!task || actualTest?.type !== 'test')
+        throw new Error('expect.poll() must be called inside a test')
       const unsupported = new Set([
         'resolves',
         'rejects',
@@ -2075,9 +2081,6 @@ export async function createAssertionRuntime(options: {
         'throw',
         'Throw',
       ])
-      let awaited = false
-      let running: Promise<void> | undefined
-      const callsite = new Error('expect.poll() assertion failed')
       const proxy = new Proxy(assertion as object, {
         get(target, property, receiver) {
           const value = Reflect.get(target, property, receiver)
@@ -2095,7 +2098,32 @@ export async function createAssertionRuntime(options: {
             )
           }
           return (...args: unknown[]) => {
+            let awaited = false
+            let running: Promise<void> | undefined
+            const callsite = new Error('expect.poll() assertion failed')
+            task.onFinished?.push(() => {
+              if (!awaited) {
+                const negated = chai.util.flag(assertion, 'negate')
+                  ? 'not.'
+                  : ''
+                const name = chai.util.flag(assertion, '_poll.element')
+                  ? 'element(locator)'
+                  : 'poll(assertion)'
+                const invocation = `expect.${name}.${negated}${String(property)}()`
+                const error = new Error(
+                  `${invocation} was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not executed to avoid unhandled rejections:\n\nawait ${invocation}\n`
+                )
+                if (callsite.stack)
+                  error.stack = callsite.stack.replace(
+                    callsite.message,
+                    error.message
+                  )
+                throw error
+              }
+            })
             const run = async () => {
+              const onStart = chai.util.flag(assertion, '_poll.onStart')
+              await onStart?.({ assertion })
               const started = realDateNow()
               let lastError: unknown
               do {
@@ -2107,9 +2135,11 @@ export async function createAssertionRuntime(options: {
                   chai.util.flag(
                     assertion,
                     'object',
-                    await callback({
-                      signal: signal ?? new AbortController().signal,
-                    })
+                    await Promise.resolve().then(() =>
+                      pollCallback({
+                        signal: signal ?? new AbortController().signal,
+                      })
+                    )
                   )
                   await Reflect.apply(value, assertion, args)
                   return
@@ -2135,39 +2165,24 @@ export async function createAssertionRuntime(options: {
                 lastError ?? new Error('expect.poll() did not resolve in time')
               )
             }
-            running ??= run()
-            // Finalization reports missing consumption; observe the rejection now
-            // so an unawaited failed poll cannot escape as a process rejection.
-            void running.catch(() => {})
+            const start = () => (running ??= run())
             return {
               then(onFulfilled: any, onRejected: any) {
                 awaited = true
-                return running!.then(onFulfilled, onRejected)
+                return start().then(onFulfilled, onRejected)
               },
               catch(onRejected: any) {
                 awaited = true
-                return running!.catch(onRejected)
+                return start().catch(onRejected)
               },
               finally(onFinally: any) {
                 awaited = true
-                return running!.finally(onFinally)
+                return start().finally(onFinally)
               },
+              [Symbol.toStringTag]: 'Promise',
             }
           }
         },
-      })
-      task.onFinished?.push(() => {
-        if (!awaited) {
-          const error = new Error(
-            'expect.poll() assertion was not awaited. This assertion is asynchronous and must be awaited.'
-          )
-          if (callsite.stack)
-            error.stack = callsite.stack.replace(
-              callsite.message,
-              error.message
-            )
-          throw error
-        }
       })
       return proxy
     }) as TestExpect['poll']

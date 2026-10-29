@@ -127,7 +127,7 @@ describe('Next-owned assertion primitives', () => {
     await assert.rejects(scope!.finalize(), (error: AggregateError) => {
       assert.match(
         error.errors[0].message,
-        /expect\.poll\(\) assertion was not awaited/
+        /expect\.poll\(assertion\)\.toBe\(\) was not awaited/
       )
       return true
     })
