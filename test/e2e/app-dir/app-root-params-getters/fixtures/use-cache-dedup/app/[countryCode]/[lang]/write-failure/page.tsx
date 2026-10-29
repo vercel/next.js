@@ -9,8 +9,20 @@ async function readCachedValue(id: string) {
   const language = await lang()
   cacheTag(`write-failure:${id}`, `write-failure-language:${language}`)
   writeFailureState.generatedLanguages.push(language)
+  cacheTag(
+    `app-root-params-getters:write-generation:${writeFailureState.generatedLanguages.length}`
+  )
+  if (id.startsWith('lookup-history-')) {
+    cacheLife({ stale: 300, revalidate: 0, expire: 3600 })
+  }
   await writeFailureState.pendingFill
   return `${language}:${crypto.randomUUID()}`
+}
+
+async function readOuterValue(id: string, _name: string) {
+  'use cache'
+  cacheLife('hours')
+  return readCachedValue(id)
 }
 
 export default async function Page({
@@ -18,10 +30,10 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ countryCode: string; lang: string }>
-  searchParams: Promise<{ id?: string | string[] }>
+  searchParams: Promise<{ id?: string | string[]; outer?: string }>
 }) {
   await connection()
-  const { id } = await searchParams
+  const { id, outer } = await searchParams
   if (id === undefined) {
     return null
   }
@@ -30,5 +42,11 @@ export default async function Page({
   }
   const { lang: language } = await params
   writeFailureState.requestedLanguages.push(language)
-  return <p id="value">{await readCachedValue(id)}</p>
+  return (
+    <p id="value">
+      {outer === undefined
+        ? await readCachedValue(id)
+        : await readOuterValue(id, 'outer')}
+    </p>
+  )
 }
