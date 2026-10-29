@@ -4,6 +4,8 @@ import { escapedNamespace } from './escape-lib'
 import { readUsed, counter, increment } from './fragment-bindings'
 import './fragment-evaluation'
 import { events } from './fragment-events'
+import { readState } from './fragment-initialization'
+import './fragment-initialization/unused'
 
 it('reads multiple static members from a namespace-valued named export', () => {
   expect(z.object()).toBe('object')
@@ -47,4 +49,16 @@ it('preserves evaluation order without exporting evaluation-only bindings', () =
   const source = factories.join('\n')
   expect(source).not.toMatch(/\(\)\s*=>\s*evaluationOnly\b/)
   expect(source).not.toContain('UNUSED_EVALUATION_FUNCTION')
+})
+
+it('preserves internal initialization in side-effect-free packages without exporting its bindings', () => {
+  expect(readState()).toBe('ready')
+
+  const factories = Array.from(__turbopack_modules__)
+    .filter(([id]) => id.includes('/input/fragment-initialization/index.js'))
+    .map(([, factory]) => factory.toString())
+  expect(factories.length).toBeGreaterThan(0)
+  const source = factories.join('\n')
+  expect(source).not.toMatch(/\(\)\s*=>\s*initialization\b/)
+  expect(source).not.toContain('UNUSED_SIDE_EFFECT_FREE_INITIALIZATION')
 })

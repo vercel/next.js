@@ -155,7 +155,10 @@ impl ModuleReference for EcmascriptModulePartReference {
 
 impl EcmascriptModulePartReference {
     pub(crate) fn is_evaluation_only(&self) -> bool {
-        matches!(self.export_usage, ExportUsage::Evaluation)
+        matches!(
+            self.export_usage,
+            ExportUsage::Evaluation | ExportUsage::RequiredEvaluation
+        )
     }
 
     pub async fn code_generation(
@@ -199,7 +202,7 @@ impl EcmascriptModulePartReference {
         }
 
         let export_usage = &this.export_usage;
-        if merged_index.is_some() && matches!(export_usage, ExportUsage::Evaluation) {
+        if merged_index.is_some() && this.is_evaluation_only() {
             // No need to import, the module was already executed and is available in the same scope
             // hoisting group (unless it's a namespace import)
         } else {
@@ -211,6 +214,7 @@ impl EcmascriptModulePartReference {
                         ExportUsage::PartialNamespaceObject(_)
                         | ExportUsage::All
                         | ExportUsage::Evaluation
+                        | ExportUsage::RequiredEvaluation
                         | ExportUsage::Passthrough { .. } => None,
                     },
                     scope_hoisting_context,
