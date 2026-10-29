@@ -1,4 +1,23 @@
-//! Executable publication relative to opened directories, without following output symlinks.
+//! Publish executables without allowing checkout-controlled output paths to redirect writes.
+//!
+//! A source checkout can contain a `dist` symlink pointing outside the checkout. Following
+//! that link could replace a command owned by the user running the build, before the compiled
+//! program has ever been executed. Reject symlinks and Windows reparse points in every output
+//! component below the trusted filesystem root, including the destination filename.
+//!
+//! Checking a path and then writing through its absolute name would leave a directory-swap
+//! race. Instead, open parents one component at a time without following links, then retain
+//! the final parent handle for temporary-file creation, publication and cleanup. Unix uses
+//! handle-relative operations; Windows pins the directory against rename/deletion and uses
+//! its handle's absolute path, preserving verbatim drive and UNC prefixes.
+//!
+//! Write a sibling temporary file, finish its contents and permissions, close it, then rename
+//! it over the destination. This preserves the previous executable on failure and permits
+//! rebuilding while the previous Unix executable is still running.
+//!
+//! These OS operations run while applying a DiskFileSystem write effect, not while declaring
+//! a memoized task. Output directories must be checked against current disk state at apply
+//! time; making them tracked inputs would let publishing an output invalidate its producer.
 
 use std::{
     ffi::{OsStr, OsString},

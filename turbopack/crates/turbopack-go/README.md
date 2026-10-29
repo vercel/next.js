@@ -21,7 +21,8 @@ through the same output writer, and owns watching and shutdown.
 2. Use `filesystem` to create a disk filesystem rooted at a canonical project path:
    the module directory, or the source directory for standalone inputs. Pass its
    root `FileSystemPath` to `go_bundle` together with project-relative `.go` filenames.
-   Inputs must share one directory and form a single executable `package main`.
+   Input files must have the same parent directory, either the project root or one
+   subdirectory, and form a single executable `package main`.
 3. Read `go_bundle` strongly consistently within Turbo Tasks. Inspect the
    `GoBundleResult` outcome and call `is_current()` before consuming it. If live inputs
    have changed, invalidate the source and module-cache filesystems and read again.
@@ -31,6 +32,14 @@ through the same output writer, and owns watching and shutdown.
    Cancel the context with `cancel()` when stopping, interrupt pending graph reads,
    stop the watchers, and await task shutdown. `cancelled()` supports waiting for
    cancellation; a cancelled context cannot be reused for another session.
+
+The module cache is a second input filesystem root. The tracker maps dependency
+paths reported by Go into `filesystem(context.module_cache)`, while project paths
+use the filesystem passed to `go_bundle`. For watch sessions, library consumers must
+start and stop watching that same module-cache filesystem alongside the project
+filesystem; the CLI does this automatically. These roots are selected explicitly
+from Go's resolved paths. They do not need a cross-root `DiskFileSystemMap`, since
+source symlinks and traversal between roots are unsupported.
 
 `GoBuildOutcome` separates compiler results from transient invalidation and shutdown:
 

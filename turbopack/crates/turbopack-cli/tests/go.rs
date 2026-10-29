@@ -97,6 +97,49 @@ fn wait_for_timeout_and_log(
     }
 }
 
+fn controlled_go(control: &Path) -> PathBuf {
+    let wrapper = control.join(format!("go-wrapper{}", std::env::consts::EXE_SUFFIX));
+    let actual_go = Command::new(tool())
+        .args(["env", "GOROOT"])
+        .output()
+        .unwrap();
+    assert!(actual_go.status.success());
+    let actual_go = Path::new(String::from_utf8_lossy(&actual_go.stdout).trim())
+        .join(format!("bin/go{}", std::env::consts::EXE_SUFFIX));
+    let compiled = Command::new(&actual_go)
+        .env("GOENV", "off")
+        .env("GOTOOLCHAIN", "local")
+        .env("CGO_ENABLED", "0")
+        .env("GOPROXY", "off")
+        .env_remove("GOFLAGS")
+        .env_remove("GOOS")
+        .env_remove("GOARCH")
+        .args(["build", "-o"])
+        .arg(&wrapper)
+        .arg(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../turbopack-go/tests/controlled-go/main.go"),
+        )
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    for (suffix, path) in [("go-path", actual_go.as_path()), ("control-path", control)] {
+        std::fs::write(
+            control.join(format!(
+                "go-wrapper{}.{suffix}",
+                std::env::consts::EXE_SUFFIX
+            )),
+            path.to_str().unwrap(),
+        )
+        .unwrap();
+    }
+    wrapper
+}
+
 #[test]
 fn standalone_explicit_files_and_compile_errors() {
     let temp = tempfile::tempdir().unwrap();
@@ -296,6 +339,20 @@ fn watch_and_dev_rebuild_go_and_typescript_entries() {
             "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"go-edited\") }\n",
         );
         expect_outputs("go-edited", "ts-edited");
+        #[cfg(unix)]
+        {
+            assert!(
+                Command::new("/bin/kill")
+                    .args(["-INT", &process.0.id().to_string()])
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+            wait_for_log(&format!("mixed {command} shutdown"), log.path(), || {
+                process.0.try_wait().unwrap().is_some()
+            });
+            assert_eq!(process.0.wait().unwrap().code(), Some(0));
+        }
     }
 }
 
@@ -705,6 +762,51 @@ fn rejects_source_symlinks() {
 }
 
 #[test]
+fn one_shot_build_retries_when_source_changes_after_compilation() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path();
+    source(
+        project,
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"one-shot-before\") }\n",
+    );
+    let control = tempfile::tempdir().unwrap();
+    let wrapper = controlled_go(control.path());
+    std::fs::write(control.path().join("stall"), "").unwrap();
+    let log = tempfile::NamedTempFile::new().unwrap();
+    let mut process = Process(
+        cli(project)
+            .args(["build", "main.go", "--go"])
+            .arg(wrapper)
+            .stdout(log.as_file().try_clone().unwrap())
+            .stderr(log.as_file().try_clone().unwrap())
+            .spawn()
+            .unwrap(),
+    );
+    // The wrapper has already compiled the original bytes, but has not returned them to
+    // Turbopack. Changing a tracked input must discard that result even without watch mode.
+    wait_for_log("held one-shot compilation", log.path(), || {
+        assert!(process.0.try_wait().unwrap().is_none());
+        control.path().join("ready").exists()
+    });
+    assert!(!executable(project).exists());
+    source(
+        project,
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"one-shot-after\") }\n",
+    );
+    std::fs::write(control.path().join("resume"), "").unwrap();
+    wait_for_log("one-shot recompilation and exit", log.path(), || {
+        process.0.try_wait().unwrap().is_some()
+    });
+    assert_eq!(
+        process.0.wait().unwrap().code(),
+        Some(0),
+        "{}",
+        std::fs::read_to_string(log.path()).unwrap()
+    );
+    assert_eq!(run(&executable(project)).as_deref(), Some("one-shot-after"));
+}
+
+#[test]
 fn watch_recovers_after_compile_errors_and_timeouts() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
@@ -713,50 +815,7 @@ fn watch_recovers_after_compile_errors_and_timeouts() {
         "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"first\") }\n",
     );
     let control = tempfile::tempdir().unwrap();
-    let wrapper = control
-        .path()
-        .join(format!("go-wrapper{}", std::env::consts::EXE_SUFFIX));
-    let actual_go = Command::new(tool())
-        .args(["env", "GOROOT"])
-        .output()
-        .unwrap();
-    assert!(actual_go.status.success());
-    let actual_go = Path::new(String::from_utf8_lossy(&actual_go.stdout).trim())
-        .join(format!("bin/go{}", std::env::consts::EXE_SUFFIX));
-    let compiled = Command::new(&actual_go)
-        .env("GOENV", "off")
-        .env("GOTOOLCHAIN", "local")
-        .env("CGO_ENABLED", "0")
-        .env("GOPROXY", "off")
-        .env_remove("GOFLAGS")
-        .env_remove("GOOS")
-        .env_remove("GOARCH")
-        .args(["build", "-o"])
-        .arg(&wrapper)
-        .arg(
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../turbopack-go/tests/controlled-go/main.go"),
-        )
-        .output()
-        .unwrap();
-    assert!(
-        compiled.status.success(),
-        "{}",
-        String::from_utf8_lossy(&compiled.stderr)
-    );
-    for (suffix, path) in [
-        ("go-path", actual_go.as_path()),
-        ("control-path", control.path()),
-    ] {
-        std::fs::write(
-            control.path().join(format!(
-                "go-wrapper{}.{suffix}",
-                std::env::consts::EXE_SUFFIX
-            )),
-            path.to_str().unwrap(),
-        )
-        .unwrap();
-    }
+    let wrapper = controlled_go(control.path());
     let log_path = project.join("watch.log");
     let log = std::fs::File::create(&log_path).unwrap();
     let mut process = Process(
@@ -858,65 +917,75 @@ fn watch_recovers_after_compile_errors_and_timeouts() {
 
 #[cfg(unix)]
 #[test]
-fn cancellation_during_compilation_kills_child_processes() {
+fn cancellation_during_preparation_and_compilation_kills_child_processes() {
     use std::os::unix::fs::PermissionsExt;
-    let temp = tempfile::tempdir().unwrap();
-    let project = temp.path();
-    source(project, "package main\nfunc main() {}\n");
     let go = Command::new(tool())
         .args(["env", "GOROOT"])
         .output()
         .unwrap();
     assert!(go.status.success());
     let go = Path::new(String::from_utf8_lossy(&go.stdout).trim()).join("bin/go");
-    let wrapper = project.join("go-wrapper");
     let quote = |path: &Path| format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"));
-    std::fs::write(
-        &wrapper,
-        format!(
-            "#!/bin/sh\nif [ \"$1\" = build ]; then\n sleep 120 &\n echo $! > {}\n touch {}\n \
-             wait\nfi\nexec {} \"$@\"\n",
-            quote(&project.join("child.pid")),
-            quote(&project.join("child.ready")),
-            quote(&go)
-        ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let log = tempfile::NamedTempFile::new().unwrap();
-    let mut process = Process(
-        cli(project)
-            .args(["build", "main.go", "--go"])
-            .arg(&wrapper)
-            .stdout(log.as_file().try_clone().unwrap())
-            .stderr(log.as_file().try_clone().unwrap())
-            .spawn()
-            .unwrap(),
-    );
-    wait_for_log("compiler descendant readiness", log.path(), || {
-        project.join("child.ready").exists()
-    });
-    let pid = std::fs::read_to_string(project.join("child.pid")).unwrap();
-    assert!(
-        Command::new("/bin/kill")
-            .args(["-INT", &process.0.id().to_string()])
-            .status()
-            .unwrap()
-            .success()
-    );
-    wait_for_log("CLI shutdown after Ctrl-C", log.path(), || {
-        process.0.try_wait().unwrap().is_some()
-    });
-    assert_eq!(process.0.wait().unwrap().code(), Some(0));
-    wait_for_log("compiler descendant termination", log.path(), || {
-        !Command::new("/bin/kill")
-            .args(["-0", pid.trim()])
-            .stderr(Stdio::null())
-            .status()
-            .unwrap()
-            .success()
-    });
-    assert!(!executable(project).exists());
+    for action in ["env", "build"] {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path();
+        source(project, "package main\nfunc main() {}\n");
+        let wrapper = project.join("go-wrapper");
+        std::fs::write(
+            &wrapper,
+            format!(
+                "#!/bin/sh\nif [ \"$1\" = {action} ]; then\n sleep 120 &\n echo $! > {}\n touch \
+                 {}\n wait\nfi\nexec {} \"$@\"\n",
+                quote(&project.join("child.pid")),
+                quote(&project.join("child.ready")),
+                quote(&go)
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let log = tempfile::NamedTempFile::new().unwrap();
+        let mut process = Process(
+            cli(project)
+                .args(["build", "main.go", "--go"])
+                .arg(&wrapper)
+                .stdout(log.as_file().try_clone().unwrap())
+                .stderr(log.as_file().try_clone().unwrap())
+                .spawn()
+                .unwrap(),
+        );
+        wait_for_log(
+            &format!("{action} descendant readiness"),
+            log.path(),
+            || project.join("child.ready").exists(),
+        );
+        let pid = std::fs::read_to_string(project.join("child.pid")).unwrap();
+        assert!(
+            Command::new("/bin/kill")
+                .args(["-INT", &process.0.id().to_string()])
+                .status()
+                .unwrap()
+                .success()
+        );
+        wait_for_log(
+            &format!("{action} shutdown after Ctrl-C"),
+            log.path(),
+            || process.0.try_wait().unwrap().is_some(),
+        );
+        assert_eq!(process.0.wait().unwrap().code(), Some(0), "{action}");
+        wait_for_log(
+            &format!("{action} descendant termination"),
+            log.path(),
+            || {
+                !Command::new("/bin/kill")
+                    .args(["-0", pid.trim()])
+                    .stderr(Stdio::null())
+                    .status()
+                    .unwrap()
+                    .success()
+            },
+        );
+        assert!(!executable(project).exists());
+    }
 }
 
 #[test]

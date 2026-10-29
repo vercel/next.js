@@ -57,8 +57,9 @@ If `main.go` calls functions defined in `helper.go`, name both files:
 ./target/debug/turbopack-cli build main.go helper.go --dir path/to/go-project
 ```
 
-All named Go files must share one directory and form `package main` with a `main`
-function. Unlisted sibling files are excluded. Explicitly named entries are
+All named Go entry files must have the same parent directory and form `package main`
+with a `main` function. That source directory can be the module root or a subdirectory
+such as `cmd/server`. Unlisted sibling files are excluded. Explicitly named entries are
 compiled regardless of their filename platform suffixes or `//go:build` tags;
 imported packages use Go's normal host-platform and build-tag selection. Filenames
 have no special application conventions.
@@ -99,6 +100,11 @@ be outside both the source project and module cache, and cannot contain either t
 Versioned pure-Go dependencies must already be in `GOMODCACHE`. Builds disable
 downloads and use `-mod=readonly`; missing dependencies or checksums produce
 Go diagnostics without modifying `go.mod` or `go.sum`.
+
+The CLI tracks the resolved module cache as a separate filesystem root. Watch mode
+observes both roots, so preparing a missing dependency can repair a running watch
+session. This root is configured automatically and does not need to be inside
+`--root`, which checks the source module or standalone source directory.
 
 The CLI ignores Go environment files (`GOENV=off`), including settings written by
 `go env -w`. It resolves cache paths from the process environment or the selected
@@ -159,7 +165,7 @@ for the integration design.
 - Native host executables only, with CGO disabled. Application code and dependencies
   must be pure Go; standard-library implementations may use assembly.
 - Go inputs are filenames, not package paths or patterns. All Go entries in one
-  invocation must share a directory and form one executable.
+  invocation must have the same parent directory and form one executable.
 - Module replacements (all `replace` directives), project Go workspaces, vendoring,
   source symlinks and cross-compilation are unsupported. Symlink checks cover files
   and directory components in consumed inputs.

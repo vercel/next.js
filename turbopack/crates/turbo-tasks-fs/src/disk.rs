@@ -1214,6 +1214,8 @@ impl FileSystem for DiskFileSystem {
         let content = content.persist().to_resolved().await?;
         let file_content = content.await?;
         let content_hash = hash_xxh3_hash128(&*file_content);
+        // Keep the shared FileContent write API: executable metadata selects atomic, guarded
+        // publication inside the effect rather than requiring a separate writer from callers.
         let executable = matches!(&*file_content, PersistedFileContent::Content(file)
             if file.meta.permissions == crate::Permissions::Executable);
 
@@ -1282,8 +1284,11 @@ impl FileSystem for DiskFileSystem {
             }
 
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
-                // Validate executable paths even when the effect hash was already applied:
-                // an output directory may have been replaced since the previous build.
+                // Inspect current output state while applying the effect, without adding
+                // output paths as dependencies of the task that produces them. Validate even
+                // when the effect hash was already applied: an output directory may have been
+                // replaced since the previous build. The actual write opens its own guarded
+                // destination so it remains safe if directories change after this check.
                 if self.executable {
                     #[cfg(any(unix, windows))]
                     let validation = crate::executable_output::ExecutableOutput::open(

@@ -1,5 +1,8 @@
 //! Go entrypoints participate in the CLI's task graph and emit ordinary output assets.
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
@@ -38,22 +41,24 @@ impl<C> Decode<C> for GoBuild {
 }
 
 impl GoBuild {
-    /// Called in the CLI's existing Turbo Tasks session, including during one-shot compilation.
+    /// Called by the compilation graph when a watch session first needs these inputs.
     pub async fn start_watching(&self) -> Result<()> {
-        filesystem(self.project.clone())
-            .resolve()
-            .strongly_consistent()
-            .await?
-            .await?
-            .start_watching()
-            .await?;
-        filesystem(self.context.module_cache.clone())
-            .resolve()
-            .strongly_consistent()
-            .await?
-            .await?
-            .start_watching()
-            .await?;
+        for root in [&self.project, &self.context.module_cache] {
+            let fs = filesystem(root.clone())
+                .resolve()
+                .strongly_consistent()
+                .await?;
+            let fs = fs.await?;
+            if self.context.is_cancelled() {
+                break;
+            }
+            fs.start_watching().await?;
+            // Shutdown can overlap this initial task. A watcher that started after cleanup
+            // reached this root must stop itself before the compilation root settles.
+            if self.context.is_cancelled() {
+                fs.stop_watching().await;
+            }
+        }
         Ok(())
     }
 
@@ -157,7 +162,7 @@ fn input_files(common: &CommonArguments) -> Result<(PathBuf, Vec<RcStr>)> {
     Ok((module, files))
 }
 
-pub async fn prepare(common: &CommonArguments) -> Result<Option<GoBuild>> {
+pub async fn prepare(common: &CommonArguments) -> Result<Option<Arc<GoBuild>>> {
     let Some(first) = common
         .entries
         .as_deref()
@@ -178,18 +183,18 @@ pub async fn prepare(common: &CommonArguments) -> Result<Option<GoBuild>> {
         .context("input has no filename")?
         .to_str()
         .context("non-UTF8 Go output name")?;
-    Ok(Some(GoBuild {
+    Ok(Some(Arc::new(GoBuild {
         output_name: format!("{name}{}", context.exe_suffix).into(),
         project: project.to_str().context("non-UTF8 Go project")?.into(),
         files,
         context,
-    }))
+    })))
 }
 
 /// Compile native inputs in the caller's graph and publish through the shared asset writer.
 #[turbo_tasks::function]
 pub async fn output_assets(
-    build: GoBuild,
+    build: Arc<GoBuild>,
     output_root: FileSystemPath,
 ) -> Result<Vc<OutputAssets>> {
     let fs = filesystem(build.project.clone())

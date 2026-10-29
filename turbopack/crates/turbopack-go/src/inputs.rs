@@ -15,15 +15,20 @@ use crate::{
     paths::{paths_refer_to_same_file, relative_output_path, validate_source_path},
 };
 
+/// Live metadata fingerprint recorded alongside file content hashes and directory inventories.
+/// Comparing stamps around discovery and compilation detects inputs changing while Go reads
+/// them, even before watcher events arrive. On Unix, ctime and inode also reveal edits that
+/// restore the previous mtime or replace the file without changing its contents.
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct Stamp {
     modified: Option<(u64, u32)>,
     len: u64,
-    // ctime/inode also detect replacement and edit-and-restore during a command on Unix.
+    // Unix ctime seconds, ctime nanoseconds, and inode; unavailable on other platforms.
     changed: Option<(u64, u64, u64)>,
 }
 
+/// Read uncached OS metadata, recording a missing path as `None`.
 fn stamp(path: &Path) -> Result<Option<Stamp>> {
     let meta = match std::fs::metadata(path) {
         Ok(meta) => meta,
