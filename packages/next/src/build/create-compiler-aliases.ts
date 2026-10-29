@@ -220,7 +220,18 @@ export function createWebpackAliases({
               }
             : {}),
         }
-      : {}),
+      : {
+          // The project's own `instrumentation.{pageExt}` file, chained after
+          // the `injectInstrumentation` entries by
+          // `next-instrumentation-inject-loader`. Same lookup order as
+          // Turbopack: the project root, then `src/`.
+          'private-next-instrumentation-user': [
+            path.join(dir, 'instrumentation'),
+            path.join(dir, 'src', 'instrumentation'),
+            'private-next-empty-module',
+          ],
+          'private-next-empty-module': false as any,
+        }),
 
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),

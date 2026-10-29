@@ -390,17 +390,16 @@ interface PagePathData {
 /**
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
- * error. It defaults the `/_error` page to Next.js internal error page, and
- * the instrumentation hook to `instrumentationInject` when no project file
- * matches.
+ * error. It defaults the `/_error` page to Next.js internal error page. When
+ * `instrumentationInject` is set, the instrumentation hook is its stub, which
+ * chains the project's instrumentation file after the injected entries.
  *
  * @param rootDir Absolute path to the project root.
  * @param page The page normalized (it will be denormalized).
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
- * @param instrumentationInject Fallback on a miss, so a project file created
- * after startup still wins.
+ * @param instrumentationInject The `injectInstrumentation` stub, if set.
  */
 export async function findPagePathData(
   rootDir: string,
@@ -415,6 +414,13 @@ export async function findPagePathData(
   let pagePath: string | null = null
 
   const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
+  if (isInstrumentation && instrumentationInject) {
+    return {
+      filename: instrumentationInject.file,
+      bundlePath: instrumentationInject.page.slice(1),
+      page: instrumentationInject.page,
+    }
+  }
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
     pagePath = await findPageFile(
       rootDir,
@@ -424,13 +430,6 @@ export async function findPagePathData(
     )
 
     if (!pagePath) {
-      if (isInstrumentation && instrumentationInject) {
-        return {
-          filename: instrumentationInject.file,
-          bundlePath: instrumentationInject.page.slice(1),
-          page: instrumentationInject.page,
-        }
-      }
       throw new PageNotFoundError(normalizedPagePath)
     }
 

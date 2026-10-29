@@ -51,7 +51,7 @@ describe('inject-instrumentation', () => {
     }
   })
 
-  describe('a project instrumentation file replaces the inject', () => {
+  describe('a project instrumentation file chains after the inject', () => {
     const { next, isNextDeploy } = nextTestSetup({
       files: fixture('inject', {
         'instrumentation.ts': new FileRef(
@@ -60,14 +60,16 @@ describe('inject-instrumentation', () => {
       }),
     })
 
-    it('runs only the project register', async () => {
+    it('runs the injected registers, then the project register', async () => {
+      // Each register sets `instrumentation`, so 'user' means the project
+      // file ran last.
       expect(await probe(next, 'node')).toEqual({
         instrumentation: 'user',
-        injected: [],
+        injected: ['first', 'second'],
       })
       expect(await probe(next, 'edge')).toEqual({
         instrumentation: 'user',
-        injected: [],
+        injected: ['first', 'second'],
       })
 
       if (!isNextDeploy) {
@@ -75,7 +77,9 @@ describe('inject-instrumentation', () => {
           /\[user-instrumentation\] register nodejs/g
         )
         expect(nodeRegisters).toHaveLength(1)
-        expect(next.cliOutput).not.toContain('[inject-instrumentation]')
+        expect(next.cliOutput).toContain(
+          '[inject-instrumentation] register first nodejs'
+        )
       }
     })
   })

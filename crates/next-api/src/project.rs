@@ -2549,23 +2549,36 @@ impl Project {
         ))
     }
 
-    /// The source compiled into the instrumentation slot. A project file wins, including one
-    /// in a parent directory. Otherwise a virtual module at the project root requires every
-    /// `injectInstrumentation` entry, so the bundler resolves them there, and runs all of their
-    /// hooks. `entrypoints` and `instrumentation_endpoint` both read this.
+    /// The source compiled into the instrumentation slot. Without `injectInstrumentation`, that is
+    /// the project's instrumentation file, including one in a parent directory. Otherwise a
+    /// virtual module at the project root requires every `injectInstrumentation` entry, so the
+    /// bundler resolves them there, then the project's file, and runs all of their hooks.
+    /// `entrypoints` and `instrumentation_endpoint` both read this.
     #[turbo_tasks::function]
     async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
-        if let FindContextFileResult::Found(fs_path, _) = &*self.find_instrumentation().await? {
-            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path.clone()));
-            return Ok(Vc::cell(Some(source.to_resolved().await?)));
-        }
+        let project_file = match &*self.find_instrumentation().await? {
+            FindContextFileResult::Found(fs_path, _) => Some(fs_path.clone()),
+            _ => None,
+        };
         let inject = self.next_config().inject_instrumentation().await?;
         if inject.is_empty() {
-            return Ok(Vc::cell(None));
+            let Some(fs_path) = project_file else {
+                return Ok(Vc::cell(None));
+            };
+            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path));
+            return Ok(Vc::cell(Some(source.to_resolved().await?)));
+        }
+        let project_path = self.project_path().owned().await?;
+        let mut specifiers: Vec<RcStr> = inject.iter().cloned().collect();
+        if let Some(fs_path) = &project_file {
+            let request = project_path
+                .get_relative_request_to(fs_path)
+                .context("project instrumentation file is outside the project filesystem")?;
+            specifiers.push(request);
         }
         // Keep in sync with
         // packages/next/src/build/webpack/loaders/next-instrumentation-inject-loader.ts.
-        let requires = inject
+        let requires = specifiers
             .iter()
             .map(|spec| {
                 Ok(format!(
@@ -2582,10 +2595,7 @@ impl Project {
         );
         // CommonJS so a `type: module` package.json can't change how it parses. Not a convention
         // file name, so discovery never treats it as a project file.
-        let path = self
-            .project_path()
-            .await?
-            .join("instrumentation.inject.cjs")?;
+        let path = project_path.join("instrumentation.inject.cjs")?;
         let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
             path,
             AssetContent::file(FileContent::Content(File::from(source_text)).cell()),

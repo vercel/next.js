@@ -1537,13 +1537,9 @@ export default async function build(
         )
       }
 
-      const instrumentationInject = await resolveInstrumentationInject({
+      const instrumentationInject = resolveInstrumentationInject({
         dir,
-        appDir,
-        pagesDir,
         config,
-        bundler,
-        dev: false,
       })
       const hasInstrumentationHook =
         Boolean(instrumentationHookFilePath) ||
@@ -1597,13 +1593,12 @@ export default async function build(
           })
         )
       if (instrumentationInject) {
-        const existing = Object.keys(NextBuildContext.mappedRootPaths).find(
-          isInstrumentationHookFile
-        )
-        if (existing) {
-          throw new InvariantError(
-            `Injected instrumentation was selected while ${existing} is mapped.`
-          )
+        // The stub chains the project's instrumentation file after the
+        // injected entries, so it replaces that file as the entry.
+        for (const page of Object.keys(NextBuildContext.mappedRootPaths)) {
+          if (isInstrumentationHookFile(page)) {
+            delete NextBuildContext.mappedRootPaths[page]
+          }
         }
         NextBuildContext.mappedRootPaths[instrumentationInject.page] =
           instrumentationInject.file

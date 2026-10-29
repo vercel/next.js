@@ -15,10 +15,13 @@ const NextInstrumentationInjectLoader: webpack.LoaderDefinitionFunction<Instrume
     const resolvedModules = await Promise.all(
       modules.map((spec) => resolve(rootContext, spec))
     )
+    // The project's own `instrumentation` file runs last, or an empty module
+    // when there is none (see `create-compiler-aliases.ts`).
+    const allModules = [...resolvedModules, 'private-next-instrumentation-user']
 
     return (
       `const { combineInstrumentation } = require('next/dist/lib/combine-instrumentation');\n` +
-      `module.exports = combineInstrumentation([${resolvedModules
+      `module.exports = combineInstrumentation([${allModules
         .map((spec) => `require(${JSON.stringify(spec)})`)
         .join(', ')}]);\n`
     )

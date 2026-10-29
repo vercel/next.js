@@ -125,7 +125,6 @@ import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
 import { resolveInstrumentationInject } from '../../../build/instrumentation-inject'
-import { Bundler } from '../../../lib/bundler'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -258,17 +257,9 @@ async function startWatcher(
     logging: nextConfig.logging !== false,
   })
 
-  const instrumentationInject = await resolveInstrumentationInject({
+  const instrumentationInject = resolveInstrumentationInject({
     dir,
-    appDir,
-    pagesDir,
     config: nextConfig,
-    bundler: opts.turbo
-      ? Bundler.Turbopack
-      : process.env.NEXT_RSPACK
-        ? Bundler.Rspack
-        : Bundler.Webpack,
-    dev: true,
   })
   // Turbopack reports instrumentation through its entrypoints
   // (turbopack-utils.ts). Webpack has no such list.
