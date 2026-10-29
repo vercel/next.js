@@ -95,9 +95,25 @@ export function createFormSubmitDestinationUrl(
       value = value.name
     }
 
-    targetUrl.searchParams.append(name, value)
+    targetUrl.searchParams.append(
+      normalizeFormEntryNewlines(name),
+      normalizeFormEntryNewlines(value)
+    )
   }
   return targetUrl
+}
+
+/**
+ * Normalize newlines to CRLF, like the HTML form submission algorithm does
+ * when converting an entry list to a list of name-value pairs:
+ *
+ *   "Replace every occurrence of U+000D (CR) not followed by U+000A (LF),
+ *    and every occurrence of U+000A (LF) not preceded by U+000D (CR),
+ *    in entry's name and value, by a string consisting of CRLF."
+ *   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#converting-an-entry-list-to-a-list-of-name-value-pairs
+ */
+function normalizeFormEntryNewlines(value: string) {
+  return value.replace(/\r\n|\r|\n/g, '\r\n')
 }
 
 export function checkFormActionUrl(
