@@ -5484,6 +5484,8 @@ declare function createTimerContext(
 /** Private pure pinned locator descriptions, strict errors and DOM formatting. */
 declare function createBrowserLocatorFormatter(): {
   selector(name: string, args: unknown[]): string
+  filterText(value: string | RegExp): string
+  createQuery(selector: () => string): () => Element[]
   asLocator(selector: string): string
   generateSelector(element: Element): string
   serializeElement(element: Element): { selector: string; locator: string }

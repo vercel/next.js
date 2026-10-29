@@ -440,6 +440,13 @@ interface LocatorCache {
   _pwLocator?: string
 }
 
+export interface LocatorFilterOptions {
+  hasText?: string | RegExp
+  hasNotText?: string | RegExp
+  has?: ElementLocator
+  hasNot?: ElementLocator
+}
+
 const locatorBrand = Symbol.for('$$vitest:locator')
 
 /** Queries execute in the actual document. Input commands stay Playwright-owned. */
@@ -489,6 +496,47 @@ class ElementLocator {
   }
   toJSON(): SerializedLocator {
     return this.serialize()
+  }
+  filter(filter: LocatorFilterOptions): ElementLocator {
+    const filters: string[] = []
+    if (filter?.hasText)
+      filters.push(
+        `internal:has-text=${locatorFormatter.filterText(filter.hasText)}`
+      )
+    if (filter?.hasNotText)
+      filters.push(
+        `internal:has-not-text=${locatorFormatter.filterText(filter.hasNotText)}`
+      )
+    if (filter?.has) {
+      const locator = filter.has as ElementLocator & LocatorCache
+      filters.push(
+        `internal:has=${JSON.stringify(locator._pwSelector || locator.selector)}`
+      )
+    }
+    if (filter?.hasNot) {
+      const locator = filter.hasNot as ElementLocator & LocatorCache
+      filters.push(
+        `internal:has-not=${JSON.stringify(locator._pwSelector || locator.selector)}`
+      )
+    }
+    if (!filters.length)
+      throw new Error(
+        'Locator.filter expects at least one filter. None provided.'
+      )
+    return this.locator(filters.join(' >> '))
+  }
+  protected locator(selector: string): ElementLocator {
+    const description = `${this.selector} >> ${selector}`
+    let child: ElementLocator
+    child = new ElementLocator(
+      locatorFormatter.createQuery(() => {
+        const locator = child as ElementLocator & LocatorCache
+        return locator._pwSelector || locator.selector
+      }),
+      description,
+      this.container
+    )
+    return child
   }
   elements() {
     assertBrowserApiScope('browser-native')

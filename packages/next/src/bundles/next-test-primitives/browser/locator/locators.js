@@ -4224,6 +4224,7 @@ function Pr(e) {
 }
 export {
   Q as SelectorEngine,
+  F as escapeForTextSelector,
   Cn as asLocator,
   br as getByRoleSelector,
   gr as getByAltTextSelector,

@@ -6002,3 +6002,32 @@ it.each(['success', 'native-error', 'invalid-target', 'legacy', 'cancel'])(
     })
   }
 )
+
+it.each([
+  'queries',
+  'scoped',
+  'query-cache',
+  'delegate',
+  'errors',
+  'descriptor',
+  'serialized',
+  'legacy',
+  'late',
+  'strict',
+])(
+  'consumes actual Locator filter selectors and query ownership: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'locator-filter.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      actualPinnedQuery: true,
+      eagerParentAndLazyCache: true,
+      dynamicDelegationAndErrors: true,
+      ownedLegacyAndSerializedTargets: true,
+    })
+  }
+)

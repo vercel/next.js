@@ -1,6 +1,7 @@
 import { stringify } from '@vitest/utils/display'
 import {
   SelectorEngine,
+  escapeForTextSelector,
   asLocator,
   convertElementToCssSelector,
   getByRoleSelector,
@@ -32,6 +33,16 @@ export function createBrowserLocatorFormatter() {
   return {
     selector(name, args) {
       return selectors[name](...args)
+    },
+    filterText(value) {
+      return escapeForTextSelector(value)
+    },
+    createQuery(selector) {
+      let parsed
+      return () => {
+        parsed ||= engine.parseSelector(selector())
+        return engine.querySelectorAll(parsed, document.documentElement)
+      }
     },
     asLocator(selector) {
       return asLocator('javascript', selector)
