@@ -4,6 +4,26 @@ A Cache Components app fails its production build on `new Date()` during
 prerendering. Four clock reads sit behind that one error, and each needs a
 different fix.
 
+## What this eval does
+
+- **App:** Pulse, a status page app with a home page, an incident status page, and a signed-in account page, after Cache Components was turned on.
+- **Request:** the production build fails on `new Date()` while prerendering. Fix it properly and keep every page working as it did.
+- **Passes when:** the build and type check pass, the static pages keep their content, the time values behave as described, customers only see their own account, navigation stays instant, and the server logs no prerender errors.
+
+## Instruction to checks
+
+| The instruction says                                                              | Checked by                                                                                                                                  |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keep Cache Components on                                                          | `check-source.mjs`: `cacheComponents` is still enabled                                                                                      |
+| The production build and type check pass                                          | `test.sh`: `npm run typecheck` and `npm run build`                                                                                          |
+| The server stops logging these errors                                             | `test.sh`: the production server log has no prerender errors                                                                                |
+| `/` and `/status` stay fully static, and the footer always shows the current year | `the prerendered home page is complete, including the footer year`, plus `check-source.mjs`: the year is computed, not typed in             |
+| "Checked at" is when the incident data was fetched                                | `the prerendered status page carries the cached checked-at time and absolute start times`                                                   |
+| Start times read as live relative times, without hydration warnings               | `incident start times become live relative times after hydration`                                                                           |
+| Navigation stays instant                                                          | `client navigation to status and account is instant`                                                                                        |
+| Customers only ever see their own account                                         | `the prerendered account page is a shell without customer data` and `the account page streams the signed-in customer and isolates visitors` |
+| Don't edit `lib/vendor/` or change dependencies                                   | `check-source.mjs`: the vendored SDK and the dependency sets are unchanged                                                                  |
+
 ## Difficulty explanation
 
 The error page lists several fixes, and each of them makes the build pass at

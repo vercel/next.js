@@ -8,7 +8,7 @@ Terminal-Bench, Harbor's own benchmark, sets the bar these steps follow in its [
 
 ### How to read a task
 
-1. `README.md`: why the task is hard and how each gate verifies it.
+1. `README.md`: what the eval does, a table mapping each instruction sentence to its check, why the task is hard, and how each gate verifies it. Start here.
 2. `instruction.md`: the only thing the agent sees.
 3. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings.
 4. `environment/fixture/`: the working app the agent starts from. `environment/Dockerfile` installs it from the lockfile and commits a git baseline the patch is diffed against.
