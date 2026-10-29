@@ -210,7 +210,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn mark_own_task_as_finished(&self, task: TaskId);
 
     /// Pin a task against garbage collection. Delegates to
-    /// [`Backend::pin_task_for_gc`](crate::backend::Backend::pin_task_for_gc).
+    /// [`Backend::pin_task_for_gc`].
     fn pin_task_for_gc(&self, task: TaskId);
 
     /// Removes a pin added by [`pin_task_for_gc`](TurboTasksApi::pin_task_for_gc).
@@ -573,7 +573,7 @@ pub struct InlineExecutionStats {
     pub waited_in_progress: u64,
 }
 
-/// The counters behind [`InlineExecutionStats`].
+/// The counters behind `InlineExecutionStats`.
 ///
 /// Without the `inline_execution_stats` feature this is zero-sized and every method is an empty
 /// `#[inline]` no-op, so the counting compiles away: the counters sit on the read-miss path, and a

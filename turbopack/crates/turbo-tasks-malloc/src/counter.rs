@@ -5,7 +5,7 @@
 //!
 //! Builds without the `custom_allocator` feature additionally maintain a process-wide counter of
 //! live bytes, which backs [`crate::TurboMalloc::memory_usage`]. With mimalloc that figure comes
-//! from the allocator instead, so [`global`] is not compiled in: the atomic would otherwise be
+//! from the allocator instead, so `global` is not compiled in: the atomic would otherwise be
 //! contended by every thread on every allocation, and the thread-local buffering that makes it
 //! affordable is inlined into every allocation site in the binary.
 

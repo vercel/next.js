@@ -2582,19 +2582,24 @@ where
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("fs.{name}({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("fs.{name}({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let (static_files_only_context_dir, fallback_context_dir) =
                     get_traced_project_dirs().await?;
                 analysis.add_reference(
@@ -2622,19 +2627,24 @@ where
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("fs.readdir({args}) is very dynamic{hints}"),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("fs.readdir({args}) is very dynamic{hints}"),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let (static_files_only_context_dir, fallback_context_dir) =
                     get_traced_project_dirs().await?;
                 analysis.add_reference(
@@ -2682,19 +2692,24 @@ where
                 .await?;
 
             let pat = js_value_to_pattern(&linked_func_call);
-            if !pat.has_constant_parts() {
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("path.resolve({args}) is very dynamic{hints}",),
-                    DiagnosticId::Lint(
-                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                    ),
-                );
-                if ignore_dynamic_requests {
-                    return Ok(());
+            let pat = match pat.filter_non_dynamic() {
+                Some(filtered) if ignore_dynamic_requests => filtered,
+                Some(_) => pat,
+                None => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("path.resolve({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                    pat
                 }
-            }
+            };
             let (static_files_only_context_dir, fallback_context_dir) =
                 get_traced_project_dirs().await?;
             analysis.add_reference(
@@ -2737,19 +2752,24 @@ where
                 )
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
-            if !pat.has_constant_parts() {
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("path.join({args}) is very dynamic{hints}",),
-                    DiagnosticId::Lint(
-                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                    ),
-                );
-                if ignore_dynamic_requests {
-                    return Ok(());
+            let pat = match pat.filter_non_dynamic() {
+                Some(filtered) if ignore_dynamic_requests => filtered,
+                Some(_) => pat,
+                None => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("path.join({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                    pat
                 }
-            }
+            };
             let (static_files_only_context_dir, fallback_context_dir) =
                 get_traced_project_dirs().await?;
             analysis.add_reference(
@@ -2810,11 +2830,15 @@ where
                         );
                     }
                 }
-                let dynamic = !pat.has_constant_parts();
-                if dynamic {
-                    show_dynamic_warning = true;
-                }
-                if !dynamic || !ignore_dynamic_requests {
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => Some(filtered),
+                    Some(_) => Some(pat),
+                    None => {
+                        show_dynamic_warning = true;
+                        (!ignore_dynamic_requests).then_some(pat)
+                    }
+                };
+                if let Some(pat) = pat {
                     let (static_files_only_context_dir, fallback_context_dir) =
                         get_traced_project_dirs().await?;
                     analysis.add_reference(
@@ -2860,19 +2884,25 @@ where
             if !args.is_empty() {
                 let first_arg = &args[0];
                 let pat = js_value_to_pattern(first_arg);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("child_process.fork({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("child_process.fork({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN
+                                    .to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let error_mode = if in_try {
                     ResolveErrorMode::Warn
                 } else {

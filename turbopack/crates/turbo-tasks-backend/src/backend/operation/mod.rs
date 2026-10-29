@@ -113,7 +113,7 @@ pub struct ExecuteContext<'e> {
     task_lock_counter: TaskLockCounter,
     /// Overrides the current task priority, which is otherwise read from the task-local task
     /// state. Set for work that runs off the calling task's thread (see
-    /// [`ExecuteContext::with_current_task_priority`]).
+    /// [`ExecuteContext::with_current_task_priority`] and [`ExecuteContext::child_context`]).
     current_task_priority: Option<TaskPriority>,
 }
 
@@ -948,6 +948,13 @@ fn apply_restore_result(
 }
 
 impl<'e> ExecuteContext<'e> {
+    /// Creates a context that can be sent to another thread (e.g. a `scope_bounded` helper
+    /// thread) to continue work on behalf of this context.
+    ///
+    /// The current task priority is resolved here, on the calling thread, because the task-local
+    /// task state it is otherwise read from is not available on other threads. Without this,
+    /// tasks scheduled from the child context would get a priority that depends on which thread
+    /// the work happens to run on.
     pub fn child_context<'l>(&self) -> ChildExecuteContext<'l>
     where
         'e: 'l,
@@ -955,7 +962,7 @@ impl<'e> ExecuteContext<'e> {
         ChildExecuteContext {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
-            current_task_priority: self.current_task_priority,
+            current_task_priority: self.get_current_task_priority(),
         }
     }
 
@@ -1245,7 +1252,9 @@ impl<'e> ExecuteContext<'e> {
 pub struct ChildExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
-    current_task_priority: Option<TaskPriority>,
+    /// The priority of the task that created this context, resolved on its thread (see
+    /// [`ExecuteContext::child_context`]).
+    current_task_priority: TaskPriority,
 }
 
 impl<'e> ChildExecuteContext<'e> {
@@ -1259,7 +1268,7 @@ impl<'e> ChildExecuteContext<'e> {
             // already waits for, so it needs no shutdown guard of its own.
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
-            current_task_priority: self.current_task_priority,
+            current_task_priority: Some(self.current_task_priority),
         }
     }
 }
