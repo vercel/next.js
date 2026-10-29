@@ -21,9 +21,13 @@
 //! `U.followers` can be negative, `F.upper` never is. Only counts `> 0` are real edges: readers of
 //! followers (e.g. [`get_followers`]) ignore debt, and side effects (aggregated data, follower
 //! propagation, active counts) only happen when a count crosses between `<= 0` and `> 0` (see
-//! [`crate::backend::operation::aggregation_edge`]). Collectibility is still decided by the raw
-//! maps, so debt conservatively keeps a task alive. Once all updates are processed there is no debt
-//! left.
+//! [`crate::backend::operation::aggregation_edge`]). Outgoing follower bookkeeping is not a GC
+//! reference: debt does not pin its owning upper. When persistence is enabled, normal queues run
+//! under an operation guard; snapshot/GC exclusion waits for these operations to settle. Within GC,
+//! parallel deletion finishes before its deferred rebalancing runs (see [`crate::backend::gc`]).
+//! These phase rules, not debt itself, keep GC from observing an in-flight normal update. Once all
+//! updates are processed there is no debt left. Removing the last raw debt entry still reports
+//! possible collectibility, separately from semantic edge effects.
 //!
 //! A removal (`inner_of_upper(s)_lost_follower(s)`):
 //! 1. Locks `F`. If `F.upper[U] > 0`, it decrements that inner edge.
@@ -39,9 +43,10 @@
 //!
 //! Debt and an inner edge can only coexist when an addition and a removal of the same edge run
 //! concurrently. Both write their side first and read the other side afterwards, each under the
-//! respective task lock (removal: write `U`, read `F`; addition: write `F`, read `U`). So at least
-//! one of them sees the other's write and pushes a `BalanceEdge`. `balance_edge` locks both tasks
-//! and nets the debt against the inner count (see
+//! respective task lock (removal: write `U`, read `F`; addition: write `F`, read `U`). If the split
+//! survives intervening operations, at least one sees the other's write and pushes a `BalanceEdge`.
+//! Another update may already have paid the debt or removed the inner edge. `balance_edge` locks
+//! both tasks and nets the debt against the inner count (see
 //! [`crate::backend::operation::aggregation_edge::net_debt`]).
 
 use std::{
@@ -951,6 +956,9 @@ pub struct AggregationUpdateQueueStats {
     schedule_task: usize,
 }
 
+#[cfg(test)]
+type InnerWriteHook = Box<dyn FnOnce(&mut ExecuteContext<'_>) + Send>;
+
 /// A queue for aggregation update jobs.
 #[derive(Default)]
 pub struct AggregationUpdateQueue {
@@ -964,6 +972,10 @@ pub struct AggregationUpdateQueue {
     /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
     optimizations_executed: usize,
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    /// One-shot interleaving at the unlocked boundary after the debt precheck and before the inner
+    /// write. Per-queue (not global), and absent from production builds.
+    #[cfg(test)]
+    before_inner_write: Option<InnerWriteHook>,
     #[cfg(feature = "trace_aggregation_update_stats")]
     pub stats: AggregationUpdateQueueStats,
 }
@@ -980,8 +992,18 @@ impl AggregationUpdateQueue {
             optimize_queue: FxRingSet::default(),
             optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
+            #[cfg(test)]
+            before_inner_write: None,
             #[cfg(feature = "trace_aggregation_update_stats")]
             stats: AggregationUpdateQueueStats::default(),
+        }
+    }
+
+    /// Runs the test's simulated concurrent operation without holding either task lock.
+    #[cfg(test)]
+    fn before_inner_write_for_testing(&mut self, ctx: &mut ExecuteContext<'_>) {
+        if let Some(hook) = self.before_inner_write.take() {
+            hook(ctx);
         }
     }
 
@@ -1006,6 +1028,8 @@ impl AggregationUpdateQueue {
             optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            #[cfg(test)]
+                before_inner_write: _,
             #[cfg(feature = "trace_aggregation_update_stats")]
                 stats: _,
         } = self;
@@ -2368,6 +2392,8 @@ impl AggregationUpdateQueue {
                 break;
             }
 
+            #[cfg(test)]
+            self.before_inner_write_for_testing(ctx);
             // STEP 5
             let mut new_follower = ctx.task(
                 new_follower_id,
@@ -2664,6 +2690,8 @@ impl AggregationUpdateQueue {
                 break;
             }
 
+            #[cfg(test)]
+            self.before_inner_write_for_testing(ctx);
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
             swap_retain(
@@ -2884,6 +2912,8 @@ impl AggregationUpdateQueue {
             drop(upper);
             let min_upper_aggregation_number = upper_aggregation_number;
 
+            #[cfg(test)]
+            self.before_inner_write_for_testing(ctx);
             // STEP 5
             let mut new_follower = ctx.task(
                 new_follower_id,
@@ -3697,7 +3727,9 @@ mod follower_debt_tests {
             BackendOptions, StorageMode, TaskDataCategory, TurboTasksBackend,
             operation::ExecuteContext, storage_schema::TaskStorageAccessors,
         },
-        data::{AggregationNumber, CellRef, CollectibleRef},
+        data::{
+            ActivenessState, AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue,
+        },
         noop_backing_storage,
     };
 
@@ -3727,9 +3759,21 @@ mod follower_debt_tests {
     /// collectible, so it's visible in the aggregated collectibles of an upper whether a task is
     /// aggregated.
     pub(super) fn setup(tasks: &[(u32, u32)]) -> Arc<TurboTasks<TurboTasksBackend>> {
+        setup_with_data(tasks, true)
+    }
+
+    fn setup_with_data(tasks: &[(u32, u32)], emit: bool) -> Arc<TurboTasks<TurboTasksBackend>> {
+        setup_with_storage(tasks, emit, StorageMode::ReadOnly)
+    }
+
+    fn setup_with_storage(
+        tasks: &[(u32, u32)],
+        emit: bool,
+        storage_mode: StorageMode,
+    ) -> Arc<TurboTasks<TurboTasksBackend>> {
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                storage_mode: Some(StorageMode::ReadOnly),
+                storage_mode: Some(storage_mode),
                 num_workers: Some(1),
                 small_preallocation: true,
                 ..Default::default()
@@ -3752,7 +3796,9 @@ mod follower_debt_tests {
                     distance: 0,
                     effective: aggregation_number,
                 });
-                let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+                if emit {
+                    let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+                }
             }
         }
         tt
@@ -4061,28 +4107,104 @@ mod follower_debt_tests {
         assert_no_edges(&tt, &[1, 2]);
     }
 
-    /// The removal recorded debt after the addition checked the follower side, and checked the
-    /// inner side before the addition added the inner edge. The addition sees the debt after
-    /// adding the inner edge and nets both.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn inner_addition_after_concurrent_debt() {
-        let tt = setup(&[(1, UPPER), (2, INNER)]);
-        run(&tt, [add(1, 2)]);
+    #[derive(Clone, Copy)]
+    enum AddShape {
+        Single,
+        Uppers,
+        Followers,
+    }
+
+    impl AddShape {
+        fn edges(self) -> Vec<(u32, u32)> {
+            match self {
+                Self::Single => vec![(1, 3)],
+                Self::Uppers => vec![(1, 3), (2, 3)],
+                Self::Followers => vec![(1, 3), (1, 4)],
+            }
+        }
+
+        fn apply(self, queue: &mut AggregationUpdateQueue, ctx: &mut ExecuteContext<'_>) {
+            match self {
+                Self::Single => queue.inner_of_upper_has_new_follower(ctx, id(3), id(1), 1),
+                Self::Uppers => queue.inner_of_uppers_has_new_follower::<TaskId, 2>(
+                    ctx,
+                    id(3),
+                    smallvec![id(1), id(2)],
+                ),
+                Self::Followers => queue.inner_of_upper_has_new_followers::<TaskId, 2>(
+                    ctx,
+                    smallvec![id(3), id(4)],
+                    id(1),
+                ),
+            }
+        }
+    }
+
+    /// Forces the lost-wakeup ordering through a real handler, not the postcheck helper:
+    /// add precheck -> complete removal (including its recheck) -> inner write -> add postcheck.
+    /// The one-shot callback runs without task guards, as another queue could at that boundary.
+    fn addition_after_concurrent_debt(shape: AddShape, emit: bool) {
+        let tt = setup_with_data(&[(1, UPPER), (2, UPPER), (3, INNER), (4, INNER)], emit);
+        let edges = shape.edges();
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
-        {
-            let mut upper = ctx.task(id(1), TaskDataCategory::Meta);
-            // Removal step 2
-            let change = update_follower_count(&mut upper, id(2), -1);
-            assert!(change.is_debt());
-            // The read of the follower side by the addition, after it added the inner edge
-            queue.balance_if_follower_debt(&upper, id(2));
-        }
-        assert!(!queue.is_empty(), "the addition must push a BalanceEdge");
+        queue.before_inner_write = Some(Box::new(move |ctx| {
+            let mut removal = AggregationUpdateQueue::new_without_optimizations();
+            for &(upper, follower) in &edges {
+                assert_eq!(
+                    ctx.task(id(follower), TaskDataCategory::Meta).upper_len(),
+                    0
+                );
+                removal.push(remove(upper, follower));
+            }
+            removal.execute(ctx);
+            assert!(
+                removal.is_empty(),
+                "the removal has already finished its recheck"
+            );
+            for &(upper, follower) in &edges {
+                assert_eq!(
+                    ctx.task(id(upper), TaskDataCategory::Meta)
+                        .get_followers(&id(follower)),
+                    Some(&-1)
+                );
+            }
+        }));
+        shape.apply(&mut queue, &mut ctx);
+        assert!(
+            queue.before_inner_write.is_none(),
+            "the actual handler must reach the hook"
+        );
+        assert!(
+            !queue.balance_queue.is_empty(),
+            "the actual addition must schedule balancing"
+        );
         queue.execute(&mut ctx);
         drop(ctx);
         assert_eq!(aggregated(&tt, 1), 0);
-        assert_no_edges(&tt, &[1, 2]);
+        assert_eq!(aggregated(&tt, 2), 0);
+        assert_no_edges(&tt, &[1, 2, 3, 4]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn single_inner_addition_after_concurrent_debt() {
+        for emit in [false, true] {
+            addition_after_concurrent_debt(AddShape::Single, emit);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn multi_upper_inner_addition_after_concurrent_debt() {
+        for emit in [false, true] {
+            addition_after_concurrent_debt(AddShape::Uppers, emit);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn multi_follower_inner_addition_after_concurrent_debt() {
+        for emit in [false, true] {
+            addition_after_concurrent_debt(AddShape::Followers, emit);
+        }
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -4153,7 +4275,287 @@ mod follower_debt_tests {
         );
     }
 
+    /// Give fixtures output and session-clean dirty state so active traversal observes data without
+    /// scheduling synthetic task IDs. Seeding before edges exist avoids missing propagation jobs.
+    fn seed_effects(tt: &TurboTasks<TurboTasksBackend>, dirty_tasks: &[u32], active_tasks: &[u32]) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        for &task_id in dirty_tasks {
+            let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+            task.set_output(OutputValue::Cell(collectible().cell));
+            assert!(
+                task.update_dirty_state(Some(Dirtyness::SessionDependent))
+                    .is_none()
+            );
+            assert_eq!(task.dirty_state(), (true, true));
+        }
+        for &task_id in active_tasks {
+            let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+            task.set_output(OutputValue::Cell(collectible().cell));
+            let mut state = ActivenessState::new(id(task_id));
+            state.active_counter = 2;
+            task.set_activeness(state);
+        }
+        assert!(ctx.should_track_activeness());
+    }
+
+    /// (dirty containers, current-session-clean containers, active counter).
+    fn effects(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> (i32, i32, i32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task_id), TaskDataCategory::Meta);
+        (
+            task.get_aggregated_dirty_container_count()
+                .copied()
+                .unwrap_or_default(),
+            task.get_aggregated_current_session_clean_container_count()
+                .copied()
+                .unwrap_or_default(),
+            task.get_activeness()
+                .map_or(0, |state| state.active_counter),
+        )
+    }
+
+    fn propagation_fixture(follower_number: u32) -> Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = setup(&[
+            (1, UPPER),
+            (2, UPPER),
+            (3, follower_number),
+            (4, follower_number),
+            (9, ROOT),
+        ]);
+        seed_effects(&tt, &[3, 4], &[1, 2]);
+        run(&tt, [add(9, 1), add(9, 2)]);
+        tt
+    }
+
     #[tokio::test(flavor = "multi_thread")]
+    async fn debt_payment_has_no_dirty_or_active_effects() {
+        for shape in [AddShape::Single, AddShape::Uppers, AddShape::Followers] {
+            for number in [INNER, FOLLOWER] {
+                let tt = propagation_fixture(number);
+                let before: Vec<_> = [1, 2, 3, 4, 9].map(|task| effects(&tt, task)).to_vec();
+                let edges = shape.edges();
+                run(&tt, edges.iter().map(|&(u, f)| remove(u, f)));
+                assert_eq!(
+                    [1, 2, 3, 4, 9].map(|task| effects(&tt, task)).to_vec(),
+                    before
+                );
+                {
+                    let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                    let mut queue = AggregationUpdateQueue::new_without_optimizations();
+                    shape.apply(&mut queue, &mut ctx);
+                    assert!(
+                        queue.is_empty(),
+                        "pure debt payment must not propagate anything"
+                    );
+                }
+                assert_eq!(
+                    [1, 2, 3, 4, 9].map(|task| effects(&tt, task)).to_vec(),
+                    before
+                );
+                assert_eq!(aggregated(&tt, 9), 2);
+                assert_eq!(uppers(&tt, 3), vec![]);
+                assert_eq!(uppers(&tt, 4), vec![]);
+                assert_eq!(followers(&tt, 1), vec![]);
+                assert_eq!(followers(&tt, 2), vec![]);
+                tt.backend().verify_aggregation_edges();
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn overpaying_debt_propagates_one_appearance() {
+        for shape in [AddShape::Single, AddShape::Uppers, AddShape::Followers] {
+            let tt = propagation_fixture(FOLLOWER);
+            let edges = shape.edges();
+            run(&tt, edges.iter().map(|&(u, f)| remove(u, f)));
+            // First addition pays debt, second creates exactly one real edge per pair.
+            for _ in 0..2 {
+                let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                let mut queue = AggregationUpdateQueue::new_without_optimizations();
+                shape.apply(&mut queue, &mut ctx);
+                queue.execute(&mut ctx);
+            }
+            let copies_of_three = edges.iter().filter(|&&(_, f)| f == 3).count() as i32;
+            let copies_of_four = edges.iter().filter(|&&(_, f)| f == 4).count() as i32;
+            assert_eq!(effects(&tt, 3).2, copies_of_three);
+            assert_eq!(effects(&tt, 4).2, copies_of_four);
+            // Ancestor multiplicity matches paths, but its dirty-container totals count presence.
+            assert_eq!(uppers(&tt, 3), vec![(id(9), copies_of_three as u32)]);
+            if copies_of_four > 0 {
+                assert_eq!(uppers(&tt, 4), vec![(id(9), copies_of_four as u32)]);
+            }
+            let unique_followers = i32::from(copies_of_three > 0) + i32::from(copies_of_four > 0);
+            assert_eq!(effects(&tt, 9), (unique_followers, unique_followers, 0));
+            assert_eq!(aggregated(&tt, 9), 2 + unique_followers);
+            // A second real reference does not repeat active/data appearance effects.
+            run(&tt, edges.iter().map(|&(u, f)| add(u, f)));
+            assert_eq!(effects(&tt, 3).2, copies_of_three);
+            assert_eq!(effects(&tt, 4).2, copies_of_four);
+            run(
+                &tt,
+                edges
+                    .iter()
+                    .flat_map(|&(u, f)| [remove(u, f), remove(u, f)]),
+            );
+            assert_eq!(effects(&tt, 3).2, 0);
+            assert_eq!(effects(&tt, 4).2, 0);
+            assert_eq!(effects(&tt, 9), (0, 0, 0));
+            assert_eq!(aggregated(&tt, 9), 2);
+            tt.backend().verify_aggregation_edges();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn split_cancellation_reverses_dirty_snapshot_once() {
+        for shape in [AddShape::Single, AddShape::Uppers, AddShape::Followers] {
+            let tt = propagation_fixture(INNER);
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            shape.apply(&mut queue, &mut ctx);
+            queue.execute(&mut ctx);
+            let edges = shape.edges();
+            for &(upper, follower) in &edges {
+                // A removal already missed the inner edge before the addition. Now its debt and
+                // recheck must undo both dirty and current-session-clean contributions once.
+                queue.remove_follower_edges(&mut ctx, id(upper), &[id(follower)]);
+            }
+            queue.execute(&mut ctx);
+            drop(ctx);
+            for upper in [1, 2] {
+                assert_eq!(effects(&tt, upper), (0, 0, 2));
+                assert_eq!(aggregated(&tt, upper), 0);
+                assert!(followers(&tt, upper).is_empty());
+            }
+            assert_eq!(effects(&tt, 9), (0, 0, 0));
+            assert_eq!(aggregated(&tt, 9), 2);
+            for follower in [3, 4] {
+                assert_eq!(effects(&tt, follower).2, 0);
+                assert!(uppers(&tt, follower).is_empty());
+            }
+            tt.backend().verify_aggregation_edges();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn leaf_promotion_preserves_data_and_active_counts() {
+        let tt = setup(&[(1, UPPER), (2, INNER), (3, FOLLOWER), (4, 5), (9, ROOT)]);
+        seed_effects(&tt, &[2, 3, 4], &[1]);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            ctx.task(id(2), TaskDataCategory::Meta)
+                .extend_children([id(3), id(4)]);
+        }
+        run(&tt, [add(9, 1), add(1, 2)]);
+        assert!(
+            followers(&tt, 2).is_empty(),
+            "a leaf has no raw follower entries"
+        );
+        // Promotion nests task 4's dirty container under task 2, so task 1's raw container count
+        // changes from two to one. Its dirty/clean presence and the root's state stay unchanged.
+        assert_eq!(effects(&tt, 1), (2, 2, 2));
+        let before: Vec<_> = [3, 4, 9].map(|task| effects(&tt, task)).to_vec();
+        let collectibles_before = (aggregated(&tt, 1), aggregated(&tt, 9));
+        run(
+            &tt,
+            [AggregationUpdateJob::UpdateAggregationNumber {
+                task_id: id(2),
+                base_aggregation_number: 50,
+                distance: None,
+            }],
+        );
+        assert_eq!(followers(&tt, 2), vec![(id(3), 1)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(2), 1)]);
+        assert_eq!(effects(&tt, 1), (1, 1, 2));
+        assert_eq!([3, 4, 9].map(|task| effects(&tt, task)).to_vec(), before);
+        assert_eq!(
+            (aggregated(&tt, 1), aggregated(&tt, 9)),
+            collectibles_before
+        );
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Capture must retain even edgeless resident endpoints for non-root placement checks too.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn verification_keeps_resident_edgeless_endpoints() {
+        for (upper_number, valid) in [(ROOT, false), (UPPER, false), (1, true)] {
+            let tt = setup(&[(1, upper_number), (2, INNER)]);
+            {
+                let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                update_follower_count(&mut ctx.task(id(1), TaskDataCategory::Meta), id(2), 1);
+            }
+            let edges = tt.backend().storage.aggregation_edges_for_verification();
+            assert_eq!(edges.len(), 2, "both endpoints are restored and resident");
+            let violations = super::super::aggregation_edge::verify_aggregation_edges(&edges);
+            assert_eq!(violations.is_empty(), valid, "{violations:?}");
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn verification_does_not_invent_unrestored_endpoint_numbers() {
+        let tt = setup(&[(1, UPPER)]);
+        // Allocate an endpoint slot, but leave metadata unrestored. Its default aggregation number
+        // must not be mistaken for a real zero (which would imply the wrong placement).
+        drop(tt.backend().storage.access_mut(id(2)));
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            update_follower_count(&mut ctx.task(id(1), TaskDataCategory::Meta), id(2), 1);
+        }
+        let edges = tt.backend().storage.aggregation_edges_for_verification();
+        assert_eq!(edges.len(), 1);
+        assert!(super::super::aggregation_edge::verify_aggregation_edges(&edges).is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn follower_debt_is_not_a_gc_pin() {
+        let tt = setup(&[(1, UPPER), (2, FOLLOWER)]);
+        run(&tt, [remove(1, 2)]);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let upper = ctx.task(id(1), TaskDataCategory::Meta);
+            assert_eq!(upper.get_followers(&id(2)), Some(&-1));
+            assert!(
+                upper.is_gc_collectible(),
+                "outgoing debt is not an incoming GC reference"
+            );
+        }
+        run(&tt, [add(1, 2)]);
+        assert_no_edges(&tt, &[1, 2]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn debt_is_settled_before_snapshot_admission() {
+        let tt = setup_with_storage(
+            &[(1, UPPER), (2, INNER)],
+            true,
+            StorageMode::ReadWriteOnShutdown,
+        );
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.push(remove(1, 2));
+        queue.execute(&mut ctx);
+        assert_eq!(followers(&tt, 1), vec![(id(2), -1)]);
+        // A real ExecuteContext owns the operation guard. The nonblocking attempt cannot acquire
+        // exclusion, even though the debt-bearing task itself is collectible.
+        assert!(tt.backend().snapshot_coord.try_begin_snapshot().is_none());
+        queue.push(add(1, 2));
+        queue.execute(&mut ctx);
+        assert!(tt.backend().snapshot_coord.try_begin_snapshot().is_none());
+        drop(ctx);
+        let phase = tt
+            .backend()
+            .snapshot_coord
+            .try_begin_snapshot()
+            .expect("operation settled");
+        tt.backend().verify_aggregation_edges();
+        drop(phase);
+        assert_no_edges(&tt, &[1, 2]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort"
+    )]
     #[should_panic(expected = "aggregation edges are inconsistent")]
     async fn verification_detects_debt() {
         let tt = setup(&[(1, UPPER), (2, FOLLOWER)]);

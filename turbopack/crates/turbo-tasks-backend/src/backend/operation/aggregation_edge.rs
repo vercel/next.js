@@ -178,13 +178,17 @@ pub fn verify_aggregation_edges(tasks: &[TaskAggregationEdges]) -> Vec<String> {
                 ));
                 continue;
             }
-            if let Some(&follower_number) = aggregation_numbers.get(&follower_id)
-                && edge_balance_side(task.aggregation_number, follower_number)
-                    == Some(EdgeSide::Inner)
+            // A root must aggregate every real edge, even if the other endpoint is evicted.
+            let follower_number = aggregation_numbers.get(&follower_id).copied();
+            if count > 0
+                && (is_root_node(task.aggregation_number)
+                    || follower_number.is_some_and(|number| {
+                        edge_balance_side(task.aggregation_number, number) == Some(EdgeSide::Inner)
+                    }))
             {
                 violations.push(format!(
                     "follower edge {upper_id} -> {follower_id} should be an inner edge \
-                     (aggregation numbers {} and {follower_number})",
+                     (aggregation numbers {} and {follower_number:?})",
                     task.aggregation_number
                 ));
             }
@@ -296,6 +300,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn follower_delta_conversion_overflow_names_edge() {
         let error = std::panic::catch_unwind(|| {
             follower_delta(id(11), id(12), i32::MAX as u32 + 1);
@@ -338,6 +346,15 @@ mod tests {
 
     fn id(id: u32) -> TaskId {
         TaskId::new(id).unwrap()
+    }
+
+    #[test]
+    fn verify_rejects_root_follower_even_with_unknown_endpoint() {
+        let mut root = task(1, ROOT);
+        root.followers.push((id(2), 1));
+        let violations = verify_aggregation_edges(&[root]);
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("should be an inner edge"));
     }
 
     #[test]

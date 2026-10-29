@@ -817,21 +817,22 @@ impl TaskStorage {
     }
 
     /// Captures the aggregation edges of this task for verification of the aggregation graph.
-    /// Returns `None` when the task has no aggregation edges.
+    /// Returns `None` when metadata is not restored. Edgeless resident tasks must be included:
+    /// another task can reference them, and placement verification needs both aggregation numbers.
     #[cfg(any(test, feature = "verify_aggregation_graph"))]
     pub fn aggregation_edges_for_verification(
         &self,
         task_id: TaskId,
     ) -> Option<crate::backend::operation::TaskAggregationEdges> {
+        if !self.flags.is_restored(TaskDataCategory::Meta) {
+            return None;
+        }
         let upper: Vec<_> = self.upper().iter().map(|(&id, &c)| (id, c)).collect();
         let followers: Vec<_> = self
             .followers()
             .into_iter()
             .flat_map(|f| f.iter().map(|(&id, &c)| (id, c)))
             .collect();
-        if upper.is_empty() && followers.is_empty() {
-            return None;
-        }
         Some(crate::backend::operation::TaskAggregationEdges {
             task_id,
             aggregation_number: self.get_aggregation_number().map_or(0, |a| a.effective),
