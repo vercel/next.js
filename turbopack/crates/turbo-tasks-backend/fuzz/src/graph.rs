@@ -3,7 +3,7 @@ use std::sync::{Arc, LazyLock};
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use bincode::{Decode, Encode};
-use turbo_tasks::{self, State, TurboTasks, Vc};
+use turbo_tasks::{self, State, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_malloc::TurboMalloc;
 
 #[turbo_tasks::task_input]
@@ -57,6 +57,9 @@ impl<'a> Iterator for Iter<'a> {
         }
     }
 }
+
+/// The first tasks of the spec are run as concurrent roots.
+const MAX_CONCURRENT_ROOTS: usize = 3;
 
 static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -124,16 +127,31 @@ fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
                 },
                 turbo_tasks_backend::noop_backing_storage(),
             ));
+            let roots = spec.len().min(MAX_CONCURRENT_ROOTS) as u16;
             for i in 0..iterations {
-                let spec = spec.clone();
-                tt.run(async move {
-                    let it = *create_state().to_resolved().await?;
-                    it.await?.set(i);
-                    let task = run_task(spec.clone(), it, 0);
-                    task.strongly_consistent().await?;
-                    Ok(())
-                })
-                .await?;
+                // Run multiple roots concurrently. They share subgraphs, so edges of the
+                // aggregation graph are added and removed concurrently.
+                (0..roots)
+                    .map(|root| {
+                        let spec = spec.clone();
+                        let tt = &tt;
+                        async move {
+                            anyhow::Ok(
+                                tt.run(async move {
+                                    // Top-level tasks must only use strongly consistent reads.
+                                    let it_op = create_state();
+                                    let it = it_op.resolve().strongly_consistent().await?;
+                                    it_op.read_strongly_consistent().await?.set(i);
+                                    let task = run_task(spec.clone(), *it, root);
+                                    task.strongly_consistent().await?;
+                                    Ok(())
+                                })
+                                .await?,
+                            )
+                        }
+                    })
+                    .try_join()
+                    .await?;
             }
             tt.stop_and_wait().await;
             drop(tt);
@@ -142,7 +160,7 @@ fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
         .unwrap();
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 fn create_state() -> Vc<Iteration> {
     Vc::cell(State::new(0))
 }

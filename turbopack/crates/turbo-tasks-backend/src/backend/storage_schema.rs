@@ -252,8 +252,12 @@ struct TaskStorageSchema {
     children: AutoSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
+    ///
+    /// Signed: a negative count is "debt", recorded when the removal of a follower edge overtakes
+    /// its addition. Only counts `> 0` are real edges. See the module docs of
+    /// `operation::aggregation_update` for details.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    followers: CounterMap<TaskId, u32, 3>,
+    followers: CounterMap<TaskId, i32, 3>,
 
     // =========================================================================
     // DEPENDENCIES (data)
@@ -810,6 +814,30 @@ impl TaskStorage {
             done_event,
             reason: TaskExecutionReason::Root,
         });
+    }
+
+    /// Captures the aggregation edges of this task for verification of the aggregation graph.
+    /// Returns `None` when the task has no aggregation edges.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub fn aggregation_edges_for_verification(
+        &self,
+        task_id: TaskId,
+    ) -> Option<crate::backend::operation::TaskAggregationEdges> {
+        let upper: Vec<_> = self.upper().iter().map(|(&id, &c)| (id, c)).collect();
+        let followers: Vec<_> = self
+            .followers()
+            .into_iter()
+            .flat_map(|f| f.iter().map(|(&id, &c)| (id, c)))
+            .collect();
+        if upper.is_empty() && followers.is_empty() {
+            return None;
+        }
+        Some(crate::backend::operation::TaskAggregationEdges {
+            task_id,
+            aggregation_number: self.get_aggregation_number().map_or(0, |a| a.effective),
+            upper,
+            followers,
+        })
     }
 
     /// Returns counts for aggregation tree and collectibles fields.

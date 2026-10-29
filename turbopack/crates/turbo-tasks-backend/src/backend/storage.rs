@@ -662,6 +662,22 @@ impl Storage {
         per_shard.into_iter().flatten()
     }
 
+    /// Captures the aggregation edges of all resident tasks, for verification of the aggregation
+    /// graph. Only meaningful when no aggregation updates run concurrently.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub fn aggregation_edges_for_verification(
+        &self,
+    ) -> Vec<crate::backend::operation::TaskAggregationEdges> {
+        let mut result = Vec::new();
+        for shard in self.map.shards() {
+            let shard = shard.read();
+            for (task_id, task) in shard.iter() {
+                result.extend(task.aggregation_edges_for_verification(*task_id));
+            }
+        }
+        result
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,

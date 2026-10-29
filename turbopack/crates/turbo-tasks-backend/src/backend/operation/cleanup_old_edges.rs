@@ -202,7 +202,6 @@ fn cleanup_old_edges_inner(
                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                         upper_id: task_id,
                         lost_follower_ids: children,
-                        retry: 0,
                     });
                 } else {
                     let upper_ids = get_uppers(&task);

@@ -1684,6 +1684,8 @@ impl TurboTasksBackend {
         {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
+            // Storage is still alive here and no new aggregation updates can start.
+            self.verify_aggregation_edges();
         }
         // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
@@ -3595,6 +3597,30 @@ impl TurboTasksBackend {
             if !old_edges.is_empty() {
                 cleanup_old_edges(task_id, old_edges, AggregationUpdateQueue::new(), &mut ctx);
             }
+        }
+    }
+
+    /// Verifies the aggregation edges of all resident tasks (see
+    /// [`operation::verify_aggregation_edges`]). Must only be called when no aggregation updates
+    /// run.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub(crate) fn verify_aggregation_edges(&self) {
+        if std::env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+            return;
+        }
+        let violations =
+            operation::verify_aggregation_edges(&self.storage.aggregation_edges_for_verification());
+        if !violations.is_empty() {
+            panic!(
+                "The aggregation edges are inconsistent ({} violations):\n{}",
+                violations.len(),
+                violations
+                    .iter()
+                    .take(20)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
     }
 
