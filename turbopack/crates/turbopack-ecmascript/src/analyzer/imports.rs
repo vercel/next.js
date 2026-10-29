@@ -564,7 +564,9 @@ pub(crate) enum ImportedSymbol {
     ModuleEvaluation,
     Symbol(Atom),
     Exports,
+    ExportsBinding(Atom),
     Part(u32),
+    PartBinding(u32, Atom),
     PartEvaluation(u32),
 }
 
@@ -894,9 +896,21 @@ impl ImportMap {
                             if s.is_type_only() {
                                 continue;
                             }
-                            let symbol = internal_symbol
+                            let mut symbol = internal_symbol
                                 .clone()
                                 .unwrap_or_else(|| get_import_symbol_from_import(s));
+                            if let ImportedSymbol::Part(index) = symbol
+                                && let ImportedSymbol::Symbol(name) =
+                                    get_import_symbol_from_import(s)
+                            {
+                                symbol = ImportedSymbol::PartBinding(index, name);
+                            }
+                            if let ImportedSymbol::Exports = symbol
+                                && let ImportedSymbol::Symbol(name) =
+                                    get_import_symbol_from_import(s)
+                            {
+                                symbol = ImportedSymbol::ExportsBinding(name);
+                            }
                             let i = analyzer.ensure_reference(
                                 import.span,
                                 import.src.value.clone(),
@@ -1167,9 +1181,19 @@ impl Visit for Analyzer<'_> {
             let internal_symbol = parse_with(export.with.as_deref());
 
             for spec in export.specifiers.iter() {
-                let symbol = internal_symbol
+                let mut symbol = internal_symbol
                     .clone()
                     .unwrap_or_else(|| get_import_symbol_from_export(spec));
+                if let ImportedSymbol::Part(index) = symbol
+                    && let ImportedSymbol::Symbol(name) = get_import_symbol_from_export(spec)
+                {
+                    symbol = ImportedSymbol::PartBinding(index, name);
+                }
+                if let ImportedSymbol::Exports = symbol
+                    && let ImportedSymbol::Symbol(name) = get_import_symbol_from_export(spec)
+                {
+                    symbol = ImportedSymbol::ExportsBinding(name);
+                }
 
                 let i = self.ensure_reference(
                     export.span,
