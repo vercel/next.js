@@ -481,7 +481,8 @@ fn memory_timeline_reports_peaks_gap_and_phases() {
     assert_eq!(
         phases,
         [
-            ("task", 0, ticks(10), Some(100)),
+            // Memory rises after the sample at 0 µs: 180 interpolated at 10 µs.
+            ("task", 0, ticks(10), Some(180)),
             ("task", ticks(10), ticks(90), Some(500)),
         ]
     );
@@ -491,6 +492,23 @@ fn memory_timeline_reports_peaks_gap_and_phases() {
         scoped.phases[0].id,
         format!("{build}-{}", spans.task_a.get())
     );
+
+    // c.js runs from 20 to 30 µs, between the samples at 0 and 50 µs, so its
+    // peak comes from the readings interpolated at its edges.
+    let short = memory_timeline(
+        &store,
+        MemoryTimelineOptions {
+            parent: Some(spans.analyze_b.get().to_string()),
+            start: None,
+            end: None,
+            max_samples: None,
+            max_phases: None,
+        },
+    );
+    assert_eq!(short.raw_sample_count, 1, "only the sample at 50 µs");
+    let c = &short.phases[0];
+    assert_eq!((c.start, c.end), (ticks(20), ticks(30)));
+    assert_eq!((c.peak_bytes, c.peak_footprint), (Some(340), Some(1600)));
 
     // Phases are the ones with the largest corrected duration.
     let longest = memory_timeline(

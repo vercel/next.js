@@ -866,7 +866,10 @@ export interface TraceMemoryReading {
 
 /** Aggregate view of a span's memory samples. */
 export interface TraceMemorySummary {
-  /** Number of samples in the span's range, after downsampling. */
+  /**
+   * Number of samples in the span's range. Every figure here is computed
+   * from all of them, before `memorySamples` is downsampled.
+   */
   count: number
   /** Committed bytes at the first sample in the range. */
   start: number
@@ -1175,7 +1178,9 @@ export interface TraceSpanInfo {
    * (0 = no pressure, higher = more pressure); `footprint` is the process
    * memory footprint (RSS) in bytes (0 = not reported by the platform); and
    * `active_worker_threads` counts non-parked Tokio scheduler workers.
-   * `100 ticks = 1 µs`. Capped and downsampled by the store.
+   * `100 ticks = 1 µs`. Capped at 200 entries: beyond that, each group of
+   * consecutive samples is represented by its sample with the most
+   * committed bytes, kept whole, so a row's columns come from one sample.
    */
   memorySamples: Array<Array<number>>
   /**
@@ -1213,9 +1218,12 @@ export interface TraceTimelinePhase {
   correctedDuration: number
   memoryAtStart?: TraceMemoryPoint
   memoryAtEnd?: TraceMemoryPoint
-  /** Largest committed-bytes sample during the phase. */
+  /**
+   * Largest committed bytes during the phase, over the samples inside it
+   * and the interpolated readings at its edges, so short phases have one.
+   */
   peakBytes?: number
-  /** Largest footprint sample during the phase. */
+  /** Largest footprint during the phase, like `peakBytes`. */
   peakFootprint?: number
 }
 

@@ -165,7 +165,9 @@ pub struct TraceSpanInfo {
     /// (0 = no pressure, higher = more pressure); `footprint` is the process
     /// memory footprint (RSS) in bytes (0 = not reported by the platform); and
     /// `active_worker_threads` counts non-parked Tokio scheduler workers.
-    /// `100 ticks = 1 µs`. Capped and downsampled by the store.
+    /// `100 ticks = 1 µs`. Capped at 200 entries: beyond that, each group of
+    /// consecutive samples is represented by its sample with the most
+    /// committed bytes, kept whole, so a row's columns come from one sample.
     pub memory_samples: Vec<Vec<i64>>,
     /// Summary of `memorySamples`; absent when the span's range holds none.
     /// Unlike the allocation counters these are absolute readings of committed
@@ -185,7 +187,8 @@ pub struct TraceSpanInfo {
 /// Aggregate view of a span's memory samples.
 #[napi(object)]
 pub struct TraceMemorySummary {
-    /// Number of samples in the span's range, after downsampling.
+    /// Number of samples in the span's range. Every figure here is computed
+    /// from all of them, before `memorySamples` is downsampled.
     pub count: u32,
     /// Committed bytes at the first sample in the range.
     pub start: i64,
@@ -346,9 +349,10 @@ pub struct TraceTimelinePhase {
     pub corrected_duration: i64,
     pub memory_at_start: Option<TraceMemoryPoint>,
     pub memory_at_end: Option<TraceMemoryPoint>,
-    /// Largest committed-bytes sample during the phase.
+    /// Largest committed bytes during the phase, over the samples inside it
+    /// and the interpolated readings at its edges, so short phases have one.
     pub peak_bytes: Option<i64>,
-    /// Largest footprint sample during the phase.
+    /// Largest footprint during the phase, like `peakBytes`.
     pub peak_footprint: Option<i64>,
 }
 

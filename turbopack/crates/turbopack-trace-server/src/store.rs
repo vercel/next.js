@@ -32,7 +32,7 @@ const CUT_OFF_DEPTH: u32 = 80;
 pub(crate) type MemorySample = (Timestamp, u64, u8, u64, u64);
 
 /// Maximum number of memory samples returned in a query result.
-const MAX_MEMORY_SAMPLES: usize = 200;
+pub(crate) const MAX_MEMORY_SAMPLES: usize = 200;
 /// Maximum number of equal-duration concurrency segments in a span query.
 const MAX_CONCURRENCY_SAMPLES: usize = 200;
 
@@ -410,31 +410,19 @@ impl Store {
         start: Timestamp,
         end: Timestamp,
     ) -> Vec<MemorySample> {
-        self.memory_samples_for_range_downsampled(start, end, MAX_MEMORY_SAMPLES)
-    }
-
-    /// Like [`Self::memory_samples_for_range_with_ts`], but downsamples to at
-    /// most `max_samples` instead of `MAX_MEMORY_SAMPLES`.
-    pub fn memory_samples_for_range_downsampled(
-        &self,
-        start: Timestamp,
-        end: Timestamp,
-        max_samples: usize,
-    ) -> Vec<MemorySample> {
-        let max_samples = max_samples.max(1);
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
             return Vec::new();
         }
 
-        if count <= max_samples {
+        if count <= MAX_MEMORY_SAMPLES {
             return slice.to_vec();
         }
 
         // Merge groups of N samples: timestamp and memory come from the
         // max-memory sample, pressure, footprint and workers are column maxes.
-        let n = count.div_ceil(max_samples);
+        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
             .map(|chunk| {
@@ -444,6 +432,36 @@ impl Store {
                 let workers = chunk.iter().map(|(.., w)| *w).max().unwrap();
                 (ts, mem, pressure, footprint, workers)
             })
+            .collect()
+    }
+
+    /// Up to `max_samples` samples in `[start, end]`. When there are more,
+    /// consecutive groups are merged into the sample with the most memory in
+    /// each, kept whole.
+    ///
+    /// Unlike [`Self::memory_samples_for_range_with_ts`], which takes each
+    /// column's max separately for the viewer's per-signal series, every row
+    /// here is a real sample, so its columns can be compared with each other
+    /// (e.g. footprint minus memory). A group's own peak footprint can be in a
+    /// different row, so compute peaks from [`Self::memory_samples_slice`].
+    #[allow(
+        dead_code,
+        reason = "only used by the query API in lib.rs, not the binary"
+    )]
+    pub fn memory_sample_rows_for_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        max_samples: usize,
+    ) -> Vec<MemorySample> {
+        let slice = self.memory_samples_slice(start, end);
+        let max_samples = max_samples.max(1);
+        if slice.len() <= max_samples {
+            return slice.to_vec();
+        }
+        slice
+            .chunks(slice.len().div_ceil(max_samples))
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, ..)| *mem).unwrap())
             .collect()
     }
 
@@ -786,6 +804,31 @@ mod tests {
             store.memory_at(Timestamp::from_micros(25)),
             Some((100, 1500))
         );
+    }
+
+    #[test]
+    fn downsampled_rows_are_whole_samples() {
+        let mut store = Store::new();
+        // In each pair, one sample has the most memory and the other the
+        // largest footprint.
+        for i in 0..10u64 {
+            let (mem, footprint) = if i % 2 == 0 {
+                (100 + i, 1)
+            } else {
+                (1, 500 + i)
+            };
+            store.add_memory_sample(Timestamp::from_micros(i), mem, 0, footprint, 1);
+        }
+        let rows =
+            store.memory_sample_rows_for_range(Timestamp::ZERO, Timestamp::from_micros(9), 5);
+        assert_eq!(rows.len(), 5);
+        for (i, &(ts, mem, _, footprint, _)) in rows.iter().enumerate() {
+            let i = 2 * i as u64;
+            assert_eq!(
+                (ts, mem, footprint),
+                (Timestamp::from_micros(i), 100 + i, 1)
+            );
+        }
     }
 
     fn ts(micros: u64) -> Timestamp {

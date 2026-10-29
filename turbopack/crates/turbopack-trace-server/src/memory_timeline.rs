@@ -62,9 +62,11 @@ pub struct TimelinePhase {
     pub memory_at_start: Option<MemoryPoint>,
     /// Interpolated memory at `end`.
     pub memory_at_end: Option<MemoryPoint>,
-    /// Largest committed-bytes sample between `start` and `end`.
+    /// Largest committed bytes during the phase: of the samples inside it and
+    /// the interpolated readings at its edges, so short phases have one too.
+    /// `None` only without any samples.
     pub peak_bytes: Option<u64>,
-    /// Largest footprint sample between `start` and `end`.
+    /// Largest footprint during the phase, like `peak_bytes`.
     pub peak_footprint: Option<u64>,
 }
 
@@ -138,7 +140,7 @@ pub fn memory_timeline(store: &StoreContainer, options: MemoryTimelineOptions) -
         .map(reading);
 
     let samples = store_ref
-        .memory_samples_for_range_downsampled(start, end, max_samples)
+        .memory_sample_rows_for_range(start, end, max_samples)
         .into_iter()
         .map(|(ts, mem, pressure, footprint, workers)| (*ts, mem, pressure, footprint, workers))
         .collect();
@@ -158,17 +160,31 @@ pub fn memory_timeline(store: &StoreContainer, options: MemoryTimelineOptions) -
         .map(|span| {
             let (cat, title) = span.nice_name();
             let (phase_start, phase_end) = (span.start(), span.end());
-            let in_phase = store_ref.memory_samples_slice(phase_start, phase_end);
+            let memory_at_start = MemoryPoint::at(store_ref, phase_start);
+            let memory_at_end = MemoryPoint::at(store_ref, phase_end);
+            // The samples inside the phase plus its interpolated edges, so a
+            // phase too short to contain a sample still gets a peak.
+            let readings: Vec<(u64, u64)> = store_ref
+                .memory_samples_slice(phase_start, phase_end)
+                .iter()
+                .map(|&(_, bytes, _, footprint, _)| (bytes, footprint))
+                .chain(
+                    [memory_at_start, memory_at_end]
+                        .into_iter()
+                        .flatten()
+                        .map(|point| (point.bytes, point.footprint)),
+                )
+                .collect();
             TimelinePhase {
                 id: build_span_id(options.parent.as_deref(), &span.index.to_string()),
                 name: format_span_name(cat, title),
                 start: *phase_start,
                 end: *phase_end,
                 corrected_duration: *span.corrected_total_time(),
-                memory_at_start: MemoryPoint::at(store_ref, phase_start),
-                memory_at_end: MemoryPoint::at(store_ref, phase_end),
-                peak_bytes: in_phase.iter().map(|sample| sample.1).max(),
-                peak_footprint: in_phase.iter().map(|sample| sample.3).max(),
+                memory_at_start,
+                memory_at_end,
+                peak_bytes: readings.iter().map(|&(bytes, _)| bytes).max(),
+                peak_footprint: readings.iter().map(|&(_, footprint)| footprint).max(),
             }
         })
         .collect();

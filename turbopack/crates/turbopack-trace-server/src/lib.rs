@@ -271,10 +271,11 @@ pub struct SpanInfo {
     /// `active_worker_threads` counts non-parked Tokio scheduler workers.
     /// `100 ticks = 1 µs`.
     ///
-    /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
-    /// exist in the range, consecutive groups are merged: the timestamp and
-    /// value come from the group's max-memory sample, while pressure,
-    /// footprint and worker count are each the max over the group.
+    /// The series is capped at `MAX_MEMORY_SAMPLES`; when more samples exist
+    /// in the range, each group of consecutive ones is represented by its
+    /// sample with the most committed bytes, kept whole, so the columns of a
+    /// row always come from the same sample. Peaks of the other columns can
+    /// fall in rows that were dropped, so take those from `memory_summary`.
     pub memory_samples: Vec<(u64, u64, u8, u64, u64)>,
     /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
@@ -297,7 +298,8 @@ pub struct SpanInfo {
 /// actually in use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemorySummary {
-    /// Number of samples in the span's range (after the store's downsampling).
+    /// Number of samples in the span's range. Every figure here is computed
+    /// from all of them, before `memory_samples` is downsampled.
     pub count: usize,
     /// Committed bytes at the first sample in the range.
     pub start: u64,
@@ -316,7 +318,7 @@ pub struct MemorySummary {
 
 impl MemorySummary {
     /// Summarize a sample series, or `None` if it is empty.
-    fn from_samples(samples: &[(u64, u64, u8, u64, u64)]) -> Option<Self> {
+    fn from_samples(samples: &[store::MemorySample]) -> Option<Self> {
         let (_, first_bytes, first_pressure, first_footprint, _) = *samples.first()?;
         let mut summary = MemorySummary {
             count: samples.len(),
@@ -713,17 +715,22 @@ struct SpanMemory {
 }
 
 impl SpanMemory {
-    /// `include_samples` keeps the series; the summary is computed either way.
+    /// `include_samples` keeps the series; the summary is computed either way,
+    /// from every sample rather than the downsampled series.
     fn of(store: &store::Store, span: &SpanRef<'_>, include_samples: bool) -> Self {
-        let mut samples: Vec<_> = store
-            .memory_samples_for_range_with_ts(span.start(), span.end())
-            .into_iter()
-            .map(|(ts, mem, pressure, footprint, workers)| (*ts, mem, pressure, footprint, workers))
-            .collect();
-        let summary = MemorySummary::from_samples(&samples);
-        if !include_samples {
-            samples = Vec::new();
-        }
+        let summary =
+            MemorySummary::from_samples(store.memory_samples_slice(span.start(), span.end()));
+        let samples = if include_samples {
+            store
+                .memory_sample_rows_for_range(span.start(), span.end(), store::MAX_MEMORY_SAMPLES)
+                .into_iter()
+                .map(|(ts, mem, pressure, footprint, workers)| {
+                    (*ts, mem, pressure, footprint, workers)
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         SpanMemory {
             summary,
             samples,
@@ -1542,9 +1549,9 @@ mod tests {
     #[test]
     fn memory_summary_reports_peak_not_last() {
         let samples = [
-            (0u64, 100u64, 0u8, 5000u64, 2u64),
-            (1, 900, 3, 4000, 1),
-            (2, 200, 1, 7000, 3),
+            (Timestamp::from_value(0), 100u64, 0u8, 5000u64, 2u64),
+            (Timestamp::from_value(1), 900, 3, 4000, 1),
+            (Timestamp::from_value(2), 200, 1, 7000, 3),
         ];
         let summary = MemorySummary::from_samples(&samples).expect("samples present");
         assert_eq!(summary.count, 3);

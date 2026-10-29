@@ -426,11 +426,19 @@ describe('turbopack-trace-server', () => {
       maxPressure: number
     }
     expect(summary).toBeDefined()
-    expect(summary.count).toBe(samples.length)
-    expect(summary.start).toBe(samples[0][1])
-    expect(summary.end).toBe(samples[samples.length - 1][1])
+    // The summary covers every sample, the series at most 200 of them, each
+    // the one with the most committed bytes in its group, so the peak
+    // survives downsampling.
+    expect(summary.count).toBeGreaterThanOrEqual(samples.length)
     expect(summary.peak).toBe(Math.max(...samples.map((x) => x[1])))
-    expect(summary.min).toBe(Math.min(...samples.map((x) => x[1])))
+    expect(summary.min).toBeLessThanOrEqual(
+      Math.min(...samples.map((x) => x[1]))
+    )
+    if (summary.count === samples.length) {
+      expect(summary.start).toBe(samples[0][1])
+      expect(summary.end).toBe(samples[samples.length - 1][1])
+      expect(summary.min).toBe(Math.min(...samples.map((x) => x[1])))
+    }
   })
 
   // ─── recursive search ────────────────────────────────────────────────────
@@ -674,6 +682,19 @@ describe('turbopack-trace-server', () => {
     )
   })
 
+  it('should keep nesting when fields omits children but depth asks for it', async () => {
+    const nested = await querySpansJson(mcpPort, {
+      sort: 'value',
+      depth: 2,
+      fields: ['name'],
+    })
+    const top = nested.spans[0]
+    expect(Array.isArray(top.children)).toBe(true)
+    for (const child of top.children as SpanData[]) {
+      expect(Object.keys(child).sort()).toEqual(['children', 'id', 'name'])
+    }
+  })
+
   // ─── flat profile ────────────────────────────────────────────────────────
 
   it('should return a flat profile grouped by name', async () => {
@@ -732,6 +753,27 @@ describe('turbopack-trace-server', () => {
 
     const md = await callMcpTool(mcpPort, 'memory_timeline', {})
     expect(md).toContain('## Memory timeline of whole trace')
+  })
+
+  it('should downsample the memory timeline to whole samples', async () => {
+    const all = await callToolJson<MemoryTimelineResult>(
+      mcpPort,
+      'memory_timeline',
+      { maxSamples: 2000 }
+    )
+    if (all.rawSampleCount > 2000 || all.rawSampleCount < 4) return
+    const few = await callToolJson<MemoryTimelineResult>(
+      mcpPort,
+      'memory_timeline',
+      // The same range: in dev the trace keeps growing with new samples.
+      { maxSamples: 3, start: all.start, end: all.end }
+    )
+    expect(few.samples.length).toBeLessThanOrEqual(3)
+    // Every downsampled row is one real sample, not columns from several.
+    const real = new Set(all.samples.map((row) => row.join(',')))
+    for (const row of few.samples) {
+      expect(real.has(row.join(','))).toBe(true)
+    }
   })
 
   // ─── CLI tests ───────────────────────────────────────────────────────────

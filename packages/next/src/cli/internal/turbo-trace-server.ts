@@ -303,7 +303,7 @@ function renderMemoryTimelineMarkdown(
     const gap = timeline.maxGap.footprint - timeline.maxGap.bytes
     md += `- **Largest RSS − committed gap:** ${gap >= 0 ? '' : '-'}${formatBytes(Math.abs(gap))} ${reading(timeline.maxGap)}\n`
   }
-  md += `- **Samples:** ${timeline.samples.length} shown of ${timeline.rawSampleCount} (downsampled groups keep their max)\n`
+  md += `- **Samples:** ${timeline.samples.length} shown of ${timeline.rawSampleCount} (each row is a whole sample: the one with the most committed bytes in its group, so its columns belong together; the peaks above use every sample)\n`
 
   if (timeline.phases.length > 0) {
     md += `\n### Phases (${timeline.phases.length} with the largest corrected duration, in start order)\n\n`
@@ -486,7 +486,7 @@ export async function startTurboTraceServerCli(
         '',
         'Allocations: `allocations` / `deallocations` / `allocationCount` and `persistentAllocations`, each with a `self*` counterpart excluding children. Comparing a total to its `self` shows whether a span allocates directly or only through descendants.',
         '',
-        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure/maxFootprint, precomputed from `memorySamples`) or `memoryAtStart` / `memoryAtEnd`, which are interpolated between samples and so are present even for spans too short to contain one (outside the sampled range they are the nearest sample). For the memory curve of a whole build, use `memory_timeline`.',
+        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure/maxFootprint, computed from every sample in the span time range; `memorySamples` is downsampled to at most 200 whole samples, the one with the most committed bytes per group) or `memoryAtStart` / `memoryAtEnd`, which are interpolated between samples and so are present even for spans too short to contain one (outside the sampled range they are the nearest sample). For the memory curve of a whole build, use `memory_timeline`.',
         '',
         MEMORY_DESCRIPTION,
         '',
@@ -537,7 +537,7 @@ export async function startTurboTraceServerCli(
           .number()
           .optional()
           .describe(
-            "Levels of descendants to include inline in each span's `children`. Default 1 (no nesting), capped at 32."
+            "Levels of descendants to include inline in each span's `children`. Default 1 (no nesting), capped at 32. With `fields`, `children` is added to them when this is greater than 1."
           ),
         page: z.number().optional().describe('1-based page number. Default 1.'),
         pageSize: z
@@ -556,7 +556,14 @@ export async function startTurboTraceServerCli(
       },
     },
     (args) => {
-      const fields = args.fields
+      // Nesting is what `depth` asks for, so don't let a mask without
+      // `children` silently drop it.
+      const fields =
+        args.fields &&
+        (args.depth ?? 1) > 1 &&
+        !args.fields.includes('children')
+          ? [...args.fields, 'children' as const]
+          : args.fields
       const result = bindings.turbo.queryTraceSpans(handle, {
         parent: args.parent,
         aggregated: args.aggregated ?? true,
@@ -714,7 +721,7 @@ export async function startTurboTraceServerCli(
           .number()
           .optional()
           .describe(
-            'Samples to downsample to. Default 100, capped at 2000. Each downsampled group keeps its max.'
+            'Samples to downsample to. Default 100, capped at 2000. Each downsampled group is represented by its sample with the most committed bytes, kept whole, so the RSS and gap in a row belong to that sample.'
           ),
         maxPhases: z
           .number()
