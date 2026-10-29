@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     iter,
     mem::{replace, take},
 };
@@ -16,7 +17,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, MemberUsage};
 
 use crate::{
     AnalyzeMode,
@@ -607,6 +608,28 @@ mod analyzer_state {
                 .is_some_and(|b| b.contains_key(id))
         }
 
+        /// The static member chain read on the ident at the end of `ast_path` (`[a, b]` for
+        /// `ident.a.b`), after skipping the first `skip` members. Stops at the first member whose
+        /// name isn't statically known, or at any other parent (a call, optional chain, ...).
+        pub(super) fn static_member_chain(
+            &self,
+            ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+            skip: usize,
+        ) -> SmallVec<[RcStr; 1]> {
+            let mut members = SmallVec::new();
+            for member in member_access_ancestors(ast_path).skip(skip) {
+                let Some(prop) = self.eval_context.eval_member_prop(self.arena, &member.prop)
+                else {
+                    break;
+                };
+                let Some(prop) = prop.as_str() else {
+                    break;
+                };
+                members.push(RcStr::from(prop));
+            }
+            members
+        }
+
         /// Records a tracked `const x = require(...)` is used.
         pub(super) fn record_require_usage(&mut self, id: &Id, member: Option<RcStr>) {
             let Some(span) = self
@@ -892,6 +915,64 @@ fn member_access_parent<'r>(
         Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) => Some(*member),
         _ => None,
     }
+}
+
+/// The member usage of a static member path: `{ a: { b: All } }` for `[a, b]`, and empty (the
+/// value is read as a whole) for an empty path.
+fn member_path_tree(path: &[RcStr]) -> BTreeMap<RcStr, MemberUsage> {
+    match MemberUsage::from_path(path) {
+        MemberUsage::Members(members) => members,
+        MemberUsage::All => BTreeMap::new(),
+    }
+}
+
+/// Whether the ident at the end of `ast_path`, read through its first `chain_len` (at least one)
+/// static members, is called as a method: `ident.a.fn()`, `(ident.a.fn)()`, `ident.a.fn?.()` or a
+/// tagged template ``ident.a.fn`...` ``. Such a call passes the object of the last member
+/// (`ident.a`) as `this`. An indirect call like `(0, ident.a.fn)()` doesn't.
+fn is_method_call_callee(ast_path: &AstNodePath<AstParentNodeRef<'_>>, chain_len: usize) -> bool {
+    // See `member_access_ancestors` for the layout of the path above the ident.
+    let Some(mut index) = ast_path.len().checked_sub(2 + 2 * chain_len) else {
+        return false;
+    };
+    // Parentheses keep the receiver: `(ident.a.fn)()` is `Expr::Paren(ParenExpr { expr })`.
+    while let Some(AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)) = ast_path.get(index)
+        && let Some(AstParentNodeRef::Expr(_, ExprField::Paren)) =
+            index.checked_sub(1).and_then(|i| ast_path.get(i))
+        && let Some(parent) = index.checked_sub(2)
+    {
+        index = parent;
+    }
+    matches!(
+        ast_path.get(index),
+        Some(
+            AstParentNodeRef::Callee(_, CalleeField::Expr)
+                | AstParentNodeRef::OptCall(_, OptCallField::Callee)
+                | AstParentNodeRef::TaggedTpl(_, TaggedTplField::Tag)
+        )
+    )
+}
+
+/// For an ident at the end of `ast_path`, returns the member expressions it is the (innermost)
+/// object of, innermost first: `[ident.a, ident.a.b, ident.a.b.c]` for `ident.a.b.c`.
+fn member_access_ancestors<'a, 'r: 'a>(
+    ast_path: &'a AstNodePath<AstParentNodeRef<'r>>,
+) -> impl Iterator<Item = &'r MemberExpr> + 'a {
+    // `ident.a.b` is `MemberExpr(MemberExpr(Expr::Ident, a) wrapped in Expr::Member, b)`, so the
+    // path above the ident alternates between `MemberExpr(_, Obj)` and `Expr(_, Member)`.
+    let mut index = ast_path.len().checked_sub(2);
+    std::iter::from_fn(move || {
+        let i = index?;
+        let AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) = ast_path.get(i)? else {
+            index = None;
+            return None;
+        };
+        index = match i.checked_sub(1).and_then(|i| ast_path.get(i)) {
+            Some(AstParentNodeRef::Expr(_, ExprField::Member)) => i.checked_sub(2),
+            _ => None,
+        };
+        Some(*member)
+    })
 }
 
 /// Extracts export names from usage patterns on a dynamic import.
@@ -2475,28 +2556,43 @@ impl VisitAstPath for Analyzer<'_, '_> {
             {
                 // a namespace member access like
                 // `import * as ns from "..."; ns.exportName`
+                //
+                // If the result is itself read statically (`ns.exportName.a.b`), record that
+                // member chain too. It only narrows usage if `exportName` later resolves to a
+                // namespace object (e.g. `export * as exportName from "..."`).
+                let mut path = self.static_member_chain(ast_path, 1);
+                if !path.is_empty() && is_method_call_callee(ast_path, 1 + path.len()) {
+                    // `ns.exportName.a.fn()` calls `fn` with `ns.exportName.a` as `this`, which
+                    // may read any of its members: keep that receiver whole.
+                    path.pop();
+                }
+                let members = member_path_tree(&path);
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: Some(prop_str.into()),
-                    member: None,
+                    members,
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
                 });
             } else {
                 // ast_path stays on the ident, so `.exportName` remains in the emitted code.
-                let mut member = None;
-                if export.is_some()
-                    && let Some(access) = member_access_parent(ast_path)
-                    && let Some(prop) = self.eval_context.eval_member_prop(self.arena, &access.prop)
-                    && let Some(prop_str) = prop.as_str()
-                {
-                    member = Some(RcStr::from(prop_str));
-                }
+                let members = if export.is_some() {
+                    let mut path = self.static_member_chain(ast_path, 0);
+                    if path.len() >= 2 && is_method_call_callee(ast_path, path.len()) {
+                        // `z.a.fn()` calls `fn` with `z.a` as `this`, which may read any of its
+                        // members: keep that receiver whole. (`z.fn()` itself narrows `z` to
+                        // `fn`, like a namespace import's `ns.fn()` does.)
+                        path.pop();
+                    }
+                    member_path_tree(&path)
+                } else {
+                    BTreeMap::new()
+                };
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: export.map(|e| RcStr::from(e.as_str())),
-                    member,
+                    members,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
                 })

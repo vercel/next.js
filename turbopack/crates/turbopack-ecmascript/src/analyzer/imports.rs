@@ -455,6 +455,14 @@ pub(crate) struct ImportMap {
     /// as a whole.
     full_star_imports: FxHashSet<Wtf8Atom>,
 
+    /// References of namespace imports (`import * as ns`) whose binding is read in any way other
+    /// than being re-exported as is (`export { ns }`, `export { ns as other }`,
+    /// `export default ns`).
+    namespace_import_local_uses: FxHashSet<usize>,
+
+    /// References of namespace imports whose binding is the default export (`export default ns`).
+    namespace_import_default_exports: FxHashSet<usize>,
+
     /// Map from export binding id to the scopes where it's assigned. This is used to determine
     /// whether an export is live or not.
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
@@ -824,6 +832,30 @@ impl ImportMap {
         self.reexport_namespaces.iter().copied()
     }
 
+    /// The exports under which the namespace object of reference `idx` is re-exported, when that
+    /// is the reference's only use: `export * as ns from '...'`, or an `import * as ns` binding
+    /// that is only re-exported (`export { ns }`, `export { ns as other }`, `export default ns`).
+    ///
+    /// The target module's exports are then used exactly like the members of these exports.
+    /// Returns `None` if the namespace is read in any other way.
+    pub fn namespace_reexport_exports(&self, idx: usize) -> Option<SmallVec<[RcStr; 1]>> {
+        if self.namespace_import_local_uses.contains(&idx) {
+            return None;
+        }
+        let mut exports: SmallVec<[RcStr; 1]> = self
+            .exports
+            .iter()
+            .filter(|(_, export)| matches!(export, Export::ImportedNamespace(i) if *i == idx))
+            .map(|(name, _)| name.clone())
+            .collect();
+        if self.namespace_import_default_exports.contains(&idx)
+            && !exports.contains(&rcstr!("default"))
+        {
+            exports.push(rcstr!("default"));
+        }
+        (!exports.is_empty()).then_some(exports)
+    }
+
     /// Returns the liveness of a given export identifier. An export is live if it might change
     /// values after module evaluation.
     pub fn get_export_ident_liveness(&self, id: Id, unresolved_mark: Mark) -> Liveness {
@@ -867,6 +899,7 @@ impl ImportMap {
             state: Default::default(),
             program_decl_usage: Default::default(),
             current_module_item_order: 0,
+            in_namespace_reexport: false,
         };
 
         // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
@@ -1051,6 +1084,10 @@ struct Analyzer<'a> {
 
     /// Index of the top-level module item currently being analyzed.
     current_module_item_order: usize,
+
+    /// Whether the identifiers currently visited only re-export a binding as is
+    /// (`export { ns }`, `export default ns`), which is not a local use of a namespace import.
+    in_namespace_reexport: bool,
 
     state: analyzer_state::AnalyzerState,
 }
@@ -1391,7 +1428,23 @@ impl Visit for Analyzer<'_> {
         );
 
         self.register_assignment_scope(default_id);
-        n.visit_children_with(self);
+
+        // `export default ns` only re-exports a namespace import: it is not a local use of it.
+        let namespace_import = match &*n.expr {
+            Expr::Ident(ident) => match self.data.get_binding(&ident.to_id()) {
+                Some((index, None)) => Some(index),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(index) = namespace_import {
+            self.data.namespace_import_default_exports.insert(index);
+            let in_namespace_reexport = std::mem::replace(&mut self.in_namespace_reexport, true);
+            n.visit_children_with(self);
+            self.in_namespace_reexport = in_namespace_reexport;
+        } else {
+            n.visit_children_with(self);
+        }
     }
 
     fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
@@ -1407,7 +1460,9 @@ impl Visit for Analyzer<'_> {
         self.program_decl_usage
             .exports
             .insert(exported, local.to_id());
+        let in_namespace_reexport = std::mem::replace(&mut self.in_namespace_reexport, true);
         n.visit_children_with(self);
+        self.in_namespace_reexport = in_namespace_reexport;
     }
 
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
@@ -1572,7 +1627,12 @@ impl Visit for Analyzer<'_> {
 
     fn visit_ident(&mut self, node: &Ident) {
         let id = node.to_id();
-        if let Some((esm_reference_index, _)) = self.data.get_binding(&id) {
+        if let Some((esm_reference_index, export)) = self.data.get_binding(&id) {
+            if export.is_none() && !self.in_namespace_reexport {
+                self.data
+                    .namespace_import_local_uses
+                    .insert(esm_reference_index);
+            }
             // An import binding
             let usage = self
                 .program_decl_usage

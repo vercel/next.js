@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/nested-member-chain/input/core/index.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/nested-member-chain/input/lib.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/nested-member-chain/input/index.js"],"sourcesContent":["export class CoreError extends Error {}\nexport * as locales from '../locales/index.js'\n","export * as core from './core/index.js'\nexport const string = () => 'string'\n","// The zod shape from vercel/next.js#99954: `z.core` is a namespace reexport and\n// `z.core.locales` is another one. Only `z.core.CoreError` and `z.string` are read.\nimport * as z from './lib.js'\n\nconsole.log(new z.core.CoreError(z.string()))\n"],"names":["CoreError","Error"],"mappings":";;;;;;;;AAAO,MAAMA,kBAAkBC;AAAO;;;;;;;;;;;;ACC/B,MAAM,SAAS,IAAM;;ACG5B,QAAQ,GAAG,CAAC,IAAI,2OAAO,SAAS,CAAC"}}]
+}

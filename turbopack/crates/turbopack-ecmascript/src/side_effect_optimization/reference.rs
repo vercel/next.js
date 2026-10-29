@@ -143,9 +143,10 @@ impl ModuleReference for EcmascriptModulePartReference {
             // export alive. Normal (non-synthesized) references and structural evaluation edges
             // are top-level dependencies.
             import: match (&self.mode, &self.export_usage) {
-                (EcmascriptModulePartReferenceMode::Synthesize, ExportUsage::Named(export)) => {
-                    ImportUsage::Exports(std::iter::once(export.clone()).collect())
-                }
+                (
+                    EcmascriptModulePartReferenceMode::Synthesize,
+                    ExportUsage::Named(export) | ExportUsage::ForwardExport { export, .. },
+                ) => ImportUsage::Exports(std::iter::once(export.clone()).collect()),
                 _ => ImportUsage::TopLevel,
             },
             export: self.export_usage.clone(),
@@ -207,8 +208,14 @@ impl EcmascriptModulePartReference {
                 .get_ident(
                     chunking_context,
                     match export_usage {
-                        ExportUsage::Named(export) => Some(export.clone()),
+                        ExportUsage::Named(export)
+                        | ExportUsage::NamedMembers { export, .. }
+                        | ExportUsage::ForwardExport {
+                            original: export, ..
+                        } => Some(export.clone()),
                         ExportUsage::PartialNamespaceObject(_)
+                        | ExportUsage::NamespaceMembers(_)
+                        | ExportUsage::NamespaceReexport { .. }
                         | ExportUsage::All
                         | ExportUsage::Evaluation
                         | ExportUsage::Passthrough { .. } => None,

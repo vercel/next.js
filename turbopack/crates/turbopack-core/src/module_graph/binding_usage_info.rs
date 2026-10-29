@@ -1,7 +1,9 @@
-use std::{cmp::Reverse, collections::hash_map::Entry};
+use std::{
+    cmp::Reverse,
+    collections::{BTreeMap, hash_map::Entry},
+};
 
 use anyhow::{Context, Result, bail};
-use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -14,7 +16,7 @@ use crate::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
         side_effect_module_info::compute_side_effect_free_module_info,
     },
-    resolve::{ExportUsage, ImportUsage},
+    resolve::{ExportUsage, ImportUsage, MemberUsage, merge_member_maps},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -307,6 +309,35 @@ pub async fn compute_binding_usage_info(
                         };
                         namespace_changed || usage_changed
                     }
+                    ExportUsage::NamespaceReexport { exports } => {
+                        // `parent` exposes `target`'s namespace object as `exports`, so reads of
+                        // their members are reads of `target`'s exports by name, through a
+                        // namespace object.
+                        let parent_usage = used_exports
+                            .get(&parent)
+                            .context("parent module must have usage info")?;
+                        let mut forwarded = ModuleExportUsageInfo::Evaluation;
+                        for export in exports {
+                            forwarded
+                                .add_usage_info(&parent_usage.namespace_usage_of_export(export));
+                        }
+                        let namespace_changed = partial_namespace_modules.insert(target);
+                        let usage_changed = used_exports
+                            .entry(target)
+                            .or_default()
+                            .add_usage_info(&forwarded);
+                        namespace_changed || usage_changed
+                    }
+                    ExportUsage::ForwardExport { export, original } => {
+                        let forwarded = used_exports
+                            .get(&parent)
+                            .context("parent module must have usage info")?
+                            .forwarded_export_usage(export, original);
+                        used_exports
+                            .entry(target)
+                            .or_default()
+                            .add_usage_info(&forwarded)
+                    }
                     export_usage => {
                         // A partial namespace edge means `target` is read through a namespace
                         // value. We know which names are used, but not that every read was
@@ -315,9 +346,11 @@ pub async fn compute_binding_usage_info(
                         // The provenance can be new even when the used names are not (the target
                         // already uses `All` or these names), and it still has to be forwarded
                         // over the target's passthrough edges, so it counts as a change.
-                        let namespace_changed =
-                            matches!(export_usage, ExportUsage::PartialNamespaceObject(_))
-                                && partial_namespace_modules.insert(target);
+                        let namespace_changed = matches!(
+                            export_usage,
+                            ExportUsage::PartialNamespaceObject(_)
+                                | ExportUsage::NamespaceMembers(_)
+                        ) && partial_namespace_modules.insert(target);
                         let usage_changed =
                             used_exports.entry(target).or_default().add(export_usage);
                         namespace_changed || usage_changed
@@ -433,7 +466,10 @@ pub enum ModuleExportUsageInfo {
     /// Only the side effects are needed, no exports is used.
     #[default]
     Evaluation,
-    Exports(AutoSet<RcStr>),
+    /// These exports are used. Each export is either used as a whole, or only through static
+    /// members of its value (which narrows a namespace reexport, see
+    /// [`ExportUsage::NamespaceReexport`]).
+    Exports(BTreeMap<RcStr, MemberUsage>),
     All,
 }
 
@@ -448,38 +484,53 @@ impl ModuleExportUsageInfo {
 impl ModuleExportUsageInfo {
     /// Merge the given usage into self. Returns true if Self changed.
     pub fn add(&mut self, usage: &ExportUsage) -> bool {
-        match (&mut *self, usage) {
-            (Self::All, _) => false,
-            (_, ExportUsage::All) => {
-                *self = Self::All;
-                true
+        match usage {
+            ExportUsage::All => self.add_usage_info(&Self::All),
+            ExportUsage::Evaluation => false,
+            ExportUsage::Named(name) => self.add_export(name, &MemberUsage::All),
+            ExportUsage::NamedMembers { export, members } => {
+                self.add_export(export, &MemberUsage::Members(members.clone()))
             }
-            (Self::Evaluation, ExportUsage::Named(name)) => {
-                // Promote evaluation to something more specific
-                *self = Self::Exports(AutoSet::from_iter([name.clone()]));
-                true
-            }
-            (Self::Evaluation, ExportUsage::PartialNamespaceObject(names)) => {
-                *self = Self::Exports(AutoSet::from_iter(names.iter().cloned()));
-                true
-            }
-            (Self::Exports(l), ExportUsage::Named(r)) => {
-                // Merge exports
-                l.insert(r.clone())
-            }
-            (Self::Exports(l), ExportUsage::PartialNamespaceObject(names)) => {
-                let mut changed = false;
+            ExportUsage::PartialNamespaceObject(names) => {
+                let mut changed = self.promote_evaluation();
                 for name in names {
-                    changed |= l.insert(name.clone());
+                    changed |= self.add_export(name, &MemberUsage::All);
                 }
                 changed
             }
-            (_, ExportUsage::Evaluation) => false,
-            (_, ExportUsage::Passthrough { .. }) => {
-                // Passthrough is normally resolved before `add`. If it reaches this fallback,
-                // preserve correctness by widening rather than panicking during graph analysis.
-                *self = Self::All;
-                true
+            ExportUsage::NamespaceMembers(members) => {
+                self.add_usage_info(&Self::Exports(members.clone()))
+            }
+            ExportUsage::Passthrough { .. }
+            | ExportUsage::ForwardExport { .. }
+            | ExportUsage::NamespaceReexport { .. } => {
+                // These depend on the referencing module's usage and are normally resolved before
+                // `add`. If one reaches this fallback, preserve correctness by widening rather
+                // than panicking during graph analysis.
+                self.add_usage_info(&Self::All)
+            }
+        }
+    }
+
+    /// `Evaluation` -> empty `Exports`. Returns true if self changed.
+    fn promote_evaluation(&mut self) -> bool {
+        if matches!(self, Self::Evaluation) {
+            *self = Self::Exports(BTreeMap::new());
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Marks `export` as used with the given member usage. Returns true if self changed.
+    fn add_export(&mut self, export: &RcStr, usage: &MemberUsage) -> bool {
+        let promoted = self.promote_evaluation();
+        match self {
+            Self::All => false,
+            Self::Evaluation => unreachable!(),
+            Self::Exports(exports) => {
+                promoted
+                    | merge_member_maps(exports, &BTreeMap::from([(export.clone(), usage.clone())]))
             }
         }
     }
@@ -496,37 +547,69 @@ impl ModuleExportUsageInfo {
                 *self = Self::Exports(exports.clone());
                 true
             }
-            (Self::Exports(left), Self::Exports(right)) => {
-                let mut changed = false;
-                for export in right {
-                    changed |= left.insert(export.clone());
-                }
-                changed
-            }
+            (Self::Exports(left), Self::Exports(right)) => merge_member_maps(left, right),
         }
+    }
+
+    /// The usage of a module whose namespace object is this module's `export`, e.g. the target of
+    /// `export * as export from './target'`.
+    fn namespace_usage_of_export(&self, export: &RcStr) -> Self {
+        match self {
+            Self::All => Self::All,
+            Self::Evaluation => Self::Evaluation,
+            Self::Exports(exports) => match exports.get(export) {
+                None => Self::Evaluation,
+                Some(MemberUsage::All) => Self::All,
+                Some(MemberUsage::Members(members)) => Self::Exports(members.clone()),
+            },
+        }
+    }
+
+    /// The usage of the target's `original` export, when it is exposed as this module's `export`.
+    fn forwarded_export_usage(&self, export: &RcStr, original: &RcStr) -> Self {
+        let usage = match self {
+            Self::All => MemberUsage::All,
+            Self::Evaluation => return Self::Evaluation,
+            Self::Exports(exports) => match exports.get(export) {
+                None => return Self::Evaluation,
+                Some(usage) => usage.clone(),
+            },
+        };
+        Self::Exports(BTreeMap::from([(original.clone(), usage)]))
     }
 
     pub fn is_export_used(&self, export: &RcStr) -> bool {
         match self {
             Self::All => true,
             Self::Evaluation => false,
-            Self::Exports(exports) => exports.contains(export),
+            Self::Exports(exports) => exports.contains_key(export),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use turbo_rcstr::rcstr;
 
     use super::ModuleExportUsageInfo;
-    use crate::resolve::ExportUsage;
+    use crate::resolve::{ExportUsage, MemberUsage};
+
+    fn exports(names: &[&'static str]) -> ModuleExportUsageInfo {
+        ModuleExportUsageInfo::Exports(
+            names
+                .iter()
+                .map(|name| ((*name).into(), MemberUsage::All))
+                .collect(),
+        )
+    }
 
     #[test]
     fn resolved_usage_join_is_monotonic() {
         let mut usage = ModuleExportUsageInfo::Evaluation;
-        let first = ModuleExportUsageInfo::Exports([rcstr!("first")].into_iter().collect());
-        let second = ModuleExportUsageInfo::Exports([rcstr!("second")].into_iter().collect());
+        let first = exports(&["first"]);
+        let second = exports(&["second"]);
 
         assert!(!usage.add_usage_info(&ModuleExportUsageInfo::Evaluation));
         assert!(usage.add_usage_info(&first));
@@ -549,10 +632,72 @@ mod tests {
         }));
         assert!(matches!(usage, ModuleExportUsageInfo::All));
     }
+
+    #[test]
+    fn nested_member_usage_merges_and_widens() {
+        let path = |p: &[&'static str]| {
+            MemberUsage::from_path(&p.iter().map(|s| (*s).into()).collect::<Vec<_>>())
+        };
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+        let MemberUsage::Members(core_en) = path(&["core", "locales", "en"]) else {
+            unreachable!()
+        };
+        assert!(usage.add(&ExportUsage::NamespaceMembers(core_en)));
+        let MemberUsage::Members(core_de) = path(&["core", "locales", "de"]) else {
+            unreachable!()
+        };
+        assert!(usage.add(&ExportUsage::NamespaceMembers(core_de.clone())));
+        assert!(!usage.add(&ExportUsage::NamespaceMembers(core_de)));
+
+        // `core.locales` is read through `en` and `de` only.
+        let core = usage.namespace_usage_of_export(&rcstr!("core"));
+        let locales = core.namespace_usage_of_export(&rcstr!("locales"));
+        assert!(locales.is_export_used(&rcstr!("en")));
+        assert!(locales.is_export_used(&rcstr!("de")));
+        assert!(!locales.is_export_used(&rcstr!("fr")));
+        assert!(matches!(
+            usage.namespace_usage_of_export(&rcstr!("unused")),
+            ModuleExportUsageInfo::Evaluation
+        ));
+
+        // An opaque read of `core` widens it as a whole.
+        assert!(usage.add(&ExportUsage::Named(rcstr!("core"))));
+        assert!(matches!(
+            usage.namespace_usage_of_export(&rcstr!("core")),
+            ModuleExportUsageInfo::All
+        ));
+    }
+
+    #[test]
+    fn forwarded_export_keeps_member_usage() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+        assert!(usage.add(&ExportUsage::NamedMembers {
+            export: rcstr!("renamed"),
+            members: BTreeMap::from([(rcstr!("leaf"), MemberUsage::All)]),
+        }));
+        let forwarded = usage.forwarded_export_usage(&rcstr!("renamed"), &rcstr!("original"));
+        let ModuleExportUsageInfo::Exports(exports) = &forwarded else {
+            panic!("expected exports, got {forwarded:?}");
+        };
+        assert!(matches!(
+            exports.get(&rcstr!("original")),
+            Some(MemberUsage::Members(members)) if members.contains_key(&rcstr!("leaf"))
+        ));
+        assert!(matches!(
+            usage.forwarded_export_usage(&rcstr!("other"), &rcstr!("original")),
+            ModuleExportUsageInfo::Evaluation
+        ));
+        assert!(matches!(
+            ModuleExportUsageInfo::All.forwarded_export_usage(&rcstr!("a"), &rcstr!("b")),
+            ModuleExportUsageInfo::Exports(exports) if matches!(exports.get(&rcstr!("b")), Some(MemberUsage::All))
+        ));
+    }
 }
 
 #[cfg(test)]
 mod graph_tests {
+    use std::collections::BTreeMap;
+
     use anyhow::Result;
     use rustc_hash::FxHashMap;
     use turbo_rcstr::{RcStr, rcstr};
@@ -570,7 +715,7 @@ mod graph_tests {
             chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
         },
         reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-        resolve::ExportUsage,
+        resolve::{ExportUsage, MemberUsage},
     };
 
     /// Module name -> outgoing edges `(target name, export usage of the edge)`, in reference order.
@@ -649,7 +794,8 @@ mod graph_tests {
         }
     }
 
-    /// `ExportUsage` cells are private to `resolve`, so go through its public constructors.
+    /// `ExportUsage` cells are private to `resolve`, so go through its public constructors (or
+    /// `cell_for_test` for the member and forwarding variants).
     fn export_usage_vc(export: &ExportUsage) -> Vc<ExportUsage> {
         match export {
             ExportUsage::All => ExportUsage::all(),
@@ -661,6 +807,10 @@ mod graph_tests {
             ExportUsage::Passthrough {
                 namespace_object_may_escape,
             } => ExportUsage::passthrough(*namespace_object_may_escape),
+            ExportUsage::NamedMembers { .. }
+            | ExportUsage::NamespaceMembers(_)
+            | ExportUsage::ForwardExport { .. }
+            | ExportUsage::NamespaceReexport { .. } => export.clone().cell_for_test(),
         }
     }
 
@@ -672,13 +822,24 @@ mod graph_tests {
     async fn namespace_escapes_operation(
         namespace_path_is_longer: bool,
         plain_usage_is_all: bool,
+        namespace_members: bool,
+        namespace_reexport: bool,
     ) -> Result<Vc<NamespaceEscapes>> {
         let plain_usage = if plain_usage_is_all {
             ExportUsage::All
         } else {
             ExportUsage::Named(rcstr!("a"))
         };
-        let edges = namespace_graph(namespace_path_is_longer, plain_usage);
+        let namespace_usage = if namespace_members {
+            namespace_a_member_b()
+        } else {
+            namespace_a()
+        };
+        let edges = if namespace_reexport {
+            namespace_reexport_graph(namespace_path_is_longer, plain_usage)
+        } else {
+            namespace_graph(namespace_path_is_longer, plain_usage, namespace_usage)
+        };
         let root = VirtualFileSystem::new_with_name(rcstr!("test"))
             .root()
             .owned()
@@ -733,14 +894,31 @@ mod graph_tests {
         namespace_path_is_longer: bool,
         plain_usage_is_all: bool,
     ) -> Vec<(RcStr, bool)> {
+        namespace_escapes_with(namespace_path_is_longer, plain_usage_is_all, false, false).await
+    }
+
+    /// Like [`namespace_escapes`]. `namespace_members` makes the namespace read a nested member
+    /// read (`ns.a.b`), and `namespace_reexport` routes it through an `export * as a` reexport
+    /// (see [`namespace_reexport_graph`]).
+    async fn namespace_escapes_with(
+        namespace_path_is_longer: bool,
+        plain_usage_is_all: bool,
+        namespace_members: bool,
+        namespace_reexport: bool,
+    ) -> Vec<(RcStr, bool)> {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            let escapes = namespace_escapes_operation(namespace_path_is_longer, plain_usage_is_all)
-                .read_strongly_consistent()
-                .await?;
+            let escapes = namespace_escapes_operation(
+                namespace_path_is_longer,
+                plain_usage_is_all,
+                namespace_members,
+                namespace_reexport,
+            )
+            .read_strongly_consistent()
+            .await?;
             Ok((*escapes).clone())
         })
         .await
@@ -749,6 +927,14 @@ mod graph_tests {
 
     fn namespace_a() -> ExportUsage {
         ExportUsage::PartialNamespaceObject([rcstr!("a")].into_iter().collect())
+    }
+
+    /// `ns.a.b`: only member `b` of the namespace's export `a` is read.
+    fn namespace_a_member_b() -> ExportUsage {
+        ExportUsage::NamespaceMembers(BTreeMap::from([(
+            rcstr!("a"),
+            MemberUsage::Members(BTreeMap::from([(rcstr!("b"), MemberUsage::All)])),
+        )]))
     }
 
     fn reexport_all() -> ExportUsage {
@@ -761,26 +947,101 @@ mod graph_tests {
     /// `x` is reached directly from `entry` and through `entry -> m1 -> m2 -> x`; `x -> y` is an
     /// `export *` passthrough edge.
     ///
-    /// When `namespace_path_is_longer` is true, the plain edge reaches `x` first and its
-    /// passthrough is processed before the namespace edge. In that order, the namespace usage does
-    /// not add any export to `x`. Otherwise namespace provenance reaches `x` first.
-    fn namespace_graph(namespace_path_is_longer: bool, plain_usage: ExportUsage) -> Edges {
+    /// With the original constant-priority traversal, `namespace_path_is_longer` makes the plain
+    /// edge reach `x` first. Reverse postorder instead processes all importers before `x` in a DAG.
+    /// For nested namespace reads, add `x -> m1` to close a cycle so that `x` is processed before
+    /// the late namespace edge even under reverse postorder. That edge adds provenance but no new
+    /// export usage to `x`, so forwarding it to `y` requires a namespace-only revisit.
+    fn namespace_graph(
+        namespace_path_is_longer: bool,
+        plain_usage: ExportUsage,
+        namespace_usage: ExportUsage,
+    ) -> Edges {
+        let nested_namespace = matches!(&namespace_usage, ExportUsage::NamespaceMembers(_));
+        let mut x_edges = vec![(rcstr!("y"), reexport_all())];
+        if nested_namespace {
+            // An evaluation-only back-edge creates the cycle without adding export usage or
+            // namespace provenance to `m1`.
+            x_edges.push((rcstr!("m1"), ExportUsage::Evaluation));
+        }
         let (direct_usage, late_usage) = if namespace_path_is_longer {
-            (plain_usage, namespace_a())
+            (plain_usage, namespace_usage)
         } else {
-            (namespace_a(), plain_usage)
+            (namespace_usage, plain_usage)
+        };
+        let mut entry_edges = vec![
+            (rcstr!("x"), direct_usage),
+            (rcstr!("m1"), ExportUsage::All),
+        ];
+        if nested_namespace {
+            // The rank DFS visits references in reverse order; start at `x` so that the
+            // namespace read `m2 -> x` is the cycle's back-edge, not `x -> m1`.
+            entry_edges.reverse();
+        }
+        vec![
+            (rcstr!("entry"), entry_edges),
+            (rcstr!("m1"), vec![(rcstr!("m2"), ExportUsage::All)]),
+            (rcstr!("m2"), vec![(rcstr!("x"), late_usage)]),
+            (rcstr!("x"), x_edges),
+        ]
+    }
+
+    /// Like [`namespace_graph`], but the namespace read of `x` goes through `r`, which reexports
+    /// `x`'s namespace object as `a` (`export * as a from "x"`). `r` is reached from `entry`
+    /// directly or through `entry -> m1 -> m2 -> r`. An evaluation-only `x -> m1` edge closes a
+    /// cycle, forcing the longer namespace path to arrive after `x` was processed even under
+    /// reverse postorder.
+    fn namespace_reexport_graph(namespace_path_is_longer: bool, plain_usage: ExportUsage) -> Edges {
+        let r_usage = ExportUsage::Named(rcstr!("a"));
+        let (entry_edges, m2_edges) = if namespace_path_is_longer {
+            (
+                vec![(rcstr!("x"), plain_usage)],
+                vec![(rcstr!("r"), r_usage)],
+            )
+        } else {
+            (
+                vec![(rcstr!("r"), r_usage)],
+                vec![(rcstr!("x"), plain_usage)],
+            )
         };
         vec![
             (
                 rcstr!("entry"),
-                vec![
-                    (rcstr!("x"), direct_usage),
-                    (rcstr!("m1"), ExportUsage::All),
-                ],
+                // The rank DFS follows references in reverse order. Visit the direct path
+                // first, so the longer path's final namespace edge is the back-edge.
+                std::iter::once((rcstr!("m1"), ExportUsage::All))
+                    .chain(entry_edges)
+                    .collect(),
             ),
             (rcstr!("m1"), vec![(rcstr!("m2"), ExportUsage::All)]),
-            (rcstr!("m2"), vec![(rcstr!("x"), late_usage)]),
-            (rcstr!("x"), vec![(rcstr!("y"), reexport_all())]),
+            (rcstr!("m2"), m2_edges),
+            (
+                rcstr!("r"),
+                vec![(
+                    rcstr!("x"),
+                    ExportUsage::NamespaceReexport {
+                        exports: [rcstr!("a")].into_iter().collect(),
+                    },
+                )],
+            ),
+            (
+                rcstr!("x"),
+                vec![
+                    (rcstr!("y"), reexport_all()),
+                    (rcstr!("m1"), ExportUsage::Evaluation),
+                ],
+            ),
+        ]
+    }
+
+    fn expected_reexport_escapes() -> Vec<(RcStr, bool)> {
+        vec![
+            (rcstr!("entry"), false),
+            (rcstr!("m1"), false),
+            (rcstr!("m2"), false),
+            (rcstr!("r"), false),
+            (rcstr!("x"), true),
+            (rcstr!("y"), true),
         ]
     }
 
@@ -812,5 +1073,37 @@ mod graph_tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn early_namespace_usage_of_already_used_name_reaches_passthrough_target() {
         assert_eq!(namespace_escapes(false, false).await, expected_escapes());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn late_namespace_member_usage_of_all_module_reaches_passthrough_target() {
+        assert_eq!(
+            namespace_escapes_with(true, true, true, false).await,
+            expected_escapes()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn late_namespace_member_usage_of_already_used_name_reaches_passthrough_target() {
+        assert_eq!(
+            namespace_escapes_with(true, false, true, false).await,
+            expected_escapes()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn late_namespace_reexport_of_all_module_reaches_passthrough_target() {
+        assert_eq!(
+            namespace_escapes_with(true, true, false, true).await,
+            expected_reexport_escapes()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn early_namespace_reexport_of_all_module_reaches_passthrough_target() {
+        assert_eq!(
+            namespace_escapes_with(false, true, false, true).await,
+            expected_reexport_escapes()
+        );
     }
 }
