@@ -27,6 +27,7 @@ erased-serde = { workspace = true }
 fixedbitset = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
+memchr = { workspace = true }
 num-bigint = "0.4"
 patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
