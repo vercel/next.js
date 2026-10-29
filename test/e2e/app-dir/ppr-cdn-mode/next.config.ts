@@ -2,6 +2,9 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  // What new apps are told to use. Unknown params get the shared fallback
+  // shell once, then their own document (PPR_CDN_MODE_PLAN.md, finding 22).
+  partialPrefetching: true,
   experimental: {
     // On by default with Cache Components. The spike builds once with it off.
     cachedNavigations: process.env.PPR_CDN_MODE_CACHED_NAVIGATIONS !== 'false',
