@@ -1,0 +1,27 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+const shape=value=>{if(value===null||(typeof value!=='object'&&typeof value!=='function'))return{type:typeof value,value};return{type:typeof value,brand:types.isModuleNamespaceObject(value),tag:value[Symbol.toStringTag]??null,keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':Object.getPrototypeOf(value)===Function.prototype?'Function.prototype':'other',extensible:Object.isExtensible(value),sealed:Object.isSealed(value),frozen:Object.isFrozen(value),descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}})}}
+const same=values=>values.map(x=>values.map(y=>x===y))
+const view=ns=>{const ownDefault=Object.hasOwn(ns,'default'),root=ownDefault?ns.default:null;return{namespace:shape(ns),default:root?shape(root):null,value:ns.value,phase:ns.phase,fn:shape(ns.fn),fnName:ns.fn?.name,fnLength:ns.fn?.length,namedCall:typeof ns.fn==='function'?ns.fn('named'):null,defaultFnSame:root&&typeof root.fn==='function'?ns.fn===root.fn:null,defaultCall:root&&typeof root.fn==='function'?root.fn('default'):null}}
+const row=(label,value)=>console.log('MOCKPAIR:'+JSON.stringify({label,...value}))
+
+vi.mock('next-test-pair2-a',()=>{globalThis.__pair2StaticA=(globalThis.__pair2StaticA??0)+1;return{value:5,phase:'static-a',fn(value){return['static-a',value]}}})
+vi.mock('next-test-pair2-b',()=>{globalThis.__pair2StaticB=(globalThis.__pair2StaticB??0)+1;return{value:6,phase:'static-b',fn(value){return['static-b',value]}}})
+import * as staticA from 'next-test-pair2-a'
+import * as staticB from 'next-test-pair2-b'
+test('keeps two independent native static runtime actual reset and unmock targets',async()=>{
+ let callsA=0,callsB=0,originalA,originalB
+ const beforeA=await import('next-test-pair2-a'),beforeB=await import('next-test-pair2-b')
+ vi.doMock('next-test-pair2-a',async original=>{callsA++;originalA=await original();return{value:73,phase:'runtime-a',fn(value){return['runtime-a',value]}}})
+ vi.doMock('next-test-pair2-b',async original=>{callsB++;originalB=await original();return{value:74,phase:'runtime-b',fn(value){return['runtime-b',value]}}})
+ const runtimeA=await import('next-test-pair2-a'),runtimeB=await import('next-test-pair2-b'),actualA=await vi.importActual('next-test-pair2-a'),actualB=await vi.importActual('next-test-pair2-b')
+ vi.resetModules()
+ const resetA=await import('next-test-pair2-a'),resetB=await import('next-test-pair2-b'),actualAfterA=await vi.importActual('next-test-pair2-a'),actualAfterB=await vi.importActual('next-test-pair2-b')
+ vi.doUnmock('next-test-pair2-a')
+ const unmockA=await import('next-test-pair2-a'),stillB=await import('next-test-pair2-b')
+ vi.doUnmock('next-test-pair2-b')
+ const unmockB=await import('next-test-pair2-b')
+ const A=[staticA,beforeA,runtimeA,actualA,resetA,actualAfterA,unmockA],B=[staticB,beforeB,runtimeB,actualB,resetB,actualAfterB,stillB,unmockB]
+ row('paired-two',{A:A.map(view),B:B.map(view),identityA:same(A),identityB:same(B),functionA:same(A.map(x=>x.fn)),functionB:same(B.map(x=>x.fn)),crossNamespace:A.map(x=>B.map(y=>x===y)),crossFunction:A.map(x=>B.map(y=>x.fn===y.fn)),callsA,callsB,originalA:A.map(x=>x===originalA),originalB:B.map(x=>x===originalB),evaluations:{A:globalThis.__pair2OriginalA??0,B:globalThis.__pair2OriginalB??0},staticFactories:{A:globalThis.__pair2StaticA??0,B:globalThis.__pair2StaticB??0}})
+ expect(A.map(x=>x.value)).toEqual([5,5,73,20,73,20,20]);expect(B.map(x=>x.value)).toEqual([6,6,74,22,74,22,74,22]);expect(callsA).toBe(1);expect(callsB).toBe(1)
+})

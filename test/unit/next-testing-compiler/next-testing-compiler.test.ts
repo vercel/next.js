@@ -9484,3 +9484,53 @@ it.each(['development', 'production'] as const)(
   },
   130000
 )
+
+it.each([
+  ['development', 'paired-two'],
+  ['production', 'paired-two'],
+  ['development', 'cycle-runtime'],
+  ['production', 'cycle-runtime'],
+] as const)(
+  'retains native paired targets and CommonJS cycle in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-native-paired-cycle-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-paired-cycles.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        group,
+        cases: 1,
+        rows: 1,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceAndFunctionDescriptors: true,
+        independentTargetsAndNativeCycle: true,
+        actualResetUnmockAndCacheIdentities: true,
+        originalEvaluationAndFactoryCounts: true,
+        completeCountsAndFileMessages: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
