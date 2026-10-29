@@ -962,13 +962,13 @@ impl AppProject {
                         );
                         graphs.push(graph);
                         visited_modules = if following_availability(&*module.server_path().await?)
-                            == FollowingAvailability::CodeAndStyles
+                            == FollowingAvailability::All
                         {
-                            // Only propagate the visited_modules of parent layout(s) and templates,
-                            // whose code and styles the following server components can rely on.
-                            // Not across siblings such as loading.js and page.js: a page may
-                            // re-chunk the styles of modules it shares with loading.js, so its
-                            // graph has to contain them.
+                            // Only propagate the visited_modules of parent layout(s) and templates.
+                            // Not across siblings such as loading.js and page.js: whether the page
+                            // can rely on the modules of a loading.js depends on whether it emits
+                            // CSS, which is only known after chunking, so the page's graph has to
+                            // contain them.
                             VisitedModules::concatenate(visited_modules, graph)
                         } else {
                             // Prevents graph index from getting out of sync.

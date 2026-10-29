@@ -12,8 +12,9 @@ import { SHARED_MARKER } from './app/segment/shared-module'
 // `loading.tsx` and `template.tsx` of a segment) are treated as already
 // available when chunking the following ones, so the code of a module shared by
 // `loading.tsx` and `page.tsx` is emitted into the chunks of `loading.tsx`
-// only, and the page's chunk list includes those chunks. Styles of
-// `loading.tsx` are not made available that way.
+// only, and the page's chunk list includes those chunks. Its styles only apply
+// while the fallback is shown, so a `loading.tsx` that emits CSS makes nothing
+// available.
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'loading-chunk-availability',
   () => {
@@ -148,19 +149,6 @@ import { SHARED_MARKER } from './app/segment/shared-module'
         }
         return matching
       }
-
-      it("includes loading.tsx's chunks in the page's chunk list when loading.tsx has styles", () => {
-        const loadingChunks = clientReferenceChunks(
-          'app/css/css-skeleton.tsx',
-          '/css/page'
-        )
-        const pageChunks = clientReferenceChunks(
-          'app/css/css-content.tsx',
-          '/css/page'
-        )
-
-        expect(pageChunks).toEqual(expect.arrayContaining(loadingChunks))
-      })
 
       it("does not list loading.tsx's CSS for the page", async () => {
         // The marker does exist in the build, so its absence from the page's

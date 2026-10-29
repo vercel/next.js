@@ -77,60 +77,33 @@ pub enum FollowingAvailability {
     /// `global-not-found` are only rendered in some states, so the following server components
     /// must not rely on the modules they reference.
     None,
-    /// Its code but not its styles: `loading` is the Suspense fallback around the segment's
+    /// Everything, if it emits no CSS: `loading` is the Suspense fallback around the segment's
     /// children. Its client references are part of the response whenever anything below it is,
     /// but its styles are rendered inside the fallback, so they only apply while it is shown.
-    Code,
-    /// Its code and its styles: `layout` and `template` are rendered, with their styles, whenever
-    /// anything below them is.
-    CodeAndStyles,
+    /// Availability can't be limited to code, so a `loading` that emits CSS makes nothing
+    /// available.
+    UnlessItEmitsCss,
+    /// Everything: `layout` and `template` are rendered, with their styles, whenever anything
+    /// below them is.
+    All,
 }
 
 pub fn following_availability(server_path: &FileSystemPath) -> FollowingAvailability {
     match server_path.file_stem() {
-        Some("layout" | "template") => FollowingAvailability::CodeAndStyles,
-        Some("loading") => FollowingAvailability::Code,
+        Some("layout" | "template") => FollowingAvailability::All,
+        Some("loading") => FollowingAvailability::UnlessItEmitsCss,
         _ => FollowingAvailability::None,
     }
 }
 
-async fn assets_where_css_is(
-    assets: ResolvedVc<OutputAssets>,
-    css: bool,
-) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
-    assets
-        .await?
-        .iter()
-        .map(async |&asset| Ok((asset.path().await?.has_extension(".css") == css).then_some(asset)))
-        .try_flat_join()
-        .await
-}
-
-async fn has_css_assets(chunk_group: Vc<ChunkGroupResult>) -> Result<bool> {
-    Ok(!assets_where_css_is(chunk_group.await?.assets, true)
-        .await?
-        .is_empty())
-}
-
-/// The chunk group of a server component, with the non-CSS assets and the references of `code` and
-/// the CSS assets of `styles`.
-#[turbo_tasks::function]
-async fn code_with_styles(
-    code: Vc<ChunkGroupResult>,
-    styles: Vc<ChunkGroupResult>,
-) -> Result<Vc<ChunkGroupResult>> {
-    let code = code.await?;
-    let styles = styles.await?;
-    let mut assets = assets_where_css_is(code.assets, false).await?;
-    assets.extend(assets_where_css_is(styles.assets, true).await?);
-    Ok(ChunkGroupResult {
-        assets: ResolvedVc::cell(assets),
-        referenced_assets: code.referenced_assets,
-        references: code.references,
-        availability_info: code.availability_info,
-        chunk_group_bootstrap_params: code.chunk_group_bootstrap_params.clone(),
+/// Whether a chunk group emits CSS files.
+async fn emits_css(chunk_group: Vc<ChunkGroupResult>) -> Result<bool> {
+    for &asset in chunk_group.await?.assets.await?.iter() {
+        if asset.path().await?.has_extension(".css") {
+            return Ok(true);
+        }
     }
-    .cell())
+    Ok(false)
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -360,10 +333,6 @@ pub async fn get_app_client_references_chunks(
                 chunk_group_bootstrap_params: None,
             }
             .resolved_cell();
-            // The chain of server components whose styles the following ones can rely on too. It
-            // is the same as `current_client_chunk_group` until a `loading.js` with styles of its
-            // own is passed.
-            let mut current_client_styles_chunk_group = current_client_chunk_group;
             let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
@@ -476,41 +445,25 @@ pub async fn get_app_client_references_chunks(
                             &CLIENT_MERGE_TAG,
                         )
                         .await?;
-                        if groups.is_empty() {
-                            return anyhow::Ok(None);
-                        }
                         // All groups of the segment are chunked together, by a single task.
-                        let chunk_group = async |current: ResolvedVc<ChunkGroupResult>| {
-                            let own = client_chunking_context
-                                .chunk_group(
-                                    base_ident
-                                        .clone()
-                                        .with_modifier(rcstr!("client modules"))
-                                        .into_vc(),
-                                    groups.clone(),
-                                    module_graph,
-                                    current.await?.availability_info,
-                                )
-                                .to_resolved()
-                                .await?;
-                            anyhow::Ok((own, current.concatenate(*own).to_resolved().await?))
-                        };
-                        let (own, code) = chunk_group(current_client_chunk_group).await?;
-                        if current_client_styles_chunk_group == current_client_chunk_group {
-                            return Ok(Some((own, code, code)));
-                        }
-                        // The modules that are only available through a `loading.js` with styles
-                        // keep their code there, but their styles are chunked again for this server
-                        // component, from the availability of the server components whose styles
-                        // always apply.
-                        let (_, styles) = chunk_group(current_client_styles_chunk_group).await?;
-                        // The async chunk groups of this server component would inherit the
-                        // availability of `code` and leave out the styles of those modules too,
-                        // so a server component with async imports is chunked without it.
-                        if !own.await?.references.await?.is_empty() {
-                            return Ok(Some((own, styles, styles)));
-                        }
-                        Ok(Some((own, code, styles)))
+                        anyhow::Ok(if groups.is_empty() {
+                            None
+                        } else {
+                            Some(
+                                client_chunking_context
+                                    .chunk_group(
+                                        base_ident
+                                            .clone()
+                                            .with_modifier(rcstr!("client modules"))
+                                            .into_vc(),
+                                        groups,
+                                        module_graph,
+                                        current_client_chunk_group.await?.availability_info,
+                                    )
+                                    .to_resolved()
+                                    .await?,
+                            )
+                        })
                     }
                     .instrument(tracing::info_span!(
                         "client side rendering",
@@ -521,29 +474,25 @@ pub async fn get_app_client_references_chunks(
                     None
                 };
 
-                if let Some((own, code, styles)) = client_chunk_group {
-                    match following_availability {
-                        FollowingAvailability::None => {}
-                        FollowingAvailability::Code => {
-                            // A `loading.js` without styles of its own can't hide any.
-                            if current_client_styles_chunk_group == current_client_chunk_group
-                                && !has_css_assets(*own).await?
-                            {
-                                current_client_styles_chunk_group = code;
-                            }
-                            current_client_chunk_group = code;
+                if let Some(client_chunk_group) = client_chunk_group {
+                    let available_to_following = match following_availability {
+                        FollowingAvailability::None => false,
+                        FollowingAvailability::UnlessItEmitsCss => {
+                            !emits_css(*client_chunk_group).await?
                         }
-                        FollowingAvailability::CodeAndStyles => {
-                            current_client_chunk_group = code;
-                            current_client_styles_chunk_group = styles;
-                        }
-                    }
-
-                    let client_chunk_group = if code == styles {
-                        code
-                    } else {
-                        code_with_styles(*code, *styles).to_resolved().await?
+                        FollowingAvailability::All => true,
                     };
+                    let client_chunk_group = current_client_chunk_group
+                        .concatenate(*client_chunk_group)
+                        .to_resolved()
+                        .await?;
+
+                    // Only server components that are rendered whenever the following ones are
+                    // make their chunks available to them. A module shared by e.g. `loading.js`
+                    // and `page.js` is then emitted once, in the chunks of `loading.js`.
+                    if available_to_following {
+                        current_client_chunk_group = client_chunk_group;
+                    }
 
                     let assets = client_chunk_group
                         .output_assets_with_referenced()
