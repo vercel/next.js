@@ -714,3 +714,21 @@ it('matches genuine snapshot state and CounterMap public types', async () => {
     actualBundledSnapshotType: true,
   })
 }, 35000)
+
+it('matches genuine AssertType and snapshot root type exports', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'root-authoring-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 24,
+    accepted: 6,
+    rejected: 18,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    transitiveSnapshotTypeIdentity: true,
+    typeOnlyExports: true,
+  })
+}, 35000)

@@ -1,0 +1,7 @@
+import {assertType} from 'vitest'
+import type {AssertType,SnapshotResult,SnapshotStateOptions} from 'vitest'
+const check:AssertType=assertType
+check(1);check<string>('x');check<{value:number}>({value:1})
+const value:void=check<number>(2)
+const generic:<T>(value:T)=>void=check
+

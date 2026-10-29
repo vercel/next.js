@@ -1,0 +1,4 @@
+import {assertType} from 'vitest'
+import type {AssertType,SnapshotResult,SnapshotStateOptions} from 'vitest'
+declare const environment:SnapshotStateOptions['snapshotEnvironment']
+const options:SnapshotStateOptions={updateSnapshot:'none',snapshotEnvironment:environment,unknown:true}

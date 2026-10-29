@@ -547,11 +547,18 @@ export function onTestFailed(handler: OnTestFailedHandler, timeout?: number) {
 }
 // These are type assertions: TypeScript checks their generics. They neither
 // inspect runtime values nor initialize another test/controller runtime.
+export interface AssertType {
+  <T>(value: T): void
+}
 export function assertType<T>(value: T): void {
   void value
 }
 export { expectTypeOf } from '../../compiled/next-test-primitives'
-export type { ExpectTypeOf } from '../../compiled/next-test-primitives'
+export type {
+  ExpectTypeOf,
+  SnapshotResult,
+  SnapshotStateOptions,
+} from '../../compiled/next-test-primitives'
 
 export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
   new Proxy(

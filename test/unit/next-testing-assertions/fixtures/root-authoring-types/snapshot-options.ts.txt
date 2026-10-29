@@ -1,0 +1,6 @@
+import {assertType} from 'vitest'
+import type {AssertType,SnapshotResult,SnapshotStateOptions} from 'vitest'
+declare const environment:SnapshotStateOptions['snapshotEnvironment']
+const options:SnapshotStateOptions={updateSnapshot:'none',snapshotEnvironment:environment,expand:true,snapshotFormat:{printBasicPrototype:false,maxDepth:3},resolveSnapshotPath:(file,extension,context)=>file+extension}
+options.updateSnapshot='new';options.updateSnapshot='all'
+const result:string|undefined=options.resolveSnapshotPath?.('case','.snap')
