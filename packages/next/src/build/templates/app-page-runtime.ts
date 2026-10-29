@@ -2213,6 +2213,10 @@ export function createAppPageEntrypoint({
 
           for (let [key, value] of Object.entries(headers)) {
             if (typeof value === 'undefined') continue
+            // Skip headers the render already set on `res`, like `location`.
+            if (key.toLowerCase() !== 'set-cookie' && res.hasHeader(key)) {
+              continue
+            }
 
             if (Array.isArray(value)) {
               for (const v of value) {
