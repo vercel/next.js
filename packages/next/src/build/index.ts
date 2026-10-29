@@ -4741,7 +4741,8 @@ export default async function build(
       // output: standalone, in the future output: standalone might
       // not be allowed if an adapter with onBuildComplete is configured
       const adapterPath = config.adapterPath
-      if (adapterPath) {
+      // Compile mode does not produce the complete prerender outputs adapters need.
+      if (adapterPath && !isCompileMode) {
         await nextBuildSpan
           .traceChild('adapter-handle-build-complete')
           .traceAsyncFn(async () => {
