@@ -2251,8 +2251,23 @@ export function createAppPageEntrypoint({
           res.statusCode = 200
         }
 
+        // SPIKE(ppr-cdn-mode): a partial page with a non-empty prelude is stored
+        // as a complete document (see SPIKE(ppr-cdn-mode) in app-render.tsx), so
+        // a document request sends it as-is: no server resume, no
+        // `x-nextjs-postponed`, and the cache entry's own cache control. Empty
+        // (blocking) shells still resume on the server.
+        const spikeServeStoredDocument =
+          true &&
+          didPostpone &&
+          !isRSCRequest &&
+          !isMinimalMode &&
+          !(
+            typeof cachedData.postponed === 'string' &&
+            entryBase.isEmptyHTMLPrelude(cachedData.postponed)
+          )
+
         // Mark that the request did postpone.
-        if (didPostpone && !isDynamicRSCRequest) {
+        if (didPostpone && !isDynamicRSCRequest && !spikeServeStoredDocument) {
           res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
         }
 
@@ -2310,6 +2325,18 @@ export function createAppPageEntrypoint({
 
         // This is a request for HTML data.
         const body = cachedData.html
+
+        // SPIKE(ppr-cdn-mode): send the stored document unchanged.
+        if (spikeServeStoredDocument) {
+          return sendRenderResult({
+            req,
+            res,
+            generateEtags: nextConfig.generateEtags,
+            poweredByHeader: nextConfig.poweredByHeader,
+            result: body,
+            cacheControl: cacheEntry.cacheControl,
+          })
+        }
 
         // Instant Navigation Testing API: under the instant lock we serve the
         // static shell as a complete document without resuming the dynamic

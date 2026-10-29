@@ -268,6 +268,8 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      // SPIKE(ppr-cdn-mode): a partial fallback shell's `/_full` has holes.
+      unstable_allowPartialStream: true,
     })
   ).then(async (fallbackInitialRSCPayload) =>
     createInitialRSCPayloadFromFallbackPrerender(
@@ -283,6 +285,9 @@ if (instantTestStaticFetch) {
       findSourceMapURL,
       debugChannel,
       startTime: 0,
+      // SPIKE(ppr-cdn-mode): a document stored with client-rendered holes
+      // inlines the static Flight payload, which stops at each hole.
+      unstable_allowPartialStream: true,
     }
   )
 }

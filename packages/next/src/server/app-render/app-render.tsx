@@ -10059,7 +10059,18 @@ async function prerenderToStream(
       })
 
       let htmlStream: AnyStream = prelude
-      if (resultIsPartial) {
+      // SPIKE(ppr-cdn-mode): store a partial page with a non-empty prelude as a
+      // complete document. It skips the `resultIsPartial` branch and falls
+      // through to the `resumeAndAbort` branch below, which marks every hole for
+      // client rendering, and then to `continueStaticPrerenderWithInlinedData`,
+      // which inlines the static Flight payload (holes included) and closes the
+      // document.
+      const spikeStorePartialAsDocument =
+        true &&
+        resultIsPartial &&
+        !preludeIsEmpty &&
+        ensureStaticLevel !== EnsureStaticLevel.Navigation
+      if (resultIsPartial && !spikeStorePartialAsDocument) {
         if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
           if (isFallbackShell) {
             // TODO(ensure-static): This is a hack, and should be solved in a less rube-goldberg-y way.
@@ -10187,6 +10198,27 @@ async function prerenderToStream(
         )
       }
 
+      // SPIKE(ppr-cdn-mode): keep only the data part of the postponed state (the
+      // resume data cache), and add a marker script to the head that tells the
+      // browser to refresh once it has hydrated.
+      let spikeGetServerInsertedHTML = getServerInsertedHTML
+      if (spikeStorePartialAsDocument) {
+        metadata.postponed = await getDynamicDataPostponedState(
+          resumeDataCache,
+          cacheComponents,
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression,
+          fallbackRouteParams
+        )
+        let didInsertRefreshMarker = false
+        spikeGetServerInsertedHTML = async () => {
+          const html = await getServerInsertedHTML()
+          if (didInsertRefreshMarker) return html
+          didInsertRefreshMarker = true
+          return '<script>self.__next_ppr_cdn_refresh=1</script>' + html
+        }
+      }
+
       const stream = await continueStaticPrerenderWithInlinedData(
         htmlStream,
         reactServerResult,
@@ -10194,7 +10226,7 @@ async function prerenderToStream(
         createInlinedDataStream,
         formState,
         nonce,
-        getServerInsertedHTML,
+        spikeGetServerInsertedHTML,
         getServerInsertedMetadata,
         ctx.sharedContext.deploymentId,
         ComponentMod,

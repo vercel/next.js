@@ -142,6 +142,16 @@ export function useActionQueue(
     dispatch = nextDispatch
   }
 
+  // SPIKE(ppr-cdn-mode): a document stored with client-rendered holes carries
+  // a marker (see SPIKE(ppr-cdn-mode) in app-render.tsx). Once the router has
+  // mounted, one refresh renders the holes on the server.
+  useEffect(() => {
+    if (true && (self as any).__next_ppr_cdn_refresh) {
+      ;(self as any).__next_ppr_cdn_refresh = 0
+      startTransition(() => dispatchAppRouterAction({ type: ACTION_REFRESH }))
+    }
+  }, [])
+
   // When navigating to a non-prefetched route, then App Router state will be
   // blocked until the server responds. We need to transfer the `_debugInfo`
   // from the underlying Flight response onto the top-level promise that is
