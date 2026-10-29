@@ -253,7 +253,9 @@ With the default in-memory handler, runtime cache behavior depends on your hosti
 
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
-If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+Hosting providers can replace the default cache handler, and some do not store `use cache` output at runtime. Values computed during prerendering are still reused by later requests, but values computed at request time are not. Check your hosting provider's documentation for its runtime caching behavior.
+
+If the default in-memory cache isn't enough, or your provider does not store runtime output, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
 > [!NOTE]
 > With the default in-memory handler, serverless instances are ephemeral, so entries may not be reused between requests, unlike with `use cache: remote`. Neither caching directive carries over to a new deploy, because the [cache key](#cache-keys) includes the build (or `deploymentId`) ID.
@@ -416,6 +418,10 @@ export async function getData() {
   return data
 }
 ```
+
+[Proxy](/docs/app/api-reference/file-conventions/proxy) does not apply [directive transforms](/docs/app/api-reference/directives), so `use cache` has no effect in Proxy. A function that is cached elsewhere in your application runs as an ordinary function when Proxy imports it.
+
+Calling [`cacheLife`](/docs/app/api-reference/functions/cacheLife) or [`cacheTag`](/docs/app/api-reference/functions/cacheTag) in that function throws because Proxy does not create a cache scope.
 
 ### Caching a component's output with `use cache`
 
@@ -607,6 +613,7 @@ Framework function exports are covered like any other, so [`generateMetadata`](/
 > **Good to know**:
 >
 > - When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
+> - Only exported functions are available to Client Components. Other exports, such as constants and objects, are dropped from what the client receives, so importing one fails the build with an "export doesn't exist" error. Move shared values to a separate file without the directive.
 
 ### Caching a route segment's output with `use cache`
 

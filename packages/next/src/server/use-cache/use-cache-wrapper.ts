@@ -1851,15 +1851,34 @@ function createTrackedReadableStream(
   cacheSignal: CacheSignal
 ) {
   const reader = stream.getReader()
+  // End the read exactly once, whether the stream finishes, errors, or is
+  // canceled: a read that never ends keeps `cacheReady()` from resolving, and a
+  // second `endRead()` would unbalance the signal.
+  let readEnded = false
+  const endRead = () => {
+    if (!readEnded) {
+      readEnded = true
+      cacheSignal.endRead()
+    }
+  }
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read()
-      if (done) {
-        controller.close()
-        cacheSignal.endRead()
-      } else {
-        controller.enqueue(value)
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          controller.close()
+          endRead()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (error) {
+        endRead()
+        throw error
       }
+    },
+    cancel(reason) {
+      endRead()
+      return reader.cancel(reason)
     },
   })
 }
@@ -3767,22 +3786,18 @@ export async function cache(
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
-
+                  // The RDC preserves the value served by this render for
+                  // subsequent render passes. Only the cache handler receives
+                  // the regenerated entry.
                   const pendingWrite = cacheHandler
                     ? saveToCacheHandler(
                         cacheHandler,
                         id,
                         cacheHandlerKeyBase,
-                        savedCacheResult,
+                        pendingCacheResult,
                         rootParams
                       )
-                    : savedCacheResult.then(() => {})
+                    : pendingCacheResult.then(() => {})
 
                   for (const completion of await Promise.allSettled([
                     ignoredStream.cancel(),

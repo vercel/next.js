@@ -1,0 +1,35 @@
+{
+  "regression": [
+    "agent-000-app-router-migration-simple",
+    "agent-021-avoid-fetch-in-effect",
+    "agent-022-prefer-server-actions",
+    "agent-023-avoid-getserversideprops",
+    "agent-024-avoid-redundant-usestate",
+    "agent-025-prefer-next-link",
+    "agent-027-prefer-next-image",
+    "agent-031-proxy-middleware",
+    "agent-033-forbidden-auth",
+    "agent-034-async-cookies",
+    "agent-035-connection-dynamic",
+    "agent-036-after-response",
+    "agent-037-updatetag-cache",
+    "agent-038-refresh-settings",
+    "agent-039-indirect-proxy",
+    "agent-040-instant",
+    "agent-041-optimize-ppr-shell",
+    "agent-042-enable-ppr",
+    "agent-043-view-transitions",
+    "agent-045-build-a-nextjs-app",
+    "agent-048-prefetch-url-data",
+    "agent-052-cache-components-session-isolation"
+  ],
+  "competency": [
+    "agent-028-prefer-next-font",
+    "agent-029-use-cache-directive",
+    "agent-032-use-cache-directive",
+    "agent-049-prefetch-stage",
+    "agent-051-prefetch-until-navigation",
+    "agent-053-cache-components-url-shell",
+    "agent-054-cache-components-empty-static-params"
+  ]
+}

@@ -3458,7 +3458,7 @@
           }
           name.startsWith("Window.")
             ? (name = name.slice(7))
-            : name.startsWith("<anonymous>.") && (name = name.slice(7));
+            : name.startsWith("<anonymous>.") && (name = name.slice(12));
         }
       }
       promise = ioNode.owner;

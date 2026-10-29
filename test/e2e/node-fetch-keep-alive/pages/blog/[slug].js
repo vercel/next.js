@@ -7,7 +7,7 @@ export async function getStaticProps({ params: { slug } }) {
 }
 
 export async function getStaticPaths() {
-  const res = await fetch('http://localhost:44001')
+  const res = await fetch(process.env.TEST_SERVER_URL)
   const obj = await res.json()
   if (obj.connection === 'keep-alive') {
     return {

@@ -1018,7 +1018,8 @@ impl<'a> Visit for SideEffectVisitor<'a> {
             // Impure expressions (conservative)
             Expr::Call(call) => {
                 // Check for /*#__PURE__*/ annotation or for a well known function
-                if self.is_pure_annotated(call.span) || self.is_known_pure_builtin(&call.callee) {
+                let is_pure_annotated = self.is_pure_annotated(call.span);
+                if is_pure_annotated || self.is_known_pure_builtin(&call.callee) {
                     // For known pure builtins, we need to check both:
                     // 1. The receiver (e.g., the array in [foo(), 2, 3].map(...))
                     // 2. The arguments
@@ -1027,8 +1028,9 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     call.callee.visit_with(self);
 
                     // Check all arguments
-                    // Assume that any function expressions in the arguments will be invoked.
-                    self.with_will_invoke_fn_exprs(true, |this| {
+                    // Known builtins may invoke callbacks, but a PURE annotation covers
+                    // those effects too. Argument evaluation must still be checked.
+                    self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
                         call.args.visit_children_with(this);
                     });
                 } else if self.is_require_or_import(&call.callee) {
@@ -1045,9 +1047,11 @@ impl<'a> Visit for SideEffectVisitor<'a> {
             }
             Expr::New(new) => {
                 // Check for /*#__PURE__*/ annotation or known pure constructor
-                if self.is_pure_annotated(new.span) || self.is_known_pure_constructor(&new.callee) {
-                    // Pure constructor, but still need to check arguments
-                    self.with_will_invoke_fn_exprs(true, |this| {
+                let is_pure_annotated = self.is_pure_annotated(new.span);
+                if is_pure_annotated || self.is_known_pure_constructor(&new.callee) {
+                    // The annotation only covers invocation, not callee or argument evaluation.
+                    new.callee.visit_with(self);
+                    self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
                         new.args.visit_children_with(this);
                     });
                 } else {
@@ -1457,6 +1461,47 @@ mod tests {
         };
     }
 
+    mod constructor_callee_tests {
+        use super::*;
+
+        side_effects!(test_call_callee, "/*#__PURE__*/ new (getConstructor())();");
+        side_effects!(
+            test_nested_call_callee,
+            "/*#__PURE__*/ new (getContainer().Constructor)();"
+        );
+        side_effects!(
+            test_computed_callee,
+            "/*#__PURE__*/ new (constructors[getKey()])();"
+        );
+        side_effects!(
+            test_conditional_callee,
+            "/*#__PURE__*/ new (flag ? getConstructor() : Constructor)();"
+        );
+        side_effects!(
+            test_callee_and_arguments,
+            "/*#__PURE__*/ new (getConstructor())(effect());"
+        );
+        side_effects!(test_arguments, "/*#__PURE__*/ new Constructor(effect());");
+        no_side_effects!(test_identifier_callee, "/*#__PURE__*/ new Constructor();");
+        no_side_effects!(
+            test_member_callee,
+            "/*#__PURE__*/ new constructors.Constructor();"
+        );
+        no_side_effects!(
+            test_computed_pure_callee,
+            "/*#__PURE__*/ new constructors[key]();"
+        );
+        no_side_effects!(
+            test_uninvoked_constructor_body,
+            "/*#__PURE__*/ new (function () { effect(); })();"
+        );
+        no_side_effects!(test_known_constructor, "new Map();");
+        no_side_effects!(
+            test_pure_callee_call,
+            "/*#__PURE__*/ new (/*#__PURE__*/ getConstructor())();"
+        );
+    }
+
     mod basic_tests {
         use super::*;
 
@@ -1573,7 +1618,22 @@ mod tests {
 
         no_side_effects!(
             test_pure_annotation_with_pure_args,
-            "/*#__PURE__*/ foo(1, 2, 3);"
+            "/*#__PURE__*/ foo(1, 2, 3, function(){ console.log(1); });"
+        );
+
+        no_side_effects!(
+            test_pure_annotation_with_arrow_callback,
+            "/*#__PURE__*/ foo(() => console.log(1));"
+        );
+
+        no_side_effects!(
+            test_pure_annotation_builtin_with_callback,
+            "/*#__PURE__*/ [1].map(() => console.log(1));"
+        );
+
+        no_side_effects!(
+            test_pure_annotation_constructor_with_callback,
+            "/*#__PURE__*/ new Promise(() => console.log(1));"
         );
 
         // Even with PURE annotation, impure arguments make it impure

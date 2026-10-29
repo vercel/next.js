@@ -36,7 +36,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -457,7 +457,7 @@ async fn build_internal(
                                         .with_extension("entry.js"),
                                 )
                                 .into_vc(),
-                                ChunkGroup::Entry(
+                                ChunkGroupKey::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
                                 module_graph,
@@ -478,7 +478,9 @@ async fn build_internal(
                                                         .unwrap(),
                                                 )?
                                                 .with_extension("entry.js"),
-                                            ChunkGroup::Entry(vec![ResolvedVc::upcast(ecmascript)]),
+                                            ChunkGroupKey::Entry(vec![ResolvedVc::upcast(
+                                                ecmascript,
+                                            )]),
                                             module_graph,
                                             OutputAssets::empty(),
                                             OutputAssets::empty(),

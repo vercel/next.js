@@ -28,6 +28,11 @@ use crate::{
 /// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
 pub const BLOCK_HEADER_SIZE: usize = 8;
 
+/// Capacity of the buffered writer for SST files. Must be well above the typical block size, so
+/// that each block (8–12 KB small-value blocks, up to 16 KB key blocks) doesn't force its own
+/// `write` syscall.
+const FILE_WRITE_BUFFER_SIZE: usize = 256 * 1024;
+
 /// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
 /// The maximum bytes that should go into a single key block
@@ -142,7 +147,7 @@ impl KeyBlockFormat {
     }
 }
 
-/// Copy-able snapshot of the accumulator state needed by [`flush_key_block`].
+/// Copy-able snapshot of the accumulator state needed by [`StreamingSstWriter::flush_key_block`].
 #[derive(Clone, Copy)]
 struct KeyBlockFlushInfo {
     max_key_len: usize,
@@ -641,7 +646,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         compression: Compression,
     ) -> Result<Self> {
         let file_path = file.to_owned();
-        let file = BufWriter::new(File::create(file)?);
+        let file = BufWriter::with_capacity(FILE_WRITE_BUFFER_SIZE, File::create(file)?);
         let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
@@ -866,7 +871,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Advances `first_pending_small_index` past the just-pushed entry if it is resolved and
     /// sits right at the current boundary. Flushes complete key blocks incrementally.
     ///
-    /// Must be called immediately after [`push_pending_key_entry`] with a resolved
+    /// Must be called immediately after [`Self::push_pending_key_entry`] with a resolved
     /// (non-`PendingSmall`) entry.
     fn try_flush_key_blocks(&mut self) -> Result<()> {
         debug_assert!(!matches!(
@@ -1169,7 +1174,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Flushes all remaining entries as key blocks. Called from `close()` after all small value
     /// blocks have been flushed, so all PendingSmall entries are resolved.
     ///
-    /// This loop mirrors [`advance_boundary_to`], but uses a local accumulator (since the
+    /// This loop mirrors [`Self::advance_boundary_to`], but uses a local accumulator (since the
     /// `self.current_key_block` state is stale) and flushes the final incomplete block
     /// (unlike `advance_boundary_to`, which keeps it for more entries during streaming).
     fn flush_remaining_key_blocks(&mut self) -> Result<()> {
@@ -1325,8 +1330,9 @@ const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 /// search probes are contiguous: the search region holds only what the lookup compares first (the
 /// hash for `HashThenKey`, the key for `KeyOnly`), and everything else follows in the tail region,
 /// addressed by the same entry index. [`FixedRegions`] derives that geometry for both this builder
-/// and the reader; see [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`] for why the compared bytes are
-/// hoisted out of the payload.
+/// and the reader; see
+/// [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`](crate::static_sorted_file::KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH)
+/// for why the compared bytes are hoisted out of the payload.
 struct FixedKeyBlockBuilder<'l> {
     /// Receives the header and then the search region.
     buffer: &'l mut Vec<u8>,
@@ -1801,6 +1807,137 @@ mod tests {
         for entry in &entries {
             assert_lookup(&sst, entry, &kc, &vc)?;
         }
+        Ok(())
+    }
+
+    /// Deterministic, incompressible bytes, so that blocks keep their size on disk.
+    #[cfg(all(feature = "mmap", unix))]
+    fn noise(seed: u64, len: usize) -> Vec<u8> {
+        let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        (0..len)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state as u8
+            })
+            .collect()
+    }
+
+    /// Small values in multi-page blocks plus a few medium values.
+    #[cfg(all(feature = "mmap", unix))]
+    fn will_need_entries() -> Vec<TestEntry> {
+        let mut entries: Vec<TestEntry> = (0..300)
+            .map(|i| TestEntry::small(format!("key-{i:04}").as_bytes(), &noise(i, 300)))
+            .chain((0..3).map(|i| {
+                TestEntry::medium(format!("med-{i}").as_bytes(), &noise(1000 + i, 20_000))
+            }))
+            .collect();
+        sort_entries(&mut entries);
+        entries
+    }
+
+    /// Lookup mappings carry `MADV_RANDOM` (`rr` in `VmFlags`) and no `MADV_SEQUENTIAL` (`sr`).
+    #[cfg(all(feature = "mmap", target_os = "linux", not(miri)))]
+    #[test]
+    fn lookup_mmap_has_random_advice() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let path = dir.path().join("00000001.sst").canonicalize()?;
+        let path = path.to_str().unwrap();
+
+        let smaps = std::fs::read_to_string("/proc/self/smaps")?;
+        let mut lines = smaps.lines();
+        lines
+            .find(|line| line.ends_with(path))
+            .expect("SST mapping not found in /proc/self/smaps");
+        let flags = lines
+            .find_map(|line| line.strip_prefix("VmFlags:"))
+            .expect("VmFlags line not found");
+        let flags: Vec<&str> = flags.split_whitespace().collect();
+        assert!(flags.contains(&"rr"), "expected MADV_RANDOM, got {flags:?}");
+        assert!(
+            !flags.contains(&"sr"),
+            "unexpected MADV_SEQUENTIAL, got {flags:?}"
+        );
+        drop(sst);
+        Ok(())
+    }
+
+    /// `MADV_WILLNEED` covers only multi-page blocks: key and small value blocks on their first
+    /// read, medium value blocks on every read. The block-offset table and the index block are read
+    /// with `pread` at open, so they are never hinted.
+    #[cfg(all(feature = "mmap", unix))]
+    #[test]
+    fn will_need_hints_multi_page_blocks_on_first_read() -> Result<()> {
+        use std::ops::Range;
+
+        use crate::static_sorted_file::will_need_log;
+
+        // SAFETY: `sysconf` has no preconditions.
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        let multi_page =
+            |range: &Range<usize>| range.start / page_size != (range.end - 1) / page_size;
+
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        will_need_log::take();
+
+        // Open: nothing, since the table and the index block are read with `pread`.
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let opened = will_need_log::take();
+        assert!(opened.is_empty(), "{opened:?}");
+
+        // First pass: each multi-page key and small value block is hinted once.
+        let kc = make_cache();
+        let vc = make_cache();
+        let small = || {
+            entries
+                .iter()
+                .filter(|e| matches!(e.value_kind, TestValueKind::Small(_)))
+        };
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        let first = will_need_log::take();
+        assert!(!first.is_empty(), "no multi-page block was hinted");
+        assert!(first.iter().all(multi_page), "{first:?}");
+        let mut unique = first.clone();
+        unique.sort_by_key(|range| range.start);
+        unique.dedup();
+        assert_eq!(
+            unique.len(),
+            first.len(),
+            "a block was hinted twice: {first:?}"
+        );
+
+        // Second pass, with empty caches: every block is verified already, so no hints.
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        assert_eq!(will_need_log::take(), Vec::<Range<usize>>::new());
+
+        // Medium value blocks are hinted on every read.
+        let medium = entries
+            .iter()
+            .find(|e| matches!(e.value_kind, TestValueKind::Medium(_)))
+            .unwrap();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let first_read = will_need_log::take();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let second_read = will_need_log::take();
+        let value_block = second_read
+            .last()
+            .expect("medium value block was not hinted")
+            .clone();
+        assert!(multi_page(&value_block));
+        assert!(value_block.len() > 20_000, "{value_block:?}");
+        assert_eq!(first_read.last(), Some(&value_block));
         Ok(())
     }
 

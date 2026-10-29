@@ -67,11 +67,11 @@ export function isBubbledError(error: unknown): error is BubbledError {
   return error instanceof BubbledError
 }
 
-const closeSpanWithError = (
-  span: Span,
-  error?: Error,
-  endTime?: Parameters<Span['end']>[0]
-) => {
+/**
+ * Records `error` on `span` the way a span traced with `NextTracer.trace` that
+ * throws it does, without ending the span.
+ */
+export const recordSpanError = (span: Span, error?: Error) => {
   if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
@@ -81,6 +81,14 @@ const closeSpanWithError = (
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
+}
+
+const closeSpanWithError = (
+  span: Span,
+  error?: Error,
+  endTime?: Parameters<Span['end']>[0]
+) => {
+  recordSpanError(span, error)
   span.end(endTime)
 }
 
@@ -187,6 +195,18 @@ interface NextTracer {
   getTraceContextHeaders(): TraceContextHeaders | undefined
 
   /**
+   * Whether OpenTelemetry is enabled: a tracer provider is registered, or a
+   * recording span is active.
+   */
+  isOpenTelemetryEnabled(): boolean
+
+  /**
+   * Whether the currently active context has a valid span context: an active
+   * span, or a remote parent extracted from incoming trace headers.
+   */
+  hasActiveSpanContext(): boolean
+
+  /**
    * Executes a function with the given span set as the active span in the context.
    * This allows child spans created within the function to automatically parent to this span.
    */
@@ -243,7 +263,7 @@ class NextTracerImpl implements NextTracer {
     return trace.getTracer('next.js', process.env.__NEXT_VERSION)
   }
 
-  private isOpenTelemetryEnabled(): boolean {
+  public isOpenTelemetryEnabled(): boolean {
     const activeSpan = trace.getSpan(context.active())
     if (activeSpan?.isRecording()) {
       return true
@@ -289,7 +309,12 @@ class NextTracerImpl implements NextTracer {
     if (!traceparent) {
       return undefined
     }
-    return tracestate ? { traceparent, tracestate } : { traceparent }
+    return { traceparent, tracestate }
+  }
+
+  public hasActiveSpanContext(): boolean {
+    const spanContext = trace.getSpanContext(context.active())
+    return Boolean(spanContext && trace.isSpanContextValid(spanContext))
   }
 
   public getActiveScopeSpan(): Span | undefined {

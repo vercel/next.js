@@ -39,6 +39,7 @@ import {
   MetadataOnlyRequestTree,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
+import { Completeness } from './segment-cache/types'
 import type { NormalizedSearch } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import {
@@ -362,13 +363,14 @@ function updateRenderTreeOnNavigation(
       // case, because it acts like a root layout, but in the router tree, it
       // is rendered in the same position as app/layout.tsx.
       //
-      // Any navigation to the global Not Found route should trigger a
+      // Any navigation to or from the global Not Found route should trigger a
       // full-page navigation.
       //
       // TODO: We should probably model this by changing the key of the root
       // segment when this happens. Then the root layout check would work
       // as expected, without a special case.
-      newSegment === NOT_FOUND_SEGMENT_KEY
+      newSegment === NOT_FOUND_SEGMENT_KEY ||
+      oldRenderTree.segment === NOT_FOUND_SEGMENT_KEY
     ) {
       return null
     }
@@ -1137,7 +1139,8 @@ function createRenderTreeForSegment(
       case EntryStatus.Fulfilled: {
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
-        isCachedRscPartial = segmentEntry.isPartial
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         cachedVaryParams = segmentEntry.varyParams
         break
       }
@@ -1157,11 +1160,11 @@ function createRenderTreeForSegment(
         // do yet another request to fill in the remaining data, creating
         // a waterfall.
         //
-        // The one exception is if this segment is being fetched with via
-        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
-        // we can assume the response will be full. This field is set to `false`
-        // for such segments.
-        isCachedRscPartial = segmentEntry.isPartial
+        // The exception is a request we expect to return the segment fully
+        // complete, like a legacy prefetch. If so, we can assume the response
+        // will have nothing left to request.
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         break
       }
       case EntryStatus.Empty:

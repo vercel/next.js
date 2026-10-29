@@ -58,7 +58,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -942,21 +942,31 @@ impl PageEndpoint {
             let module_graph = self.client_module_graph();
 
             let evaluatable_assets = client_entry_modules(self.client_evaluatable_assets()).await?;
-            // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
-            // the page's chunks don't include modules that the browser already downloaded with
-            // `/_app`.
+            // Like App Router layouts, `/_app` is always loaded before the page. Treat it as
+            // already available so the page's chunks don't include modules that the browser
+            // already downloaded with `/_app`. `client_module_graph` chains `/_app`'s entry group
+            // into this page's graph, so the group resolves within the very graph this page is
+            // chunked with.
             let availability_info = if this.pathname == "/_app" {
                 AvailabilityInfo::root()
             } else {
-                this.pages_project
-                    .app_page_endpoint()
-                    .client_chunk_group()
+                AvailabilityInfo::root()
+                    .with_chunk_group(
+                        module_graph.to_resolved().await?,
+                        ChunkGroupKey::Entry(
+                            client_entry_modules(
+                                this.pages_project
+                                    .app_page_endpoint()
+                                    .client_evaluatable_assets(),
+                            )
+                            .await?,
+                        ),
+                    )
                     .await?
-                    .availability_info
             };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
-                ChunkGroup::Entry(evaluatable_assets),
+                ChunkGroupKey::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
                 availability_info,
@@ -1159,7 +1169,7 @@ impl PageEndpoint {
                     // Registered as an entry group by `layout_chunk_group_entry`.
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        smallvec![ChunkGroup::Entry(vec![layout])],
+                        smallvec![ChunkGroupKey::Entry(vec![layout])],
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
@@ -1179,7 +1189,7 @@ impl PageEndpoint {
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ssr_module]),
+                    ChunkGroupKey::Entry(vec![ssr_module]),
                     ssr_module_graph,
                     OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
@@ -1208,7 +1218,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        ChunkGroup::Entry(vec![ssr_module]),
+                        ChunkGroupKey::Entry(vec![ssr_module]),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
@@ -1280,7 +1290,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            project.server_chunking_context(true),
+            project.server_chunking_context(
+                true, // client_assets
+                true, // supports_lazy_dynamic_imports
+            ),
             project.edge_chunking_context(true),
         ))
     }
@@ -1296,7 +1309,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server/data")?,
-            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().server_chunking_context(
+                true, // client_assets
+                true, // supports_lazy_dynamic_imports
+            ),
             this.pages_project.project().edge_chunking_context(true),
         ))
     }
@@ -1312,7 +1328,10 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            this.pages_project.project().server_chunking_context(false),
+            this.pages_project.project().server_chunking_context(
+                false, // client_assets
+                true,  // supports_lazy_dynamic_imports
+            ),
             this.pages_project.project().edge_chunking_context(false),
         ))
     }
@@ -1781,7 +1800,7 @@ pub struct InternalSsrChunkModule {
 /// A layout is an entry group of its own, like the standalone `/_document` and `/_app`
 /// endpoints register their module, so the graph never has to choose between a shared and an
 /// entry group for the same module and `internal_ssr_chunk` can always chunk it as
-/// `ChunkGroup::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
+/// `ChunkGroupKey::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
 /// groups shared between pages.
 fn layout_chunk_group_entry(layout: ResolvedVc<Box<dyn Module>>) -> ChunkGroupEntry {
     ChunkGroupEntry::Entry {
