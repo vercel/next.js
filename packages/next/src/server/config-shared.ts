@@ -1954,12 +1954,14 @@ export interface NextConfig {
   instrumentationClientInject?: string[]
 
   /**
-   * Paths or specifiers compiled into the server `instrumentation` slot when
-   * the project has no `instrumentation` file. A project file replaces these
-   * entirely. Every entry's `register` and `onRequestError` run in array
-   * order. One that throws does not stop the others.
+   * Module specifiers compiled into the server `instrumentation` slot, ahead
+   * of the project's own `instrumentation.{ts,js}` file. Every entry's
+   * `register` and `onRequestError` run in array order, then the project
+   * file's. One that throws does not stop the others. Each entry may be a bare
+   * npm package name or a path relative to the project root.
    *
-   * Set by a deployment adapter. Next.js does not install the module.
+   * Typically set by a deployment adapter or a config wrapper. Next.js does
+   * not install the modules.
    */
   injectInstrumentation?: string[]
 
