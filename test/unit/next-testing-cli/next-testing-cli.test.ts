@@ -11815,3 +11815,79 @@ describe('actual cache owner snapshot admission', () => {
     40000
   )
 })
+
+it('copies owned project clock getters without coercing values or touching excluded owners', async () => {
+  const output = await new Promise<string>((resolve, reject) =>
+    execFile(
+      process.execPath,
+      [path.join(__dirname, 'project-fake-timers.cjs')],
+      { timeout: 30000, encoding: 'utf8' },
+      (error, stdout, stderr) =>
+        error || stderr ? reject(error ?? new Error(stderr)) : resolve(stdout)
+    )
+  )
+  expect(JSON.parse(output)).toEqual({
+    controls: 42,
+    actualBuiltProducer: true,
+    owningCopyOnly: true,
+    originalReceiversAndThrownValues: true,
+    undefinedPresenceRetained: true,
+    arraysNotIterated: true,
+    legacyUnrelatedAccessorsProxyHooksHeld: true,
+  })
+}, 35000)
+
+it.each(['development', 'production'])(
+  'matches genuine Date project getters, second throws and explicit undefined (%s)',
+  async (mode) => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), 'next-project-clock-')
+    )
+    try {
+      const output = await new Promise<string>((resolve, reject) =>
+        execFile(
+          process.execPath,
+          [
+            path.join(__dirname, 'project-fake-timers-public.mjs'),
+            mode,
+            path.join(directory, 'observed'),
+          ],
+          { timeout: 370000, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
+          (error, stdout, stderr) =>
+            error || stderr
+              ? reject(error ?? new Error(stderr))
+              : resolve(stdout)
+        )
+      )
+      expect(JSON.parse(output)).toEqual({
+        profiles: 3,
+        cases: 4,
+        modes: 1,
+        exactGetterAndClockModels: true,
+        secondFailureStopsBodies: true,
+        explicitUndefinedRetained: true,
+        allOwnersJoined: true,
+      })
+    } finally {
+      try {
+        if (process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR) {
+          await mkdir(process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR, {
+            recursive: true,
+          })
+          await cp(
+            directory,
+            path.join(process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR, mode),
+            {
+              recursive: true,
+              errorOnExist: true,
+              force: false,
+            }
+          )
+        }
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  },
+  380000
+)

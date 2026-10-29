@@ -1,4 +1,5 @@
 import { prepareCompilerAliases } from './compiler/aliases'
+import { prepareProjectFakeTimers } from './config-fake-timers'
 import { MessageChannel } from 'node:worker_threads'
 import { randomUUID } from 'node:crypto'
 import { validateTestConfigCompilerOptions } from './config'
@@ -327,7 +328,7 @@ async function handle(message: any) {
       projectConfig === true ? { projectConfig: true } : undefined
     )
     compilerTransforms = prepared.retained
-    await send({
+    const loadedConfiguration = {
       type: 'test-config-loaded',
       value: mapped.value,
       ...(coverageThresholdFormatter
@@ -350,7 +351,12 @@ async function handle(message: any) {
             },
           }
         : {}),
-    })
+    }
+    loadedConfiguration.value = prepareProjectFakeTimers(
+      loadedConfiguration.value,
+      projectConfig === true
+    )
+    await send(loadedConfiguration)
     if (!persistent) process.exit(0)
   } catch (error) {
     let value = error instanceof Error ? error : new Error(String(error))
