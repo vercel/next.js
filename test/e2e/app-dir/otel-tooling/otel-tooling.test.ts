@@ -144,6 +144,7 @@ describe('experimental tooling OTel', () => {
         expect(tooling).toHaveLength(0)
         return
       }
+      expect(tooling.map((span) => span.name)).toContain(rootName)
       const root = tooling.find((span) => span.name === rootName)!
       expect(root).toBeDefined()
       expect(root.parentSpanId).toBeUndefined()

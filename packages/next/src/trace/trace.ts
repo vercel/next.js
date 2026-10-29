@@ -57,6 +57,7 @@ export class Span {
     startTime,
     wallStartTimeMs,
     reportingParent,
+    reportingRoot,
   }: {
     name: string
     parentId?: SpanId
@@ -66,6 +67,8 @@ export class Span {
     wallStartTimeMs?: number
     attrs?: Attributes
     reportingParent?: ReportingRecord
+    // Internal entry-point marker: reserves the coordinator root descriptor.
+    reportingRoot?: boolean
   }) {
     this.id = getId()
     this.parentId = parentId ?? defaultParentSpanId
@@ -84,9 +87,9 @@ export class Span {
       name,
       id: this.id,
       parentId: this.parentId,
-      attrs: this.attrs,
       startTime: this._start,
       reportingParent,
+      reportingRoot,
     })
   }
 
@@ -124,7 +127,7 @@ export class Span {
         }
       }
     } finally {
-      otel?.stopSpan(this.reporting, end)
+      otel?.stopSpan(this.reporting, end, this.attrs)
     }
   }
 
@@ -170,7 +173,6 @@ export class Span {
 
   setAttribute(key: string, value: unknown) {
     this.attrs[key] = value
-    otel?.updateReporting(this.reporting, key, value)
   }
 
   traceFn<T>(fn: (span: Span) => T): T {
@@ -199,9 +201,10 @@ export class Span {
 export const trace = (
   name: string,
   parentId?: SpanId,
-  attrs?: { [key: string]: unknown }
+  attrs?: { [key: string]: unknown },
+  reportingRoot = false
 ) => {
-  return new Span({ name, parentId, attrs })
+  return new Span({ name, parentId, attrs, reportingRoot })
 }
 
 export const flushAllTraces = () => reporter.flushAll()
