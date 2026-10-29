@@ -826,3 +826,91 @@ it.each([
   },
   130000
 )
+
+it('seeds assertion state from the actual resolved environment with owned getter and teardown effects', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'environment-state.cjs'), process.cwd()],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    controls: 13,
+    realFileCases: 3,
+    rawUndefinedAndIndependentTeardownHeld: true,
+    omittedAndNontrueGetterReadsHeld: true,
+    allDisposalsJoined: true,
+  })
+}, 20000)
+
+it.each([
+  ['development', 'js', 'node'],
+  ['development', 'mjs', 'node'],
+  ['production', 'js', 'node'],
+  ['production', 'mjs', 'node'],
+  ['development', 'mjs', 'custom'],
+  ['production', 'js', 'custom'],
+  ['development', 'mjs', 'custom-getter'],
+  ['production', 'js', 'custom-getter'],
+  ['development', 'mjs', 'custom-undefined-second'],
+  ['production', 'js', 'custom-undefined-second'],
+  ['development', 'mjs', 'custom-throw-second'],
+  ['production', 'js', 'custom-throw-second'],
+  ['development', 'mjs', 'state-inheritance'],
+  ['production', 'js', 'state-inheritance'],
+  ['development', 'mjs', 'custom-throw-second-cleanup'],
+  ['production', 'js', 'custom-throw-second-cleanup'],
+  ['development', 'mjs', 'custom-throw-second-undefined'],
+  ['production', 'js', 'custom-throw-second-undefined'],
+  ['development', 'mjs', 'browser'],
+])(
+  'publishes actual environment state in %s %s %s',
+  async (mode, extension, profile) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-environment-state-public-')
+    )
+    let completed = false
+    try {
+      const output = join(directory, profile)
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'environment-state-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          profile,
+          extension,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStates: true,
+        noSyntheticResults: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed environment state observations at ' + directory
+        )
+    }
+  },
+  130000
+)

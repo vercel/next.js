@@ -627,7 +627,12 @@ async function run({
       environment = await openTestEnvironment(
         options.projectDir,
         options.entry.executionEnvironment,
-        (error) => reportLateFailure(error)
+        (error) => reportLateFailure(error),
+        artifact.profile.route === undefined &&
+          artifact.profile.browserClient === undefined &&
+          !artifact.cohort
+          ? true
+          : undefined
       )
     }
     if (
@@ -907,7 +912,19 @@ async function run({
       artifact.kind === 'node' && artifact.profile.environment === 'node'
         ? entry.testRunner.routeUnhandledRejection
         : undefined
+    const assertionEnvironment =
+      artifact.kind === 'node' &&
+      artifact.profile.environment === 'node' &&
+      artifact.profile.route === undefined &&
+      artifact.profile.browserClient === undefined &&
+      !artifact.cohort
+        ? (environment?.assertionEnvironment ??
+          (options.entry.executionEnvironment === undefined
+            ? { name: 'node' }
+            : undefined))
+        : undefined
     file = entry.testRunner.initializeTestFile({
+      ...(assertionEnvironment !== undefined ? { assertionEnvironment } : {}),
       publicTaskSelection: true,
       ...(options.preparePublicSnapshots === true ||
       prepareReadOnlySelectedPublicFile

@@ -163,6 +163,8 @@ export interface TestFileOptions {
   omitFailedCollectionSnapshotSummary?: true
   fileId: string
   filePath: string
+  /** Actual resolved local environment; presence retains an undefined name. */
+  assertionEnvironment?: Readonly<{ name: unknown }>
   tags?: readonly TestTagDefinition[]
   strictTags?: boolean
   globals?: boolean
@@ -334,6 +336,7 @@ function initializeFile(
     omitFailedCollectionSnapshotSummary,
     fileId,
     filePath,
+    assertionEnvironment,
     updateSnapshots = false,
     snapshotBodyFailures = false,
     nativeBeforeEachAssertions = false,
@@ -664,6 +667,9 @@ function initializeFile(
       try {
         assertions = await createAssertionRuntime({
           testPath: filePath,
+          ...(assertionEnvironment !== undefined
+            ? { assertionEnvironment }
+            : {}),
           ...(preparePublicSnapshots === true
             ? { deferSnapshotPreparation: true as const }
             : {}),

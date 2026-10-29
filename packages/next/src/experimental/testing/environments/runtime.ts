@@ -189,7 +189,8 @@ function observeWindowErrors(
 export async function openTestEnvironment(
   projectDir: string,
   selected: TestExecutionEnvironment,
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void,
+  captureAssertionEnvironment?: true
 ) {
   // Materializing Node's lazy descriptors can initialize nonconfigurable
   // infrastructure symbols. Capture those before the provider runs as well.
@@ -203,6 +204,7 @@ export async function openTestEnvironment(
     if (Reflect.ownKeys(globalThis).every((key) => before.has(key))) break
   }
   const consumerRequire = createRequire(path.join(projectDir, 'package.json'))
+  let assertionEnvironment: Readonly<{ name: unknown }> | undefined
   let teardown: Teardown | undefined
   let disposing: Promise<void> | undefined
   function dispose() {
@@ -237,7 +239,10 @@ export async function openTestEnvironment(
   }
   try {
     const options = selected.options ?? {}
-    if (selected.name === 'node') return { dispose }
+    if (selected.name === 'node')
+      return captureAssertionEnvironment === true
+        ? { dispose, assertionEnvironment: { name: 'node' } }
+        : { dispose }
     if (selected.name === 'jsdom') {
       const provider = await load('jsdom')
       const {
@@ -356,8 +361,12 @@ export async function openTestEnvironment(
           'Custom test environment setup must return a teardown function.'
         )
       teardown = () => result.teardown(globalThis)
+      if (captureAssertionEnvironment === true)
+        assertionEnvironment = { name: environment.name }
     }
-    return { dispose }
+    return assertionEnvironment !== undefined
+      ? { dispose, assertionEnvironment }
+      : { dispose }
   } catch (error) {
     try {
       await dispose()

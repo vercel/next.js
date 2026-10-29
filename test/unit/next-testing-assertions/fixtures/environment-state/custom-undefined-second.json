@@ -1,0 +1,151 @@
+{
+  "body": "import{expect,test,beforeAll,beforeEach,afterEach,afterAll}from'vitest'\nconst errorView=e=>({name:e?.name??null,message:e?.message??String(e)})\nconst emit=row=>console.log('EXPECT_STATE_ROW '+JSON.stringify(row))\nfunction state(phase){try{const value=expect.getState(),descriptor=Object.getOwnPropertyDescriptor(value,'environment');emit({kind:'state',phase,environment:typeof value.environment==='undefined'?'<undefined>':value.environment,own:!!descriptor,data:!!descriptor&&Object.hasOwn(descriptor,'value'),currentTestName:value.currentTestName??null})}catch(error){emit({kind:'state',phase,error:errorView(error)})}}\nfunction shape(value){const properties={};for(const key of ['then','catch','finally'])try{properties[key]={type:typeof value[key]}}catch(error){properties[key]={error:errorView(error)}}return{type:typeof value,promise:value instanceof Promise,properties}}\nstate('collection')\nbeforeAll(()=>state('beforeAll'))\nbeforeEach(()=>state('beforeEach'))\ntest('actual expect state and polling',async()=>{state('body-before');let callbacks=0;let signal;const initial=expect.poll(options=>{callbacks++;signal={aborted:options.signal.aborted,instance:options.signal instanceof AbortSignal};return 1},{interval:1,timeout:1000});emit({kind:'poll-initial',shape:shape(initial),callbacks});const matched=initial.toBe(1);emit({kind:'poll-match',shape:shape(matched)});await matched;emit({kind:'poll-settled',callbacks,signal});state('body-after')})\nafterEach(()=>state('afterEach'))\nafterAll(()=>state('afterAll'))\n",
+  "bodySHA256": "6cbb82dea17eb576db8d1dbcd2244008fb9f1d01ff852a67ac6c1e5c48be172c",
+  "environmentTemplate": "import{appendFileSync}from'node:fs'\nconst log=(phase,fields={})=>appendFileSync(\"__OWNED_ENVIRONMENT_TRACE__\",JSON.stringify({kind:'environment',phase,...fields})+'\\n')\nlet reads=0;const failure=new RangeError('owned second environment name failure');const environment={get name(){const read=++reads;log('name-read',{read,receiver:this===environment});return read===2?undefined:'resolved-name-'+read},viteEnvironment:'ssr',setup(){log('setup');return{teardown(){log('teardown')}}}};export default environment\n",
+  "originalEnvironmentSHA256": "0bc29b0d28dd9374dc6d99d5653f56865446be9f6d4fa054d4c4a05060fa985d",
+  "rows": [
+    {
+      "kind": "environment",
+      "phase": "name-read",
+      "read": 1,
+      "receiver": true
+    },
+    {
+      "kind": "environment",
+      "phase": "setup"
+    },
+    {
+      "kind": "environment",
+      "phase": "name-read",
+      "read": 2,
+      "receiver": true
+    },
+    {
+      "kind": "state",
+      "phase": "collection",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": null
+    },
+    {
+      "kind": "state",
+      "phase": "beforeAll",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": null
+    },
+    {
+      "kind": "state",
+      "phase": "beforeEach",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": "actual expect state and polling"
+    },
+    {
+      "kind": "state",
+      "phase": "body-before",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": "actual expect state and polling"
+    },
+    {
+      "kind": "poll-initial",
+      "shape": {
+        "type": "object",
+        "promise": false,
+        "properties": {
+          "then": {
+            "type": "undefined"
+          },
+          "catch": {
+            "type": "undefined"
+          },
+          "finally": {
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: finally"
+            }
+          }
+        }
+      },
+      "callbacks": 0
+    },
+    {
+      "kind": "poll-match",
+      "shape": {
+        "type": "object",
+        "promise": false,
+        "properties": {
+          "then": {
+            "type": "function"
+          },
+          "catch": {
+            "type": "function"
+          },
+          "finally": {
+            "type": "function"
+          }
+        }
+      }
+    },
+    {
+      "kind": "poll-settled",
+      "callbacks": 1,
+      "signal": {
+        "aborted": false,
+        "instance": true
+      }
+    },
+    {
+      "kind": "state",
+      "phase": "body-after",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": "actual expect state and polling"
+    },
+    {
+      "kind": "state",
+      "phase": "afterEach",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": "actual expect state and polling"
+    },
+    {
+      "kind": "state",
+      "phase": "afterAll",
+      "environment": "<undefined>",
+      "own": true,
+      "data": true,
+      "currentTestName": "actual expect state and polling"
+    },
+    {
+      "kind": "environment",
+      "phase": "teardown"
+    }
+  ],
+  "status": 0,
+  "summary": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "cases": [
+    {
+      "name": "actual expect state and polling",
+      "state": "passed"
+    }
+  ],
+  "qualification": {
+    "scope": "actual resolved environment field/value/presence and ordered authored/provider effects, genuine case counts/statuses",
+    "open": "early run-error serialization, raw frames, unmeasured DOM provider and full ExpectStatic remain separate"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "body": "import{expect,test,beforeAll,beforeEach,afterEach,afterAll}from'vitest'\nconst emit=(phase,local)=>console.log('EXPECT_STATE_ROW '+JSON.stringify({kind:'inheritance',phase,global:expect.getState().environment,local:local?.getState().environment??null}))\nemit('collection-before')\nexpect.setState({environment:'collection-authored'})\nbeforeAll(()=>{emit('beforeAll');expect.setState({environment:'beforeAll-authored'})})\nbeforeEach(()=>{emit('beforeEach-before');expect.setState({environment:'beforeEach-authored'})})\ntest('real local state inheritance',({expect:local})=>{emit('body-before',local);local.setState({environment:'local-authored'});emit('local-written',local);expect.setState({environment:'body-global-authored'});emit('global-written',local)})\nafterEach(()=>emit('afterEach'))\nafterAll(()=>emit('afterAll'))\n",
+  "bodySHA256": "3ed74d162a9a04eb720bc6f6b2312459f74f814b7e4aeed824c81e155caca843",
+  "environmentTemplate": null,
+  "originalEnvironmentSHA256": null,
+  "rows": [
+    {
+      "kind": "inheritance",
+      "phase": "collection-before",
+      "global": "node",
+      "local": null
+    },
+    {
+      "kind": "inheritance",
+      "phase": "beforeAll",
+      "global": "collection-authored",
+      "local": null
+    },
+    {
+      "kind": "inheritance",
+      "phase": "beforeEach-before",
+      "global": "beforeAll-authored",
+      "local": null
+    },
+    {
+      "kind": "inheritance",
+      "phase": "body-before",
+      "global": "beforeEach-authored",
+      "local": "beforeEach-authored"
+    },
+    {
+      "kind": "inheritance",
+      "phase": "local-written",
+      "global": "beforeEach-authored",
+      "local": "local-authored"
+    },
+    {
+      "kind": "inheritance",
+      "phase": "global-written",
+      "global": "body-global-authored",
+      "local": "local-authored"
+    },
+    {
+      "kind": "inheritance",
+      "phase": "afterEach",
+      "global": "body-global-authored",
+      "local": null
+    },
+    {
+      "kind": "inheritance",
+      "phase": "afterAll",
+      "global": "body-global-authored",
+      "local": null
+    }
+  ],
+  "status": 0,
+  "summary": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "cases": [
+    {
+      "name": "real local state inheritance",
+      "state": "passed"
+    }
+  ],
+  "qualification": {
+    "scope": "actual resolved environment field/value/presence and ordered authored/provider effects, genuine case counts/statuses",
+    "open": "early run-error serialization, raw frames, unmeasured DOM provider and full ExpectStatic remain separate"
+  }
+}

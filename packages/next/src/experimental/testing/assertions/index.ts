@@ -281,6 +281,8 @@ let authorizedMockMutation = 0
  */
 export async function createAssertionRuntime(options: {
   testPath: string
+  /** Local resolved provider state, supplied only by its owning host. */
+  assertionEnvironment?: Readonly<{ name: unknown }>
   collectOnly?: boolean
   observeNativeUnhandledAssertions?: boolean
   observePublicTaskQueues?: boolean
@@ -2410,6 +2412,11 @@ export async function createAssertionRuntime(options: {
     return expect
   }
   const expect = createExpect()
+  if (options.assertionEnvironment !== undefined)
+    setState<ReturnType<typeof getState> & { environment: unknown }>(
+      { environment: options.assertionEnvironment.name },
+      expect
+    )
 
   const previousGlobalExpect = Object.getOwnPropertyDescriptor(
     globalThis,
