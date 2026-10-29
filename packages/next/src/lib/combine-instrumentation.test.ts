@@ -69,6 +69,27 @@ describe('combineInstrumentation', () => {
     expect(seen).toEqual([[error, request, context]])
   })
 
+  it('awaits modules that require() returns as promises', async () => {
+    const calls: string[] = []
+    const combined = combineInstrumentation([
+      Promise.resolve({ register: () => void calls.push('async module') }),
+      { register: () => void calls.push('sync module') },
+    ])
+    await combined.register()
+    expect(calls).toEqual(['async module', 'sync module'])
+  })
+
+  it('collects a module that fails to load and runs the rest', async () => {
+    const calls: string[] = []
+    const failure = new Error('load failed')
+    const combined = combineInstrumentation([
+      Promise.reject(failure),
+      { register: () => void calls.push('b') },
+    ])
+    await expect(combined.register()).rejects.toBe(failure)
+    expect(calls).toEqual(['b'])
+  })
+
   it('skips missing hooks and reads hooks from a default export', async () => {
     const calls: string[] = []
     const combined = combineInstrumentation([

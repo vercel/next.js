@@ -31,10 +31,11 @@ export function combineInstrumentation(
   async function callEach(name: Hook, args: unknown[]) {
     const errors: unknown[] = []
     for (const mod of modules) {
-      const hook = getHook(mod, name)
-      if (!hook) continue
       try {
-        await hook(...args)
+        // `require()` returns a promise for a module that uses top-level
+        // await. A module that fails to load is collected like a hook error.
+        const hook = getHook(await mod, name)
+        if (hook) await hook(...args)
       } catch (err) {
         errors.push(err)
       }
