@@ -1493,8 +1493,31 @@ it('12 reliability: repeated public runs release worker PIDs, run locks and owne
     expect(() => process.kill(pid, 0)).toThrow(
       expect.objectContaining({ code: 'ESRCH' })
     )
-    const leftovers = (await readdir(root)).filter((name) =>
-      name.startsWith('.next-test-')
+    const historyDirectory = join(root, '.next-test-cache')
+    expect(await readdir(historyDirectory)).toEqual(['results.json'])
+    const history = JSON.parse(
+      await readFile(join(historyDirectory, 'results.json'), 'utf8')
+    )
+    expect(history).toEqual({
+      version: 1,
+      projects: {
+        release: {
+          files: {
+            'contract.case.mjs': {
+              failed: false,
+              duration: expect.any(Number),
+              lastRun: expect.any(Number),
+            },
+          },
+        },
+      },
+    })
+    const hint = history.projects.release.files['contract.case.mjs']
+    expect(Number.isFinite(hint.duration)).toBe(true)
+    expect(hint.duration).toBeGreaterThanOrEqual(0)
+    expect(Number.isFinite(hint.lastRun)).toBe(true)
+    const leftovers = (await readdir(root)).filter(
+      (name) => name.startsWith('.next-test-') && name !== '.next-test-cache'
     )
     expect(leftovers).toEqual([])
     cycles.push({ index, pid, leftovers })
