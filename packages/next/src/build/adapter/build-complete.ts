@@ -51,7 +51,7 @@ import {
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
+import { isStaticMetadataPathname } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -1161,7 +1161,7 @@ export async function handleBuildComplete({
       const staticMetadataPrerenders = new Set(
         Object.keys(prerenderManifest.routes).filter(
           (pathname) =>
-            isStaticMetadataFile(pathname) &&
+            isStaticMetadataPathname(pathname) &&
             !hasRevalidation(prerenderManifest.routes[pathname])
         )
       )
