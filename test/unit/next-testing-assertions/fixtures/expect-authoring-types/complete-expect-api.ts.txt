@@ -1,0 +1,6 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+const view:ExpectStatic=expect
+const options:ExpectPollOptions={interval:1,timeout:100,message:'eventually'}
+const result:Promise<void>=view.poll(()=>1,options).toBe(1)
+const plain:void=view.soft(1).toBe(1)
+view.assert.equal(1,1);view.addEqualityTesters([(a,b)=>undefined]);view.assertions(1);view.hasAssertions();view.addSnapshotSerializer({test:()=>false,serialize:()=>''});const stopped:never=view.unreachable('stop')

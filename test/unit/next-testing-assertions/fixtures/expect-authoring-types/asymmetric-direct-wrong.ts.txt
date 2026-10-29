@@ -1,0 +1,3 @@
+import{expect}from'vitest'
+declare module 'vitest'{interface AsymmetricMatchersContaining{toBeSpecial(value:number):unknown}}
+expect.not.toBeSpecial('wrong')

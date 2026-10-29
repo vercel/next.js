@@ -914,3 +914,23 @@ it.each([
   },
   130000
 )
+
+it('matches genuine complete expectation authoring types and the actual primitive matcher graph', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'expect-authoring-types.cjs')],
+    { timeout: 120000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 37,
+    accepted: 20,
+    rejected: 17,
+    eachAugmentationIsolated: true,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    actualPrimitiveMatcherGraph: true,
+    realUserAugmentationDeclarations: true,
+    typeOnlyExports: true,
+  })
+}, 125000)

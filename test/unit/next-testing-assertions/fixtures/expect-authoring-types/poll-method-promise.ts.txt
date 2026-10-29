@@ -1,0 +1,2 @@
+import{expect}from'vitest'
+const result:Promise<void>=expect.poll(()=>1).toBe(1)

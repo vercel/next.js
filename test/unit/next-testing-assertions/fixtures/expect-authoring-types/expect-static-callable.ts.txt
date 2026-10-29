@@ -1,0 +1,4 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+const view:ExpectStatic=expect
+const result:Assertion<void,number>=view(1)
+const promise:Assertion<Promise<void>,number>=view.poll(()=>1)

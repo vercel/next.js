@@ -27,6 +27,7 @@ import type { SnapshotClient, spies } from '../../compiled/next-test-primitives'
 
 declare module '../../compiled/next-test-primitives' {
   interface MatcherState {
+    environment: string
     snapshotState: ReturnType<SnapshotClient['getSnapshotState']>
   }
 }
@@ -83,6 +84,8 @@ export function inject<Key extends keyof ProvidedContext & string>(
 }
 export type {
   Matchers,
+  ExpectStatic,
+  ExpectPollOptions,
   TestExpect,
   TestAssertion,
   Assertion,

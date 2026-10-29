@@ -45,7 +45,7 @@ import {
   subsetEquality,
   type Assertion as PrimitiveAssertion,
   type AsymmetricMatchersContaining as PrimitiveAsymmetricMatchersContaining,
-  type ExpectStatic,
+  type ExpectStatic as PrimitiveExpectStatic,
   type MockInstance,
   type MaybeMockedDeep,
   mockObject as automockObject,
@@ -96,8 +96,11 @@ export interface AssertionHook {
 }
 
 // Declaration merging supplies user-defined matcher methods through the facade.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface Matchers<R = void, T = unknown> {
+export interface Matchers<
+  R extends void | Promise<void> = void | Promise<void>,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  T = unknown,
+> {
   toHaveBeenExhausted(): R
 }
 
@@ -105,8 +108,8 @@ export interface Assertion<R extends void | Promise<void> = void, T = unknown>
   extends PrimitiveAssertion<R, T>,
     Matchers<R, T> {
   not: Assertion<R, T>
-  resolves: Assertion<Promise<void>, T>
-  rejects: Assertion<Promise<void>, T>
+  resolves: Assertion<Promise<void>, Awaited<T>>
+  rejects: Assertion<Promise<void>, unknown>
   toMatchSnapshot(propertiesOrMessage?: object | string, message?: string): R
   toMatchInlineSnapshot(
     propertiesOrSnapshot?: object | string,
@@ -133,13 +136,22 @@ export interface TestAssertion<T = unknown> extends Assertion<void, T> {
   toMatchFileSnapshot(filepath: string, message?: string): Promise<void>
 }
 
-export interface TestExpect extends ExpectStatic, AsymmetricMatchersContaining {
-  <T>(actual: T, message?: string): TestAssertion<T>
-  soft<T>(actual: T, message?: string): TestAssertion<T>
+export interface ExpectPollOptions {
+  interval?: number
+  timeout?: number
+  message?: string
+}
+
+export interface ExpectStatic
+  extends PrimitiveExpectStatic,
+    AsymmetricMatchersContaining {
+  <T>(actual: T, message?: string): Assertion<void, T>
+  soft<T>(actual: T, message?: string): Assertion<void, T>
   poll<T>(
-    actual: (options: { signal: AbortSignal }) => T | Promise<T>,
-    options?: { interval?: number; timeout?: number; message?: string }
-  ): TestAssertion<Awaited<T>> & PromiseLike<void>
+    actual: (options: { signal: AbortSignal }) => T,
+    options?: ExpectPollOptions
+  ): Assertion<Promise<void>, Awaited<T>>
+  not: AsymmetricMatchersContaining
   assert: typeof chai.assert
   unreachable(message?: string): never
   addSnapshotSerializer(plugin: Parameters<typeof addSerializer>[0]): void
@@ -148,6 +160,17 @@ export interface TestExpect extends ExpectStatic, AsymmetricMatchersContaining {
   ): void
   assertions(count: number): void
   hasAssertions(): void
+}
+
+export interface TestExpect extends ExpectStatic {}
+
+type FacadeMatchers<R extends void | Promise<void>, T> = Matchers<R, T>
+declare module '../../../compiled/next-test-primitives' {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  interface Matchers<
+    R extends void | Promise<void> = void | Promise<void>,
+    T = unknown,
+  > extends FacadeMatchers<R, T> {}
 }
 
 interface AssertionTask {
@@ -2413,8 +2436,10 @@ export async function createAssertionRuntime(options: {
   }
   const expect = createExpect()
   if (options.assertionEnvironment !== undefined)
-    setState<ReturnType<typeof getState> & { environment: unknown }>(
-      { environment: options.assertionEnvironment.name },
+    setState(
+      { environment: options.assertionEnvironment.name } as Partial<
+        ReturnType<typeof getState>
+      >,
       expect
     )
 

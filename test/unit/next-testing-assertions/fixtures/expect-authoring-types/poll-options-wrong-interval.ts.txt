@@ -1,0 +1,2 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+const options:ExpectPollOptions={interval:'1'}
