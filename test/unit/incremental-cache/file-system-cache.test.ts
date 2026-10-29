@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
@@ -8,9 +8,14 @@ import {
   CachedRouteKind,
   IncrementalCacheKind,
 } from 'next/dist/server/response-cache'
-import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import {
+  getRouteCacheBuildDirectory,
+  getRouteCacheKey,
+  ROUTE_CACHE_DIRECTORY,
+} from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
 import type { CacheFs } from 'next/dist/shared/lib/utils'
+import { retry } from 'next-test-utils'
 
 const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
 
@@ -201,15 +206,34 @@ describe('FileSystemCache (isrMemory 0)', () => {
 })
 
 describe('FileSystemCache route-scoped build seeds', () => {
+  let distDir: string
   let serverDistDir: string
 
   beforeEach(async () => {
-    serverDistDir = await fs.mkdtemp(join(tmpdir(), 'next-route-seed-'))
+    distDir = await fs.mkdtemp(join(tmpdir(), 'next-route-seed-'))
+    serverDistDir = join(distDir, 'server')
+    await fs.mkdir(serverDistDir)
+    await fs.writeFile(join(distDir, 'BUILD_ID'), 'current-build')
   })
 
   afterEach(async () => {
-    await fs.rm(serverDistDir, { recursive: true, force: true })
+    await fs.rm(distDir, { recursive: true, force: true })
   })
+
+  function getBuildDirectory(buildId: string) {
+    return join(
+      serverDistDir,
+      ROUTE_CACHE_DIRECTORY,
+      getRouteCacheBuildDirectory(buildId, process.env.NEXT_DEPLOYMENT_ID || '')
+    )
+  }
+
+  function scopedPath(key: string, buildId = 'current-build') {
+    return join(
+      getBuildDirectory(buildId),
+      key.slice(ROUTE_CACHE_DIRECTORY.length + 1)
+    )
+  }
 
   const owner = {
     kind: RouteKind.PAGES,
@@ -280,7 +304,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect((await cache.get(key, getContext))?.value).toMatchObject({
       html: 'build html',
     })
-    expect(await fs.readFile(`${join(serverDistDir, key)}.html`, 'utf8')).toBe(
+    expect(await fs.readFile(`${scopedPath(key)}.html`, 'utf8')).toBe(
       'build html'
     )
   })
@@ -296,7 +320,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     })
     expect(first?.lastModified).toBe(modified.getTime())
 
-    const scopedBase = join(serverDistDir, key)
+    const scopedBase = scopedPath(key)
     expect(await fs.readFile(`${scopedBase}.html`, 'utf8')).toBe('build html')
     expect(JSON.parse(await fs.readFile(`${scopedBase}.meta`, 'utf8'))).toEqual(
       expect.objectContaining({ routeCacheLastModified: modified.getTime() })
@@ -331,6 +355,61 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect(
       JSON.parse(await fs.readFile(`${scopedBase}.meta`, 'utf8'))
     ).toHaveProperty('routeCacheLastModified', afterRuntimeWrite?.lastModified)
+  })
+
+  async function writeScopedEntry(base: string, html: string) {
+    await fs.mkdir(join(base, '..'), { recursive: true })
+    await fs.writeFile(`${base}.html`, html)
+    await fs.writeFile(`${base}.json`, JSON.stringify({ source: html }))
+    await fs.writeFile(`${base}.meta`, '{}')
+  }
+
+  // A build copied over an existing `.next` keeps the runtime entries that the
+  // previous build wrote, including the layout without a build directory.
+  it('ignores runtime entries written by another build', async () => {
+    const { key } = await writeSeed()
+    await writeScopedEntry(scopedPath(key, 'previous-build'), 'previous html')
+    await writeScopedEntry(join(serverDistDir, key), 'unscoped html')
+
+    expect((await createCache().get(key, getContext))?.value).toMatchObject({
+      html: 'build html',
+      pageData: { source: 'build' },
+    })
+    expect(await fs.readFile(`${scopedPath(key)}.html`, 'utf8')).toBe(
+      'build html'
+    )
+  })
+
+  it('removes the runtime entries of other builds', async () => {
+    const { key } = await writeSeed()
+    await writeScopedEntry(scopedPath(key, 'previous-build'), 'previous html')
+    await writeScopedEntry(join(serverDistDir, key), 'unscoped html')
+
+    await createCache().get(key, getContext)
+
+    await retry(async () => {
+      expect(
+        (await fs.readdir(join(serverDistDir, ROUTE_CACHE_DIRECTORY))).sort()
+      ).toEqual([basename(getBuildDirectory('current-build')), 'PAGES'].sort())
+    })
+  })
+
+  it('reads the scoped files of an adapter build as seeds', async () => {
+    const key = getRouteCacheKey(pathname, owner)
+    const base = join(serverDistDir, key)
+    await writeScopedEntry(base, 'adapter html')
+    await fs.writeFile(
+      `${base}.meta`,
+      JSON.stringify({ routeCache: { key, owner, isFallback: false } })
+    )
+
+    expect((await createCache().get(key, getContext))?.value).toMatchObject({
+      html: 'adapter html',
+    })
+    expect(await fs.readFile(`${scopedPath(key)}.html`, 'utf8')).toBe(
+      'adapter html'
+    )
+    expect(await fs.readFile(`${base}.html`, 'utf8')).toBe('adapter html')
   })
 
   it.each([
@@ -376,8 +455,8 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect(await createCache().get(key, getContext)).toBeNull()
 
     await writeSeed()
-    await fs.mkdir(join(serverDistDir, key, '..'), { recursive: true })
-    await fs.writeFile(`${join(serverDistDir, key)}.html`, 'partial scoped')
+    await fs.mkdir(join(scopedPath(key), '..'), { recursive: true })
+    await fs.writeFile(`${scopedPath(key)}.html`, 'partial scoped')
     expect(await createCache().get(key, getContext)).toBeNull()
   })
 
@@ -428,7 +507,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect(
       (await createCache(false).get(key, getContext))?.value
     ).toMatchObject({ html: 'build html' })
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
   })
 
   it('serves seeds without durable promotion when atomic writes are unavailable', async () => {
@@ -438,7 +517,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect(
       (await createCache(true, fsWithoutAtomic).get(key, getContext))?.value
     ).toMatchObject({ html: 'build html' })
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
   })
 
   it('does not promote an invalidated seed', async () => {
@@ -450,12 +529,12 @@ describe('FileSystemCache route-scoped build seeds', () => {
     await cache.revalidateTag('invalidated-seed')
 
     expect(await cache.get(key, getContext)).toBeNull()
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
   })
 
   it('keeps serving the seed when promotion fails before publication', async () => {
     const { key } = await writeSeed()
-    const scopedMeta = `${join(serverDistDir, key)}.meta`
+    const scopedMeta = `${scopedPath(key)}.meta`
     const failingFs: CacheFs = {
       ...nodeFs,
       writeFile: async (...args: Parameters<typeof nodeFs.writeFile>) => {
@@ -471,7 +550,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect((await cache.get(key, getContext))?.value).toMatchObject({
       html: 'build html',
     })
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
   })
 
   it('does not start writes before all promotion source reads succeed', async () => {
@@ -490,7 +569,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect(
       (await createCache(true, failingFs).get(key, getContext))?.value
     ).toMatchObject({ html: 'build html' })
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
     expect((await createCache().get(key, getContext))?.value).toMatchObject({
       html: 'build html',
     })
@@ -534,7 +613,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     await expect(second).resolves.toMatchObject({
       value: { html: 'build html' },
     })
-    expect(await fs.readFile(`${join(serverDistDir, key)}.html`, 'utf8')).toBe(
+    expect(await fs.readFile(`${scopedPath(key)}.html`, 'utf8')).toBe(
       'build html'
     )
   })
@@ -562,7 +641,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
     expect((await cache.get(key, getContext))?.value).toMatchObject({
       html: 'build html',
     })
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
   })
 
   it('does not let an older seed promotion replace a concurrent runtime set', async () => {
@@ -605,7 +684,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
       html: 'runtime html',
       pageData: { source: 'runtime' },
     })
-    expect(await fs.readFile(`${join(serverDistDir, key)}.html`, 'utf8')).toBe(
+    expect(await fs.readFile(`${scopedPath(key)}.html`, 'utf8')).toBe(
       'runtime html'
     )
   })
@@ -623,6 +702,6 @@ describe('FileSystemCache route-scoped build seeds', () => {
     await cache.set(key, null, { isFallback: false })
 
     expect((await cache.get(key, getContext))?.value).toBeNull()
-    await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+    await expect(fs.stat(`${scopedPath(key)}.html`)).rejects.toThrow()
   })
 })
