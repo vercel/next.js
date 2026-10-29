@@ -16,6 +16,8 @@ Create a separate report draft for each distinct Next.js friction point that cau
 
 Do not report routine first-pass debugging, vague task scope, problems caused by unverified changes, or issues resolved immediately by following existing guidance. A later fix or workaround does not disqualify friction that already qualified, such as a misleading diagnostic or repeated failed approaches. Keep that candidate through the reporting pass and record its final outcome. Keep unrelated issues in separate report drafts.
 
+Do not report a `SecurityFatalError` or `UpgradeNudgeError` when Next.js says the command intentionally stopped to show an upgrade recommendation and that retrying will continue. This is expected behavior, not a feedback candidate. If the retry remains blocked or the documented remediation fails, treat that deviation as separate unexpected behavior and evaluate it normally.
+
 ## Run the reporting pass before the final response
 
 Do not interrupt the current user request when friction first qualifies. Retain each distinct set of bounded, anonymized facts as a feedback candidate in the context of the current user request, then continue the work.
@@ -35,16 +37,17 @@ Each review form accepts one report draft. For every qualifying feedback candida
 - **Reproduction:** Write 1–4 ordered `steps` of no more than 240 characters each. Include the generic starting state, the relevant Next.js feature or API, and the action that triggers the behavior. Split only actions or conditions whose order matters.
 - **Results:** Write 1–3 independently verifiable `observed` facts of no more than 160 characters each and one precise `expected` result of no more than 200 characters. Split an observation only when each fact can stand alone and may be removed independently. Add a `comparison` of no more than 180 characters only when you observed a control or workaround.
 - **Outcome:** Set `frequency` to `once` or `reproduced`. Set `outcome` to `blocked`, `worked-around`, or `resolved`.
+- **Reporter:** Set `agent` to the coding harness name and `agentVersion` to its version. Set `model` to the model identifier and `reasoningEffort` to `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. Use `unknown` for any value the environment does not expose; do not infer it.
 - **Measurements:** Include measurements such as memory use, duration, extra builds, or repeated attempts only when observed directly. Do not estimate elapsed time, token usage, or tool-call counts.
 - **Privacy:** Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or unrelated product details.
 
 ## Encode the report draft
 
-Create a schema version 5 payload using only useful evidence. Always include `nextVersion` and `agent`, with no more than 64 characters each. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
+Create a schema version 6 payload using only useful evidence. Always include `nextVersion`, `agent`, and `agentVersion`, with no more than 64 characters each; `model`, with no more than 100 characters; and `reasoningEffort`. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
 
 ```json
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "triggerReason": "unexpected-behavior",
   "title": "Persistent Turbopack caching exhausted a worker on a warm build",
   "setup": {
@@ -65,7 +68,10 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
   "frequency": "reproduced",
   "outcome": "worked-around",
   "nextVersion": "<version>",
-  "agent": "<agent name>"
+  "agent": "<coding harness>",
+  "agentVersion": "<harness version or unknown>",
+  "model": "<model identifier or unknown>",
+  "reasoningEffort": "<reasoning effort or unknown>"
 }
 ```
 
@@ -73,12 +79,16 @@ Create a schema version 5 payload using only useful evidence. Always include `ne
 
 If these instructions begin with a **Dry run** section, encode each review URL but do not open a browser tab. Print the URLs for inspection, keep the feedback candidate queue, and do not mark the reporting pass complete.
 
-For each report draft, attempt to open the following URL once in a separate tab in the user's default browser. Use the browser-opening capability already available in the agent environment. Replace `<encoded-json>` with the encoded payload.
+For each report draft, run the following command once from the project directory. It prints the review URL and attempts to open it in a separate tab in the user's default browser. Replace `<encoded-json>` with the encoded payload.
 
-```text
-https://nextjs.org/agent-feedback#report=<encoded-json>
+```bash
+npx --no-install next internal agent-feedback <encoded-json>
 ```
 
-Do not ask for permission before opening the review forms. Opening a form does not send feedback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.
+The command also accepts the encoded payload through standard input when the positional argument is omitted.
+
+In a dry run, add `--dry-run` so the command only prints the review URL.
+
+Do not ask for permission before running the command. Opening a form does not send feedback. The command always prints the review URL as a fallback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.
 
 After attempting to open every review form, clear the feedback candidate queue from the context of the current user request. Include every review URL in the final response whether or not its browser tab opened, so the user can always find the form. Never submit a report or close a review form for the user.

@@ -2,7 +2,7 @@ import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
-import { ExternalIcon } from '../../icons/external'
+import { OpenInEditorButton } from '../open-in-editor-button'
 import { getStackFrameFile, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
@@ -101,15 +101,10 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
             {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
             {getStackFrameFile(stackFrame)}
           </span>
-          <button
-            aria-label="Open in editor"
+          <OpenInEditorButton
             data-with-open-in-editor-link-source-file
             onClick={open}
-          >
-            <span className="code-frame-icon" data-icon="right">
-              <ExternalIcon width={16} height={16} />
-            </span>
-          </button>
+          />
         </div>
       </div>
       <pre className="code-frame-pre">

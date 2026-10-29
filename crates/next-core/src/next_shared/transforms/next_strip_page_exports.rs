@@ -15,7 +15,7 @@ use turbopack_ecmascript::{
 
 use super::module_rule_match_js_no_url;
 
-/// A [`TaskInput`]-compatible mirror of [`ExportFilter`].
+/// A [`TaskInput`](turbo_tasks::TaskInput)-compatible mirror of [`ExportFilter`].
 #[turbo_tasks::task_input]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 enum ExportFilterInput {

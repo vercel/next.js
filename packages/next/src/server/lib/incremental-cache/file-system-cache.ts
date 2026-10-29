@@ -27,6 +27,12 @@ import { areTagsExpired, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
 import { getMemoryCache } from './memory-cache.external'
 
+/**
+ * A fetch cache entry as written to disk. `lastModified` is absent from entries
+ * written before it was stored, which fall back to the file's mtime.
+ */
+type StoredFetchValue = CachedFetchValue & { lastModified?: number }
+
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
   'fs' | 'serverDistDir'
@@ -109,7 +115,7 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    const now = Date.now()
+    const now = Math.floor(performance.timeOrigin + performance.now())
 
     for (const tag of tags) {
       const existingEntry = tagsManifest.get(tag) || {}
@@ -248,10 +254,10 @@ export default class FileSystemCache implements CacheHandler {
 
             if (!this.flushToDisk) return null
 
-            const lastModified = mtime.getTime()
-            const parsedData: CachedFetchValue = JSON.parse(fileData)
+            const { lastModified, ...parsedData }: StoredFetchValue =
+              JSON.parse(fileData)
             data = {
-              lastModified,
+              lastModified: lastModified ?? mtime.getTime(),
               value: parsedData,
             }
 
@@ -374,6 +380,7 @@ export default class FileSystemCache implements CacheHandler {
                 headers: meta?.headers,
                 status: meta?.status,
               },
+              cacheControl: meta?.cacheControl,
             }
           } else {
             throw new Error(
@@ -617,9 +624,14 @@ export default class FileSystemCache implements CacheHandler {
     const seedState = this.getSeedReadState(key)
     if (seedState) seedState.version++
 
+    // areTagsExpired compares with the monotonic clock, so the entry is stamped
+    // with it in memory and on disk. Without a stored stamp, a read from disk
+    // would fall back to the file's mtime, which is wall-clock time.
+    const lastModified = Math.floor(performance.timeOrigin + performance.now())
+
     FileSystemCache.memoryCache?.set(key, {
       value: data,
-      lastModified: Date.now(),
+      lastModified,
       cacheControl,
     })
 
@@ -650,6 +662,7 @@ export default class FileSystemCache implements CacheHandler {
         segmentPaths: undefined,
         prefetchHints: undefined,
         cacheControl,
+        routeCacheLastModified: lastModified,
       }
 
       writer.append(
@@ -668,8 +681,14 @@ export default class FileSystemCache implements CacheHandler {
 
       writer.append(htmlPath, data.html)
 
-      // Fallbacks don't generate a data file.
-      if (!ctx.fetchCache && !ctx.isFallback && !ctx.isRoutePPREnabled) {
+      // Complete PPR pages also need an RSC payload for disk-cache reads.
+      // Fallbacks and postponed PPR pages don't generate a complete data file.
+      if (
+        !ctx.fetchCache &&
+        !ctx.isFallback &&
+        (!ctx.isRoutePPREnabled ||
+          (data.kind === CachedRouteKind.APP_PAGE && data.postponed == null))
+      ) {
         writer.append(
           this.getFilePath(
             `${key}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
@@ -705,6 +724,7 @@ export default class FileSystemCache implements CacheHandler {
           segmentPaths,
           prefetchHints: undefined,
           cacheControl,
+          routeCacheLastModified: lastModified,
         }
 
         writer.append(
@@ -718,6 +738,8 @@ export default class FileSystemCache implements CacheHandler {
           postponed: undefined,
           segmentPaths: undefined,
           prefetchHints: undefined,
+          cacheControl,
+          routeCacheLastModified: lastModified,
         }
         writer.append(
           htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
@@ -731,7 +753,8 @@ export default class FileSystemCache implements CacheHandler {
         JSON.stringify({
           ...data,
           tags: ctx.fetchCache ? ctx.tags : [],
-        })
+          lastModified,
+        } satisfies StoredFetchValue)
       )
     }
 

@@ -22,7 +22,7 @@ React's server renderer produces HTML in chunks aligned with `<Suspense>` bounda
 
 ## Example
 
-The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/vercel-labs/streaming-demo)) lets you see each concept from this guide in action:
+The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/nextjs/streaming-demo)) lets you see each concept from this guide in action:
 
 - Page-level streaming with `loading.tsx` (skeleton appears instantly, content streams in after ~2s)
 - Granular streaming with sibling `<Suspense>` boundaries that resolve independently
@@ -796,6 +796,8 @@ See the [Self-Hosting guide](/docs/app/guides/self-hosting#streaming-and-suspens
 The trigger is **your code**: async work, non-deterministic output, or runtime data. When the framework encounters these, it walks up the tree looking for a `<Suspense>` boundary to use as a fallback. Everything above those boundaries forms the [static shell](#the-static-shell), which is sent immediately. As each boundary resolves, React streams the result into the page.
 
 The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can with [`"use cache"`](/docs/app/api-reference/directives/use-cache) to grow the static shell. Push dynamic access down to the components that need it, and wrap those in `<Suspense>`. Everything else becomes part of the shell.
+
+For a step-by-step workflow that applies these patterns to an existing route, see [Optimizing the static shell](/docs/app/guides/optimizing-the-static-shell).
 
 ## Further reading
 

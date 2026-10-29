@@ -1,8 +1,13 @@
-use std::collections::hash_map::Entry;
+use std::{
+    cmp::Reverse,
+    collections::hash_map::Entry,
+    hash::{BuildHasher, Hash},
+};
 
 use anyhow::{Context, Result, bail};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use tracing::Instrument;
+use turbo_bitset::Bitset;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
@@ -11,9 +16,7 @@ use crate::{
         MergeableModulesExposed,
     },
     module::Module,
-    module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::RoaringBitmapWrapper,
-    },
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
     resolve::ExportUsage,
 };
 
@@ -71,6 +74,111 @@ impl MergedModuleInfo {
     }
 }
 
+/// Assigns each distinct bitmap a dense id, starting at 0, so that callers can hash and compare a
+/// `u32` instead of a whole bitmap. Equal bitmaps get the same id. Returns the id of every key and
+/// the number of distinct bitmaps.
+fn intern_bitmaps<'a, K: Eq + Hash>(
+    entries: impl IntoIterator<Item = (K, &'a Bitset)>,
+    capacity: usize,
+) -> (FxHashMap<K, u32>, usize) {
+    let mut ids: FxHashMap<&'a Bitset, u32> = FxHashMap::default();
+    let mut result = FxHashMap::with_capacity_and_hasher(capacity, Default::default());
+    for (key, bitmap) in entries {
+        let next_id = ids.len() as u32;
+        result.insert(key, *ids.entry(bitmap).or_insert(next_id));
+    }
+    (result, ids.len())
+}
+
+/// Merges maps of sets into one map. The result is exactly what extending an empty map with each
+/// part in order gives (`result.entry(key).or_default().extend(set)`): keys in order of first
+/// appearance, and each key's set extended part by part. Disjoint key shards are merged in
+/// parallel, and the first set of each key is moved rather than copied. With a single shard, the
+/// parts are merged serially into the first part instead.
+fn merge_index_maps_of_sets<K, V>(
+    parts: Vec<FxIndexMap<K, FxIndexSet<V>>>,
+    shard_count: usize,
+) -> FxIndexMap<K, FxIndexSet<V>>
+where
+    K: Hash + Eq + Send + Sync,
+    V: Hash + Eq + Send + Sync,
+{
+    /// Entries of one shard from one part, with each key's position (part index, index in part).
+    type Bucket<K, V> = Vec<((usize, usize), K, FxIndexSet<V>)>;
+
+    let shard_count = shard_count.max(1);
+    if shard_count == 1 {
+        let mut parts = parts.into_iter();
+        let Some(mut result) = parts.next() else {
+            return FxIndexMap::default();
+        };
+        let rest = parts.collect::<Vec<_>>();
+        result.reserve(rest.iter().map(|part| part.len()).sum());
+        for part in rest {
+            for (key, set) in part {
+                match result.entry(key) {
+                    indexmap::map::Entry::Occupied(mut e) => e.get_mut().extend(set),
+                    indexmap::map::Entry::Vacant(e) => {
+                        e.insert(set);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+    // Use the high bits of the hash, so the keys of one shard don't all share the low bits that the
+    // per-shard hash tables use for bucket selection.
+    let shard_of =
+        |key: &K| ((FxBuildHasher.hash_one(key) as u128 * shard_count as u128) >> 64) as usize;
+
+    // Split every part into per-shard buckets.
+    let bucketed: Vec<Vec<Bucket<K, V>>> = turbo_tasks::parallel::map_collect_owned(
+        parts.into_iter().enumerate().collect::<Vec<_>>(),
+        |(part_idx, part)| {
+            let mut buckets: Vec<Bucket<K, V>> = (0..shard_count).map(|_| Vec::new()).collect();
+            for (i, (key, set)) in part.into_iter().enumerate() {
+                buckets[shard_of(&key)].push(((part_idx, i), key, set));
+            }
+            buckets
+        },
+    );
+
+    // Regroup by shard, keeping the part order.
+    let mut per_shard: Vec<Vec<Bucket<K, V>>> = (0..shard_count)
+        .map(|_| Vec::with_capacity(bucketed.len()))
+        .collect();
+    for buckets in bucketed {
+        for (shard, bucket) in buckets.into_iter().enumerate() {
+            per_shard[shard].push(bucket);
+        }
+    }
+
+    // Merge each shard. A key's first position is where the serial merge would insert it.
+    let merged: Vec<Bucket<K, V>> =
+        turbo_tasks::parallel::map_collect_owned(per_shard, |buckets| {
+            let mut map: FxIndexMap<K, ((usize, usize), FxIndexSet<V>)> = FxIndexMap::default();
+            for bucket in buckets {
+                for (pos, key, set) in bucket {
+                    if let Some((_, existing)) = map.get_mut(&key) {
+                        existing.extend(set);
+                    } else {
+                        map.insert(key, (pos, set));
+                    }
+                }
+            }
+            map.into_iter()
+                .map(|(key, (pos, set))| (pos, key, set))
+                .collect::<Vec<_>>()
+        });
+
+    let mut all = merged.into_iter().flatten().collect::<Vec<_>>();
+    // Each shard's output is already sorted by position (keys are inserted on first sight, in
+    // position order), so a stable sort merges these runs instead of sorting from scratch.
+    // Positions are unique, so stability doesn't change the result.
+    all.sort_by_key(|(pos, _, _)| *pos);
+    all.into_iter().map(|(_, key, set)| (key, set)).collect()
+}
+
 /// Determine which modules can be merged together:
 /// - if all chunks execute a sequence of modules in the same order, they can be merged together and
 ///   treated as one.
@@ -100,31 +208,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .all_chunk_group_entry_modules()
             .collect::<Vec<_>>();
 
-        // First, compute the depth for each module in the graph
-        let module_depth = {
-            let _inner_span = tracing::info_span!("compute depth").entered();
-
-            let mut module_depth =
-                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            module_graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
-                if let Some((parent, _)) = parent {
-                    let parent_depth = *module_depth
-                        .get(&parent)
-                        .context("Module depth not found")?;
-                    module_depth.entry(node).or_insert(parent_depth + 1);
-                } else {
-                    module_depth.insert(node, 0);
-                };
-
-                Ok(GraphTraversalAction::Continue)
-            })?;
-            module_depth
+        // First, rank every module in reverse postorder, so that a module is visited after the
+        // modules importing it. The ranks from the entries of the graph are shared with other
+        // analyses of this graph (e.g. the chunk group info).
+        let module_rank = {
+            let _inner_span = tracing::info_span!("compute reverse postorder").entered();
+            module_graph.entry_ranks()?
         };
 
         // For each module, the indices in the bitmap store which merge group entry modules
         // transitively import that module. The bitmap can be treated as an opaque value, merging
         // all modules with the same bitmap.
-        let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+        let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
             FxHashMap::with_capacity_and_hasher(module_count, Default::default());
         // Entries that started a new merge group for some deopt reason
         let mut entry_modules =
@@ -166,7 +261,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let visit_count = module_graph.traverse_edges_fixed_point_with_priority(
             entries
                 .iter()
-                .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
+                .map(|e| {
+                    Ok((
+                        *e,
+                        Reverse(*module_rank.get(e).context("Module rank not found")?),
+                    ))
+                })
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
@@ -210,13 +310,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         bail!("unreachable except for eventual consistency");
                     };
 
-                    if current_merged_groups.is_empty() {
-                        // Initial visit, clone instead of merging
-                        *current_merged_groups = parent_merged_groups.clone();
-                        GraphTraversalAction::Continue
-                    } else if parent_merged_groups.is_proper_superset(current_merged_groups) {
-                        // Add bits from parent, and continue traversal because changed
-                        **current_merged_groups |= &**parent_merged_groups;
+                    // On the initial visit, `union_with` copies the parent's bitmap.
+                    if current_merged_groups.union_with(parent_merged_groups) {
+                        // Added bits from parent, continue traversal because changed
                         GraphTraversalAction::Continue
                     } else {
                         // Unchanged, no need to forward to children
@@ -245,15 +341,37 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 })
             },
             |successor, _| {
-                // Invert the ordering here. High priority values get visited first, and we want to
-                // visit the low-depth nodes first, as we are propagating bitmaps downwards.
-                Ok(-*module_depth
-                    .get(&successor)
-                    .context("Module depth not found")?)
+                // Visit modules in reverse postorder (lowest rank first, the traversal visits the
+                // highest priority first), as we are propagating bitmaps downwards.
+                Ok(Reverse(
+                    *module_rank
+                        .get(&successor)
+                        .context("Module rank not found")?,
+                ))
             },
         )?;
 
         drop(inner_span);
+
+        // The traversals below look up and compare the bitmaps of many modules (once per visit),
+        // so use a dense id per distinct bitmap instead of the bitmaps themselves.
+        let module_bitmap_ids = {
+            let _inner_span = tracing::info_span!("intern bitmaps").entered();
+            intern_bitmaps(
+                module_merged_groups
+                    .iter()
+                    .map(|(&module, bitmap)| (module, bitmap)),
+                module_merged_groups.len(),
+            )
+            .0
+        };
+        let bitmap_id = |module: ResolvedVc<Box<dyn Module>>| {
+            module_bitmap_ids
+                .get(&module)
+                .copied()
+                .context("every module should have a bitmap")
+        };
+
         let inner_span = tracing::info_span!("chunk group collection").entered();
 
         span.record("visit_count", visit_count);
@@ -275,7 +393,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut lists_reverse_indices: FxIndexMap<
             ResolvedVc<Box<dyn MergeableModule>>,
             FxIndexSet<ListOccurrence>,
-        > = FxIndexMap::default();
+        >;
 
         // Once we do the reconciliation below, we need to insert new lists, but the lists are per
         // chunk group, so we put them into this one.
@@ -293,10 +411,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // A map of all references between modules with the same bitmap. These are only the
         // references relevant for execution (ignoring cycles), to find the entries of a group.
         #[allow(clippy::type_complexity)]
-        let mut intra_group_references_rev: FxIndexMap<
+        let intra_group_references_rev: FxIndexMap<
             ResolvedVc<Box<dyn Module>>,
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-        > = FxIndexMap::default();
+        >;
 
         {
             struct ChunkGroupResult {
@@ -337,7 +455,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // A partition of all modules in the chunk into several execution traces
                         // (orderings), stored in the top-level lists and referenced here by
                         // index.
-                        let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
+                        // Keyed by bitmap id.
+                        let mut chunk_lists: FxHashMap<u32, usize> =
                             FxHashMap::with_capacity_and_hasher(
                                 module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
                                 Default::default(),
@@ -362,9 +481,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             },
                             |parent_info, node, _| {
                                 let module = node;
-                                let bitmap = module_merged_groups
-                                    .get(&module)
-                                    .context("every module should have a bitmap")?;
+                                let bitmap = bitmap_id(module)?;
 
                                 if mergeable.contains(&module) {
                                     let mergeable_module =
@@ -406,12 +523,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
 
                                 if let Some((parent, _)) = parent_info {
-                                    let same_bitmap = module_merged_groups
-                                        .get(&parent)
-                                        .context("every module should have a bitmap")?
-                                        == module_merged_groups
-                                            .get(&module)
-                                            .context("every module should have a bitmap")?;
+                                    let same_bitmap = bitmap_id(parent)? == bitmap;
 
                                     if same_bitmap {
                                         intra_group_references_rev
@@ -422,6 +534,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
                                 Ok(())
                             },
+                            false,
                             false,
                         )?;
 
@@ -439,17 +552,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             drop(span);
             let _span = tracing::info_span!("merging chunk group lists").entered();
 
-            lists_reverse_indices
-                .reserve_exact(result.iter().map(|r| r.lists_reverse_indices.len()).sum());
-            intra_group_references_rev.reserve_exact(
-                result
-                    .iter()
-                    .map(|r| r.intra_group_references_rev.len())
-                    .sum(),
-            );
-
             lists = vec![Default::default(); chunk_group_info.chunk_groups.len() + 1];
             LISTS_COMMON_IDX = result.len();
+            let mut reverse_index_parts = Vec::with_capacity(result.len());
+            let mut intra_group_references_rev_parts = Vec::with_capacity(result.len());
             for ChunkGroupResult {
                 first_chunk_group_idx,
                 list_lists: result_lists,
@@ -461,19 +567,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     first_chunk_group_idx..(first_chunk_group_idx + result_lists.len()),
                     result_lists,
                 );
-                for (module, occurrences) in result_lists_reverse_indices {
-                    lists_reverse_indices
-                        .entry(module)
-                        .or_default()
-                        .extend(occurrences);
-                }
-                for (module, occurrences) in result_intra_group_references_rev {
-                    intra_group_references_rev
-                        .entry(module)
-                        .or_default()
-                        .extend(occurrences);
-                }
+                reverse_index_parts.push(result_lists_reverse_indices);
+                intra_group_references_rev_parts.push(result_intra_group_references_rev);
             }
+            let shard_count = turbo_tasks::parallel::available_parallelism().map_or(1, |n| n.get());
+            lists_reverse_indices = merge_index_maps_of_sets(reverse_index_parts, shard_count);
+            intra_group_references_rev =
+                merge_index_maps_of_sets(intra_group_references_rev_parts, shard_count);
         }
 
         drop(inner_span);
@@ -499,12 +599,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let module = node;
 
                 if let Some((parent, _)) = parent_info {
-                    let same_bitmap = module_merged_groups
-                        .get(&parent)
-                        .context("every module should have a bitmap")?
-                        == module_merged_groups
-                            .get(&module)
-                            .context("every module should have a bitmap")?;
+                    let same_bitmap = bitmap_id(parent)? == bitmap_id(module)?;
 
                     if same_bitmap {
                         intra_group_references
@@ -516,14 +611,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                 if match parent_info {
                     None => true,
-                    Some((parent, _)) => {
-                        module_merged_groups
-                            .get(&parent)
-                            .context("every module should have a bitmap")?
-                            != module_merged_groups
-                                .get(&module)
-                                .context("every module should have a bitmap")?
-                    }
+                    Some((parent, _)) => bitmap_id(parent)? != bitmap_id(module)?,
                 } {
                     // This module needs to be exposed:
                     // - referenced from another group or
@@ -545,6 +633,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 }
                 Ok(())
             },
+            false,
             false,
         )?;
 
@@ -602,14 +691,19 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let occurrences = lists_reverse_indices
                     .get_mut(&m)
                     .context("every module should have occurrences")?;
-                for common_occurrence in &common_occurrences {
-                    let removed = occurrences.swap_remove(&ListOccurrence {
+                // All occurrences of `m` are the ones in the common sequence, so they are all
+                // replaced by the single new one. This holds because modules in one list share a
+                // merge bitmap, so they are contained in the same chunk groups, and a module that
+                // follows the popped module in every one of its lists has no other occurrences.
+                debug_assert_eq!(occurrences.len(), common_occurrences.len());
+                debug_assert!(common_occurrences.iter().all(|common_occurrence| {
+                    occurrences.contains(&ListOccurrence {
                         chunk_group: common_occurrence.chunk_group,
                         list: common_occurrence.list,
                         entry: common_occurrence.entry + i,
-                    });
-                    debug_assert!(removed);
-                }
+                    })
+                }));
+                occurrences.clear();
                 occurrences.insert(ListOccurrence {
                     chunk_group: LISTS_COMMON_IDX,
                     list: common_list_index,
@@ -629,7 +723,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 // Note that due to circular dependencies, there can be
                 // references that go against execution order (e.g. from "before" to
                 // "common").
-                {
+                // Without a "before" and an "after" list, no reference can cross between them, so
+                // there is nothing to expose.
+                if !(before_list.is_empty() && after_list.is_empty()) {
                     let before_list =
                         FxHashSet::from_iter(before_list.iter().map(|m| ResolvedVc::upcast(*m)));
                     let common_list =
@@ -802,4 +898,155 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
     }
     .instrument(span_outer)
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bitmap(bits: &[u32]) -> Bitset {
+        bits.iter().copied().collect()
+    }
+
+    #[test]
+    fn intern_bitmaps_gives_equal_bitmaps_equal_ids() {
+        let a = bitmap(&[1, 5, 100_000]);
+        let a_reordered = bitmap(&[100_000, 1, 5]);
+        let b = bitmap(&[1, 5]);
+        let empty = bitmap(&[]);
+        let empty2 = bitmap(&[]);
+        let entries = [
+            ("a", &a),
+            ("b", &b),
+            ("a_reordered", &a_reordered),
+            ("empty", &empty),
+            ("empty2", &empty2),
+        ];
+
+        let (ids, distinct) = intern_bitmaps(entries.iter().copied(), entries.len());
+
+        assert_eq!(distinct, 3);
+        assert_eq!(ids.len(), entries.len());
+        assert_eq!(ids["a"], ids["a_reordered"]);
+        assert_eq!(ids["empty"], ids["empty2"]);
+        assert_ne!(ids["a"], ids["b"]);
+        assert_ne!(ids["a"], ids["empty"]);
+        assert_ne!(ids["b"], ids["empty"]);
+        // Ids are dense and start at zero.
+        let mut all = ids.values().copied().collect::<Vec<_>>();
+        all.sort_unstable();
+        all.dedup();
+        assert_eq!(all, vec![0, 1, 2]);
+    }
+
+    /// The serial merge that `merge_index_maps_of_sets` replaces.
+    fn serial_merge(
+        parts: Vec<FxIndexMap<u32, FxIndexSet<u32>>>,
+    ) -> FxIndexMap<u32, FxIndexSet<u32>> {
+        let mut result: FxIndexMap<u32, FxIndexSet<u32>> = FxIndexMap::default();
+        for part in parts {
+            for (key, set) in part {
+                result.entry(key).or_default().extend(set);
+            }
+        }
+        result
+    }
+
+    /// Deterministic pseudo-random parts with overlapping keys, values repeated across parts and
+    /// some empty parts.
+    fn generate_parts(seed: u64, part_count: usize) -> Vec<FxIndexMap<u32, FxIndexSet<u32>>> {
+        let mut state = seed;
+        let mut next = move |bound: u32| {
+            // xorshift64
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state % bound as u64) as u32
+        };
+        (0..part_count)
+            .map(|_| {
+                let mut part: FxIndexMap<u32, FxIndexSet<u32>> = FxIndexMap::default();
+                if next(4) == 0 {
+                    return part;
+                }
+                for _ in 0..next(40) {
+                    let set = part.entry(next(50)).or_default();
+                    for _ in 0..next(6) {
+                        set.insert(next(20));
+                    }
+                }
+                part
+            })
+            .collect()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn merge_index_maps_of_sets_matches_serial_merge() {
+        for seed in 1..=20 {
+            for shard_count in [0, 1, 3, 64] {
+                let parts = generate_parts(seed, 1 + seed as usize % 9);
+                let expected = serial_merge(parts.clone());
+                let actual = merge_index_maps_of_sets(parts, shard_count);
+                // Compare as vectors, so the key order and each set's order are checked too.
+                assert_eq!(
+                    actual
+                        .iter()
+                        .map(|(k, v)| (*k, v.iter().copied().collect::<Vec<_>>()))
+                        .collect::<Vec<_>>(),
+                    expected
+                        .iter()
+                        .map(|(k, v)| (*k, v.iter().copied().collect::<Vec<_>>()))
+                        .collect::<Vec<_>>(),
+                    "seed {seed}, shard count {shard_count}"
+                );
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn merge_index_maps_of_sets_handles_empty_input() {
+        for shard_count in [0, 1, 4] {
+            let parts: Vec<FxIndexMap<u32, FxIndexSet<u32>>> = vec![Default::default(); 3];
+            assert!(merge_index_maps_of_sets(parts, shard_count).is_empty());
+            assert!(
+                merge_index_maps_of_sets(
+                    Vec::<FxIndexMap<u32, FxIndexSet<u32>>>::new(),
+                    shard_count
+                )
+                .is_empty()
+            );
+        }
+    }
+
+    /// With one shard the merge is serial, so it needs no runtime for parallelism.
+    #[test]
+    fn merge_index_maps_of_sets_single_shard_is_serial() {
+        for seed in 1..=20 {
+            for shard_count in [0, 1] {
+                let parts = generate_parts(seed, 1 + seed as usize % 9);
+                let expected = serial_merge(parts.clone());
+                let actual = merge_index_maps_of_sets(parts, shard_count);
+                assert_eq!(
+                    actual
+                        .iter()
+                        .map(|(k, v)| (*k, v.iter().copied().collect::<Vec<_>>()))
+                        .collect::<Vec<_>>(),
+                    expected
+                        .iter()
+                        .map(|(k, v)| (*k, v.iter().copied().collect::<Vec<_>>()))
+                        .collect::<Vec<_>>(),
+                    "seed {seed}, shard count {shard_count}"
+                );
+            }
+        }
+        for shard_count in [0, 1] {
+            assert!(
+                merge_index_maps_of_sets(
+                    Vec::<FxIndexMap<u32, FxIndexSet<u32>>>::new(),
+                    shard_count
+                )
+                .is_empty()
+            );
+        }
+    }
 }

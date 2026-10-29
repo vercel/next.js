@@ -228,6 +228,7 @@ function getBaseSWCOptions({
             useCacheEnabled,
             taintEnabled,
             pageExtensions: pageExtensions || [],
+            isAppRouter: isAppRouterPagesLayer,
           }
         : undefined,
     serverActions:

@@ -1,5 +1,5 @@
 import type { LoadedEnvFiles } from '@next/env'
-import type { Rewrite, Redirect } from '../lib/load-custom-routes'
+import type { Rewrite } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
@@ -64,13 +64,7 @@ export const NextBuildContext: Partial<{
     afterFiles: Rewrite[]
     beforeFiles: Rewrite[]
   }
-  originalRewrites: {
-    fallback: Rewrite[]
-    afterFiles: Rewrite[]
-    beforeFiles: Rewrite[]
-  }
   hasRewrites: boolean
-  originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
   mappedPages: MappedPages | undefined

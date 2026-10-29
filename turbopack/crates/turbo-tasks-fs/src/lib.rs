@@ -15,6 +15,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
+mod canonicalized_path_cache;
 mod content;
 mod disk;
 pub mod embed;

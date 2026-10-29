@@ -163,7 +163,7 @@ export default function NewItemPage() {
   const [name, setName] = useState('')
   const router = useRouter()
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     const item = await createItem({ name })
     setName('')
@@ -197,7 +197,7 @@ function ContactForm() {
   const [status, setStatus] = useState<'idle' | 'success'>('idle')
   const shouldReset = useRef(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     await sendMessage({ name })
     setStatus('success')
@@ -355,27 +355,28 @@ This isn't only a React data-flow or Next.js concern. Broad `:has()` selectors a
 Hidden Activity content has `display: none` but remains in the document. This applies both to routes preserved by Cache Components and to content you hide with `<Activity>` directly. It affects end-to-end testing with tools like Playwright, Cypress, or Puppeteer:
 
 - **DOM queries can find hidden elements.** Selectors may match elements regardless of visibility.
-- **Interactions with hidden elements fail or timeout.** Most tools wait for elements to become visible before interacting.
+- **Interactions with hidden elements fail or time out.** Most tools wait for an element to become visible before interacting, but waiting doesn't narrow a query that matches both a visible and a hidden element. Playwright reports this as a strict mode violation.
 - **Assertions may match hidden content.** Be explicit about visibility when asserting element presence.
 
 ### Use visibility-aware selectors
 
-In Playwright, `getByRole` queries automatically filter by visibility:
+Prefer locators that query the accessibility tree, which leaves out hidden elements, or filter matches by visibility before acting on them. In Playwright, `getByRole` queries exclude hidden elements by default:
 
 ```ts
-// Good - getByRole filters by visibility automatically
+// Good - getByRole excludes hidden elements by default
 await page.getByRole('button', { name: 'Submit' }).click()
 await page.getByRole('textbox', { name: 'Email' }).fill('test@example.com')
-
-// Also good - getByLabel, getByPlaceholder filter by visibility
-await page.getByLabel('Email').fill('test@example.com')
-await page.getByPlaceholder('Search...').fill('query')
 ```
 
-When `getByRole` isn't suitable, use `.locator()` with visibility filtering:
+Other locators, including `getByLabel`, `getByPlaceholder`, and `.locator()`, can match hidden elements. Filter them by visibility explicitly:
 
 ```ts
-// Fallback - filter by visibility explicitly
+// Filter by visibility explicitly
+await page
+  .getByLabel('Email')
+  .filter({ visible: true })
+  .fill('test@example.com')
+await page.getByPlaceholder('Search...').filter({ visible: true }).fill('query')
 await page.locator('.product-card').filter({ visible: true }).first().click()
 await page
   .locator('[data-testid="timer"]')
@@ -383,10 +384,11 @@ await page
   .textContent()
 
 // Avoid - may match hidden elements in Activity boundaries
+await page.getByLabel('Email').fill('test@example.com')
 await page.locator('.product-card').first().click()
 ```
 
-`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. For other testing tools, check their documentation for visibility-aware selectors. For example, Cypress uses `.should('be.visible')` or `{ visible: true }` options.
+`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. Which locators match hidden elements varies between testing tools and their versions, so check your tool's documentation for its locators and test helpers to confirm.
 
 ## Using Activity in your components
 
@@ -544,7 +546,7 @@ The ref persists across hide/show cycles (refs aren't cleaned up), so `hasMounte
 
 ## Examples
 
-The [Activity Patterns Demo](https://react-activity-patterns.labs.vercel.dev) ([source](https://github.com/vercel-labs/react-activity-patterns)) is a Next.js app with Cache Components enabled and three routes. Navigate between them to see state preservation in action:
+The [Activity Patterns Demo](https://react-activity-patterns.labs.vercel.dev) ([source](https://github.com/nextjs/react-activity-patterns)) is a Next.js app with Cache Components enabled and three routes. Navigate between them to see state preservation in action:
 
 - **Data** — sortable table and selectable list that keep their state across navigations, plus a reviews section that prerenders in the background
 - **Forms** — filter panel with DOM state (`<details>`, checkboxes, text inputs) that persists, and a newsletter form that resets after submission using `useLayoutEffect` cleanup

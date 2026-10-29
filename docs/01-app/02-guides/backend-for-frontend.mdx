@@ -442,7 +442,7 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request.
+You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request, and forward only the headers the backend needs. Copying every incoming header also sends the user's `Cookie` and `Authorization` values, so forward those only if the backend expects them.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
@@ -458,10 +458,18 @@ export async function POST(request: Request, { params }) {
   const { slug } = await params
   const pathname = slug.join('/')
   const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
+
+  const headers = new Headers()
+  for (const name of ['accept', 'content-type']) {
+    const value = request.headers.get(name)
+    if (value) headers.set(name, value)
+  }
+
+  // The inner Request keeps the method and body; the outer one replaces the headers
+  const proxyRequest = new Request(new Request(proxyURL, request), { headers })
 
   try {
-    return fetch(proxyRequest)
+    return await fetch(proxyRequest)
   } catch (reason) {
     const message =
       reason instanceof Error ? reason.message : 'Unexpected exception'
@@ -485,10 +493,18 @@ export async function POST(request, { params }) {
   const { slug } = await params
   const pathname = slug.join('/')
   const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
+
+  const headers = new Headers()
+  for (const name of ['accept', 'content-type']) {
+    const value = request.headers.get(name)
+    if (value) headers.set(name, value)
+  }
+
+  // The inner Request keeps the method and body; the outer one replaces the headers
+  const proxyRequest = new Request(new Request(proxyURL, request), { headers })
 
   try {
-    return fetch(proxyRequest)
+    return await fetch(proxyRequest)
   } catch (reason) {
     const message =
       reason instanceof Error ? reason.message : 'Unexpected exception'
@@ -721,12 +737,12 @@ export function proxy(request) {
 }
 ```
 
-You can also proxy requests using `proxy`:
+You can also proxy requests using `proxy`. This example reads `request.nextUrl`, so `request` is typed as [`NextRequest`](#nextrequest-and-nextresponse):
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
     const rewriteUrl = new URL('https://nextjs.org')
     return NextResponse.rewrite(rewriteUrl)
@@ -748,9 +764,9 @@ export function proxy(request) {
 Another type of response `proxy` can produce are redirects:
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/v1/docs') {
     request.nextUrl.pathname = '/v2/docs'
     return NextResponse.redirect(request.nextUrl)

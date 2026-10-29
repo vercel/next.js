@@ -69,4 +69,4 @@ After a mutation, invalidate any cached server read that provided the initial da
 - [Client-side data fetching with SWR](/docs/app/guides/client-side-data-fetching/swr)
 - [Client-side data fetching with TanStack Query](/docs/app/guides/client-side-data-fetching/tanstack-query)
 
-See both patterns in the live [`next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev) and its [source code](https://github.com/vercel-labs/next-spa-patterns).
+See both patterns in the live [`next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev) and its [source code](https://github.com/nextjs/next-spa-patterns).

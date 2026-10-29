@@ -131,9 +131,9 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
-            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
-            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, ImportMetaBinding,
+            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
+            binding::EsmBindingsBuilder, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -172,6 +172,9 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// Present when the module is a statically-analyzable CommonJS module;
     /// carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
+    /// `true` when the module contains a direct `eval(...)` call, which can access bindings in
+    /// its lexical scope by name. Such a module must not be merged with others.
+    pub has_direct_eval: bool,
 
     pub env_var_info: ResolvedVc<EnvVarInfo>,
 }
@@ -226,6 +229,8 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
+    esm_bindings: EsmBindingsBuilder,
+
     code_gens: CodeGenCollection,
     /// Interns the AST paths referenced by `code_gens`, so overlapping paths share storage.
     /// Handed to the resulting [`CodeGens`] once analysis finishes.
@@ -236,6 +241,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     cjs_static_exports: Option<CjsStaticExports>,
+    has_direct_eval: bool,
 
     env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
 
@@ -253,12 +259,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_reexport_references: Default::default(),
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
+            esm_bindings: Default::default(),
             code_gens: Default::default(),
             ast_paths: Default::default(),
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
             cjs_static_exports: None,
+            has_direct_eval: false,
             env_var_info_runtime: Default::default(),
             #[cfg(debug_assertions)]
             ident: Default::default(),
@@ -459,6 +467,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             }
         }
 
+        if let Some(esm_bindings) = std::mem::take(&mut self.esm_bindings).build() {
+            self.add_code_gen(CodeGen::EsmBindings(esm_bindings));
+        }
+
         let references: Vec<_> = self.references.into_iter().collect();
 
         if !self.analyze_mode.is_codegen {
@@ -493,6 +505,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 successful: self.successful,
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
+                has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
                     runtime: self.env_var_info_runtime,
                 }
@@ -894,6 +907,7 @@ async fn analyze_ecmascript_module_internal(
         let require_binding_usage = take(&mut var_graph.require_usage);
         // The module's static CommonJS exports, if any, for scope hoisting.
         analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
+        analysis.has_direct_eval = var_graph.has_direct_eval;
         let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {
@@ -1473,11 +1487,11 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_keep_this(
+                                analysis.esm_bindings.add_keep_this(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
-                                ));
+                                );
                                 continue;
                             }
 
@@ -1500,21 +1514,19 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new(
+                                analysis.esm_bindings.add(
                                     narrowed_reference,
                                     export,
                                     analysis.intern_path(&ast_path),
-                                ));
+                                );
                                 continue;
                             }
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(
-                            *r,
-                            export,
-                            analysis.intern_path(&ast_path),
-                        ));
+                        analysis
+                            .esm_bindings
+                            .add(*r, export, analysis.intern_path(&ast_path));
                     }
                 }
                 Effect::TypeOf {
@@ -2515,6 +2527,7 @@ where
                     origin,
                     options.patterns,
                     options.eager,
+                    state.lazy_compilation,
                     options.import,
                     options.query,
                     options.base,
@@ -2569,19 +2582,24 @@ where
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("fs.{name}({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("fs.{name}({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let (static_files_only_context_dir, fallback_context_dir) =
                     get_traced_project_dirs().await?;
                 analysis.add_reference(
@@ -2609,19 +2627,24 @@ where
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("fs.readdir({args}) is very dynamic{hints}"),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("fs.readdir({args}) is very dynamic{hints}"),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let (static_files_only_context_dir, fallback_context_dir) =
                     get_traced_project_dirs().await?;
                 analysis.add_reference(
@@ -2669,19 +2692,24 @@ where
                 .await?;
 
             let pat = js_value_to_pattern(&linked_func_call);
-            if !pat.has_constant_parts() {
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("path.resolve({args}) is very dynamic{hints}",),
-                    DiagnosticId::Lint(
-                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                    ),
-                );
-                if ignore_dynamic_requests {
-                    return Ok(());
+            let pat = match pat.filter_non_dynamic() {
+                Some(filtered) if ignore_dynamic_requests => filtered,
+                Some(_) => pat,
+                None => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("path.resolve({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                    pat
                 }
-            }
+            };
             let (static_files_only_context_dir, fallback_context_dir) =
                 get_traced_project_dirs().await?;
             analysis.add_reference(
@@ -2724,19 +2752,24 @@ where
                 )
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
-            if !pat.has_constant_parts() {
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("path.join({args}) is very dynamic{hints}",),
-                    DiagnosticId::Lint(
-                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                    ),
-                );
-                if ignore_dynamic_requests {
-                    return Ok(());
+            let pat = match pat.filter_non_dynamic() {
+                Some(filtered) if ignore_dynamic_requests => filtered,
+                Some(_) => pat,
+                None => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("path.join({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                    pat
                 }
-            }
+            };
             let (static_files_only_context_dir, fallback_context_dir) =
                 get_traced_project_dirs().await?;
             analysis.add_reference(
@@ -2797,11 +2830,15 @@ where
                         );
                     }
                 }
-                let dynamic = !pat.has_constant_parts();
-                if dynamic {
-                    show_dynamic_warning = true;
-                }
-                if !dynamic || !ignore_dynamic_requests {
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => Some(filtered),
+                    Some(_) => Some(pat),
+                    None => {
+                        show_dynamic_warning = true;
+                        (!ignore_dynamic_requests).then_some(pat)
+                    }
+                };
+                if let Some(pat) = pat {
                     let (static_files_only_context_dir, fallback_context_dir) =
                         get_traced_project_dirs().await?;
                     analysis.add_reference(
@@ -2847,19 +2884,25 @@ where
             if !args.is_empty() {
                 let first_arg = &args[0];
                 let pat = js_value_to_pattern(first_arg);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("child_process.fork({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("child_process.fork({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN
+                                    .to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let error_mode = if in_try {
                     ResolveErrorMode::Warn
                 } else {
@@ -3868,11 +3911,11 @@ async fn handle_free_var_reference(
                 })
                 .await?;
 
-            analysis.add_code_gen(EsmBinding::new(
+            analysis.esm_bindings.add(
                 esm_reference,
                 export.clone(),
                 analysis.intern_path(ast_path),
-            ));
+            );
         }
         FreeVarReference::InputRelative(kind) => {
             let source_path = (*state.source).ident().await?.path.clone();

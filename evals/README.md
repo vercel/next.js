@@ -84,11 +84,32 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 
 The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. It does not also inject the `agents-md` instruction: the skill treatment measures whether the skill itself leads the agent to the canonical bundled guide. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Fixtures without an entry continue to run only `baseline` and `agents-md`.
 
+Browser-dependent fixtures declare `@playwright/test` in `dependencies` or
+`devDependencies` in their `package.json`. The runner detects that dependency
+and installs Chromium and its system libraries before the agent starts.
+
 A run takes ~2–5 min. To validate a fixture without executing:
 
 ```bash
 pnpm eval agent-042-your-thing --dry
 ```
+
+Run a group from `eval.suites.json` with `--suite`:
+
+```bash
+pnpm eval --suite regression
+pnpm eval --suite competency --dry
+```
+
+- `audit` is the starting point for new or unverified evals.
+- `competency` contains verified evals that distinguish model capability.
+- `regression` contains evals that reach at least 90% valid pass@1 across
+  frontier and weaker models over multiple runs or versions.
+
+Every eval under active measurement must appear in exactly one suite. A suite
+still runs both `baseline` and `agents-md`. Set `publish: false` in
+`eval.config.json` while an eval is being audited, when its results should stay
+internal, or when it belongs in another measurement system.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 

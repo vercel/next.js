@@ -53,6 +53,7 @@ export function getResolveRoutes(
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
   config: NextConfigRuntime,
+  getAssetPrefix: () => string,
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
@@ -134,6 +135,7 @@ export function getResolveRoutes(
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
   }> {
+    const assetPrefix = getAssetPrefix()
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
@@ -171,7 +173,7 @@ export function getResolveRoutes(
         : 'http'
 
     // When there are hostname and port we build an absolute URL
-    const initUrl = (config.experimental as any).trustHostHeader
+    const initUrl = config.experimental.trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
         ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
@@ -222,11 +224,8 @@ export function getResolveRoutes(
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
-      } else if (
-        config.assetPrefix &&
-        pathHasPrefix(normalizedPath, config.assetPrefix)
-      ) {
-        normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
+      } else if (assetPrefix && pathHasPrefix(normalizedPath, assetPrefix)) {
+        normalizedPath = removePathPrefix(normalizedPath, assetPrefix)
       }
 
       initialLocaleResult = normalizeLocalePath(

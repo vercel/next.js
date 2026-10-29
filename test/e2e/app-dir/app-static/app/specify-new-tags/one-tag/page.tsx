@@ -5,7 +5,7 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random?sam=iam',
     {
       cache: 'force-cache',
-      next: { tags: ['thankyounext'] },
+      next: { tags: ['app-static:thankyounext'] },
     }
   ).then((res) => res.text())
 

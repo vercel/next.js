@@ -1851,15 +1851,34 @@ function createTrackedReadableStream(
   cacheSignal: CacheSignal
 ) {
   const reader = stream.getReader()
+  // End the read exactly once, whether the stream finishes, errors, or is
+  // canceled: a read that never ends keeps `cacheReady()` from resolving, and a
+  // second `endRead()` would unbalance the signal.
+  let readEnded = false
+  const endRead = () => {
+    if (!readEnded) {
+      readEnded = true
+      cacheSignal.endRead()
+    }
+  }
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read()
-      if (done) {
-        controller.close()
-        cacheSignal.endRead()
-      } else {
-        controller.enqueue(value)
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          controller.close()
+          endRead()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (error) {
+        endRead()
+        throw error
       }
+    },
+    cancel(reason) {
+      endRead()
+      return reader.cancel(reason)
     },
   })
 }
@@ -2134,7 +2153,7 @@ export async function cache(
     switch (outerWorkUnitStore.type) {
       case 'prerender-runtime': {
         // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-        // are resolved with a delay, in the appropriate runtime stage. Private caches resolve in EarlyRuntime,
+        // are resolved with a delay, in the appropriate runtime stage.
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
           await stagedRendering.waitForStage(
@@ -2734,9 +2753,10 @@ export async function cache(
                   // This entry cannot be part of the shell, so we delay it to the prefetch.
                   let prefetchStage: AdvanceableRenderStage
                   if (prerenderStore.type === 'prerender') {
-                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                    prefetchStage =
+                      RENDER_STAGES_BY_DATA_KIND.staticUrlData.static
                   } else {
-                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
                   }
                   if (
                     // If the prerender ends before the prefetch stage (because
@@ -2795,16 +2815,17 @@ export async function cache(
                   stage = RenderStage.Dynamic
                 } else {
                   // If the entry would be be excluded from the shell, treat it as
-                  // if it were link data.
+                  // if it were static URL data.
                   // (Note that this is still correct without PPF or in static shell validation,
-                  // where we don't use runtime shells and include static link data)
+                  // where we don't use runtime shells and include static URL data)
                   trackIncompatibleShellContent(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsRuntimeShell
-                    ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-                    : RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  stage =
+                    RENDER_STAGES_BY_DATA_KIND.staticUrlData[
+                      workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
+                    ]
                 }
                 debug?.(
                   logPrefix,
@@ -3442,16 +3463,17 @@ export async function cache(
                   stage = RenderStage.Dynamic
                 } else {
                   // If the entry would be be excluded from the shell, treat it as
-                  // if it were link data.
+                  // if it were static URL data.
                   // (Note that this is still correct without PPF or in static shell validation,
-                  // where we don't use runtime shells and include static link data)
+                  // where we don't use runtime shells and include static URL data)
                   trackIncompatibleShellContent(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsRuntimeShell
-                    ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-                    : RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  stage =
+                    RENDER_STAGES_BY_DATA_KIND.staticUrlData[
+                      workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
+                    ]
                 }
                 debug?.(
                   logPrefix,
@@ -3764,22 +3786,18 @@ export async function cache(
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
-
+                  // The RDC preserves the value served by this render for
+                  // subsequent render passes. Only the cache handler receives
+                  // the regenerated entry.
                   const pendingWrite = cacheHandler
                     ? saveToCacheHandler(
                         cacheHandler,
                         id,
                         cacheHandlerKeyBase,
-                        savedCacheResult,
+                        pendingCacheResult,
                         rootParams
                       )
-                    : savedCacheResult.then(() => {})
+                    : pendingCacheResult.then(() => {})
 
                   for (const completion of await Promise.allSettled([
                     ignoredStream.cancel(),
