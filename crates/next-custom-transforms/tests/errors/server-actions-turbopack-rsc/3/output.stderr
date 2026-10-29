@@ -1,4 +1,4 @@
-  x The "use cache" directive must be at the top of the file.
+  x The "use cache" directive must be at the top of the file or the top of a function body.
   | 
    ,-[input.js:7:1]
  6 | if (true) {
