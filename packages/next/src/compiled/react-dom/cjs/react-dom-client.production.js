@@ -15884,17 +15884,18 @@ function startViewTransition(
           if ("object" === typeof error && null !== error)
             switch (error.name) {
               case "InvalidStateError":
-                if (
-                  "View transition was skipped because document visibility state is hidden." ===
-                    error.message ||
-                  "Skipping view transition because document visibility state has become hidden." ===
-                    error.message ||
-                  "Skipping view transition because viewport size changed." ===
-                    error.message ||
-                  "Transition was aborted because of invalid state" ===
-                    error.message
-                )
-                  error = null;
+                switch (error.message) {
+                  case "Transition was aborted because of invalid state":
+                  case "Transition was aborted because of invalid state.":
+                  case "Transition was aborted because of invalid state. Document hidden":
+                  case "Transition was aborted because of invalid state. Viewport size changed":
+                  case "Skipped ViewTransition due to document being hidden":
+                  case "Skipped view transition due to viewport resize":
+                  case "View transition was skipped because document visibility state is hidden.":
+                  case "Skipping view transition because document visibility state has become hidden.":
+                  case "Skipping view transition because viewport size changed.":
+                    error = null;
+                }
             }
           null !== error && errorCallback(error);
         } finally {
@@ -18549,14 +18550,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2051 = React.version;
 if (
-  "19.3.0-canary-dc9aed36-20261027" !==
+  "19.3.0-canary-c5ec5c6d-20261029" !==
   isomorphicReactPackageVersion$jscomp$inline_2051
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2051,
-      "19.3.0-canary-dc9aed36-20261027"
+      "19.3.0-canary-c5ec5c6d-20261029"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18578,10 +18579,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2599 = {
   bundleType: 0,
-  version: "19.3.0-canary-dc9aed36-20261027",
+  version: "19.3.0-canary-c5ec5c6d-20261029",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-dc9aed36-20261027"
+  reconcilerVersion: "19.3.0-canary-c5ec5c6d-20261029"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2600 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -18679,4 +18680,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-dc9aed36-20261027";
+exports.version = "19.3.0-canary-c5ec5c6d-20261029";
