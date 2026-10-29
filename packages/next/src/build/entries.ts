@@ -385,6 +385,14 @@ export function runDependingOnPageType<T>(params: {
   return
 }
 
+function sortObjectByKey<T>(obj: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(
+    Object.keys(obj)
+      .sort()
+      .map((key) => [key, obj[key]])
+  )
+}
+
 export async function createEntrypoints(
   params: CreateEntrypointsParams
 ): Promise<{
@@ -797,10 +805,13 @@ export async function createEntrypoints(
     delete edgeServer.instrumentation
   }
 
+  // Entries are added as each page's static info resolves, so key order
+  // depends on how long each page takes to analyze. Webpack's deterministic
+  // module ids follow entry order, so sort the keys to keep builds stable.
   return {
-    client,
-    server,
-    edgeServer,
+    client: sortObjectByKey(client),
+    server: sortObjectByKey(server),
+    edgeServer: sortObjectByKey(edgeServer),
     entrySourceDirectories: [...entrySourceDirectories].sort(),
     middlewareMatchers,
   }
