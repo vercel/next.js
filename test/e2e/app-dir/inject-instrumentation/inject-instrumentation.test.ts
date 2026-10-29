@@ -1,11 +1,11 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
-function fixture(config: 'inject' | 'omitted', extra = {}) {
+function fixture(config: 'inject' | 'page-ext' | 'omitted', extra = {}) {
   return {
     app: new FileRef(join(__dirname, 'app')),
     'middleware.ts': new FileRef(join(__dirname, 'middleware.ts')),
-    ...(config === 'inject'
+    ...(config !== 'omitted'
       ? { injected: new FileRef(join(__dirname, 'injected')) }
       : {}),
     'next.config.ts': new FileRef(
@@ -72,6 +72,27 @@ describe('inject-instrumentation', () => {
           '[inject-instrumentation] register first nodejs'
         )
       }
+    })
+  })
+
+  describe('a project instrumentation file with a compound page extension', () => {
+    const { next } = nextTestSetup({
+      files: fixture('page-ext', {
+        'instrumentation.page.ts': new FileRef(
+          join(__dirname, 'fixtures', 'user-file', 'instrumentation.ts')
+        ),
+      }),
+    })
+
+    it('chains instrumentation.page.ts after the inject', async () => {
+      expect(await next.fetch('/node').then((res) => res.json())).toEqual({
+        instrumentation: 'user',
+        injected: ['first', 'second'],
+      })
+      expect(await next.fetch('/edge').then((res) => res.json())).toEqual({
+        instrumentation: 'user',
+        injected: ['first', 'second'],
+      })
     })
   })
 
