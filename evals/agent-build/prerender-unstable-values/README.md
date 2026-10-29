@@ -9,6 +9,7 @@ different fix.
 - **App:** Pulse, a status page app with a home page, an incident status page, and a signed-in account page, after Cache Components was turned on.
 - **Request:** the production build fails on `new Date()` while prerendering. Fix it properly and keep every page working as it did.
 - **Passes when:** the build and type check pass, the static pages keep their content, the time values behave as described, customers only see their own account, navigation stays instant, and the server logs no prerender errors.
+- **Selected from:** Agent Feedback reports where agents hit the unstable-value prerender error under Cache Components and worked around it the wrong way, such as adding `connection()` everywhere or moving content to the browser (findings F-007, 4115, 4398, 3830, 5037).
 
 ## Instruction to checks
 

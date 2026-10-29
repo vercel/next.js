@@ -9,6 +9,7 @@ without the opt-out, while signed-out visitors get a real HTTP redirect.
 - **App:** Ledger, a team workspace with Overview, Invoices, and Settings under `/app`, marketing pages, and a login page, after the workspace was opted out of instant navigation on the dev overlay's advice.
 - **Request:** make workspace navigation instant again and send signed-out or expired sessions to `/login` with a real HTTP redirect.
 - **Passes when:** every workspace route has a static frame and heading, signed-out visitors are redirected, each team sees only its own data, the invoice filter still works, and the build, type check, and server log are clean.
+- **Selected from:** Agent Feedback reports where agents followed the dev overlay's `instant = false` suggestion for a session-protected layout, or redirected from inside a streamed page (findings 4070, 5011, 4442, F-009, F-012).
 
 ## Instruction to checks
 

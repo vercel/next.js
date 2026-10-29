@@ -11,6 +11,7 @@ added later within budget with no extra steps.
 - **App:** Ridgeline, a storefront with a home page, a 48-product catalog with filtering and sorting, product pages with a gallery, reviews, and a cart, and an about page.
 - **Request:** bring every page within stated HTML, JavaScript, and image byte budgets without changing how anything looks or works, including products and photos added later.
 - **Passes when:** every measured page is under budget, including a product the verifier adds before building, and every page keeps its content, image sizes, alt text, and interactions.
+- **Selected from:** the problems customer performance audits keep finding in real Next.js apps: raw `<img>` tags, pages rendered on the client, full records passed to Client Components, a whole icon set in the browser, and repeated inline SVG.
 
 ## Instruction to checks
 
