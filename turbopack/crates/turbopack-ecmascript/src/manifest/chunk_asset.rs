@@ -140,16 +140,11 @@ impl ManifestAsyncModule {
         self.inner.ident()
     }
 
-    /// The content ident of the manifest chunk item, which names the standalone manifest chunk.
-    ///
-    /// It is based on this module's own ident, not the inner module's: the chunk that holds the
-    /// inner module is named after the inner module's ident, and the manifest must not share that
-    /// file name even when there is no availability to tell them apart.
     #[turbo_tasks::function]
-    pub async fn content_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let ident = self.ident();
+    pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
+        let ident = self.inner.ident();
         Ok(
-            if let Some(availability_ident) = self.await?.availability_info.ident().await? {
+            if let Some(availability_ident) = self.availability_info.ident().await? {
                 ident
                     .owned()
                     .await?

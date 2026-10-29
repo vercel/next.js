@@ -86,20 +86,6 @@ pub trait StyleModule: Module {
     fn style_type(&self) -> Vc<StyleType>;
 }
 
-/// A module whose references can appear later without its sources changing, e.g. a module that is
-/// compiled on demand and only gets its references once it is activated.
-///
-/// Names derived from the availability its async loader is created with have to stay the same
-/// when it activates. So the availability of its async loader is not canonicalized, and the
-/// canonicalization of other async loaders stops at it (see
-/// [`crate::chunk::availability_info::AvailabilityInfo::canonicalize_for_async_loader`]).
-///
-/// The references it gets on activation must start their own chunk groups (e.g.
-/// [`crate::chunk::ChunkingType::Async`]), never add modules to the chunk group of this module
-/// itself (like [`crate::chunk::ChunkingType::Parallel`]).
-#[turbo_tasks::value_trait]
-pub trait ActivatableModule: Module {}
-
 #[turbo_tasks::value(transparent)]
 pub struct OptionModule(Option<ResolvedVc<Box<dyn Module>>>);
 
