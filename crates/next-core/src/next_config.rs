@@ -108,8 +108,8 @@ pub struct NextConfig {
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
-    /// Server instrumentation module specifiers. Used only when the project has
-    /// no instrumentation file. Next.js does not install the module.
+    /// Server instrumentation module specifiers. They run in order, before the project's own
+    /// instrumentation file. Next.js does not install the modules.
     inject_instrumentation: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,

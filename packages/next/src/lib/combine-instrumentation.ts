@@ -21,9 +21,10 @@ function getHook(mod: unknown, name: Hook) {
 }
 
 /**
- * Combines the `injectInstrumentation` modules into one instrumentation
- * module. Each hook runs every module's export in array order. A module that
- * throws does not stop the others. Errors are rethrown after all have run.
+ * Combines the `injectInstrumentation` modules and the project's own
+ * instrumentation file into one instrumentation module. Each hook runs every
+ * module's export in array order. A module that throws does not stop the
+ * others. Errors are rethrown after all have run.
  */
 export function combineInstrumentation(
   modules: readonly unknown[]
@@ -46,7 +47,7 @@ export function combineInstrumentation(
     if (errors.length > 1) {
       throw new AggregateError(
         errors,
-        `${errors.length} injected instrumentation modules failed in ${name}()`
+        `${errors.length} instrumentation modules failed in ${name}()`
       )
     }
   }
