@@ -12766,3 +12766,44 @@ it.each(['development', 'production'])(
   },
   380000
 )
+
+it('preserves OS interruption exit precedence over an earlier settled failure', async () => {
+  const directory = await mkdtemp(
+    path.join(process.cwd(), '.next-test-signal-exit-')
+  )
+  try {
+    // The helper owns and audits every CLI and descendant itself. A second
+    // supervisor would replace its startup audit when nesting those owners.
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        process.execPath,
+        [
+          path.join(__dirname, 'signal-exit-public.mjs'),
+          path.dirname(require.resolve('next/package.json')),
+          path.join(directory, 'apps'),
+          path.join(directory, 'evidence'),
+          process.cwd(),
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+          timeout: 140000,
+        },
+        (error, output, stderr) =>
+          error
+            ? reject(new Error(String(error) + '\n' + output + stderr))
+            : resolve(output)
+      )
+    })
+    expect(JSON.parse(stdout)).toEqual({
+      profiles: 8,
+      actualCliRuns: 16,
+      actualSignalCancellations: 4,
+      actualApiCancellations: 4,
+      historyBytesPreserved: true,
+      allOwnedWorkersAndArtifactsReleased: true,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 150000)

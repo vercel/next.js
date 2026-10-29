@@ -1385,8 +1385,9 @@ export async function nextTestRunner(
             'Standard coverage did not complete after clean execution.'
           )
       }
-      if (summary.status !== 'passed') {
-        process.exitCode = summary.status === 'cancelled' ? 130 : 1
+      if (interruptedExecutionJson || summary.status !== 'passed') {
+        process.exitCode =
+          interruptedExecutionJson || summary.status === 'cancelled' ? 130 : 1
       }
     } finally {
       try {
