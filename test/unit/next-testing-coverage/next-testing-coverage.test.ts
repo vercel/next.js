@@ -23028,3 +23028,31 @@ describe('development Browser V8 watch coverage profile boundaries', () => {
     expect(isDevelopmentBrowserWatchCoverageProject(oneShot)).toBe(false)
   })
 })
+
+describe('Istanbul TypeScript function body map association', () => {
+  it.each(['ts', 'mts'])(
+    'matches the complete retained genuine zero model and refuses ambiguous %s roles',
+    async (extension) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-map-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-typescript-body-association.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            extension,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+})

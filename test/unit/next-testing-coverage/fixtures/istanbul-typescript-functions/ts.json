@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "scope": "Retained actual S39 lowering/instrumenter tuple and genuine5.0.4 complete zero report; no execution of this tuple",
+  "originalSerializedTupleSha256": "16ed5ec9f5d9534acd7dc86fd311efa6fca7003ea71148e9feb3de93b144c112",
+  "file": "/Users/timneutkens/projects/next-testing-run/work-3/istanbul-provider66/typed-source102/swc-lowering-currentS39-initialized/subject.ts",
+  "authoredSha256": "4c5941494c006c4c9466ca5e5625e2e7ae0f90f311adb4dd7bb60ab531d1d67c",
+  "emittedSha256": "938423a8e00f0693059648064e409fa2cbe5174f04878d7014cb2f2fc97f47c1",
+  "authoredSource": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n",
+  "emittedSource": "export function choose(value) {\n    if (value) return 1;\n    return 0;\n}\nexport function unused() {\n    return 9;\n}\n",
+  "rawCoverage": {
+    "path": "/Users/timneutkens/projects/next-testing-run/work-3/istanbul-provider66/typed-source102/swc-lowering-currentS39-initialized/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 4
+        },
+        "end": {
+          "line": 2,
+          "column": 24
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 15
+        },
+        "end": {
+          "line": 2,
+          "column": 24
+        }
+      },
+      "2": {
+        "start": {
+          "line": 3,
+          "column": 4
+        },
+        "end": {
+          "line": 3,
+          "column": 13
+        }
+      },
+      "3": {
+        "start": {
+          "line": 6,
+          "column": 4
+        },
+        "end": {
+          "line": 6,
+          "column": 13
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 22
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 30
+          },
+          "end": {
+            "line": 4,
+            "column": 1
+          }
+        },
+        "line": 1
+      },
+      "1": {
+        "name": "unused",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 16
+          },
+          "end": {
+            "line": 5,
+            "column": 22
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 25
+          },
+          "end": {
+            "line": 7,
+            "column": 1
+          }
+        },
+        "line": 5
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 4
+          },
+          "end": {
+            "line": 2,
+            "column": 24
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 4
+            },
+            "end": {
+              "line": 2,
+              "column": 24
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "inputSourceMap": {
+      "version": 3,
+      "sources": [
+        "/Users/timneutkens/projects/next-testing-run/work-3/istanbul-provider66/typed-source102/swc-lowering-currentS39-initialized/subject.ts"
+      ],
+      "sourcesContent": [
+        "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      ],
+      "names": ["choose", "value", "unused"],
+      "mappings": "AACA,OAAO,SAASA,OAAOC,KAAY;IACjC,IAAIA,OAAO,OAAO;IAClB,OAAO;AACT;AACA,OAAO,SAASC;IAAmB,OAAO;AAAE"
+    }
+  },
+  "genuineFile": "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-typed-entry101-pAOUkH/subject.ts",
+  "genuineCoverage": {
+    "path": "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-typed-entry101-pAOUkH/subject.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 3,
+          "column": 2
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 3,
+          "column": 13
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 4,
+          "column": 2
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 6,
+          "column": 35
+        },
+        "end": {
+          "line": 6,
+          "column": 44
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 2,
+            "column": 16
+          },
+          "end": {
+            "line": 2,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 45
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        }
+      },
+      "1": {
+        "name": "unused",
+        "decl": {
+          "start": {
+            "line": 6,
+            "column": 16
+          },
+          "end": {
+            "line": 6,
+            "column": 33
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 6,
+            "column": 33
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        }
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ]
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0]
+    }
+  }
+}
