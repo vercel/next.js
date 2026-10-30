@@ -133,6 +133,12 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       )
     })
 
+    it('should not add trailing slash to ./ url with query', () => {
+      expect(
+        resolveAbsoluteUrlWithPathname('./?page=2', metadataBase, '/blog', opts)
+      ).toBe('https://example.com/blog?page=2')
+    })
+
     it('should not add trailing slash to relative url that matches file pattern', () => {
       expect(resolver('/foo.html')).toBe('https://example.com/foo.html')
       expect(resolver('/foo.html?q=v')).toBe('https://example.com/foo.html?q=v')
