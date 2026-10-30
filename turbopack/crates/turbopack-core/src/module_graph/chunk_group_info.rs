@@ -156,7 +156,7 @@ impl ChunkGroupInfo {
     /// range. The reader depends on both and is recomputed once both are updated, so an error here
     /// is transient, but indexing would panic.
     fn chunk_group_at(&self, index: usize) -> Result<&ChunkGroup> {
-        self.chunk_groups.get_index(index).with_context(|| {
+        self.chunk_groups.get(index).with_context(|| {
             format!(
                 "chunk group index {index} is out of range ({} chunk groups)",
                 self.chunk_groups.len()
