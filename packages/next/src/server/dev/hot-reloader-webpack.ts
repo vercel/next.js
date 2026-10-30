@@ -113,7 +113,6 @@ import { getFileLogger } from './browser-logs/file-logger'
 import { createAtomicManifestOutputFileSystem } from './atomic-manifest-output-fs'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
-import type { InstrumentationInject } from '../../build/instrumentation-inject'
 import {
   sendSerializedErrorsToClient,
   sendSerializedErrorsToClientForHtmlRequest,
@@ -268,7 +267,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   private hasVulnerabilityInsight: Promise<boolean>
-  private instrumentationInject: InstrumentationInject | undefined
+  private hasInstrumentationInject: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -294,7 +293,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile,
       onDevServerCleanup,
       hasVulnerabilityInsight,
-      instrumentationInject,
+      hasInstrumentationInject,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -310,7 +309,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       hasVulnerabilityInsight: Promise<boolean>
-      instrumentationInject: InstrumentationInject | undefined
+      hasInstrumentationInject: boolean
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -331,7 +330,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.resetFetch = resetFetch
     this.lockfile = lockfile
     this.hasVulnerabilityInsight = hasVulnerabilityInsight
-    this.instrumentationInject = instrumentationInject
+    this.hasInstrumentationInject = hasInstrumentationInject
 
     this.config = config
     this.previewProps = previewProps
@@ -1682,7 +1681,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
-      instrumentationInject: this.instrumentationInject,
+      hasInstrumentationInject: this.hasInstrumentationInject,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number

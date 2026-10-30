@@ -147,7 +147,7 @@ import {
   pageToRoute,
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
-import { resolveInstrumentationInject } from './instrumentation-inject'
+import { INSTRUMENTATION_INJECT_STUB_PATH } from './next-dir-paths'
 import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
@@ -1536,13 +1536,10 @@ export default async function build(
         )
       }
 
-      const instrumentationInject = resolveInstrumentationInject({
-        dir,
-        config,
-      })
+      const hasInstrumentationInject =
+        (config.injectInstrumentation?.length ?? 0) > 0
       const hasInstrumentationHook =
-        Boolean(instrumentationHookFilePath) ||
-        instrumentationInject !== undefined
+        Boolean(instrumentationHookFilePath) || hasInstrumentationInject
       const hasMiddlewareFile = Boolean(middlewareFilePath)
       const hasProxyFile = Boolean(proxyFilePath)
 
@@ -1586,7 +1583,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
             // The stub loads the project's instrumentation file, so don't
             // create a separate entry for it when instrumentation is injected.
-            pagePaths: instrumentationInject
+            pagePaths: hasInstrumentationInject
               ? rootPaths.filter(
                   (rootPath) =>
                     !instrumentationHookDetectionRegExp.test(
@@ -1600,11 +1597,11 @@ export default async function build(
             appDirOnly,
           })
         )
-      if (instrumentationInject) {
+      if (hasInstrumentationInject) {
         // The stub chains the project's instrumentation file after the
         // injected entries, so it replaces that file as the entry.
         NextBuildContext.mappedRootPaths[`/${INSTRUMENTATION_HOOK_FILENAME}`] =
-          instrumentationInject.file
+          INSTRUMENTATION_INJECT_STUB_PATH
       }
 
       const {

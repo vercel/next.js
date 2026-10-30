@@ -8,9 +8,9 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { InstrumentationInject } from '../../build/instrumentation-inject'
 
 import createDebug from 'next/dist/compiled/debug'
+import { INSTRUMENTATION_INJECT_STUB_PATH } from '../../build/next-dir-paths'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
@@ -392,15 +392,15 @@ interface PagePathData {
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
  * error. It defaults the `/_error` page to Next.js internal error page. When
- * `instrumentationInject` is set, the instrumentation hook is its stub, which
- * chains the project's instrumentation file after the injected entries.
+ * `hasInstrumentationInject` is true, the instrumentation hook is its stub,
+ * which chains the project's instrumentation file after the injected entries.
  *
  * @param rootDir Absolute path to the project root.
  * @param page The page normalized (it will be denormalized).
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
- * @param instrumentationInject The `injectInstrumentation` stub, if set.
+ * @param hasInstrumentationInject Whether `injectInstrumentation` has entries.
  */
 export async function findPagePathData(
   rootDir: string,
@@ -409,15 +409,15 @@ export async function findPagePathData(
   pagesDir: string | undefined,
   appDir: string | undefined,
   isGlobalNotFoundEnabled: boolean,
-  instrumentationInject?: InstrumentationInject
+  hasInstrumentationInject = false
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
   const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
-  if (isInstrumentation && instrumentationInject) {
+  if (isInstrumentation && hasInstrumentationInject) {
     return {
-      filename: instrumentationInject.file,
+      filename: INSTRUMENTATION_INJECT_STUB_PATH,
       bundlePath: INSTRUMENTATION_HOOK_FILENAME,
       page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
     }
@@ -560,7 +560,7 @@ export function onDemandEntryHandler({
   pagesDir,
   rootDir,
   appDir,
-  instrumentationInject,
+  hasInstrumentationInject,
 }: {
   hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
@@ -570,7 +570,7 @@ export function onDemandEntryHandler({
   pagesDir?: string
   rootDir: string
   appDir?: string
-  instrumentationInject: InstrumentationInject | undefined
+  hasInstrumentationInject: boolean
 }) {
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
@@ -857,7 +857,7 @@ export function onDemandEntryHandler({
           pagesDir,
           appDir,
           !!nextConfig.experimental.globalNotFound,
-          instrumentationInject
+          hasInstrumentationInject
         )
       }
 
