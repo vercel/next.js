@@ -1,4 +1,5 @@
 use bincode::{Decode, Encode};
+use memchr::memchr3_iter;
 use serde::Serialize;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -56,7 +57,7 @@ impl SourcePos {
         // counted.
         let mut skip_lf_at = None;
         let mut line_start = None;
-        for i in memchr::memchr3_iter(b'\n', b'\r', b'\xE2', code) {
+        for i in memchr3_iter(b'\n', b'\r', b'\xE2', code) {
             match code[i] {
                 b'\n' => {
                     // Count "\r\n" as a single terminator.
