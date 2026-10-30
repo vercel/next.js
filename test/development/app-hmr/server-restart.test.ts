@@ -27,9 +27,11 @@ describe('app-dir server restart', () => {
     expect(await browser.elementById('counter-value').text()).toBe('Count: 2')
 
     // Set up reload detection before stopping the server
+    let reloadCount = 0
     let reloadPromise = new Promise((resolve) => {
       browser.on('request', (req) => {
         if (req.url().endsWith('/')) {
+          reloadCount++
           resolve(req.url())
         }
       })
@@ -57,5 +59,9 @@ describe('app-dir server restart', () => {
     await retry(async () => {
       expect(await browser.elementById('counter-value').text()).toBe('Count: 0')
     })
+
+    // Ensure the page does not get stuck in a reload loop
+    await waitFor(3000)
+    expect(reloadCount).toBe(1)
   })
 })
