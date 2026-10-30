@@ -5,3 +5,8 @@ p {
 body {
   font-family: var(--font-1);
 }
+
+/* A selector no minifier rewrites, to count copies of this stylesheet in output. */
+.inline-css-marker {
+  display: block;
+}
