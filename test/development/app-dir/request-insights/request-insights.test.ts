@@ -230,6 +230,20 @@ describe('request insights', () => {
     })
   })
 
+  it('returns a conflict for a history cursor from an old session', async () => {
+    const cursor = Buffer.from(
+      JSON.stringify({
+        sessionId: 'old-session',
+        generation: 0,
+        beforeSequence: 1,
+      })
+    ).toString('base64url')
+    const response = await next.fetch(
+      `/_next/development/request-insights?view=history&cursor=${cursor}`
+    )
+    expect(response.status).toBe(409)
+  })
+
   it('rejects history overlap lookups larger than the completed live window', async () => {
     const params = new URLSearchParams({ view: 'history' })
     for (let index = 0; index <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; index++) {

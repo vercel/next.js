@@ -1066,7 +1066,10 @@ describe('request insights', () => {
       getRequestInsightsHistory(distDir, {
         cursor: firstPage.nextCursor,
       })
-    ).rejects.toBeInstanceOf(StaleRequestInsightsHistoryCursorError)
+    ).rejects.toMatchObject({
+      name: 'StaleRequestInsightsHistoryCursorError',
+    })
+    expect(new StaleRequestInsightsHistoryCursorError()).toBeInstanceOf(Error)
 
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
