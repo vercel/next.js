@@ -9,10 +9,9 @@ const NextInstrumentationInjectLoader: webpack.LoaderDefinitionFunction<Instrume
   function () {
     const { modules } = this.getOptions()
 
-    // Resolve dependencies from the project root, not this stub inside
-    // `next/dist`. Keep package requests intact so webpack's externals handler
-    // can apply serverExternalPackages and the built-in opt-out list.
-    this._module!.context = this.rootContext
+    // Keep package requests intact so webpack's externals handler can apply
+    // serverExternalPackages and the built-in opt-out list. The webpack config
+    // sets this module's context to the project root before module creation.
     // The project's own `instrumentation` file runs last, or an empty module
     // when there is none (see `create-compiler-aliases.ts`).
     const allModules = [...modules, 'private-next-instrumentation-user']

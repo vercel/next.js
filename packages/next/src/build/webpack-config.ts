@@ -88,6 +88,7 @@ import {
   getReactCompilerLoader,
 } from './get-babel-loader-config'
 import {
+  INSTRUMENTATION_INJECT_STUB_PATH,
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
@@ -2006,6 +2007,18 @@ export default async function getBaseWebpackConfig(
       ],
     },
     plugins: [
+      !isClient &&
+        config.injectInstrumentation?.length &&
+        new bundler.NormalModuleReplacementPlugin(
+          new RegExp(
+            `^${escapeStringRegexp(INSTRUMENTATION_INJECT_STUB_PATH)}$`
+          ),
+          ({ createData }) => {
+            if (createData?.resource === INSTRUMENTATION_INJECT_STUB_PATH) {
+              createData.context = dir
+            }
+          }
+        ),
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
       dev && new CompleteRuntimePlugin(),
