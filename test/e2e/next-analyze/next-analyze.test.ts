@@ -84,8 +84,11 @@ const EXPECTED_ROUTES = [
   '/_global-error',
   '/_not-found',
   '/api/ping',
+  '/children-catch-all/[...catchAll]',
   '/legacy',
   '/meta/icon',
+  '/parallel-slots',
+  '/parallel-slots/other',
   '/sitemap.xml',
 ].sort()
 
@@ -267,23 +270,37 @@ describe('next analyze', () => {
     for (const record of records)
       expect(record).not.toHaveProperty('route_index')
     // Every summarized route, including metadata routes, is exported.
-    expect(exportedRoutes(records)).toEqual(readRoutes(snapshotDir))
-    expect([...readRoutes(snapshotDir)].sort()).toEqual(EXPECTED_ROUTES)
+    const routes = readRoutes(snapshotDir)
+    expect(exportedRoutes(records)).toEqual(routes)
+    expect([...routes].sort()).toEqual(EXPECTED_ROUTES)
+
+    // A slot-only catch-all is discovered on disk but has no standalone data.
+    // A catch-all in the children slot must still be indexed and exported.
+    const slotOnlyCatchAll = '/parallel-slots/[...catchAll]'
+    const childrenCatchAll = '/children-catch-all/[...catchAll]'
+    expect(routes).toContain('/parallel-slots')
+    expect(routes).not.toContain(slotOnlyCatchAll)
+    expect(routes).toContain(childrenCatchAll)
+    for (const directory of [path.join(analyzeDir, 'data'), snapshotDir]) {
+      expect(existsSync(routeDataFile(directory, slotOnlyCatchAll))).toBe(false)
+      expect(existsSync(routeDataFile(directory, childrenCatchAll))).toBe(true)
+    }
+
     expect(
       JSON.parse(readFileSync(path.join(snapshotDir, 'metadata.json'), 'utf8'))
         .routeCount
-    ).toBe(readRoutes(snapshotDir).length)
+    ).toBe(routes.length)
     // route-summaries.json is the only route index.
     expect(existsSync(path.join(snapshotDir, 'routes.json'))).toBe(false)
     expect(existsSync(path.join(analyzeDir, 'data/routes.json'))).toBe(false)
 
-    // A stale routes.json left by older captures, with routes-manifest names
-    // that have no data, is ignored.
+    // A stale routes.json left by older captures, with metadata and slot-only
+    // routes-manifest names that have no data, is ignored.
     const legacyRoutesFile = path.join(snapshotDir, 'routes.json')
     try {
       writeFileSync(
         legacyRoutesFile,
-        JSON.stringify(['/', '/meta/icon/[__metadata_id__]'])
+        JSON.stringify(['/', '/meta/icon/[__metadata_id__]', slotOnlyCatchAll])
       )
       const legacy = await next.runCommand([
         'analyze',
