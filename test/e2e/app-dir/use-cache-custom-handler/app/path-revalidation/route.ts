@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       pausedLookupKeys: cacheSharingState.pausedLookupKeys.filter((key) =>
         key.includes(JSON.stringify(id))
       ),
+      selectedEntrySoftTags: cacheSharingState.selectedEntrySoftTags,
     })
   }
 
@@ -27,6 +28,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   switch (await request.text()) {
+    case 'revalidate-route-a':
+      revalidatePath('/path-revalidation/a')
+      break
+    case 'hold-selected-entry':
+      cacheSharingState.selectedEntrySoftTags = []
+      cacheSharingState.pendingSelectedEntry = new Promise((resolve) => {
+        cacheSharingState.releaseSelectedEntry = resolve
+      })
+      break
+    case 'release-selected-entry':
+      cacheSharingState.releaseSelectedEntry?.()
+      cacheSharingState.releaseSelectedEntry = null
+      cacheSharingState.pendingSelectedEntry = null
+      break
     case 'revalidate-route-b':
       revalidatePath('/path-revalidation/b')
       break

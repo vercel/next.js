@@ -31,6 +31,7 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { RouteKind } from '../../route-kind'
 
 import { addRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
@@ -210,6 +211,10 @@ export function getResolveRoutes(
 
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
+    // The Pages Router needs an internal default-locale prefix while applying
+    // rewrites. App routes should only see a locale segment that was actually
+    // present in the request or introduced by a rewrite.
+    let localePathWasInferred = false
     let initialLocaleResult:
       | ReturnType<typeof normalizeLocalePath>
       | undefined = undefined
@@ -251,6 +256,7 @@ export function getResolveRoutes(
         !initialLocaleResult.detectedLocale &&
         !initialLocaleResult.pathname.startsWith('/_next/')
       ) {
+        localePathWasInferred = true
         parsedUrl.pathname = addPathPrefix(
           initialLocaleResult.pathname === '/'
             ? `/${defaultLocale}`
@@ -285,7 +291,11 @@ export function getResolveRoutes(
         return
       }
       if (!invokedOutputs?.has(pathname)) {
-        const output = await fsChecker.getItem(pathname)
+        const output = await fsChecker.getItem(
+          pathname,
+          undefined,
+          Boolean(config.i18n && !localePathWasInferred)
+        )
 
         if (output) {
           if (
@@ -317,21 +327,23 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
+        const isAppRoute =
+          route.kind === RouteKind.APP_PAGE ||
+          route.kind === RouteKind.APP_ROUTE
+        // Pages routes match their locale-normalized pathname. App routes own
+        // explicit locale segments and therefore match the literal pathname.
+        const routePathname =
+          isAppRoute && !localePathWasInferred
+            ? curPathname || '/'
+            : localeResult.pathname
+        const params = route.match(routePathname)
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
             addPathPrefix(route.page, config.basePath || ''),
-            curPathname || undefined
+            curPathname || undefined,
+            isAppRoute && !localePathWasInferred
           )
-
-          // i18n locales aren't matched for app dir
-          if (
-            pageOutput?.type === 'appFile' &&
-            initialLocaleResult?.detectedLocale
-          ) {
-            continue
-          }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
             setIsNextDataRequest()
@@ -344,6 +356,8 @@ export function getResolveRoutes(
                   // The dynamic-route scan matched the concrete request path;
                   // keep those params with the fsChecker route definition.
                   params,
+                  didMatchLocalePrefixedPath:
+                    isAppRoute && routePathname !== localeResult.pathname,
                 }
               : null
           }
@@ -501,7 +515,11 @@ export function getResolveRoutes(
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(pathname)
+          const output = await fsChecker.getItem(
+            pathname,
+            undefined,
+            Boolean(config.i18n && !localePathWasInferred)
+          )
 
           if (
             output &&
@@ -607,6 +625,7 @@ export function getResolveRoutes(
             debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
+            let rewriteLocaleWasInferred = false
             let bodyStream: ReadableStream | undefined = undefined
             try {
               try {
@@ -616,6 +635,8 @@ export function getResolveRoutes(
                   throw err
                 }
                 middlewareRes = err.result.response as Response
+                rewriteLocaleWasInferred =
+                  err.result.rewriteLocaleWasInferred === true
                 res.statusCode = middlewareRes.status
 
                 if (middlewareRes.body) {
@@ -741,6 +762,7 @@ export function getResolveRoutes(
               resHeaders['x-middleware-rewrite'] = destination
 
               parsedUrl = parseUrl(destination)
+              localePathWasInferred = rewriteLocaleWasInferred
 
               if (parsedUrl.protocol) {
                 return {
@@ -925,6 +947,18 @@ export function getResolveRoutes(
             if (curLocaleResult.detectedLocale) {
               addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
             }
+
+            // Generated i18n rewrites propagate the internal locale prefix.
+            // That prefix remains inferred unless the destination supplies
+            // an explicit locale instead.
+            localePathWasInferred = Boolean(
+              localePathWasInferred &&
+                route.destination.startsWith(
+                  `${config.basePath || ''}/:nextInternalLocale`
+                ) &&
+                rewriteParams.nextInternalLocale ===
+                  curLocaleResult.detectedLocale
+            )
           }
           didRewrite = true
           parsedUrl.pathname = parsedDestination.pathname

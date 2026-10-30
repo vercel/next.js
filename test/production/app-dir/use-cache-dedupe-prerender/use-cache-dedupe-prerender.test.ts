@@ -37,6 +37,33 @@ function setupFixture(appDirectory: string) {
 }
 
 describe('use-cache-dedupe-prerender', () => {
+  describe('asynchronous handler expiration checks', () => {
+    const fixture = setupFixture('context')
+
+    it('keeps cache warming active while implicit-tag expiration is pending', async () => {
+      const { next, dataService } = fixture
+      next.env.TEST_HOLD_EXPIRATION = '1'
+      dataService.hold('expiration:root')
+      const building = next.build()
+      try {
+        await dataService.waitForRequest('expiration:root')
+        dataService.release('expiration:root')
+        expect((await building).exitCode).toBe(0)
+        expect(next.cliOutput).not.toContain(
+          'Unexpected cache miss after cache warming phase during prerendering'
+        )
+        await next.start({ skipBuild: true })
+        const [shell] = (await next.render('/')).split(
+          '<!-- PPR_BOUNDARY_SENTINEL -->'
+        )
+        expect(load(shell)('#outer').text()).toBe('short-lived shared')
+      } finally {
+        dataService.releaseAll()
+        await building
+      }
+    })
+  })
+
   describe('direct and nested calls during static prerendering', () => {
     const fixture = setupFixture('context')
 

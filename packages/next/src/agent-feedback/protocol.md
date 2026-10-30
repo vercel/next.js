@@ -16,6 +16,8 @@ Create a separate report draft for each distinct Next.js friction point that cau
 
 Do not report routine first-pass debugging, vague task scope, problems caused by unverified changes, or issues resolved immediately by following existing guidance. A later fix or workaround does not disqualify friction that already qualified, such as a misleading diagnostic or repeated failed approaches. Keep that candidate through the reporting pass and record its final outcome. Keep unrelated issues in separate report drafts.
 
+Do not report a `SecurityFatalError` or `UpgradeNudgeError` when Next.js says the command intentionally stopped to show an upgrade recommendation and that retrying will continue. This is expected behavior, not a feedback candidate. If the retry remains blocked or the documented remediation fails, treat that deviation as separate unexpected behavior and evaluate it normally.
+
 ## Run the reporting pass before the final response
 
 Do not interrupt the current user request when friction first qualifies. Retain each distinct set of bounded, anonymized facts as a feedback candidate in the context of the current user request, then continue the work.
