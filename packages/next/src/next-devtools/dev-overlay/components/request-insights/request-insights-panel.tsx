@@ -1,4 +1,6 @@
 import {
+  createContext,
+  useContext,
   useCallback,
   useEffect,
   useId,
@@ -68,6 +70,8 @@ import {
 } from './request-insights-history'
 import './request-insights-panel.css'
 
+const CopyErrorContext = createContext<(error: string | null) => void>(() => {})
+
 const TRACE_TICK_COUNT = 5
 const REQUEST_ROW_HEIGHT = 52
 const REQUEST_ROW_OVERSCAN = 8
@@ -76,6 +80,7 @@ const REQUEST_SCROLLBAR_MIN_THUMB_HEIGHT = 24
 
 export function RequestInsightsPanel() {
   const { dispatch, state, shadowRoot } = useDevOverlayContext()
+  const [copyError, setCopyError] = useState<string | null>(null)
   const [activeFilters, setActiveFilters] = useState<
     readonly RequestInsightFilter[]
   >([])
@@ -188,7 +193,7 @@ export function RequestInsightsPanel() {
     )
   }
 
-  return (
+  const content = (
     <div className="request-insights-panel">
       <div className="request-insights-list">
         <div className="request-insights-list-toolbar">
@@ -297,6 +302,11 @@ export function RequestInsightsPanel() {
             </div>
           </div>
         </div>
+        {copyError ? (
+          <div className="request-insights-copy-error" role="alert">
+            {copyError}
+          </div>
+        ) : null}
         {activeFilters.length > 0 ? (
           <div className="request-insights-filter-status">
             <span>
@@ -374,6 +384,8 @@ export function RequestInsightsPanel() {
       ) : null}
     </div>
   )
+
+  return <CopyErrorContext value={setCopyError}>{content}</CopyErrorContext>
 }
 
 function VirtualRequestList({
@@ -855,10 +867,25 @@ function RequestContextMenuItem({
   getValue: () => string
   label: string
 }) {
+  const setCopyError = useContext(CopyErrorContext)
+
   return (
     <ContextMenu.Item
       className="request-insights-context-item"
-      onClick={() => copyToClipboard(getValue())}
+      onClick={async () => {
+        setCopyError(null)
+        if (!navigator.clipboard) {
+          setCopyError('Copy is unavailable. Use HTTPS or localhost.')
+          return
+        }
+        try {
+          await navigator.clipboard.writeText(getValue())
+        } catch {
+          setCopyError(
+            'Could not copy. Check browser permissions and try again.'
+          )
+        }
+      }}
     >
       {label}
     </ContextMenu.Item>
@@ -876,17 +903,6 @@ function RequestInsightsContextMenuBackdrop({
       onPointerDown={onClose}
     />
   )
-}
-
-function copyToClipboard(value: string) {
-  if (!navigator.clipboard) {
-    console.warn('Copy to clipboard is not supported in this browser')
-    return
-  }
-
-  void navigator.clipboard.writeText(value).catch((error) => {
-    console.warn(error)
-  })
 }
 
 function NestedArrowIcon() {
