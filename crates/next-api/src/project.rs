@@ -2746,13 +2746,36 @@ impl Project {
         Ok(any_output_changed(roots, path, false))
     }
 
+    /// Whether Pages Router endpoints are emitted, which is exactly when `get_all_endpoint_groups`
+    /// adds the `/_app` endpoint (i.e. there is at least one Pages Router route).
+    #[turbo_tasks::function]
+    pub async fn contains_pages_endpoints(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.get_all_endpoint_groups(/* app_dir_only */ false)
+                .await?
+                .iter()
+                .any(|(key, _)| matches!(key, EndpointGroupKey::PagesApp)),
+        ))
+    }
+
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let pages_project = self.pages_project();
-        let mut chunk_groups = vec![ChunkGroupEntry::Entry {
-            modules: vec![pages_project.client_main_module().to_resolved().await?],
-            heuristics: EntryHeuristics::high_priority(),
-        }];
+        let mut chunk_groups = Vec::new();
+
+        // The Pages Router client runtime is only needed when Pages endpoints are emitted.
+        // Otherwise including it would pull the whole Pages Router client graph into the
+        // whole-app module graph for nothing.
+        if *self.contains_pages_endpoints().await? {
+            chunk_groups.push(ChunkGroupEntry::Entry {
+                modules: vec![
+                    self.pages_project()
+                        .client_main_module()
+                        .to_resolved()
+                        .await?,
+                ],
+                heuristics: EntryHeuristics::high_priority(),
+            });
+        }
 
         if let Some(app_project) = *self.app_project().await? {
             chunk_groups.push(ChunkGroupEntry::Entry {
