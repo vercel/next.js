@@ -541,7 +541,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .module_merging(options.scope_hoisting)
             .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -554,6 +553,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
             if options.single_chunk {
                 builder = builder.single_chunk().await?;
+            }
+
+            if options.scope_hoisting {
+                builder = builder.merged_modules(module_graph.merged_modules().await?.groups);
             }
 
             if options.remove_unused_imports {
@@ -594,7 +597,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
             } else {
@@ -602,6 +604,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if options.scope_hoisting {
+                builder = builder.merged_modules(module_graph.merged_modules().await?.groups);
+            }
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

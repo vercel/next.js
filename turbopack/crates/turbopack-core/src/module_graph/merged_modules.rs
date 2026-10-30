@@ -32,8 +32,36 @@ pub struct MergedModulesOriginalModules(
     FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
 );
 
+/// Original modules belonging to the same scope-hoisting group. Kept separately from the
+/// replacement decisions so code generation can read just its target's group.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct MergedModuleGroups(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<MergedModuleGroup>>,
+);
+
+#[turbo_tasks::value]
+pub struct MergedModuleGroup {
+    pub modules: ResolvedVc<MergeableModulesExposed>,
+    /// The original module whose identity the merged factory uses.
+    pub entry: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl MergedModuleGroup {
+    // Give each group its own task boundary: rebuilding the global analysis must not change
+    // an unchanged group's identity just because another group was added or reordered.
+    #[turbo_tasks::function]
+    pub fn new(
+        modules: ResolvedVc<MergeableModulesExposed>,
+        entry: ResolvedVc<Box<dyn Module>>,
+    ) -> Vc<Self> {
+        Self { modules, entry }.cell()
+    }
+}
+
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
+    pub groups: ResolvedVc<MergedModuleGroups>,
     /// A map of modules describing how they participate in module merging:
     /// - Not present: the module is not affected by merging and a regular chunk item should be
     ///   created for it.
@@ -841,10 +869,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     })
                     .collect::<Vec<_>>();
 
+                let group = MergedModuleGroup::new(
+                    MergeableModulesExposed::interned(list_exposed),
+                    Vc::upcast(entry_points[0]),
+                )
+                .to_resolved()
+                .await?;
                 let entry = *list.last().unwrap();
                 let result = entry
                     .merge(
-                        MergeableModulesExposed::interned(list_exposed),
+                        *group.await?.modules,
                         MergeableModules::interned(entry_points),
                     )
                     .to_resolved()
@@ -854,6 +888,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 Ok(Some((
                     ResolvedVc::upcast::<Box<dyn Module>>(entry),
                     result,
+                    group,
                     list.into_iter()
                         .take(list_len - 1)
                         .map(ResolvedVc::upcast::<Box<dyn Module>>)
@@ -877,12 +912,15 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut merged_groups = 0;
         let mut included_modules = 0;
 
-        for (original, replacement, replacement_included) in result.into_iter().flatten() {
+        let mut groups = FxHashMap::default();
+        for (original, replacement, group, replacement_included) in result.into_iter().flatten() {
+            groups.insert(original, group);
             replacements.insert(original, Some(replacement));
             replacements_to_original.insert(ResolvedVc::upcast(replacement), original);
             merged_groups += 1;
             included_modules += replacement_included.len();
             for included in replacement_included {
+                groups.insert(included, group);
                 replacements.insert(included, None);
             }
         }
@@ -891,6 +929,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("included_modules", included_modules);
 
         Ok(MergedModuleInfo {
+            groups: ResolvedVc::cell(groups),
             replacements: ResolvedVc::cell(replacements),
             replacements_to_original: ResolvedVc::cell(replacements_to_original),
         }

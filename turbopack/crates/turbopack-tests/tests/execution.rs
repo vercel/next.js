@@ -620,7 +620,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         RuntimeType::Development,
     )
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
-    .module_merging(options.scope_hoisting)
     .minify_type(if options.minify {
         MinifyType::Minify {
             mangle: Some(MangleType::OptimalSize),
@@ -643,6 +642,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 .to_resolved()
                 .await?,
         );
+    }
+
+    if options.scope_hoisting {
+        builder = builder.merged_modules(module_graph.merged_modules().await?.groups);
     }
 
     if options.remove_unused_imports {

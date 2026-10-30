@@ -50,7 +50,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{SubsumedImports, all_known_export_names, is_export_missing},
-            mangle::generated_export_key,
+            mangle::{flat_export_group, generated_export_key},
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -282,16 +282,15 @@ impl ReferencedAsset {
                                 .await?
                                 {
                                     Some(ReferencedAssetIdent::Module {
-                                        namespace_ident,
-                                        // Overwrite the context. This import isn't
-                                        // inserted in the module that uses the import,
-                                        // but in the module containing the reexport
+                                        // This import is inserted in the module containing the
+                                        // reexport, not the module using the import.
                                         ctxt: None,
+                                        namespace_ident,
                                         export,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
-                                        namespace_ident,
                                         ctxt: Some(ctxt),
+                                        namespace_ident,
                                         export,
                                         import_source,
                                     }),
@@ -306,20 +305,25 @@ impl ReferencedAsset {
                     }
                 }
 
-                let import_source = ImportSource::Module { asset: *asset };
+                let target =
+                    if let Some(group) = *flat_export_group(**asset, chunking_context).await? {
+                        group.await?.entry
+                    } else {
+                        *asset
+                    };
+                let import_source = ImportSource::Module { asset: target };
+                // Allocate against the original module, not the shared factory target,
+                // using the same mapping as the producing module.
+                let export = match &export {
+                    Some(export) => {
+                        Some(generated_export_key(*asset, chunking_context, export).await?)
+                    }
+                    None => None,
+                };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
-                    // The target module may emit its exports under shortened keys. This is the
-                    // only place a cross-module export access is materialized, and it resolves
-                    // the same map the producing module uses (see
-                    // `EsmExports::code_generation`), so the two always agree.
-                    export: match &export {
-                        Some(export) => {
-                            Some(generated_export_key(*asset, chunking_context, export).await?)
-                        }
-                        None => None,
-                    },
+                    export,
                     import_source,
                 })
             }

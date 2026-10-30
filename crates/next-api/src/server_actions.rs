@@ -50,6 +50,7 @@ use turbopack_core::{
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
         binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroupKey,
+        merged_modules::MergedModuleGroups,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -1206,10 +1207,10 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_module_merging_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        bail!(
-            "is_module_merging_enabled should not be called in UseCacheContentHashChunkingContext"
-        )
+    fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
+        // Hash individual factories, independently of which modules the rest of the build
+        // places in a scope-hoisting group. Code generation must not request that analysis.
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
@@ -1329,6 +1330,12 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     #[turbo_tasks::function]
     fn unused_references(self: Vc<Self>) -> Vc<UnusedReferences> {
         // Intentionally empty for more stable hashes
+        Vc::cell(Default::default())
+    }
+
+    #[turbo_tasks::function]
+    fn merged_modules(self: Vc<Self>) -> Vc<MergedModuleGroups> {
+        // Hashes describe standalone module content, independent of scope-hoisting groups.
         Vc::cell(Default::default())
     }
 

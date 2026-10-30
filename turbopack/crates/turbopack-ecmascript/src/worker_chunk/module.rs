@@ -27,7 +27,7 @@ use crate::{
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     embed_js::embed_fs,
-    references::esm::generated_export_key,
+    references::esm::{generated_export_key, mangle::flat_export_group},
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
@@ -292,19 +292,26 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             .cell());
         }
 
-        let create_worker_module = self.create_worker_module();
-        let create_worker_id = create_worker_module.chunk_item_id(chunking_context).await?;
+        let create_worker_module = self.create_worker_module().to_resolved().await?;
+        let mut create_worker_target = create_worker_module;
         // The helper's `default` export is read here as a string, so it has to go through the same
         // mapping the helper itself emits — a hard-coded `["default"]` misses once its exports are
         // mangled.
         let create_worker_export = match ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
-            create_worker_module.to_resolved().await?,
+            create_worker_module,
         ) {
             Some(placeable) => {
+                // Resolve the factory identity as well as the key, just like a generated ESM
+                // import.
+                if let Some(group) = *flat_export_group(*placeable, chunking_context).await? {
+                    create_worker_target = ResolvedVc::upcast(group.await?.entry);
+                }
                 generated_export_key(placeable, chunking_context, &rcstr!("default")).await?
             }
             None => rcstr!("default"),
         };
+
+        let create_worker_id = create_worker_target.chunk_item_id(chunking_context).await?;
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {

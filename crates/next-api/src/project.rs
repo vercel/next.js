@@ -81,6 +81,7 @@ use turbopack_core::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
         chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
+        merged_modules::MergedModuleGroups,
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -1729,6 +1730,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
+            merged_modules: self.merged_modules(),
             minify: self.next_config().turbo_client_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
@@ -1825,6 +1827,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
+            merged_modules: self.merged_modules(),
             minify: self.next_config().turbo_server_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
@@ -1874,6 +1877,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
+            merged_modules: self.merged_modules(),
             turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
@@ -2816,6 +2820,26 @@ impl Project {
             .await?
         {
             Ok(self.binding_usage_info().unused_references())
+        } else {
+            Ok(Vc::cell(Default::default()))
+        }
+    }
+
+    /// Compute scope-hoisting groups for the same full graph used for production chunking.
+    #[turbo_tasks::function]
+    pub async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleGroups>> {
+        if *self
+            .next_config()
+            .turbo_scope_hoisting(self.next_mode())
+            .await?
+        {
+            Ok(*self
+                .whole_app_module_graphs()
+                .await?
+                .full
+                .merged_modules()
+                .await?
+                .groups)
         } else {
             Ok(Vc::cell(Default::default()))
         }

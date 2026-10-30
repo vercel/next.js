@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/lazy.js"],"sourcesContent":["import { sameLongExportName as first, a as firstShort } from './first'\nimport { sameLongExportName as second, a as secondShort } from './second'\nimport { sameLongExportName as third, a as thirdShort } from './third'\n\nexport const read = () => [\n  first,\n  second,\n  third,\n  firstShort,\n  secondShort,\n  thirdShort,\n]\n"],"names":["read"],"mappings":"AAAA;AACA;;;;AAGO,MAAMA,OAAO,IAAM;QACxB,qPAAK;QACL,qOAAM;QACN,qOAAK;QACL,oOAAU;QACV,qOAAW;QACX,qOAAU;KACX"}}]
+}

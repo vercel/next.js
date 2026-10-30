@@ -222,7 +222,13 @@ impl EcmascriptModulePartReference {
                 ReferencedAssetIdent::LocalBinding { .. } => {
                     // no need to import
                 }
-                ReferencedAssetIdent::Module { .. } => {
+                ReferencedAssetIdent::Module {
+                    ref import_source, ..
+                } => {
+                    let target = match &import_source {
+                        crate::references::esm::base::ImportSource::Module { asset } => *asset,
+                        _ => unreachable!("part module reference must target an in-graph module"),
+                    };
                     let (sym, ctxt) = ident.into_module_namespace_ident().unwrap();
                     if subsumed_namespaces.contains(&(sym.to_string(), ctxt)) {
                         // A compact registration performs this import, including evaluation-only
@@ -232,7 +238,7 @@ impl EcmascriptModulePartReference {
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 
-                    let id = module.chunk_item_id(chunking_context).await?;
+                    let id = target.chunk_item_id(chunking_context).await?;
 
                     result.push(CodeGenerationHoistedStmt::new(
                         key,

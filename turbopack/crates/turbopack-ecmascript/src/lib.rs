@@ -132,6 +132,7 @@ use crate::{
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
+    utils::module_id_to_lit,
 };
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
@@ -1346,12 +1347,50 @@ impl EcmascriptModuleContent {
                 .try_join()
                 .await?;
 
-            let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
-                merge_modules(contents, &entry_points, &globals_merged).await?;
-
             // Use the options from an arbitrary module, since they should all be the same with
             // regards to minify_type and chunking_context.
             let options = module_options.last().unwrap().await?;
+            let first_entry = entry_points.first().unwrap().0;
+            let flat_group = if let Some(group) = options
+                .chunking_context
+                .merged_modules()
+                .get(&ResolvedVc::upcast(first_entry))
+                .await?
+                .as_deref()
+            {
+                if let Some(flat_group) =
+                    *references::esm::mangle::flat_group_exports(**group, *options.chunking_context)
+                        .await?
+                {
+                    Some(flat_group.await?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            // Any exposed deoptimized member can instantiate this factory through its alias.
+            // Always target the flat namespace explicitly in mixed groups, even when it is the
+            // original entry, so registration never writes to and seals an alias's namespace.
+            let flat_export_id = if let Some(group) = &flat_group
+                && (group.entry != first_entry
+                    || modules.iter().any(|(module, exposure)| {
+                        *exposure == MergeableModuleExposure::External
+                            && !group.names.contains_key(module)
+                    })) {
+                Some(group.entry.chunk_item_id(*options.chunking_context).await?)
+            } else {
+                None
+            };
+            let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
+                merge_modules(
+                    contents,
+                    &entry_points,
+                    &globals_merged,
+                    flat_group.is_some(),
+                    flat_export_id.as_ref(),
+                )
+                .await?;
 
             let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
             let content = CodeGenResult {
@@ -1375,20 +1414,18 @@ impl EcmascriptModuleContent {
                 scope_hoisting_syntax_contexts: None,
             };
 
-            let first_entry = entry_points.first().unwrap().0;
             let additional_ids = modules
                 .keys()
-                // Additionally set this module factory for all modules that are exposed. The whole
-                // group might be imported via a different entry import in different chunks (we only
-                // ensure that the modules are in the same order, not that they form a subgraph that
-                // is always imported from the same root module).
-                //
-                // Also skip the first entry, which is the name of the chunk item.
-                .filter(|m| {
-                    **m != first_entry
-                        && *modules.get(*m).unwrap() == MergeableModuleExposure::External
+                // Flat members share one namespace ID. Only its target and independently
+                // exposed namespaces need aliases for imports that instantiate this factory.
+                .filter(|module| {
+                    **module != first_entry
+                        && *modules.get(*module).unwrap() == MergeableModuleExposure::External
+                        && flat_group.as_ref().is_none_or(|group| {
+                            **module == group.entry || !group.names.contains_key(*module)
+                        })
                 })
-                .map(|m| m.chunk_item_id(*options.chunking_context))
+                .map(|module| module.chunk_item_id(*options.chunking_context))
                 .try_join()
                 .await?
                 .into();
@@ -1454,6 +1491,8 @@ async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
     entry_points: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
     globals_merged: &'_ Globals,
+    flat_exports: bool,
+    flat_export_id: Option<&ModuleId>,
 ) -> Result<(
     Program,
     Vec<CodeGenResultComments>,
@@ -1782,6 +1821,47 @@ async fn merge_modules(
             result.push(item);
         }
         drop(span);
+
+        if flat_exports {
+            let mut getters = Vec::new();
+            // The contributions have already had their syntax contexts and source spans rewritten.
+            // Register before imports so cyclic consumers see the whole group's getters.
+            // Only inspect generated early-hoisted statements, never user code in `result`,
+            // which may contain a user binding with the same spelling as the marker.
+            merged_prelude.retain_mut(|item| {
+                if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item
+                    && let Expr::Call(call) = &mut **expr
+                    && let Callee::Expr(callee) = &call.callee
+                    && callee.is_ident_ref_to("__turbopack_flat_esm__")
+                {
+                    let Expr::Array(array) = &mut *call.args[0].expr else {
+                        unreachable!()
+                    };
+                    getters.append(&mut array.elems);
+                    return false;
+                }
+                true
+            });
+            if !getters.is_empty() || flat_export_id.is_some() {
+                let getters = Expr::from(swc_core::ecma::ast::ArrayLit {
+                    span: DUMMY_SP,
+                    elems: getters,
+                });
+                let stmt = ModuleItem::Stmt(if let Some(id) = flat_export_id {
+                    quote!("$esm($getters, $id);" as Stmt,
+                        esm: Expr = runtime_functions::TURBOPACK_ESM.into(),
+                        getters: Expr = getters,
+                        id: Expr = module_id_to_lit(id),
+                    )
+                } else {
+                    quote!("$esm($getters);" as Stmt,
+                        esm: Expr = runtime_functions::TURBOPACK_ESM.into(),
+                        getters: Expr = getters,
+                    )
+                });
+                merged_prelude.insert(0, stmt);
+            }
+        }
 
         let span = tracing::trace_span!("hygiene").entered();
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {

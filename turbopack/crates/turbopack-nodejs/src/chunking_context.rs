@@ -26,6 +26,7 @@ use turbopack_core::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroupKey,
+        merged_modules::MergedModuleGroups,
     },
     output::{OutputAsset, OutputAssets},
 };
@@ -92,11 +93,6 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
-        self.chunking_context.enable_module_merging = enable_module_merging;
-        self
-    }
-
     pub fn dynamic_chunk_content_loading(
         mut self,
         enable_dynamic_chunk_content_loading: bool,
@@ -133,6 +129,11 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
         self.chunking_context.unused_references = Some(unused_references);
+        self
+    }
+
+    pub fn merged_modules(mut self, merged_modules: ResolvedVc<MergedModuleGroups>) -> Self {
+        self.chunking_context.merged_modules = Some(merged_modules);
         self
     }
 
@@ -224,8 +225,6 @@ pub struct NodeJsChunkingContext {
     runtime_type: RuntimeType,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
-    /// Enable module merging
-    enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
@@ -240,6 +239,7 @@ pub struct NodeJsChunkingContext {
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
     unused_references: Option<ResolvedVc<UnusedReferences>>,
+    merged_modules: Option<ResolvedVc<MergedModuleGroups>>,
     /// The strategy to use for generating source map source uris
     source_map_source_type: SourceMapSourceType,
     /// The chunking configs
@@ -284,7 +284,6 @@ impl NodeJsChunkingContext {
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
                 enable_nested_async_availability: false,
-                enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
@@ -295,6 +294,7 @@ impl NodeJsChunkingContext {
                 module_id_strategy: None,
                 export_usage: None,
                 unused_references: None,
+                merged_modules: None,
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
@@ -425,7 +425,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_module_merging)
+        Vc::cell(self.merged_modules.is_some())
     }
 
     #[turbo_tasks::function]
@@ -817,6 +817,15 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn unused_references(&self) -> Vc<UnusedReferences> {
         if let Some(unused_references) = self.unused_references {
             *unused_references
+        } else {
+            Vc::cell(Default::default())
+        }
+    }
+
+    #[turbo_tasks::function]
+    fn merged_modules(&self) -> Vc<MergedModuleGroups> {
+        if let Some(merged_modules) = self.merged_modules {
+            *merged_modules
         } else {
             Vc::cell(Default::default())
         }
