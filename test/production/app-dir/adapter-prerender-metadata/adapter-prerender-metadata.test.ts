@@ -1,5 +1,6 @@
 import { stat } from 'fs/promises'
 import { nextTestSetup } from 'e2e-utils'
+import { assertNoConsoleErrors, retry } from 'next-test-utils'
 import type { NextAdapter } from 'next'
 
 type AdapterBuildContext = Parameters<NextAdapter['onBuildComplete']>[0]
@@ -355,6 +356,20 @@ describe('adapter-prerender-metadata', () => {
     // ...but serving it needs no per-request compute
     expect(clientHole.compute).toBe('static')
     expect(clientHole.htmlSize).toBeGreaterThan(0)
+  })
+
+  it('hydrates client-resolving pending UI without errors', async () => {
+    // The stored document marks the hole for client rendering, and the
+    // browser fills it in once it has hydrated.
+    const browser = await next.browser('/client-hole?q=hello', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    await retry(async () => {
+      expect(await browser.elementById('client-hole').text()).toBe('q: hello')
+    })
+    expect(await browser.eval('window.__NEXT_HYDRATED')).toBe(true)
+    await assertNoConsoleErrors(browser)
   })
 
   it('classifies an empty Cache Components shell as blocking', async () => {

@@ -15,6 +15,16 @@ const nextConfig = {
     // instead.
     instantInsights: { validationLevel: 'manual-warning' },
   },
+  async rewrites() {
+    return [
+      {
+        // A static fallback shell reads its params from the URL it was
+        // rewritten to, not the one in the address bar.
+        source: '/client-resume-rewritten/:slug',
+        destination: '/client-resume/:slug',
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

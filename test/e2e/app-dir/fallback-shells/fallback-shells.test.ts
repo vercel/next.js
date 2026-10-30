@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoConsoleErrors } from 'next-test-utils'
+import { assertNoConsoleErrors, retry } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -32,7 +32,8 @@ describe('fallback-shells', () => {
     // environments an uncovered param currently gets a blocking on-demand
     // render rather than the prerendered fallback shell, and `next start`
     // renders uncovered params on demand as well. The resume script is only
-    // present in the build-time fallback shell artifact.
+    // present in the build-time fallback shell artifact. "client resume"
+    // below covers that path.
     describe('with metadata', () => {
       if (isNextDev) {
         // Fallback shells (and prefetching) only exist in production builds.
@@ -104,6 +105,87 @@ describe('fallback-shells', () => {
         )
         await assertNoConsoleErrors(browser)
       })
+    })
+  })
+
+  // Only a client component reads the param of `/client-resume/[slug]`, so the
+  // fallback shell for a slug that wasn't prerendered is a complete static
+  // document. It carries the `__NEXT_CLIENT_RESUME` script, which fetches the
+  // page's `/_full` payload, and the browser fills the param in from the
+  // pathname the server rendered. `next start` serves that shell. Deployments
+  // may render uncovered params on demand instead, so there only the outcome
+  // is asserted.
+  // @force-gate prod
+  describe('client resume', () => {
+    async function openClientResumePage(url: string) {
+      const fullPayloadRequests: string[] = []
+      let initialDocument!: Promise<Playwright.Response>
+      const browser = await next.browser(url, {
+        pushErrorAsConsoleLog: true,
+        beforePageLoad(page: Playwright.Page) {
+          initialDocument = page.waitForResponse((response) =>
+            response.request().isNavigationRequest()
+          )
+          page.on('request', (request) => {
+            if (
+              request.headers()['next-router-segment-prefetch'] === '/_full'
+            ) {
+              fullPayloadRequests.push(new URL(request.url()).pathname)
+            }
+          })
+        },
+      })
+      return { browser, fullPayloadRequests, initialDocument }
+    }
+
+    it('fills in an uncovered param after fetching the hydration data', async () => {
+      const { browser, fullPayloadRequests, initialDocument } =
+        await openClientResumePage('/client-resume/bar')
+
+      await retry(async () => {
+        expect(await browser.elementById('slug').text()).toBe('Slug: bar')
+      })
+      expect(await browser.eval('window.__NEXT_HYDRATED')).toBe(true)
+      if (isNextStart) {
+        const html = await (await initialDocument).text()
+        expect(html).toContain('__NEXT_CLIENT_RESUME=fetch(')
+        expect(html).not.toContain('Slug: ')
+        expect(html.trimEnd()).toEndWith('</html>')
+        expect(fullPayloadRequests).toEqual(['/client-resume/bar'])
+      }
+      await assertNoConsoleErrors(browser)
+    })
+
+    it('fills in the param of the path the page was rewritten to', async () => {
+      const { browser, fullPayloadRequests, initialDocument } =
+        await openClientResumePage('/client-resume-rewritten/baz')
+
+      await retry(async () => {
+        expect(await browser.elementById('slug').text()).toBe('Slug: baz')
+      })
+      expect(await browser.url()).toEndWith('/client-resume-rewritten/baz')
+      if (isNextStart) {
+        const html = await (await initialDocument).text()
+        expect(html).toContain('__NEXT_CLIENT_RESUME=fetch(')
+        // The script fetches the address bar's pathname, and the server
+        // answers for the rewritten one.
+        expect(fullPayloadRequests).toEqual(['/client-resume-rewritten/baz'])
+      }
+      await assertNoConsoleErrors(browser)
+    })
+
+    it('hydrates a prerendered param from the inline payload', async () => {
+      const { browser, fullPayloadRequests, initialDocument } =
+        await openClientResumePage('/client-resume/foo')
+
+      expect(await browser.elementById('slug').text()).toBe('Slug: foo')
+      expect(await browser.eval('window.__NEXT_HYDRATED')).toBe(true)
+      if (isNextStart) {
+        const html = await (await initialDocument).text()
+        expect(html).not.toContain('__NEXT_CLIENT_RESUME')
+        expect(fullPayloadRequests).toEqual([])
+      }
+      await assertNoConsoleErrors(browser)
     })
   })
 

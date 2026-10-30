@@ -1,10 +1,10 @@
 import type * as Playwright from 'playwright'
 import type { ChildProcess } from 'child_process'
-import type { Server } from 'http'
 import { createRouterAct } from 'router-act'
 import { findPort } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import { createFakeCDN } from './server.mjs'
+import { startFakeCDN, type FakeCDN } from '../../../../lib/fake-cdn.mjs'
+import { proxyRedirects } from './server.mjs'
 
 // This suite runs Next.js behind an in-process fake CDN on local ports.
 // @force-gate !deploy
@@ -25,13 +25,12 @@ describe('segment cache (CDN cache busting)', () => {
   // It only uses the URL.
   let nextChild: ChildProcess | undefined
   let nextExit: Promise<any> | undefined
-  let cdnServer: Server
+  let cdn: FakeCDN | undefined
   let port: number
 
   beforeAll(async () => {
     await next.build()
     const nextPort = await findPort()
-    const proxyPort = (port = await findPort())
 
     let resolveReady!: () => void
     const readyPromise = new Promise<void>((r) => (resolveReady = r))
@@ -47,17 +46,12 @@ describe('segment cache (CDN cache busting)', () => {
       .finally(() => resolveReady())
     await readyPromise
 
-    cdnServer = await createFakeCDN(nextPort)
-    await new Promise<void>((resolve, reject) => {
-      cdnServer.on('error', reject)
-      cdnServer.listen(proxyPort, () => resolve())
-    })
+    cdn = await startFakeCDN({ destPort: nextPort, redirects: proxyRedirects })
+    port = cdn.port
   })
 
   afterAll(async () => {
-    if (cdnServer) {
-      await new Promise<void>((resolve) => cdnServer.close(() => resolve()))
-    }
+    await cdn?.close()
     nextChild?.kill()
     await nextExit?.catch(() => {})
   })

@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
+import { ClientSlug } from './client-slug'
 
 // `/fallback/a` is prerendered with its param. Any other slug is served from
 // the fallback shell, whose param is unknown at build time.
@@ -15,6 +16,9 @@ export default function Page({
   return (
     <main>
       <h1 id="heading">Fallback route</h1>
+      <Suspense fallback={<p id="client-slug-fallback">Loading…</p>}>
+        <ClientSlug />
+      </Suspense>
       <Suspense fallback={<p id="fallback">Loading…</p>}>
         <Slug params={params} />
       </Suspense>

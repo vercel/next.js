@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
+import { HoleCounter } from '../hole-counter'
 
 // The worked example: a static heading and one hole.
 export default function Page() {
@@ -15,5 +16,10 @@ export default function Page() {
 
 async function Now() {
   await connection()
-  return <p id="dynamic">Now: {Date.now()}</p>
+  return (
+    <>
+      <p id="dynamic">Now: {Date.now()}</p>
+      <HoleCounter />
+    </>
+  )
 }
