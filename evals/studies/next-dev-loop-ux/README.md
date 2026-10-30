@@ -72,6 +72,11 @@ then starts timing the agent. It saves the prompt, task settings, harness,
 transcript, and generated app. The runner refuses to overwrite an attempt.
 Keep infrastructure failures separate from scored attempts.
 
+To compare another Codex model, pass its Gateway model ID as the final argument
+to both commands, for example `openai/gpt-6-sol?reasoningEffort=high`. Use a
+separate result directory for each model. The selected model is saved in the
+run's provenance and results; omitting it uses the default from `task.json`.
+
 ## Verify the saved apps
 
 Run verification separately, so a collection failure can be retried without

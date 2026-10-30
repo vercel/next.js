@@ -10,9 +10,11 @@ import { join, resolve } from 'node:path'
 import { getAgent } from '@vercel/agent-eval'
 import { prepare, study, task } from './prepare.mjs'
 
-const [condition, directory] = process.argv.slice(2)
+const [condition, directory, model = task.model] = process.argv.slice(2)
 if (!['baseline', 'skills'].includes(condition) || !directory) {
-  throw new Error('Usage: run.mjs baseline|skills <new-result-directory>')
+  throw new Error(
+    'Usage: run.mjs baseline|skills <new-result-directory> [model]'
+  )
 }
 for (const name of ['AI_GATEWAY_API_KEY', 'VERCEL_OIDC_TOKEN']) {
   if (!process.env[name]) throw new Error(`Missing ${name}`)
@@ -35,6 +37,7 @@ writeFileSync(
   JSON.stringify(
     {
       ...task,
+      model,
       condition,
       prompt,
       cacheComponents: true,
@@ -67,7 +70,7 @@ let agentSeconds = null
 let step = 0
 const result = await agent.run(fixture, {
   prompt,
-  model: task.model,
+  model,
   modelPolicy: 'agent-default',
   apiKey: process.env.AI_GATEWAY_API_KEY,
   sandbox: 'vercel',
@@ -172,7 +175,7 @@ writeFileSync(
   join(output, 'result.json'),
   JSON.stringify(
     {
-      model: task.model,
+      model,
       observedModel: result.observedModel,
       status: result.success ? 'awaiting_verification' : 'agent_failed',
       error: result.error,
