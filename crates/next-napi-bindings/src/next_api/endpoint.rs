@@ -20,10 +20,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
 };
-use turbopack_core::issue::{IssueFilter, PlainIssue};
+use turbopack_core::issue::{IssueFilter, IssueSeverity, PlainIssue};
 
 use crate::next_api::utils::{
-    DetachedVc, NapiIssue, SubscriptionTask, TurbopackResult,
+    DetachedVc, NapiIssue, SubscriptionTask, TurbopackResult, get_issues,
     strongly_consistent_catch_collectables, subscribe,
 };
 
@@ -288,15 +288,24 @@ pub fn endpoint_client_changed_subscribe(
         move || {
             async move {
                 let changed_op = endpoint_client_changed_operation(endpoint_op);
-                // We don't capture issues and diagnostics here since we don't want to be
-                // notified when they change.  We also want errors to propagate so we don't use
-                // strongly_consistent_catch_collectibles either.
+                // We don't capture issues and diagnostics on success since we don't want to be
+                // notified when they change.
                 //
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
                 // even if the cell id doesn't change.
-                //
-                let _ = changed_op.read_strongly_consistent().await?;
+                if let Err(err) = changed_op.read_strongly_consistent().await {
+                    // Transient build-graph errors (e.g. missing `node_modules/next` during a
+                    // concurrent install) come with an Issue. The server subscription
+                    // (`subscribe_issues_and_diags_operation`) already reports that Issue, so
+                    // don't turn the error into a `TurbopackInternalError` here. Issues are only
+                    // read on this failure path, so the success path keeps not depending on them.
+                    let filter = issue_filter_from_endpoint(endpoint_op).await;
+                    let issues = get_issues(changed_op, &filter).await?;
+                    if !issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+                        return Err(err);
+                    }
+                }
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
