@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { load } from 'cheerio'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -6,7 +7,6 @@ import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
-import { retry } from 'next-test-utils'
 
 // Tag revalidations and cache entries must be dated with the same clock as
 // the expiry check, including entries read back from disk. Instrumentation
@@ -68,28 +68,28 @@ describe('file-system-cache-clock', () => {
       return (await request(pathname)).data
     }
 
-    async function waitForFetchEntry(expectedData: string) {
-      // Dynamic responses can finish before their background fetch-cache write.
-      // Observe that write without issuing another request that could change its value.
+    // Wait for the expected fetch value to reach disk. Dynamic fetch-cache
+    // writes can finish after the HTTP response.
+    async function waitForFetchEntry(value: string) {
       return retry(async () => {
         const fetchCacheDir = join(next.testDir, '.next/cache/fetch-cache')
         const entries = await Promise.all(
           (await fs.readdir(fetchCacheDir)).map(async (file) => {
             const filePath = join(fetchCacheDir, file)
-            return { filePath, content: await fs.readFile(filePath, 'utf8') }
+            return {
+              filePath,
+              entry: JSON.parse(await fs.readFile(filePath, 'utf8')),
+            }
           })
         )
-        const matches = entries.filter(({ content }) => {
-          const data = JSON.parse(content).data
-          return (
-            data && Buffer.from(data.body, 'base64').toString() === expectedData
-          )
+        const matches = entries.filter(({ entry }) => {
+          const data = entry.data
+          return data && Buffer.from(data.body, 'base64').toString() === value
         })
         expect(matches).toHaveLength(1)
-        expect(JSON.parse(matches[0].content).lastModified).toEqual(
-          expect.any(Number)
-        )
-        return matches[0]
+        const [match] = matches
+        expect(match.entry.lastModified).toEqual(expect.any(Number))
+        return match
       })
     }
 
@@ -166,13 +166,12 @@ describe('file-system-cache-clock', () => {
     it('reads a fetch cache entry written without a stored timestamp', async () => {
       const cached = await getData('/dynamic')
       expect(cached).toStartWith('/dynamic ')
-      const { filePath, content } = await waitForFetchEntry(cached)
+      const { filePath, entry } = await waitForFetchEntry(cached)
       await next.stop()
 
-      // Find the entry by its cached value, then rewrite it in the format
-      // written before timestamps were stored, with an earlier mtime.
-      const { lastModified, ...entry } = JSON.parse(content)
-      expect(typeof lastModified).toBe('number')
+      // Rewrite the entry in the format used before timestamps were stored,
+      // with an earlier mtime.
+      delete entry.lastModified
       await fs.writeFile(filePath, JSON.stringify(entry))
       const modified = new Date(Date.now() - 60_000)
       await fs.utimes(filePath, modified, modified)
@@ -184,11 +183,7 @@ describe('file-system-cache-clock', () => {
       const fresh = await getData('/dynamic')
       expect(fresh).not.toBe(cached)
       // The fresh value was written in the new format.
-      await retry(async () => {
-        const stored = JSON.parse(await fs.readFile(filePath, 'utf8'))
-        expect(Buffer.from(stored.data.body, 'base64').toString()).toBe(fresh)
-        expect(stored.lastModified).toEqual(expect.any(Number))
-      })
+      await waitForFetchEntry(fresh)
     })
   })
 })

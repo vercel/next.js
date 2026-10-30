@@ -2,6 +2,7 @@ import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { assertNoConsoleErrors, gate, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 import cheerio from 'cheerio'
+import type { Page } from 'playwright'
 
 // RDC and resume renders do not function in the same way in dev.
 // This test suite asserts on production behavior.
@@ -9,6 +10,7 @@ import cheerio from 'cheerio'
 describe('resume-data-cache', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
 
   describe('should have consistent data between static and dynamic renders', () => {
@@ -285,6 +287,62 @@ describe('resume-data-cache', () => {
       // calls made during server actions
       expect(cachedValueAfterAction).not.toBe(initialCachedValue)
     })
+  })
+
+  // The discard-count assertion requires local server logs.
+  // @force-gate start && partialPrefetchingGlobal
+  it('replaces an invalidated RDC entry with a handler hit for the embedded runtime prefetch', async () => {
+    const initialPage = await next.render$('/handler-handoff')
+    const initialValue = initialPage('#handoff-value').text()
+
+    // The warm route populates the handler without changing the prerendered RDC.
+    const warmResponse = await next.fetch('/handler-handoff/warm')
+    expect(warmResponse.status).toBe(200)
+    const warmedValue = await warmResponse.text()
+    expect(warmedValue).not.toBe(initialValue)
+
+    let page: Page
+    const browser = await next.browser('/handler-handoff', {
+      beforePageLoad(browserPage) {
+        page = browserPage
+      },
+    })
+    expect(await browser.elementById('handoff-value').text()).toBe(initialValue)
+    const outputIndex = next.cliOutput.length
+
+    // Each revision has its own tag. The action invalidates the prerendered RDC
+    // entry while the cache handler's replacement remains valid.
+    const pendingActionResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/handler-handoff' &&
+        response.request().method() === 'POST'
+    )
+    await browser.elementById('revalidate-handoff').click()
+    const actionResponse = await pendingActionResponse
+    expect(actionResponse.status()).toBe(200)
+
+    // Reading the complete response waits for the embedded runtime prefetch.
+    await actionResponse.text()
+    await retry(async () => {
+      expect(await browser.elementById('handoff-value').text()).toBe(
+        warmedValue
+      )
+    })
+
+    const cacheKey = JSON.stringify('rdc-handler-handoff')
+    const cacheEntryOutput = next.cliOutput
+      .slice(outputIndex)
+      .split('\n')
+      .filter((line) => line.includes(cacheKey))
+      .join('\n')
+    expect(cacheEntryOutput).toIncludeRepeated('RDC handoff handler hit', 1)
+
+    // The retained handler lookup can hide a missing RDC update. A second RDC
+    // discard detects that failure even when the rendered value is correct.
+    expect(cacheEntryOutput).toIncludeRepeated(
+      'discarding RDC entry due to recently revalidated tags',
+      1
+    )
   })
 
   it('should see fresh data after updateTag in server action with fetch cache', async () => {

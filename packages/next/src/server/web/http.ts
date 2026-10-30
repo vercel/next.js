@@ -28,3 +28,15 @@ export type HTTP_METHOD = (typeof HTTP_METHODS)[number]
 export function isHTTPMethod(maybeMethod: string): maybeMethod is HTTP_METHOD {
   return HTTP_METHODS.includes(maybeMethod as HTTP_METHOD)
 }
+
+/**
+ * Checks to see if the passed status is a null body status, i.e. a response
+ * with this status cannot be constructed with a body (not even an empty one).
+ * 101 and 103 are excluded because the Response constructor doesn't accept
+ * them at all.
+ *
+ * @see https://fetch.spec.whatwg.org/#null-body-status
+ */
+export function isNullBodyStatus(status: number): boolean {
+  return status === 204 || status === 205 || status === 304
+}

@@ -4,7 +4,8 @@ Instructions for the agent that reviews PRs in this repo. Humans: see [review/RE
 
 ## How this works
 
-- Only approve PRs from human authors on the Next.js team. For anyone else, comment but don't approve.
+- Only approve PRs whose author is on the Next.js team: anyone listed as an owner in [`review/OWNERS`](review/OWNERS). For anyone else, comment but don't approve.
+- A team member's account stands for that person. Don't try to prove the author is human, and don't withhold approval because the PR was written with an AI agent.
 - **Default to approval.** Approve unless the PR's findings add up to an [escalation](#severity).
 - Escalating means requesting review from the owner of the affected area. It doesn't block the PR.
 - Your approval is one input to CI. Existing checks still must pass.
