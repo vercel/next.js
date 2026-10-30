@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__07l1lihsce94l._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__02v-9l6fgmzyo._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 var __TURBOPACK__import$2e$meta__ = {
@@ -15,20 +15,17 @@ var __TURBOPACK__import$2e$meta__ = {
 };
 console.log('index.js');
 const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(Worker);
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.q("/static/worker.2-qnq-strt8dn.js");}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
-
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_basic_output_0uy0mninb8pht._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_11ygioomdle70.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_0lqk-upqfi2y2.js"]));
-}),
 "[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
-// `__turbopack_require__`d by the generated web-worker loader code.
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated web-worker loader.
 //
 // The chunk-URL builder, the chunk base path and the asset suffix are read from
 // the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`
@@ -49,7 +46,9 @@ __turbopack_context__.s([
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ * `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ *
+ * `PRELOAD_CHUNK_URLS` comes first because it is loaded first.
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -62,8 +61,31 @@ __turbopack_context__.s([
     // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
     // `null` falls back; an empty string is treated as a literal empty prefix.
     const workerBasePath = null ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
-    const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(typeof chunk === 'string' ? chunk : chunk.path, workerBasePath)).reverse();
+    // The worker's own chunks. Kept in their original order (and reversed the
+    // same way as before) so the shared runtime chunk — emitted last by
+    // `evaluated_chunk_group` — ends up first and the bootstrap can `shift()` it
+    // off to load it after everything else.
+    const workerChunkPaths = moduleChunks.map((chunk)=>typeof chunk === 'string' ? chunk : chunk.path);
+    const workerChunkSet = new Set(workerChunkPaths);
+    // Only a worker created by another worker inherits availability. A worker
+    // created by a page has a self-contained chunk group and must not import all
+    // the page's JS chunks. Workers have no `document`, including shared workers.
+    // Nested workers re-import their parent's chunks because module factories
+    // cannot be transferred across realms.
+    //
+    // These must be registered *before* the worker's own chunks, for two reasons:
+    //  1. The worker's evaluate chunk instantiates the entry module, whose
+    //     factory may live in one of these chunks.
+    //  2. A worker loader has the same module id in every chunk group (its ident
+    //     deliberately excludes availability info), but carries a different chunk
+    //     list per group. Loading the worker's own chunks last means its version
+    //     wins, so a nested worker gets the correctly-pruned chunk list.
+    // They travel in their own params slot — first, since they load first.
+    const preloadChunkPaths = (typeof importScripts !== 'undefined' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
+    const chunkUrls = workerChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath)).reverse();
+    const preloadUrls = preloadChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath));
     const params = [
+        preloadUrls,
         chunkUrls,
         /*TURBOPACK member replacement*/ __turbopack_context__.X,
         workerBasePath
@@ -92,4 +114,4 @@ function generateCreateWorker(entrypoint, moduleChunks) {
 }),
 ]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__07l1lihsce94l._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__02v-9l6fgmzyo._.js.map
