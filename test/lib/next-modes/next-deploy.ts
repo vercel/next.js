@@ -13,6 +13,11 @@ import { FileRef } from '../e2e-utils'
 import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
 import { packPackages } from '../create-next-install'
 
+// The Node.js version deployments are pinned to via `engines.node`. Must use
+// the exact `N.x` form: a range like `>=22.0.0` maps to the newest available
+// major. Matches NODE_LTS_VERSION in build_and_test.yml.
+const DEPLOY_TEST_NODE_VERSION = '22.x'
+
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
@@ -291,6 +296,10 @@ export class NextDeployInstance extends NextInstance {
 
     await this.writeMirrorNpmrcIfNecessary()
 
+    if (!process.env.NEXT_TEST_DEPLOY_URL?.trim()) {
+      await this.pinNodeVersion()
+    }
+
     if (
       !process.env.NEXT_TEST_DEPLOY_URL?.trim() &&
       !process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim() &&
@@ -298,6 +307,26 @@ export class NextDeployInstance extends NextInstance {
     ) {
       await this.prepareLocalPackages(parentSpan)
     }
+  }
+
+  // `engines.node` overrides the project-level Node.js version on Vercel, so
+  // it is the only place the pin can live: the weekly project reset recreates
+  // the projects, and the create-project API does not accept `nodeVersion`.
+  private async pinNodeVersion(): Promise<void> {
+    const packageJsonPath = path.join(this.testDir, 'package.json')
+    const packageJson: {
+      engines?: Record<string, string>
+    } = await fs.readJSON(packageJsonPath)
+    packageJson.engines = {
+      ...packageJson.engines,
+      // A fixture's own `engines.node` wins so it can deliberately deploy
+      // with a different version.
+      node: packageJson.engines?.node ?? DEPLOY_TEST_NODE_VERSION,
+    }
+    await this.writeFixtureConfiguration(
+      packageJsonPath,
+      JSON.stringify(packageJson, null, 2) + '\n'
+    )
   }
 
   private async deploy() {
