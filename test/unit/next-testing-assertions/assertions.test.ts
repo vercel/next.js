@@ -1011,3 +1011,72 @@ it.each([
   },
   130000
 )
+
+it('preserves actual takeover descriptors and retained readonly metadata without invoking getters', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'poll-takeover-descriptor.cjs'), process.cwd()],
+    { timeout: 20000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    cases: 3,
+    completeGenuineRows: 4,
+    afterDisposeControl: 1,
+    realDescriptorsAndGetterIdentity: true,
+    noAdditionalGetterCalls: true,
+    retainedMetadataAfterDispose: true,
+    invocationCodeUnchanged: true,
+  })
+}, 25000)
+it.each([
+  ['development', 'js'],
+  ['production', 'mjs'],
+])(
+  'matches actual callable tag descriptor effects in %s %s',
+  async (mode, extension) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(join(tmpdir(), 'next-callable-tag-public-'))
+    const output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'poll-takeover-descriptor-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          'effects',
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed callable metadata observations at ' + directory
+        )
+    }
+  },
+  130000
+)

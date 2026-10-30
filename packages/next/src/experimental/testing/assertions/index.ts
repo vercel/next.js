@@ -905,6 +905,10 @@ export async function createAssertionRuntime(options: {
       ? guardStrictChaiAssertion(value as object, scope, prototype)
       : value
   }
+  const callableTakeoverDescriptors = new WeakMap<
+    Function,
+    PropertyDescriptor
+  >()
   const strictFunctionRecords = new WeakMap<
     Function,
     {
@@ -951,6 +955,13 @@ export async function createAssertionRuntime(options: {
         prototype
       )
     }
+    const takeoverDescriptor = callableTakeoverDescriptors.get(fn)
+    if (takeoverDescriptor)
+      Object.defineProperty(
+        invoke,
+        '__vitest_poll_takeover__',
+        takeoverDescriptor
+      )
     const proxy = new Proxy(invoke, {
       get(target, key, proxyReceiver) {
         const owner = invocationScope()
@@ -986,7 +997,9 @@ export async function createAssertionRuntime(options: {
           prototype
         )
       },
-      getOwnPropertyDescriptor() {
+      getOwnPropertyDescriptor(target, key) {
+        if (key === '__vitest_poll_takeover__')
+          return Reflect.getOwnPropertyDescriptor(target, key)
         assertStrictScope(invocationScope())
         throw new Error(
           'This Chai assertion reflection API is not yet supported'
@@ -2463,8 +2476,10 @@ export async function createAssertionRuntime(options: {
           name
         )?.value
         if (typeof method === 'function') {
-          if (takeover)
+          if (takeover) {
             Object.defineProperty(method, '__vitest_poll_takeover__', takeover)
+            callableTakeoverDescriptors.set(method, takeover)
+          }
           if (!scoped) taskMatcherMethods.add(method)
         }
       }
