@@ -125,6 +125,7 @@ import {
 import {
   importRequestInsightSpans,
   isRequestInsightsEnabled,
+  startRequestInsight,
 } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -5007,27 +5008,27 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
-  return runWithRequestInsightsIdentity(
-    {
-      requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
-      kind: 'instant-insights',
-      htmlRequestId: ctx.htmlRequestId,
-      url: ctx.url.href,
-    },
-    () =>
-      traceLocalSpan(
-        {
-          name: 'Instant Insights',
-          parentSpan: null,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'Instant Insights',
-            'next.span_type': AppRenderSpan.instantInsights,
-            'next.route': ctx.pagePath,
-          },
+  const identity = {
+    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    kind: 'instant-insights' as const,
+    htmlRequestId: ctx.htmlRequestId,
+    url: ctx.url.href,
+  }
+  startRequestInsight(identity)
+  return runWithRequestInsightsIdentity(identity, () =>
+    traceLocalSpan(
+      {
+        name: 'Instant Insights',
+        parentSpan: null,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'Instant Insights',
+          'next.span_type': AppRenderSpan.instantInsights,
+          'next.route': ctx.pagePath,
         },
-        () => fn(runInstantInsightsSpan)
-      )
+      },
+      () => fn(runInstantInsightsSpan)
+    )
   )
 }
 

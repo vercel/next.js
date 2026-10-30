@@ -1,6 +1,6 @@
-import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
 import type {
+  RequestInsightKind,
   RequestInsightProxyStatus,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
