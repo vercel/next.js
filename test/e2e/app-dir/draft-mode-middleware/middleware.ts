@@ -3,7 +3,9 @@ import { draftMode } from 'next/headers'
 
 export async function middleware(req: NextRequest) {
   const { isEnabled } = await draftMode()
-  console.log('draftMode().isEnabled from middleware:', isEnabled)
+  console.log(
+    `[${req.nextUrl.searchParams.get('requestId')}] draftMode().isEnabled from middleware: ${isEnabled}`
+  )
   return NextResponse.next()
 }
 
