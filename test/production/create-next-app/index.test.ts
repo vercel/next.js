@@ -458,6 +458,14 @@ describe('create-next-app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'custom-import-alias'
 
+      // Pre-seed an allowed folder with a file containing multiple import alias occurrences
+      // to ensure all occurrences within the same file are replaced.
+      await mkdir(join(cwd, projectName, 'docs'), { recursive: true })
+      await writeFile(
+        join(cwd, projectName, 'docs', 'example.ts'),
+        'import a from "@/components/a";\nimport b from "@/components/b";\n'
+      )
+
       const res = await run(
         [
           projectName,
@@ -497,6 +505,14 @@ describe('create-next-app', () => {
       )
       expect(appContent).toContain('@acme/styles/globals.css')
       expect(appContent).not.toContain('@/styles/globals.css')
+
+      const docContent = await readFile(
+        join(cwd, projectName, 'docs', 'example.ts'),
+        'utf8'
+      )
+      expect(docContent).toContain('@acme/components/a')
+      expect(docContent).toContain('@acme/components/b')
+      expect(docContent).not.toContain('@/components/')
     })
   })
 })
