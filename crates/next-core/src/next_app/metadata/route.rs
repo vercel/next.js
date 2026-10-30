@@ -108,6 +108,7 @@ pub async fn get_app_metadata_route_entry(
         page,
         project_root,
         Some(segment_config),
+        Some(segment_config),
         next_config,
     ))
 }
