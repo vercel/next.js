@@ -45,6 +45,7 @@ import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
@@ -417,8 +418,8 @@ export async function findPagePathData(
   if (isInstrumentation && instrumentationInject) {
     return {
       filename: instrumentationInject.file,
-      bundlePath: instrumentationInject.page.slice(1),
-      page: instrumentationInject.page,
+      bundlePath: INSTRUMENTATION_HOOK_FILENAME,
+      page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
     }
   }
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {

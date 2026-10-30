@@ -40,7 +40,6 @@ describe('resolveInstrumentationInject', () => {
       config: { injectInstrumentation: [inject] },
     })
     expect(result?.file).toBe(INSTRUMENTATION_INJECT_STUB_PATH)
-    expect(result?.page).toBe('/instrumentation')
     expect(result?.specifiers).toEqual([inject])
   })
 

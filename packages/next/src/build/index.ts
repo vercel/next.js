@@ -1600,7 +1600,7 @@ export default async function build(
             delete NextBuildContext.mappedRootPaths[page]
           }
         }
-        NextBuildContext.mappedRootPaths[instrumentationInject.page] =
+        NextBuildContext.mappedRootPaths[`/${INSTRUMENTATION_HOOK_FILENAME}`] =
           instrumentationInject.file
       }
 

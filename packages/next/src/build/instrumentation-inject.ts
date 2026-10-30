@@ -1,6 +1,5 @@
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { NEXT_PROJECT_ROOT } from './next-dir-paths'
 
 /**
@@ -20,7 +19,6 @@ export const INSTRUMENTATION_INJECT_STUB_PATH = path.join(
  */
 export type InstrumentationInject = {
   readonly file: string
-  readonly page: `/${typeof INSTRUMENTATION_HOOK_FILENAME}`
   readonly specifiers: readonly string[]
 }
 
@@ -52,7 +50,6 @@ export function resolveInstrumentationInject(opts: {
   }
   return {
     file: INSTRUMENTATION_INJECT_STUB_PATH,
-    page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
     specifiers,
   }
 }
