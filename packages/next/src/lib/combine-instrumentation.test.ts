@@ -126,4 +126,44 @@ describe('combineInstrumentation', () => {
     await combined.onRequestError(new Error('x'), request, context)
     expect(calls).toEqual(['default'])
   })
+
+  it('prefers the default export over named hooks after awaiting the module', async () => {
+    const register = jest.fn()
+    const onRequestError = jest.fn()
+    const namedRegister = jest.fn()
+    const namedOnRequestError = jest.fn()
+    const instrumentation = { register, onRequestError }
+    const combined = combineInstrumentation([
+      Promise.resolve({
+        default: instrumentation,
+        register: namedRegister,
+        onRequestError: namedOnRequestError,
+      }),
+    ])
+    const error = new Error('request failed')
+
+    await combined.register()
+    await combined.onRequestError(error, request, context)
+
+    expect(register).toHaveBeenCalledTimes(1)
+    expect(register.mock.contexts).toEqual([instrumentation])
+    expect(onRequestError).toHaveBeenCalledWith(error, request, context)
+    expect(onRequestError.mock.contexts).toEqual([instrumentation])
+    expect(namedRegister).not.toHaveBeenCalled()
+    expect(namedOnRequestError).not.toHaveBeenCalled()
+  })
+
+  it('does not fall back to named hooks when the default export omits them', async () => {
+    const register = jest.fn()
+    const onRequestError = jest.fn()
+    const combined = combineInstrumentation([
+      { default: {}, register, onRequestError },
+    ])
+
+    await combined.register()
+    await combined.onRequestError(new Error('request failed'), request, context)
+
+    expect(register).not.toHaveBeenCalled()
+    expect(onRequestError).not.toHaveBeenCalled()
+  })
 })

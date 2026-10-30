@@ -2,6 +2,7 @@ import type {
   InstrumentationModule,
   InstrumentationOnRequestError,
 } from '../server/instrumentation/types'
+import { interopDefault } from './interop-default'
 
 type Hook = keyof InstrumentationModule
 
@@ -10,14 +11,6 @@ type CombinedInstrumentation = {
   onRequestError(
     ...args: Parameters<InstrumentationOnRequestError>
   ): Promise<void>
-}
-
-function getHook(mod: unknown, name: Hook) {
-  const record = mod as Record<string, unknown> | undefined
-  const hook =
-    record?.[name] ??
-    (record?.default as Record<string, unknown> | undefined)?.[name]
-  return typeof hook === 'function' ? hook : undefined
 }
 
 /**
@@ -47,8 +40,12 @@ export function combineInstrumentation(
         // await. If one of those fails to load, its error is collected like a
         // hook error. A module without top-level await that throws while
         // loading stops startup before this runs.
-        const hook = getHook(await mod, name)
-        if (hook) await hook(...args)
+        const instrumentation = interopDefault((await mod) ?? {}) as Record<
+          string,
+          unknown
+        >
+        const hook = instrumentation[name]
+        if (typeof hook === 'function') await hook.apply(instrumentation, args)
       } catch (err) {
         errors.push(err)
       }
