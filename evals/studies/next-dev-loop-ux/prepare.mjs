@@ -34,5 +34,10 @@ export async function prepare(destination) {
   const fixture = join(destination, 'fixture')
   cpSync(join(source, 'template'), fixture, { recursive: true })
   cpSync(join(study, 'task'), fixture, { recursive: true })
+  // The upstream tests default to the same app port as next dev.
+  const packagePath = join(fixture, 'package.json')
+  const pkg = JSON.parse(readFileSync(packagePath, 'utf8'))
+  pkg.scripts.test = `APP_PORT=3101 ${pkg.scripts.test}`
+  writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + '\n')
   return { source, fixture }
 }

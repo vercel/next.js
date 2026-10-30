@@ -111,21 +111,27 @@ search doesn't.
 
 ### after the edit — verify
 
-Four failure modes. Check each:
+Check the changed behavior:
 
 - **Compiles** — `get_compilation_issues`.
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
   what the user actually sees.
-- **React-level behavior** — `agent-browser` with react-devtools
-  enabled exposes the component tree, props, state, and render
-  counts. Anchor framework-level checks here (extra renders,
-  server/client boundary shifts, suspense fallbacks) — DOM asserts
-  alone miss them.
+- **React-level behavior** — when the change concerns extra renders,
+  server/client boundaries, or suspense fallbacks, inspect the relevant
+  components with react-devtools enabled. Start with
+  `agent-browser react tree --json`, then inspect the relevant component's
+  props, state, or render count. A successful command with only "Done" is
+  not a tree. Check the CLI usage before retrying; don't repeat an empty read.
 
 Pick the specific tool from `tools/list` or the agent-browser
 manual rather than from memory.
+
+After a repair, recheck the affected behavior and runtime errors. Once those
+and the task's required tests pass, stop unless a specific issue remains.
+Avoid repeating full-route snapshots or component trees without a question
+they can answer.
 
 ## gotchas
 
@@ -133,6 +139,10 @@ manual rather than from memory.
   deleting it disconnects the server from its generated state and discards
   incremental caches. Moving it to a backup is still a reset. If a production
   build needs isolated output, configure a separate `distDir`.
+- **Keep dev and production tests on separate ports.** Check the test runner's
+  app and API ports before starting it. A readiness request can hit an existing
+  dev server and test the wrong app or data. Use the runner's port overrides,
+  or stop dev for the test and restart it afterward.
 - **Every `agent-browser` command must know your session and restore
   key, or it may use an empty default browser or fail to save login
   state.** Easiest: export both `AGENT_BROWSER_SESSION="$SESSION"` and
@@ -149,6 +159,9 @@ manual rather than from memory.
   snapshot/read to confirm the page. Avoid `wait --url` unless you pass
   the link's exact href — a guessed or placeholder path won't match the
   real URL and times out after 25s.
+- After a locator timeout, inspect the current URL and a fresh snapshot or
+  DOM state. Check whether the locator matches before waiting again. Repeating
+  the same missing locator with different output formatting won't help.
 - A blank read, empty snapshot, `about:blank`, or a "no browser
   session" error — right after `open` or after a click (even if `open`
   reported the page) — is the browser dropping the page (a stale
