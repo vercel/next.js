@@ -1,15 +1,15 @@
 const fs = require('fs')
 const path = require('path')
-const { createRequire } = require('module')
 
-const esmDir = path.join(__dirname, 'dist/esm') + path.sep
+const distDir = path.join(__dirname, 'dist')
+const esmDir = path.join(distDir, 'esm')
 const externalFiles = new Set([
-  'server/require-hook.js',
-  'server/lib/cpu-profile.js',
-  'server/lib/trace/tracer.js',
-  'server/lib/router-utils/setup-dev-bundler.js',
-  'server/image-optimizer.js',
-  'server/next-typescript.js',
+  'server/require-hook',
+  'server/lib/cpu-profile',
+  'server/lib/trace/tracer',
+  'server/lib/router-utils/setup-dev-bundler',
+  'server/image-optimizer',
+  'server/next-typescript',
 ])
 
 module.exports = () => ({
@@ -30,34 +30,24 @@ module.exports = () => ({
       name: 'next-runtime-externals',
       setup(build) {
         build.onResolve({ filter: /^\./ }, (args) => {
-          const resolve = createRequire(args.importer).resolve
-          let resolved
-          try {
-            resolved = resolve(args.path)
-          } catch {
-            // Some directories (including trace and telemetry) have no ESM build.
-            resolved = resolve(
-              path
-                .resolve(args.resolveDir, args.path)
-                .replace(esmDir, path.join(__dirname, 'dist') + path.sep)
-            )
-            return {
-              path: `next/${path.relative(__dirname, resolved).replace(/\\/g, '/')}`,
-              external: true,
-            }
-          }
-          const relative = path.relative(esmDir, resolved).replace(/\\/g, '/')
+          const relative = path
+            .relative(esmDir, path.resolve(args.resolveDir, args.path))
+            .replace(/\\/g, '/')
+            .replace(/\.js$/, '')
           if (
             externalFiles.has(relative) ||
-            /\.external\.js$|\.compiled\.js$/.test(relative) ||
-            /^(server\/dev\/|server\/web\/sandbox(?:\/|\.js$)|next-devtools\/|trace\/)/.test(
+            /\.(external|compiled)$/.test(relative) ||
+            /^(cli|server\/dev|server\/web\/sandbox|next-devtools|trace|telemetry)(\/|$)/.test(
               relative
             ) ||
             (relative.startsWith('build/') &&
-              !relative.startsWith('build/output/') &&
-              relative !== 'build/duration-to-string.js')
+              !/^build\/(output(?:\/|$)|duration-to-string$)/.test(relative))
           ) {
-            return { path: `next/dist/${relative}`, external: true }
+            const resolved = require.resolve(path.join(distDir, relative))
+            return {
+              path: `next/dist/${path.relative(distDir, resolved).replace(/\\/g, '/')}`,
+              external: true,
+            }
           }
         })
         build.onEnd(({ errors }) => {

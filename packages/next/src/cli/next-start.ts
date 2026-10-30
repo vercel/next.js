@@ -40,9 +40,9 @@ export type NextStartOptions = {
  * @param directory The directory to start the server in
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
-  const { startServer } =
-    // eslint-disable-next-line @next/internal/typechecked-require -- generated production startup bundle
-    require('../compiled/next-server/start-server.runtime.prod') as typeof import('../server/lib/start-server')
+  const { startServer } = (
+    await import('../compiled/next-server/start-server.runtime.prod.js')
+  ).default
 
   const dir = getProjectDir(directory)
   warnMissingReactDependencies(dir)
