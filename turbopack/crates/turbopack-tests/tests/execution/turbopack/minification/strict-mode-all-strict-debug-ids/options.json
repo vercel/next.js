@@ -1,0 +1,5 @@
+{
+  "minify": true,
+  "debugIds": true,
+  "scopeHoisting": false
+}

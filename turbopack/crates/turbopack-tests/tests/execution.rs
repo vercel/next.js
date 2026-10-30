@@ -295,6 +295,9 @@ struct TestOptions {
     cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
+    /// Emits debug IDs (the `_debugIds` snippet and `//# debugId=` comment) in the output chunks.
+    #[serde(default)]
+    debug_ids: bool,
     #[serde(default)]
     production_chunking: bool,
     #[serde(default)]
@@ -333,6 +336,7 @@ impl Default for TestOptions {
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
+            debug_ids: false,
             production_chunking: false,
             global_module_ids: false,
             numeric_module_ids: false,
@@ -628,6 +632,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
+    .debug_ids(options.debug_ids)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {

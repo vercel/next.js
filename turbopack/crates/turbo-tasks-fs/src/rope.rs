@@ -126,6 +126,32 @@ impl Rope {
     pub fn into_bytes(self) -> Bytes {
         self.data.into_bytes(self.length)
     }
+
+    /// Returns this rope without its first `start` bytes.
+    ///
+    /// The remaining contents are shared, not copied: only the element containing the cut is
+    /// resliced.
+    ///
+    /// # Panics
+    ///
+    /// If `start` is greater than the rope's length.
+    pub fn slice_from(&self, start: usize) -> Rope {
+        assert!(
+            start <= self.length,
+            "cannot slice a rope of {} bytes from {start}",
+            self.length
+        );
+        if start == 0 {
+            return self.clone();
+        }
+        let mut remaining = start;
+        let data = self.data.skip(&mut remaining);
+        debug_assert_eq!(remaining, 0);
+        Rope {
+            length: self.length - start,
+            data,
+        }
+    }
 }
 
 impl From<Vec<u8>> for Rope {
@@ -642,6 +668,33 @@ impl InnerRope {
             .expect("read of rope cannot fail");
         buf.into()
     }
+
+    /// Returns the contents after skipping `remaining` bytes, decrementing it by the bytes skipped.
+    ///
+    /// Only elements touched by the skipped prefix are visited. Elements after the cut are
+    /// shared as is.
+    fn skip(&self, remaining: &mut usize) -> InnerRope {
+        let mut els = Vec::with_capacity(self.0.len());
+        let mut iter = self.iter();
+        while *remaining > 0 {
+            match iter.next() {
+                Some(Local(bytes)) if bytes.len() <= *remaining => *remaining -= bytes.len(),
+                Some(Local(bytes)) => {
+                    els.push(Local(bytes.slice(*remaining..)));
+                    *remaining = 0;
+                }
+                Some(Shared(inner)) => {
+                    let rest = inner.skip(remaining);
+                    if !rest.is_empty() {
+                        els.push(Shared(rest));
+                    }
+                }
+                None => break,
+            }
+        }
+        els.extend(iter.cloned());
+        InnerRope::from(els)
+    }
 }
 
 impl Default for InnerRope {
@@ -961,6 +1014,31 @@ mod test {
                 RopeElem::Shared(r) => r.len(),
             }
         }
+    }
+
+    #[test]
+    fn slice_from_handles_nested_boundaries() {
+        let rope = Rope::new(vec![
+            "abc".into(),
+            vec!["de".into(), vec!["fgh".into(), "ij".into()].into()].into(),
+            "klm".into(),
+        ]);
+        let expected = "abcdefghijklm";
+        for start in 0..=expected.len() {
+            let sliced = rope.slice_from(start);
+            assert_eq!(sliced.len(), expected.len() - start, "start {start}");
+            assert_eq!(
+                sliced.to_str().unwrap(),
+                &expected[start..],
+                "start {start}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot slice a rope of 3 bytes from 4")]
+    fn slice_from_past_the_end_panics() {
+        Rope::new(vec!["abc".into()]).slice_from(4);
     }
 
     #[test]
