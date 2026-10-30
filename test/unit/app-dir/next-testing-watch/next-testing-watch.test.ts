@@ -4015,3 +4015,33 @@ it.each([false, true])(
     }
   }
 )
+
+it.each(['development', 'production'])(
+  'joins the ordinary %s Node input owner when its native close blocks',
+  async (mode) => {
+    const output = await mkdtemp(path.join(tmpdir(), 'next-node-watch-owner-'))
+    try {
+      const result = await promisify(execFile)(
+        process.execPath,
+        [
+          path.join(__dirname, 'node-watch-owned-source.mjs'),
+          path.resolve(__dirname, '../../../..'),
+          mode,
+          output,
+          path.join(__dirname, 'fixtures/owned-source'),
+        ],
+        { env: process.env, timeout: 75000 }
+      )
+      expect(JSON.parse(result.stdout)).toEqual({
+        mode,
+        casePassed: true,
+        closed: true,
+        blockedNativeCloseReclaimed: true,
+        exitCode: 130,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  },
+  80000
+)

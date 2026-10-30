@@ -653,7 +653,11 @@ export async function watchTests(
       )
     }
     watcher = await watchTestFiles({
-      ...(initial.projects.some(
+      ...((initial.projects.length > 0 &&
+        initial.projects.every(
+          (project) => project.profile.environment === 'node'
+        )) ||
+      initial.projects.some(
         (project) =>
           project.profile.environment === 'rsc' &&
           (project.profile.mode === 'development' ||
