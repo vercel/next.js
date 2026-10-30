@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{OrderedIndexMap, ResolvedVc, Vc};
 
 use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
@@ -12,15 +12,13 @@ use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePa
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
-);
+pub struct InnerAssets(OrderedIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(Default::default())
     }
 }
 

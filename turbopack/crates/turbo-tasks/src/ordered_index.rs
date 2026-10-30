@@ -9,8 +9,10 @@
 //! semantics, or an order that reaches emitted output. Use `FxHashMap`/`FxHashSet` when the order
 //! is never observed, so that the type says so.
 //!
-//! These types deliberately don't implement [`KeyedEq`](crate::keyed::KeyedEq): a keyed cell can
-//! only report changed keys, not a changed order.
+//! In a keyed cell (`cell = "keyed"`), a reader of a single key only sees that key's value, so a
+//! reorder doesn't concern it. A reader of the whole map does see the order, and it is invalidated
+//! whenever any key is reported as changed. So when only the order differs, [`KeyedEq`] reports the
+//! keys whose position changed.
 
 use std::{
     fmt,
@@ -24,10 +26,15 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
+use indexmap::Equivalent;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
+use smallvec::SmallVec;
 
-use crate::{FxIndexMap, FxIndexSet};
+use crate::{
+    FxIndexMap, FxIndexSet,
+    keyed::{KeyedAccess, KeyedEq},
+};
 
 /// An [`FxIndexMap`] whose equality and hash include the order of its entries. See the
 /// [module documentation](self).
@@ -333,6 +340,72 @@ impl<'de, Context, T: BorrowDecode<'de, Context> + Hash + Eq> BorrowDecode<'de, 
     }
 }
 
+impl<K: Eq + Hash, V: PartialEq> KeyedEq for OrderedIndexMap<K, V> {
+    type Key = K;
+
+    fn different_keys<'l>(&'l self, other: &'l Self) -> SmallVec<[&'l Self::Key; 2]> {
+        let mut different_keys = self.0.different_keys(&other.0);
+        if different_keys.is_empty() {
+            // Same entries, so the same keys: report the ones that moved.
+            different_keys.extend(
+                self.0
+                    .keys()
+                    .zip(other.0.keys())
+                    .filter(|(key, other_key)| key != other_key)
+                    .map(|(key, _)| key),
+            );
+        }
+        different_keys
+    }
+}
+
+impl<K, V, Q: Equivalent<K> + Hash + ?Sized> KeyedAccess<Q> for OrderedIndexMap<K, V> {
+    type Value = V;
+
+    fn get(&self, key: &Q) -> Option<&Self::Value> {
+        self.0.get(key)
+    }
+
+    fn contains_key(&self, key: &Q) -> bool {
+        self.0.contains_key(key)
+    }
+}
+
+impl<T: Eq + Hash> KeyedEq for OrderedIndexSet<T> {
+    type Key = T;
+
+    fn different_keys<'l>(&'l self, other: &'l Self) -> SmallVec<[&'l Self::Key; 2]> {
+        let mut different_keys = self.0.different_keys(&other.0);
+        if different_keys.is_empty() {
+            // Same items: report the ones that moved.
+            different_keys.extend(
+                self.0
+                    .iter()
+                    .zip(other.0.iter())
+                    .filter(|(item, other_item)| item != other_item)
+                    .map(|(item, _)| item),
+            );
+        }
+        different_keys
+    }
+}
+
+impl<T, Q: Equivalent<T> + Hash + ?Sized> KeyedAccess<Q> for OrderedIndexSet<T> {
+    type Value = ();
+
+    fn get(&self, key: &Q) -> Option<&Self::Value> {
+        if self.0.contains(key) {
+            Some(&())
+        } else {
+            None
+        }
+    }
+
+    fn contains_key(&self, key: &Q) -> bool {
+        self.0.contains(key)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,5 +428,21 @@ mod tests {
         assert_eq!(*a, *b);
         assert_ne!(a, b);
         assert_eq!(a, a.clone());
+    }
+
+    #[test]
+    fn keyed_eq_reports_moved_keys() {
+        let a: OrderedIndexMap<u32, u32> = [(1, 10), (2, 20), (3, 30)].into_iter().collect();
+        let reordered: OrderedIndexMap<u32, u32> =
+            [(1, 10), (3, 30), (2, 20)].into_iter().collect();
+        let changed: OrderedIndexMap<u32, u32> = [(1, 10), (2, 21), (3, 30)].into_iter().collect();
+        assert!(a.different_keys(&a.clone()).is_empty());
+        assert_eq!(*a.different_keys(&reordered), [&2, &3]);
+        assert_eq!(*a.different_keys(&changed), [&2]);
+
+        let set: OrderedIndexSet<u32> = [1, 2, 3].into_iter().collect();
+        let reordered_set: OrderedIndexSet<u32> = [3, 2, 1].into_iter().collect();
+        assert!(set.different_keys(&set.clone()).is_empty());
+        assert_eq!(*set.different_keys(&reordered_set), [&1, &3]);
     }
 }

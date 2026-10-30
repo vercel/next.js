@@ -58,9 +58,7 @@ use crate::{
 pub const DIST_PROFILES_DIR_NAME: &str = ".next-profiles";
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, ModularizeImportPackageConfig>,
-);
+pub struct ModularizeImports(OrderedIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
@@ -84,7 +82,7 @@ impl Default for CacheKinds {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CacheHandlersMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+pub struct CacheHandlersMap(OrderedIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -102,9 +100,9 @@ pub struct NextConfig {
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
     #[bincode(with_serde)]
-    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
+    cache_handlers: Option<OrderedIndexMap<RcStr, RcStr>>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    env: FxIndexMap<String, JsonValue>,
+    env: OrderedIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
@@ -117,7 +115,7 @@ pub struct NextConfig {
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
+    modularize_imports: Option<OrderedIndexMap<String, ModularizeImportPackageConfig>>,
     dist_dir: RcStr,
     dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
@@ -1623,8 +1621,7 @@ impl Issue for InvalidLoaderRuleConditionIssue {
 
 #[turbo_tasks::value(transparent)]
 pub struct OutputFileTracingIncludesExcludes(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
+    OrderedIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
 );
 
 impl OutputFileTracingIncludesExcludes {
@@ -1665,7 +1662,7 @@ impl OutputFileTracingIncludesExcludes {
                     .collect(),
             ))
         } else {
-            Ok(OutputFileTracingIncludesExcludes(FxIndexMap::default()))
+            Ok(OutputFileTracingIncludesExcludes(Default::default()))
         }
     }
 }

@@ -10,7 +10,7 @@ use std::{env, sync::Mutex};
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, Vc};
+use turbo_tasks::{FxIndexMap, OrderedIndexMap, Vc};
 
 pub use self::{
     command_line::CommandLineProcessEnv, custom::CustomProcessEnv, dotenv::DotenvProcessEnv,
@@ -20,19 +20,19 @@ pub use self::{
 /// Like [`EnvMap`], but with `serialization = "skip"` to avoid storing
 /// environment variables (which may contain secrets) in the persistent cache.
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct TransientEnvMap(FxIndexMap<RcStr, RcStr>);
+pub struct TransientEnvMap(OrderedIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl TransientEnvMap {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        TransientEnvMap(FxIndexMap::default()).cell()
+        TransientEnvMap(Default::default()).cell()
     }
 }
 
 /// A map of environment variables.
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct EnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+pub struct EnvMap(OrderedIndexMap<RcStr, RcStr>);
 
 /// An [`EnvMap`] with uppercased keys, used for key-granular case-insensitive lookups.
 ///
@@ -40,7 +40,7 @@ pub struct EnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr,
 /// persisted in the [`EnvMap`] it's derived from. Keyed comparison needs the previous content, so
 /// persisting it keeps a dirty recomputation after a warm restore from invalidating every reader.
 #[turbo_tasks::value(transparent, cell = "keyed")]
-struct UppercaseEnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+struct UppercaseEnvMap(OrderedIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::function]
 async fn uppercase_env_map(map: Vc<EnvMap>) -> Result<Vc<UppercaseEnvMap>> {
@@ -49,14 +49,14 @@ async fn uppercase_env_map(map: Vc<EnvMap>) -> Result<Vc<UppercaseEnvMap>> {
     for (k, v) in map {
         new.insert(k.to_uppercase().into(), v.clone());
     }
-    Ok(Vc::cell(new))
+    Ok(Vc::cell(new.into()))
 }
 
 #[turbo_tasks::value_impl]
 impl EnvMap {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        EnvMap(FxIndexMap::default()).cell()
+        EnvMap(Default::default()).cell()
     }
 }
 
@@ -119,7 +119,7 @@ async fn to_uppercase_map(map: Vc<TransientEnvMap>) -> Result<Vc<TransientEnvMap
     for (k, v) in map {
         new.insert(k.to_uppercase().into(), v.clone());
     }
-    Ok(Vc::cell(new))
+    Ok(Vc::cell(new.into()))
 }
 
 pub static GLOBAL_ENV_LOCK: Mutex<()> = Mutex::new(());
