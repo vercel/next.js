@@ -310,7 +310,7 @@ export function createRouteTreeNode<TData>(
  *   the response.
  * - Skipped nodes (data with a null rsc) sit on the path from the root down
  *   to the rendered subtrees. The client is expected to already have them,
- *   so their refresh state and hints are inherited from the base tree, and
+ *   so their hints are inherited from the base tree, and
  *   any slot the response doesn't mention is reused from the base as-is.
  *
  * TODO: The base is a FlightRouterState only because that's the
@@ -474,21 +474,13 @@ function decodeTransportNode(
   // above the root layout, which the server marks directly.
   const isRootParam = (prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
 
-  // Inherited positions keep the base tree's refresh state. Its rendered
-  // search is updated to this response's, since all pages within the same
-  // response share the same search value. (The refresh state acts like a
-  // "context provider" for inactive parallel routes.)
-  const baseCompressedRefreshState =
-    inheritedBase !== undefined ? (inheritedBase[2] ?? null) : null
-  const refreshState: RefreshState | null =
-    baseCompressedRefreshState !== null
-      ? {
-          canonicalUrl: baseCompressedRefreshState[0] as string,
-          renderedSearch: parentRenderedSearch,
-        }
-      : null
-  const renderedSearch =
-    refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
+  // This segment belongs to the response's route, even if its rendered output
+  // was skipped. It may previously have been retained from another URL, but
+  // that refresh context no longer applies now that the segment is active.
+  // Base-only branches below keep their own refresh state when converted by
+  // convertFlightRouterStateToRouteTree.
+  const refreshState = null
+  const renderedSearch = parentRenderedSearch
 
   const tree = createRouteTreeNode<RSCSegmentData>(
     originalSegment,
