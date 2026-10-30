@@ -29,7 +29,7 @@ const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
 /// As opposed to [`EnvMap`], this map allows for `None` values, which means that the variables
 /// should be replace with undefined.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct OptionEnvMap(
     #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Option<RcStr>>,
 );

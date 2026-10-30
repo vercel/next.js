@@ -7,6 +7,7 @@ import path from 'path'
 import fs from 'fs'
 
 import { getDefineEnv } from './define-env'
+import { DefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
@@ -2048,7 +2049,7 @@ export default async function getBaseWebpackConfig(
           ...(isClient && { process: [require.resolve('process')] }),
         }),
 
-      new (getWebpackBundler().DefinePlugin)(
+      new DefineEnvPlugin(
         getDefineEnv({
           isTurbopack: false,
           config,
@@ -2063,7 +2064,8 @@ export default async function getBaseWebpackConfig(
           middlewareMatchers,
           omitNonDeterministic: isCompileMode,
           rewrites,
-        })
+        }),
+        !isCompileMode
       ),
       isClient &&
         new ReactLoadablePlugin({

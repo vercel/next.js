@@ -434,6 +434,7 @@ type RustifiedEnv = { name: string; value: string }[]
 type RustifiedOptionEnv = { name: string; value: string | undefined }[]
 
 export function createDefineEnv({
+  isCompileMode = false,
   isTurbopack,
   clientRouterFilters,
   config,
@@ -447,7 +448,7 @@ export function createDefineEnv({
 }: Omit<
   DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
->): DefineEnv {
+> & { isCompileMode?: boolean }): DefineEnv {
   let defineEnv: DefineEnv = {
     client: [],
     edge: [],
@@ -455,8 +456,11 @@ export function createDefineEnv({
   }
 
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
-    defineEnv[variant] = rustifyOptionEnv(
-      getDefineEnv({
+    defineEnv[variant] = rustifyOptionEnv({
+      // Consumed by the Next-specific public env transform. Compile/generate
+      // builds must retain their existing late-binding behavior.
+      __NEXT_INLINE_MISSING_PUBLIC_ENV: JSON.stringify(!isCompileMode),
+      ...getDefineEnv({
         isTurbopack,
         clientRouterFilters,
         config,
@@ -470,8 +474,8 @@ export function createDefineEnv({
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
         rewrites,
-      })
-    )
+      }),
+    })
   }
 
   return defineEnv

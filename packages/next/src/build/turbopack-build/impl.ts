@@ -80,6 +80,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     dev,
     env: process.env as Record<string, string>,
     defineEnv: createDefineEnv({
+      isCompileMode: NextBuildContext.isCompileMode,
       isTurbopack: true,
       clientRouterFilters: NextBuildContext.clientRouterFilters!,
       config,

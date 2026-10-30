@@ -1,5 +1,6 @@
 pub(crate) mod debug_fn_name;
 pub(crate) mod emotion;
+pub mod missing_public_env;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_cjs_optimizer;
 pub(crate) mod next_debug_instant_stack;

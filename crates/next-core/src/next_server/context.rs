@@ -388,6 +388,7 @@ pub async fn get_server_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     next_runtime: NextRuntime,
+    define_env: Vc<OptionEnvMap>,
     encryption_key: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
@@ -412,6 +413,15 @@ pub async fn get_server_module_options_context(
         encryption_key,
     )
     .await?;
+    let public_env_rule =
+        crate::next_shared::transforms::missing_public_env::get_missing_public_env_rule(
+            define_env,
+            next_config.mdx_rs().await?.is_some(),
+        )
+        .await?;
+    next_server_rules.push(public_env_rule.clone());
+    foreign_next_server_rules.push(public_env_rule);
+
     let mut internal_custom_rules = get_next_server_internal_transforms_rules(
         ty.clone(),
         next_config.mdx_rs().await?.is_some(),

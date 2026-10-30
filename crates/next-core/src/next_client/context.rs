@@ -230,6 +230,7 @@ pub async fn get_client_module_options_context(
     ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
+    define_env: Vc<OptionEnvMap>,
     encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
@@ -289,7 +290,7 @@ pub async fn get_client_module_options_context(
         .await?;
     let target_browsers = env.runtime_versions();
 
-    let next_client_rules = get_next_client_transforms_rules(
+    let mut next_client_rules = get_next_client_transforms_rules(
         next_config,
         &project_path,
         ty.clone(),
@@ -299,7 +300,7 @@ pub async fn get_client_module_options_context(
         target_browsers,
     )
     .await?;
-    let foreign_next_client_rules = get_next_client_transforms_rules(
+    let mut foreign_next_client_rules = get_next_client_transforms_rules(
         next_config,
         &project_path,
         ty.clone(),
@@ -309,6 +310,15 @@ pub async fn get_client_module_options_context(
         target_browsers,
     )
     .await?;
+
+    let public_env_rule =
+        crate::next_shared::transforms::missing_public_env::get_missing_public_env_rule(
+            define_env,
+            enable_mdx_rs.is_some(),
+        )
+        .await?;
+    next_client_rules.push(public_env_rule.clone());
+    foreign_next_client_rules.push(public_env_rule);
 
     let local_postcss_config = *next_config
         .experimental_turbopack_local_postcss_config()

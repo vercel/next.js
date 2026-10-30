@@ -1669,6 +1669,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn define_env(&self, runtime: Option<NextRuntime>) -> Vc<OptionEnvMap> {
+        match runtime {
+            None => self.define_env.client(),
+            Some(NextRuntime::NodeJs) => self.define_env.nodejs(),
+            Some(NextRuntime::Edge) => self.define_env.edge(),
+        }
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn server_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_server_compile_time_info(
@@ -1793,6 +1802,7 @@ impl Project {
                 ClientContextType::Other,
                 self.next_mode(),
                 self.next_config(),
+                self.define_env(None),
                 self.encryption_key(),
             ),
             get_client_resolve_options_context(
@@ -2268,6 +2278,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::Edge,
+                self.define_env(Some(NextRuntime::Edge)),
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
@@ -2333,6 +2344,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::NodeJs,
+                self.define_env(Some(NextRuntime::NodeJs)),
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
@@ -2449,6 +2461,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::NodeJs,
+                self.define_env(Some(NextRuntime::NodeJs)),
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
@@ -2513,6 +2526,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::Edge,
+                self.define_env(Some(NextRuntime::Edge)),
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
