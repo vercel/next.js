@@ -416,11 +416,7 @@ pub(crate) enum AssignmentScope {
 }
 
 /// Whether the value bound to a name can observe `this` when called.
-///
-/// Every place that binds a name contributes one of these, and they merge: a name is only
-/// `NotUsingThis` when every value it can hold is. Merging makes the result independent of the
-/// order the binding sites are visited, which matters because a function declaration hoists and
-/// can be assigned before it is declared.
+/// Intentionally phrased conservatively since we often do not know.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum ThisUsage {
     /// A directly visible function whose body provably never reaches `this`.
@@ -522,10 +518,6 @@ pub(crate) struct ImportMap {
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
 
     /// Whether the value bound to each name can observe `this` when called.
-    ///
-    /// Every binding site of a name merges into this, so the answer does not depend on visit
-    /// order. That matters because a function declaration hoists: `f = …` can be visited before
-    /// the `function f()` that describes the declared value.
     pub(super) this_usage: FxHashMap<Id, ThisUsage>,
 
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
@@ -1129,6 +1121,8 @@ fn value_this_usage(value: &Expr, unresolved_mark: Mark) -> ThisUsage {
     match unparen(value) {
         Expr::Arrow(_) => ThisUsage::NotUsingThis,
         Expr::Fn(f) => function_this_usage(&f.function, unresolved_mark),
+        // Other values such as literals can't be called meaningfully, so it isn't worth
+        // classifying them more precisely.
         _ => ThisUsage::MaybeUsingThis,
     }
 }

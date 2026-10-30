@@ -11,25 +11,20 @@ use swc_core::ecma::{
 };
 use turbo_tasks::NonLocalValue;
 
-/// How a namespace member access such as `ns.f` is used, which decides whether it only needs the
-/// export's value or has to keep going through the namespace object.
+/// How a namespace member access such as `ns.f` is used.
 ///
-/// Decided during analysis from the position of the access, see [`Self::of_member_access`].
-/// Whether a call needs the namespace also depends on the export, which is only known during code
-/// generation.
+/// This can be used to decide if the namespace access syntax needs to be preserved or the
+/// expression can be captured in a local.
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum NamespaceAccess {
     /// A plain read. It only needs the export's value.
     Read,
-    /// `ns.f()`, which calls `f` with `ns` as the receiver. The namespace is kept when `f` may
-    /// observe `this`.
+    /// `ns.f()`, which calls `f` with `ns` as the receiver. Namespace access may be required to
+    /// preserve `this` semantics.
     Call,
-    /// `ns.f = …` and similar. Source-level writes to ESM imports are illegal, but SWC still parses
-    /// them. The write has to reach the namespace so that writing to the read-only export still
-    /// throws.
-    ///
-    /// Also `delete ns.f`: `delete <identifier>` is a syntax error in strict code, so the operand
-    /// has to stay a member expression.
+    /// `ns.f = …` and similar (e.g. `delete ns.f`). Source-level writes to ESM imports are
+    /// illegal, but SWC still parses them. The write has to reach the namespace so that writing to
+    /// the read-only export still throws.
     Write,
 }
 
@@ -59,12 +54,7 @@ impl NamespaceAccess {
             // `Expr(Member)`
             _ => {}
         }
-        NamespaceAccess::of_position(parents.find(|parent| !is_parenthesized(parent.kind())))
-    }
-
-    /// Classifies the position a namespace member access sits in, with parentheses already looked
-    /// through.
-    fn of_position(enclosing: Option<&AstParentNodeRef<'_>>) -> Self {
+        let enclosing = parents.find(|parent| !is_parenthesized(parent.kind()));
         if is_this_receiver_position(enclosing.map(|parent| parent.kind())) {
             return NamespaceAccess::Call;
         }
@@ -76,7 +66,8 @@ impl NamespaceAccess {
             // An expression in a pattern is a write target: destructuring assignments like
             // `[ns.a] = v`, `({ k: ns.a } = o)` and `[...ns.a] = v`, and `for (ns.a of xs)`.
             | Some(AstParentNodeRef::Pat(_, PatField::Expr)) => NamespaceAccess::Write,
-            // `delete ns.a`, see `NamespaceAccess::Write`. Every other unary operator reads.
+            // `delete ns.a`: `delete <identifier>` is a syntax error in strict code, so the operand
+            // has to stay a member expression. Every other unary operator reads.
             Some(AstParentNodeRef::UnaryExpr(unary, UnaryExprField::Arg))
                 if unary.op == UnaryOp::Delete =>
             {
