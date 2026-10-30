@@ -149,7 +149,14 @@
       "agent upgrade terminal build waits for Skip before completing generate-env"
     ],
     "failed": [],
-    "pending": ["agent upgrade terminal dev only runs with Next.js dev"],
+    "pending": [
+      "agent upgrade terminal dev closes the menu and shows all output when dev crashes",
+      "agent upgrade terminal dev holds dev logs behind the menu and shows all of them after Skip",
+      "agent upgrade terminal dev keeps the menu working after dev restarts",
+      "agent upgrade terminal dev sizes code frames to the terminal after it is resized",
+      "agent upgrade terminal dev stops dev on Upgrade now without showing held output",
+      "agent upgrade terminal dev stops dev when Ctrl+C is pressed in the menu"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1016,7 +1023,9 @@
   "test/e2e/app-dir/app-custom-cache-handler-errors/app-custom-cache-handler-errors.test.ts": {
     "passed": [
       "app-custom-cache-handler-errors - get throws surfaces the cache handler error",
-      "app-custom-cache-handler-errors - set throws renders the page successfully"
+      "app-custom-cache-handler-errors - lookup recovery retries a shared failed lookup and shares its successful fill while the write is pending",
+      "app-custom-cache-handler-errors - set throws logs the cache write error without failing the render",
+      "app-custom-cache-handler-errors - shared write failure completes a joining server action and its re-render when the producer's cache write fails"
     ],
     "failed": [],
     "pending": [],
@@ -1439,6 +1448,7 @@
       "app-root-param-getters - cache - at runtime should handle root param reads introduced after revalidation",
       "app-root-param-getters - cache - at runtime should resume with the same cached data that was prerendered",
       "app-root-param-getters - cache - at runtime should revalidate only the tagged root params",
+      "app-root-param-getters - cache dedup with root params persists a joining root value after the shared producer cache write fails",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params for private caches",
       "app-root-param-getters - cache dedup with root params should key a joining outer cache by the root params read by its inner cache",
@@ -2958,7 +2968,7 @@
   "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts": {
     "passed": [
       "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
-      "cache-components-segment-configs should propagate configurations from layouts to pages"
+      "cache-components-segment-configs layout propagation should propagate configurations from layouts to pages"
     ],
     "failed": [],
     "pending": [],
@@ -3731,6 +3741,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/custom-server-response-chunks/custom-server-response-chunks.test.ts": {
+    "passed": [
+      "custom-server-response-chunks writes no string chunks to the HTML response",
+      "custom-server-response-chunks writes no string chunks to the RSC response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/custom-webpack/custom-webpack.test.ts": {
     "passed": [],
     "failed": [],
@@ -3794,6 +3814,18 @@
     "passed": [
       "app-dir - draft-mode-middleware should be able to disable draft mode with middleware present",
       "app-dir - draft-mode-middleware should be able to enable draft mode with middleware present"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/draft-mode-resume-data-cache/draft-mode-resume-data-cache.test.ts": {
+    "passed": [
+      "draft-mode-resume-data-cache renders draft data after an action enables draft mode and normal data after it disables draft mode",
+      "draft-mode-resume-data-cache renders fresh draft data after a progressively enhanced action enables draft mode",
+      "draft-mode-resume-data-cache renders fresh draft documents without cache miss warnings and preserves values for requests without draft mode",
+      "draft-mode-resume-data-cache requests fresh draft data when navigating to another page and returning"
     ],
     "failed": [],
     "pending": [],
@@ -4460,6 +4492,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/flight-native-chunks/flight-native-chunks.test.ts": {
+    "passed": [
+      "Flight native chunks hydrates the same values without executing embedded script text",
+      "Flight native chunks preserves Flight text, binary slices and promise values during SSR",
+      "Flight native chunks sends the same text on the RSC response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/forbidden/basic/forbidden-basic.test.ts": {
     "passed": [
       "app dir - forbidden with customized boundary should escalate forbidden to parent layout if no forbidden boundary present in current layer",
@@ -4595,6 +4638,7 @@
   },
   "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
     "passed": [
+      "global-not-found - basic should navigate from global-not-found to the app root layout",
       "global-not-found - basic should render global-not-found for 404",
       "global-not-found - basic should render not-found boundary when calling notFound() in a page",
       "global-not-found - basic should ssr global-not-found for 404"
@@ -4674,8 +4718,8 @@
   },
   "test/e2e/app-dir/graceful-shutdown-next-after/next-start/index.test.ts": {
     "passed": [
-      "after during server shutdown - next start waits for after callbacks when the server receives SIGINT",
-      "after during server shutdown - next start waits for after callbacks when the server receives SIGTERM"
+      "after during server shutdown - next start handles after callbacks when the server receives SIGINT",
+      "after during server shutdown - next start handles after callbacks when the server receives SIGTERM"
     ],
     "failed": [],
     "pending": [],
@@ -5238,6 +5282,7 @@
     "failed": [],
     "pending": [
       "layout-segment-chunk-sharing chunk sharing emits the shared layout module into exactly one server chunk",
+      "layout-segment-chunk-sharing layout segment chunking in the build trace chunks all client reference groups of a segment in one task",
       "layout-segment-chunk-sharing layout segment chunking in the build trace chunks the shared dashboard layout segment exactly once"
     ],
     "flakey": [],
@@ -5978,6 +6023,32 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mpa-server-action-html/mpa-server-action-html.global-not-found.test.ts": {
+    "passed": [
+      "mpa-server-action-html with global-not-found renders a complete global not-found document after an MPA form submission"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/mpa-server-action-html/mpa-server-action-html.test.ts": {
+    "passed": [
+      "mpa-server-action-html preserves form state through an MPA form submission, hydration, and a fetch action",
+      "mpa-server-action-html renders returned form state in a complete document on /",
+      "mpa-server-action-html renders returned form state in a complete document on /blocking",
+      "mpa-server-action-html renders returned form state in a complete document on /data-only",
+      "mpa-server-action-html renders returned form state in a complete document on /dynamic-form",
+      "mpa-server-action-html returns a complete document after a plain action with bound arguments",
+      "mpa-server-action-html returns a complete not-found document after an MPA form submission",
+      "mpa-server-action-html reuses prerendered cache values from the RDC after an MPA form submission",
+      "mpa-server-action-html uses fresh invalidated data while preserving unrelated cached values"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/multi-value-search-params-stale/multi-value-search-params-stale.test.ts": {
     "passed": [
       "multi-value-search-params-stale re-renders when a repeated search param goes from multiple values to one"
@@ -6211,6 +6282,7 @@
       "after() in edge runtime runs in generateMetadata()",
       "after() in edge runtime runs in middleware",
       "after() in edge runtime runs in server actions",
+      "after() in edge runtime runs when route response validation fails",
       "after() in edge runtime uses waitUntil from request context if available in a page",
       "after() in edge runtime uses waitUntil from request context if available in a route handler",
       "after() in edge runtime uses waitUntil from request context if available in middleware",
@@ -6228,6 +6300,7 @@
       "after() in nodejs runtime runs in generateMetadata()",
       "after() in nodejs runtime runs in middleware",
       "after() in nodejs runtime runs in server actions",
+      "after() in nodejs runtime runs when route response validation fails",
       "after() in nodejs runtime uses waitUntil from request context if available in a page",
       "after() in nodejs runtime uses waitUntil from request context if available in a route handler",
       "after() in nodejs runtime uses waitUntil from request context if available in middleware"
@@ -7777,9 +7850,9 @@
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
-      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
-      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
-      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/dynamic/foobar)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/prr/catchall/foobar)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/prr/detail-page)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/prr/dynamic/foobar)",
       "parallel-routes-revalidation should not trigger the intercepted route when lazy-fetching missing data",
       "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
@@ -8148,6 +8221,15 @@
   "test/e2e/app-dir/partial-prefetching-deep-propagation/partial-prefetching-deep-propagation.test.ts": {
     "passed": [
       "partial prefetching - deep subtree-hint propagation downgrades a prefetch={true} to a partial prefetch when a deeply nested segment opts in"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-prefetching-inline-server-function/partial-prefetching-inline-server-function.test.ts": {
+    "passed": [
+      "partial prefetching with an inline server function terminates the HTML response of a partially prerendered page"
     ],
     "failed": [],
     "pending": [],
@@ -8825,6 +8907,7 @@
   },
   "test/e2e/app-dir/resume-data-cache/resume-data-cache.partial-prefetching.test.ts": {
     "passed": [
+      "resume-data-cache replaces an invalidated RDC entry with a handler hit for the embedded runtime prefetch",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache after revalidation",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache initial",
       "resume-data-cache should have consistent data between static and dynamic renders use cache after revalidation",
@@ -8840,6 +8923,7 @@
   },
   "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
     "passed": [
+      "resume-data-cache replaces an invalidated RDC entry with a handler hit for the embedded runtime prefetch",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache after revalidation",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache initial",
       "resume-data-cache should have consistent data between static and dynamic renders use cache after revalidation",
@@ -9555,11 +9639,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/unused/unused.test.ts": {
-    "passed": [],
+    "passed": [
+      "unused scss Body is not hidden when unused ($dependencies) should have body visible"
+    ],
     "failed": [],
     "pending": [
-      "unused scss Body is not hidden when broken in Development development only should have body visible",
-      "unused scss Body is not hidden when unused in Development ($dependencies) development only should have body visible"
+      "unused scss Body is not hidden when broken in Development should have body visible"
     ],
     "flakey": [],
     "runtimeError": false
@@ -10534,7 +10619,10 @@
       "app-dir - server source maps - fake frame source maps server chunk source maps are resolvable by an attached debugger"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app-dir - server source maps - fake frame source maps fake stack frame source maps are resolvable by an attached debugger",
+      "app-dir - server source maps - fake frame source maps fake stack frames from nested Flight requests are resolvable by an attached debugger"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10718,6 +10806,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/streamed-cache-revalidation/streamed-cache-revalidation.test.ts": {
+    "passed": [
+      "streamed cache revalidation applies a tag invalidation queued during response streaming",
+      "streamed cache revalidation invalidates a cached value from a streamed action that skips rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/sub-shell-generation-middleware/sub-shell-generation-middleware.test.ts": {
     "passed": [
       "middleware-static-rewrite should eventually result in a cache hit"
@@ -10840,6 +10938,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/treeshake-client/treeshake-client.test.ts": {
+    "passed": [
+      "treeshake-client builds a client re-export of a side-effect-free external barrel"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/treeshake-mw/mw.test.ts": {
     "passed": [
       "treeshake-mw builds and runs Node.js middleware importing via a star re-export"
@@ -10855,9 +10962,11 @@
     "pending": [
       "turbopack additional roots emits additional-root files and cross-root symlinks in the NFT",
       "turbopack additional roots handles absolute paths and an additional root in dependencies from a webpack loader",
+      "turbopack additional roots passes the path of a file in an additional root to PostCSS",
       "turbopack additional roots provides relocatable synthetic symlinks through adapter assets",
       "turbopack additional roots reports initialization warnings when startup succeeds",
       "turbopack additional roots resolves a linked package, sibling dependency, and next/dist",
+      "turbopack additional roots runs a webpack loader on a file in an additional root",
       "turbopack additional roots runs after relocating standalone output away from the source root",
       "turbopack additional roots uses a placeholder for import.meta.url in an additional root"
     ],
@@ -10918,19 +11027,19 @@
   },
   "test/e2e/app-dir/typed-routes-validator/typed-routes-validator.test.ts": {
     "passed": [
-      "typed-routes-validator should fail type checking with invalid API route exports",
-      "typed-routes-validator should fail type checking with invalid layout exports",
-      "typed-routes-validator should fail type checking with invalid page exports",
-      "typed-routes-validator should fail type checking with invalid page props",
-      "typed-routes-validator should fail type checking with invalid route handler params",
-      "typed-routes-validator should fail type checking with invalid route handler return type",
+      "typed-routes-validator production mode should fail type checking with invalid API route exports",
+      "typed-routes-validator production mode should fail type checking with invalid layout exports",
+      "typed-routes-validator production mode should fail type checking with invalid page exports",
+      "typed-routes-validator production mode should fail type checking with invalid page props",
+      "typed-routes-validator production mode should fail type checking with invalid route handler params",
+      "typed-routes-validator production mode should fail type checking with invalid route handler return type",
+      "typed-routes-validator production mode should pass type checking with valid API route exports",
+      "typed-routes-validator production mode should pass type checking with valid layout exports",
+      "typed-routes-validator production mode should pass type checking with valid page exports",
+      "typed-routes-validator production mode should pass type checking with valid page props",
+      "typed-routes-validator production mode should pass type checking with valid route handler exports",
       "typed-routes-validator should generate route validation correctly",
-      "typed-routes-validator should have passing tsc after the server generated types",
-      "typed-routes-validator should pass type checking with valid API route exports",
-      "typed-routes-validator should pass type checking with valid layout exports",
-      "typed-routes-validator should pass type checking with valid page exports",
-      "typed-routes-validator should pass type checking with valid page props",
-      "typed-routes-validator should pass type checking with valid route handler exports"
+      "typed-routes-validator should have passing tsc after the server generated types"
     ],
     "failed": [],
     "pending": [],
@@ -11084,7 +11193,7 @@
       "use cache called after tasky uncached IO does not store an incomplete cache entry in the cache handler"
     ],
     "failed": [],
-    "pending": [],
+    "pending": ["use cache called after tasky uncached IO resolves in dev"],
     "flakey": [],
     "runtimeError": false
   },
@@ -11109,6 +11218,8 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
+      "use-cache-custom-handler currently shares a handler lookup across routes and serves old data after revalidatePath()",
+      "use-cache-custom-handler currently shares a pending fill without checking route-specific cache invalidation",
       "use-cache-custom-handler handles a failed handler preload without an unhandled rejection",
       "use-cache-custom-handler should call updateTags once per profile group",
       "use-cache-custom-handler should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly",
@@ -11267,7 +11378,9 @@
       "use-cache-route-handler-only refreshes cached data after tag revalidation",
       "use-cache-route-handler-only should be able to revalidate prerendered route handlers",
       "use-cache-route-handler-only should cache results in node route handlers",
-      "use-cache-route-handler-only should dedupe concurrent cache invocations in route handlers"
+      "use-cache-route-handler-only should dedupe concurrent cache invocations in route handlers",
+      "use-cache-route-handler-only should prerender route handlers that respond with 204",
+      "use-cache-route-handler-only should respond to auto-implemented OPTIONS requests"
     ],
     "failed": [],
     "pending": [],
@@ -11299,8 +11412,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-streaming-revalidation/use-cache-streaming-revalidation.test.ts": {
+    "passed": [
+      "use cache streaming revalidation completes stale regeneration started during a streaming flight response",
+      "use cache streaming revalidation completes stale regeneration started during a streaming html response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
     "passed": [
+      "use-cache-swr currently delays a direct stale read behind a nested foreground fill",
+      "use-cache-swr currently gives nested callers stale data after background revalidation completes",
       "use-cache-swr deduplicates background revalidations across concurrent requests",
       "use-cache-swr deduplicates background revalidations when a cache handler read returns stale data after revalidation completes",
       "use-cache-swr reuses the prospective prerender's stale value in the final runtime prerender after background revalidation completes",
@@ -11594,9 +11719,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
-    "passed": ["webpack-loader-fs should allow reading the input FS"],
+    "passed": [
+      "webpack-loader-fs exposes Node stat results, options, path types, and callback errors",
+      "webpack-loader-fs should allow reading the input FS"
+    ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "webpack-loader-fs invalidates a stat-only read when the file size changes",
+      "webpack-loader-fs invalidates metadata-only changes without reading file contents",
+      "webpack-loader-fs tracks metadata through a symlinked parent directory",
+      "webpack-loader-fs tracks missing-path creation, file-to-directory replacement, and deletion"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11666,6 +11799,17 @@
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-utils/webpack-loader-utils.test.ts": {
+    "passed": [
+      "webpack-loader-utils runs style-loader pitching with the real loader context"
+    ],
+    "failed": [
+      "webpack-loader-utils exposes path and hash utilities to loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12107,7 +12251,9 @@
       "chrome-devtools-workspace proxy should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "chrome-devtools-workspace persistence persists the UUID when the cache directory does not exist yet"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -13470,27 +13616,22 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
-    ],
-    "failed": [],
-    "pending": [
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/fetch-polyfill-ky-universal/fetch-polyfill-ky-universal.test.ts": {
     "passed": [
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getInitialProps (prod)",
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getServerSideProps (prod)",
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getStaticProps (prod)"
+      "Fetch polyfill with ky-universal includes polyfilled fetch when using getInitialProps",
+      "Fetch polyfill with ky-universal includes polyfilled fetch when using getServerSideProps",
+      "Fetch polyfill with ky-universal includes polyfilled fetch when using getStaticProps"
     ],
     "failed": [],
-    "pending": [
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getInitialProps (dev)",
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getServerSideProps (dev)",
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getStaticProps (dev)"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14247,7 +14388,8 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "warm-restart task statistics snapshot of tasks with cache misses on warm build"
+      "warm-restart task statistics snapshot of tasks with cache misses on warm build",
+      "warm-restart task statistics snapshot of tasks with cache misses on warm dev restart"
     ],
     "flakey": [],
     "runtimeError": false
@@ -14794,190 +14936,101 @@
   },
   "test/e2e/i18n-support-base-path/i18n-support-base-path.test.ts": {
     "passed": [
-      "i18n Support basePath production mode should 404 for GSP pages that returned notFound",
-      "i18n Support basePath production mode should 404 for GSP that returned notFound on client-transition",
-      "i18n Support basePath production mode should 404 for locale prefixed public folder files",
-      "i18n Support basePath production mode should 404 for locale prefixed static assets correctly",
-      "i18n Support basePath production mode should add i18n config to routes-manifest",
-      "i18n Support basePath production mode should apply headers correctly",
-      "i18n Support basePath production mode should apply redirects correctly",
-      "i18n Support basePath production mode should apply rewrites correctly",
-      "i18n Support basePath production mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath production mode should generate auto-export page with all locales",
-      "i18n Support basePath production mode should generate fallbacks with all locales",
-      "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
-      "i18n Support basePath production mode should handle basePath like pathname",
-      "i18n Support basePath production mode should handle fallback correctly after generating",
-      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale do-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale go-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale do-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale go-BE",
-      "i18n Support basePath production mode should handle navigating back to different casing of locale",
-      "i18n Support basePath production mode should have correct initial query values for fallback",
-      "i18n Support basePath production mode should have correct values for non-prefixed path",
-      "i18n Support basePath production mode should have domainLocales available on useRouter",
-      "i18n Support basePath production mode should load dynamic getServerSideProps page correctly SSR",
-      "i18n Support basePath production mode should load getServerSideProps page correctly SSR",
-      "i18n Support basePath production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page another locale correctly",
-      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly",
-      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
-      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR",
-      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale via cookie",
-      "i18n Support basePath production mode should load getStaticProps page correctly SSR",
-      "i18n Support basePath production mode should load getStaticProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should navigate client side for default locale with no prefix",
-      "i18n Support basePath production mode should navigate through history with query correctly",
-      "i18n Support basePath production mode should navigate to another page and back correctly with locale",
-      "i18n Support basePath production mode should navigate to auto-export dynamic page",
-      "i18n Support basePath production mode should navigate to getStaticProps page and back correctly with locale",
-      "i18n Support basePath production mode should navigate to page with same name as development buildId",
-      "i18n Support basePath production mode should navigate with locale false correctly",
-      "i18n Support basePath production mode should navigate with locale false correctly GSP",
-      "i18n Support basePath production mode should navigate with locale prop correctly",
-      "i18n Support basePath production mode should navigate with locale prop correctly GSP",
-      "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with hash",
-      "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with query params",
-      "i18n Support basePath production mode should not contain backslashes in pages-manifest",
-      "i18n Support basePath production mode should not error with similar named cookie to locale cookie",
-      "i18n Support basePath production mode should not have hydration mis-match from hash",
-      "i18n Support basePath production mode should not output GSP pages that returned notFound",
-      "i18n Support basePath production mode should not redirect to accept-lang preferred locale with locale cookie",
-      "i18n Support basePath production mode should not remove locale prefix for default locale",
-      "i18n Support basePath production mode should not strip locale prefix for default locale with locale domains",
-      "i18n Support basePath production mode should output correct prerender-manifest",
-      "i18n Support basePath production mode should preload all locales data correctly",
-      "i18n Support basePath production mode should prerender with the correct href for locale domain",
-      "i18n Support basePath production mode should provide defaultLocale correctly for locale domain",
-      "i18n Support basePath production mode should redirect external domain correctly",
-      "i18n Support basePath production mode should redirect to correct locale domain",
-      "i18n Support basePath production mode should redirect to locale prefixed route for /",
-      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404",
-      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404 on client transition",
-      "i18n Support basePath production mode should render 404 for fallback page that returned 404",
-      "i18n Support basePath production mode should render 404 for fallback page that returned 404 on client transition",
-      "i18n Support basePath production mode should render the correct href with locale domains but not on a locale domain",
-      "i18n Support basePath production mode should resolve auto-export dynamic route correctly",
-      "i18n Support basePath production mode should resolve href correctly when dynamic route matches locale prefixed",
-      "i18n Support basePath production mode should rewrite to API route correctly for do locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for do-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for en locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for en-US locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for fr locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for fr-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for go locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for go-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl-NL locale",
-      "i18n Support basePath production mode should serve public file on locale domain",
-      "i18n Support basePath production mode should transition on client properly for page that starts with locale",
-      "i18n Support basePath production mode should update asPath on the client correctly",
-      "i18n Support basePath production mode should use correct default locale for locale domains",
-      "i18n Support basePath production mode should use default locale for / without accept-language",
-      "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
-      "i18n Support basePath production mode should visit API route directly correctly",
-      "i18n Support basePath production mode should visit dynamic API route directly correctly",
+      "i18n Support basePath should 404 for GSP pages that returned notFound",
+      "i18n Support basePath should 404 for GSP that returned notFound on client-transition",
+      "i18n Support basePath should 404 for locale prefixed public folder files",
+      "i18n Support basePath should 404 for locale prefixed static assets correctly",
+      "i18n Support basePath should add i18n config to routes-manifest",
+      "i18n Support basePath should apply headers correctly",
+      "i18n Support basePath should apply redirects correctly",
+      "i18n Support basePath should apply rewrites correctly",
+      "i18n Support basePath should apply trailingSlash redirect correctly",
+      "i18n Support basePath should generate auto-export page with all locales",
+      "i18n Support basePath should generate fallbacks with all locales",
+      "i18n Support basePath should generate non-dynamic GSP page with all locales",
+      "i18n Support basePath should handle basePath like pathname",
+      "i18n Support basePath should handle fallback correctly after generating",
+      "i18n Support basePath should handle locales with domain for domain example.com should handle locale do-BE",
+      "i18n Support basePath should handle locales with domain for domain example.com should handle locale go-BE",
+      "i18n Support basePath should handle locales with domain for domain example.do should handle locale do-BE",
+      "i18n Support basePath should handle locales with domain for domain example.do should handle locale go-BE",
+      "i18n Support basePath should handle navigating back to different casing of locale",
+      "i18n Support basePath should have correct initial query values for fallback",
+      "i18n Support basePath should have correct values for non-prefixed path",
+      "i18n Support basePath should have domainLocales available on useRouter",
+      "i18n Support basePath should load dynamic getServerSideProps page correctly SSR",
+      "i18n Support basePath should load getServerSideProps page correctly SSR",
+      "i18n Support basePath should load getServerSideProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath should load getStaticProps fallback non-prerender page another locale correctly",
+      "i18n Support basePath should load getStaticProps fallback non-prerender page correctly",
+      "i18n Support basePath should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
+      "i18n Support basePath should load getStaticProps fallback prerender page correctly SSR",
+      "i18n Support basePath should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
+      "i18n Support basePath should load getStaticProps non-fallback correctly",
+      "i18n Support basePath should load getStaticProps non-fallback correctly another locale",
+      "i18n Support basePath should load getStaticProps non-fallback correctly another locale via cookie",
+      "i18n Support basePath should load getStaticProps page correctly SSR",
+      "i18n Support basePath should load getStaticProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath should navigate client side for default locale with no prefix",
+      "i18n Support basePath should navigate through history with query correctly",
+      "i18n Support basePath should navigate to another page and back correctly with locale",
+      "i18n Support basePath should navigate to auto-export dynamic page",
+      "i18n Support basePath should navigate to getStaticProps page and back correctly with locale",
+      "i18n Support basePath should navigate to page with same name as development buildId",
+      "i18n Support basePath should navigate with locale false correctly",
+      "i18n Support basePath should navigate with locale false correctly GSP",
+      "i18n Support basePath should navigate with locale prop correctly",
+      "i18n Support basePath should navigate with locale prop correctly GSP",
+      "i18n Support basePath should not add duplicate locale key when navigating back to root path with hash",
+      "i18n Support basePath should not add duplicate locale key when navigating back to root path with query params",
+      "i18n Support basePath should not contain backslashes in pages-manifest",
+      "i18n Support basePath should not error with similar named cookie to locale cookie",
+      "i18n Support basePath should not have hydration mis-match from hash",
+      "i18n Support basePath should not output GSP pages that returned notFound",
+      "i18n Support basePath should not redirect to accept-lang preferred locale with locale cookie",
+      "i18n Support basePath should not remove locale prefix for default locale",
+      "i18n Support basePath should not strip locale prefix for default locale with locale domains",
+      "i18n Support basePath should output correct prerender-manifest",
+      "i18n Support basePath should preload all locales data correctly",
+      "i18n Support basePath should prerender with the correct href for locale domain",
+      "i18n Support basePath should provide defaultLocale correctly for locale domain",
+      "i18n Support basePath should redirect external domain correctly",
+      "i18n Support basePath should redirect to correct locale domain",
+      "i18n Support basePath should redirect to locale prefixed route for /",
+      "i18n Support basePath should render 404 for blocking fallback page that returned 404",
+      "i18n Support basePath should render 404 for blocking fallback page that returned 404 on client transition",
+      "i18n Support basePath should render 404 for fallback page that returned 404",
+      "i18n Support basePath should render 404 for fallback page that returned 404 on client transition",
+      "i18n Support basePath should render the correct href with locale domains but not on a locale domain",
+      "i18n Support basePath should resolve auto-export dynamic route correctly",
+      "i18n Support basePath should resolve href correctly when dynamic route matches locale prefixed",
+      "i18n Support basePath should rewrite to API route correctly for do locale",
+      "i18n Support basePath should rewrite to API route correctly for do-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for en locale",
+      "i18n Support basePath should rewrite to API route correctly for en-US locale",
+      "i18n Support basePath should rewrite to API route correctly for fr locale",
+      "i18n Support basePath should rewrite to API route correctly for fr-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for go locale",
+      "i18n Support basePath should rewrite to API route correctly for go-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for nl locale",
+      "i18n Support basePath should rewrite to API route correctly for nl-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for nl-NL locale",
+      "i18n Support basePath should serve public file on locale domain",
+      "i18n Support basePath should transition on client properly for page that starts with locale",
+      "i18n Support basePath should update asPath on the client correctly",
+      "i18n Support basePath should use correct default locale for locale domains",
+      "i18n Support basePath should use default locale for / without accept-language",
+      "i18n Support basePath should use default locale when no locale is in href with locale false",
+      "i18n Support basePath should visit API route directly correctly",
+      "i18n Support basePath should visit dynamic API route directly correctly",
       "i18n Support basePath with localeDetection disabled should have localeDetection in routes-manifest",
       "i18n Support basePath with localeDetection disabled should not detect locale from accept-language",
       "i18n Support basePath with localeDetection disabled should set locale from detected path"
     ],
     "failed": [],
     "pending": [
-      "i18n Support basePath development mode should 404 for GSP pages that returned notFound",
-      "i18n Support basePath development mode should 404 for GSP that returned notFound on client-transition",
-      "i18n Support basePath development mode should 404 for locale prefixed public folder files",
-      "i18n Support basePath development mode should 404 for locale prefixed static assets correctly",
-      "i18n Support basePath development mode should add i18n config to routes-manifest",
-      "i18n Support basePath development mode should apply headers correctly",
-      "i18n Support basePath development mode should apply redirects correctly",
-      "i18n Support basePath development mode should apply rewrites correctly",
-      "i18n Support basePath development mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath development mode should generate auto-export page with all locales",
-      "i18n Support basePath development mode should generate fallbacks with all locales",
-      "i18n Support basePath development mode should generate non-dynamic GSP page with all locales",
-      "i18n Support basePath development mode should handle basePath like pathname",
-      "i18n Support basePath development mode should handle fallback correctly after generating",
-      "i18n Support basePath development mode should handle locales with domain for domain example.com should handle locale do-BE",
-      "i18n Support basePath development mode should handle locales with domain for domain example.com should handle locale go-BE",
-      "i18n Support basePath development mode should handle locales with domain for domain example.do should handle locale do-BE",
-      "i18n Support basePath development mode should handle locales with domain for domain example.do should handle locale go-BE",
-      "i18n Support basePath development mode should handle navigating back to different casing of locale",
-      "i18n Support basePath development mode should have correct initial query values for fallback",
-      "i18n Support basePath development mode should have correct values for non-prefixed path",
-      "i18n Support basePath development mode should have domainLocales available on useRouter",
-      "i18n Support basePath development mode should load dynamic getServerSideProps page correctly SSR",
-      "i18n Support basePath development mode should load getServerSideProps page correctly SSR",
-      "i18n Support basePath development mode should load getServerSideProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page another locale correctly",
-      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page correctly",
-      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
-      "i18n Support basePath development mode should load getStaticProps fallback prerender page correctly SSR",
-      "i18n Support basePath development mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
-      "i18n Support basePath development mode should load getStaticProps non-fallback correctly",
-      "i18n Support basePath development mode should load getStaticProps non-fallback correctly another locale",
-      "i18n Support basePath development mode should load getStaticProps non-fallback correctly another locale via cookie",
-      "i18n Support basePath development mode should load getStaticProps page correctly SSR",
-      "i18n Support basePath development mode should load getStaticProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath development mode should navigate client side for default locale with no prefix",
-      "i18n Support basePath development mode should navigate through history with query correctly",
-      "i18n Support basePath development mode should navigate to another page and back correctly with locale",
-      "i18n Support basePath development mode should navigate to auto-export dynamic page",
-      "i18n Support basePath development mode should navigate to getStaticProps page and back correctly with locale",
-      "i18n Support basePath development mode should navigate to page with same name as development buildId",
-      "i18n Support basePath development mode should navigate with locale false correctly",
-      "i18n Support basePath development mode should navigate with locale false correctly GSP",
-      "i18n Support basePath development mode should navigate with locale prop correctly",
-      "i18n Support basePath development mode should navigate with locale prop correctly GSP",
-      "i18n Support basePath development mode should not add duplicate locale key when navigating back to root path with hash",
-      "i18n Support basePath development mode should not add duplicate locale key when navigating back to root path with query params",
-      "i18n Support basePath development mode should not contain backslashes in pages-manifest",
-      "i18n Support basePath development mode should not error with similar named cookie to locale cookie",
-      "i18n Support basePath development mode should not have hydration mis-match from hash",
-      "i18n Support basePath development mode should not output GSP pages that returned notFound",
-      "i18n Support basePath development mode should not redirect to accept-lang preferred locale with locale cookie",
-      "i18n Support basePath development mode should not remove locale prefix for default locale",
-      "i18n Support basePath development mode should not strip locale prefix for default locale with locale domains",
-      "i18n Support basePath development mode should output correct prerender-manifest",
-      "i18n Support basePath development mode should preload all locales data correctly",
-      "i18n Support basePath development mode should prerender with the correct href for locale domain",
-      "i18n Support basePath development mode should provide defaultLocale correctly for locale domain",
-      "i18n Support basePath development mode should redirect external domain correctly",
-      "i18n Support basePath development mode should redirect to correct locale domain",
-      "i18n Support basePath development mode should redirect to locale domain correctly client-side",
-      "i18n Support basePath development mode should redirect to locale prefixed route for /",
-      "i18n Support basePath development mode should render 404 for blocking fallback page that returned 404",
-      "i18n Support basePath development mode should render 404 for blocking fallback page that returned 404 on client transition",
-      "i18n Support basePath development mode should render 404 for fallback page that returned 404",
-      "i18n Support basePath development mode should render 404 for fallback page that returned 404 on client transition",
-      "i18n Support basePath development mode should render the correct href for locale domain",
-      "i18n Support basePath development mode should render the correct href with locale domains but not on a locale domain",
-      "i18n Support basePath development mode should resolve auto-export dynamic route correctly",
-      "i18n Support basePath development mode should resolve href correctly when dynamic route matches locale prefixed",
-      "i18n Support basePath development mode should rewrite to API route correctly for do locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for do-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for en locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for en-US locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for fr locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for fr-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for go locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for go-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for nl locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for nl-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for nl-NL locale",
-      "i18n Support basePath development mode should serve public file on locale domain",
-      "i18n Support basePath development mode should transition on client properly for page that starts with locale",
-      "i18n Support basePath development mode should update asPath on the client correctly",
-      "i18n Support basePath development mode should use correct default locale for locale domains",
-      "i18n Support basePath development mode should use default locale for / without accept-language",
-      "i18n Support basePath development mode should use default locale when no locale is in href with locale false",
-      "i18n Support basePath development mode should visit API route directly correctly",
-      "i18n Support basePath development mode should visit dynamic API route directly correctly",
-      "i18n Support basePath production mode should redirect to locale domain correctly client-side",
-      "i18n Support basePath production mode should render the correct href for locale domain"
+      "i18n Support basePath should redirect to locale domain correctly client-side",
+      "i18n Support basePath should render the correct href for locale domain"
     ],
     "flakey": [],
     "runtimeError": false
@@ -15608,15 +15661,14 @@
       "Image Optimizer config checks should error when remotePatterns has invalid prop",
       "Image Optimizer config checks should error when remotePatterns is missing hostname",
       "Image Optimizer config checks should error when remotePatterns length exceeds 50",
-      "Image Optimizer config checks should error when sizes length exceeds 25"
+      "Image Optimizer config checks should error when sizes length exceeds 25",
+      "Image Optimizer dev support for dynamic blur placeholder should support width 8 per BLUR_IMG_SIZE with next dev",
+      "Image Optimizer experimental.imgOptMaxInputPixels in next.config.js should fallback to source image when input exceeds imgOptMaxInputPixels",
+      "Image Optimizer images.unoptimized in next.config.js should 404 when unoptimized",
+      "Image Optimizer next.config.js cloudinary loader should 404 when loader is not default"
     ],
     "failed": [],
-    "pending": [
-      "Image Optimizer dev support for dynamic blur placeholder should support width 8 per BLUR_IMG_SIZE with next dev",
-      "Image Optimizer dev support next.config.js cloudinary loader should 404 when loader is not default",
-      "Image Optimizer experimental.imgOptMaxInputPixels in next.config.js should fallback to source image when input exceeds imgOptMaxInputPixels",
-      "Image Optimizer images.unoptimized in next.config.js should 404 when unoptimized"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16506,30 +16558,19 @@
   },
   "test/e2e/invalid-custom-routes/invalid-custom-routes.test.ts": {
     "passed": [
-      "Errors on invalid custom routes production mode should error during next build for invalid headers",
-      "Errors on invalid custom routes production mode should error during next build for invalid redirects",
-      "Errors on invalid custom routes production mode should error during next build for invalid rewrites",
-      "Errors on invalid custom routes production mode should error when empty headers array is present on header item",
-      "Errors on invalid custom routes production mode should error when source and destination length is exceeded",
-      "Errors on invalid custom routes production mode should show formatted error for redirect source parse fail",
-      "Errors on invalid custom routes production mode should show valid error when non-array is returned from headers",
-      "Errors on invalid custom routes production mode should show valid error when non-array is returned from redirects",
-      "Errors on invalid custom routes production mode should show valid error when non-array is returned from rewrites",
-      "Errors on invalid custom routes production mode should show valid error when segments not in source are used in destination"
+      "Errors on invalid custom routes should error during next build for invalid headers",
+      "Errors on invalid custom routes should error during next build for invalid redirects",
+      "Errors on invalid custom routes should error during next build for invalid rewrites",
+      "Errors on invalid custom routes should error when empty headers array is present on header item",
+      "Errors on invalid custom routes should error when source and destination length is exceeded",
+      "Errors on invalid custom routes should show formatted error for redirect source parse fail",
+      "Errors on invalid custom routes should show valid error when non-array is returned from headers",
+      "Errors on invalid custom routes should show valid error when non-array is returned from redirects",
+      "Errors on invalid custom routes should show valid error when non-array is returned from rewrites",
+      "Errors on invalid custom routes should show valid error when segments not in source are used in destination"
     ],
     "failed": [],
-    "pending": [
-      "Errors on invalid custom routes development mode should error during next build for invalid headers",
-      "Errors on invalid custom routes development mode should error during next build for invalid redirects",
-      "Errors on invalid custom routes development mode should error during next build for invalid rewrites",
-      "Errors on invalid custom routes development mode should error when empty headers array is present on header item",
-      "Errors on invalid custom routes development mode should error when source and destination length is exceeded",
-      "Errors on invalid custom routes development mode should show formatted error for redirect source parse fail",
-      "Errors on invalid custom routes development mode should show valid error when non-array is returned from headers",
-      "Errors on invalid custom routes development mode should show valid error when non-array is returned from redirects",
-      "Errors on invalid custom routes development mode should show valid error when non-array is returned from rewrites",
-      "Errors on invalid custom routes development mode should show valid error when segments not in source are used in destination"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16561,14 +16602,11 @@
   },
   "test/e2e/invalid-middleware-matchers/invalid-middleware-matchers.test.ts": {
     "passed": [
-      "Errors on invalid custom middleware matchers production mode should error during next build for invalid matchers",
-      "Errors on invalid custom middleware matchers production mode should error when source length is exceeded"
+      "Errors on invalid custom middleware matchers should error during next build for invalid matchers",
+      "Errors on invalid custom middleware matchers should error when source length is exceeded"
     ],
     "failed": [],
-    "pending": [
-      "Errors on invalid custom middleware matchers development mode should error during next build for invalid matchers",
-      "Errors on invalid custom middleware matchers development mode should error when source length is exceeded"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16820,21 +16858,19 @@
   },
   "test/e2e/link-ref-pages/link-ref-pages.test.ts": {
     "passed": [
-      "Link ref forwarding production mode should not have a race condition with a click handler",
       "Link ref forwarding production mode should preload with child ref with React.createRef",
       "Link ref forwarding production mode should preload with child ref with function",
       "Link ref forwarding production mode should preload with child ref with function that returns a cleanup function",
-      "Link ref forwarding production mode should preload with forwardRef"
+      "Link ref forwarding production mode should preload with forwardRef",
+      "Link ref forwarding ref forwarding should handle child ref that is a function",
+      "Link ref forwarding ref forwarding should handle child ref that is a function that returns a cleanup function",
+      "Link ref forwarding ref forwarding should handle child ref with React.createRef",
+      "Link ref forwarding ref forwarding should not show error for class component as child of next/link",
+      "Link ref forwarding ref forwarding should not show error for function component with forwardRef",
+      "Link ref forwarding should not have a race condition with a click handler"
     ],
     "failed": [],
-    "pending": [
-      "Link ref forwarding development mode should handle child ref that is a function",
-      "Link ref forwarding development mode should handle child ref that is a function that returns a cleanup function",
-      "Link ref forwarding development mode should handle child ref with React.createRef",
-      "Link ref forwarding development mode should not have a race condition with a click handler",
-      "Link ref forwarding development mode should not show error for class component as child of next/link",
-      "Link ref forwarding development mode should not show error for function component with forwardRef"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -17842,7 +17878,11 @@
       "Legacy Image Component basePath Tests should work with sizes and automatically use layout-responsive"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Legacy Image Component basePath Tests should show invalid src error",
+      "Legacy Image Component basePath Tests should show invalid src error when protocol-relative",
+      "Legacy Image Component basePath Tests should show missing src error"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -18112,7 +18152,11 @@
       "Image Component basePath Tests should work when using flexbox"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Image Component basePath Tests should show invalid src error",
+      "Image Component basePath Tests should show invalid src error when protocol-relative",
+      "Image Component basePath Tests should show missing src error"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -18717,6 +18761,7 @@
       "opentelemetry - middleware default edge runtime root context should trace middleware",
       "opentelemetry - middleware default nodejs runtime incoming context propagation should trace middleware",
       "opentelemetry - middleware default nodejs runtime root context should trace middleware",
+      "opentelemetry - middleware direct entrypoint rejecting the first request should still trace instrumentation registration, once",
       "opentelemetry - middleware direct entrypoints nodejs runtime incoming context propagation should trace middleware",
       "opentelemetry - middleware direct entrypoints nodejs runtime root context should trace middleware",
       "opentelemetry - middleware direct entrypoints nodejs runtime should trace instrumentation registration in the first middleware request",
@@ -18937,6 +18982,9 @@
       "Prerender Preview Mode should not return fallback page on preview request",
       "Prerender Preview Mode should pass the preview data to API routes",
       "Prerender Preview Mode should pass undefined to API routes when not in preview",
+      "Prerender Preview Mode should reject preview data with an invalid signature",
+      "Prerender Preview Mode should reject preview data with maxAge -60",
+      "Prerender Preview Mode should reject preview data with maxAge 0",
       "Prerender Preview Mode should return cookies to be expired on reset request",
       "Prerender Preview Mode should return cookies to be expired on reset request with path specified",
       "Prerender Preview Mode should return correct caching headers for data preview request",
@@ -19895,6 +19943,26 @@
       "testmode app router should handle RSC with fetch in serverless function",
       "testmode app router should handle RSC with http.get in serverless function",
       "testmode app router should pass http.get through to the real server when Next-Test-* headers are not present",
+      "testmode compressed HTTP responses should preserve explicitly compressed mock bytes and headers",
+      "testmode compressed HTTP responses should preserve fetched bytes with unsupported encoding custom",
+      "testmode compressed HTTP responses should preserve fetched bytes with unsupported encoding gzip, custom",
+      "testmode compressed HTTP responses should preserve representation headers on a HEAD fetch-response",
+      "testmode compressed HTTP responses should preserve representation headers on a HEAD head-response",
+      "testmode compressed HTTP responses with proxy continue preserves chunked",
+      "testmode compressed HTTP responses with proxy continue preserves longer decoded body",
+      "testmode compressed HTTP responses with proxy continue preserves shorter decoded body",
+      "testmode compressed HTTP responses with proxy fetch-response should forward chunked with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response should forward longer decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response should forward shorter decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response-clone should forward chunked with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response-clone should forward longer decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response-clone should forward shorter decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy modified-response should forward chunked with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy modified-response should forward longer decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy modified-response should forward shorter decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses without test context preserves chunked",
+      "testmode compressed HTTP responses without test context preserves longer decoded body",
+      "testmode compressed HTTP responses without test context preserves shorter decoded body",
       "testmode image optimizer should intercept external image requests",
       "testmode middleware should intercept fetchs in middleware",
       "testmode page router should handle API with fetch",
@@ -19949,20 +20017,20 @@
     "runtimeError": false
   },
   "test/e2e/trailing-slashes/basepath.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+    "passed": [
+      "Trailing slashes with basePath, trailingSlash: true /docs should redirect to /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/about should redirect to /docs/about/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
+      "Trailing slashes with basePath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -20567,6 +20635,8 @@
     "passed": [],
     "failed": [],
     "pending": [
+      "adapter-config-cache-components adapter-config keeps revalidating metadata as a prerender backed by an app route",
+      "adapter-config-cache-components adapter-config keeps tagged metadata as a prerender backed by an app route",
       "adapter-config-cache-components adapter-config should apply modifyConfig from adapter",
       "adapter-config-cache-components adapter-config should call onBuildComplete with correct context",
       "adapter-config-cache-components adapter-config should propagate preferredRegion to adapter output",
@@ -20586,6 +20656,8 @@
   },
   "test/production/adapter-config/adapter-config.test.ts": {
     "passed": [
+      "adapter-config keeps revalidating metadata as a prerender backed by an app route",
+      "adapter-config keeps tagged metadata as a prerender backed by an app route",
       "adapter-config should apply modifyConfig from adapter",
       "adapter-config should call onBuildComplete with correct context",
       "adapter-config should propagate preferredRegion to adapter output",
@@ -21074,6 +21146,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/cache-components-disk-readback/cache-components-disk-readback.test.ts": {
+    "passed": [
+      "cache-components-disk-readback reads a runtime-created page from disk after a server restart",
+      "cache-components-disk-readback reads a runtime-created page from disk with memory caching disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/client-components-tree-shaking/index.test.ts": {
     "passed": [
       "app-dir client-components-tree-shaking should able to resolve the client module entry with mixing rexports",
@@ -21242,6 +21324,22 @@
       "expire-time-infinity fails the build for a non-finite expireTime other than Infinity",
       "expire-time-infinity fails the build for a non-finite staleTime other than Infinity",
       "expire-time-infinity serves a well-formed cache-control header for an Infinity expireTime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/file-system-cache-clock/file-system-cache-clock.test.ts": {
+    "passed": [
+      "file-system-cache-clock with cacheMaxMemorySize: 0 reads a fetch cache entry written without a stored timestamp",
+      "file-system-cache-clock with cacheMaxMemorySize: 0 serves fresh data for a dynamic page right after revalidateTag",
+      "file-system-cache-clock with cacheMaxMemorySize: 0 serves fresh data for an ISR page right after revalidateTag",
+      "file-system-cache-clock with cacheMaxMemorySize: 0 serves fresh data for an ISR route handler right after revalidateTag",
+      "file-system-cache-clock with the default memory cache reads a fetch cache entry written without a stored timestamp",
+      "file-system-cache-clock with the default memory cache serves fresh data for a dynamic page right after revalidateTag",
+      "file-system-cache-clock with the default memory cache serves fresh data for an ISR page right after revalidateTag",
+      "file-system-cache-clock with the default memory cache serves fresh data for an ISR route handler right after revalidateTag"
     ],
     "failed": [],
     "pending": [],
@@ -22186,6 +22284,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts": {
+    "passed": [
+      "streaming revalidation at response close keeps regeneration started after the HTML shell alive after the response ends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
     "passed": [
       "Subresource Integrity with edge runtime does not include nonce when not enabled",
@@ -22274,7 +22381,9 @@
     "pending": [
       "experimental.turbopackChunking changes the client chunk output based on the size thresholds",
       "experimental.turbopackChunking emits additional component chunks when generateComponentChunks is enabled",
-      "experimental.turbopackChunking renders and navigates correctly with custom chunking"
+      "experimental.turbopackChunking renders and navigates correctly with custom chunking",
+      "experimental.turbopackChunking server size thresholds maxMergeServerChunkSize changes the Node.js server chunk output",
+      "experimental.turbopackChunking server size thresholds minServerChunkSize changes the Node.js server chunk output"
     ],
     "flakey": [],
     "runtimeError": false
@@ -22441,6 +22550,25 @@
       "use-cache-cross-deployment with durableUseCacheEntries should still work when a client reference argument changes",
       "use-cache-cross-deployment with durableUseCacheEntries should still work when imported client reference changes"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-cache-dedupe-prerender/use-cache-dedupe-prerender.test.ts": {
+    "passed": [
+      "use-cache-dedupe-prerender concurrent prerenders sharing the same short-lived cache currently omits cached work in a second prerender after the first prerender finishes",
+      "use-cache-dedupe-prerender direct and nested calls during static prerendering currently times out a nested cache when a direct short-lived warm-cache call starts the lookup first"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-cache-error-metadata/use-cache-error-metadata.test.ts": {
+    "passed": [
+      "use-cache-error-metadata should finish the error document when a failing \"use cache\" function is also read by generateMetadata"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -25413,6 +25541,8 @@
   },
   "test/production/standalone-mode/tracing-static-files/tracing-static-files.test.ts": {
     "passed": [
+      "standalone mode - tracing-static-files should ignore fully dynamic alternatives of fs paths",
+      "standalone mode - tracing-static-files should keep dynamic alternatives of fs paths in external packages",
       "standalone mode - tracing-static-files should trace process.cwd calls in node_modules"
     ],
     "failed": [],
