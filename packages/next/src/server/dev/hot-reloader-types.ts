@@ -14,7 +14,7 @@ import type {
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type {
-  RequestInsight,
+  RequestInsightDelta,
   RequestInsightsSnapshot,
 } from '../../shared/lib/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
@@ -261,7 +261,7 @@ export interface CacheIndicatorMessage {
 
 export interface RequestInsightsUpdateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
+  insight: RequestInsightDelta
 }
 
 export type HmrMessageSentToBrowser =
