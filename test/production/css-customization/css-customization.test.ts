@@ -176,10 +176,7 @@ describe('CSS Customization', () => {
             'css-fixtures/custom-configuration-loader'
           ),
           skipStart: true,
-          dependencies: {
-            ...postcssPluginDeps,
-            'styled-jsx': '5.1.6',
-          },
+          dependencies: postcssPluginDeps,
         })
 
         beforeAll(async () => {

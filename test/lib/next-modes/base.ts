@@ -745,21 +745,19 @@ export class NextInstance {
   }
 
   /**
-   * The base argv for running `next dev`/`next build`/`next start` in the
-   * test directory, with pending deprecations flagged on the Next.js process.
-   *
-   * The flag goes in argv, not NODE_OPTIONS: the spawn goes through pnpm, and
-   * an env var would also flag pnpm's own process, flooding test output with
-   * pnpm's own pending deprecations (e.g. DEP0111/DEP0134/DEP0144).
+   * pnpm's node-options config applies to the child, not pnpm itself.
+   * Running the next shim preserves its module-resolution environment.
    */
-  protected getNextCommandArgs(command: 'dev' | 'build' | 'start'): string[] {
+  protected getNextCommandArgs(
+    command: 'dev' | 'build' | 'start',
+    nodeOptions = this.env.NODE_OPTIONS
+  ): string[] {
     return [
       'pnpm',
-      'exec',
-      'node',
       // Deprecated APIs can be vulnerable and must be flagged.
-      '--pending-deprecation',
-      this.getNextBin(),
+      `--config.node-options=${nodeOptions ?? ''} --trace-deprecation --pending-deprecation`,
+      'exec',
+      'next',
       command,
     ]
   }

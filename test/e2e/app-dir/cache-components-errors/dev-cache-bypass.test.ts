@@ -27,6 +27,11 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache' },
         })
 
+        if (process.env.IS_WEBPACK_TEST) {
+          expect(next.cliOutput.slice(from)).toContain(
+            '[DEP0144] DeprecationWarning: module.parent'
+          )
+        }
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
          "Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev

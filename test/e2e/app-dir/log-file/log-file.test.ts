@@ -100,6 +100,11 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
+        if (process.env.IS_WEBPACK_TEST) {
+          expect(readLogFile()).toContain(
+            '[DEP0144] DeprecationWarning: module.parent'
+          )
+        }
         const newLogContent = getNewLogContent()
         // The server logs will be replayed in the browser, but they'll not be forwarded to terminal,
         // as terminal already has them in the first place.

@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
 describe('parallel-route-not-found', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -32,7 +32,14 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await retry(expectNoErrors)
+      await retry(() => {
+        if (isNextDev && process.env.IS_WEBPACK_TEST) {
+          expect(next.cliOutput).toContain(
+            '[DEP0144] DeprecationWarning: module.parent'
+          )
+        }
+        expectNoErrors()
+      })
     }
 
     await check(() => browser.elementByCss('body').text(), /Interception Modal/)
