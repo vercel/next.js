@@ -20,7 +20,7 @@ use turbo_tasks_hash::{
 };
 
 use crate::{
-    DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
+    CellRope, DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -297,6 +297,47 @@ pub struct File {
     #[turbo_tasks(debug_ignore)]
     content: Rope,
     pub(crate) meta: FileMeta,
+    /// When set, `content` is composed from cells owned by other tasks, described by this
+    /// [`CellRope`]. Writing such a file persists only the rope instead of the bytes. See
+    /// [`File::from_cell_rope`].
+    #[turbo_tasks(debug_ignore)]
+    composed: ComposedFrom,
+}
+
+/// The [`CellRope`] a [`File`]'s content was read from, if any.
+///
+/// This is an alternative representation of the same bytes, so it is ignored by equality,
+/// ordering and hashing: two files with the same bytes and metadata are equal however they were
+/// produced.
+#[derive(Clone, Default, NonLocalValue, Encode, Decode)]
+struct ComposedFrom(Option<ResolvedVc<CellRope>>);
+
+impl PartialEq for ComposedFrom {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for ComposedFrom {}
+
+impl PartialOrd for ComposedFrom {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ComposedFrom {
+    fn cmp(&self, _other: &Self) -> Ordering {
+        Ordering::Equal
+    }
+}
+
+impl std::hash::Hash for ComposedFrom {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+}
+
+impl DeterministicHash for ComposedFrom {
+    fn deterministic_hash<H: DeterministicHasher>(&self, _state: &mut H) {}
 }
 
 impl File {
@@ -311,6 +352,7 @@ impl File {
         Ok(File {
             meta: metadata.into(),
             content: Rope::from(output),
+            composed: ComposedFrom::default(),
         })
     }
 
@@ -319,6 +361,7 @@ impl File {
         File {
             meta: FileMeta::default(),
             content: Rope::from(content),
+            composed: ComposedFrom::default(),
         }
     }
 
@@ -327,7 +370,34 @@ impl File {
         File {
             meta: FileMeta::default(),
             content,
+            composed: ComposedFrom::default(),
         }
+    }
+
+    /// Creates a [File] whose content is composed from cells owned by other tasks.
+    ///
+    /// The file behaves like any other file for readers: this reads the rope (tracked) into its
+    /// content. [`crate::DiskFileSystem`] writes it without persisting the bytes as a whole,
+    /// since the referenced cells persist them already.
+    pub async fn from_cell_rope(rope: ResolvedVc<CellRope>) -> Result<Self> {
+        Ok(File {
+            meta: FileMeta::default(),
+            content: rope.await?.read().await?,
+            composed: ComposedFrom(Some(rope)),
+        })
+    }
+
+    /// The [`CellRope`] this file was composed from, if any. See [`File::from_cell_rope`].
+    pub(crate) fn composed_from(&self) -> Option<ResolvedVc<CellRope>> {
+        self.composed.0
+    }
+
+    /// Attaches a composition without reading it, so tests can build a file whose composition no
+    /// longer reads its bytes (as a cell can keep an older, equal `File`).
+    #[cfg(test)]
+    pub(crate) fn with_stale_composition(mut self, rope: ResolvedVc<CellRope>) -> Self {
+        self.composed = ComposedFrom(Some(rope));
+        self
     }
 
     /// Returns the content type associated with this file.
@@ -409,6 +479,7 @@ impl File {
         Self {
             meta,
             content: Rope::from(content),
+            composed: ComposedFrom::default(),
         }
     }
 

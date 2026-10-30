@@ -14,7 +14,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{Code, CodeBuilder, PersistedCode},
+    code_builder::{Code, CodeBuilder, CodeCells},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -124,8 +124,8 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
-        Ok(self.module_factory_code().await?.cell_persisted())
+    async fn module_factory(&self) -> Result<ResolvedVc<CodeCells>> {
+        Ok(self.module_factory_code().await?.resolved_code_cells())
     }
 
     /// Builds the module factory without storing it in a cell, so a caller that only needs a
@@ -267,7 +267,7 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunkItemCode {
-    pub code: ResolvedVc<PersistedCode>,
+    pub code: ResolvedVc<CodeCells>,
     pub strict: bool,
 }
 
@@ -339,7 +339,7 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
-            code.build().cell_persisted()
+            code.build().resolved_code_cells()
         }
     };
     Ok(EcmascriptChunkItemCode { code, strict }.cell())
