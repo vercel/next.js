@@ -135,7 +135,7 @@ impl ChunkListUpdateBuilder {
 }
 
 /// An update plus the baseline for the next pull.
-#[derive(Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub enum ServerHmrUpdate {
     /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
     /// version.
@@ -328,11 +328,11 @@ fn classify_server_hmr_update<'a>(
 /// Computes the update of a pull from its chunk lists, the pull baseline `from` and the version
 /// `to` of `chunk_lists`.
 ///
-/// Must be called from the pull operation that also produced `chunk_lists` and `to`, so that the
-/// update, `to` and the applied effects all come from the same settled state (see
-/// `diff_chunks_against`). That operation is keyed by the pull's [`TransientInstance`], so its
-/// diff tasks become inactive once the pull's top-level task has finished and can't be re-executed
-/// for an old baseline.
+/// Without a baseline nothing is diffed. With a baseline, this must be called from the pull
+/// operation that also produced `chunk_lists` and `to`, so that the update, `to` and the applied
+/// effects all come from the same settled state (see `diff_chunks_against`). That operation is
+/// keyed by the pull's [`TransientInstance`], so its diff tasks become inactive once the pull's
+/// top-level task has finished and can't be re-executed for an old baseline.
 pub async fn compute_server_hmr_update(
     chunk_lists: &[ServerHmrChunkList],
     from: Option<&ServerHmrPullBaseline>,

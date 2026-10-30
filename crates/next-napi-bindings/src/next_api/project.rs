@@ -1977,8 +1977,9 @@ async fn project_server_hmr_snapshot_operation(
 }
 
 /// Snapshot only, keyed by `(project, entry_paths)` and shared by all pulls of these entries.
-/// Diffing happens in [`server_hmr_update_with_effects_operation`], which is keyed per pull, so
-/// that this shared operation never keeps an old pull baseline active.
+/// A pull without a baseline reads it directly. Diffing happens in
+/// [`server_hmr_update_with_effects_operation`], which is keyed per pull, so that this shared
+/// operation never keeps an old pull baseline active.
 #[tracing::instrument(level = "info", name = "server hmr snapshot", skip_all)]
 #[turbo_tasks::function(operation, root)]
 async fn server_hmr_snapshot_with_effects_operation(
@@ -2013,8 +2014,8 @@ struct ServerHmrUpdateWithEffects {
     effects: Arc<Effects>,
 }
 
-/// One server HMR pull: the snapshot (with its effects and issues) and the diff against the
-/// pull's baseline, in a single call tree.
+/// One server HMR pull with a baseline: the snapshot (with its effects and issues) and the diff
+/// against the pull's baseline, in a single call tree.
 ///
 /// The diff only reads the chunk-list contents of the snapshot. Connecting the snapshot here puts
 /// their producers into the call tree of this operation, so its strongly consistent read waits
@@ -2023,13 +2024,15 @@ struct ServerHmrUpdateWithEffects {
 ///
 /// `from` is a new [`TransientInstance`] per pull, so this operation and its diff tasks are never
 /// shared with another pull and become inactive once the pull's top-level task has finished; an
-/// old baseline is never diffed again.
+/// old baseline is never diffed again. A pull without a baseline has nothing to diff and reads
+/// [`server_hmr_snapshot_with_effects_operation`] directly instead, so it doesn't create a
+/// per-pull task (e.g. for every first pull after a restart).
 #[tracing::instrument(level = "info", name = "server hmr update", skip_all)]
 #[turbo_tasks::function(operation, root)]
 async fn server_hmr_update_with_effects_operation(
     project: ResolvedVc<Project>,
     entry_paths: Vec<RcStr>,
-    from: TransientInstance<Option<ServerHmrPullBaseline>>,
+    from: TransientInstance<ServerHmrPullBaseline>,
 ) -> Result<Vc<ServerHmrUpdateWithEffects>> {
     let snapshot = server_hmr_snapshot_with_effects_operation(project, entry_paths)
         .connect()
@@ -2041,7 +2044,7 @@ async fn server_hmr_update_with_effects_operation(
         effects,
     } = &*snapshot;
     let update =
-        compute_server_hmr_update(chunk_lists.as_slice(), from.as_ref(), version.clone()).await?;
+        compute_server_hmr_update(chunk_lists.as_slice(), Some(&*from), version.clone()).await?;
     Ok(ServerHmrUpdateWithEffects {
         update,
         issues: issues.clone(),
@@ -2088,26 +2091,40 @@ pub async fn project_get_server_hmr_update(
 ) -> napi::Result<TurbopackResult<NapiServerHmrUpdate>> {
     let container = project.container;
     let turbo_tasks = project.turbopack_ctx.turbo_tasks();
-    let from = TransientInstance::new(from.map(|from| ServerHmrPullBaseline::new(from.0.clone())));
+    let from = from.map(|from| TransientInstance::new(ServerHmrPullBaseline::new(from.0.clone())));
 
-    let read = turbo_tasks
+    let (update, issues) = turbo_tasks
         .run(async move {
             // HACK(bgw): Remove this unmark call
             unmark_top_level_task_may_leak_eventually_consistent_state();
             let project = container.project().to_resolved().await?;
             // HACK(bgw): Remove this mark call
             mark_top_level_task();
+            let Some(from) = from else {
+                // Nothing to diff, so the shared snapshot alone is coherent.
+                let snapshot_op = server_hmr_snapshot_with_effects_operation(project, entry_paths);
+                let snapshot =
+                    read_strongly_consistent_and_apply_effects(snapshot_op, |v| &v.effects).await?;
+                let update = compute_server_hmr_update(
+                    snapshot.chunk_lists.as_slice(),
+                    None,
+                    snapshot.version.clone(),
+                )
+                .await?;
+                return Ok((update, snapshot.issues.clone()));
+            };
             let update_op = server_hmr_update_with_effects_operation(project, entry_paths, from);
-            read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await
+            let read =
+                read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await?;
+            Ok((read.update.clone(), read.issues.clone()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
 
     Ok(TurbopackResult {
-        result: NapiServerHmrUpdate::new(&read.update)
+        result: NapiServerHmrUpdate::new(&update)
             .map_err(|error| napi::Error::from_reason(PrettyPrintError(&error).to_string()))?,
-        issues: read
-            .issues
+        issues: issues
             .iter()
             .map(|issue| NapiIssue::from(&**issue))
             .collect(),
