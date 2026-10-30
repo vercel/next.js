@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   createMultiDomMatcher,
   createMultiHtmlMatcher,
+  gate,
   getTitle,
   retry,
 } from 'next-test-utils'
@@ -35,16 +36,25 @@ describe('app dir - metadata navigation', () => {
 
       // TODO-APP: support render custom not-found in SSR for generateMetadata.
       // Check contains root not-found payload in flight response for now.
-      const flightDataPrefix = 'self.__next_f.push([1,"'
-      const flightDataSuffix = '"])'
       let flightText = ''
-      for (const el of $('script').toArray()) {
-        const text = $(el).text()
-        if (text.startsWith(flightDataPrefix)) {
-          flightText += text.slice(
-            flightDataPrefix.length,
-            -flightDataSuffix.length
-          )
+      if (await gate((c) => c.externalBrowserRuntime)) {
+        for (const el of $('template[data-next-flight]').toArray()) {
+          const [type, data] = JSON.parse($(el).attr('data-next-flight'))
+          if (type === 1) {
+            flightText += data
+          }
+        }
+      } else {
+        const flightDataPrefix = 'self.__next_f.push([1,"'
+        const flightDataSuffix = '"])'
+        for (const el of $('script').toArray()) {
+          const text = $(el).text()
+          if (text.startsWith(flightDataPrefix)) {
+            flightText += text.slice(
+              flightDataPrefix.length,
+              -flightDataSuffix.length
+            )
+          }
         }
       }
       expect(flightText).toContain('Local found boundary')
