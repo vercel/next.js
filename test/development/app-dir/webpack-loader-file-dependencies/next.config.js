@@ -59,6 +59,10 @@ const nextConfig = {
       'test-resolution-loader/aliased': './resolution-loader/wrong.js',
     },
     rules: {
+      '*.external-loader-test': {
+        loaders: [process.env.EXTERNAL_LOADER],
+        as: '*.js',
+      },
       '*.cache-test': {
         loaders: ['./leaf-loader.js'],
         as: '*.js',
@@ -85,6 +89,10 @@ const nextConfig = {
       __dirname,
       './resolution-loader/wrong.js'
     )
+    config.module.rules.push({
+      test: /\.external-loader-test$/,
+      use: [process.env.EXTERNAL_LOADER],
+    })
     config.module.rules.push({
       test: /\.cache-test$/,
       use: ['./leaf-loader.js'],

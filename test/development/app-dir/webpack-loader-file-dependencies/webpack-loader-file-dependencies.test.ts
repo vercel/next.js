@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { gate, retry } from 'next-test-utils'
 import {
   mkdtempSync,
+  readFileSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -16,8 +17,14 @@ describe('webpack-loader-file-dependencies', () => {
   )
   const nativeDependency = join(externalDependencyDirectory, 'addon.node')
   const externalDependency = join(externalDependencyDirectory, 'dependency.js')
+  const externalLoader = join(externalDependencyDirectory, 'loader.js')
+  const externalLoaderSource = readFileSync(
+    join(__dirname, 'leaf-loader.js'),
+    'utf8'
+  )
   writeFileSync(nativeDependency, 'native-one')
   writeFileSync(externalDependency, "module.exports = 'external-one'")
+  writeFileSync(externalLoader, externalLoaderSource)
 
   const { next } = nextTestSetup({
     files: __dirname,
@@ -27,6 +34,7 @@ describe('webpack-loader-file-dependencies', () => {
       DYNAMIC_BUILD_DEPENDENCY: './tracking/dynamic.js',
       NATIVE_BUILD_DEPENDENCY: nativeDependency,
       EXTERNAL_BUILD_DEPENDENCY: externalDependency,
+      EXTERNAL_LOADER: externalLoader,
       TURBO_ENGINE_IGNORE_DIRTY: '1',
       TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '0',
       TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
@@ -72,6 +80,25 @@ describe('webpack-loader-file-dependencies', () => {
   it('resolves loader packages with active Node export conditions', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toContain('build dependency: build-one')
+  })
+
+  it('loads an absolute loader outside configured roots without reusing stale results across restarts', async () => {
+    const $ = await next.render$('/external-loader')
+    expect($('p').text()).toMatch(/^external-loader-\d+$/)
+    await stop()
+    writeFileSync(
+      externalLoader,
+      externalLoaderSource.replace('Date.now()', "'updated'")
+    )
+    try {
+      await next.start()
+      const $ = await next.render$('/external-loader')
+      expect($('p').text()).toBe('external-loader-updated')
+    } finally {
+      await stop()
+      writeFileSync(externalLoader, externalLoaderSource)
+      await next.start()
+    }
   })
 
   it('ignores cached CommonJS children without filenames', async () => {
