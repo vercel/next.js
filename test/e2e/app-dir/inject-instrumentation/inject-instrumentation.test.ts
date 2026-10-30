@@ -8,8 +8,8 @@ function fixture(
 ) {
   return {
     app: new FileRef(join(__dirname, 'app')),
-    // External packages are Node.js-only. Don't mix in Edge bundles, where
-    // these packages must be bundled, when inspecting the emitted code.
+    // The externals fixture exercises Node.js package resolution. Middleware
+    // behavior is covered by the other fixtures.
     ...(config !== 'externals'
       ? { 'middleware.ts': new FileRef(join(__dirname, 'middleware.ts')) }
       : {}),
@@ -61,9 +61,12 @@ describe('inject-instrumentation', () => {
     it('keeps the opted-out implementation out of emitted server bundles', async () => {
       await next.fetch('/instrumentation-externals')
 
-      const files = glob.sync('**/*.js', {
-        cwd: join(next.testDir, next.distDir, 'server'),
-      })
+      // Both bundlers emit Edge instrumentation even without an Edge route.
+      // Only inspect the Node entry and chunks: Edge must bundle the packages.
+      const files = glob.sync(
+        '{instrumentation.js,chunks/**/*.js,vendor-chunks/**/*.js}',
+        { cwd: join(next.testDir, next.distDir, 'server') }
+      )
       expect(files.length).toBeGreaterThan(0)
       const bundles = (
         await Promise.all(
