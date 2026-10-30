@@ -1210,6 +1210,13 @@ impl<'e> ExecuteContext<'e> {
             collector(task.id());
         }
     }
+
+    /// Whether this is a GC context, i.e. [`Self::note_maybe_collectible`] reports to a collector.
+    /// [`ChildExecuteContext::create`] does not carry the collector over.
+    pub fn has_gc_collectible(&self) -> bool {
+        self.gc_collectible.is_some()
+    }
+
     pub fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
@@ -1266,6 +1273,7 @@ impl<'e> ExecuteContext<'e> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct ChildExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
