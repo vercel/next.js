@@ -1,4 +1,5 @@
 {
+  "name": "agent-059-bundle-optimizer-next-dynamic",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,6 +15,7 @@
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
