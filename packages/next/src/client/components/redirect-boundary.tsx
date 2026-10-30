@@ -7,10 +7,6 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { type RedirectType, isRedirectError } from './redirect-error'
 
-// Trees that already scheduled a redirect. Every dispatch re-renders, even
-// one the reducer drops, so scheduling one per render would loop.
-const redirectedTrees = new WeakSet<FlightRouterState>()
-
 function SuspendForever(): React.ReactNode {
   use(unresolvedThenable)
   return null
@@ -53,12 +49,10 @@ export class RedirectErrorBoundary extends React.Component<
     const { redirect, redirectType } = this.state
     if (redirect !== null && redirectType !== null) {
       // The redirect is the outcome of rendering this tree, so the boundary
-      // suspends instead of committing anything, and navigates from a task.
-      // Only the first boundary to catch a redirect while rendering a tree
-      // acts on it, and a hidden segment never does.
+      // suspends instead of committing anything, and navigates from a task. A
+      // hidden segment never navigates.
       const { tree, isActive } = this.props
-      if (isActive && !redirectedTrees.has(tree)) {
-        redirectedTrees.add(tree)
+      if (isActive) {
         setTimeout(() => redirectNavigation(redirect, redirectType, tree))
       }
       return <SuspendForever />

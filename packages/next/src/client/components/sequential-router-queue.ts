@@ -121,9 +121,17 @@ export function replace(href: string, options?: NavigateOptions): void {
   )
 }
 
+// The tree of the last redirect dispatched. Only the newest tree can still
+// redirect, so one slot is enough.
+let lastRedirectTree: FlightRouterState | null = null
+
 // Navigates to the target of a `redirect()` thrown while rendering
 // `fromTree`. Unlike `push` and `replace`, it doesn't preempt pending
 // actions, and it's dropped if a newer state has replaced `fromTree`.
+//
+// Every render that throws the redirect calls this, and every dispatch
+// re-renders, even one the reducer drops. So only the first call for a tree
+// dispatches; otherwise a redirect that keeps being thrown would loop.
 export function redirect(
   href: string,
   redirectType: RedirectAction['redirectType'],
@@ -134,6 +142,11 @@ export function redirect(
       'Next.js has blocked a javascript: URL as a security precaution.'
     )
   }
+
+  if (fromTree === lastRedirectTree) {
+    return
+  }
+  lastRedirectTree = fromTree
 
   startTransition(() => {
     const url = new URL(addBasePath(href), location.href)
