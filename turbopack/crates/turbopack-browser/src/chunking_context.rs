@@ -57,8 +57,9 @@ pub enum CurrentChunkMethod {
     DocumentCurrentScript,
 }
 
+/// Written in minified form, like the rest of the chunk scaffolding.
 pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
-    "typeof document === \"object\" ? document.currentScript : undefined";
+    "\"object\"==typeof document?document.currentScript:void 0";
 
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,

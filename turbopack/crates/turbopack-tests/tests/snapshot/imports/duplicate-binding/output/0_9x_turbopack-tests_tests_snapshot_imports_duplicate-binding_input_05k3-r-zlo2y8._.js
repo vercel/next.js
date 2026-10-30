@@ -1,6 +1,5 @@
-(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_imports_duplicate-binding_input_05k3-r-zlo2y8._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
+(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_imports_duplicate-binding_input_05k3-r-zlo2y8._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
+
 
 __turbopack_context__.s([
     "Table",
@@ -11,9 +10,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 function Table() {
     console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$duplicate$2d$binding$2f$input$2f$table$2e$js__$5b$test$5d$__$28$ecmascript$29$__["Table"]);
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/table.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/table.js [test] (ecmascript)",((__turbopack_context__) => {
+
 
 __turbopack_context__.s([
     "Table",
@@ -22,7 +20,6 @@ __turbopack_context__.s([
 const Table = ()=>{
     return 'table';
 };
-}),
-]);})()
+})]);})()
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_imports_duplicate-binding_input_05k3-r-zlo2y8._.js.map

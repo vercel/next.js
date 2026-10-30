@@ -295,6 +295,10 @@ struct TestOptions {
     cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
+    /// Minify each module factory on its own instead of the assembled chunk. Only has an effect
+    /// together with `minify`.
+    #[serde(default)]
+    minify_before_chunking: bool,
     #[serde(default)]
     production_chunking: bool,
     #[serde(default)]
@@ -333,6 +337,7 @@ impl Default for TestOptions {
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
+            minify_before_chunking: false,
             production_chunking: false,
             global_module_ids: false,
             numeric_module_ids: false,
@@ -628,6 +633,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
+    .minify_before_chunking(options.minify_before_chunking)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {

@@ -2504,16 +2504,14 @@ impl NextConfig {
     }
 
     /// Whether to minify each module factory as it is generated rather than minifying each
-    /// finished chunk in one pass. Disabled in development, where nothing is minified anyway.
+    /// finished chunk in one pass. Only takes effect when minification is enabled.
     #[turbo_tasks::function]
-    pub async fn turbopack_minify_before_chunking(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(match *mode.await? {
-            NextMode::Development => false,
-            NextMode::Build => self
-                .experimental
+    pub fn turbopack_minify_before_chunking(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
                 .turbopack_minify_before_chunking
                 .unwrap_or(false),
-        }))
+        )
     }
 
     #[turbo_tasks::function]
