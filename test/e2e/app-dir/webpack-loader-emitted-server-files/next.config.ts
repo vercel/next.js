@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   output: 'standalone',
   cacheComponents: false,
+  experimental: { cachedNavigations: false },
   turbopack: {
     rules: {
       '*.template': {

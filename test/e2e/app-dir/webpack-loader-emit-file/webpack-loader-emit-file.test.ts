@@ -4,12 +4,14 @@ import { readdir } from 'fs/promises'
 import path from 'path'
 
 describe('webpack-loader-emit-file', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'file-loader': '6.2.0',
       'emit-file-loader': '0.0.2',
       'auto-import-x-loader': '0.0.4',
+      // Native oxc-transform bindings require a newer Node than the minimum CI version.
+      '@oxc-transform/binding-wasm32-wasi': '0.105.0',
       'postcss-loader': '8.2.1',
       postcss: '8.5.6',
     },
@@ -21,6 +23,19 @@ describe('webpack-loader-emit-file', () => {
     )
     expect(response.status).toBe(200)
     return Buffer.from(await response.arrayBuffer())
+  }
+
+  async function fetchSourceMap(name: string) {
+    const response = await next.fetch(
+      `/_next/static/media/${name}${next.getAssetQuery()}`
+    )
+    if (isNextDeploy) {
+      // The deployment test project blocks source maps, including maps that do not exist.
+      expect(response.status).toBe(403)
+      return null
+    }
+    expect(response.status).toBe(200)
+    return response.json()
   }
 
   it('emits text and binary assets from server and browser modules', async () => {
@@ -90,7 +105,8 @@ describe('webpack-loader-emit-file', () => {
     ]) {
       const content = (await fetchAsset(name)).toString()
       expect(content).toContain(`sourceMappingURL=${name}.map`)
-      const map = JSON.parse((await fetchAsset(`${name}.map`)).toString())
+      const map = await fetchSourceMap(`${name}.map`)
+      if (!map) continue
       expect(map.version).toBe(3)
       expect(map.file.replace(/\\/g, '/').split('/').pop()).toBe(name)
       expect(map.sources.some((item: string) => item.endsWith(source))).toBe(
@@ -167,12 +183,15 @@ describe('webpack-loader-emit-file', () => {
     expect((await fetchAsset('invalid-map.js')).toString()).toContain(
       'mapped-asset'
     )
-    const map = (await fetchAsset('indexed-map.js.map')).toString()
-    expect(map).toContain('indexed-original.js')
+    const map = await fetchSourceMap('indexed-map.js.map')
+    if (map)
+      expect(map.sources).toContainEqual(
+        expect.stringContaining('indexed-original.js')
+      )
     const invalid = await next.fetch(
       `/_next/static/media/invalid-map.js.map${next.getAssetQuery()}`
     )
-    expect(invalid.status).toBe(404)
+    expect(invalid.status).toBe(isNextDeploy ? 403 : 404)
   })
 
   it('resolves URL and filesystem source roots in emitted maps', async () => {
@@ -185,9 +204,8 @@ describe('webpack-loader-emit-file', () => {
       ['filesystem', '/sources/original.js'],
       ['relative', '/sources/original.js'],
     ]) {
-      const map = JSON.parse(
-        (await fetchAsset(`root-${name}.js.map`)).toString()
-      )
+      const map = await fetchSourceMap(`root-${name}.js.map`)
+      if (!map) continue
       expect(map.sources[0].replace(/\\/g, '/')).toEndWith(suffix)
       expect(map.sourcesContent).toEqual(['root-original'])
     }

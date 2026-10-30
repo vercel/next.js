@@ -3327,7 +3327,7 @@ impl Issue for EmittedFileIssue {
 async fn prepare_emitted_source_map(
     content: Vc<FileContent>,
     map: Vc<FileContent>,
-    context: FileSystemPath,
+    project_path: FileSystemPath,
 ) -> Result<Vc<FileContent>> {
     let (FileContent::Content(content), FileContent::Content(map)) =
         (&*content.await?, &*map.await?)
@@ -3335,10 +3335,12 @@ async fn prepare_emitted_source_map(
         return Ok(FileContent::NotFound.cell());
     };
     let map = serde_json::from_slice(&map.content().to_bytes())?;
-    Ok(match prepare_source_map(map, content, &context).await? {
-        Some(map) => FileContent::Content(File::from(map)).cell(),
-        None => FileContent::NotFound.cell(),
-    })
+    Ok(
+        match prepare_source_map(map, content, &project_path).await? {
+            Some(map) => FileContent::Content(File::from(map)).cell(),
+            None => FileContent::NotFound.cell(),
+        },
+    )
 }
 
 #[turbo_tasks::value]

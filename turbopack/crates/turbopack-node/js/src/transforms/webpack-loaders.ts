@@ -613,12 +613,19 @@ const transform = (
           },
         },
 
-        loaders: loadersWithOptions.map((loader) => ({
-          loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [contextDir, resourceDir],
-          }),
-          options: loader.options,
-        })),
+        loaders: loadersWithOptions.map((loader) => {
+          const resolved = __turbopack_external_require__.resolve(
+            loader.loader,
+            {
+              paths: [contextDir, resourceDir],
+            }
+          )
+          return {
+            loader: resolved,
+            options: loader.options,
+            type: resolved.endsWith('.mjs') ? 'module' : undefined,
+          }
+        }),
         readResource: (_filename, callback) => {
           // TODO assuming that filename === resource, but loaders might change that
           let data =
