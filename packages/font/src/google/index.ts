@@ -9483,6 +9483,7 @@ export declare function Google_Sans<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<
+    | 'arabic'
     | 'armenian'
     | 'bengali'
     | 'canadian-aboriginal'
@@ -9496,6 +9497,7 @@ export declare function Google_Sans<
     | 'gujarati'
     | 'gurmukhi'
     | 'hebrew'
+    | 'kannada'
     | 'khmer'
     | 'lao'
     | 'latin'
