@@ -60,7 +60,7 @@ import {
 } from '../../../compiled/next-test-primitives'
 
 const realSetTimeout = globalThis.setTimeout.bind(globalThis)
-const realDateNow = Date.now.bind(Date)
+const realClearTimeout = globalThis.clearTimeout.bind(globalThis)
 import { assertAssertionLifecycleScope } from './assertion-platform'
 
 export type {
@@ -492,6 +492,16 @@ export async function createAssertionRuntime(options: {
     mocks: Set<{ mock: MockInstance; restore: boolean }>
     serializers: Set<Parameters<typeof addSerializer>[0]>
     utilities: AttemptUtilities
+    pollTimers: Set<() => void>
+  }
+  function clearPollTimers(scope: AssertionScope, errors: unknown[]) {
+    for (const clear of scope.pollTimers) {
+      try {
+        clear()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
   }
   const coverageAfterAllRecords: {
     scope: AssertionScope
@@ -2124,8 +2134,8 @@ export async function createAssertionRuntime(options: {
           }
           return (...args: unknown[]) => {
             let awaited = false
-            let running: Promise<void> | undefined
-            const callsite = new Error('expect.poll() assertion failed')
+            let running: Promise<unknown> | undefined
+            const callsite = new Error('STACK_TRACE_ERROR')
             task.onFinished?.push(() => {
               if (!awaited) {
                 const negated = chai.util.flag(assertion, 'negate')
@@ -2146,51 +2156,125 @@ export async function createAssertionRuntime(options: {
                 throw error
               }
             })
-            const run = async () => {
-              const onStart = chai.util.flag(assertion, '_poll.onStart')
-              await onStart?.({ assertion })
-              const started = realDateNow()
-              let lastError: unknown
-              do {
-                expectationScope()
-                const signal =
-                  'signal' in scope.context ? scope.context.signal : undefined
-                signal?.throwIfAborted()
-                try {
-                  chai.util.flag(
-                    assertion,
-                    'object',
-                    await Promise.resolve().then(() =>
-                      pollCallback({
-                        signal: signal ?? new AbortController().signal,
-                      })
-                    )
-                  )
-                  await Reflect.apply(value, assertion, args)
-                  return
-                } catch (error) {
-                  lastError = error
-                }
-                const remaining = timeout - (realDateNow() - started)
-                if (remaining <= 0) break
-                await new Promise((resolve) =>
-                  realSetTimeout(resolve, Math.min(interval, remaining))
-                )
-              } while (realDateNow() - started <= timeout)
-              if (lastError instanceof Error && callsite.stack) {
-                lastError.cause ??= new Error(
-                  'Matcher did not succeed in time.'
-                )
-                lastError.stack = callsite.stack.replace(
+            const throwWithCause = (error: unknown): never => {
+              const reason = error as Error
+              reason.cause ??= new Error('Matcher did not succeed in time.')
+              if (callsite.stack !== undefined)
+                reason.stack = callsite.stack.replace(
                   callsite.message,
-                  lastError.message
+                  reason.message
                 )
-              }
-              throw (
-                lastError ?? new Error('expect.poll() did not resolve in time')
-              )
+              throw reason
             }
-            const start = () => (running ??= run())
+            const raceWithTimeout = <T>(
+              promise: Promise<T>,
+              deadline: Promise<void>
+            ) =>
+              Promise.race([
+                promise.then((outcome) => ({
+                  ok: true as const,
+                  value: outcome,
+                })),
+                deadline.then(() => ({ ok: false as const })),
+              ])
+            const run = async () => {
+              chai.util.flag(assertion, '_name', property)
+              chai.util.flag(assertion, 'error', callsite)
+              const onStart = chai.util.flag(assertion, '_poll.onStart')
+              const onSettled = chai.util.flag(assertion, '_poll.onSettled')
+              await onStart?.({ assertion })
+              if (
+                Object.getOwnPropertyDescriptor(
+                  value,
+                  '__vitest_poll_takeover__'
+                )?.value
+              ) {
+                try {
+                  const output = await Reflect.apply(value, assertion, args)
+                  await onSettled?.({ assertion, status: 'pass' })
+                  return output
+                } catch (error) {
+                  await onSettled?.({ assertion, status: 'fail' })
+                  throwWithCause(error)
+                }
+              }
+              const timeoutController = new AbortController()
+              const timers = new Set<ReturnType<typeof realSetTimeout>>()
+              const clear = () => {
+                for (const timer of timers) realClearTimeout(timer)
+                timers.clear()
+                scope.pollTimers.delete(clear)
+              }
+              const deadline = new Promise<void>((resolve) => {
+                if (scope.disposed || disposed) return
+                const timer = realSetTimeout(() => {
+                  timers.delete(timer)
+                  timeoutController.abort()
+                  resolve()
+                }, timeout)
+                timers.add(timer)
+                scope.pollTimers.add(clear)
+              })
+              const delay = () =>
+                new Promise<void>((resolve) => {
+                  if (scope.disposed || disposed) return
+                  const timer = realSetTimeout(() => {
+                    timers.delete(timer)
+                    resolve()
+                  }, interval)
+                  timers.add(timer)
+                })
+              let lastError: unknown
+              try {
+                while (true) {
+                  try {
+                    expectationScope()
+                    const received = await raceWithTimeout(
+                      Promise.resolve().then(() =>
+                        pollCallback({ signal: timeoutController.signal })
+                      ),
+                      deadline
+                    )
+                    if (!received.ok) {
+                      lastError ??= new Error(
+                        "expect.poll() function didn't resolve in time."
+                      )
+                      break
+                    }
+                    chai.util.flag(assertion, 'object', received.value)
+                    const matched = await raceWithTimeout(
+                      Promise.resolve().then(() =>
+                        Reflect.apply(value, assertion, args)
+                      ),
+                      deadline
+                    )
+                    if (!matched.ok) {
+                      lastError ??= new Error(
+                        "expect.poll() assertion didn't resolve in time."
+                      )
+                      break
+                    }
+                    await onSettled?.({ assertion, status: 'pass' })
+                    return matched.value
+                  } catch (error) {
+                    lastError = error
+                    if (property === 'toMatchScreenshot') break
+                    if (!(await raceWithTimeout(delay(), deadline)).ok) break
+                    if (scope.utilities.isFakeTimers())
+                      scope.utilities.advanceTimersByTime(interval)
+                  }
+                }
+              } finally {
+                clear()
+              }
+              if (lastError) {
+                await onSettled?.({ assertion, status: 'fail' })
+                throwWithCause(lastError)
+              }
+            }
+            const wrap = chai.util.flag(assertion, '_poll.wrap')
+            const start = () =>
+              (running ||= wrap ? wrap(run(), callsite) : run())
             return {
               then(onFulfilled: any, onRejected: any) {
                 awaited = true
@@ -2296,12 +2380,11 @@ export async function createAssertionRuntime(options: {
           chai.Assertion.prototype,
           name
         )?.value
-        const scoped =
-          scopedMatcherNames.has(name) ||
-          !!Object.getOwnPropertyDescriptor(
-            primitive,
-            '__vitest_poll_takeover__'
-          )?.value
+        const takeover = Object.getOwnPropertyDescriptor(
+          primitive,
+          '__vitest_poll_takeover__'
+        )
+        const scoped = scopedMatcherNames.has(name) || !!takeover?.value
         chai.util.overwriteMethod(
           chai.Assertion.prototype,
           name,
@@ -2379,8 +2462,11 @@ export async function createAssertionRuntime(options: {
           chai.Assertion.prototype,
           name
         )?.value
-        if (typeof method === 'function' && !scoped)
-          taskMatcherMethods.add(method)
+        if (typeof method === 'function') {
+          if (takeover)
+            Object.defineProperty(method, '__vitest_poll_takeover__', takeover)
+          if (!scoped) taskMatcherMethods.add(method)
+        }
       }
     }
     expect.assertions = (count) => {
@@ -3194,6 +3280,7 @@ export async function createAssertionRuntime(options: {
       mocks: new Set<{ mock: MockInstance; restore: boolean }>(),
       serializers: new Set<Parameters<typeof addSerializer>[0]>(),
       utilities: undefined as unknown as AttemptUtilities,
+      pollTimers: new Set(),
     }
     scope.utilities =
       (kind === 'collection' ? collectionUtilities : fileUtilities) ??
@@ -3845,6 +3932,7 @@ export async function createAssertionRuntime(options: {
         scope.finalized = true
         const errors: unknown[] = []
         try {
+          clearPollTimers(scope, errors)
           try {
             if (!fileOwned && kind !== 'collection') scope.utilities.dispose()
           } catch (error) {
@@ -4357,6 +4445,7 @@ export async function createAssertionRuntime(options: {
       if (disposed) return
       disposed = true
       const errors: unknown[] = []
+      for (const scope of scopes.values()) clearPollTimers(scope, errors)
       try {
         eventBridge?.dispose()
       } catch (error) {

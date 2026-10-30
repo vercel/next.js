@@ -1,0 +1,56 @@
+{
+  "reference": "Vitest5.0.4 independently authored takeover effects; original9reflection model remains unchanged/open",
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "917ddc5d25d324736149db0d4940e6cbc40e7cc6fdb88846dc98ece28b0d5301",
+  "rows": [
+    {
+      "kind": "takeover-effects-result",
+      "failing": false,
+      "calls": 0,
+      "matches": 1,
+      "returnedType": "object",
+      "returnedAssertion": false,
+      "events": ["start", "matcher-null", "settled-pass"]
+    },
+    {
+      "kind": "takeover-effects-error",
+      "failing": true,
+      "exactError": true,
+      "error": {
+        "name": "RangeError",
+        "message": "independent takeover failure",
+        "cause": {
+          "name": "Error",
+          "message": "Matcher did not succeed in time."
+        },
+        "ownCause": true
+      },
+      "calls": 0,
+      "matches": 1,
+      "events": ["start", "matcher-null", "settled-fail"]
+    }
+  ],
+  "cases": [
+    {
+      "name": "independent takeover effects false",
+      "state": "passed"
+    },
+    {
+      "name": "independent takeover effects true",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "rawErrorCount": 1
+}

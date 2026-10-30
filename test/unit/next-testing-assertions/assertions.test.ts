@@ -934,3 +934,80 @@ it('matches genuine complete expectation authoring types and the actual primitiv
     typeOnlyExports: true,
   })
 }, 125000)
+
+it('owns genuine polling deadlines, outputs and actual native timer cleanup', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'poll-deadline.cjs'), process.cwd()],
+    { timeout: 20000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    families: [
+      { family: 'core', cases: 7, rows: 21, rawErrors: 4 },
+      { family: 'takeover', cases: 2, rows: 2, rawErrors: 1 },
+    ],
+    rawErrors: 5,
+    actualScopeResourceControls: 3,
+    allNativeTimersCleared: true,
+    noForcedSettlementOrPublicAbort: true,
+    lateOwnerCannotReacquireTimers: true,
+    noFabricatedCaseResults: true,
+  })
+}, 25000)
+
+it.each([
+  ['development', 'js', 'core'],
+  ['production', 'mjs', 'core'],
+  ['development', 'js', 'takeover'],
+  ['production', 'mjs', 'takeover'],
+])(
+  'matches genuine polling deadline and settlement ownership in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-poll-deadline-public-')
+    )
+    const output = join(directory, 'output')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'poll-deadline-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed poll deadline observations at ' + directory
+        )
+    }
+  },
+  130000
+)

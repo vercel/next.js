@@ -1,0 +1,104 @@
+import { expect, test, chai, vi } from 'vitest'
+const emit = (row) => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const view = (error) => {
+  console.log('POLL_OWNERSHIP_ERROR ' + JSON.stringify({ name: error?.name ?? null, message: error?.message ?? String(error), stack: error?.stack ?? null, cause: error?.cause ? { name: error.cause.name, message: error.cause.message, stack: error.cause.stack } : null }))
+  return { name: error?.name ?? null, message: error?.message ?? String(error), cause: error?.cause ? { name: error.cause.name, message: error.cause.message } : null, ownCause: error != null && Object.hasOwn(Object(error), 'cause') }
+}
+const flag = (...args) => chai.util.flag(...args)
+test('pending predicate owns its timeout signal and late result', async ({ signal: taskSignal }) => {
+  let release, signal, calls = 0
+  const held = new Promise((resolve) => { release = resolve })
+  const initial = expect.poll((options) => {
+    calls++
+    signal = options.signal
+    emit({ kind: 'predicate-start', ownSignal: signal !== taskSignal, aborted: signal.aborted })
+    signal.addEventListener('abort', () => emit({ kind: 'predicate-aborted', name: signal.reason?.name ?? null }), { once: true })
+    return held
+  }, { timeout: 100, interval: 1 })
+  flag(initial, '_poll.onSettled', ({ status }) => emit({ kind: 'predicate-settled', status }))
+  try { await initial.toBe(1); emit({ kind: 'predicate-unexpected-success' }) }
+  catch (error) { emit({ kind: 'predicate-caught', error: view(error), aborted: signal.aborted, calls }); release(1); await held; emit({ kind: 'predicate-late-joined', object: flag(initial, 'object') }) }
+})
+test('pending matcher owns the same deadline', async () => {
+  let release, signal, calls = 0, matches = 0
+  const held = new Promise((resolve) => { release = resolve })
+  expect.extend({ toOwnedPending(received) { matches++; emit({ kind: 'matcher-start', received }); return held } })
+  const initial = expect.poll((options) => { calls++; signal = options.signal; return 9 }, { timeout: 100, interval: 1 })
+  flag(initial, '_poll.onSettled', ({ status }) => emit({ kind: 'matcher-settled', status }))
+  try { await initial.toOwnedPending(); emit({ kind: 'matcher-unexpected-success' }) }
+  catch (error) { emit({ kind: 'matcher-caught', error: view(error), aborted: signal.aborted, calls, matches }); release({ pass: true, message: () => 'late matcher result' }); await held; emit({ kind: 'matcher-late-joined' }) }
+})
+test('settlement rejection participates in the real retry loop', async () => {
+  let calls = 0, settlements = 0, settledAssertion
+  const failure = new RangeError('owned pass settlement rejection')
+  const initial = expect.poll(() => { calls++; return 1 }, { timeout: 1000, interval: 1 })
+  flag(initial, '_poll.onSettled', ({ status, assertion }) => { settledAssertion = assertion; emit({ kind: 'retry-settled', status, settlement: ++settlements }); if (settlements === 1) throw failure })
+  try { const output = await initial.toBe(1); emit({ kind: 'retry-result', calls, settlements, returnedAssertion: output === settledAssertion, returnedType: typeof output, causeOnRecoveredFailure: failure.cause != null }) }
+  catch (error) { emit({ kind: 'retry-error', error: view(error), calls, settlements }) }
+})
+test('start settlement and eager wrap retain their actual phase', async () => {
+  const events = []
+  let calls = 0
+  const initial = expect.poll(() => { calls++; events.push('predicate'); return 1 }, { timeout: 1000, interval: 1 })
+  flag(initial, '_poll.onSettled', ({ status }) => events.push('captured-settled-' + status))
+  flag(initial, '_poll.onStart', ({ assertion }) => {
+    events.push('start')
+    emit({ kind: 'start-flags', name: flag(assertion, '_name'), errorMessage: flag(assertion, 'error')?.message ?? null })
+    flag(assertion, '_poll.onSettled', () => events.push('replacement-settled'))
+  })
+  flag(initial, '_poll.wrap', (work, callsite) => {
+    events.push('captured-wrap')
+    emit({ kind: 'wrap-callsite', message: callsite.message, workPromise: work instanceof Promise })
+    return work.then(() => { events.push('wrapped-resolved'); return 'owned-wrapped-output' })
+  })
+  const matched = initial.toBe(1)
+  flag(initial, '_poll.wrap', () => { events.push('replacement-wrap'); return Promise.resolve('wrong') })
+  emit({ kind: 'before-consumption', calls, events: [...events] })
+  const first = await matched
+  const second = await matched
+  emit({ kind: 'wrapped-result', first: first ?? '<undefined>', second: second ?? '<undefined>', calls, events })
+})
+for (const failing of [false, true]) test('takeover owns predicate retry and settlement ' + failing, async () => {
+  const events = []
+  let calls = 0, matches = 0, settledAssertion
+  const failure = new RangeError('owned takeover rejection')
+  const matcher = function (received) { matches++; events.push('matcher-' + String(received)); if (failing) throw failure; return { pass: received === null, message: () => 'takeover receives the initial object' } }
+  Object.defineProperty(matcher, '__vitest_poll_takeover__', { value: true })
+  expect.extend({ toOwnedTakeover: matcher })
+  const installed = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'toOwnedTakeover')?.value
+  emit({ kind: 'takeover-installed', failing, flag: !!Object.getOwnPropertyDescriptor(installed, '__vitest_poll_takeover__')?.value })
+  const initial = expect.poll(() => { calls++; events.push('predicate'); return 9 }, { timeout: 100, interval: 1000 })
+  flag(initial, '_poll.onStart', () => events.push('start'))
+  flag(initial, '_poll.onSettled', ({ status, assertion }) => { settledAssertion = assertion; events.push('settled-' + status) })
+  try { const output = await initial.toOwnedTakeover(); emit({ kind: 'takeover-result', failing, calls, matches, returnedAssertion: output === settledAssertion, returnedType: typeof output, events }) }
+  catch (error) { emit({ kind: 'takeover-error', failing, exactError: error === failure, error: view(error), calls, matches, events }) }
+})
+test('real retry delay advances the active fake clock', async () => {
+  let value = 0
+  const values = []
+  vi.useFakeTimers()
+  try {
+    setTimeout(() => { value = 1 }, 1)
+    const initial = expect.poll(() => { values.push(value); return value }, { timeout: 100, interval: 1 })
+    try { await initial.toBe(1); emit({ kind: 'fake-clock-result', values, value }) }
+    catch (error) { emit({ kind: 'fake-clock-error', values, value, error: view(error) }) }
+  } finally { vi.useRealTimers() }
+})
+test('a later pending predicate retains the actual earlier failure', async () => {
+  let release, signal, calls = 0
+  const failure = new RangeError('owned first predicate failure')
+  const held = new Promise((resolve) => { release = resolve })
+  const initial = expect.poll((options) => { signal = options.signal; if (++calls === 1) throw failure; return held }, { timeout: 100, interval: 1 })
+  flag(initial, '_poll.onSettled', ({ status }) => emit({ kind: 'prior-failure-settled', status }))
+  try { await initial.toBe(1); emit({ kind: 'prior-failure-unexpected-success' }) }
+  catch (error) { emit({ kind: 'prior-failure-caught', error: view(error), exactError: error === failure, calls, aborted: signal.aborted }); release(1); await held }
+})
+test('a final settlement rejection stays the actual thrown object', async () => {
+  let release, signal
+  const failure = new TypeError('owned failed settlement rejection')
+  const held = new Promise((resolve) => { release = resolve })
+  const initial = expect.poll((options) => { signal = options.signal; return held }, { timeout: 100, interval: 1 })
+  flag(initial, '_poll.onSettled', ({ status }) => { emit({ kind: 'final-settled', status }); throw failure })
+  try { await initial.toBe(1); emit({ kind: 'final-settlement-unexpected-success' }) }
+  catch (error) { emit({ kind: 'final-settlement-caught', exactError: error === failure, error: view(error), aborted: signal.aborted }); release(1); await held }
+})
