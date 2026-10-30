@@ -41,6 +41,15 @@
 //! - After it made an inner edge `F.upper[U]` appear, it locks `U` again and pushes a `BalanceEdge`
 //!   when `U.followers[F]` is debt.
 //!
+//! The handlers for one or several uppers or followers share helpers for these steps:
+//! - **Removal:** `remove_inner_edges` (step 1), then `on_inner_edges_disappeared`;
+//!   `remove_follower_edges` (steps 2 and 3).
+//! - **Addition:** `follower_add_side` and `add_follower_edge` (the follower side);
+//!   `add_inner_edge`, then `on_inner_edges_appeared` (the inner side and the lock of `U` again).
+//!
+//! The handler for several followers locks `U` only once for all new inner edges
+//! (`on_inner_edges_appeared_on_upper`).
+//!
 //! Debt and an inner edge can only coexist when an addition and a removal of the same edge run
 //! concurrently. Both write their side first and read the other side afterwards, each under the
 //! respective task lock (removal: write `U`, read `F`; addition: write `F`, read `U`). If the split
@@ -201,6 +210,33 @@ fn update_follower_count(
         (change.new != 0).then_some(change.new)
     });
     change
+}
+
+/// Addition step 3: the side on which an addition of the edge between the locked `upper` and
+/// `follower_id` is written. `write_side` is the side [`edge_write_side`] chose from the
+/// aggregation numbers.
+///
+/// Debt of the edge is paid on the follower side, even when the edge should be an inner edge (see
+/// module docs).
+fn follower_add_side(upper: &TaskGuard<'_>, write_side: EdgeSide, follower_id: TaskId) -> EdgeSide {
+    if write_side == EdgeSide::Follower || has_follower_debt(upper, follower_id) {
+        EdgeSide::Follower
+    } else {
+        EdgeSide::Inner
+    }
+}
+
+/// Addition step 6a: adds the inner edge `F.upper[U]` with `count` under the lock of `follower`.
+/// Returns whether the inner edge is new; then it continues with
+/// [`AggregationUpdateQueue::on_inner_edges_appeared`].
+fn add_inner_edge(
+    follower: &mut TaskGuard<'_>,
+    upper_id: TaskId,
+    count: u32,
+    operation: &str,
+) -> bool {
+    follower.assert_not_deleted(operation);
+    follower.update_upper_count(upper_id, count)
 }
 
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
@@ -2256,6 +2292,190 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// Addition steps 3a and 3b: adds `count` to `U.followers[F]` under the lock of `upper`.
+    ///
+    /// Returns the change. When the edge appeared, the caller propagates it (steps 3c to 3f). When
+    /// the addition only paid debt, the upper might have become collectible.
+    fn add_follower_edge(
+        &mut self,
+        ctx: &mut ExecuteContext<'_>,
+        upper: &mut TaskGuard<'_>,
+        follower_id: TaskId,
+        count: u32,
+        operation: &str,
+    ) -> FollowerCountChange {
+        // STEP 3a
+        upper.assert_not_deleted(operation);
+        let change = update_follower_count(
+            upper,
+            follower_id,
+            follower_delta(upper.id(), follower_id, count),
+        );
+        match change.transition() {
+            EdgeTransition::Appeared => {
+                // STEP 3b
+                // May optimize the task
+                if upper.followers_len().is_power_of_two() {
+                    self.push_optimize_task(upper);
+                }
+            }
+            EdgeTransition::Unchanged | EdgeTransition::Disappeared => {
+                debug_assert_ne!(change.transition(), EdgeTransition::Disappeared);
+                // The addition only paid debt, or the edge already existed.
+                if change.new == 0 && upper.is_followers_empty() {
+                    ctx.note_maybe_collectible(upper);
+                }
+            }
+        }
+        change
+    }
+
+    /// Addition steps 6c to 6f: propagates that the inner edges between `added_upper_ids` and the
+    /// locked `follower` were added. Mirrors [`Self::on_inner_edges_disappeared`]: adds the
+    /// follower's data to the uppers and the followers of the follower to the uppers.
+    ///
+    /// Releases the lock of the follower before locking the uppers. Each upper is locked even when
+    /// there is no data to add: that lock is the read of the follower side after writing the inner
+    /// edge (see module docs).
+    ///
+    /// `is_active` is whether an upper was seen active before. Returns it updated by checking the
+    /// uppers again; the caller schedules the follower when it is `true` (step 6g).
+    ///
+    /// A single-edge list (`Option<TaskId>`) takes the code paths and jobs for one upper, a
+    /// `TaskIdVec` those for several uppers (see [`TaskIdList::single_edge`]).
+    fn on_inner_edges_appeared<L: TaskIdList>(
+        &mut self,
+        ctx: &mut ExecuteContext<'_>,
+        mut follower: TaskGuard<'_>,
+        added_upper_ids: L,
+        mut is_active: bool,
+    ) -> bool {
+        let follower_id = follower.id();
+        // STEP 6c
+        let data = AggregatedDataUpdate::from_task(&mut follower);
+        let followers = get_followers(&follower);
+        drop(follower);
+        // Outside of the lock
+        let data = data.optimize();
+
+        // STEP 6d and 6f
+        let add_to_upper = |queue: &mut Self,
+                            mut upper: TaskGuard<'_>,
+                            ctx: &ExecuteContext<'_>,
+                            is_active: &mut bool| {
+            queue.check_optimization_pending(&upper);
+            queue.balance_if_follower_debt(&upper, follower_id);
+            // STEP 6d
+            if !data.is_empty() {
+                let diff = data.apply(&mut upper, ctx.should_track_activeness(), queue);
+                if !diff.is_empty() {
+                    let upper_ids = get_uppers(&upper);
+                    queue.push(
+                        AggregatedDataUpdateJob {
+                            upper_ids,
+                            update: diff,
+                        }
+                        .into(),
+                    );
+                }
+            }
+            // STEP 6f
+            // We need to check this again, since this might have changed in the meantime due to
+            // race conditions
+            if ctx.should_track_activeness() && !*is_active && upper.has_activeness() {
+                *is_active = true;
+            }
+        };
+        if let Some(upper_id) = added_upper_ids.single_edge() {
+            // For performance reasons this should stay `Meta` and not `All`
+            let upper = ctx.task(upper_id, AGGREGATION_UPDATE_CATEGORY);
+            add_to_upper(self, upper, ctx, &mut is_active);
+        } else {
+            // For performance reasons this should stay `Meta` and not `All`
+            ctx.for_each_task_meta(
+                added_upper_ids.iter_ids(),
+                "add data to uppers",
+                |upper, ctx| add_to_upper(self, upper, ctx, &mut is_active),
+            );
+        }
+
+        // STEP 6e
+        if !followers.is_empty() {
+            if let Some(upper_id) = added_upper_ids.single_edge() {
+                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                    upper_id,
+                    new_follower_ids: followers,
+                });
+            } else {
+                self.push(
+                    InnerOfUppersHasNewFollowersJob {
+                        upper_ids: added_upper_ids.into_vec(),
+                        new_follower_ids: followers,
+                    }
+                    .into(),
+                );
+            }
+        }
+        is_active
+    }
+
+    /// Addition steps 6d and 6f of the handler for several followers: locks the upper once for all
+    /// `inner_task_ids` whose inner edge to `upper_id` was added, adds their data (`data_updates`)
+    /// and checks for debt of each of them. Like [`Self::on_inner_edges_appeared`], this lock is
+    /// also the read of the follower side after writing the inner edges (see module docs).
+    ///
+    /// `is_active` is whether the upper was seen active before. Returns it updated; the caller
+    /// schedules the inner tasks when it is `true` (step 6g).
+    fn on_inner_edges_appeared_on_upper(
+        &mut self,
+        ctx: &mut ExecuteContext<'_>,
+        upper_id: TaskId,
+        inner_task_ids: &[TaskId],
+        data_updates: Vec<AggregatedDataUpdate>,
+        mut is_active: bool,
+    ) -> bool {
+        let mut upper = ctx.task(
+            upper_id,
+            // For performance reasons this should stay `Meta` and not `All`
+            AGGREGATION_UPDATE_CATEGORY,
+        );
+        for &inner_task_id in inner_task_ids {
+            self.balance_if_follower_debt(&upper, inner_task_id);
+        }
+        // add data to upper
+        let diffs = data_updates
+            .into_iter()
+            .filter_map(|data| {
+                let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                (!diff.is_empty()).then_some(diff)
+            })
+            .collect::<Vec<_>>();
+        if ctx.should_track_activeness() && !is_active {
+            // We need to check this again, since this might have changed in the meantime due to
+            // race conditions
+            is_active = upper.has_activeness();
+        }
+        let upper_ids = if diffs.is_empty() {
+            TaskIdVec::new()
+        } else {
+            get_uppers(&upper)
+        };
+        drop(upper);
+        if !upper_ids.is_empty() {
+            // TODO merge AggregatedDataUpdate
+            for diff in diffs {
+                self.push(
+                    AggregatedDataUpdateJob {
+                        upper_ids: upper_ids.clone(),
+                        update: diff,
+                    }
+                    .into(),
+                );
+            }
+        }
+        is_active
+    }
+
     /// Pushes a `BalanceEdge` when there is an inner edge `F.upper[U]`. Called after creating debt
     /// in `U.followers[F]`, so that `balance_edge` nets both.
     ///
@@ -2329,27 +2549,20 @@ impl AggregationUpdateQueue {
                 let upper_aggregation_number = get_aggregation_number(&upper);
 
                 // STEP 3
-                // Debt of this edge is paid on the follower side, even when the edge should be an
-                // inner edge (see module docs).
                 let write_side =
                     edge_write_side(upper_aggregation_number, min_follower_aggregation_number);
-                if write_side == EdgeSide::Follower || has_follower_debt(&upper, new_follower_id) {
-                    // STEP 3a
+                if follower_add_side(&upper, write_side, new_follower_id) == EdgeSide::Follower {
+                    // STEP 3a and 3b
                     // It's a follower of the upper node
-                    upper.assert_not_deleted("inner_of_uppers_has_new_follower add follower");
-                    let change = update_follower_count(
+                    let change = self.add_follower_edge(
+                        ctx,
                         &mut upper,
                         new_follower_id,
-                        follower_delta(upper_id, new_follower_id, count),
+                        count,
+                        "inner_of_uppers_has_new_follower add follower",
                     );
                     let appeared = change.transition() == EdgeTransition::Appeared;
                     if appeared {
-                        // STEP 3b
-                        // May optimize the task
-                        if upper.followers_len().is_power_of_two() {
-                            self.push_optimize_task(&mut upper);
-                        }
-
                         // STEP 3c
                         if ctx.should_track_activeness() {
                             // update active count
@@ -2369,9 +2582,6 @@ impl AggregationUpdateQueue {
                                 .entry(upper_id)
                                 .or_insert(0) += 1;
                         }
-                    } else if change.new == 0 && upper.is_followers_empty() {
-                        // The addition only paid debt.
-                        ctx.note_maybe_collectible(&upper);
                     }
                     drop(upper);
 
@@ -2415,14 +2625,10 @@ impl AggregationUpdateQueue {
             );
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
-            let mut added_uppers = 0;
-
+            // STEP 6
             swap_retain(
                 &mut upper_ids_with_min_aggregation_number,
                 |(upper_item, min_upper_aggregation_number)| {
-                    let (upper_id, count) = upper_item.task_id_and_count();
-
-                    // STEP 6
                     if edge_write_side(*min_upper_aggregation_number, follower_aggregation_number)
                         == EdgeSide::Follower
                     {
@@ -2430,94 +2636,35 @@ impl AggregationUpdateQueue {
                         upper_ids.push(upper_item.clone());
                         return false;
                     }
-
                     // STEP 6a
-                    new_follower.assert_not_deleted("inner_of_uppers_has_new_follower add upper");
-                    if new_follower.update_upper_count(upper_id, count) {
-                        // It's a new upper
-                        // STEP 6b
-                        added_uppers += 1;
-
-                        // Step 6c ff are processed further down when items stay in this vec.
-                        true
-                    } else {
-                        // It's already an upper
-                        false
-                    }
+                    // Keeps the new uppers. Steps 6b ff are processed further down.
+                    let (upper_id, count) = upper_item.task_id_and_count();
+                    add_inner_edge(
+                        &mut new_follower,
+                        upper_id,
+                        count,
+                        "inner_of_uppers_has_new_follower add upper",
+                    )
                 },
             );
+            let added_upper_ids: TaskIdVec = upper_ids_with_min_aggregation_number
+                .iter()
+                .map(|(upper_item, _)| upper_item.task_id_and_count().0)
+                .collect();
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
-            if !upper_ids_with_min_aggregation_number.is_empty() {
+            if !added_upper_ids.is_empty() {
                 // STEP 6b
                 let new_count = new_follower.upper_len();
-                if (new_count - added_uppers).next_power_of_two() != new_count.next_power_of_two() {
+                if (new_count - added_upper_ids.len()).next_power_of_two()
+                    != new_count.next_power_of_two()
+                {
                     self.push_optimize_task(&mut new_follower);
                 }
 
-                // STEP 6c
-                let data = AggregatedDataUpdate::from_task(&mut new_follower);
-                let followers = get_followers(&new_follower);
-                drop(new_follower);
-                // Outside of the lock
-                let data = data.optimize();
-
-                // STEP 6d and 6f
-                // Lock the uppers again. Besides adding the data, this is the read of the follower
-                // side after writing the inner edge (see module docs).
-                let has_data = !data.is_empty();
-                {
-                    // add data to upper
-                    // For performance reasons this should stay `Meta` and not `All`
-                    ctx.for_each_task_meta(
-                        upper_ids_with_min_aggregation_number
-                            .iter()
-                            .map(|(entry, _)| entry.task_id()),
-                        "add data to uppers",
-                        |mut upper, ctx| {
-                            self.check_optimization_pending(&upper);
-                            self.balance_if_follower_debt(&upper, new_follower_id);
-                            // STEP 6d
-                            if has_data {
-                                let diff =
-                                    data.apply(&mut upper, ctx.should_track_activeness(), self);
-                                if !diff.is_empty() {
-                                    let upper_ids = get_uppers(&upper);
-                                    self.push(
-                                        AggregatedDataUpdateJob {
-                                            upper_ids,
-                                            update: diff,
-                                        }
-                                        .into(),
-                                    )
-                                }
-                            }
-
-                            // STEP 6f
-                            if ctx.should_track_activeness() && !is_active {
-                                // We need to check this again, since this might have changed in
-                                // the meantime due to race
-                                // conditions
-                                if upper.has_activeness() {
-                                    is_active = true;
-                                }
-                            }
-                        },
-                    );
-                }
-                // STEP 6e
-                if !followers.is_empty() {
-                    self.push(
-                        InnerOfUppersHasNewFollowersJob {
-                            upper_ids: upper_ids_with_min_aggregation_number
-                                .into_iter()
-                                .map(|(entry, _)| entry.task_id())
-                                .collect(),
-                            new_follower_ids: followers,
-                        }
-                        .into(),
-                    );
-                }
+                // STEP 6c to 6f
+                is_active =
+                    self.on_inner_edges_appeared(ctx, new_follower, added_upper_ids, is_active);
             } else {
                 drop(new_follower);
             }
@@ -2590,9 +2737,8 @@ impl AggregationUpdateQueue {
         let mut upper_new_followers = FxHashMap::default();
         let mut inner_tasks = Vec::new();
         loop {
-            let mut upper_upper_ids_for_new_followers = SmallVec::new();
-            let mut new_followers_of_upper_uppers = SmallVec::new();
-            let mut has_active_count = false;
+            let mut new_followers_of_upper_uppers = TaskIdVec::new();
+            let mut follower_edge_effects = None;
             let upper_aggregation_number;
             {
                 // STEP 2
@@ -2609,31 +2755,23 @@ impl AggregationUpdateQueue {
                 // STEP 3
                 followers_with_min_aggregation_number.retain(
                     |(follower_id, count, follower_aggregation_number)| {
-                        // Debt of this edge is paid on the follower side, even when the edge
-                        // should be an inner edge (see module docs).
                         let write_side =
                             edge_write_side(upper_aggregation_number, *follower_aggregation_number);
-                        if write_side == EdgeSide::Inner && !has_follower_debt(&upper, *follower_id)
-                        {
+                        if follower_add_side(&upper, write_side, *follower_id) == EdgeSide::Inner {
                             // It's an inner node, continue with the list
                             return true;
                         }
 
-                        // STEP 3a
+                        // STEP 3a and 3b
                         // It's a follower of the upper node
-                        upper.assert_not_deleted("inner_of_upper_has_new_followers add follower");
-                        let change = update_follower_count(
+                        let change = self.add_follower_edge(
+                            ctx,
                             &mut upper,
                             *follower_id,
-                            follower_delta(upper_id, *follower_id, *count),
+                            *count,
+                            "inner_of_upper_has_new_followers add follower",
                         );
                         if change.transition() == EdgeTransition::Appeared {
-                            // STEP 3b
-                            // May optimize the task
-                            if upper.followers_len().is_power_of_two() {
-                                self.push_optimize_task(&mut upper);
-                            }
-
                             // STEP 3d and 3e are enqueued with this vec
                             new_followers_of_upper_uppers.push(*follower_id);
 
@@ -2650,9 +2788,6 @@ impl AggregationUpdateQueue {
                                     task_id: *follower_id,
                                 })
                             }
-                        } else if change.new == 0 && upper.is_followers_empty() {
-                            // The addition only paid debt.
-                            ctx.note_maybe_collectible(&upper);
                         }
                         false
                     },
@@ -2660,11 +2795,7 @@ impl AggregationUpdateQueue {
 
                 if !new_followers_of_upper_uppers.is_empty() {
                     // STEP 3c
-                    if ctx.should_track_activeness() {
-                        let activeness_state = upper.get_activeness();
-                        has_active_count = activeness_state.is_some_and(|a| a.active_counter > 0);
-                    }
-                    upper_upper_ids_for_new_followers = get_uppers(&upper);
+                    follower_edge_effects = Some(FollowerEdgeEffects::capture(ctx, &upper));
                 }
 
                 // STEP 4
@@ -2674,29 +2805,13 @@ impl AggregationUpdateQueue {
             }
             let min_upper_aggregation_number = upper_aggregation_number;
 
-            if !new_followers_of_upper_uppers.is_empty() {
+            if let Some(effects) = follower_edge_effects {
                 #[cfg(feature = "trace_aggregation_update")]
                 let _span = trace_span!("new follower").entered();
 
-                // STEP 3d
-                // update active count
-                if has_active_count {
-                    // TODO combine both operations to avoid the clone
-                    self.push(AggregationUpdateJob::IncreaseActiveCounts {
-                        task_ids: new_followers_of_upper_uppers.clone(),
-                    });
-                }
-                // STEP 3e
-                // notify uppers about new follower
-                if !upper_upper_ids_for_new_followers.is_empty() {
-                    self.push(
-                        InnerOfUppersHasNewFollowersJob {
-                            upper_ids: upper_upper_ids_for_new_followers,
-                            new_follower_ids: new_followers_of_upper_uppers,
-                        }
-                        .into(),
-                    );
-                }
+                // STEP 3d and 3e
+                // update active count and notify uppers about new followers
+                effects.push_new_followers_batched(self, new_followers_of_upper_uppers);
             }
 
             if followers_with_min_aggregation_number.is_empty() {
@@ -2728,8 +2843,12 @@ impl AggregationUpdateQueue {
                     }
 
                     // STEP 6a
-                    new_follower.assert_not_deleted("inner_of_upper_has_new_followers add upper");
-                    if new_follower.update_upper_count(upper_id, count) {
+                    if add_inner_edge(
+                        &mut new_follower,
+                        upper_id,
+                        count,
+                        "inner_of_upper_has_new_followers add upper",
+                    ) {
                         // STEP 6b
                         if new_follower.upper_len().is_power_of_two() {
                             self.push_optimize_task(&mut new_follower);
@@ -2772,47 +2891,13 @@ impl AggregationUpdateQueue {
         }
         if !inner_tasks.is_empty() {
             // STEP 6d and 6f
-            // Lock the upper again. Besides adding the data, this is the read of the follower side
-            // after writing the inner edges (see module docs).
-            let mut upper = ctx.task(
+            let is_active = self.on_inner_edges_appeared_on_upper(
+                ctx,
                 upper_id,
-                // For performance reasons this should stay `Meta` and not `All`
-                AGGREGATION_UPDATE_CATEGORY,
+                &inner_tasks,
+                upper_data_updates,
+                is_active,
             );
-            for &inner_task_id in &inner_tasks {
-                self.balance_if_follower_debt(&upper, inner_task_id);
-            }
-            // add data to upper
-            let diffs = upper_data_updates
-                .into_iter()
-                .filter_map(|data| {
-                    let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
-                    (!diff.is_empty()).then_some(diff)
-                })
-                .collect::<Vec<_>>();
-            if ctx.should_track_activeness() && !is_active {
-                // We need to check this again, since this might have changed in the
-                // meantime due to race conditions
-                is_active = upper.has_activeness();
-            }
-            let upper_ids = if diffs.is_empty() {
-                TaskIdVec::new()
-            } else {
-                get_uppers(&upper)
-            };
-            drop(upper);
-            if !upper_ids.is_empty() {
-                // TODO merge AggregatedDataUpdate
-                for diff in diffs {
-                    self.push(
-                        AggregatedDataUpdateJob {
-                            upper_ids: upper_ids.clone(),
-                            update: diff,
-                        }
-                        .into(),
-                    );
-                }
-            }
             // STEP 6g
             if is_active {
                 self.extend_find_and_schedule_dirty(inner_tasks);
@@ -2862,58 +2947,42 @@ impl AggregationUpdateQueue {
             let upper_aggregation_number = get_aggregation_number(&upper);
 
             // STEP 3
-            // Debt of this edge is paid on the follower side, even when the edge should be an
-            // inner edge (see module docs).
             let write_side =
                 edge_write_side(upper_aggregation_number, min_follower_aggregation_number);
-            if write_side == EdgeSide::Follower || has_follower_debt(&upper, new_follower_id) {
+            if follower_add_side(&upper, write_side, new_follower_id) == EdgeSide::Follower {
                 #[cfg(feature = "trace_aggregation_update")]
                 let _span = trace_span!("new follower").entered();
 
-                // STEP 3a
+                // STEP 3a and 3b
                 // It's a follower of the upper node
-                upper.assert_not_deleted("inner_of_upper_has_new_follower add follower");
-                let change = update_follower_count(
+                let change = self.add_follower_edge(
+                    ctx,
                     &mut upper,
                     new_follower_id,
-                    follower_delta(upper_id, new_follower_id, count),
+                    count,
+                    "inner_of_upper_has_new_follower add follower",
                 );
-                match change.transition() {
-                    EdgeTransition::Appeared => {
-                        // STEP 3b
-                        // May optimize the task
-                        if upper.followers_len().is_power_of_two() {
-                            self.push_optimize_task(&mut upper);
-                        }
+                if change.transition() == EdgeTransition::Appeared {
+                    // STEP 3c
+                    let effects = FollowerEdgeEffects::capture(ctx, &upper);
+                    drop(upper);
 
-                        // STEP 3c
-                        let effects = FollowerEdgeEffects::capture(ctx, &upper);
-                        drop(upper);
+                    // STEP 3d and 3e
+                    // update active count and notify uppers about new follower
+                    effects.push_new_followers(self, smallvec![new_follower_id]);
 
-                        // STEP 3d and 3e
-                        // update active count and notify uppers about new follower
-                        effects.push_new_followers(self, smallvec![new_follower_id]);
-
-                        // STEP 3f
-                        // Balancing is only needed when they are equal or when the edge was only
-                        // placed on the follower side to pay debt. Follower's aggregation number
-                        // can increase concurrently, but that only makes the balancing obsolete,
-                        // not incorrect.
-                        if write_side == EdgeSide::Inner
-                            || upper_aggregation_number == min_follower_aggregation_number
-                        {
-                            self.push(AggregationUpdateJob::BalanceEdge {
-                                upper_id,
-                                task_id: new_follower_id,
-                            });
-                        }
-                    }
-                    EdgeTransition::Unchanged | EdgeTransition::Disappeared => {
-                        debug_assert_ne!(change.transition(), EdgeTransition::Disappeared);
-                        // The addition only paid debt, or the edge already existed.
-                        if change.new == 0 && upper.is_followers_empty() {
-                            ctx.note_maybe_collectible(&upper);
-                        }
+                    // STEP 3f
+                    // Balancing is only needed when they are equal or when the edge was only
+                    // placed on the follower side to pay debt. Follower's aggregation number
+                    // can increase concurrently, but that only makes the balancing obsolete,
+                    // not incorrect.
+                    if write_side == EdgeSide::Inner
+                        || upper_aggregation_number == min_follower_aggregation_number
+                    {
+                        self.push(AggregationUpdateJob::BalanceEdge {
+                            upper_id,
+                            task_id: new_follower_id,
+                        });
                     }
                 }
                 return;
@@ -2921,7 +2990,7 @@ impl AggregationUpdateQueue {
 
             // STEP 4
             // It's an inner node, continue with the list
-            let mut is_active = ctx.should_track_activeness() && upper.has_activeness();
+            let is_active = ctx.should_track_activeness() && upper.has_activeness();
             drop(upper);
             let min_upper_aggregation_number = upper_aggregation_number;
 
@@ -2943,57 +3012,21 @@ impl AggregationUpdateQueue {
                 let _span = trace_span!("new inner").entered();
 
                 // STEP 6a
-                new_follower.assert_not_deleted("inner_of_upper_has_new_follower add upper");
-                if new_follower.update_upper_count(upper_id, count) {
+                if add_inner_edge(
+                    &mut new_follower,
+                    upper_id,
+                    count,
+                    "inner_of_upper_has_new_follower add upper",
+                ) {
                     // STEP 6b
                     if new_follower.upper_len().is_power_of_two() {
                         self.push_optimize_task(&mut new_follower);
                     }
 
-                    // STEP 6c
-                    // It's a new upper
-                    let data = AggregatedDataUpdate::from_task(&mut new_follower);
-                    let followers = get_followers(&new_follower);
-                    drop(new_follower);
-                    // Outside of the lock
-                    let data = data.optimize();
+                    // STEP 6c to 6f
+                    let is_active =
+                        self.on_inner_edges_appeared(ctx, new_follower, Some(upper_id), is_active);
 
-                    // STEP 6d and 6f
-                    // Lock the upper again. Besides adding the data, this is the read of the
-                    // follower side after writing the inner edge (see module docs).
-                    let mut upper = ctx.task(
-                        upper_id,
-                        // For performance reasons this should stay `Meta` and not `All`
-                        AGGREGATION_UPDATE_CATEGORY,
-                    );
-                    if !data.is_empty() {
-                        // add data to upper
-                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
-                        if !diff.is_empty() {
-                            let upper_ids = get_uppers(&upper);
-                            self.push(
-                                AggregatedDataUpdateJob {
-                                    upper_ids,
-                                    update: diff,
-                                }
-                                .into(),
-                            );
-                        }
-                    }
-                    self.balance_if_follower_debt(&upper, new_follower_id);
-                    if ctx.should_track_activeness() && !is_active {
-                        // We need to check this again, since this might have changed in the
-                        // meantime due to race conditions
-                        is_active = upper.has_activeness();
-                    }
-                    drop(upper);
-                    // STEP 6e
-                    if !followers.is_empty() {
-                        self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
-                            upper_id,
-                            new_follower_ids: followers,
-                        });
-                    }
                     // STEP 6g
                     if is_active {
                         self.push_find_and_schedule_dirty(new_follower_id);
@@ -3375,36 +3408,28 @@ impl AggregationUpdateQueue {
 }
 
 trait TaskIdWithOptionalCount {
-    fn task_id(&self) -> TaskId;
     fn task_id_and_count(&self) -> (TaskId, u32);
 }
 
 impl TaskIdWithOptionalCount for TaskId {
-    fn task_id(&self) -> TaskId {
-        *self
-    }
-
     fn task_id_and_count(&self) -> (TaskId, u32) {
         (*self, 1)
     }
 }
 
 impl TaskIdWithOptionalCount for (TaskId, u32) {
-    fn task_id(&self) -> TaskId {
-        self.0
-    }
-
     fn task_id_and_count(&self) -> (TaskId, u32) {
         (self.0, self.1)
     }
 }
 
-/// A list of task ids for the edge removal steps: a [`TaskIdVec`] for the handlers of several
-/// edges, or an `Option<TaskId>` for the handlers of a single edge, which avoids building a vector
-/// for one id.
+/// A list of task ids for the edge steps of the aggregation update: a [`TaskIdVec`] for the
+/// handlers of several edges, or an `Option<TaskId>` for the handlers of a single edge, which
+/// avoids building a vector for one id.
 ///
-/// The removal steps only collect ids from their input list into a list of the same type (e.g.
-/// the uppers whose inner edge disappeared), so an `Option` never has to hold more than one id.
+/// The edge steps only collect ids from an input list of the same type, or of the same length
+/// (e.g. the uppers whose inner edge appeared or disappeared), so an `Option` never has to hold
+/// more than one id.
 trait TaskIdList: Default + IntoIterator<Item = TaskId> {
     /// Adds an id. For `Option` the list must be empty.
     fn push(&mut self, task_id: TaskId);
@@ -3416,6 +3441,9 @@ trait TaskIdList: Default + IntoIterator<Item = TaskId> {
     fn iter_ids(&self) -> impl Iterator<Item = TaskId> + '_;
     /// The id when the list has exactly one, for the single-id fast paths.
     fn single(&self) -> Option<TaskId>;
+    /// The id of a single-edge list (`Option<TaskId>`). Always `None` for a `TaskIdVec`, also when
+    /// it holds one id, so that the handlers of several edges keep their batched code paths.
+    fn single_edge(&self) -> Option<TaskId>;
     /// Converts into a [`TaskIdVec`], e.g. for a job payload.
     fn into_vec(self) -> TaskIdVec;
 }
@@ -3447,6 +3475,10 @@ impl TaskIdList for TaskIdVec {
         } else {
             None
         }
+    }
+
+    fn single_edge(&self) -> Option<TaskId> {
+        None
     }
 
     fn into_vec(self) -> TaskIdVec {
@@ -3484,6 +3516,10 @@ impl TaskIdList for Option<TaskId> {
     }
 
     fn single(&self) -> Option<TaskId> {
+        *self
+    }
+
+    fn single_edge(&self) -> Option<TaskId> {
         *self
     }
 
@@ -3528,30 +3564,41 @@ impl FollowerEdgeEffects {
                     });
                 }
             }
-            _ => {
-                if self.upper_ids.is_empty() {
-                    // Only the active count needs `follower_ids`, so it doesn't need a clone.
-                    if self.has_active_count {
-                        queue.push(AggregationUpdateJob::IncreaseActiveCounts {
-                            task_ids: follower_ids,
-                        });
-                    }
-                    return;
-                }
-                if self.has_active_count {
-                    queue.push(AggregationUpdateJob::IncreaseActiveCounts {
-                        task_ids: follower_ids.clone(),
-                    });
-                }
-                queue.push(
-                    InnerOfUppersHasNewFollowersJob {
-                        upper_ids: self.upper_ids,
-                        new_follower_ids: follower_ids,
-                    }
-                    .into(),
-                );
-            }
+            _ => self.push_new_followers_batched(queue, follower_ids),
         }
+    }
+
+    /// Like [`Self::push_new_followers`], but always pushes the jobs for several followers, also
+    /// when `follower_ids` has only one. Used by the handler for several followers.
+    fn push_new_followers_batched(
+        self,
+        queue: &mut AggregationUpdateQueue,
+        follower_ids: TaskIdVec,
+    ) {
+        if follower_ids.is_empty() {
+            return;
+        }
+        if self.upper_ids.is_empty() {
+            // Only the active count needs `follower_ids`, so it doesn't need a clone.
+            if self.has_active_count {
+                queue.push(AggregationUpdateJob::IncreaseActiveCounts {
+                    task_ids: follower_ids,
+                });
+            }
+            return;
+        }
+        if self.has_active_count {
+            queue.push(AggregationUpdateJob::IncreaseActiveCounts {
+                task_ids: follower_ids.clone(),
+            });
+        }
+        queue.push(
+            InnerOfUppersHasNewFollowersJob {
+                upper_ids: self.upper_ids,
+                new_follower_ids: follower_ids,
+            }
+            .into(),
+        );
     }
 
     /// Propagates that the follower edges to `follower_ids` disappeared.
