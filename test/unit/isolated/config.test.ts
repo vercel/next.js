@@ -98,6 +98,37 @@ describe('config', () => {
     expect(staleTimes).toEqual({ static: 300 })
   })
 
+  it('Should deeply freeze the loaded config in test mode', async () => {
+    const ignore = /\/healthz/g
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        logging: { incomingRequests: { ignore: [ignore] } },
+      },
+    })
+
+    expect(Object.isFrozen(config)).toBe(true)
+    expect(Object.isFrozen(config.images)).toBe(true)
+    expect(Object.isFrozen(config.images.deviceSizes)).toBe(true)
+    expect(Object.isFrozen(config.experimental)).toBe(true)
+    expect(() => {
+      ;(config.images as any).path = '/changed'
+    }).toThrow(TypeError)
+
+    // The shared defaults are frozen too.
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
+
+    // Class instances are left alone, so a global RegExp keeps working.
+    const [loadedIgnore] = (config.logging as any).incomingRequests.ignore
+    expect(Object.isFrozen(loadedIgnore)).toBe(false)
+    expect(loadedIgnore.test('/healthz')).toBe(true)
+  })
+
   it('Should enable the TypeScript CLI by default and allow opting out', async () => {
     const defaultConfig = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
