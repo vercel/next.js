@@ -12,7 +12,7 @@ use crate::{
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::{
         ModuleResolveResult, ResolveErrorMode, ResolveResult, options::ResolveOptions,
-        parse::Request,
+        parse::Request, pattern::Pattern,
     },
 };
 
@@ -207,13 +207,25 @@ async fn resolve_hint(
         ReferenceType::CommonJs(_) => "require(/* turbopackIgnore: true */ path)",
         _ => return Ok(None),
     };
-    if !request.request_pattern().await?.has_dynamic_parts() {
+    let pattern = request.request_pattern().await?;
+    if !pattern.has_dynamic_parts() {
         return Ok(None);
     }
+    // The request failed as a whole, so none of its static alternatives resolved. They are
+    // usually values the analyzer couldn't rule out, e.g. `'undefined'` for an unset option.
+    let unresolved = match pattern.filter_static() {
+        Some(Pattern::Alternatives(list)) => list
+            .iter()
+            .map(|p| p.describe_as_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        Some(p) => p.describe_as_string(),
+        None => return Ok(None),
+    };
     Ok(Some(
         format!(
-            "This request is too dynamic to resolve at build time. If it's only known at runtime, \
-             opt out of bundling with `{example}`."
+            "Turbopack couldn't resolve {unresolved}, which this request may evaluate to. If the \
+             request is only known at runtime, opt out of bundling with `{example}`."
         )
         .into(),
     ))
