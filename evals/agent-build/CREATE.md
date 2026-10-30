@@ -71,7 +71,7 @@ Reviewers assess the task and the agent's work, including successful runs. Keep 
 | Patch and user experience | Whether the change preserves the intended experience and is reasonable to maintain. Flag trade-offs, such as disabled prefetching, for review rather than inventing a new failing requirement. |
 | Human effort              | Help the run actually records, plus cleanup or decisions still needed. File count and diff size are context, not a quality score. Missing intervention data is unknown.                        |
 
-Record the run ID, task/verifier version, transcript step IDs, relevant diff or test output, finding, and reviewer. Label AI-assisted notes as such until a human reviews them. Judge agreement is not established by having an assistant draft this note. A human should review the same examples and record disagreements before the rubric is used for scores.
+Record the run ID, task and verifier versions, evidence, finding, and reviewer. Label AI-assisted notes until a human reviews them. Before automating the rubric, compare judge results with human assessments of the same examples and resolve disagreements.
 
 #### Grading lessons
 
@@ -113,7 +113,7 @@ Use a fixed setup with `evals/agent-build/tools/calibrate.sh`. Choose the models
 
 Keep a task when it represents a real problem, accepts alternative valid solutions, and provides evidence worth maintaining. Record whether it is retained, needs revision, or is dropped, with the reason. This does not move Harbor tasks into the existing `agent-eval` suite labels or publish scores on nextjs.org/evals.
 
-Decide task visibility before publishing its source. These pilot tasks are already public; keeping transcripts in the execution repo does not make a task held out. Run retention and sharing follow the [task and run boundary](./README.md#task-authoring-and-runs).
+Choose visibility before publishing task sources or run artifacts. Follow [Task authoring and runs](./README.md#task-authoring-and-runs) for where each belongs.
 
 ## Context treatments
 
@@ -121,7 +121,7 @@ Context treatments such as `AGENTS.md` or a Skill are optional and belong to the
 
 ## Pull request format
 
-The title starts with `eval:` and names the outcome. A task PR contains the task definition and a validation summary. Link to run evidence in `next-evals-oss` when available, rather than committing transcripts or job directories here. Local pilot evidence remains separate and available to reviewers until transferred.
+The title starts with `eval:` and names the outcome. Include the task definition, a validation summary, and links to run evidence. Keep raw transcripts and job directories with the run results.
 
 The description shows the current state only, never the history of how the change got there, and keeps the same short shape as other Next.js pull requests:
 

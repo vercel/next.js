@@ -8,8 +8,8 @@ Tasks use the published [Harbor task format](https://docs.harborframework.com/ta
 
 ### How to read a task
 
-1. `README.md`: what the eval does, a table mapping each instruction sentence to its check, why the task is hard, and how each gate verifies it. Start here.
-2. `instruction.md`: the only thing the agent sees.
+1. `README.md`: what the eval measures, a table mapping each instruction sentence to its check, and how each gate verifies it. Start here.
+2. `instruction.md`: the request given to the agent alongside the starting app.
 3. `task.toml`: the `version`, the source findings under `[metadata]`, and the network and isolation settings.
 4. `environment/fixture/`: the working app the agent starts from. `environment/Dockerfile` installs it from the lockfile and commits a git baseline the patch is diffed against.
 5. `tests/test.sh`: the gates in order, starting with `check-source.mjs` for the stated constraints, then typecheck and build, the behavioral checks, and the server log.

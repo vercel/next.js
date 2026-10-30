@@ -1,6 +1,6 @@
 # Run Agent Build tasks
 
-Run Agent Build tasks with Harbor on Vercel Sandbox, and validate them locally without Docker. The commands use the temporary pilot scripts in `evals/agent-build/tools`, which can change or be replaced by the shared Vercel Bench / `vercel/evals` layer without redefining the tasks. [Create a task](./CREATE.md) explains when each command is used.
+Run Agent Build tasks with Harbor on Vercel Sandbox, and validate them locally without Docker. The commands use `evals/agent-build/tools`. Follow [Create a task](./CREATE.md) for the authoring and review workflow.
 
 ## Install Harbor
 
@@ -111,11 +111,11 @@ Every run keeps its transcript next to its result in the jobs directory. The age
 .harbor/bin/harbor view /path/to/jobs
 ```
 
-These local jobs are authoring evidence. Keep them outside the task source directory and available to reviewers. Shared runs will retain transcripts, patches, and verifier output with their results in `next-evals-oss`; task PRs can link to that evidence. The pilot's existing local jobs have not been transferred there. This separation does not make the public pilot tasks held out.
+Keep job directories outside the task source and make the evidence available to reviewers. Link the validation summary to the corresponding runs. See [Task authoring and runs](./README.md#task-authoring-and-runs) for the repository layout.
 
-Review failures and a sample of successes using the [human-review criteria](./CREATE.md#human-review). Inspect the collected patch and verifier output as well as the transcript. Before sharing run artifacts, check for credentials and private data under the execution repo's storage policy.
+Review failures and a sample of successes using the [human-review criteria](./CREATE.md#human-review). Inspect the patch and verifier output alongside the transcript. Check artifacts for credentials and private data before sharing them.
 
-Record the run and task/verifier versions with transcript step IDs for each finding. Use the current regrade when reporting the outcome, and retain the original transcript for the agent's actions. Check the harness log if the normalized trajectory is incomplete. An unavailable action is unknown, not evidence that the agent skipped it. Usage comes from recorded metrics; a judge should not estimate token counts or time. The pilot has no automated process score, so add review findings beside the generated report without changing its results.
+Record the run ID, task and verifier versions, and transcript step IDs for each finding. Report the current regrade and retain the original transcript. Check the harness log if the trajectory is incomplete, and mark missing evidence as unknown. Read usage from recorded metrics. Add review findings beside the generated report, keeping them separate from behavioral scores.
 
 ## Run optional context treatments
 
