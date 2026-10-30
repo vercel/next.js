@@ -6,6 +6,7 @@ import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
+import { retry } from 'next-test-utils'
 
 // Tag revalidations and cache entries must be dated with the same clock as
 // the expiry check, including entries read back from disk. Instrumentation
@@ -65,6 +66,31 @@ describe('file-system-cache-clock', () => {
 
     async function getData(pathname: string) {
       return (await request(pathname)).data
+    }
+
+    async function waitForFetchEntry(expectedData: string) {
+      // Dynamic responses can finish before their background fetch-cache write.
+      // Observe that write without issuing another request that could change its value.
+      return retry(async () => {
+        const fetchCacheDir = join(next.testDir, '.next/cache/fetch-cache')
+        const entries = await Promise.all(
+          (await fs.readdir(fetchCacheDir)).map(async (file) => {
+            const filePath = join(fetchCacheDir, file)
+            return { filePath, content: await fs.readFile(filePath, 'utf8') }
+          })
+        )
+        const matches = entries.filter(({ content }) => {
+          const data = JSON.parse(content).data
+          return (
+            data && Buffer.from(data.body, 'base64').toString() === expectedData
+          )
+        })
+        expect(matches).toHaveLength(1)
+        expect(JSON.parse(matches[0].content).lastModified).toEqual(
+          expect.any(Number)
+        )
+        return matches[0]
+      })
     }
 
     // The response cache entry of the ISR page, as written by the default
@@ -127,34 +153,24 @@ describe('file-system-cache-clock', () => {
     it('serves fresh data for a dynamic page right after revalidateTag', async () => {
       const cached = await getData('/dynamic')
       expect(cached).toStartWith('/dynamic ')
+      await waitForFetchEntry(cached)
       expect(await getData('/dynamic')).toBe(cached)
 
       await revalidate()
       const fresh = await getData('/dynamic')
       expect(fresh).toStartWith('/dynamic ')
       expect(fresh).not.toBe(cached)
+      await waitForFetchEntry(fresh)
     })
 
     it('reads a fetch cache entry written without a stored timestamp', async () => {
       const cached = await getData('/dynamic')
       expect(cached).toStartWith('/dynamic ')
+      const { filePath, content } = await waitForFetchEntry(cached)
       await next.stop()
 
       // Find the entry by its cached value, then rewrite it in the format
       // written before timestamps were stored, with an earlier mtime.
-      const fetchCacheDir = join(next.testDir, '.next/cache/fetch-cache')
-      const entries = await Promise.all(
-        (await fs.readdir(fetchCacheDir)).map(async (file) => {
-          const filePath = join(fetchCacheDir, file)
-          return { filePath, content: await fs.readFile(filePath, 'utf8') }
-        })
-      )
-      const matches = entries.filter(({ content }) => {
-        const data = JSON.parse(content).data
-        return data && Buffer.from(data.body, 'base64').toString() === cached
-      })
-      expect(matches).toHaveLength(1)
-      const [{ filePath, content }] = matches
       const { lastModified, ...entry } = JSON.parse(content)
       expect(typeof lastModified).toBe('number')
       await fs.writeFile(filePath, JSON.stringify(entry))
@@ -165,11 +181,14 @@ describe('file-system-cache-clock', () => {
 
       expect(await getData('/dynamic')).toBe(cached)
       await revalidate()
-      expect(await getData('/dynamic')).not.toBe(cached)
+      const fresh = await getData('/dynamic')
+      expect(fresh).not.toBe(cached)
       // The fresh value was written in the new format.
-      expect(
-        JSON.parse(await fs.readFile(filePath, 'utf8')).lastModified
-      ).toEqual(expect.any(Number))
+      await retry(async () => {
+        const stored = JSON.parse(await fs.readFile(filePath, 'utf8'))
+        expect(Buffer.from(stored.data.body, 'base64').toString()).toBe(fresh)
+        expect(stored.lastModified).toEqual(expect.any(Number))
+      })
     })
   })
 })
