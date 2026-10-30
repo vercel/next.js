@@ -617,7 +617,8 @@ describe('request insights', () => {
     })
   })
 
-  it('enables internal activity when filtering Instant Insights', async () => {
+  it('shows Instant Insights without persisting the internal activity setting', async () => {
+    await patchRequestInsightsConfig({ showInternal: false })
     const browser = await next.browser('/instant-insights')
     shouldResetRequestInsightsConfig = true
 
@@ -642,7 +643,7 @@ describe('request insights', () => {
       )
 
       expect(internalRowCount).toBeGreaterThan(0)
-      expect(config.requestInsights?.showInternal).toBe(true)
+      expect(config.requestInsights?.showInternal).toBe(false)
     })
 
     await browser.elementByCss('.request-insights-details').click()
@@ -659,8 +660,30 @@ describe('request insights', () => {
           ?.getAttribute('data-checked')
       })
 
-      expect(checked).toBe('true')
+      expect(checked).toBeNull()
     })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="activity:instant-insights"]'
+      )
+      .click()
+
+    await retry(async () => {
+      const internalRowCount = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return root?.querySelectorAll(
+          '.request-insights-row[data-internal="true"]'
+        ).length
+      })
+      expect(internalRowCount).toBe(0)
+    })
+    const config = JSON.parse(
+      await next.readFile('build/dev/cache/next-devtools-config.json')
+    )
+    expect(config.requestInsights?.showInternal).toBe(false)
   })
 
   it('filters typed request rows and pauses live updates', async () => {
