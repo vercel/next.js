@@ -4399,7 +4399,7 @@ pub mod tests {
             {
                 let chunk_groups = async |availability: AvailabilityInfo| -> Result<Bitset> {
                     Ok(match availability.available_chunk_groups() {
-                        Some(available) => available.await?.chunk_groups(module_graph).clone(),
+                        Some(available) => available.await?.chunk_groups(module_graph)?.clone(),
                         None => Bitset::new(),
                     })
                 };
@@ -4414,11 +4414,11 @@ pub mod tests {
                 }
             }
             let available = match result.available_chunk_groups() {
-                Some(available) => describe(available.await?.chunk_groups(module_graph)),
+                Some(available) => describe(available.await?.chunk_groups(module_graph)?),
                 None => vec![],
             };
             narrowed_input.push(match availability.available_chunk_groups() {
-                Some(available) => describe(available.await?.chunk_groups(module_graph)),
+                Some(available) => describe(available.await?.chunk_groups(module_graph)?),
                 None => vec![],
             });
             narrowed.push((availability, result, available));
