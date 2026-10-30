@@ -6,8 +6,25 @@ Compare the effort and app quality produced with and without
 The task asks agents to build search, filters, pagination, and linked detail
 pages from a specification and pinned local API data.
 
-Keep the upstream source and data in a separate checkout. This study adds a
-report exporter, not a fixture for `pnpm eval` or the published leaderboard.
+The task uses the existing `@vercel/agent-eval` runner on Vercel Sandbox.
+The source archive is pinned and checked before preparing each workspace.
+The large upstream specification, data, and tests stay outside this repository.
+This comparison is separate from `pnpm eval` and the published leaderboard.
+
+## Task files
+
+- `task/PROMPT.md`: the request sent to the agent.
+- `task/app/`: the starting package and config, with Cache Components and
+  Partial Prefetching enabled.
+- `task/AGENTS.md`: the bundled-docs pointer shared by both conditions.
+- `task.json`: upstream revision, archive checksum, model, and tool versions.
+- `run.mjs`: prepares the task and runs one coding attempt.
+- `verify.mjs`: checks the saved app against the original tests, then measures it.
+- `report.mjs`: exports success, effort, and page measurements.
+
+The agent receives the pinned upstream `template/` with `task/` overlaid on it.
+This includes `SPEC.md`, design references, a local API, and acceptance tests.
+The upstream reference app and performance collector stay outside its workspace.
 
 ## Compare the two conditions
 
@@ -17,36 +34,68 @@ treatment installs Next Dev Loop and asks the agent to use it. The baseline
 chooses whether to use the browser. This measures explicit use of the Skill,
 not whether an agent discovers it.
 
-The recorded comparison uses GPT-6 Luna with high reasoning effort, Next.js
-16.4.2, React 19.2.0, Codex 0.166.0, and agent-browser 0.31.1. Each condition has
-one attempt with a 30-minute coding limit, using `@vercel/agent-eval` on Vercel
-Sandbox. The shared prompt is:
+The comparison uses GPT-6 Luna with high reasoning effort, Next.js 16.4.2,
+React 19.2.0, Codex 0.166.0, and agent-browser 0.31.1. Each condition has one
+attempt with a 30-minute coding limit. The prompt asks the agent to keep Cache
+Components and Partial Prefetching enabled and work until `npm test` passes.
 
-> Implement the app described in SPEC.md using Next.js 16.4.2. Work autonomously
-> until npm test passes. Keep the pinned Next.js version. All rendering, data
-> fetching, routing and styling choices are yours within the specification.
-> Start the local API with npm run api and the development server with npm
-> --prefix app run dev at http://localhost:3100. Browser tools are installed.
-> If the next-dev-loop Skill is installed, use it for this task. Otherwise use
-> your usual workflow. Do not install additional Skills.
+The first recorded pair omitted Cache Components. Keep those results separate
+from runs of the current task.
 
-Prepare each agent workspace from upstream `template/`, without its Git
-history, reference app, or performance collector. Download the pinned API data
-and install dependencies before timing the agent. Use a spend-limited model
-key. Keep infrastructure failures separate from scored attempts.
+## Run the comparison
+
+Install the repository dependencies with `pnpm install`. Supply a short-lived
+`VERCEL_OIDC_TOKEN` for Sandbox and a spend-limited `AI_GATEWAY_API_KEY` in a
+local environment file outside the repository. The key is used only by the
+coding agent. The independent verifier receives no model credentials.
+
+Run one attempt per condition, using a new output directory each time:
+
+```bash
+node --env-file=/path/to/evals.env --import=tsx \
+  evals/studies/next-dev-loop-ux/run.mjs baseline \
+  evals/results/pokedex-dev-loop-cc/baseline
+
+node --env-file=/path/to/evals.env --import=tsx \
+  evals/studies/next-dev-loop-ux/run.mjs skills \
+  evals/results/pokedex-dev-loop-cc/skills
+```
+
+Each command downloads the pinned source, installs dependencies and API data,
+then starts timing the agent. It saves the prompt, task settings, harness,
+transcript, and generated app. The runner refuses to overwrite an attempt.
+Keep infrastructure failures separate from scored attempts.
 
 ## Verify the saved apps
 
-Copy only each generated `app/` into a fresh Sandbox containing the original
-template, data, and tests. Run the upstream `npm test`: all 54 Playwright checks
-must pass. Changes the agent made to tests or data must not replace the
-independent checks. Validate the upstream reference app with the same tests.
+Run verification separately, so a collection failure can be retried without
+another paid model attempt:
+
+```bash
+node --env-file=/path/to/evals.env --import=tsx \
+  evals/studies/next-dev-loop-ux/verify.mjs \
+  evals/results/pokedex-dev-loop-cc/baseline
+
+node --env-file=/path/to/evals.env --import=tsx \
+  evals/studies/next-dev-loop-ux/verify.mjs \
+  evals/results/pokedex-dev-loop-cc/skills
+```
+
+The verifier copies only the generated `app/` into a fresh Sandbox with the
+original template, data, and tests. It checks the installed Next.js version and
+resolved config, then runs the upstream `npm test`: all 54 Playwright checks
+must pass, with none skipped. Disabling Cache Components or Partial Prefetching
+fails the task. Agent changes to tests and data do not replace these checks.
+The upstream reference app was validated against the same 54 tests.
+
+After successful acceptance checks, use `--metrics-only` to retry performance
+collection without repeating acceptance tests.
 
 Use upstream `bench/measure.mjs` to measure each production app, with three
 mobile Lighthouse samples per URL across its six pages. Keep HTTPS,
 compression, and warmed server caches consistent. In Sandbox, use `localhost`
 on separate ports for the app and API because `/etc/hosts` is read-only. The
-recorded runs use Lighthouse 13.5.0, Playwright 1.64.1, Caddy 2.11.7, and
+runs use Lighthouse 13.5.0, Playwright 1.64.1, Caddy 2.11.7, and
 2-vCPU / 4-GB Sandboxes. No deployment is needed.
 
 | Measurement     | What to report                                                              | Preferred direction           |
@@ -70,7 +119,7 @@ effect or reproduce the article's cross-framework rankings.
 
 ## Export the report
 
-Save each attempt in its own directory under `evals/results/pokedex-dev-loop/`:
+Each attempt directory contains:
 
 - `result.json`: model, status, `agentSeconds`, and full runner `duration` in seconds.
 - `transcript-raw.jsonl`: the Codex transcript and token usage.
@@ -84,7 +133,7 @@ outside the task definitions.
 
 ```bash
 node evals/studies/next-dev-loop-ux/report.mjs \
-  evals/results/pokedex-dev-loop pricing.json
+  evals/results/pokedex-dev-loop-cc pricing.json
 ```
 
 The optional pricing file contains the selected model's `pricing` object from

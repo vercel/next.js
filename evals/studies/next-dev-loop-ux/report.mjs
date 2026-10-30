@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
-const root = resolve(process.argv[2] || 'evals/results/pokedex-dev-loop')
+const root = resolve(process.argv[2] || 'evals/results/pokedex-dev-loop-cc')
 const pricingFile = process.argv[3]
 const pricing = pricingFile
   ? JSON.parse(readFileSync(pricingFile, 'utf8')).pricing
@@ -10,7 +10,11 @@ const pricing = pricingFile
 function findRuns(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name)
-    if (entry.isDirectory() && entry.name !== 'project') return findRuns(path)
+    if (
+      entry.isDirectory() &&
+      !['project', 'workspace', 'harness'].includes(entry.name)
+    )
+      return findRuns(path)
     return entry.isFile() && entry.name === 'result.json' ? [path] : []
   })
 }
