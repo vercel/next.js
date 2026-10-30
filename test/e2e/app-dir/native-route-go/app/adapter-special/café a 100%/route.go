@@ -5,9 +5,7 @@ import (
 	"net/http"
 )
 
-var Methods = []string{"GET"}
-
-func Handle(w http.ResponseWriter, r *http.Request) {
+func GET(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{
 		"path": r.URL.EscapedPath(), "requestURI": r.RequestURI,
 		"query":         r.URL.RawQuery,

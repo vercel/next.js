@@ -12,9 +12,13 @@ import (
 
 //go:embed assets/*
 var assets embed.FS
-var Methods = []string{"GET", "POST"}
 
-func Handle(w http.ResponseWriter, r *http.Request) {
+func GET(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Handled-By", "GET")
+	serveNative(w, r)
+}
+
+func serveNative(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("crash") == "1" {
 		os.Exit(2)
 	}

@@ -5,8 +5,6 @@ import (
 	"net/http"
 )
 
-var Methods = []string{"GET"}
-
-func Handle(w http.ResponseWriter, r *http.Request) {
+func GET(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ParamValues(r, "slug"))
 }
