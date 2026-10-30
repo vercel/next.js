@@ -1,0 +1,5 @@
+{
+  "name": "bundled-instrumentation",
+  "version": "1.0.0",
+  "main": "init.js"
+}

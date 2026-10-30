@@ -1,7 +1,10 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
-function fixture(config: 'inject' | 'page-ext' | 'omitted', extra = {}) {
+function fixture(
+  config: 'inject' | 'page-ext' | 'omitted' | 'externals',
+  extra = {}
+) {
   return {
     app: new FileRef(join(__dirname, 'app')),
     'middleware.ts': new FileRef(join(__dirname, 'middleware.ts')),
@@ -16,6 +19,33 @@ function fixture(config: 'inject' | 'page-ext' | 'omitted', extra = {}) {
 }
 
 describe('inject-instrumentation', () => {
+  describe('injected package resolution', () => {
+    const { next } = nextTestSetup({
+      files: fixture('externals', {
+        packages: new FileRef(join(__dirname, 'fixtures', 'packages')),
+        'app/instrumentation-externals/route.ts': new FileRef(
+          join(__dirname, 'fixtures', 'externals', 'route.ts')
+        ),
+      }),
+      dependencies: {
+        'external-instrumentation': 'file:./packages/external-instrumentation',
+        'bundled-instrumentation': 'file:./packages/bundled-instrumentation',
+      },
+    })
+
+    it('keeps opted-out packages external and resolves other entries from the project', async () => {
+      const result = await next
+        .fetch('/instrumentation-externals')
+        .then((res) => res.json())
+
+      expect(result.packages).toEqual([
+        { name: 'external-instrumentation', external: true },
+        { name: 'bundled-instrumentation' },
+      ])
+      expect(result.injected).toEqual(['first', 'second'])
+    })
+  })
+
   describe('injectInstrumentation without a project file', () => {
     const { next, isNextStart } = nextTestSetup({
       files: fixture('inject'),
