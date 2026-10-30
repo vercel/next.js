@@ -1069,7 +1069,11 @@ impl EvaluateContext for WebpackLoaderContext {
                 resolved_path,
             } => {
                 let (paths, parsed_request) = if Path::new(&*request).has_root() {
-                    let path = loader_path(&self.cwd, &request).await?;
+                    let Some(path) = build_dependency_path(&self.cwd, &request).await? else {
+                        return Ok(ResponseMessage::Resolve {
+                            path: resolved_path,
+                        });
+                    };
                     let parent = path.parent();
                     let relative = parent.get_relative_request_to(&path).unwrap();
                     (
