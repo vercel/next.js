@@ -106,7 +106,11 @@ function exportSpans(
   }
 
   for (const span of spans) {
-    localSpanSink?.(span)
+    try {
+      localSpanSink?.(span)
+    } catch {
+      // A scoped collector must not interrupt application work or later spans.
+    }
     spanRecorderForTest?.(span)
   }
 
