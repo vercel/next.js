@@ -53,7 +53,15 @@ describe('app-dir edge SSR', () => {
       })
       const html = await next.render('/with-client')
       expect(html).toContain('My Button')
-      expect(logs).toEqual([])
+      // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
+      expect(
+        logs
+          .join('')
+          .replace(
+            /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,
+            ''
+          )
+      ).toBe('')
     })
 
     it('should handle edge rsc hmr', async () => {

@@ -166,7 +166,14 @@ describe('Cache Components Errors', () => {
 })
 
 function stripGetLines(input: string): string {
-  return input
-    .replace(/^\s*GET.*(?:\r?\n|$)/gm, '')
-    .replace(/^\s*[○✓].*(?:\r?\n|$)/gm, '')
+  return (
+    input
+      // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
+      .replace(
+        /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,
+        ''
+      )
+      .replace(/^\s*GET.*(?:\r?\n|$)/gm, '')
+      .replace(/^\s*[○✓].*(?:\r?\n|$)/gm, '')
+  )
 }

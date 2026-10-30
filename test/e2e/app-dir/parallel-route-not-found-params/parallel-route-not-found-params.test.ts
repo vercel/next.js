@@ -1,26 +1,26 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 describe('parallel-route-not-found', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
+  function expectNoErrors() {
+    // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
+    const output = next.cliOutput.replace(
+      /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,
+      ''
+    )
+    expect(output).not.toMatch(/TypeError|Warning/)
+  }
+
   it('should behave correctly without any errors', async () => {
     const browser = await next.browser('/en')
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
-
-        return 'success'
-      }, 'success')
+      await retry(expectNoErrors)
     }
 
     expect(await browser.elementByCss('body').text()).not.toContain(
@@ -32,16 +32,7 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
-
-        return 'success'
-      }, 'success')
+      await retry(expectNoErrors)
     }
 
     await check(() => browser.elementByCss('body').text(), /Interception Modal/)
@@ -57,16 +48,7 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
-
-        return 'success'
-      }, 'success')
+      await retry(expectNoErrors)
     }
 
     expect(await browser.elementByCss('body').text()).toContain(
