@@ -137,6 +137,9 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/valid-client-data-does-not-block-validation" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/static/valid-dynamically-imported-client-component" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-blocks-children" />
         </li>
         <li>
