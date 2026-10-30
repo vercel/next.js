@@ -111,7 +111,9 @@ Every run keeps its transcript next to its result in the jobs directory. The age
 .harbor/bin/harbor view /path/to/jobs
 ```
 
-Transcripts stay local for now. They are not uploaded to Harbor Hub or linked from the pull request, because they show how each task is solved and the harder set may be held out. Read the transcript behind every failure before trusting it, and share specific ones directly when a reviewer needs them. Revisit this when the publishing decision for the harder set is made.
+Transcripts stay local for now. They are not uploaded to Harbor Hub or linked from the pull request, because they show how each task is solved and the harder set may be held out. Review failures and a sample of successes using the [human-review criteria](./CREATE.md#human-review). Inspect the collected patch and verifier output as well as the transcript, and share specific evidence directly when a reviewer needs it. Revisit this when the publishing decision for the harder set is made.
+
+Record the run and task/verifier versions with transcript step IDs for each finding. Use the current regrade when reporting the outcome, and retain the original transcript for the agent's actions. Check the harness log if the normalized trajectory is incomplete. An unavailable action is unknown, not evidence that the agent skipped it. Usage comes from recorded metrics; a judge should not estimate token counts or time. The pilot has no automated process score, so add review findings beside the generated report without changing its results.
 
 ## Run optional context treatments
 

@@ -2,7 +2,7 @@
 
 Tasks use the published [Harbor task format](https://docs.harborframework.com/tasks/overview), and its references for the [instruction](https://docs.harborframework.com/tasks/instruction), [configuration](https://docs.harborframework.com/tasks/configuration), [environment](https://docs.harborframework.com/tasks/environment), [solution](https://docs.harborframework.com/tasks/solution), and [verifier](https://docs.harborframework.com/tasks/verifier) are the source of truth. This file covers only what our tasks add on top of them.
 
-Terminal-Bench, Harbor's own benchmark, sets the bar these steps follow in its [task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) and [contribution guide](https://github.com/harbor-framework/terminal-bench/blob/main/CONTRIBUTING.md). Read both before writing a task. The steps below add only what is specific to Next.js.
+[Terminal-Bench's task rubric](https://github.com/harbor-framework/terminal-bench/blob/main/docs/prompts/task-proposal.md) is a useful reference for clear instructions and reliable outcome checks. Its difficulty and judge requirements serve that benchmark. Next.js task selection follows the [purpose and review guidance](./CREATE.md); Harbor supports both programmatic checks and model judges.
 
 ## Task layout
 
@@ -34,18 +34,18 @@ Bump the `version` in `task.toml` whenever the instruction, fixture, or verifier
 
 ## How Harbor tasks map to agent-eval fixtures
 
-The existing `agent-eval` fixtures and the Harbor tasks answer the same question with different plumbing. Use this table to translate between them. The `agent-eval` column is documented in [`evals/README.md`](../README.md).
+Both formats can test correctness and guidance, but each task must state what it measures. Use this table to translate between them. The `agent-eval` column is documented in [`evals/README.md`](../README.md).
 
-| Concern            | `agent-eval` fixture (`evals/evals/*`)           | Harbor task (`evals/agent-build/*`)                                              |
-| ------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------- |
-| Prompt             | `PROMPT.md`                                      | `instruction.md`                                                                 |
-| Starting app       | Fixture root                                     | `environment/fixture/`, built by `environment/Dockerfile` with a git baseline    |
-| Checks             | `EVAL.ts`, Vitest in the agent's sandbox         | `tests/test.sh` plus Node and Playwright checks in a separate verifier container |
-| Semantic criteria  | `toSatisfyCriterion` with a pinned judge model   | None yet; [Create a task](./CREATE.md#5-grade-behavior) covers when a judge fits |
-| Settings           | `eval.config.json`, `eval.suites.json`           | `task.toml`                                                                      |
-| Reference solution | None                                             | `solution/solve.sh` copying `solution/files/`                                    |
-| Known-bad repairs  | None                                             | `tests/bad-solutions/`                                                           |
-| Runner             | `run-evals.js` over `@vercel/agent-eval`         | Pilot: `harbor run` on Vercel Sandbox; `tools/calibrate.sh` for cohorts          |
-| Context treatment  | `baseline` and `agents-md` variants, always both | Optional, defined by the runner, off by default                                  |
-| Local validation   | `pnpm eval <name> --dry`                         | `tools/run-local.sh`                                                             |
-| Publication        | `next-evals-oss` and nextjs.org/evals            | Not published; a separate decision after calibration                             |
+| Concern            | `agent-eval` fixture (`evals/evals/*`)           | Harbor task (`evals/agent-build/*`)                                                                                  |
+| ------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Prompt             | `PROMPT.md`                                      | `instruction.md`                                                                                                     |
+| Starting app       | Fixture root                                     | `environment/fixture/`, built by `environment/Dockerfile` with a git baseline                                        |
+| Checks             | `EVAL.ts`, Vitest in the agent's sandbox         | `tests/test.sh` plus Node and Playwright checks in a separate verifier container                                     |
+| Semantic criteria  | `toSatisfyCriterion` with a pinned judge model   | None in the pilot; [Create a task](./CREATE.md#5-choose-checks-for-the-question) covers output and transcript judges |
+| Settings           | `eval.config.json`, `eval.suites.json`           | `task.toml`                                                                                                          |
+| Reference solution | None                                             | `solution/solve.sh` copying `solution/files/`                                                                        |
+| Known-bad repairs  | None                                             | `tests/bad-solutions/`                                                                                               |
+| Runner             | `run-evals.js` over `@vercel/agent-eval`         | Pilot: `harbor run` on Vercel Sandbox; `tools/calibrate.sh` for cohorts                                              |
+| Context treatment  | `baseline` and `agents-md` variants, always both | Optional, defined by the runner, off by default                                                                      |
+| Local validation   | `pnpm eval <name> --dry`                         | `tools/run-local.sh`                                                                                                 |
+| Publication        | `next-evals-oss` and nextjs.org/evals            | Not published; a separate decision after calibration                                                                 |
