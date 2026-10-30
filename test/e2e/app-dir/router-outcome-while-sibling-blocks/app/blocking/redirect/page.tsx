@@ -3,5 +3,5 @@ import { redirect } from 'next/navigation'
 
 export default async function Page() {
   await connection()
-  redirect('/destination')
+  return redirect('/destination')
 }
