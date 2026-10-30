@@ -48,8 +48,11 @@ pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     /// For each async module, the chunk groups that contain its async loader.
     pub async_loader_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub chunk_groups: FxIndexSet<ChunkGroup>,
+    /// Indexed by chunk group index. This must be a `Vec` (not an `IndexSet`) so that equality is
+    /// order-sensitive: `IndexSet` compares as a set, so a recomputation that only renumbers the
+    /// chunk groups would compare equal and keep the old order, while the bitsets in
+    /// `module_chunk_groups` and the indices in `chunk_group_indices` use the new numbering.
+    pub chunk_groups: Vec<ChunkGroup>,
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
