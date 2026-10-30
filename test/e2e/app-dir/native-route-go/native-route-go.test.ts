@@ -8,6 +8,48 @@ import { spawn } from 'child_process'
 import { createHash } from 'crypto'
 import type { AdapterOutput, NextAdapter } from 'next'
 
+async function expectAutomaticMethods(
+  fetchMethod: (method: string) => ReturnType<typeof fetchViaHTTP>
+) {
+  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+    const response = await fetchMethod(method)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-handled-by')).toBe(method)
+    expect(await response.text()).toBe(method)
+  }
+  const head = await fetchMethod('HEAD')
+  expect(head.status).toBe(200)
+  expect(head.headers.get('x-handled-by')).toBe('GET')
+  expect(await head.text()).toBe('')
+  const options = await fetchMethod('OPTIONS')
+  expect(options.status).toBe(204)
+  expect(options.headers.get('allow')).toBe(
+    'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'
+  )
+  expect(await options.text()).toBe('')
+}
+
+async function expectExplicitMethods(
+  fetchMethod: (method: string) => ReturnType<typeof fetchViaHTTP>
+) {
+  const get = await fetchMethod('GET')
+  expect(get.status).toBe(200)
+  expect(get.headers.get('x-handled-by')).toBe('GET')
+  expect(await get.text()).toBe('GET')
+  const head = await fetchMethod('HEAD')
+  expect(head.status).toBe(202)
+  expect(head.headers.get('x-handled-by')).toBe('HEAD')
+  expect(await head.text()).toBe('')
+  const options = await fetchMethod('OPTIONS')
+  expect(options.status).toBe(202)
+  expect(options.headers.get('x-handled-by')).toBe('OPTIONS')
+  expect(options.headers.get('allow')).toBe('OPTIONS')
+  expect(await options.text()).toBe('explicit OPTIONS')
+  const missing = await fetchMethod('POST')
+  expect(missing.status).toBe(405)
+  expect(await missing.text()).toBe('')
+}
+
 // @force-gate turbopack
 describe('native-route-go', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
@@ -16,6 +58,8 @@ describe('native-route-go', () => {
     // fixture exercises local native processes and adapter build artifacts.
     skipDeployment: true,
     env: {
+      // Node's route-table watcher also needs polling in this fixture.
+      WATCHPACK_POLLING: '50',
       TURBO_ENGINE_IGNORE_DIRTY: '1',
       TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
       TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
@@ -45,6 +89,7 @@ describe('native-route-go', () => {
       body: 'request body',
     })
     expect(response.status).toBe(201)
+    expect(response.headers.get('x-handled-by')).toBe('POST')
     expect(response.headers.get('x-native-route')).toBe('yes')
     expect(response.headers.get('set-cookie')).toContain('first=1')
     expect(response.headers.get('set-cookie')).toContain('second=2')
@@ -58,15 +103,28 @@ describe('native-route-go', () => {
       embedded: 'embedded-v1',
       proxy: '1',
     })
+    const get = await next.fetch('/native/get')
+    expect(get.status).toBe(201)
+    expect(get.headers.get('x-handled-by')).toBe('GET')
+    expect((await get.json()).method).toBe('GET')
     const head = await next.fetch('/native/head', { method: 'HEAD' })
     expect(head.status).toBe(201)
+    expect(head.headers.get('x-handled-by')).toBe('GET')
     expect(await head.text()).toBe('')
     const options = await next.fetch('/native/options', { method: 'OPTIONS' })
     expect(options.status).toBe(204)
-    expect(options.headers.get('allow')).toBe('GET, HEAD, POST, OPTIONS')
+    expect(options.headers.get('allow')).toBe('GET, HEAD, OPTIONS, POST')
     expect(
       (await next.fetch('/native/method', { method: 'DELETE' })).status
     ).toBe(405)
+  })
+  it('dispatches every declared method and automatically implements HEAD and sorted OPTIONS', async () => {
+    await expectAutomaticMethods((method) => next.fetch('/methods', { method }))
+  })
+  it('prefers explicit HEAD and OPTIONS handlers and rejects missing methods', async () => {
+    await expectExplicitMethods((method) =>
+      next.fetch('/explicit-methods', { method })
+    )
   })
   it('uses Node routing, rewrites and proxy exactly once and coexists with JS and Pages', async () => {
     expect(await data('/rewritten/rewritten')).toMatchObject({
@@ -137,6 +195,37 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it('rebuilds the dispatch table and Allow header when method declarations change', async () => {
+      const path = 'app/methods/route.go'
+      const source = await next.readFile(path)
+      try {
+        await next.patchFile(
+          path,
+          source.replace('func DELETE(', 'func deleted(')
+        )
+        await retry(async () => {
+          expect(
+            (await next.fetch('/methods', { method: 'DELETE' })).status
+          ).toBe(405)
+          const options = await next.fetch('/methods', { method: 'OPTIONS' })
+          expect(options.status).toBe(204)
+          expect(options.headers.get('allow')).toBe(
+            'GET, HEAD, OPTIONS, PATCH, POST, PUT'
+          )
+        })
+      } finally {
+        await next.patchFile(path, source)
+      }
+      await retry(async () => {
+        const response = await next.fetch('/methods', { method: 'DELETE' })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('DELETE')
+        const options = await next.fetch('/methods', { method: 'OPTIONS' })
+        expect(options.headers.get('allow')).toBe(
+          'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'
+        )
+      })
+    })
     it('rebuilds route, siblings, transitive imports and embeds, and repairs compiler errors', async () => {
       const initial = await data()
       await next.patchFile(helper, (s) => s.replace('sibling-v1', 'sibling-v2'))
@@ -150,7 +239,7 @@ describe('native-route-go', () => {
       })
       await fs.writeFile(
         join(next.testDir, helper),
-        'package main\nfunc sibling() string { return "sibling-immediate" }\n'
+        (await next.readFile(helper)).replace('sibling-v2', 'sibling-immediate')
       )
       // No watcher-settling delay: the first request must ensure current inputs.
       expect((await data()).sibling).toBe('sibling-immediate')
@@ -175,7 +264,7 @@ describe('native-route-go', () => {
       const original = await next.readFile(route)
       await next.patchFile(
         route,
-        original.replace('func Handle', 'invalid syntax\nfunc Handle')
+        original.replace('func GET', 'invalid syntax\nfunc GET')
       )
       await retry(async () => {
         expect((await next.fetch('/native/error')).status).toBe(500)
@@ -189,7 +278,7 @@ describe('native-route-go', () => {
     it('repairs a first compilation failure and survives a persistent cache restart', async () => {
       const path = 'app/first-error/route.go'
       const source =
-        'package main\nimport "net/http"\nvar Methods = []string{"GET"}\nfunc Handle(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
       const outputStart = next.cliOutput.length
       await next.patchFile(path, source + '\ninvalid syntax\n')
       // A newly added route enters the polling route table asynchronously.
@@ -246,7 +335,7 @@ describe('native-route-go', () => {
     it('caches startup errors and repairs them after an edit', async () => {
       const path = 'app/startup/route.go'
       const source =
-        'package main\nimport "net/http"\nvar Methods = []string{"GET"}\nfunc init() { panic("startup-fixture-error") }\nfunc Handle(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
+        'package main\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
       await next.patchFile(path, source)
       expect((await next.fetch('/startup')).status).toBe(500)
       const failures = () =>
@@ -352,6 +441,8 @@ describe('native-route-go', () => {
         '/adapter-base/adapter-special/café a 100%',
         '/adapter-base/adapter-static',
         '/adapter-base/catch/[...slug]',
+        '/adapter-base/explicit-methods',
+        '/adapter-base/methods',
         '/adapter-base/native/[id]',
       ])
       for (const output of goOutputs) {
@@ -496,6 +587,7 @@ describe('native-route-go', () => {
           }
         )
         expect(response.status).toBe(201)
+        expect(response.headers.get('x-handled-by')).toBe('POST')
         expect(await response.json()).toMatchObject({
           id: 'a b',
           method: 'POST',
@@ -515,7 +607,7 @@ describe('native-route-go', () => {
           { method: 'OPTIONS' }
         )
         expect(options.status).toBe(204)
-        expect(options.headers.get('allow')).toBe('GET, HEAD, POST, OPTIONS')
+        expect(options.headers.get('allow')).toBe('GET, HEAD, OPTIONS, POST')
         expect(
           (
             await fetchViaHTTP(
@@ -571,6 +663,36 @@ describe('native-route-go', () => {
           query: 'nxtPid=caller',
         })
       })
+      await withStandaloneRoute(
+        goOutputs.find(
+          (output) => output.pathname === '/adapter-base/methods'
+        )!,
+        async (port) => {
+          await expectAutomaticMethods((method) =>
+            fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              '/adapter-base/methods',
+              undefined,
+              { method }
+            )
+          )
+        }
+      )
+      await withStandaloneRoute(
+        goOutputs.find(
+          (output) => output.pathname === '/adapter-base/explicit-methods'
+        )!,
+        async (port) => {
+          await expectExplicitMethods((method) =>
+            fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              '/adapter-base/explicit-methods',
+              undefined,
+              { method }
+            )
+          )
+        }
+      )
       await withStandaloneRoute(
         goOutputs.find(
           (output) => output.pathname === '/adapter-base/catch/[...slug]'
@@ -826,7 +948,7 @@ describe('native-route-go', () => {
       const providerNodeOutput = providerContext.outputs.appRoutes.find(
         (output) => output.pathname === '/adapter-base/js'
       )!
-      expect(providerGoOutputs).toHaveLength(5)
+      expect(providerGoOutputs).toHaveLength(7)
       for (const output of providerGoOutputs) {
         expect(Object.keys(output).sort()).toEqual(
           Object.keys(providerNodeOutput).sort()
@@ -907,6 +1029,31 @@ describe('native route diagnostics', () => {
     expect(result.exitCode).not.toBe(0)
     expect(result.stdout + result.stderr).toContain(
       'route.go requires Turbopack'
+    )
+  })
+  it('rejects a named handler with an incompatible net/http signature', async () => {
+    const path = 'app/methods/route.go'
+    const source = await next.readFile(path)
+    await next.patchFile(
+      path,
+      source.replace(
+        'func GET(w http.ResponseWriter, r *http.Request)',
+        'func GET(w http.ResponseWriter)'
+      ),
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: {
+            IS_WEBPACK_TEST: '',
+            IS_TURBOPACK_TEST: '1',
+            NEXT_RSPACK: '',
+            NEXT_TEST_USE_RSPACK: '',
+          },
+        })
+        expect(result.exitCode).not.toBe(0)
+        const output = result.stdout + result.stderr
+        expect(output).toContain('cannot use GET')
+        expect(output).toContain('http.HandlerFunc')
+      }
     )
   })
   it('diagnoses conflicting Go and TS handlers', async () => {

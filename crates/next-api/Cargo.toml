@@ -34,6 +34,7 @@ serde_json = { workspace = true }
 smallvec = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -57,7 +58,6 @@ urlencoding = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
-tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]

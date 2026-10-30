@@ -5,7 +5,7 @@ description: Build experimental Go API endpoints with native App Router Route Ha
 
 `route.go` defines a native Go Route Handler (API endpoint) in the App Router. Development and self-hosted deployments serve it through the existing Next.js Node.js server. Deployment adapters can package its compiled HTTP server directly.
 
-```go filename="app/users/[id]/route.go" highlight={9}
+```go filename="app/users/[id]/route.go" highlight={8}
 package main
 
 import (
@@ -13,8 +13,7 @@ import (
   "net/http"
 )
 
-var Methods = []string{"GET"}
-func Handle(w http.ResponseWriter, r *http.Request) {
+func GET(w http.ResponseWriter, r *http.Request) {
   fmt.Fprintf(w, "User %s", r.PathValue("id"))
 }
 ```
@@ -43,7 +42,9 @@ Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path
 
 ### Handler convention
 
-Each route directory is an executable `package main`. Define `Methods` as a slice of supported HTTP method names and `Handle` with the signature shown above. Next.js generates the `main` function. Do not define one yourself or create `zz_next_route_main.go`, which is reserved for the generated wrapper.
+Each route directory is an executable `package main`. Define top-level functions named `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, or `OPTIONS`. Each function must accept `http.ResponseWriter` and `*http.Request`, in that order, and return no value, as shown above. Next.js discovers the method functions, and the Go compiler validates their signatures when compiling the route.
+
+The function names determine which HTTP methods the route supports. Method functions can be declared in `route.go` or any compiled sibling `.go` file. Next.js generates method dispatch and the `main` function. Do not define `main` yourself or create `zz_next_route_*.go` files, which are reserved for generated code. Ordinary unexported helper functions can share behavior between method functions.
 
 All sibling `.go` files except `_test.go` are compiled together with `route.go`. Their package must also be `main`. These are explicit filename inputs: platform filename suffixes and build constraints do not select sibling files. Put platform-dependent implementations in imported packages, where Go applies its normal selection rules. Shared packages can use ordinary module imports, including `internal` packages. Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper; use Next.js to run the route integration. Brackets and parentheses in route directory names do not need Go import paths.
 
@@ -51,14 +52,16 @@ Native routes support `app` and `src/app`, [route groups](/docs/app/api-referenc
 
 ### HTTP methods
 
-`Handle` receives the actual request method. Use a switch on `r.Method` to implement different behavior.
+Each method function handles the corresponding HTTP request, following the same method conventions as [`route.ts`](/docs/app/api-reference/file-conventions/route#http-methods).
 
-| Method                         | Behavior                                                                                              |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Methods in `Methods`           | Invoke `Handle`.                                                                                      |
-| `HEAD` when `GET` is supported | Invoke `Handle` with `r.Method == "HEAD"`. The HTTP server suppresses response body bytes.            |
-| `OPTIONS`                      | Automatically return `204` and an `Allow` header. Custom OPTIONS handling is not supported initially. |
-| Unsupported methods            | Return `405`.                                                                                         |
+| Method                                    | Behavior                                                                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A method with a matching function         | Invoke that function.                                                                                                                                   |
+| `HEAD` without a `HEAD` function          | Invoke `GET` if it is defined, with `r.Method == "HEAD"`. The HTTP server suppresses response body bytes. Otherwise, return `405`.                      |
+| `OPTIONS` without an `OPTIONS` function   | Return `204` with an alphabetically sorted `Allow` header listing supported methods, including `OPTIONS` and the `HEAD` fallback when `GET` is defined. |
+| Other methods without a matching function | Return `405`.                                                                                                                                           |
+
+For example, a route that defines `GET` and `POST` automatically responds to `OPTIONS` with `Allow: GET, HEAD, OPTIONS, POST`. Define `HEAD` or `OPTIONS` to override their automatic implementations.
 
 ### Parameters and HTTP data
 
@@ -88,6 +91,34 @@ The deployment platform owns routing to each function, including rewrites and pr
 Turbopack tracks direct sources, sibling files, local imported packages, module metadata, and embedded assets. Edits rebuild through the Go compiler graph. Requests ensure current compilation before invoking a native process. Compiler failures produce errors instead of serving the previous successful executable; repairing the source allows later requests to recover.
 
 A compiled executable runs as a supervised process with pooled private loopback HTTP connections. Unchanged requests reuse it. A successful rebuild starts a replacement when the route is next invoked. Previously admitted requests can complete on the old process, with a 21-second retirement limit. Route removal and server shutdown retire workers. A child crash fails its active request; later requests restart the emitted executable. A startup failure remains failed for that executable generation until its source changes or the Next.js server restarts. A handler panic aborts its HTTP connection, resulting in an error response if response headers have not already been sent.
+
+## Examples
+
+### Sharing response logic
+
+Method functions can call the same helper while setting different response statuses:
+
+```go filename="app/users/[id]/route.go" highlight={8,12,16}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  writeUser(w, r, http.StatusOK)
+}
+
+func POST(w http.ResponseWriter, r *http.Request) {
+  writeUser(w, r, http.StatusCreated)
+}
+
+func writeUser(w http.ResponseWriter, r *http.Request, status int) {
+  w.WriteHeader(status)
+  fmt.Fprintf(w, "User %s", r.PathValue("id"))
+}
+```
 
 ## Good to know
 

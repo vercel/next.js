@@ -31,20 +31,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	methods := map[string]bool{}
-	for _, method := range Methods {
-		methods[method] = true
-	}
-	if methods["GET"] {
-		methods["HEAD"] = true
-	}
-	methods["OPTIONS"] = true
-	allow := []string{}
-	for _, method := range []string{"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"} {
-		if methods[method] {
-			allow = append(allow, method)
-		}
-	}
+	handler := nextGoRouteHandler()
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Next-Go-Token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)
@@ -62,22 +49,13 @@ func main() {
 			r.SetPathValue(name, strings.Join(values, "/"))
 		}
 		r = r.WithContext(context.WithValue(r.Context(), nextGoParamsKey{}, params))
-		if !methods[r.Method] {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		if r.Method == "OPTIONS" {
-			w.Header().Set("Allow", strings.Join(allow, ", "))
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				fmt.Fprintln(os.Stderr, "native route panic:", recovered)
 				panic(http.ErrAbortHandler)
 			}
 		}()
-		Handle(w, r)
+		handler(w, r)
 	})}
 	shutdownDone := make(chan struct{})
 	go func() {

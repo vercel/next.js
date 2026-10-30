@@ -348,6 +348,28 @@ impl GoBuildContext {
         self.cancellation.token.is_cancelled()
     }
 
+    /// Run a host executable with the same concurrency limit, deadline and process-tree
+    /// cancellation as compiler commands. Callers own tracking its inputs and caching its output.
+    pub async fn run_executable(
+        &self,
+        executable: &Path,
+        arguments: &[&Path],
+    ) -> Result<std::process::Output> {
+        let _permit = tokio::select! {
+            permit = GO_ACTIONS.acquire() => permit?,
+            _ = self.cancelled() => anyhow::bail!("Go build cancelled"),
+        };
+        let mut command = Command::new(executable);
+        command.env_clear().args(arguments);
+        #[cfg(windows)]
+        for name in ["SystemRoot", "TEMP", "TMP"] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        process::output(command, &self.cancellation.token).await
+    }
+
     fn command(&self, directory: &Path) -> Command {
         let mut command = Command::new(self.go.as_str());
         command
