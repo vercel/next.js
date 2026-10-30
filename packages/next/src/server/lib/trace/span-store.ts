@@ -1,4 +1,5 @@
 import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
+import { emitLocalSpans } from '../../../shared/lib/local-span'
 import type {
   RequestInsightKind,
   RequestInsightProxyStatus,
@@ -103,7 +104,9 @@ export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
 }
 
 export function recordSpans(spans: readonly SpanStoreRecord[]): void {
-  exportSpans(spans, getLocalSpanSinkStorage().getStore())
+  // Completed observations share delivery with live local spans, but retain
+  // request-only enablement and scoped sink ownership at this boundary.
+  emitLocalSpans(spans, captureLocalSpanRecorder())
 }
 
 export function captureLocalSpanRecorder(): (

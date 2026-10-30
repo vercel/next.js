@@ -1,4 +1,5 @@
 import { reporter } from './report'
+import { LocalSpan, emitLocalSpans } from '../shared/lib/local-span'
 import type { SpanId, TraceEvent, TraceState } from './types'
 import type { ReportingRecord } from './otel-reporting'
 
@@ -38,17 +39,22 @@ interface Attributes {
   [key: string]: unknown
 }
 
-export class Span {
-  private name: string
+// Direct local subscriber: the reporters consume the original tooling schema,
+// independently of request diagnostics and the optional deferred SDK adapter.
+function reportToolingSpans(events: readonly TraceEvent[]): void {
+  for (const event of events) reporter.report(event)
+}
+
+export class Span extends LocalSpan<
+  Attributes,
+  bigint,
+  bigint | undefined,
+  TraceEvent
+> {
   private reporting?: ReportingRecord
   private id: SpanId
   private parentId?: SpanId
-  private attrs: { [key: string]: unknown }
-  private status: SpanStatus
   private now: number
-
-  // Monotonic nanoseconds from process.hrtime.bigint().
-  private _start: bigint
 
   constructor({
     name,
@@ -70,13 +76,14 @@ export class Span {
     // Internal entry-point marker: reserves the coordinator root descriptor.
     reportingRoot?: boolean
   }) {
+    super(
+      name,
+      attrs ? { ...attrs } : {},
+      startTime || process.hrtime.bigint(),
+      reportToolingSpans
+    )
     this.id = getId()
     this.parentId = parentId ?? defaultParentSpanId
-    this.name = name
-    this.attrs = attrs ? { ...attrs } : {}
-
-    this.status = SpanStatus.Started
-    this._start = startTime || process.hrtime.bigint()
     // hrtime cannot be used to reconstruct tracing span's actual start time
     // since it does not have relation to clock time:
     // `These times are relative to an arbitrary time in the past, and not related to the time of day and therefore not subject to clock drift`
@@ -87,7 +94,7 @@ export class Span {
       name,
       id: this.id,
       parentId: this.parentId,
-      startTime: this._start,
+      startTime: this.startTime,
       reportingParent,
       reportingRoot,
     })
@@ -98,36 +105,34 @@ export class Span {
   // Additionally, ~285 years can be safely represented as microseconds as
   // a float64 in both JSON and JavaScript.
   stop(stopTime?: bigint) {
-    if (this.status === SpanStatus.Stopped) {
-      // Don't report the same span twice.
-      // TODO: In the future this should throw as `.stop()` shouldn't be called multiple times.
-      return
-    }
+    this.finish(stopTime)
+  }
+
+  protected onEnd(stopTime: bigint | undefined): void {
     const end: bigint = stopTime || process.hrtime.bigint()
-    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
-    this.status = SpanStatus.Stopped
+    const duration = (end - this.startTime) / NUM_OF_MICROSEC_IN_NANOSEC
     if (duration > Number.MAX_SAFE_INTEGER) {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
-    const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
+    const timestamp = this.startTime / NUM_OF_MICROSEC_IN_NANOSEC
     const traceEvent: TraceEvent = {
       name: this.name,
       duration: Number(duration),
       timestamp: Number(timestamp),
       id: this.id,
       parentId: this.parentId,
-      tags: this.attrs,
+      tags: this.attributes,
       startTime: this.now,
     }
     try {
       if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
-        reporter.report(traceEvent)
+        this.emit(traceEvent)
         if (shouldSaveTraceEvents) {
           savedTraceEvents.push(traceEvent)
         }
       }
     } finally {
-      otel?.stopSpan(this.reporting, end, this.attrs)
+      otel?.stopSpan(this.reporting, end, this.attributes)
     }
   }
 
@@ -172,7 +177,7 @@ export class Span {
   }
 
   setAttribute(key: string, value: unknown) {
-    this.attrs[key] = value
+    this.setLocalAttribute(key, value)
   }
 
   traceFn<T>(fn: (span: Span) => T): T {
@@ -248,7 +253,7 @@ export function getTraceEvents(): TraceEvent[] {
 export function recordTraceEvents(events: TraceEvent[]) {
   if (otel) events = otel.freshWorkerEvents(events)
   for (const traceEvent of events) {
-    reporter.report(traceEvent)
+    emitLocalSpans([traceEvent], reportToolingSpans)
     if (traceEvent.id > count) {
       count = traceEvent.id + 1
     }
