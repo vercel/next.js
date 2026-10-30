@@ -2313,7 +2313,7 @@ describe('Prerender', () => {
             ],
             notTests: [
               /node_modules\/@firebase\/firestore\/.*?\.js/,
-              /\/server\.js/,
+              /^(?!.*node_modules\/).*\/server\.js$/,
             ],
           },
           {
