@@ -27,6 +27,7 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
+  isInvalidFlightRouterStateError,
   parseRequestHeaders,
   type ParsedRequestHeaders,
 } from '../../server/route-modules/app-page/parse-request-headers' with { 'turbopack-transition': 'next-server-utility' }
@@ -1859,23 +1860,43 @@ export function createAppPageEntrypoint({
           throw new NoFallbackError()
         }
 
-        const cacheEntry = await routeModule.handleResponse({
-          cacheKey: ssgCacheKey,
-          responseGenerator: (c) =>
-            responseGenerator({
-              span,
-              ...c,
-            }),
-          routeKind: RouteKind.APP_PAGE,
-          isOnDemandRevalidate,
-          isRoutePPREnabled,
-          req,
-          nextConfig,
-          previewProps,
-          prerenderManifest,
-          waitUntil: ctx.waitUntil,
-          isMinimalMode,
-        })
+        let cacheEntry: Awaited<ReturnType<typeof routeModule.handleResponse>>
+        try {
+          cacheEntry = await routeModule.handleResponse({
+            cacheKey: ssgCacheKey,
+            responseGenerator: (c) =>
+              responseGenerator({
+                span,
+                ...c,
+              }),
+            routeKind: RouteKind.APP_PAGE,
+            isOnDemandRevalidate,
+            isRoutePPREnabled,
+            req,
+            nextConfig,
+            previewProps,
+            prerenderManifest,
+            waitUntil: ctx.waitUntil,
+            isMinimalMode,
+          })
+        } catch (err) {
+          // The render parses the router state header before it starts. A header
+          // that can't be accepted is invalid client input (e.g. a tab still
+          // running a previous build after a deployment), not a server error, so
+          // answer with a 400 instead of reporting it. The client router falls
+          // back to a document navigation for non-OK responses.
+          if (isInvalidFlightRouterStateError(err) && !res.headersSent) {
+            res.statusCode = 400
+            res.setHeader(
+              'Cache-Control',
+              'private, no-cache, no-store, max-age=0, must-revalidate'
+            )
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.end('Bad Request')
+            return null
+          }
+          throw err
+        }
 
         if (cacheEntry !== null && 'error' in cacheEntry) {
           if (res.headersSent || res.writableEnded) {
