@@ -1,6 +1,9 @@
 import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { gate, retry } from 'next-test-utils'
+import { createServer, type Server } from 'http'
+import httpProxy from 'http-proxy'
+import { findPort, gate, retry } from 'next-test-utils'
+import type { Page } from 'playwright'
 
 describe('external-browser-runtime', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -75,44 +78,114 @@ describe('external-browser-runtime', () => {
     'hydrates %s with bootstrap data %s the loader',
     async (pathname, order) => {
       const usesBootstrapData = await gate((c) => !c.dev && c.turbopack)
-      const browser = await next.browser(pathname, {
-        async beforePageLoad(page) {
-          if (!usesBootstrapData) return
+      let release: () => void
+      const ready = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      let server: Server
+      let proxy: ReturnType<typeof httpProxy.createProxyServer>
+      let browser: Awaited<ReturnType<typeof next.browser>>
+      let loaderBlocked = false
+      let page: Page
 
-          await page.route(
-            (url) => url.pathname === pathname,
-            async (route) => {
-              const response = await route.fetch()
-              const $ = load(await response.text())
-              const templates = $('template[data-next-turbopack]')
-              expect(templates).toHaveLength(1)
+      try {
+        let baseUrl: number
+        if (usesBootstrapData && order === 'after') {
+          const response = await next.fetch(pathname)
+          const html = await response.text()
+          const metadataOffset = html.indexOf('<template data-next-turbopack=')
+          expect(metadataOffset).toBeGreaterThan(0)
+          const headers = Object.fromEntries(response.headers)
+          delete headers['content-encoding']
+          delete headers['content-length']
+          delete headers['transfer-encoding']
 
-              templates.remove()
-              if (order === 'before') {
-                $('head').prepend(templates)
-              } else {
-                // Blocking scripts make the loader run before the parser
-                // reaches the bootstrap data at the end of the document.
-                $('head script[src]').removeAttr('async')
-                $('body').append(templates)
-              }
-
-              await route.fulfill({ response, body: $.html() })
+          proxy = httpProxy.createProxyServer({
+            target: next.url,
+            changeOrigin: true,
+          })
+          server = createServer((req, res) => {
+            if (req.url === pathname) {
+              res.writeHead(response.status, headers)
+              // Preserve the document bytes and order, but pause delivery before
+              // the metadata so the async loader can execute during parsing.
+              res.write(html.slice(0, metadataOffset))
+              void ready.then(() => res.end(html.slice(metadataOffset)))
+            } else {
+              proxy.web(req, res)
             }
-          )
-        },
-      })
+          })
+          baseUrl = await findPort()
+          await new Promise<void>((resolve) => server.listen(baseUrl, resolve))
+        }
 
-      await browser.elementByCss('#counter').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#counter').text()).toBe('count: 1')
-      })
-      expect(
-        await browser.eval(
-          () =>
-            document.querySelectorAll('template[data-next-turbopack]').length
-        )
-      ).toBe(0)
+        browser = await next.browser(pathname, {
+          baseUrl,
+          waitUntil: 'commit',
+          waitHydration: false,
+          async beforePageLoad(value) {
+            page = value
+            if (!usesBootstrapData || order !== 'before') return
+
+            await page.route('**/*.js*', async (route) => {
+              const response = await route.fetch()
+              if ((await response.text()).includes('data-next-turbopack')) {
+                loaderBlocked = true
+                await ready
+              }
+              await route.fulfill({ response })
+            })
+          },
+        })
+
+        if (usesBootstrapData) {
+          await retry(async () => {
+            const loaderExecuted = await page.evaluate(
+              '!!self.TURBOPACK && !Array.isArray(self.TURBOPACK)'
+            )
+            expect(loaderExecuted).toBe(order === 'after')
+            expect(
+              await page.evaluate(
+                () =>
+                  document.querySelectorAll('template[data-next-turbopack]')
+                    .length
+              )
+            ).toBe(order === 'before' ? 1 : 0)
+            if (order === 'before') {
+              expect(loaderBlocked).toBe(true)
+            } else {
+              expect(await page.evaluate(() => document.readyState)).toBe(
+                'loading'
+              )
+            }
+          })
+        }
+        release()
+
+        await retry(async () => {
+          expect(await browser.eval('!!window.__NEXT_HYDRATED')).toBe(true)
+        })
+        await browser.elementByCss('#counter').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#counter').text()).toBe('count: 1')
+        })
+        expect(
+          await browser.eval(
+            () =>
+              document.querySelectorAll('template[data-next-turbopack]').length
+          )
+        ).toBe(0)
+      } finally {
+        release()
+        await browser?.close()
+        if (server) {
+          server.closeAllConnections()
+          await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()))
+          })
+          proxy.close()
+        }
+      }
     }
   )
 
