@@ -4391,7 +4391,6 @@ dependencies = [
  "urlencoding",
  "vergen-gitcl",
  "windows-sys 0.60.2",
- "zstd",
 ]
 
 [[package]]
@@ -10206,6 +10205,7 @@ dependencies = [
  "anyhow",
  "crossbeam-channel",
  "crossbeam-utils",
+ "flate2",
  "parking_lot",
  "postcard",
  "rustc-hash 2.1.1",
@@ -10215,6 +10215,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turbo-tasks-malloc",
+ "zstd",
 ]
 
 [[package]]
