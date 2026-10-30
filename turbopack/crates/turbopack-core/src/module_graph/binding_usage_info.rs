@@ -116,7 +116,7 @@ impl BindingUsageInfo {
 /// Computes which exports and references of the modules in `graph` are used.
 ///
 /// With `drop_unused_module_data`, modules that are not reachable via used references (i.e. that
-/// tree shaking removes) are hinted to drop data they only retain for code generation, see
+/// remove_unused_imports removes) are hinted to drop data they only retain for code generation, see
 /// [`Module::drop_code_gen_data_hint`]. Only enable this when this graph decides which modules
 /// are code generated, otherwise the data might be needed again and has to be recomputed.
 #[turbo_tasks::function(operation)]
