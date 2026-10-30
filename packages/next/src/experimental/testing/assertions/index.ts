@@ -712,6 +712,8 @@ export async function createAssertionRuntime(options: {
       if (cached) return cached
       const handler: ProxyHandler<object> = {
         get(target, property) {
+          if (property === '_obj' && chaiAssertionIdentity(target))
+            return readChaiAssertionSubject(target)
           // Native Promise adoption reads then after a callback's scope exits.
           // A known live Browser assertion without that protocol stays the
           // same nonthenable payload; present properties keep their guards.
@@ -916,7 +918,7 @@ export async function createAssertionRuntime(options: {
       scope: AssertionScope
       prototype: object
       receiver?: object
-      collectionPrototype: boolean
+      prototypeCallable: boolean
     }
   >()
   function strictFunction(
@@ -924,19 +926,22 @@ export async function createAssertionRuntime(options: {
     scope: AssertionScope,
     prototype: object,
     receiver?: object,
-    collectionPrototype = false
+    prototypeCallable = false
   ): (...args: unknown[]) => unknown {
-    // Collection plugins retain prototype methods, rather than assertions.
-    // Resolve their actual invocation owner without lending that permission to
-    // functions captured from an assertion, case or suite hook.
+    // Unbound prototype methods resolve their receiver at invocation. Bound
+    // assertion methods retain their original resource scope.
     function invocationScope() {
-      return collectionPrototype ? current() : scope
+      return prototypeCallable ? current() : scope
     }
     const invoke = function (this: unknown, ...args: unknown[]) {
+      if (prototypeCallable)
+        return invokeChaiPrototype(fn, this, args, prototype)
       const owner = invocationScope()
       assertStrictScope(owner)
       let actualReceiver = receiver
       if (actualReceiver === undefined) {
+        if (isChaiPrototypeInvocationReceiver(this))
+          return Reflect.apply(fn, this, args)
         const record =
           this && (typeof this === 'object' || typeof this === 'function')
             ? (strictAssertionRecords.get(this) ??
@@ -954,6 +959,10 @@ export async function createAssertionRuntime(options: {
         owner,
         prototype
       )
+    }
+    if (prototypeCallable) {
+      const length = Reflect.getOwnPropertyDescriptor(fn, 'length')
+      if (length) Object.defineProperty(invoke, 'length', length)
     }
     const takeoverDescriptor = callableTakeoverDescriptors.get(fn)
     if (takeoverDescriptor)
@@ -998,7 +1007,10 @@ export async function createAssertionRuntime(options: {
         )
       },
       getOwnPropertyDescriptor(target, key) {
-        if (key === '__vitest_poll_takeover__')
+        if (
+          key === '__vitest_poll_takeover__' ||
+          (prototypeCallable && key === 'length')
+        )
           return Reflect.getOwnPropertyDescriptor(target, key)
         assertStrictScope(invocationScope())
         throw new Error(
@@ -1011,7 +1023,7 @@ export async function createAssertionRuntime(options: {
       scope,
       prototype,
       receiver,
-      collectionPrototype,
+      prototypeCallable,
     })
     return proxy
   }
@@ -1051,6 +1063,7 @@ export async function createAssertionRuntime(options: {
     })
     const proxy = new Proxy(Object.create(null), {
       get(_target, key) {
+        if (key === '_obj') return readChaiAssertionSubject(raw)
         assertStrictScope(scope)
         if (key === '__flags')
           throw new Error('Raw Chai assertion flags are not exposed')
@@ -1147,6 +1160,77 @@ export async function createAssertionRuntime(options: {
       prototype
     )
   }
+  const chaiPrototypeInvocations: object[] = []
+  function readChaiAssertionSubject(assertion: object) {
+    requireAssertionAccess()
+    const identity = chaiAssertionIdentity(assertion)
+    if (identity) chaiPrototypeInvocations.push(identity)
+    try {
+      // The subject is caller data. Preserve the real getter and its payload
+      // without granting a retained assertion another invocation scope.
+      return Reflect.get(assertion, '_obj', assertion)
+    } finally {
+      if (identity) chaiPrototypeInvocations.pop()
+    }
+  }
+  function isChaiPrototypeInvocationReceiver(value: unknown) {
+    if (!chaiPrototypeInvocations.length) return false
+    const identity = chaiAssertionIdentity(value)
+    if (!identity) return false
+    if (chaiPrototypeInvocations.includes(identity)) return true
+    // The primitive records actual flag-transfer lineage for native aliases.
+    // Follow it without reading authored flags or assigning another Task.
+    const visited = new Set<object>([identity])
+    let source = getChaiAssertionTransferSourceIdentity(value)
+    while (source && !visited.has(source)) {
+      visited.add(source)
+      if (chaiPrototypeInvocations.includes(source)) return true
+      source = getChaiAssertionTransferSourceIdentity(source)
+    }
+    return false
+  }
+  function invokeChaiPrototype(
+    fn: Function,
+    receiver: unknown,
+    args: unknown[],
+    prototype: object
+  ) {
+    assertChaiNamespaceAccess()
+    const record =
+      receiver &&
+      (typeof receiver === 'object' || typeof receiver === 'function')
+        ? (strictAssertionRecords.get(receiver) ??
+          legacyAssertionRecords.get(receiver) ??
+          taskAssertionRecords.get(receiver))
+        : undefined
+    if (!record && !isChaiPrototypeInvocationReceiver(receiver))
+      throw new Error(
+        'Chai prototype methods require an admitted assertion receiver'
+      )
+    if (record && 'owner' in record) assertTaskExpectation(record.owner)
+    const rawReceiver = record?.raw ?? receiver
+    const identity = chaiAssertionIdentity(rawReceiver)
+    if (!identity) throw new Error('Unrecognized Chai assertion origin')
+    chaiPrototypeInvocations.push(identity)
+    try {
+      const result = Reflect.apply(fn, rawReceiver, args)
+      // Nested raw dispatch is still inside the authored native callback.
+      // Its actual result is published only by the outer public invocation.
+      if (!record) return result
+      if (result === rawReceiver) return receiver
+      if (
+        result &&
+        (typeof result === 'object' || typeof result === 'function') &&
+        (strictAssertionRecords.has(result) ||
+          legacyAssertionRecords.has(result) ||
+          taskAssertionRecords.has(result))
+      )
+        return result
+      return strictResult(result, current(), prototype)
+    } finally {
+      chaiPrototypeInvocations.pop()
+    }
+  }
   function callChaiPluginCallback(
     callback: Function,
     receiver: unknown,
@@ -1155,6 +1239,8 @@ export async function createAssertionRuntime(options: {
     factory: boolean
   ) {
     assertChaiNamespaceAccess()
+    if (!factory && isChaiPrototypeInvocationReceiver(receiver))
+      return Reflect.apply(callback, receiver, args)
     const scope = current()
     const originalScope =
       receiver &&
@@ -1186,30 +1272,18 @@ export async function createAssertionRuntime(options: {
     return strictUnwrap(result)
   }
   const chaiPrototypeCallables = new WeakMap<
-    AssertionScope,
-    WeakMap<object, WeakMap<Function, (...args: unknown[]) => unknown>>
+    object,
+    WeakMap<Function, (...args: unknown[]) => unknown>
   >()
   function readChaiPrototypeCallable(value: Function, prototype: object) {
-    const scope = current()
-    let prototypes = chaiPrototypeCallables.get(scope)
-    if (!prototypes) {
-      prototypes = new WeakMap()
-      chaiPrototypeCallables.set(scope, prototypes)
-    }
-    let functions = prototypes.get(prototype)
+    let functions = chaiPrototypeCallables.get(prototype)
     if (!functions) {
       functions = new WeakMap()
-      prototypes.set(prototype, functions)
+      chaiPrototypeCallables.set(prototype, functions)
     }
     let method = functions.get(value)
     if (!method) {
-      method = strictFunction(
-        value,
-        scope,
-        prototype,
-        undefined,
-        scope.kind === 'collection'
-      )
+      method = strictFunction(value, current(), prototype, undefined, true)
       functions.set(value, method)
     }
     return method
@@ -1335,7 +1409,7 @@ export async function createAssertionRuntime(options: {
           ? strictFunctionRecords.get(input)
           : undefined
       if (method) {
-        assertStrictScope(method.collectionPrototype ? current() : method.scope)
+        assertStrictScope(method.prototypeCallable ? current() : method.scope)
         const result = Reflect.apply(fn, chai.util, [
           method.raw,
           ...args.slice(1),
@@ -1347,7 +1421,7 @@ export async function createAssertionRuntime(options: {
               method.scope,
               method.prototype,
               method.receiver,
-              method.collectionPrototype
+              method.prototypeCallable
             )
       }
       // Ordinary payloads use Chai's exact proxy and property behavior.
@@ -1807,6 +1881,10 @@ export async function createAssertionRuntime(options: {
       if (cached) return cached
       const proxy = new Proxy(value, {
         get(target, key, receiver) {
+          if (key === '_obj' && chaiAssertionIdentity(target)) {
+            assertTaskExpectation(owner)
+            return readChaiAssertionSubject(target)
+          }
           const nativeFunction =
             typeof target === 'function' && !!taskNativeReceiverNodes(target)
           check(

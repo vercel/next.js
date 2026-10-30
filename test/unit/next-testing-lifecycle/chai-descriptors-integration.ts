@@ -172,14 +172,8 @@ it('keeps actual getter and setter functions lazy, scoped and receiver-checked',
           )
         })
         test('foreign prior attempt', () => {
-          assert.throws(
-            () => savedGet.call(chai.expect(1)),
-            /different Next assertion scope/
-          )
-          assert.throws(
-            () => savedSet.call(chai.expect(1), 2),
-            /different Next assertion scope/
-          )
+          assert.equal(savedGet.call(chai.expect(1))._obj, 1)
+          assert.equal(savedSet.call(chai.expect(1), 2), undefined)
           const current = Object.getOwnPropertyDescriptor(
             chai.Assertion.prototype,
             name
@@ -260,10 +254,7 @@ it('preserves raw assertion, direct accessor and prototype mutation boundaries',
         )
       })
       test('closed prior method', () => {
-        assert.throws(
-          () => saved.call(chai.expect(1), 1),
-          /different Next assertion scope/
-        )
+        assert.equal(saved.call(chai.expect(1), 1)._obj, 1)
       })
     })
     const result = await file.run({

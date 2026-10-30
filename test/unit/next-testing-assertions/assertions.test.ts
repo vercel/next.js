@@ -1080,3 +1080,100 @@ it.each([
   },
   130000
 )
+
+it.each([
+  'prototype',
+  'owners',
+  'dispatch',
+  'identity',
+  'overwrite-static',
+  'overwrite-utility',
+  'native-alias',
+  'super-this',
+  'subject',
+])(
+  'preserves actual Chai prototype callable %s identity and receiver semantics',
+  async (family) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'chai-prototype-callable.cjs'), process.cwd(), family],
+      { timeout: 20000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toMatchObject({
+      family,
+      actualFileDisposalJoined: true,
+    })
+  },
+  25000
+)
+
+it.each([
+  ['development', 'js', 'prototype'],
+  ['production', 'mjs', 'prototype'],
+  ['development', 'js', 'owners'],
+  ['production', 'mjs', 'owners'],
+  ['development', 'js', 'dispatch'],
+  ['production', 'mjs', 'dispatch'],
+  ['development', 'js', 'identity'],
+  ['production', 'mjs', 'identity'],
+  ['development', 'js', 'overwrite-static'],
+  ['production', 'mjs', 'overwrite-static'],
+  ['development', 'js', 'overwrite-utility'],
+  ['production', 'mjs', 'overwrite-utility'],
+  ['development', 'js', 'native-alias'],
+  ['production', 'mjs', 'native-alias'],
+  ['development', 'js', 'super-this'],
+  ['production', 'mjs', 'super-this'],
+  ['development', 'js', 'subject'],
+  ['production', 'mjs', 'subject'],
+])(
+  'matches complete Chai callable %s %s %s rows',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-chai-callable-public-')
+    )
+    const output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-prototype-callable-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed Chai callable observations at ' + directory
+        )
+    }
+  },
+  130000
+)

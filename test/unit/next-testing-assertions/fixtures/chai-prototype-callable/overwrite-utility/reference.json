@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "name": "same-task prototype overwrite delegates to native super with actual receiver",
+      "state": "passed"
+    },
+    {
+      "name": "retained prototype overwrite delegates with next actual receiver",
+      "state": "passed"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "same-task",
+      "result": {
+        "passed": true,
+        "subject": 1,
+        "sameResult": false
+      },
+      "trace": [
+        {
+          "phase": "before-super",
+          "subject": 1
+        },
+        {
+          "phase": "after-super",
+          "subject": 1,
+          "sameResult": false
+        }
+      ]
+    },
+    {
+      "kind": "later-task",
+      "sameCallable": true,
+      "result": {
+        "passed": true,
+        "subject": 2,
+        "sameResult": false
+      },
+      "trace": [
+        {
+          "phase": "before-super",
+          "subject": 2
+        },
+        {
+          "phase": "after-super",
+          "subject": 2,
+          "sameResult": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "same-task prototype overwrite delegates to native super with actual receiver",
+      "state": "passed"
+    },
+    {
+      "name": "retained prototype overwrite delegates with next actual receiver",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "2d66acabc38909e28fd75dfc548a19645148f8f518a8a04cfb188fd7481defb0",
+  "rawErrorCount": 0,
+  "reference": "Vitest5.0.4 actual Node20/22/24/26 development JS and production MJS"
+}

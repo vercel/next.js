@@ -141,10 +141,7 @@ it('uses live receivers for collection methods and lazy accessors while retainin
             chai.Assertion.prototype,
             'equal'
           )!.value
-          assert.throws(
-            () => equal.call(collected, 1),
-            /different Next assertion scope/
-          )
+          assert.equal(equal.call(collected, 1)._obj, 1)
         })
         test('second live receiver', () => {
           const value = chai.expect(3)
@@ -153,10 +150,7 @@ it('uses live receivers for collection methods and lazy accessors while retainin
           assert.equal(getter.call(value), value)
           setter.call(value, 4)
           value.equal(4)
-          assert.throws(
-            () => firstCaseMethod.call(value, 4),
-            /different Next assertion scope/
-          )
+          assert.equal(firstCaseMethod.call(value, 4)._obj, 4)
           assert.throws(
             () => equal.call(primitiveChai.expect(4), 4),
             /require an admitted assertion receiver/
@@ -231,7 +225,12 @@ it('keeps overlapping invocation owners separate for a shared collection callabl
           equal.call(assertion, value)
           assert.throws(
             () => equal.call(assertions.get(value === 1 ? 2 : 1), value),
-            /different Next assertion scope/
+            {
+              name: 'AssertionError',
+              actual: value === 1 ? 2 : 1,
+              expected: value,
+              operator: 'strictEqual',
+            }
           )
         })
       }

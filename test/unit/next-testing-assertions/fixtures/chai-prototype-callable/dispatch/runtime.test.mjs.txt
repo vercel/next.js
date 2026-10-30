@@ -1,0 +1,50 @@
+import { chai, expect, test, afterAll } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const native = {}, held = {}
+let originalTask
+chai.use((c, utils) => {
+  utils.addMethod(c.Assertion.prototype, 'toReturnNativeAlias', function (value) {
+    this.assert(this._obj.value === value, 'wrong value', 'unexpected value', value, this._obj.value)
+  })
+  utils.addProperty(c.Assertion.prototype, 'ownerValue', function () { return this._obj.value })
+})
+function errorView(error) {
+  return { name: error?.name, message: error?.message, actual: error?.actual, expected: error?.expected, showDiff: error?.showDiff, operator: error?.operator }
+}
+function invoke(method, receiver, args) {
+  try { const result = Reflect.apply(method, receiver, args); return { ok: true, sameResult: result === receiver, value: typeof result === 'number' ? result : null, taskRetained: !!result && (typeof result === 'object' || typeof result === 'function') && chai.util.flag(result, 'vitest-test') === originalTask, taskName: result && (typeof result === 'object' || typeof result === 'function') ? chai.util.flag(result, 'vitest-test')?.name ?? null : null } }
+  catch(error) { return { ok: false, error: errorView(error) } }
+}
+function bound(method, receiver, args) {
+  try { return invoke(Function.prototype.bind.call(method, receiver), undefined, args) }
+  catch(error) { return { ok: false, error: errorView(error) } }
+}
+test('capture actual builtins getters and native returned aliases', ({ expect: local, task }) => {
+  originalTask = task
+  native.equal = chai.Assertion.prototype.equal
+  native.alias = chai.Assertion.prototype.toReturnNativeAlias
+  native.getter = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'ownerValue').get
+  native.assert = chai.Assertion.prototype.assert
+  const rawSubject = { value: 1 }, globalSubject = { value: 2 }, localSubject = { value: 2 }
+  Object.assign(held, { raw: chai.expect(rawSubject), global: expect(globalSubject), local: local(localSubject) })
+  held.rawSubject = rawSubject
+  const rows = []
+  for (const [name, assertion] of Object.entries(held)) {
+    if (name === 'rawSubject') continue
+    const subject = name === 'raw' ? rawSubject : name === 'global' ? globalSubject : localSubject
+    rows.push({ name, equal: invoke(native.equal, assertion, [subject]), alias: invoke(native.alias, assertion, [name === 'raw' ? 1 : 2]), getter: invoke(native.getter, assertion, []), failure: invoke(native.assert, assertion, [false, 'dispatch failure', 'unexpected', 9, 3, true]) })
+  }
+  emit({ kind: 'first-native', rows })
+})
+test('native methods retain flags and exact errors in a later task', () => {
+  const rows = []
+  for (const name of ['raw','global','local']) {
+    const assertion = held[name]
+    rows.push({ name, alias: invoke(native.alias, assertion, [name === 'raw' ? 1 : 2]), getter: invoke(native.getter, assertion, []), failure: invoke(native.assert, assertion, [false, 'dispatch failure', 'unexpected', 9, 3, true]), boundAlias: bound(native.alias, assertion, [name === 'raw' ? 1 : 2]) })
+  }
+  emit({ kind: 'later-native', sameEqual: native.equal === chai.Assertion.prototype.equal, sameGetter: native.getter === Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'ownerValue').get, rows })
+})
+afterAll(() => {
+  const rows = ['raw','global','local'].map(name => ({ name, alias: invoke(native.alias, held[name], [name === 'raw' ? 1 : 2]), getter: invoke(native.getter, held[name], []) }))
+  emit({ kind: 'afterAll-native', rows })
+})

@@ -1,0 +1,318 @@
+{
+  "rows": [
+    {
+      "kind": "first-native",
+      "rows": [
+        {
+          "name": "raw",
+          "equal": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 1,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "failure": {
+            "ok": false,
+            "error": {
+              "name": "AssertionError",
+              "message": "dispatch failure",
+              "actual": 3,
+              "expected": 9,
+              "showDiff": true,
+              "operator": "strictEqual"
+            }
+          }
+        },
+        {
+          "name": "global",
+          "equal": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 2,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "failure": {
+            "ok": false,
+            "error": {
+              "name": "AssertionError",
+              "message": "dispatch failure",
+              "actual": 3,
+              "expected": 9,
+              "showDiff": true,
+              "operator": "strictEqual"
+            }
+          }
+        },
+        {
+          "name": "local",
+          "equal": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 2,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "failure": {
+            "ok": false,
+            "error": {
+              "name": "AssertionError",
+              "message": "dispatch failure",
+              "actual": 3,
+              "expected": 9,
+              "showDiff": true,
+              "operator": "strictEqual"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "later-native",
+      "sameEqual": true,
+      "sameGetter": true,
+      "rows": [
+        {
+          "name": "raw",
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 1,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "failure": {
+            "ok": false,
+            "error": {
+              "name": "AssertionError",
+              "message": "dispatch failure",
+              "actual": 3,
+              "expected": 9,
+              "showDiff": true,
+              "operator": "strictEqual"
+            }
+          },
+          "boundAlias": {
+            "ok": false,
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toReturnNativeAlias.length. See docs for proper usage of \"toReturnNativeAlias\"."
+            }
+          }
+        },
+        {
+          "name": "global",
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 2,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "failure": {
+            "ok": false,
+            "error": {
+              "name": "AssertionError",
+              "message": "dispatch failure",
+              "actual": 3,
+              "expected": 9,
+              "showDiff": true,
+              "operator": "strictEqual"
+            }
+          },
+          "boundAlias": {
+            "ok": false,
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toReturnNativeAlias.length. See docs for proper usage of \"toReturnNativeAlias\"."
+            }
+          }
+        },
+        {
+          "name": "local",
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 2,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "failure": {
+            "ok": false,
+            "error": {
+              "name": "AssertionError",
+              "message": "dispatch failure",
+              "actual": 3,
+              "expected": 9,
+              "showDiff": true,
+              "operator": "strictEqual"
+            }
+          },
+          "boundAlias": {
+            "ok": false,
+            "error": {
+              "name": "Error",
+              "message": "Invalid Chai property: toReturnNativeAlias.length. See docs for proper usage of \"toReturnNativeAlias\"."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "afterAll-native",
+      "rows": [
+        {
+          "name": "raw",
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": false,
+            "taskName": null
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 1,
+            "taskRetained": false,
+            "taskName": null
+          }
+        },
+        {
+          "name": "global",
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 2,
+            "taskRetained": false,
+            "taskName": null
+          }
+        },
+        {
+          "name": "local",
+          "alias": {
+            "ok": true,
+            "sameResult": false,
+            "value": null,
+            "taskRetained": true,
+            "taskName": "capture actual builtins getters and native returned aliases"
+          },
+          "getter": {
+            "ok": true,
+            "sameResult": false,
+            "value": 2,
+            "taskRetained": false,
+            "taskName": null
+          }
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "capture actual builtins getters and native returned aliases",
+      "state": "passed"
+    },
+    {
+      "name": "native methods retain flags and exact errors in a later task",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "03420ca16a6b49a0a5d8d3d18fd7f5ec5c8741954e2d52631a94d5e7137e90a6",
+  "reference": "Vitest 5.0.4 / genuine Node20,22,24,26 development JS and production MJS",
+  "rawErrorCount": 0,
+  "caseCallbacks": [
+    {
+      "name": "capture actual builtins getters and native returned aliases",
+      "state": "passed"
+    },
+    {
+      "name": "native methods retain flags and exact errors in a later task",
+      "state": "passed"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+import { chai, expect, test, afterAll } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const observations = []
+let firstTask, retained, assertions
+chai.use((_chai, utils) => utils.addMethod(_chai.Assertion.prototype, 'toOwnerIdentity', function (expected) {
+  const task = utils.flag(this, 'vitest-test')
+  observations.push({ label: this._obj.label, taskName: task?.name ?? null, taskType: task?.type ?? null, sameFirstTask: task === firstTask })
+  this.assert(this._obj.label === expected, 'wrong label', 'unexpected label', expected, this._obj.label)
+  return this
+}))
+function call(name, method, assertion, expected) {
+  try { const result = method.call(assertion, expected); return { name, success: true, sameResult: result === assertion } }
+  catch (error) { return { name, success: false, error: { name: error.name, message: error.message } } }
+}
+test('actual raw global and context assertion receiver origins', ({ expect: local, task }) => {
+  firstTask = task
+  retained = chai.Assertion.prototype.toOwnerIdentity
+  assertions = { raw: chai.expect({ label: 'raw' }), global: expect({ label: 'global' }), local: local({ label: 'local' }) }
+  const calls = Object.entries(assertions).map(([name, assertion]) => call(name, retained, assertion, name))
+  emit({ kind: 'first', calls, observations: observations.splice(0) })
+})
+test('retained assertion origins stay actual across a later task', () => {
+  const current = chai.Assertion.prototype.toOwnerIdentity
+  const calls = Object.entries(assertions).flatMap(([name, assertion]) => [call('retained-' + name, retained, assertion, name), call('fresh-' + name, current, assertion, name)])
+  emit({ kind: 'next', sameCallable: current === retained, calls, observations: observations.splice(0) })
+})
+afterAll(() => {
+  const calls = Object.entries(assertions).map(([name, assertion]) => call('afterAll-' + name, retained, assertion, name))
+  emit({ kind: 'afterAll', calls, observations: observations.splice(0) })
+})

@@ -1,0 +1,193 @@
+{
+  "cases": [
+    {
+      "name": "actual retained subject getter preserves caller payloads and raw errors",
+      "state": "passed"
+    },
+    {
+      "name": "later subject reads retain actual original payload and getter behavior",
+      "state": "passed"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "first-subject",
+      "calls": [
+        {
+          "name": "raw",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "global",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "local",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "throwing",
+          "success": false,
+          "sameRawError": true,
+          "error": {
+            "name": "Error",
+            "message": "native retained subject getter failure"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "sameTask": false,
+          "taskName": null,
+          "throwing": false
+        },
+        {
+          "sameTask": true,
+          "taskName": "actual retained subject getter preserves caller payloads and raw errors",
+          "throwing": false
+        },
+        {
+          "sameTask": true,
+          "taskName": "actual retained subject getter preserves caller payloads and raw errors",
+          "throwing": false
+        },
+        {
+          "sameTask": false,
+          "taskName": null,
+          "throwing": true
+        }
+      ]
+    },
+    {
+      "kind": "later-subject",
+      "calls": [
+        {
+          "name": "raw",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "global",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "local",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "throwing",
+          "success": false,
+          "sameRawError": true,
+          "error": {
+            "name": "Error",
+            "message": "native retained subject getter failure"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "sameTask": false,
+          "taskName": null,
+          "throwing": false
+        },
+        {
+          "sameTask": true,
+          "taskName": "actual retained subject getter preserves caller payloads and raw errors",
+          "throwing": false
+        },
+        {
+          "sameTask": true,
+          "taskName": "actual retained subject getter preserves caller payloads and raw errors",
+          "throwing": false
+        },
+        {
+          "sameTask": false,
+          "taskName": null,
+          "throwing": true
+        }
+      ]
+    },
+    {
+      "kind": "afterAll-subject",
+      "calls": [
+        {
+          "name": "raw",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "global",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "local",
+          "success": true,
+          "samePayload": true
+        },
+        {
+          "name": "throwing",
+          "success": false,
+          "sameRawError": true,
+          "error": {
+            "name": "Error",
+            "message": "native retained subject getter failure"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "sameTask": false,
+          "taskName": null,
+          "throwing": false
+        },
+        {
+          "sameTask": true,
+          "taskName": "actual retained subject getter preserves caller payloads and raw errors",
+          "throwing": false
+        },
+        {
+          "sameTask": true,
+          "taskName": "actual retained subject getter preserves caller payloads and raw errors",
+          "throwing": false
+        },
+        {
+          "sameTask": false,
+          "taskName": null,
+          "throwing": true
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "actual retained subject getter preserves caller payloads and raw errors",
+      "state": "passed"
+    },
+    {
+      "name": "later subject reads retain actual original payload and getter behavior",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "698c1a487e8b00f25c8a942936ae7335f94876abc60708a74af732eab2e4ee2f",
+  "rawErrorCount": 0,
+  "reference": "Vitest5.0.4 actual Node20/22/24/26 development JS and production MJS"
+}
