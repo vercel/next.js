@@ -1,38 +1,16 @@
 'use client'
-import React, { useEffect } from 'react'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import { useRouter } from './navigation'
+import React, { useContext } from 'react'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import { GlobalLayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
+import { redirect as redirectNavigation } from './navigator'
+import { unresolvedThenable } from './unresolved-thenable'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { type RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
-  router: AppRouterInstance
+  tree: FlightRouterState
+  isActive: boolean
   children: React.ReactNode
-}
-
-function HandleRedirect({
-  redirect,
-  reset,
-  redirectType,
-}: {
-  redirect: string
-  redirectType: RedirectType
-  reset: () => void
-}) {
-  const router = useRouter()
-
-  useEffect(() => {
-    React.startTransition(() => {
-      if (redirectType === 'push') {
-        router.push(redirect, {})
-      } else {
-        router.replace(redirect, {})
-      }
-      reset()
-    })
-  }, [redirect, redirectType, reset, router])
-
-  return null
 }
 
 export class RedirectErrorBoundary extends React.Component<
@@ -65,22 +43,31 @@ export class RedirectErrorBoundary extends React.Component<
   render(): React.ReactNode {
     const { redirect, redirectType } = this.state
     if (redirect !== null && redirectType !== null) {
-      return (
-        <HandleRedirect
-          redirect={redirect}
-          redirectType={redirectType}
-          reset={() => this.setState({ redirect: null })}
-        />
-      )
+      // The redirect is the outcome of rendering this tree, so the boundary
+      // suspends instead of committing anything, and navigates from a task. A
+      // hidden segment never navigates.
+      const { tree, isActive } = this.props
+      if (isActive) {
+        setTimeout(() => redirectNavigation(redirect, redirectType, tree))
+      }
+      throw unresolvedThenable
     }
 
     return this.props.children
   }
 }
 
-export function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+export function RedirectBoundary({
+  isActive,
+  children,
+}: {
+  isActive: boolean
+  children: React.ReactNode
+}) {
+  const { tree } = useContext(GlobalLayoutRouterContext)
   return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
+    <RedirectErrorBoundary tree={tree} isActive={isActive}>
+      {children}
+    </RedirectErrorBoundary>
   )
 }

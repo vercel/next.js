@@ -11,6 +11,7 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
+export const ACTION_REDIRECT = 'redirect'
 
 export type RouterChangeByServerResponse = ({
   navigatedAt,
@@ -115,6 +116,21 @@ export interface RestoreAction {
 export type AppHistoryState = {
   tree: FlightRouterState
   renderedSearch: string
+}
+
+/**
+ * Redirect navigates to the target of a `redirect()` thrown while rendering
+ * `previousTree`. Unlike a navigation, it's queued behind pending actions
+ * instead of preempting them. If a newer state has replaced `previousTree` by
+ * the time it runs, the redirect no longer applies and is dropped.
+ */
+export interface RedirectAction {
+  type: typeof ACTION_REDIRECT
+  previousTree: FlightRouterState
+  url: URL
+  isExternalUrl: boolean
+  locationSearch: Location['search']
+  redirectType: 'push' | 'replace'
 }
 
 /**
@@ -273,6 +289,7 @@ export type ReducerActions = Readonly<
   | NavigateAction
   | RestoreAction
   | ServerPatchAction
+  | RedirectAction
   | HmrRefreshAction
   | ServerActionAction
 >
