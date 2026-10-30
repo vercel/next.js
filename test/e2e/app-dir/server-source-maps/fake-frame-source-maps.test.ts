@@ -69,6 +69,19 @@ function scriptURLToFileURL(scriptURL: string): string {
 }
 
 /**
+ * The `sources` of a source map. Index maps list theirs in `sections`, and the
+ * top-level `sources` of an index map isn't meaningful.
+ */
+function sourceMapSources(sourceMap: any): string[] {
+  if (Array.isArray(sourceMap.sections)) {
+    return sourceMap.sections.flatMap((section: any) =>
+      sourceMapSources(section.map)
+    )
+  }
+  return sourceMap.sources ?? []
+}
+
+/**
  * Debugger frontends cannot be assumed to fetch arbitrary http(s) URLs
  * themselves (the dedicated Chrome DevTools frontend for Node.js targets
  * does not), so http(s) maps are loaded through the debugged target.
@@ -425,7 +438,7 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           script.sourceMapURL,
           scriptURLToFileURL(script.url)
         )
-        for (const source of sourceMap.sources as string[]) {
+        for (const source of sourceMapSources(sourceMap)) {
           const resolved = new URL(source, mapURL).href
           expectWellFormedSource(resolved)
           resolvedSources.add(resolved)
