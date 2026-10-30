@@ -32,11 +32,14 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     for plain_issue in captured_issues.into_iter() {
         let title = styled_string_to_file_safe_string(&plain_issue.title)
             .replace('/', "__")
-            // We replace "*", "?", and '"' because they're not allowed in filenames on Windows.
+            // We replace these characters because they're not allowed in filenames on Windows.
             .replace('*', "__star__")
             .replace('"', "__quo__")
             .replace('?', "__q__")
-            .replace(':', "__c__");
+            .replace(':', "__c__")
+            .replace('<', "__lt__")
+            .replace('>', "__gt__")
+            .replace('|', "__pipe__");
         let title = if title.len() > 50 {
             &title[0..50]
         } else {
