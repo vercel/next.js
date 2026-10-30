@@ -45,15 +45,13 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
     if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      if (/^(page|route)(\.(j|t)sx?)$/.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(/\.(j|t)sx?$/, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath))
       }
     }
   })
@@ -149,7 +147,7 @@ export function getUrlFromPagesDirectories(
         )
     )
   ).map((urlReg) => {
-    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
+    urlReg = replaceDynamicSegments(urlReg)
     return new RegExp(urlReg)
   })
 }
@@ -170,9 +168,16 @@ export function getUrlFromAppDirectory(
         )
     )
   ).map((urlReg) => {
-    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
+    urlReg = replaceDynamicSegments(urlReg)
     return new RegExp(urlReg)
   })
+}
+
+function replaceDynamicSegments(urlReg: string) {
+  return urlReg
+    .replace(/\/\[\[\.\.\.[^/\]]+\]\]/g, '(?:/(?:[^/]+(?:/[^/]+)*))?')
+    .replace(/\[\.\.\.[^/\]]+\]/g, '[^/]+(?:/[^/]+)*')
+    .replace(/\[[^/\]]+\]/g, '[^/]+')
 }
 
 export function execOnce<TArgs extends any[], TResult>(
