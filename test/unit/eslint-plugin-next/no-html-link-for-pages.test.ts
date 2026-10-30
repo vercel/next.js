@@ -13,6 +13,7 @@ const withAppDir = path.join(__dirname, 'with-app-dir')
 const withAppSpecialFilesDir = path.join(__dirname, 'with-app-special-files')
 const withDynamicPagesDir = path.join(__dirname, 'with-dynamic-pages')
 const withDynamicAppDir = path.join(__dirname, 'with-dynamic-app')
+const withPublicFilePagesDir = path.join(__dirname, 'with-public-file-pages')
 
 const linters = {
   withoutPages: new Linter({
@@ -33,6 +34,10 @@ const linters = {
   }),
   withDynamicApp: new Linter({
     cwd: withDynamicAppDir,
+    configType: 'eslintrc',
+  }),
+  withPublicFilePages: new Linter({
+    cwd: withPublicFilePagesDir,
     configType: 'eslintrc',
   }),
   withNestedPages: new Linter({
@@ -275,6 +280,7 @@ describe('no-html-link-for-pages', function () {
     for (const linter of [linters.withDynamicPages, linters.withDynamicApp]) {
       for (const href of [
         '/blog/alice/comments/42',
+        '/blog/alice/comments/42/',
         '/files/a/b',
         '/docs',
         '/docs/a/b',
@@ -296,6 +302,14 @@ describe('no-html-link-for-pages', function () {
         assert.deepEqual(report, [], `${href} should not match a route`)
       }
     }
+  })
+  it('does not mistake a public file for a dynamic page', function () {
+    const report = linters.withPublicFilePages.verify(
+      '<a href="/presentation.pdf">View PDF</a>',
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
   })
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()

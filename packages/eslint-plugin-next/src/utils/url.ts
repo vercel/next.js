@@ -164,7 +164,7 @@ export function getUrlFromAppDirectory(
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeAppPath(url)}$`
+          (url) => `^${normalizeURL(normalizeAppPath(url))}$`
         )
     )
   ).map((urlReg) => {
@@ -175,9 +175,9 @@ export function getUrlFromAppDirectory(
 
 function replaceDynamicSegments(urlReg: string) {
   return urlReg
-    .replace(/\/\[\[\.\.\.[^/\]]+\]\]/g, '(?:/(?:[^/]+(?:/[^/]+)*))?')
-    .replace(/\[\.\.\.[^/\]]+\]/g, '[^/]+(?:/[^/]+)*')
-    .replace(/\[[^/\]]+\]/g, '[^/]+')
+    .replace(/\/\[\[\.\.\.[^/\]]+\]\]/g, '(?:/(?:[^/.]+(?:/[^/.]+)*))?')
+    .replace(/\[\.\.\.[^/\]]+\]/g, '[^/.]+(?:/[^/.]+)*')
+    .replace(/\[[^/\]]+\]/g, '[^/.]+')
 }
 
 export function execOnce<TArgs extends any[], TResult>(
