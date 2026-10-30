@@ -1177,3 +1177,73 @@ it.each([
   },
   130000
 )
+
+it.each(['default', 'proxy-disabled', 'proxify', 'proxify-disabled'])(
+  'retains actual callable name metadata after File disposal in %s',
+  async (family) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'chai-callable-name.cjs'), process.cwd(), '', family],
+      { timeout: 20000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toMatchObject({
+      cases: family.startsWith('proxify') ? 2 : 3,
+      completeGenuineRows: 4,
+      actualFileDisposalJoined: true,
+      actualNameReadsAfterDispose: true,
+    })
+  },
+  25000
+)
+
+it.each([
+  ['development', 'js', 'default'],
+  ['production', 'mjs', 'default'],
+  ['development', 'js', 'proxy-disabled'],
+  ['production', 'mjs', 'proxy-disabled'],
+  ['development', 'js', 'proxify'],
+  ['production', 'mjs', 'proxify'],
+  ['development', 'js', 'proxify-disabled'],
+  ['production', 'mjs', 'proxify-disabled'],
+])(
+  'matches genuine callable name metadata in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(join(tmpdir(), 'next-chai-name-public-'))
+    const output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-callable-name-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed callable name observations at ' + directory
+        )
+    }
+  },
+  130000
+)

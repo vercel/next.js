@@ -960,10 +960,6 @@ export async function createAssertionRuntime(options: {
         prototype
       )
     }
-    if (prototypeCallable) {
-      const length = Reflect.getOwnPropertyDescriptor(fn, 'length')
-      if (length) Object.defineProperty(invoke, 'length', length)
-    }
     const takeoverDescriptor = callableTakeoverDescriptors.get(fn)
     if (takeoverDescriptor)
       Object.defineProperty(
@@ -971,53 +967,61 @@ export async function createAssertionRuntime(options: {
         '__vitest_poll_takeover__',
         takeoverDescriptor
       )
-    const proxy = new Proxy(invoke, {
-      get(target, key, proxyReceiver) {
-        const owner = invocationScope()
-        assertStrictScope(owner)
-        if (key === '__flags')
-          throw new Error('Raw Chai assertion flags are not exposed')
-        if (
-          key === 'prototype' ||
-          key === 'constructor' ||
-          key === 'call' ||
-          key === 'apply' ||
-          key === 'bind'
-        )
-          return Reflect.get(target, key, proxyReceiver)
-        const value = Reflect.get(fn, key, fn)
-        if (
-          key === '_obj' ||
-          (value &&
-            (typeof value === 'object' || typeof value === 'function') &&
-            chaiUserResults.has(value))
-        )
-          return value
-        if (typeof value === 'function')
-          return strictFunction(value, owner, prototype, fn)
-        return strictResult(value, owner, prototype)
-      },
-      construct(_target, args) {
-        const owner = invocationScope()
-        assertStrictScope(owner)
-        return guardStrictChaiAssertion(
-          Reflect.construct(fn, args),
-          owner,
-          prototype
-        )
-      },
-      getOwnPropertyDescriptor(target, key) {
-        if (
-          key === '__vitest_poll_takeover__' ||
-          (prototypeCallable && key === 'length')
-        )
-          return Reflect.getOwnPropertyDescriptor(target, key)
-        assertStrictScope(invocationScope())
-        throw new Error(
-          'This Chai assertion reflection API is not yet supported'
-        )
-      },
-    })
+    const proxy = new Proxy(
+      prototypeCallable ? (fn as typeof invoke) : invoke,
+      {
+        apply(_target, thisArg, args) {
+          return Reflect.apply(invoke, thisArg, args)
+        },
+        get(target, key, proxyReceiver) {
+          if (prototypeCallable && key === 'name')
+            return Reflect.get(target, key, proxyReceiver)
+          const owner = invocationScope()
+          assertStrictScope(owner)
+          if (key === '__flags')
+            throw new Error('Raw Chai assertion flags are not exposed')
+          if (
+            key === 'prototype' ||
+            key === 'constructor' ||
+            key === 'call' ||
+            key === 'apply' ||
+            key === 'bind'
+          )
+            return Reflect.get(target, key, proxyReceiver)
+          const value = Reflect.get(fn, key, fn)
+          if (
+            key === '_obj' ||
+            (value &&
+              (typeof value === 'object' || typeof value === 'function') &&
+              chaiUserResults.has(value))
+          )
+            return value
+          if (typeof value === 'function')
+            return strictFunction(value, owner, prototype, fn)
+          return strictResult(value, owner, prototype)
+        },
+        construct(_target, args) {
+          const owner = invocationScope()
+          assertStrictScope(owner)
+          return guardStrictChaiAssertion(
+            Reflect.construct(fn, args),
+            owner,
+            prototype
+          )
+        },
+        getOwnPropertyDescriptor(target, key) {
+          if (
+            key === '__vitest_poll_takeover__' ||
+            (prototypeCallable && (key === 'length' || key === 'name'))
+          )
+            return Reflect.getOwnPropertyDescriptor(target, key)
+          assertStrictScope(invocationScope())
+          throw new Error(
+            'This Chai assertion reflection API is not yet supported'
+          )
+        },
+      }
+    )
     strictFunctionRecords.set(proxy, {
       raw: fn,
       scope,
@@ -2475,6 +2479,7 @@ export async function createAssertionRuntime(options: {
           primitive,
           '__vitest_poll_takeover__'
         )
+        const callableName = Object.getOwnPropertyDescriptor(primitive, 'name')
         const scoped = scopedMatcherNames.has(name) || !!takeover?.value
         chai.util.overwriteMethod(
           chai.Assertion.prototype,
@@ -2554,6 +2559,8 @@ export async function createAssertionRuntime(options: {
           name
         )?.value
         if (typeof method === 'function') {
+          if (callableName) Object.defineProperty(method, 'name', callableName)
+          else Reflect.deleteProperty(method, 'name')
           if (takeover) {
             Object.defineProperty(method, '__vitest_poll_takeover__', takeover)
             callableTakeoverDescriptors.set(method, takeover)

@@ -1,0 +1,73 @@
+{
+  "cases": [
+    {
+      "name": "native proxify shares actual function metadata and getter receivers",
+      "state": "passed"
+    },
+    {
+      "name": "retained aliases preserve real deletion and shared inherited name",
+      "state": "passed"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "alias-getter",
+      "sameAlias": true,
+      "sameNativeGetterReceiver": true,
+      "receiverIsBase": true,
+      "receiverIsAlias": true,
+      "sharedMarker": true,
+      "actualGetter": true,
+      "reads": 2
+    },
+    {
+      "kind": "alias-write",
+      "base": "actual shared renamed callable",
+      "alias": "actual shared renamed callable",
+      "descriptor": "actual shared renamed callable",
+      "reads": 2
+    },
+    {
+      "kind": "alias-delete",
+      "removed": true,
+      "baseOwn": false,
+      "aliasOwn": false,
+      "base": "",
+      "alias": "",
+      "reads": 2
+    },
+    {
+      "kind": "alias-afterAll",
+      "baseOwn": false,
+      "aliasOwn": false,
+      "base": "",
+      "alias": "",
+      "reads": 2
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "native proxify shares actual function metadata and getter receivers",
+      "state": "passed"
+    },
+    {
+      "name": "retained aliases preserve real deletion and shared inherited name",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "24a371aab3d226c0e9b06b34937339927b17db128a3a908ada2b45ed5d071a0c",
+  "rawErrorCount": 0
+}

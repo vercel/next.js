@@ -1,0 +1,23 @@
+import { expect, test, chai, afterAll } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const marker = {}
+let base, alias, firstReceiver, aliasReceiver, reads = 0
+chai.use((c, utils) => utils.addMethod(c.Assertion.prototype, 'nameAliased', function () { return this }))
+test('native proxify shares actual function metadata and getter receivers', () => {
+  base = chai.Assertion.prototype.nameAliased
+  Object.defineProperty(base, 'sharedNameField', { configurable: true, value: marker })
+  const getter = function () { reads++; return this }
+  Object.defineProperty(base, 'name', { configurable: true, get: getter })
+  alias = chai.util.proxify(base)
+  firstReceiver = base.name
+  aliasReceiver = alias.name
+  const descriptor = Object.getOwnPropertyDescriptor(alias, 'name')
+  emit({ kind: 'alias-getter', sameAlias: alias === base, sameNativeGetterReceiver: firstReceiver === aliasReceiver, receiverIsBase: firstReceiver === base, receiverIsAlias: aliasReceiver === alias, sharedMarker: firstReceiver.sharedNameField === marker && aliasReceiver.sharedNameField === marker, actualGetter: descriptor.get === getter, reads })
+  Object.defineProperty(alias, 'name', { configurable: true, value: 'actual shared renamed callable' })
+  emit({ kind: 'alias-write', base: base.name, alias: alias.name, descriptor: Object.getOwnPropertyDescriptor(base, 'name').value, reads })
+})
+test('retained aliases preserve real deletion and shared inherited name', () => {
+  const removed = delete base.name
+  emit({ kind: 'alias-delete', removed, baseOwn: Object.hasOwn(base, 'name'), aliasOwn: Object.hasOwn(alias, 'name'), base: base.name, alias: alias.name, reads })
+})
+afterAll(() => emit({ kind: 'alias-afterAll', baseOwn: Object.hasOwn(base, 'name'), aliasOwn: Object.hasOwn(alias, 'name'), base: base.name, alias: alias.name, reads }))
