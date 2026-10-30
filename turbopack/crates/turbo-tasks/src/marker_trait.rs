@@ -41,7 +41,8 @@ macro_rules! impl_auto_marker_trait {
         $crate::marker_trait::impl_marker_trait!($trait: ::std::path::Path, ::std::path::PathBuf);
         $crate::marker_trait::impl_marker_trait!(
             $trait:
-            ::serde_json::Value, ::serde_json::Map<String, ::serde_json::Value>
+            ::serde_json::Value, ::serde_json::Map<String, ::serde_json::Value>,
+            $crate::OrderedJsonValue, $crate::OrderedJsonMap
         );
 
         $crate::marker_trait::impl_marker_trait_fn_ptr!($trait: E D C B A Z Y X W V U T);
