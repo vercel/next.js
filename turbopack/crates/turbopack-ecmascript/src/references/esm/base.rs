@@ -49,7 +49,9 @@ use crate::{
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
-    native_import_coverage::{NativeImportCoverageRole, capture_browser_import_coverage},
+    native_import_coverage::{
+        NativeImportCoverageRole, capture_browser_import_coverage, capture_node_import_coverage,
+    },
     parse::ParseResult,
     references::{
         esm::{
@@ -969,8 +971,36 @@ impl EsmAssetReference {
                                                 .native_test_import_coverage_roles()
                                                 .await?;
                                     let mut browser_import_coverage = None;
+                                    let mut node_import_coverage = None;
                                     let (key, mut call_expr) = match import_source {
                                         ImportSource::Module { asset } => {
+                                            if native_import_coverage {
+                                                let module = this.module.await?;
+                                                if module.origin_path.path.ends_with(".tsx")
+                                                    || module.origin_path.path.ends_with(".jsx")
+                                                {
+                                                    let parsed = module.parse().await?;
+                                                    let parsed = parsed.await?;
+                                                    let ParseResult::Ok {
+                                                        source_map,
+                                                        program_source,
+                                                        ..
+                                                    } = &*parsed
+                                                    else {
+                                                        bail!(
+                                                            "Node import ownership requires its \
+                                                             actual parsed issuer"
+                                                        );
+                                                    };
+                                                    node_import_coverage =
+                                                        capture_node_import_coverage(
+                                                            source_map,
+                                                            &program_source.to_str()?,
+                                                            &this.request,
+                                                            name.sym.to_string(),
+                                                        )?;
+                                                }
+                                            }
                                             if *chunking_context
                                                 .native_browser_import_coverage_roles()
                                                 .await?
@@ -1128,6 +1158,7 @@ impl EsmAssetReference {
                                         span,
                                         call: call_expr.clone(),
                                         browser: browser_import_coverage,
+                                        node: node_import_coverage,
                                     });
                                     let mut statement = CodeGenerationHoistedStmt::new(
                                         key,

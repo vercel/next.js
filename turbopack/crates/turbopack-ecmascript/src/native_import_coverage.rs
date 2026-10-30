@@ -7,7 +7,7 @@ use swc_core::{
             Callee, Expr, ImportSpecifier, Lit, MemberProp, ModuleDecl, ModuleExportName,
             ModuleItem, Pat, Program, VarDecl,
         },
-        parser::{Parser, StringInput, Syntax},
+        parser::{Parser, StringInput, Syntax, TsSyntax},
         visit::{Visit, VisitWith},
     },
 };
@@ -21,6 +21,7 @@ pub struct NativeImportCoverageRole {
     pub span: Span,
     pub call: Expr,
     pub browser: Option<BrowserImportCoverage>,
+    pub node: Option<NodeImportCoverage>,
 }
 
 /// Captured from the actual Browser module's transformed imports and resolved target.
@@ -30,6 +31,15 @@ pub struct BrowserImportCoverage {
     pub issuer_sha256: String,
     pub request: String,
     pub resolved_format: &'static str,
+    pub imports: Vec<serde_json::Value>,
+}
+
+/// Captured from actual Node issuer input bytes, before emitted namespace rewriting.
+#[derive(Clone)]
+pub struct NodeImportCoverage {
+    pub binding: String,
+    pub issuer_sha256: String,
+    pub request: String,
     pub imports: Vec<serde_json::Value>,
 }
 
@@ -169,6 +179,116 @@ pub(crate) fn capture_browser_import_coverage(
     }))
 }
 
+/// Reparse only the actual loader/transform input bytes. In particular, an
+/// Istanbul issuer is the real generated instrumenter output, not its TSX source.
+/// Transform-generated imports absent from that input retain their legacy role.
+pub(crate) fn capture_node_import_coverage(
+    source_map: &SourceMap,
+    source: &str,
+    request: &str,
+    binding: String,
+) -> Result<Option<NodeImportCoverage>> {
+    let issuer_sha256 = source_sha256(source);
+    ensure!(
+        source_map
+            .files()
+            .iter()
+            .filter(|file| source_sha256(&file.src) == issuer_sha256)
+            .count()
+            == 1,
+        "Node import issuer source is ambiguous"
+    );
+    let cm = SourceMap::default();
+    let file = cm.new_source_file(
+        FileName::Custom("node-import-coverage-input.tsx".into()).into(),
+        source.to_owned(),
+    );
+    let mut parser = Parser::new(
+        Syntax::Typescript(TsSyntax {
+            tsx: true,
+            decorators: true,
+            ..Default::default()
+        }),
+        StringInput::from(&*file),
+        None,
+    );
+    let program = parser
+        .parse_program()
+        .map_err(|error| anyhow::anyhow!("Cannot inspect actual Node import issuer: {error:?}"))?;
+    ensure!(
+        parser.take_errors().is_empty(),
+        "Cannot inspect recovered Node import issuer syntax"
+    );
+    let Program::Module(module) = program else {
+        return Ok(None);
+    };
+    let mut imports = Vec::new();
+    for (order, item) in module.body.iter().enumerate() {
+        let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+            continue;
+        };
+        if import.src.value.to_string_lossy().as_ref() != request {
+            continue;
+        }
+        if import.type_only || import.with.is_some() || import.phase != Default::default() {
+            return Ok(None);
+        }
+        let start = import
+            .span
+            .lo
+            .0
+            .checked_sub(file.start_pos.0)
+            .context("Node import start escaped issuer")? as usize;
+        let end = import
+            .span
+            .hi
+            .0
+            .checked_sub(file.start_pos.0)
+            .context("Node import end escaped issuer")? as usize;
+        ensure!(
+            !import.span.is_dummy() && start < end && end <= source.len(),
+            "Node import range escaped issuer"
+        );
+        let mut specifiers = Vec::new();
+        for specifier in &import.specifiers {
+            let (kind, local, imported) = match specifier {
+                ImportSpecifier::Default(value) => ("default", &value.local, "default".to_owned()),
+                ImportSpecifier::Namespace(value) => ("namespace", &value.local, "*".to_owned()),
+                ImportSpecifier::Named(value) => {
+                    if value.is_type_only {
+                        return Ok(None);
+                    }
+                    let imported = match &value.imported {
+                        Some(ModuleExportName::Ident(value)) => value.sym.to_string(),
+                        Some(ModuleExportName::Str(value)) => {
+                            value.value.to_string_lossy().into_owned()
+                        }
+                        None => value.local.sym.to_string(),
+                    };
+                    ("named", &value.local, imported)
+                }
+            };
+            specifiers.push(
+                serde_json::json!({"kind":kind,"local":local.sym.to_string(),"imported":imported}),
+            );
+        }
+        imports.push(serde_json::json!({
+            "declarationOrder": order,
+            "sourceRange": {"start": position(source,start,true)?,"end":position(source,end,true)?},
+            "specifiers":specifiers,
+        }));
+    }
+    if imports.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(NodeImportCoverage {
+        binding,
+        issuer_sha256,
+        request: request.to_owned(),
+        imports,
+    }))
+}
+
 fn import_shape(declaration: &VarDecl) -> Option<(&str, &str, serde_json::Value)> {
     if declaration.decls.len() != 1 {
         return None;
@@ -219,6 +339,7 @@ pub(crate) struct OwnedDeclaration {
     target: serde_json::Value,
     source: serde_json::Value,
     browser: Option<BrowserImportCoverage>,
+    node: Option<NodeImportCoverage>,
 }
 
 fn position(text: &str, offset: usize, one_based: bool) -> Result<serde_json::Value> {
@@ -269,6 +390,10 @@ pub(crate) fn prepare_native_import_coverage(
     let mut output = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for role in roles {
+        ensure!(
+            role.browser.is_none() || role.node.is_none(),
+            "Browser and Node import issuer roles are mixed"
+        );
         if role.browser.is_none() {
             ensure!(
                 !role.span.is_dummy(),
@@ -283,6 +408,10 @@ pub(crate) fn prepare_native_import_coverage(
                     && role.browser.as_ref().is_none_or(|browser| {
                         import_shape(declaration)
                             .is_some_and(|(binding, _, _)| binding == browser.binding)
+                    })
+                    && role.node.as_ref().is_none_or(|node| {
+                        import_shape(declaration)
+                            .is_some_and(|(binding, _, _)| binding == node.binding)
                     })
             })
             .collect::<Vec<_>>();
@@ -305,15 +434,21 @@ pub(crate) fn prepare_native_import_coverage(
             seen.insert(binding.to_owned()),
             "Native import coverage binding is ambiguous"
         );
-        if let Some(browser) = &role.browser {
+        for issuer in [
+            role.browser.as_ref().map(|value| &value.issuer_sha256),
+            role.node.as_ref().map(|value| &value.issuer_sha256),
+        ]
+        .into_iter()
+        .flatten()
+        {
             ensure!(
                 source_map
                     .files()
                     .iter()
-                    .filter(|file| source_sha256(&file.src) == browser.issuer_sha256)
+                    .filter(|file| source_sha256(&file.src) == *issuer)
                     .count()
                     == 1,
-                "Browser import issuer changed before emission"
+                "Import issuer changed before emission"
             );
         }
         let source = if role.span.is_dummy() {
@@ -350,6 +485,7 @@ pub(crate) fn prepare_native_import_coverage(
             target,
             source,
             browser: role.browser,
+            node: role.node,
         });
     }
     Ok(output)
@@ -370,6 +506,21 @@ pub(crate) fn emitted_native_import_coverage(
             owner.browser.as_ref().map(|browser| &browser.issuer_sha256) == browser_issuer.as_ref()
         }),
         "Native import role modes or Browser issuers are mixed"
+    );
+    let node_issuer = owned
+        .iter()
+        .find_map(|owner| owner.node.as_ref())
+        .map(|node| node.issuer_sha256.clone());
+    ensure!(
+        browser_issuer.is_none() || node_issuer.is_none(),
+        "Browser and Node emitted import issuers are mixed"
+    );
+    ensure!(
+        owned
+            .iter()
+            .filter_map(|owner| owner.node.as_ref())
+            .all(|node| Some(&node.issuer_sha256) == node_issuer.as_ref()),
+        "Node emitted import issuers are mixed"
     );
     let code = std::str::from_utf8(bytes)?;
     let cm = SourceMap::default();
@@ -419,7 +570,12 @@ pub(crate) fn emitted_native_import_coverage(
                 "imports":browser.imports,
             })
         } else {
-            serde_json::json!({"kind":"esm-import-initializer","start":position(code,start,false)?,"end":position(code,end,false)?,"binding":owner.binding,"context":owner.context,"target":owner.target,"source":owner.source})
+            let mut role = serde_json::json!({"kind":"esm-import-initializer","start":position(code,start,false)?,"end":position(code,end,false)?,"binding":owner.binding,"context":owner.context,"target":owner.target,"source":owner.source});
+            if let Some(node) = owner.node {
+                role["request"] = serde_json::json!(node.request);
+                role["imports"] = serde_json::json!(node.imports);
+            }
+            role
         });
     }
     // Sorted native emission ranges allow deterministic duplicate/overlap checks.
@@ -442,6 +598,8 @@ pub(crate) fn emitted_native_import_coverage(
             "issuer":{"sha256":issuer_sha256},
             "moduleEnd":position(code,code.len(),false)?,"roles":roles,
         })
+    } else if let Some(issuer_sha256) = node_issuer {
+        serde_json::json!({"version":1,"kind":"node-import-initializers","issuer":{"sha256":issuer_sha256},"moduleEnd":position(code,code.len(),false)?,"roles":roles})
     } else {
         serde_json::json!({"version":1,"moduleEnd":position(code,code.len(),false)?,"roles":roles})
     })
@@ -509,6 +667,7 @@ mod tests {
             span,
             call: *declaration.decls[0].init.clone().unwrap(),
             browser: None,
+            node: None,
         };
         module.body[index] = statement;
         (cm, program, role)
@@ -533,6 +692,49 @@ mod tests {
         }
         (output, mappings)
     }
+    #[test]
+    fn binds_node_imports_to_real_input_order_and_emitted_initializers() {
+        GLOBALS.set(&Globals::new(), || {
+            let source = "function cov(){} cov(); import {jsxDEV as _jsxDEV} from \
+                          'react/jsx-dev-runtime'; export const value = '😀';";
+            let (cm, program, mut role) = fixture(source);
+            let node = capture_node_import_coverage(
+                &cm,
+                source,
+                "react/jsx-dev-runtime",
+                "nativeBinding".to_owned(),
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(node.imports[0]["declarationOrder"], 2);
+            assert_eq!(
+                node.imports[0]["specifiers"],
+                serde_json::json!([{"kind":"named","local":"_jsxDEV","imported":"jsxDEV"}])
+            );
+            assert!(
+                capture_node_import_coverage(&cm, source, "absent", "nativeBinding".to_owned())
+                    .unwrap()
+                    .is_none()
+            );
+            role.node = Some(node);
+            let before = emit(cm.clone(), &program);
+            let owned = prepare_native_import_coverage(&program, &cm, vec![role]).unwrap();
+            let roles = emitted_native_import_coverage(&before.0, owned.clone()).unwrap();
+            assert_eq!(before, emit(cm, &program));
+            assert_eq!(roles["kind"], "node-import-initializers");
+            assert_eq!(roles["issuer"]["sha256"], source_sha256(source));
+            assert_eq!(roles["roles"][0]["request"], "react/jsx-dev-runtime");
+            assert_eq!(
+                roles["roles"][0]["source"],
+                roles["roles"][0]["imports"][0]["sourceRange"]
+            );
+            assert!(
+                emitted_native_import_coverage(b"var nativeBinding = context.i('other');", owned)
+                    .is_err()
+            );
+        });
+    }
+
     #[test]
     fn certifies_real_emitted_ranges_without_changing_bytes_or_tokens() {
         GLOBALS.set(&Globals::new(), || {
@@ -724,7 +926,7 @@ mod tests {
             let mut statement = parser.parse_module().unwrap().body.remove(0);
             statement.visit_mut_with(&mut DummySpans);
             let ModuleItem::Stmt(Stmt::Decl(Decl::Var(declaration))) = &statement else {unreachable!()};
-            let role = NativeImportCoverageRole {span:DUMMY_SP,call:*declaration.decls[0].init.clone().unwrap(),browser:Some(browser)};
+            let role = NativeImportCoverageRole {span:DUMMY_SP,call:*declaration.decls[0].init.clone().unwrap(),browser:Some(browser),node:None};
             let Program::Module(module) = &mut program else {unreachable!()};
             let index = module.body.iter().position(|item| matches!(item,ModuleItem::ModuleDecl(ModuleDecl::Import(import)) if import.src.value == *"react/jsx-runtime")).unwrap();
             module.body[index]=statement;

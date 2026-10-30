@@ -6172,6 +6172,117 @@ describe('native-owned import coverage descriptors', () => {
     }
   })
 
+  async function richerOwnedImportFixture() {
+    const fixture = await ownedImportFixture()
+    const { createHash } = require('node:crypto')
+    const authored = fixture.options.selectedSources.get(fixture.file)!
+    const section: any = fixture.data.scripts[0].sections[0].data
+    Object.assign(section, {
+      kind: 'node-import-initializers',
+      issuer: { sha256: createHash('sha256').update(authored).digest('hex') },
+    })
+    Object.assign(section.roles[0], {
+      request: 'react',
+      imports: [
+        {
+          declarationOrder: 0,
+          sourceRange: structuredClone(section.roles[0].source),
+          specifiers: [
+            { kind: 'default', local: 'React', imported: 'default' },
+          ],
+        },
+      ],
+    })
+    await fixture.publish()
+    return fixture
+  }
+
+  it('validates richer actual import identity with the same exact V8 exclusion', async () => {
+    const fixture = await richerOwnedImportFixture()
+    try {
+      const before = JSON.stringify({
+        code: fixture.options.code,
+        map: fixture.options.rawMap,
+        ast: fixture.options.ast,
+      })
+      const result = await fixture.exclude()
+      expect(result.excluded).toEqual([
+        { file: fixture.file, start: { line: 1, column: 0 } },
+      ])
+      expect(
+        (result.ast as any).body[0].expression.elements[1].body.body.map(
+          (node: any) => node.type
+        )
+      ).toEqual(['FunctionDeclaration'])
+      expect(
+        JSON.stringify({
+          code: fixture.options.code,
+          map: fixture.options.rawMap,
+          ast: fixture.options.ast,
+        })
+      ).toBe(before)
+      fixture.options.selectedSources.clear()
+      const unselected = await fixture.exclude()
+      expect(unselected.excluded).toEqual([])
+      expect(unselected.ast).toBe(fixture.options.ast)
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    'issuer',
+    'issuer-extra',
+    'missing-issuer',
+    'request',
+    'order',
+    'source-range',
+    'local',
+    'imported',
+    'kind',
+    'imports-extra',
+    'missing-request',
+    'only-legacy',
+    'unselected-issuer',
+  ])(
+    'rejects richer import %s without weakening legacy or unselected-source validation',
+    async (mutation) => {
+      const fixture = await richerOwnedImportFixture()
+      try {
+        const section: any = fixture.data.scripts[0].sections[0].data
+        const role = section.roles[0]
+        if (mutation === 'issuer' || mutation === 'unselected-issuer')
+          section.issuer.sha256 = '0'.repeat(64)
+        if (mutation === 'unselected-issuer')
+          fixture.options.selectedSources.clear()
+        if (mutation === 'issuer-extra') section.issuer.extra = true
+        if (mutation === 'missing-issuer') delete section.issuer
+        if (mutation === 'request') role.request = 'foreign'
+        if (mutation === 'order') role.imports[0].declarationOrder++
+        if (mutation === 'source-range')
+          role.imports[0].sourceRange.end.column--
+        if (mutation === 'local')
+          role.imports[0].specifiers[0].local = 'foreign'
+        if (mutation === 'imported')
+          role.imports[0].specifiers[0].imported = '*'
+        if (mutation === 'kind')
+          role.imports[0].specifiers[0].kind = 'namespace'
+        if (mutation === 'imports-extra') role.imports[0].extra = true
+        if (mutation === 'missing-request') delete role.request
+        if (mutation === 'only-legacy') {
+          delete role.request
+          delete role.imports
+        }
+        await fixture.publish()
+        await expect(fixture.exclude()).rejects.toThrow(
+          'Invalid native import coverage ownership'
+        )
+      } finally {
+        await rm(fixture.root, { recursive: true, force: true })
+      }
+    }
+  )
+
   it('never grants authority to flat or nested vendor map fields without a native proof', async () => {
     const f = await ownedImportFixture()
     try {

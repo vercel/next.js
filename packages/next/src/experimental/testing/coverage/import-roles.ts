@@ -8,7 +8,7 @@ import type { CoverageArtifactMetadata, StandardCoverageData } from './types'
 type Point = { line: number; column: number }
 type Node = { type: string; start: number; end: number; [key: string]: any }
 type Excluded = { file: string; start: Point }
-const fail = (): never => {
+function fail(): never {
   throw new Error('Invalid native import coverage ownership')
 }
 const integer = (value: unknown): value is number =>
@@ -121,7 +121,9 @@ function walk(
 }
 
 /** Revalidate the actual native sidecar and its complete script inventory. */
-async function verifiedNativeImportInventory(artifact: CompiledTestArtifact) {
+export async function verifiedNativeImportInventory(
+  artifact: CompiledTestArtifact
+) {
   const proof = artifact.coverage?.importRoles
   if (
     !proof ||
@@ -212,6 +214,8 @@ export async function excludeNativeImportInitializers(options: {
     end: number
     moduleStart: number
     moduleEnd: number
+    issuerSHA256?: string
+    rich: boolean
   }[] = []
   for (const section of owned[0].sections) {
     if (!exactKeys(section, ['offset', 'data']) || !point(section.offset))
@@ -219,7 +223,17 @@ export async function excludeNativeImportInitializers(options: {
     const origin: Point = section.offset,
       data = section.data
     if (
-      !exactKeys(data, ['version', 'moduleEnd', 'roles']) ||
+      !(data?.kind === 'node-import-initializers'
+        ? exactKeys(data, [
+            'version',
+            'kind',
+            'issuer',
+            'moduleEnd',
+            'roles',
+          ]) &&
+          exactKeys(data.issuer, ['sha256']) &&
+          /^[a-f0-9]{64}$/.test(data.issuer.sha256)
+        : exactKeys(data, ['version', 'moduleEnd', 'roles'])) ||
       data.version !== 1 ||
       !point(data.moduleEnd) ||
       !Array.isArray(data.roles) ||
@@ -230,7 +244,11 @@ export async function excludeNativeImportInitializers(options: {
       moduleEnd = offset(add(origin, data.moduleEnd))
     if (moduleEnd <= moduleStart) fail()
     let previous = moduleStart
+    let richCount = 0
     for (const role of data.roles) {
+      const rich =
+        data.kind === 'node-import-initializers' &&
+        Object.hasOwn(role, 'request')
       if (
         !exactKeys(role, [
           'kind',
@@ -240,6 +258,7 @@ export async function excludeNativeImportInitializers(options: {
           'context',
           'target',
           'source',
+          ...(rich ? ['request', 'imports'] : []),
         ]) ||
         role.kind !== 'esm-import-initializer' ||
         !point(role.start) ||
@@ -260,12 +279,33 @@ export async function excludeNativeImportInitializers(options: {
           : role.target.kind !== 'number' || !integer(role.target.value))
       )
         fail()
+      if (rich) {
+        if (
+          typeof role.request !== 'string' ||
+          !role.request ||
+          !Array.isArray(role.imports) ||
+          !role.imports.length
+        )
+          fail()
+        richCount++
+      }
       const start = offset(add(origin, role.start)),
         end = offset(add(origin, role.end))
       if (start < previous || end > moduleEnd) fail()
       previous = end
-      roles.push({ role, start, end, moduleStart, moduleEnd })
+      roles.push({
+        role,
+        start,
+        end,
+        moduleStart,
+        moduleEnd,
+        rich,
+        ...(data.kind === 'node-import-initializers'
+          ? { issuerSHA256: data.issuer.sha256 }
+          : {}),
+      })
     }
+    if (data.kind === 'node-import-initializers' && !richCount) fail()
   }
   if (!roles.length) return { ast: options.ast, excluded: [] }
   roles.sort((a, b) => a.start - b.start)
@@ -281,7 +321,15 @@ export async function excludeNativeImportInitializers(options: {
   const excluded: Excluded[] = [],
     remove = new Set<number>(),
     authored = new Map<string, Node[]>()
-  for (const { role, start, end, moduleStart, moduleEnd } of roles) {
+  for (const {
+    role,
+    start,
+    end,
+    moduleStart,
+    moduleEnd,
+    issuerSHA256,
+    rich,
+  } of roles) {
     const matches = nodes.filter(
       (value) => value.node.start === start && value.node.end === end
     )
@@ -382,6 +430,81 @@ export async function excludeNativeImportInitializers(options: {
     )
     if (exact.length !== 1 || exact[0].source === null) fail()
     const identity = exact[0].source!
+    if (issuerSHA256) {
+      const issuer = decoded.sources.get(identity)
+      if (typeof issuer !== 'string' || coverageHash(issuer) !== issuerSHA256)
+        fail()
+      if (rich) {
+        // Native source ranges use one-based lines and zero-based UTF16 columns;
+        // emitted ranges and section offsets use zero-based lines and columns.
+        const parsed = parse(issuer, {
+          sourceType: 'module',
+          plugins: ['estree', 'typescript', 'jsx'],
+        })
+        const imports = (parsed.program.body as unknown as Node[]).flatMap(
+          (importNode, declarationOrder) => {
+            if (
+              importNode.type !== 'ImportDeclaration' ||
+              importNode.source?.value !== role.request
+            )
+              return []
+            if (
+              importNode.importKind === 'type' ||
+              importNode.attributes?.length ||
+              !importNode.loc
+            )
+              fail()
+            const specifiers = importNode.specifiers.map((specifier: Node) => {
+              if (specifier.importKind === 'type' || !specifier.local?.name)
+                fail()
+              if (specifier.type === 'ImportDefaultSpecifier')
+                return {
+                  kind: 'default',
+                  local: specifier.local.name,
+                  imported: 'default',
+                }
+              if (specifier.type === 'ImportNamespaceSpecifier')
+                return {
+                  kind: 'namespace',
+                  local: specifier.local.name,
+                  imported: '*',
+                }
+              if (specifier.type !== 'ImportSpecifier') fail()
+              const imported =
+                specifier.imported?.type === 'Identifier'
+                  ? specifier.imported.name
+                  : specifier.imported?.value
+              if (typeof imported !== 'string') fail()
+              return { kind: 'named', local: specifier.local.name, imported }
+            })
+            return [
+              {
+                declarationOrder,
+                sourceRange: {
+                  start: {
+                    line: importNode.loc.start.line,
+                    column: importNode.loc.start.column,
+                  },
+                  end: {
+                    line: importNode.loc.end.line,
+                    column: importNode.loc.end.column,
+                  },
+                },
+                specifiers,
+              },
+            ]
+          }
+        )
+        if (
+          !imports.length ||
+          !isDeepStrictEqual(imports, role.imports) ||
+          imports.filter((value) =>
+            isDeepStrictEqual(value.sourceRange, role.source)
+          ).length !== 1
+        )
+          fail()
+      }
+    }
     const source = artifact.coverage!.sources[identity]
     if (!source || !selectedSources.has(source.file)) continue
     const content = selectedSources.get(source.file)!
