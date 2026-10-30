@@ -4,6 +4,7 @@ const { tmpdir } = require('node:os')
 const { pathToFileURL } = require('node:url')
 const { createRequire } = require('node:module')
 const assert = require('node:assert/strict')
+const vm = require('node:vm')
 const taskRequire = createRequire(process.cwd() + '/package.json')
 const { build } = taskRequire('esbuild')
 const sdk = path.dirname(taskRequire.resolve('@vercel/agent-eval/package.json'))
@@ -19,6 +20,9 @@ const state = {
   agentRuns: 0,
   validations: 0,
   installs: 0,
+  captures: 0,
+  beforeValidations: 0,
+  afterValidations: 0,
 }
 globalThis.__evalSdkTest = state
 function makeSandbox(options) {
@@ -145,6 +149,20 @@ const mocks = {
     model: 'offline',
     prompt: 'offline',
     validation: 'vitest',
+    agentOptions: {
+      afterAgent: async (sandbox) => {
+        assert.equal(sandbox.files.get('EVAL.ts'), 'tampered')
+        state.captures++
+      },
+      beforeValidation: async (sandbox) => {
+        assert.equal(sandbox.files.get('EVAL.ts'), 'tampered')
+        state.beforeValidations++
+      },
+      afterValidation: async (sandbox) => {
+        assert.equal(sandbox.files.get('EVAL.ts'), 'trusted bundled grader')
+        state.afterValidations++
+      },
+    },
     setup: async () => ({
       env: { PUBLIC_FLAG: '1' },
       validationFiles: {
@@ -165,6 +183,51 @@ const mocks = {
   assert.equal(state.validations, 2)
   assert.equal(state.initial.length, 2)
   assert.equal(state.installs, 1)
+  assert.equal(state.captures, 2)
+  assert.equal(state.beforeValidations, 2)
+  assert.equal(state.afterValidations, 2)
+
+  const experiments = new Map()
+  const runner = { exports: {} }
+  vm.runInNewContext(
+    fs
+      .readFileSync(path.join(process.cwd(), 'run-evals.js'), 'utf8')
+      .replace(
+        /\nmain\(\)\s*$/,
+        '\nmodule.exports = { readEvalSuites, getExperimentSettings, writeExperiments }'
+      ),
+    {
+      __dirname: process.cwd(),
+      module: runner,
+      require: (name) =>
+        name === 'fs'
+          ? {
+              ...fs,
+              rmSync: () => {},
+              mkdirSync: () => {},
+              writeFileSync: (name, content) =>
+                experiments.set(path.basename(name), content),
+            }
+          : taskRequire(name),
+    }
+  )
+  runner.exports.readEvalSuites()
+  const selectedEvals = [
+    'agent-059-bundle-optimizer-next-dynamic',
+    'agent-046-adopt-partial-prefetching',
+  ]
+  const { variants, timeout } =
+    runner.exports.getExperimentSettings(selectedEvals)
+  runner.exports.writeExperiments(selectedEvals, variants, timeout, 1)
+  assert.match(experiments.get('baseline.ts'), /createBrowserJsHooks/)
+  assert.match(
+    experiments.get('skills-next-bundle-optimizer.ts'),
+    /agent-059-bundle-optimizer-next-dynamic/
+  )
+  assert.doesNotMatch(
+    experiments.get('skills-next-partial-prefetching-adoption.ts'),
+    /createBrowserJsHooks|agent-059-bundle-optimizer-next-dynamic/
+  )
 
   fs.symlinkSync(
     path.join(process.cwd(), 'node_modules'),
