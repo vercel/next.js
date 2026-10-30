@@ -22,8 +22,15 @@ export function getExternalBrowserRuntimeSrc(
   buildManifest: DeepReadonly<BuildManifest>,
   externalBrowserRuntime: boolean,
   assetPrefix: string,
+  crossOrigin: undefined | '' | 'anonymous' | 'use-credentials',
   subresourceIntegrityManifest: DeepReadonly<Record<string, string>> | undefined
-): { src: string; integrity: string | undefined } | undefined {
+):
+  | {
+      src: string
+      integrity: string | undefined
+      crossOrigin: string | undefined
+    }
+  | undefined {
   if (!externalBrowserRuntime) {
     return undefined
   }
@@ -42,5 +49,6 @@ export function getExternalBrowserRuntimeSrc(
   return {
     src: `${assetPrefix}/_next/${file}${getAssetQueryString(ctx, false)}`,
     integrity: subresourceIntegrityManifest?.[file],
+    crossOrigin,
   }
 }

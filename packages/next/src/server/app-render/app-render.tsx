@@ -3602,6 +3602,7 @@ async function renderToStream(
     buildManifest,
     experimental.externalBrowserRuntime,
     assetPrefix,
+    crossOrigin,
     subresourceIntegrityManifest
   )
 
@@ -9013,6 +9014,7 @@ async function prerenderToStream(
     buildManifest,
     experimental.externalBrowserRuntime,
     assetPrefix,
+    crossOrigin,
     subresourceIntegrityManifest
   )
 

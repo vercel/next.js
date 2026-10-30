@@ -1457,7 +1457,9 @@ impl AppEndpoint {
         };
 
         // Like the polyfill, this is a pre-compiled asset distributed as part of next and served
-        // as-is rather than bundled. React only publishes it on the experimental channel, which
+        // as-is rather than bundled with the framework. Keeping it small and independent lets it
+        // reveal streamed Suspense boundaries before the framework loads or hydration begins.
+        // React only publishes it on the experimental channel, which
         // `experimental.externalBrowserRuntime` opts into.
         let external_browser_runtime_output_asset =
             if matches!(this.ty, AppEndpointType::Page { .. })

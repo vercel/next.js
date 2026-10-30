@@ -46,6 +46,9 @@ describe('external-browser-runtime', () => {
     )
     expect(runtimes).toHaveLength(1)
     expect(runtimes[0].status).toBe(200)
+    expect($(`script[src="${runtimes[0].src}"]`).attr('crossorigin')).toBe(
+      'use-credentials'
+    )
   })
 
   it('reveals suspended content and hydrates', async () => {

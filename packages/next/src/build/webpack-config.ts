@@ -2179,7 +2179,9 @@ export default async function getBaseWebpackConfig(
         new CopyFilePlugin({
           // React only publishes this standalone runtime on the experimental
           // channel, which `experimental.externalBrowserRuntime` opts into via
-          // `needsExperimentalReact`. It is served as-is rather than bundled.
+          // `needsExperimentalReact`. Keep it small and independent of the
+          // framework bundle so it can reveal streamed Suspense boundaries
+          // before the framework loads or hydration begins.
           filePath: require.resolve(
             '../compiled/react-dom-experimental/unstable_server-external-runtime'
           ),
