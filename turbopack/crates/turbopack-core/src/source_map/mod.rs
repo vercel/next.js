@@ -309,45 +309,63 @@ impl SourceMap {
             return std::mem::take(map);
         }
 
+        let mut rope = RopeBuilder::default();
+        Self::write_sections(
+            &mut rope,
+            first.into_iter().chain(sections),
+            debug_id,
+            |rope, section_map| *rope += &section_map,
+        );
+        rope.build()
+    }
+
+    /// Writes a sectioned source map: `sections` are the maps with the positions they start at,
+    /// and `push_map` writes one of them. Callers that may have a single section starting at the
+    /// beginning should return that map directly instead (see [`SourceMap::sections_to_rope`]).
+    pub fn write_sections<W: Write, M>(
+        out: &mut W,
+        sections: impl IntoIterator<Item = (SourcePos, M)>,
+        debug_id: Option<RcStr>,
+        mut push_map: impl FnMut(&mut W, M),
+    ) {
         // My kingdom for a decent dedent macro with interpolation!
         // NOTE: The empty `sources` array is technically incorrect, but there is a bug
         // in Node.js that requires sectioned source maps to have a `sources` array.
-        let mut rope = RopeBuilder::from(
-            r#"{
+        out.write_all(
+            br#"{
   "version": 3,
   "sources": [],
 "#,
-        );
+        )
+        .unwrap();
         if let Some(debug_id) = debug_id {
-            writeln!(rope, r#"  "debugId": "{debug_id}","#).unwrap();
+            writeln!(out, r#"  "debugId": "{debug_id}","#).unwrap();
         }
-        rope += "  \"sections\": [";
+        out.write_all(b"  \"sections\": [").unwrap();
 
         let mut first_section = true;
-        for (offset, section_map) in first.into_iter().chain(sections) {
+        for (offset, section_map) in sections {
             if !first_section {
-                rope += ",";
+                out.write_all(b",").unwrap();
             }
             first_section = false;
 
             write!(
-                rope,
+                out,
                 r#"
     {{"offset": {{"line": {}, "column": {}}}, "map": "#,
                 offset.line, offset.column,
             )
             .unwrap();
 
-            rope += &section_map;
+            push_map(out, section_map);
 
-            rope += "}";
+            out.write_all(b"}").unwrap();
         }
 
-        rope += "]";
+        out.write_all(b"]").unwrap();
 
-        rope += "\n}";
-
-        rope.build()
+        out.write_all(b"\n}").unwrap();
     }
 
     /// Stringifies the source map into JSON bytes.

@@ -16,6 +16,7 @@
 #![allow(clippy::mutable_key_type)]
 
 mod canonicalized_path_cache;
+mod cell_rope;
 mod content;
 mod disk;
 pub mod embed;
@@ -48,12 +49,8 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
-pub(crate) use crate::{
-    content::FileComparison,
-    disk::{DiskFileSystemInner, format_absolute_fs_path},
-    error::AnyhowWrapper,
-};
 pub use crate::{
+    cell_rope::{CellRope, CellRopeBuilder},
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
         LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
@@ -68,6 +65,11 @@ pub use crate::{
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
+};
+pub(crate) use crate::{
+    content::FileComparison,
+    disk::{DiskFileSystemInner, format_absolute_fs_path},
+    error::AnyhowWrapper,
 };
 
 #[turbo_tasks::value_trait]
