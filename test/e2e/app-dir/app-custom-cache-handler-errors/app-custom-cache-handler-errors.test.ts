@@ -4,6 +4,12 @@ import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import escapeStringRegexp from 'escape-string-regexp'
 
+// In production, handler frames are intentionally printed unsourcemapped
+// (the server has no source maps) with install-specific path prefixes that
+// we don't want to assert on.
+const normalizeCacheHandlerPaths = (output: string): string =>
+  output.replaceAll(/\([^()\s]*(?=throwing-cache-handler\.js)/g, '(')
+
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
@@ -63,7 +69,9 @@ describe('app-custom-cache-handler-errors - get throws', () => {
     // asserting its absence.
     await waitFor(1000)
 
-    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    const cliOutput = normalizeCacheHandlerPaths(
+      stripAnsi(next.cliOutput.slice(outputIndex))
+    )
 
     const errorBlock = isNextDev
       ? 'Error: CustomCacheHandler.get failed' +
@@ -123,10 +131,14 @@ describe('app-custom-cache-handler-errors - set throws', () => {
       '\n    at Object.set (throwing-cache-handler.js:50:13)'
 
     await retry(async () => {
-      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(errorBlock)
+      expect(
+        normalizeCacheHandlerPaths(stripAnsi(next.cliOutput.slice(outputIndex)))
+      ).toContain(errorBlock)
     })
 
-    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    const cliOutput = normalizeCacheHandlerPaths(
+      stripAnsi(next.cliOutput.slice(outputIndex))
+    )
     expect(cliOutput).not.toContain('unhandledRejection')
     expect(cliOutput).toIncludeRepeated(escapeStringRegexp(errorBlock), 1)
   })
