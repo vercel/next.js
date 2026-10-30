@@ -23,7 +23,7 @@ use shrink_to_fit::ShrinkToFit;
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, MIN_HASH_SIZE, TinyVec,
-    storage::{BackingListStorage, BackingMapStorage, MapEntry},
+    storage::{BackingListStorage, BackingMapIter, BackingMapStorage, MapEntry},
 };
 
 /// A map that stores small numbers of entries in a linear list `L` and switches to a real map `M`
@@ -38,15 +38,8 @@ pub enum RawAutoMap<K, V, M, L> {
     Map(Box<M>),
 }
 
-/// Unordered [`RawAutoMap`] backed by a [`HashMap`] and an `I`-inline [`TinyVec`].
-pub type AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
-    RawAutoMap<K, V, HashMap<K, V, H>, TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>>;
-
-/// Insertion ordered [`RawAutoMap`] backed by an [`IndexMap`] and an `I`-inline [`TinyVec`].
-///
-/// Equality is order sensitive and removals preserve the order of the remaining entries.
-pub type AutoIndexMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
-    RawAutoMap<K, V, IndexMap<K, V, H>, TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>>;
+// The aliases are defined in the crate root. Re-exported here to keep the `map::` paths working.
+pub use crate::{AutoIndexMap, AutoMap};
 
 impl<K, V, M, L: BackingListStorage<(K, V)>> Default for RawAutoMap<K, V, M, L> {
     fn default() -> Self {
@@ -397,17 +390,17 @@ where
 
 impl<K, V, M: BackingMapStorage<K, V>, L: BackingListStorage<(K, V)>> RawAutoMap<K, V, M, L> {
     /// see [HashMap::iter](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.iter)
-    pub fn iter(&self) -> Iter<'_, K, V> {
+    pub fn iter(&self) -> Iter<M::Iter<'_>> {
         match self {
-            RawAutoMap::List(list, _) => Iter::List(list.iter()),
-            RawAutoMap::Map(map) => map.iter(),
+            RawAutoMap::List(list, _) => Iter::List(ListIter(list.iter())),
+            RawAutoMap::Map(map) => Iter::Map(map.iter()),
         }
     }
     /// see [HashMap::iter_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.iter_mut)
-    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<M::IterMut<'_>> {
         match self {
-            RawAutoMap::List(list, _) => IterMut::List(list.iter_mut()),
-            RawAutoMap::Map(map) => map.iter_mut(),
+            RawAutoMap::List(list, _) => Iter::List(ListIterMut(list.iter_mut())),
+            RawAutoMap::Map(map) => Iter::Map(map.iter_mut()),
         }
     }
 
@@ -428,18 +421,18 @@ impl<K, V, M: BackingMapStorage<K, V>, L: BackingListStorage<(K, V)>> RawAutoMap
     }
 
     /// see [HashMap::values_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.values_mut)
-    pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
+    pub fn values_mut(&mut self) -> ValuesMut<M::ValuesMut<'_>> {
         match self {
-            RawAutoMap::List(list, _) => ValuesMut::List(list.iter_mut()),
-            RawAutoMap::Map(map) => map.values_mut(),
+            RawAutoMap::List(list, _) => Iter::List(ListValuesMut(list.iter_mut())),
+            RawAutoMap::Map(map) => Iter::Map(map.values_mut()),
         }
     }
 
     /// see [HashMap::values](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.values)
-    pub fn values(&self) -> Values<'_, K, V> {
+    pub fn values(&self) -> Values<M::Values<'_>> {
         match self {
-            RawAutoMap::List(list, _) => Values::List(list.iter()),
-            RawAutoMap::Map(map) => map.values(),
+            RawAutoMap::List(list, _) => Iter::List(ListValues(list.iter())),
+            RawAutoMap::Map(map) => Iter::Map(map.values()),
         }
     }
 
@@ -470,134 +463,136 @@ impl<'a, K, V, M: BackingMapStorage<K, V>, L: BackingListStorage<(K, V)>> IntoIt
     for &'a RawAutoMap<K, V, M, L>
 {
     type Item = (&'a K, &'a V);
-    type IntoIter = Iter<'a, K, V>;
+    type IntoIter = Iter<M::Iter<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-pub enum Iter<'a, K, V> {
-    List(std::slice::Iter<'a, (K, V)>),
-    HashMap(hashbrown::hash_map::Iter<'a, K, V>),
-    IndexMap(indexmap::map::Iter<'a, K, V>),
+/// A borrowed iterator of a [`RawAutoMap`]. `MI` is the iterator of the map storage, e.g.
+/// [`BackingMapStorage::Iter`], and its [`BackingMapIter::List`] iterates the list variant.
+///
+/// The trait impls only require `MI: BackingMapIter` and take the `Item` type from it (see
+/// [`BackingMapIter`] for why).
+pub enum Iter<MI: BackingMapIter> {
+    List(MI::List),
+    Map(MI),
 }
 
-impl<'a, K, V> Iterator for Iter<'a, K, V> {
-    type Item = (&'a K, &'a V);
+/// See [`Iter`], with `MI` = [`BackingMapStorage::IterMut`].
+pub type IterMut<MI> = Iter<MI>;
+/// See [`Iter`], with `MI` = [`BackingMapStorage::Values`].
+pub type Values<MI> = Iter<MI>;
+/// See [`Iter`], with `MI` = [`BackingMapStorage::ValuesMut`].
+pub type ValuesMut<MI> = Iter<MI>;
 
-    // This clippy lint doesn't account for lifetimes
-    #[allow(clippy::map_identity)]
+impl<MI: BackingMapIter> Iterator for Iter<MI> {
+    type Item = MI::Item;
+
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Iter::List(iter) => iter.next().map(|(k, v)| (k, v)),
-            Iter::HashMap(iter) => iter.next(),
-            Iter::IndexMap(iter) => iter.next(),
+            Iter::List(iter) => iter.next(),
+            Iter::Map(iter) => iter.next(),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
             Iter::List(iter) => iter.size_hint(),
-            Iter::HashMap(iter) => iter.size_hint(),
-            Iter::IndexMap(iter) => iter.size_hint(),
+            Iter::Map(iter) => iter.size_hint(),
         }
     }
 }
 
-impl<K, V> Clone for Iter<'_, K, V> {
+impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
     fn clone(&self) -> Self {
         match self {
             Iter::List(iter) => Iter::List(iter.clone()),
-            Iter::HashMap(iter) => Iter::HashMap(iter.clone()),
-            Iter::IndexMap(iter) => Iter::IndexMap(iter.clone()),
+            Iter::Map(iter) => Iter::Map(iter.clone()),
         }
     }
 }
 
-pub enum IterMut<'a, K, V> {
-    List(std::slice::IterMut<'a, (K, V)>),
-    HashMap(hashbrown::hash_map::IterMut<'a, K, V>),
-    IndexMap(indexmap::map::IterMut<'a, K, V>),
+/// [`BackingMapIter::List`] of [`BackingMapStorage::Iter`].
+pub struct ListIter<'a, K, V>(std::slice::Iter<'a, (K, V)>);
+
+// Not derived, as that would require `K: Clone, V: Clone`.
+impl<K, V> Clone for ListIter<'_, K, V> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
-impl<'a, K, V> Iterator for IterMut<'a, K, V> {
+impl<'a, K, V> Iterator for ListIter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    // This clippy lint doesn't account for lifetimes
+    #[allow(clippy::map_identity)]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(k, v)| (k, v))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+/// [`BackingMapIter::List`] of [`BackingMapStorage::IterMut`].
+pub struct ListIterMut<'a, K, V>(std::slice::IterMut<'a, (K, V)>);
+
+impl<'a, K, V> Iterator for ListIterMut<'a, K, V> {
     type Item = (&'a K, &'a mut V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            IterMut::List(iter) => iter.next().map(|(k, v)| (&*k, v)),
-            IterMut::HashMap(iter) => iter.next(),
-            IterMut::IndexMap(iter) => iter.next(),
-        }
+        self.0.next().map(|(k, v)| (&*k, v))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            IterMut::List(iter) => iter.size_hint(),
-            IterMut::HashMap(iter) => iter.size_hint(),
-            IterMut::IndexMap(iter) => iter.size_hint(),
-        }
+        self.0.size_hint()
     }
 }
 
-pub enum Values<'a, K, V> {
-    List(std::slice::Iter<'a, (K, V)>),
-    HashMap(hashbrown::hash_map::Values<'a, K, V>),
-    IndexMap(indexmap::map::Values<'a, K, V>),
+/// [`BackingMapIter::List`] of [`BackingMapStorage::Values`].
+pub struct ListValues<'a, K, V>(std::slice::Iter<'a, (K, V)>);
+
+// Not derived, as that would require `K: Clone, V: Clone`.
+impl<K, V> Clone for ListValues<'_, K, V> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
-impl<'a, K, V> Iterator for Values<'a, K, V> {
+impl<'a, K, V> Iterator for ListValues<'a, K, V> {
     type Item = &'a V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Values::List(iter) => iter.next().map(|(_, v)| v),
-            Values::HashMap(iter) => iter.next(),
-            Values::IndexMap(iter) => iter.next(),
-        }
+        self.0.next().map(|(_, v)| v)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Values::List(iter) => iter.size_hint(),
-            Values::HashMap(iter) => iter.size_hint(),
-            Values::IndexMap(iter) => iter.size_hint(),
-        }
+        self.0.size_hint()
     }
 }
 
-pub enum ValuesMut<'a, K, V> {
-    List(std::slice::IterMut<'a, (K, V)>),
-    HashMap(hashbrown::hash_map::ValuesMut<'a, K, V>),
-    IndexMap(indexmap::map::ValuesMut<'a, K, V>),
-}
+/// [`BackingMapIter::List`] of [`BackingMapStorage::ValuesMut`].
+pub struct ListValuesMut<'a, K, V>(std::slice::IterMut<'a, (K, V)>);
 
-impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
+impl<'a, K, V> Iterator for ListValuesMut<'a, K, V> {
     type Item = &'a mut V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            ValuesMut::List(iter) => iter.next().map(|(_, v)| v),
-            ValuesMut::HashMap(iter) => iter.next(),
-            ValuesMut::IndexMap(iter) => iter.next(),
-        }
+        self.0.next().map(|(_, v)| v)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            ValuesMut::List(iter) => iter.size_hint(),
-            ValuesMut::HashMap(iter) => iter.size_hint(),
-            ValuesMut::IndexMap(iter) => iter.size_hint(),
-        }
+        self.0.size_hint()
     }
 }
 
 // The owned iterator types are parameterized by the concrete iterator types of the backing
 // storages (`LI` for the list, `MI` for the map) instead of naming projections like `M::IntoIter`
-// in their fields. Projections in fields break `Send` inference for futures holding these
-// iterators across an `.await` when the key type contains a lifetime (rust-lang/rust#100013).
-// The borrowed iterators above avoid this by naming all supported map iterators directly.
+// in their fields, and their trait impls don't relate lifetimes (see `BackingMapIter` for why).
 
 pub enum IntoIter<LI, MI> {
     List(LI),
@@ -1521,19 +1516,54 @@ mod tests {
             }
         }
         // Iterators returned from closures are inferred under a higher-ranked lifetime.
-        async fn nested(maps: Vec<AutoMap<Key, Key>>, index_maps: Vec<AutoIndexMap<Key, Key>>) {
+        async fn nested(
+            mut maps: Vec<AutoMap<Key, Key>>,
+            mut index_maps: Vec<AutoIndexMap<Key, Key>>,
+            sets: Vec<crate::AutoSet<Key>>,
+            index_sets: Vec<crate::AutoIndexSet<Key>>,
+        ) {
             for _x in maps.iter().flat_map(|m| m.iter()) {
                 yield_now().await;
             }
             for _x in maps.iter().flat_map(|m| m.values()) {
                 yield_now().await;
             }
+            for _x in maps.iter_mut().flat_map(|m| m.iter_mut()) {
+                yield_now().await;
+            }
+            for _x in maps.iter_mut().flat_map(|m| m.values_mut()) {
+                yield_now().await;
+            }
             for _x in index_maps.iter().flat_map(|m| m.iter()) {
                 yield_now().await;
             }
+            for _x in index_maps.iter().flat_map(|m| m.values()) {
+                yield_now().await;
+            }
+            for _x in index_maps.iter_mut().flat_map(|m| m.iter_mut()) {
+                yield_now().await;
+            }
+            for _x in index_maps.iter_mut().flat_map(|m| m.values_mut()) {
+                yield_now().await;
+            }
+            for _x in sets.iter().flat_map(|s| s.iter()) {
+                yield_now().await;
+            }
+            for _x in index_sets.iter().flat_map(|s| s.iter()) {
+                yield_now().await;
+            }
         }
-        async fn index_map(map: AutoIndexMap<Key, Key>) {
+        async fn index_map(mut map: AutoIndexMap<Key, Key>) {
             for _x in map.iter() {
+                yield_now().await;
+            }
+            for _x in map.iter_mut() {
+                yield_now().await;
+            }
+            for _x in map.values() {
+                yield_now().await;
+            }
+            for _x in map.values_mut() {
                 yield_now().await;
             }
             for _x in map {
@@ -1542,6 +1572,9 @@ mod tests {
         }
         async fn sets(set: crate::AutoSet<Key>, index_set: crate::AutoIndexSet<Key>) {
             for _x in set.iter() {
+                yield_now().await;
+            }
+            for _x in index_set.iter() {
                 yield_now().await;
             }
             for _x in set {
@@ -1553,8 +1586,53 @@ mod tests {
         }
         assert_send(hash_map(AutoMap::new()));
         assert_send(index_map(AutoIndexMap::new()));
-        assert_send(nested(Vec::new(), Vec::new()));
+        assert_send(nested(Vec::new(), Vec::new(), Vec::new(), Vec::new()));
         assert_send(sets(crate::AutoSet::new(), crate::AutoIndexSet::new()));
+    }
+
+    #[test]
+    fn test_iterators_clone_without_clone_entries() {
+        // Cloning a borrowed iterator must not require cloneable keys or values.
+        #[derive(PartialEq, Eq, Hash)]
+        struct NoClone(u32);
+        fn check<
+            M: BackingMapStorage<NoClone, NoClone>,
+            L: BackingListStorage<(NoClone, NoClone)>,
+        >(
+            mut map: RawAutoMap<NoClone, NoClone, M, L>,
+        ) where
+            M::Hasher: BuildHasher + Default,
+        {
+            // List variant, then map variant.
+            for n in [2, MAX_USEFUL_LINEAR_SCAN as u32 + 2] {
+                for i in 0..n {
+                    map.insert(NoClone(i), NoClone(i));
+                }
+                let iter = map.iter();
+                assert_eq!(iter.clone().count(), map.len());
+                assert_eq!(iter.count(), map.len());
+            }
+        }
+        check(AutoMap::<NoClone, NoClone>::new());
+        check(AutoIndexMap::<NoClone, NoClone>::new());
+
+        let mut set = crate::AutoIndexSet::<NoClone>::new();
+        let mut hash_set = crate::AutoSet::<NoClone>::new();
+        for i in 0..MAX_USEFUL_LINEAR_SCAN as u32 + 2 {
+            set.insert(NoClone(i));
+            hash_set.insert(NoClone(i));
+            assert_eq!(set.iter().clone().count(), set.len());
+            assert_eq!(hash_set.iter().clone().count(), hash_set.len());
+        }
+    }
+
+    #[test]
+    fn test_alias_paths() {
+        // The aliases are defined in the crate root, the module paths keep working.
+        let _: crate::map::AutoMap<u32, u32> = crate::AutoMap::new();
+        let _: crate::map::AutoIndexMap<u32, u32> = crate::AutoIndexMap::new();
+        let _: crate::set::AutoSet<u32> = crate::AutoSet::new();
+        let _: crate::set::AutoIndexSet<u32> = crate::AutoIndexSet::new();
     }
 
     #[test]
