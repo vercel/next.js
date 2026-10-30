@@ -9822,3 +9822,64 @@ if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
     130000
   )
 }
+
+if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
+  it.each(
+    ['development', 'production'].flatMap((mode) =>
+      [
+        'two-factories',
+        'cut-before-two',
+        'cut-between-two',
+        'cut-after-two',
+      ].map((group) => [mode, group] as const)
+    )
+  )(
+    'retains actual native factory registrations and cuts in %s %s',
+    (mode, group) => {
+      const { execFileSync } = require('node:child_process')
+      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+      const output = mkdtempSync(
+        join(tmpdir(), 'next-native-multiple-factories-')
+      )
+      let complete = false
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'native-unmock-multiple-factories.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+            'source',
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          mode,
+          group,
+          cases: 1,
+          rows: 1,
+          completeAuthoredCasesAndRows: true,
+          completeNamespaceAndFunctionDescriptors: true,
+          orderedFactoryDeclarations: true,
+          sourceOrderedCuts: group !== 'two-factories',
+          finalRegistrationWins: group !== 'cut-after-two',
+          finalCutSelectsOriginal: group === 'cut-after-two',
+          nativeCycleAndPartialExports: true,
+          staticRuntimeActualResetUnmockIdentities: true,
+          exactOriginalAndFactoryEvaluations: true,
+          completeCountsAndFileMessages: true,
+          allAuthoredBytesHeld: true,
+          allOwnersJoined: true,
+        })
+        complete = true
+      } finally {
+        if (complete) rmSync(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+}

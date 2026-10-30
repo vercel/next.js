@@ -2437,6 +2437,18 @@ async fn prepare_test_module_with_loading(
             .await?;
             let resolved = resolved.await?;
             let modules = resolved.primary_modules().await?;
+            // Earlier factories cancelled by the actual last cut do not register.
+            // Resolve each to the same original before omitting it; the surviving
+            // factory still passes the strict preceding-cut check below.
+            if native_unmock
+                && modules.len() == 1
+                && retained_unmock_original == Some(modules[0])
+                && native_unmock_cuts
+                    .get(&modules[0])
+                    .is_some_and(|cut| cut.0 == input_index && cut.1 > declaration.factory_start)
+            {
+                continue;
+            }
             if native_unmock {
                 let corresponding = modules.len() == 1
                     && retained_unmock_original == Some(modules[0])
@@ -3408,8 +3420,19 @@ async fn prepare_test_module_with_loading(
     )
     .await?;
     let registration_request = format!("next-test-registration:{id}");
+    // Count the surviving source-ordered declarations at the actual resolved cut.
+    // Every declaration above has already proved the same canonical original.
+    let retained_native_registrations = retained_unmock_original
+        .and_then(|original| native_unmock_cuts.get(&original))
+        .map(|cut| {
+            plan.declarations
+                .iter()
+                .filter(|declaration| *cut < (0, declaration.factory_start))
+                .count()
+        });
     if retained_before_unmock
-        && (registrations.len() != 1
+        && (retained_native_registrations != Some(registrations.len())
+            || registrations.is_empty()
             || external_modules.len() != 1
             || !retained_unmock_original
                 .is_some_and(|original| external_modules.contains_key(&original))

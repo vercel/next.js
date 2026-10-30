@@ -41,23 +41,31 @@ impl StaticMockPlan {
 
     fn single_native_unmock(&self, retained: bool) -> Option<&str> {
         let unmock = self.unmocks.last()?;
-        let [declaration] = self.declarations.as_slice() else {
-            return None;
-        };
+        let declaration = self.declarations.last()?;
         let [runtime] = self.runtime_requests.as_slice() else {
             return None;
         };
         let request = declaration.request.as_str();
-        let factory_end = declaration
-            .factory_start
-            .checked_add(declaration.original_factory_source.len())?;
+        let factory_ranges = self
+            .declarations
+            .iter()
+            .map(|factory| {
+                factory
+                    .factory_start
+                    .checked_add(factory.original_factory_source.len())
+                    .map(|end| (factory.factory_start, end))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let factory_end = factory_ranges.last()?.1;
         if request.is_empty()
             || request.starts_with(['.', '/', '#', '\\'])
             || request.contains(['?', '#', ':'])
             || self.unmocks.iter().any(|cut| {
                 cut.request != request
                     || cut.start >= cut.end
-                    || (cut.start < factory_end && cut.end > declaration.factory_start)
+                    || factory_ranges
+                        .iter()
+                        .any(|&(start, end)| cut.start < end && cut.end > start)
             })
             || self
                 .unmocks
@@ -77,10 +85,17 @@ impl StaticMockPlan {
                 .any(|actual| actual.request != request)
             || !self.hoisted.is_empty()
             || !self.mock_imports.is_empty()
-            || declaration.automatic
-            || declaration.spy
-            || !declaration.has_object_return
-            || declaration.has_spread
+            || self.declarations.iter().any(|factory| {
+                factory.request != request
+                    || factory.automatic
+                    || factory.spy
+                    || !factory.has_object_return
+                    || factory.has_spread
+                    || factory.original_factory_source.is_empty()
+            })
+            || factory_ranges
+                .windows(2)
+                .any(|ranges| ranges[0].1 > ranges[1].0)
         {
             return None;
         }
@@ -558,7 +573,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     // assembly still proves the actual original and surviving registration.
     let native_unmock_sequence = allow_runtime
         && !calls.unmock_calls.is_empty()
-        && calls.calls.len() == 1
+        && !calls.calls.is_empty()
         && !calls.actual_calls.is_empty()
         && !calls.reset_calls.is_empty()
         && calls
@@ -567,11 +582,20 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             .any(|(registration, _)| *registration)
         && native_static_request(&calls.calls[0]).is_some_and(|request| {
             !request.contains(':')
+                && calls.calls.iter().all(|factory| {
+                    native_static_request(factory) == Some(request)
+                        && module.body.iter().any(|item| {
+                            matches!(item,
+                            ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
+                                Expr::Call(top) if top.span == factory.span))
+                        })
+                })
                 && calls.unmock_calls.iter().all(|unmock| {
                     native_static_request(unmock) == Some(request)
                         && unmock.args.len() == 1
-                        && (unmock.span.hi <= calls.calls[0].span.lo
-                            || unmock.span.lo >= calls.calls[0].span.hi)
+                        && calls.calls.iter().all(|factory| {
+                            unmock.span.hi <= factory.span.lo || unmock.span.lo >= factory.span.hi
+                        })
                         && module.body.iter().any(|item| {
                             matches!(item,
                             ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
@@ -3247,6 +3271,75 @@ mod import_mock_unmock_tests {
                 3 => plan.unmocks[0].end = plan.unmocks[1].start + 1,
                 4 => plan.unmocks[0].end = plan.declarations[0].factory_start + 1,
                 5 => plan.reset_modules = false,
+                _ => unreachable!(),
+            }
+            assert_eq!(plan.retained_single_native_unmock(), None, "{change}");
+            assert_eq!(plan.cancelled_single_native_unmock(), None, "{change}");
+        }
+    }
+
+    #[test]
+    fn retains_source_ordered_factories_for_one_native_cut_target() {
+        for (body, retained) in [
+            (
+                "vi.unmock('package');vi.mock('package',()=>({value:5}));vi.mock('package',\
+                 ()=>({value:9}));",
+                true,
+            ),
+            (
+                "vi.mock('package',()=>({value:5}));vi.unmock('package');vi.mock('package',\
+                 ()=>({value:9}));",
+                true,
+            ),
+            (
+                "vi.mock('package',()=>({value:5}));vi.mock('package',()=>({value:9}));vi.unmock('\
+                 package');",
+                false,
+            ),
+        ] {
+            let source = format!(
+                "import{{vi}}from'vitest';{body}vi.doMock('package',()=>({{value:73}}));vi.\
+                 importActual('package');vi.resetModules();vi.doUnmock('package');"
+            );
+            let plan = extract_test_mocks(&source, "spec.mjs").unwrap();
+            assert_eq!(plan.declarations.len(), 2);
+            assert_eq!(plan.unmocks.len(), 1);
+            assert_eq!(
+                plan.declarations[0].original_factory_source,
+                "()=>({value:5})"
+            );
+            assert_eq!(
+                plan.declarations[1].original_factory_source,
+                "()=>({value:9})"
+            );
+            assert_eq!(
+                plan.retained_single_native_unmock(),
+                retained.then_some("package")
+            );
+            assert_eq!(
+                plan.cancelled_single_native_unmock(),
+                (!retained).then_some("package")
+            );
+            assert!(!plan.source.contains("vi.mock("));
+            assert!(!plan.source.contains("vi.unmock("));
+            assert!(plan.source.contains("vi.resetModules()"));
+            assert!(extract_static_mocks(&source, "spec.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn checks_every_factory_range_in_native_cut_candidates() {
+        let source = "import{vi}from'vitest';vi.unmock('package');vi.mock('package',()=>({value:\
+                      5}));vi.mock('package',()=>({value:9}));vi.doMock('package',()=>({value:\
+                      73}));vi.importActual('package');vi.resetModules();";
+        for change in 0..5 {
+            let mut plan = extract_test_mocks(source, "spec.mjs").unwrap();
+            match change {
+                0 => plan.declarations[0].request = "other".into(),
+                1 => plan.declarations[0].has_spread = true,
+                2 => plan.declarations.swap(0, 1),
+                3 => plan.unmocks[0].end = plan.declarations[0].factory_start + 1,
+                4 => plan.declarations[0].factory_start = usize::MAX,
                 _ => unreachable!(),
             }
             assert_eq!(plan.retained_single_native_unmock(), None, "{change}");
