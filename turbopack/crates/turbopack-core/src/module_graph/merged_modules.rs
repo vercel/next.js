@@ -230,7 +230,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .iter_reachable_nodes()?
             .map(async |(idx, node)| {
                 match node {
-                    SingleModuleGraphNode::Module { module } => {
+                    SingleModuleGraphNode::Module(module) => {
                         // Read the eagerly-resolved `is_mergeable` from the graph. The graph must
                         // be built with `ModuleGraphOptions::include_mergeable` (we enable it
                         // wherever the chunking context merges modules), so a missing value is a

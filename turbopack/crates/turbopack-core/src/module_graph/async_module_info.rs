@@ -47,7 +47,7 @@ async fn compute_async_module_info_single(
         .iter_reachable_nodes()?
         .map(async |(idx, node)| {
             Ok(match node {
-                SingleModuleGraphNode::Module { module: node } => graph
+                SingleModuleGraphNode::Module(node) => graph
                     .node_is_self_async(idx)
                     .context("Module nodes always have is_self_async")?
                     .await?

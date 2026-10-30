@@ -46,7 +46,7 @@ async fn compute_side_effect_free_module_info_single(
         .iter_reachable_nodes()?
         .map(async |(idx, node)| {
             Ok(match node {
-                SingleModuleGraphNode::Module { module } => {
+                SingleModuleGraphNode::Module(module) => {
                     // Read the eagerly-resolved `side_effects` from the graph. This pass only runs
                     // when removing unused imports, and we build those graphs with
                     // `ModuleGraphOptions::include_side_effects`, so the value is always present;

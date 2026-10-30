@@ -2127,7 +2127,7 @@ impl Project {
         let parent_source_keys = pairs
             .into_iter()
             .map(async |(feature, parent)| {
-                let ident = module_graph.module_ident_resolved(parent)?.await?;
+                let ident = module_graph.module_ident(parent)?.await?;
                 let key = (
                     ident.path.path.clone(),
                     ident.query.clone(),

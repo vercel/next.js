@@ -1042,7 +1042,7 @@ pub async fn map_server_actions(
     let actions = graph
         .iter_reachable_nodes()?
         .map(async |(idx, node)| {
-            let SingleModuleGraphNode::Module { module } = node else {
+            let SingleModuleGraphNode::Module(module) = node else {
                 // VisitedModule nodes were handled in their owning graph.
                 return Ok(None);
             };

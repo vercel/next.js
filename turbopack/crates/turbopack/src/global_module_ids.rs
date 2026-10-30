@@ -32,9 +32,7 @@ pub async fn get_global_module_id_strategy(
         let mut modules = FxHashSet::default();
         let mut async_idents = vec![];
         module_graph.traverse_edges_unordered(|parent, current| {
-            let ident = module_graph.module_ident_resolved(current)?;
-            let ident_string = module_graph.module_ident_string_resolved(current)?;
-            modules.insert((ident, ident_string));
+            modules.insert(current);
             if let Some((
                 _,
                 &RefData {
@@ -52,11 +50,12 @@ pub async fn get_global_module_id_strategy(
 
         // Resolve graph-module idents to `(ident, (ident_str, hash))`, reading the pre-resolved
         // `ident_string` from the node (the graph is built with `include_ident_strings`, else
-        // `module_ident_string_resolved` bails — no silent per-module `to_string()` fallback).
+        // `module_ident_string` bails — no silent per-module `to_string()` fallback).
         let graph_entries = modules
             .into_iter()
-            .map(|(ident, ident_string)| async move {
-                let ident_str = ident_string.await?;
+            .map(async |module| {
+                let ident = module_graph.module_ident(module)?;
+                let ident_str = module_graph.module_ident_string(module)?.await?;
                 let hash = hash_xxh3_hash64(&ident_str);
                 Ok((ident, (ident_str, hash)))
             })
