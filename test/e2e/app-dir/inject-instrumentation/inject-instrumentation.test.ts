@@ -1,6 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import glob from 'glob'
-import { join } from 'path'
+import { join, resolve } from 'path'
 
 function fixture(
   config: 'inject' | 'page-ext' | 'omitted' | 'externals',
@@ -76,6 +76,24 @@ describe('inject-instrumentation', () => {
       )
       expect(bundles).not.toContain(
         'external-instrumentation:register-implementation'
+      )
+    })
+
+    // NFT manifests are only available in local production builds.
+    // @force-gate start
+    it('traces the external instrumentation package', async () => {
+      const trace = (await next.readJSON(
+        join(next.distDir, 'server', 'instrumentation.js.nft.json')
+      )) as { files: string[] }
+      const traceDir = join(next.testDir, next.distDir, 'server')
+      const tracedFiles = trace.files.map((file) =>
+        resolve(traceDir, file).replace(/\\/g, '/')
+      )
+
+      expect(tracedFiles).toContainEqual(
+        expect.stringMatching(
+          /\/node_modules\/external-instrumentation\/init\.js$/
+        )
       )
     })
   })
