@@ -3809,7 +3809,7 @@ pub mod tests {
                         .collect::<Vec<_>>()
                         .join(",")
                 };
-                match info.chunk_groups.get_index(index).unwrap() {
+                match info.chunk_groups.get(index).unwrap() {
                     ChunkGroup::Entry(modules) => format!("entry {}", list(modules)),
                     ChunkGroup::Async(module) => format!("async {}", names[module]),
                     ChunkGroup::IsolatedMerged {
