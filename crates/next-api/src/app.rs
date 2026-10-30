@@ -1012,6 +1012,8 @@ impl AppProject {
                 let (full, binding_usage_info) = if remove_unused_imports {
                     let full_with_unused_references =
                         ModuleGraph::from_graphs(graphs.clone(), None);
+                    // This is a per-route graph: a module that is unused here might still be code
+                    // generated via another graph, so dropping its data would only cause re-parses.
                     let binding_usage_info = compute_binding_usage_info(
                         full_with_unused_references,
                         should_read_binding_usage,

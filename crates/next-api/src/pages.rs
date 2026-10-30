@@ -919,6 +919,8 @@ impl PageEndpoint {
 
             let graph = if remove_unused_imports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
+                // This is a per-route graph: a module that is unused here might still be code
+                // generated via another graph, so dropping its data would only cause re-parses.
                 let binding_usage_info = compute_binding_usage_info(
                     graph, /* remove_unused_imports */ true,
                     /* drop_unused_module_data */ false,

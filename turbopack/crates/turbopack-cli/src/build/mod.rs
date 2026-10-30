@@ -323,7 +323,7 @@ async fn build_internal(
     let binding_usage = compute_binding_usage_info(
         module_graph,
         /* remove_unused_imports */ true,
-        /* drop_unused_module_data */ false,
+        /* drop_unused_module_data */ true,
     );
     let unused_references = binding_usage
         .connect()
