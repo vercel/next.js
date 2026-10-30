@@ -1,6 +1,6 @@
 export function GET() {
   const store = globalThis as typeof globalThis & {
-    __instrumentationPackages?: { name: string; external?: boolean }[]
+    __instrumentationPackages?: { name: string; marker: string }[]
     __injected?: string[]
   }
   return Response.json({

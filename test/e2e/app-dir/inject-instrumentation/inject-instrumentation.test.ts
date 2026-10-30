@@ -1,4 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
+import glob from 'glob'
 import { join } from 'path'
 
 function fixture(
@@ -7,7 +8,11 @@ function fixture(
 ) {
   return {
     app: new FileRef(join(__dirname, 'app')),
-    'middleware.ts': new FileRef(join(__dirname, 'middleware.ts')),
+    // External packages are Node.js-only. Don't mix in Edge bundles, where
+    // these packages must be bundled, when inspecting the emitted code.
+    ...(config !== 'externals'
+      ? { 'middleware.ts': new FileRef(join(__dirname, 'middleware.ts')) }
+      : {}),
     ...(config !== 'omitted'
       ? { injected: new FileRef(join(__dirname, 'injected')) }
       : {}),
@@ -33,16 +38,45 @@ describe('inject-instrumentation', () => {
       },
     })
 
-    it('keeps opted-out packages external and resolves other entries from the project', async () => {
+    it('runs injected packages and filesystem entries', async () => {
       const result = await next
         .fetch('/instrumentation-externals')
         .then((res) => res.json())
 
       expect(result.packages).toEqual([
-        { name: 'external-instrumentation', external: true },
-        { name: 'bundled-instrumentation' },
+        {
+          name: 'external-instrumentation',
+          marker: 'external-instrumentation:register-implementation',
+        },
+        {
+          name: 'bundled-instrumentation',
+          marker: 'bundled-instrumentation:register-implementation',
+        },
       ])
       expect(result.injected).toEqual(['first', 'second'])
+    })
+
+    // Deploy mode has no local build output; hook execution is asserted above.
+    // @force-gate !deploy
+    it('keeps the opted-out implementation out of emitted server bundles', async () => {
+      await next.fetch('/instrumentation-externals')
+
+      const files = glob.sync('**/*.js', {
+        cwd: join(next.testDir, next.distDir, 'server'),
+      })
+      expect(files.length).toBeGreaterThan(0)
+      const bundles = (
+        await Promise.all(
+          files.map((file) => next.readFile(join(next.distDir, 'server', file)))
+        )
+      ).join('\n')
+
+      expect(bundles).toContain(
+        'bundled-instrumentation:register-implementation'
+      )
+      expect(bundles).not.toContain(
+        'external-instrumentation:register-implementation'
+      )
     })
   })
 
