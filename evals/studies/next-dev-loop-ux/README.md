@@ -45,8 +45,8 @@ from runs of the current task.
 Dev uses app port 3100 and API port 9000. The prepared `npm test` command uses
 app port 3101 and the upstream test API on 9100. Production builds use
 `.next-production`, leaving the running dev server's `.next` files intact.
-The recorded pairs predate this isolation fix and the Skill's targeted
-inspection guidance; keep them labeled with their original revisions.
+The recorded pairs predate this isolation fix and the Skill's browser command
+fixes; keep them labeled with their original revisions.
 
 ## Run the comparison
 
