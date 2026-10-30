@@ -1,11 +1,16 @@
 'use client'
-import React, { useContext } from 'react'
+import React, { use, useContext } from 'react'
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import { GlobalLayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { redirect as redirectNavigation } from './navigator'
 import { unresolvedThenable } from './unresolved-thenable'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { type RedirectType, isRedirectError } from './redirect-error'
+
+function SuspendForever(): React.ReactNode {
+  use(unresolvedThenable)
+  return null
+}
 
 interface RedirectBoundaryProps {
   tree: FlightRouterState
@@ -50,7 +55,7 @@ export class RedirectErrorBoundary extends React.Component<
       if (isActive) {
         setTimeout(() => redirectNavigation(redirect, redirectType, tree))
       }
-      throw unresolvedThenable
+      return <SuspendForever />
     }
 
     return this.props.children
