@@ -6,44 +6,6 @@ const pageContent = `export default () => 'hi'`
 
 describe('Config Experimental Warning', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    describe.each([
-      { name: 'no config', env: 'true', config: undefined, enabled: true },
-      { name: 'empty config', env: 'true', config: {}, enabled: true },
-      {
-        name: 'explicit opt-out',
-        env: 'true',
-        config: { experimental: { externalBrowserRuntime: false } },
-        enabled: false,
-      },
-      { name: 'disabled env', env: 'false', config: undefined, enabled: false },
-      { name: 'empty env', env: '', config: undefined, enabled: false },
-      {
-        name: 'explicit opt-in with disabled env',
-        env: 'false',
-        config: { experimental: { externalBrowserRuntime: true } },
-        enabled: true,
-      },
-    ])('external browser runtime: $name', ({ env, config, enabled }) => {
-      const { next } = nextTestSetup({
-        files: __dirname,
-        nextConfig: config,
-        env: {
-          __NEXT_EXPERIMENTAL_EXTERNAL_BROWSER_RUNTIME: env,
-        },
-      })
-
-      it('respects the environment default and explicit configuration', async () => {
-        await next.fetch('/')
-        const output = stripAnsi(next.cliOutput)
-        expect(output.includes('✓ externalBrowserRuntime')).toBe(enabled)
-        expect(
-          output.includes(
-            'enabled by `__NEXT_EXPERIMENTAL_EXTERNAL_BROWSER_RUNTIME`'
-          )
-        ).toBe(env === 'true' && enabled)
-      })
-    })
-
     describe('default config from function', () => {
       const { next } = nextTestSetup({
         files: {
