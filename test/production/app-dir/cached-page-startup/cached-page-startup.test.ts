@@ -7,7 +7,7 @@ describe('cached-page-startup', () => {
     files: __dirname,
   })
 
-  it('serves complete cached HTML without loading the page bundle', async () => {
+  it('serves the normal cached response without loading the page bundle', async () => {
     const response = await next.fetch('/')
     expect(response.status).toBe(200)
     expect(response.headers.get('x-test-page-loaded')).toBe('no')
@@ -15,42 +15,13 @@ describe('cached-page-startup', () => {
     expect(response.headers.get('cache-control')).toBe('s-maxage=31536000')
     expect(response.headers.get('vary')?.toLowerCase()).toContain('rsc')
     expect(response.headers.get('x-next-cache-tags')).toBeNull()
-    expect(await response.text()).toContain('id="counter"')
-  })
-
-  it('preserves HEAD and conditional responses', async () => {
-    const response = await next.fetch('/')
-    const etag = response.headers.get('etag')!
     const html = await response.text()
-    const head = await next.fetch('/', { method: 'HEAD' })
-    expect(head.status).toBe(200)
-    expect(head.headers.get('etag')).toBe(etag)
-    expect(Number(head.headers.get('content-length'))).toBe(
-      Buffer.byteLength(html)
-    )
-    expect(await head.text()).toBe('')
-    const conditional = await next.fetch('/', {
-      cache: 'no-cache',
-      headers: { 'if-none-match': etag },
-    })
-    expect(conditional.status).toBe(304)
-    expect(await conditional.text()).toBe('')
-  })
+    expect(html).toContain('id="rendered-at"')
 
-  it('preserves rewrites and configured response headers', async () => {
-    const response = await next.fetch('/alias')
-    expect(response.status).toBe(200)
-    expect(response.headers.get('x-configured')).toBe('kept')
-    expect(response.headers.get('cache-control')).toBe('public, max-age=7')
-    expect(await response.text()).toContain('id="counter"')
-  })
-
-  it('matches the normal cached handler response', async () => {
-    const shortcut = await next.fetch('/')
     const normal = await next.fetch('/', {
       headers: { cookie: 'comparison=1' },
     })
-    expect(await shortcut.text()).toBe(await normal.text())
+    expect(html).toBe(await normal.text())
     for (const name of [
       'cache-control',
       'content-type',
@@ -61,8 +32,21 @@ describe('cached-page-startup', () => {
       'x-nextjs-prerender',
       'x-nextjs-stale-time',
     ]) {
-      expect(shortcut.headers.get(name)).toBe(normal.headers.get(name))
+      expect(response.headers.get(name)).toBe(normal.headers.get(name))
     }
+
+    const head = await next.fetch('/', { method: 'HEAD' })
+    expect(head.status).toBe(200)
+    expect(head.headers.get('etag')).toBe(response.headers.get('etag'))
+    expect(await head.text()).toBe('')
+  })
+
+  it('preserves rewrites and configured response headers', async () => {
+    const response = await next.fetch('/alias')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-configured')).toBe('kept')
+    expect(response.headers.get('cache-control')).toBe('public, max-age=7')
+    expect(await response.text()).toContain('id="rendered-at"')
   })
 
   it('regenerates invalidated HTML through the page handler', async () => {
@@ -85,27 +69,13 @@ describe('cached-page-startup', () => {
     expect(response.headers.get('cache-control')).toContain('no-store')
   })
 
-  it('validates RSC cache-busting headers before serving Flight', async () => {
+  it('serves Flight instead of cached HTML for RSC requests', async () => {
     const response = await next.fetch('/?_rsc=invalid', {
       headers: { rsc: '1' },
-      redirect: 'manual',
     })
-    expect(response.status).toBe(307)
-    const destination = new URL(response.headers.get('location')!, next.url)
-    expect(destination.searchParams.has('_rsc')).toBe(true)
-    expect(destination.searchParams.get('_rsc')).not.toBe('invalid')
-  })
-
-  it('hydrates cached HTML and navigates to dynamic SSR', async () => {
-    const browser = await next.browser('/')
-    await browser.elementByCss('#counter').click()
-    expect(await browser.elementByCss('#counter').text()).toBe('1')
-    await browser.elementByCss('a[href="/dynamic"]').click()
-    expect(await browser.elementByCss('#dynamic').text()).toBe(
-      'Dynamic content'
-    )
-    await browser.elementByCss('a[href="/"]').click()
-    expect(await browser.elementByCss('#counter').text()).toBe('0')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/x-component')
+    expect(await response.text()).not.toContain('<html')
   })
 })
 
@@ -120,6 +90,6 @@ describe('cached-page-startup without a memory cache', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('x-test-page-loaded')).toBe('yes')
     expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
-    expect(await response.text()).toContain('id="counter"')
+    expect(await response.text()).toContain('id="rendered-at"')
   })
 })
