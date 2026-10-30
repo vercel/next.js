@@ -45,6 +45,7 @@ import { Page, Response } from 'playwright'
 import { PHASE_PRODUCTION_BUILD } from 'next/constants'
 import { loadResolvedConfig } from '../gate/load-resolved-config'
 import type { ResolvedNextConfig } from '../gate/resolved-config'
+import { RustPanicDetector, RustPanicError } from './rust-panic-detector'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -87,6 +88,11 @@ export interface NextInstanceOpts {
    * workspace-root detection, which the file affects.
    */
   deleteWorkspaceFile?: boolean
+  /**
+   * Don't fail the test when the Next.js process prints a Rust panic or a
+   * fatal Turbopack error. Only for tests that intentionally trigger one.
+   */
+  allowRustPanics?: boolean
 }
 
 /**
@@ -134,6 +140,8 @@ export class NextInstance {
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
   public deleteWorkspaceFile: boolean = false
+  public allowRustPanics: boolean = false
+  protected rustPanicDetector = new RustPanicDetector()
   private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
@@ -923,9 +931,40 @@ export class NextInstance {
       this.isStopping = null
       require('console').log(`Stopped next server`)
     }
+    // Also covers a process that already exited on its own.
+    this.throwOnRustPanics('next server')
+  }
+
+  /**
+   * Feed output of the Next.js child process to the Rust panic detector.
+   */
+  protected detectRustPanics(stream: 'stdout' | 'stderr', msg: string) {
+    this.rustPanicDetector.write(stream, msg)
+  }
+
+  /**
+   * Throw a `RustPanicError` if a Rust panic or fatal Turbopack error was
+   * printed since the last check. Call once the process' output is complete
+   * (after a build or after stopping the server).
+   */
+  protected throwOnRustPanics(processName: string, cause?: unknown) {
+    this.rustPanicDetector.flush()
+    const report = this.rustPanicDetector.takeReport()
+    if (report === null || this.allowRustPanics) {
+      return
+    }
+    throw new RustPanicError(
+      `The ${processName} output contains a Rust panic or a fatal Turbopack error. ` +
+        'Pass `allowRustPanics: true` to `nextTestSetup` if this is expected.\n\n' +
+        report,
+      cause === undefined ? undefined : { cause }
+    )
   }
 
   public async destroy(): Promise<void> {
+    // Rethrown after cleanup so the test fails, but the instance is still
+    // destroyed.
+    let rustPanicError: RustPanicError | undefined
     try {
       require('console').time('destroyed next instance')
 
@@ -938,7 +977,13 @@ export class NextInstance {
       Error.captureStackTrace(this.isDestroyed, this.destroy)
 
       this.emit('destroy', [])
-      await this.stop().catch(console.error)
+      await this.stop().catch((err) => {
+        if (err instanceof RustPanicError) {
+          rustPanicError = err
+        } else {
+          console.error(err)
+        }
+      })
 
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
@@ -972,6 +1017,9 @@ export class NextInstance {
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
       require('console').error('Error while destroying', err)
+    }
+    if (rustPanicError) {
+      throw rustPanicError
     }
   }
 

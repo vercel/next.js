@@ -66,12 +66,14 @@ export class NextStartInstance extends NextInstance {
       const msg = chunk.toString()
       process.stdout.write(chunk)
       this._cliOutput += msg
+      this.detectRustPanics('stdout', msg)
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stderr.write(chunk)
       this._cliOutput += msg
+      this.detectRustPanics('stderr', msg)
       this.emit('stderr', [msg])
     })
   }
@@ -123,7 +125,7 @@ export class NextStartInstance extends NextInstance {
       this._phase = 'building'
       const buildArgs = this.getBuildArgs()
       console.log('running', shellQuote(buildArgs))
-      await new Promise<void>((resolve, reject) => {
+      const buildPromise = new Promise<void>((resolve, reject) => {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
@@ -157,6 +159,14 @@ export class NextStartInstance extends NextInstance {
           setTimeout(() => process.exit(1), 0)
         }
       })
+      try {
+        await buildPromise
+      } catch (err) {
+        // Prefer reporting a panic over the generic build failure.
+        this.throwOnRustPanics('next build', err)
+        throw err
+      }
+      this.throwOnRustPanics('next build')
 
       this._buildId = (
         await fs
@@ -296,6 +306,7 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+    this.throwOnRustPanics('next build')
 
     this._buildId = (
       await fs

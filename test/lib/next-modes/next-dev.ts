@@ -31,12 +31,14 @@ export class NextDevInstance extends NextInstance {
       const msg = chunk.toString()
       process.stdout.write(chunk)
       this._cliOutput += msg
+      this.detectRustPanics('stdout', msg)
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stderr.write(chunk)
       this._cliOutput += msg
+      this.detectRustPanics('stderr', msg)
       this.emit('stderr', [msg])
     })
   }
@@ -75,7 +77,7 @@ export class NextDevInstance extends NextInstance {
       )
     }
 
-    return new Promise<{
+    const result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
@@ -97,7 +99,9 @@ export class NextDevInstance extends NextInstance {
         })
       })
 
-      this.childProcess.on('exit', (code, signal) => {
+      // Unlike `exit`, `close` fires after the stdio streams have closed, so
+      // the output (and the Rust panic check below) is complete.
+      this.childProcess.on('close', (code, signal) => {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,
@@ -105,6 +109,8 @@ export class NextDevInstance extends NextInstance {
         })
       })
     })
+    this.throwOnRustPanics('next build')
+    return result
   }
 
   public async start(options: { env?: Record<string, string> } = {}) {
@@ -161,12 +167,14 @@ export class NextDevInstance extends NextInstance {
           const msg = chunk.toString()
           process.stdout.write(chunk)
           this._cliOutput += msg
+          this.detectRustPanics('stdout', msg)
           this.emit('stdout', [msg])
         })
         this.childProcess.stderr!.on('data', (chunk) => {
           const msg = chunk.toString()
           process.stderr.write(chunk)
           this._cliOutput += msg
+          this.detectRustPanics('stderr', msg)
           this.emit('stderr', [msg])
         })
 
