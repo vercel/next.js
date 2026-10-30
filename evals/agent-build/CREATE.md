@@ -113,7 +113,7 @@ Use a fixed setup with `evals/agent-build/tools/calibrate.sh`. Choose the models
 
 Keep a task when it represents a real problem, accepts alternative valid solutions, and provides evidence worth maintaining. Record whether it is retained, needs revision, or is dropped, with the reason. This does not move Harbor tasks into the existing `agent-eval` suite labels or publish scores on nextjs.org/evals.
 
-Decide separately which tasks and traces are public or held out. Public tasks support review and reproducibility but cannot serve as unseen evaluation data after publication.
+Decide task visibility before publishing its source. These pilot tasks are already public; keeping transcripts in the execution repo does not make a task held out. Run retention and sharing follow the [task and run boundary](./README.md#task-authoring-and-runs).
 
 ## Context treatments
 
@@ -121,7 +121,9 @@ Context treatments such as `AGENTS.md` or a Skill are optional and belong to the
 
 ## Pull request format
 
-The title starts with `eval:` and names the outcome. The description shows the current state only, never the history of how the change got there, and keeps the same short shape as other Next.js pull requests:
+The title starts with `eval:` and names the outcome. A task PR contains the task definition and a validation summary. Link to run evidence in `next-evals-oss` when available, rather than committing transcripts or job directories here. Local pilot evidence remains separate and available to reviewers until transferred.
+
+The description shows the current state only, never the history of how the change got there, and keeps the same short shape as other Next.js pull requests:
 
 1. **Summary**: what the task measures and what the comparison found, with the takeaway first. Then add one bullet per task saying what the agent has to get right. Leave out legacy suite labels. Explain why the task is useful, including when every model passes.
 2. **Results**: one line with the Next.js version, attempt policy, treatments, and how many runs are still going, then the output of `node evals/agent-build/tools/report.mjs <jobs-dir> <task ...>` pasted unchanged. The report is one dense table with a row per model and treatment for every cohort model, listed from the start so queued models show too. Each row has the runs passed out of runs scored across all tasks, then the cost and time per run, the price per million tokens, and tokens. Under the table, a chart plots pass@1 against cost per run with one point per model, as SelfBench charts its results. After the report, add a short review of meaningful failures, guidance or effort findings, and changes that need human judgment. Cite run IDs and evidence, and distinguish AI-assisted notes from human-reviewed conclusions. Do not change the generated scores to include these observations.

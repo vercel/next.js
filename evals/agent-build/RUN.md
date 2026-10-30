@@ -14,7 +14,7 @@ python -m venv .harbor
 
 ## Configure credentials
 
-Set `HARBOR_TELEMETRY=0` for every run, which `calibrate.sh` does itself. Otherwise Harbor sends a usage event per job with the model names, cost, and mean reward. Never pass `--upload`, which streams results to the Harbor Hub.
+Set `HARBOR_TELEMETRY=0` for every run, which `calibrate.sh` does itself. Otherwise Harbor sends a usage event per job with the model names, cost, and mean reward. Keep Harbor Hub uploads disabled for the local pilot. Shared run storage belongs to the [execution repo](./README.md#task-authoring-and-runs).
 
 Use an approved measurement project's `VERCEL_OIDC_TOKEN` for Vercel Sandbox. Use a dedicated, spend-limited `AI_GATEWAY_API_KEY` for model calls. Store both in an ignored local file. Never add credentials to a task or result artifact.
 
@@ -111,7 +111,9 @@ Every run keeps its transcript next to its result in the jobs directory. The age
 .harbor/bin/harbor view /path/to/jobs
 ```
 
-Transcripts stay local for now. They are not uploaded to Harbor Hub or linked from the pull request, because they show how each task is solved and the harder set may be held out. Review failures and a sample of successes using the [human-review criteria](./CREATE.md#human-review). Inspect the collected patch and verifier output as well as the transcript, and share specific evidence directly when a reviewer needs it. Revisit this when the publishing decision for the harder set is made.
+These local jobs are authoring evidence. Keep them outside the task source directory and available to reviewers. Shared runs will retain transcripts, patches, and verifier output with their results in `next-evals-oss`; task PRs can link to that evidence. The pilot's existing local jobs have not been transferred there. This separation does not make the public pilot tasks held out.
+
+Review failures and a sample of successes using the [human-review criteria](./CREATE.md#human-review). Inspect the collected patch and verifier output as well as the transcript. Before sharing run artifacts, check for credentials and private data under the execution repo's storage policy.
 
 Record the run and task/verifier versions with transcript step IDs for each finding. Use the current regrade when reporting the outcome, and retain the original transcript for the agent's actions. Check the harness log if the normalized trajectory is incomplete. An unavailable action is unknown, not evidence that the agent skipped it. Usage comes from recorded metrics; a judge should not estimate token counts or time. The pilot has no automated process score, so add review findings beside the generated report without changing its results.
 

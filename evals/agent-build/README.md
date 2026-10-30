@@ -10,4 +10,10 @@ They are the newer of the two kinds of evals in this repository. The older `agen
 | [Harbor format](./HARBOR.md) | Need the task layout, the Harbor references, and what our tasks add      |
 | [Run tasks](./RUN.md)        | Install Harbor, validate a task, calibrate models, and read transcripts  |
 
-This directory owns the Next.js task definitions and grading contracts. The scripts in `tools/` are temporary pilot adapters for validating and calibrating these first tasks. Shared execution, credentials, budgets, evidence, and reporting belong in the Vercel-owned eval layer built from Vercel Bench and Harbor. Landing a task here does not establish that platform contract or promise that the task moves there unchanged.
+## Task authoring and runs
+
+This directory owns task definitions, verifiers, and authoring guidance. Task PRs include validation summaries and links to supporting runs, without committing raw transcripts or job directories alongside the tasks.
+
+Shared runs and their evidence belong in [`vercel/next-evals-oss`](https://github.com/vercel/next-evals-oss): scores, transcripts, patches, and verifier output tied to the task revision. These Harbor tasks currently use the local pilot adapters in `tools/`; connecting them to that pipeline is separate work. The later shared Vercel eval layer can replace the execution setup without redefining the tasks.
+
+Keeping run output out of a task PR is a repository boundary, not a requirement to keep it private. The pilot task sources are public. Publishing scores on nextjs.org/evals remains a separate decision.

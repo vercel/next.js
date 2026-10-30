@@ -48,4 +48,4 @@ Both formats can test correctness and guidance, but each task must state what it
 | Runner             | `run-evals.js` over `@vercel/agent-eval`         | Pilot: `harbor run` on Vercel Sandbox; `tools/calibrate.sh` for cohorts                                              |
 | Context treatment  | `baseline` and `agents-md` variants, always both | Optional, defined by the runner, off by default                                                                      |
 | Local validation   | `pnpm eval <name> --dry`                         | `tools/run-local.sh`                                                                                                 |
-| Publication        | `next-evals-oss` and nextjs.org/evals            | Not published; a separate decision after calibration                                                                 |
+| Score publication  | `next-evals-oss` and nextjs.org/evals            | Separate from the public task source and [run evidence](./README.md#task-authoring-and-runs)                         |
