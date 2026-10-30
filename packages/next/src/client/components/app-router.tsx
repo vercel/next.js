@@ -1,5 +1,6 @@
 import type { RouteTree } from './segment-cache/cache'
 import React, {
+  Suspense,
   useEffect,
   useMemo,
   useInsertionEffect,
@@ -500,7 +501,12 @@ function Router({
 
   let content = (
     <RedirectBoundary>
-      {head}
+      {/* The head suspends on its own boundary so a pending head — e.g. when
+          the target's segment prefetch is still in flight during a soft
+          navigation — doesn't block the whole transition from committing.
+          Without this, the navigation would wait for the prefetch instead of
+          promptly showing loading.js. See https://github.com/vercel/next.js/issues/100968 */}
+      <Suspense fallback={null}>{head}</Suspense>
       {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
           When users wrap their layout in <Suspense>, this creates the component stack pattern
           "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
