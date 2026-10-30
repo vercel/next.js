@@ -2,6 +2,10 @@ name: Turbopack Rust testing benchmarks
 on:
   workflow_call:
     inputs:
+      futureCompat:
+        description: 'Fail on Node.js deprecations'
+        type: boolean
+        default: false
       runner:
         type: string
         default: '["ubuntu-latest-16-core-oss"]'
@@ -13,6 +17,8 @@ on:
         default: false
 
 env:
+  NEXT_TEST_FUTURE_COMPAT: ${{ inputs.futureCompat && '1' || '' }}
+  TURBO_CACHE: ${{ inputs.futureCompat && 'local:,remote:' || 'local:rw,remote:rw' }}
   TURBOPACK_BENCH_COUNTS: '100'
   TURBOPACK_BENCH_PROGRESS: '1'
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -43,10 +49,14 @@ jobs:
           check-latest: true
           package-manager-cache: false
       - run: corepack enable
+        env:
+          NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}
 
       # We need to install the dependencies for the benchmark apps
       - run: pnpm install
         working-directory: turbopack/benchmark-apps
+        env:
+          NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}
 
       - name: Set up Turborepo remote cache
         if: ${{ vars.TURBO_TEAM != '' }}
@@ -60,22 +70,30 @@ jobs:
 
       - name: Build benchmarks for tests
         timeout-minutes: 120
+        env:
+          NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}
         run: |
           cargo test --benches --workspace --profile=release-with-assertions --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings --no-run
 
       - name: Run cargo test on benchmarks
         timeout-minutes: 120
+        env:
+          NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}
         run: |
           cargo test --benches --workspace --profile=release-with-assertions --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings
 
       - name: Build benchmarks for tests for other bundlers
         if: inputs.all
         timeout-minutes: 120
+        env:
+          NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}
         run: |
           cargo test --benches --profile=release-with-assertions -p turbopack-bench --no-run
 
       - name: Run cargo test on benchmarks for other bundlers
         if: inputs.all
         timeout-minutes: 120
+        env:
+          NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}
         run: |
           cargo test --benches --profile=release-with-assertions -p turbopack-bench
