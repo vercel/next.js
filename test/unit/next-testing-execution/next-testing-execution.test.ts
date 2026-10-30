@@ -7221,3 +7221,18 @@ describe('actual public Node finished assertion observation', () => {
     130000
   )
 })
+
+it('matches the pinned pure keyboard parser and native membership contract', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [path.join(__dirname, 'browser-keyboard-parser.cjs')],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    parserInputs: 516,
+    nativeMemberships: 324,
+    actualIdentityPairs: 8,
+    purePinnedPrimitive: true,
+    noAdapterAdmissionClaim: true,
+  })
+})
