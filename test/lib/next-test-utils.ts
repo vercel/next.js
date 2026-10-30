@@ -30,6 +30,7 @@ import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
+import { withFutureCompatNodeOptions } from './future-compat'
 import stripAnsi from 'strip-ansi'
 import escapeRegex from 'escape-string-regexp'
 
@@ -88,7 +89,7 @@ export function initNextServerScript(
         scriptPath,
       ],
       {
-        env: { HOSTNAME: '::', ...env },
+        env: withFutureCompatNodeOptions({ HOSTNAME: '::', ...env }),
         cwd: opts && opts.cwd,
       }
     )
@@ -385,13 +386,13 @@ export function runNextCommand(
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env: NodeJS.ProcessEnv = {
+  const env = withFutureCompatNodeOptions({
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
     ...options.env,
-  }
+  })
 
   return new Promise((resolve, reject) => {
     debugPrint(`Running command "next ${argv.join(' ')}"`)
@@ -516,13 +517,13 @@ export function runNextCommandDev(
   const nextDir = path.dirname(require.resolve('next/package'))
   const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
-  const env = {
+  const env = withFutureCompatNodeOptions({
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
     ...opts.env,
-  }
+  })
 
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
@@ -681,11 +682,11 @@ export function buildTS(
   env?: any
 ): Promise<void> {
   cwd = cwd || path.dirname(require.resolve('next/package'))
-  env = {
+  env = withFutureCompatNodeOptions({
     ...process.env,
     NODE_ENV: undefined,
     ...env,
-  }
+  })
 
   return new Promise((resolve, reject) => {
     const instance = spawn(

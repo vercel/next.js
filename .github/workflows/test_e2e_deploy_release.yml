@@ -4,9 +4,15 @@ on:
   # run on every release/prerelease
   release:
     types: [published]
+  schedule:
+    - cron: '17 10 * * 0'
   # allow triggering manually as well
   workflow_dispatch:
     inputs:
+      futureCompat:
+        description: 'Fail on Node.js deprecations'
+        type: boolean
+        default: false
       nextVersion:
         description: >-
           Version of `next` to test against. Anything installable by npm:
@@ -45,6 +51,7 @@ on:
         type: string
 
 env:
+  NEXT_TEST_FUTURE_COMPAT: ${{ (inputs.futureCompat || github.event_name == 'schedule') && '1' || '' }}
   DD_ENV: 'ci'
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
@@ -56,7 +63,7 @@ env:
 
 # run-name cannot read job outputs, so for release events it shows the tag name,
 # assuming the release tag matches the `next` version checked into packages/next/package.json
-run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'repo version' }}
+run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || (github.event_name == 'schedule' && 'canary') || 'repo version' }}${{ (inputs.futureCompat || github.event_name == 'schedule') && ' (future compatibility)' || '' }}
 
 jobs:
   setup:
@@ -79,6 +86,8 @@ jobs:
           package-manager-cache: false
 
       - name: Setup pnpm
+        env:
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: |
           npm i -g corepack@0.34.7
           corepack enable
@@ -96,10 +105,14 @@ jobs:
         name: Resolve `next` version
         env:
           INPUT_NEXT_VERSION: ${{ inputs.nextVersion }}
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: |
           set -euo pipefail
           if [ -n "$INPUT_NEXT_VERSION" ]; then
             echo "value=$INPUT_NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == "schedule" ]]; then
+            version="$(pnpm view next@canary version)"
+            echo "value=$version" >> "$GITHUB_OUTPUT"
           else
             echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
           fi
@@ -111,6 +124,8 @@ jobs:
           echo "Resolved next version: $RESOLVED_NEXT_VERSION"
 
       - name: Install dependencies
+        env:
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: pnpm install
 
       - name: Fetch test timings
@@ -119,6 +134,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
 
       - name: Ensure test timings file exists
         run: |
@@ -144,6 +160,7 @@ jobs:
           NEXT_VERSION_SPEC: ${{ steps.version.outputs.value }}
           POLL_TIMEOUT_SECONDS: 900
           POLL_INTERVAL_SECONDS: 15
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: |
           set -euo pipefail
 
@@ -184,6 +201,7 @@ jobs:
       matrix:
         group: [1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8, 8/8]
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         npm i -g vercel@latest && \
         NEXT_E2E_TEST_TIMEOUT=240000 \
@@ -235,6 +253,7 @@ jobs:
             12/12,
           ]
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         npm i -g vercel@latest && \
         NEXT_E2E_TEST_TIMEOUT=240000 \
@@ -288,6 +307,7 @@ jobs:
             12/12,
           ]
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         npm i -g vercel@latest && \
         NEXT_E2E_TEST_TIMEOUT=240000 \
