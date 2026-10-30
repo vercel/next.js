@@ -108,10 +108,12 @@ pub(crate) fn utf16_len(bytes: &[u8]) -> usize {
     // SAFETY: `simd_utf16_len::utf16_len` does not depend on UTF-8 validity for memory safety: it
     // applies the per-byte formula above and only reads within the slice. Despite the safety
     // comments inside the crate saying that `utf16_len` requires UTF-8 for safety, that is not
-    // true, it is only needed for correctness (confirmed by the crate's maintainer). The same
-    // holds for its scalar fallback, `str::encode_utf16().count()`, which std implements as a
-    // byte-wise fold. This was checked for `simd-utf16-len` 0.3.1 and the pinned Rust toolchain;
-    // re-check before upgrading either.
+    // true, it is only needed for correctness. The crate's maintainer describes valid UTF-8 as
+    // required "to produce a meaningful UTF-16 length":
+    // https://github.com/SyMind/simd-utf16-len/pull/22#issuecomment-6514541196
+    // The same holds for its scalar fallback, `str::encode_utf16().count()`, which std
+    // implements as a byte-wise fold. This was checked for `simd-utf16-len` 0.3.1 and the pinned
+    // Rust toolchain; re-check before upgrading either.
     simd_utf16_len::utf16_len(unsafe { std::str::from_utf8_unchecked(bytes) })
 }
 
