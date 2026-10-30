@@ -2567,6 +2567,24 @@ function enforceExperimentalFeatures(
   }
 
   if (
+    process.env.__NEXT_EXPERIMENTAL_EXTERNAL_BROWSER_RUNTIME === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.externalBrowserRuntime === undefined ||
+      (isDefaultConfig && !config.experimental.externalBrowserRuntime))
+  ) {
+    config.experimental.externalBrowserRuntime = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'externalBrowserRuntime',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_EXTERNAL_BROWSER_RUNTIME`'
+      )
+    }
+  }
+
+  if (
     process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
     // We do respect an explicit value in the user config.
     (config.reactCompiler === undefined ||
