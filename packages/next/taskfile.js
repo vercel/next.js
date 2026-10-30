@@ -3124,13 +3124,14 @@ export async function next_bundle_devtools(task, opts) {
 }
 
 export async function next_bundle_start_server(task, opts) {
-  const esbuild = require('esbuild')
-  const config = require('./next-start.esbuild-config')()
-  if (opts.dev) {
-    await (await esbuild.context(config)).watch()
-  } else {
-    await esbuild.build(config)
-  }
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: false,
+      bundleType: 'start-server',
+    }),
+    name: 'next-bundle-start-server',
+  })
 }
 
 export async function next_bundle(task, opts) {

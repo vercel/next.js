@@ -87,6 +87,14 @@ const externalsRegexMap = {
   '(.*)trace/tracer$': 'next/dist/server/lib/trace/tracer',
 }
 
+const startServerExternals = new Set([
+  'server/require-hook',
+  'server/lib/cpu-profile',
+  'server/lib/router-utils/setup-dev-bundler',
+  'server/image-optimizer',
+  'server/next-typescript',
+])
+
 const bundleTypes = {
   app: {
     'app-page': path.join(
@@ -110,6 +118,9 @@ const bundleTypes = {
   },
   server: {
     server: path.join(__dirname, 'dist/esm/server/next-server.js'),
+  },
+  'start-server': {
+    'start-server': path.join(__dirname, 'dist/esm/server/lib/start-server.js'),
   },
   'app-worker': {
     'use-cache-probe-worker': path.join(
@@ -135,6 +146,30 @@ const bundleTypes = {
 module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
+      if (bundleType === 'start-server') {
+        if (!request.startsWith('.') && !path.isAbsolute(request)) {
+          return callback(null, 'commonjs ' + request)
+        }
+        const relative = path
+          .relative(
+            path.join(__dirname, 'dist/esm'),
+            path.resolve(context, request)
+          )
+          .replace(/\\/g, '/')
+        if (
+          startServerExternals.has(relative.replace(/\.js$/, '')) ||
+          /\.compiled(\.js)?$/.test(relative) ||
+          /^(cli|trace|telemetry|server\/dev|server\/web\/sandbox|next-devtools)(\/|$)/.test(
+            relative
+          ) ||
+          (relative.startsWith('build/') &&
+            !relative.startsWith('build/output/') &&
+            !/^build\/duration-to-string(\.js)?$/.test(relative))
+        ) {
+          return callback(null, 'commonjs next/dist/' + relative)
+        }
+      }
+
       if (
         request.match(
           /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|jest-worker|stacktrace-parser|@ampproject\/toolbox-optimizer)/
@@ -224,7 +259,8 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       process.env.NEXT_DEBUG_INTERNALS === 'true'
         ? undefined
         : {
-            moduleIds: 'named',
+            moduleIds:
+              bundleType === 'start-server' ? 'deterministic' : 'named',
             minimize: true,
             concatenateModules: true,
             minimizer: [
@@ -244,29 +280,34 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
           },
     plugins: [
       new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
-      new webpack.DefinePlugin({
-        'typeof window': JSON.stringify('undefined'),
-        'process.env.NEXT_MINIMAL': JSON.stringify('true'),
-        'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
-        'this.minimalMode': JSON.stringify(true),
-        // Only inline __NEXT_DEV_SERVER in prod bundles (for dead-code
-        // elimination). Dev bundles must keep it as a runtime check because
-        // they're shared between `next dev` (where it's set) and `next build
-        // --debug-prerender` (where it's not).
-        ...(dev ? {} : { 'process.env.__NEXT_DEV_SERVER': JSON.stringify('') }),
-        'process.env.NODE_ENV': JSON.stringify(
-          dev ? 'development' : 'production'
-        ),
-        'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
-          experimental ? true : false
-        ),
-        ...(bundleType === 'app' || bundleType === 'app-worker'
-          ? { 'process.env.__NEXT_USE_NODE_STREAMS': JSON.stringify(true) }
-          : {}),
-        'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
-        'process.turbopack': JSON.stringify(turbo),
-        'process.env.TURBOPACK': JSON.stringify(turbo),
-      }),
+      bundleType === 'start-server' &&
+        new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+      bundleType !== 'start-server' &&
+        new webpack.DefinePlugin({
+          'typeof window': JSON.stringify('undefined'),
+          'process.env.NEXT_MINIMAL': JSON.stringify('true'),
+          'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
+          'this.minimalMode': JSON.stringify(true),
+          // Only inline __NEXT_DEV_SERVER in prod bundles (for dead-code
+          // elimination). Dev bundles must keep it as a runtime check because
+          // they're shared between `next dev` (where it's set) and `next build
+          // --debug-prerender` (where it's not).
+          ...(dev
+            ? {}
+            : { 'process.env.__NEXT_DEV_SERVER': JSON.stringify('') }),
+          'process.env.NODE_ENV': JSON.stringify(
+            dev ? 'development' : 'production'
+          ),
+          'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
+            experimental ? true : false
+          ),
+          ...(bundleType === 'app' || bundleType === 'app-worker'
+            ? { 'process.env.__NEXT_USE_NODE_STREAMS': JSON.stringify(true) }
+            : {}),
+          'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
+          'process.turbopack': JSON.stringify(turbo),
+          'process.env.TURBOPACK': JSON.stringify(turbo),
+        }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
           analyzerPort: calculateUniquePort(
@@ -298,6 +339,18 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       alias,
     },
     module: {
+      ...(bundleType === 'start-server' && {
+        // Leave application loading and the CommonJS entry bridge to Node.
+        parser: {
+          javascript: {
+            commonjs: { exports: 'skipInEsm' },
+            requireAsExpression: false,
+            requireDynamic: false,
+            requireResolve: false,
+            importDynamic: false,
+          },
+        },
+      }),
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
         {
@@ -362,6 +415,9 @@ function calculateUniquePort(dev, turbo, experimental, bundleType) {
       break
     case 'pages':
       bundleTypeOffset = 2
+      break
+    case 'start-server':
+      bundleTypeOffset = 4
       break
     default:
       bundleTypeOffset = 3
