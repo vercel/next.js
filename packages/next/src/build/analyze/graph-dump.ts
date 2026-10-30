@@ -1,5 +1,6 @@
 import { readFileSync, writeSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
+import { readAnalyzeRoutes } from './snapshot'
 
 const UINT32_LIMIT = 0x1_0000_0000
 
@@ -333,15 +334,7 @@ export function dumpAnalyzeGraph(
     // @ts-ignore Node's internal handle, also used by the native bindings loader.
     process.stdout._handle.setBlocking?.(true)
   }
-  const routes = JSON.parse(
-    readFileSync(join(directory, 'routes.json'), 'utf8')
-  ) as string[]
-  if (
-    !Array.isArray(routes) ||
-    routes.some((route) => typeof route !== 'string')
-  ) {
-    throw new Error('Invalid analyzer routes')
-  }
+  const routes = readAnalyzeRoutes(directory)
   const selected = routes.filter(
     (route) => routeFilter === undefined || route === routeFilter
   )
