@@ -87,6 +87,14 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR
 
 Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
 
+Before testing sign-up with email confirmation enabled, configure the **Confirm signup** email template in your Supabase project's Authentication settings. Replace the confirmation link's `{{ .ConfirmationURL }}` with:
+
+```text
+{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/protected
+```
+
+Add your app's origin (for example, `http://localhost:3000`) to the allowed redirect URLs in Supabase. The sign-up form passes that origin as `emailRedirectTo`; the email link sends the token hash to `/auth/confirm`, where the server exchanges it for a cookie-backed session before redirecting to `/protected`.
+
 5. You can now run the Next.js local development server:
 
    ```bash
