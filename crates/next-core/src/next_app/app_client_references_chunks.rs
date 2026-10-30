@@ -138,9 +138,15 @@ async fn derived_isolated_merged_groups(
     Ok(groups.into_values().collect())
 }
 
+/// Groups client references by the server component that owns them. Framework references go into
+/// the first layout segment. Endpoints without layout segments (Route Handlers) have none, so their
+/// references are returned separately.
 fn client_references_by_server_component(
     app_client_references: &ClientReferenceGraphResult,
-) -> FxIndexMap<ResolvedVc<NextServerComponentModule>, Vec<ClientReference>> {
+) -> (
+    FxIndexMap<ResolvedVc<NextServerComponentModule>, Vec<ClientReference>>,
+    Vec<ClientReference>,
+) {
     let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
     let mut framework_references = Vec::new();
     for &server_component in &app_client_references.server_component_entries {
@@ -160,9 +166,21 @@ fn client_references_by_server_component(
     }
     // Framework components need to go into first layout segment.
     if let Some((_, list)) = client_references_by_server_component.first_mut() {
-        list.extend(framework_references);
+        list.extend(std::mem::take(&mut framework_references));
     }
-    client_references_by_server_component
+    (client_references_by_server_component, framework_references)
+}
+
+/// The module that is chunked on the client for a client reference.
+async fn client_entry_module(ty: ClientReferenceType) -> Result<ResolvedVc<Box<dyn Module>>> {
+    Ok(match ty {
+        ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
+            ResolvedVc::upcast(ecmascript_client_reference.await?.client_module)
+        }
+        ClientReferenceType::CssClientReference(css_client_reference) => {
+            ResolvedVc::upcast(css_client_reference)
+        }
+    })
 }
 
 #[turbo_tasks::value]
@@ -189,6 +207,9 @@ pub async fn get_app_client_references_chunks(
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_availability_info: AvailabilityInfo,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
+    // The entry module of a Route Handler endpoint. Route Handlers have no layout segments, so
+    // their client references are only chunked when this is set.
+    route_entry: Option<Vc<Box<dyn Module>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
         // TODO Reconsider this. Maybe it need to be true in production.
@@ -281,7 +302,7 @@ pub async fn get_app_client_references_chunks(
             // }
             // .cell())
         } else {
-            let client_references_by_server_component =
+            let (client_references_by_server_component, references_without_server_component) =
                 client_references_by_server_component(&app_client_references);
 
             let chunk_group_info = module_graph.chunk_group_info();
@@ -380,16 +401,7 @@ pub async fn get_app_client_references_chunks(
                     .map(async |client_reference| {
                         let parent_module = client_reference.parent_module;
                         Ok(ClientReferenceWithContext {
-                            entry_module: match client_reference.ty {
-                                ClientReferenceType::EcmascriptClientReference(
-                                    ecmascript_client_reference,
-                                ) => ResolvedVc::upcast(
-                                    ecmascript_client_reference.await?.client_module,
-                                ),
-                                ClientReferenceType::CssClientReference(css_client_reference) => {
-                                    ResolvedVc::upcast(css_client_reference)
-                                }
-                            },
+                            entry_module: client_entry_module(client_reference.ty).await?,
                             source_module: parent_module,
                             server_component: client_reference
                                 .server_component
@@ -482,6 +494,98 @@ pub async fn get_app_client_references_chunks(
                             client_component_ssr_chunks.insert(client_reference.ty, assets);
                         }
                     }
+                }
+            }
+
+            // Route Handlers have no layout segment, so their client references get chunk groups
+            // of their own, narrowed to the route entry the way layout segments are narrowed to
+            // their server component. CSS references are skipped: the client reference manifest
+            // only lists script chunks for client modules.
+            if let Some(route_entry) = route_entry {
+                let route_references = references_without_server_component
+                    .iter()
+                    .filter_map(|client_reference| match client_reference.ty {
+                        ClientReferenceType::EcmascriptClientReference(reference) => Some((
+                            client_reference.ty,
+                            client_reference.parent_module,
+                            reference,
+                        )),
+                        ClientReferenceType::CssClientReference(_) => None,
+                    })
+                    .collect::<Vec<_>>();
+                if !route_references.is_empty() {
+                    async {
+                        let route_entry = route_entry.to_resolved().await?;
+                        let base_ident = route_entry.ident().owned().await?;
+
+                        let mut client_modules = Vec::with_capacity(route_references.len());
+                        let mut ssr_modules = Vec::with_capacity(route_references.len());
+                        for &(_, parent_module, reference) in &route_references {
+                            let reference = reference.await?;
+                            client_modules.push(ClientReferenceWithContext {
+                                entry_module: ResolvedVc::upcast(reference.client_module),
+                                source_module: parent_module,
+                                server_component: Some(route_entry),
+                            });
+                            ssr_modules.push(ClientReferenceWithContext {
+                                entry_module: ResolvedVc::upcast(reference.ssr_module),
+                                source_module: parent_module,
+                                server_component: Some(route_entry),
+                            });
+                        }
+
+                        let client_chunk_group = client_chunking_context
+                            .chunk_group(
+                                base_ident
+                                    .clone()
+                                    .with_modifier(rcstr!("route client modules"))
+                                    .into_vc(),
+                                derived_isolated_merged_groups(
+                                    chunk_group_info,
+                                    &client_modules,
+                                    &CLIENT_MERGE_TAG,
+                                )
+                                .await?,
+                                module_graph,
+                                client_availability_info,
+                            )
+                            .to_resolved()
+                            .await?;
+
+                        let ssr_assets = if let Some(ssr_chunking_context) = ssr_chunking_context {
+                            Some(
+                                ssr_chunking_context
+                                    .chunk_group(
+                                        base_ident
+                                            .with_modifier(rcstr!("route ssr modules"))
+                                            .into_vc(),
+                                        derived_isolated_merged_groups(
+                                            chunk_group_info,
+                                            &ssr_modules,
+                                            &SSR_MERGE_TAG,
+                                        )
+                                        .await?,
+                                        module_graph,
+                                        current_ssr_chunk_group.await?.availability_info,
+                                    )
+                                    .output_assets_with_referenced()
+                                    .to_resolved()
+                                    .await?,
+                            )
+                        } else {
+                            None
+                        };
+
+                        for &(ty, _, _) in &route_references {
+                            client_component_client_chunks.insert(ty, client_chunk_group);
+                            if let Some(ssr_assets) = ssr_assets {
+                                client_component_ssr_chunks.insert(ty, ssr_assets);
+                            }
+                        }
+                        anyhow::Ok(())
+                    }
+                    .instrument(tracing::info_span!("route client references"))
+                    .await?;
                 }
             }
 
