@@ -45,6 +45,8 @@ const PAGES = [0, 1, 2, 3, 4].map((i) => `/page-${i}`)
             })
           },
         })
+        // Activating the nested lazy imports can rebuild and reload the page several times, which
+        // resets every button, so allow more than the default 3s for it to settle.
         await retry(async () => {
           // Buttons only react once their level has hydrated; click the ones that haven't yet.
           const labels: string[] = await browser.eval(`(() => {
@@ -58,7 +60,7 @@ const PAGES = [0, 1, 2, 3, 4].map((i) => `/page-${i}`)
             expect(labels).toContain(`${level}-clicked`)
           }
           expect(labels.every((label) => label.endsWith('-clicked'))).toBe(true)
-        })
+        }, 30_000)
         expect(failed).toEqual([])
         await browser.close()
       }
