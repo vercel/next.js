@@ -71,8 +71,10 @@ The optional pricing file contains the selected model's `pricing` object from
 the [Gateway models endpoint](https://ai-gateway.vercel.sh/v1/models). Cost is
 an estimate from per-request tokens and the recorded prices, not a billing
 receipt. Cached input is included in the input total and priced separately.
-The report uses transcript timestamps for agent time and records full run
-time separately. Review paired attempts before attributing a difference to
+The report uses transcript timestamps for agent time when available and records
+full run time separately. Codex CLI streams without timestamps leave agent
+time empty. Their aggregated usage uses base-rate cost estimates because
+per-request pricing tiers cannot be recovered. Review paired attempts before attributing a difference to
 the Skill.
 
 ## Validate the task without a model

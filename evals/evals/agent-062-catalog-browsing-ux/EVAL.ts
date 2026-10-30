@@ -205,7 +205,7 @@ test('search stays usable and focused while results load', async () => {
       pending = route
     else await respond(route)
   })
-  const search = page.getByRole('textbox', { name: 'Search products' })
+  const search = page.getByLabel('Search products', { exact: true })
   await search.fill('pack')
   await expect.poll(() => Boolean(pending)).toBe(true)
   await expect(search).toBeFocused()
@@ -236,7 +236,7 @@ test('an older response cannot replace the latest search', async () => {
     else if (q === 'mug') newer = route
     else await respond(route)
   })
-  const search = page.getByRole('textbox', { name: 'Search products' })
+  const search = page.getByLabel('Search products', { exact: true })
   await search.fill('p')
   await expect.poll(() => Boolean(older)).toBe(true)
   await search.fill('mug')
@@ -264,7 +264,7 @@ test('an older response cannot replace the latest search', async () => {
 })
 
 test('empty results are announced and the next search still works', async () => {
-  const search = page.getByRole('textbox', { name: 'Search products' })
+  const search = page.getByLabel('Search products', { exact: true })
   await search.fill('no-such-product')
   await expect(
     page
@@ -302,7 +302,7 @@ test('a failed request can be retried without losing the selection', async () =>
     await respond(route)
   })
   await page.getByRole('combobox', { name: 'Category' }).selectOption('bags')
-  await page.getByRole('textbox', { name: 'Search products' }).fill('pack')
+  await page.getByLabel('Search products', { exact: true }).fill('pack')
   await expect(
     page
       .locator(
@@ -320,9 +320,9 @@ test('a failed request can be retried without losing the selection', async () =>
   await expect(
     page.getByRole('link', { name: 'Trail Pack', exact: true })
   ).toBeVisible()
-  await expect(
-    page.getByRole('textbox', { name: 'Search products' })
-  ).toHaveValue('pack')
+  await expect(page.getByLabel('Search products', { exact: true })).toHaveValue(
+    'pack'
+  )
   await expect(page.getByRole('combobox', { name: 'Category' })).toHaveValue(
     'bags'
   )
@@ -339,7 +339,7 @@ async function tabTo(target: Locator) {
 }
 
 test('keyboard browsing preserves search and category through a product visit', async () => {
-  const search = page.getByRole('textbox', { name: 'Search products' })
+  const search = page.getByLabel('Search products', { exact: true })
   await search.focus()
   await page.keyboard.type('pack')
   await expect(
