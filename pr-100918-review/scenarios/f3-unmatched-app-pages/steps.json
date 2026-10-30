@@ -1,0 +1,7 @@
+[
+  { "wait": "Ready in", "timeout": 60000 },
+  { "sleep": 10000 },
+  { "mark": "request /" },
+  { "fetch": "/", "timeout": 90000 },
+  { "sleep": 4000 }
+]

@@ -1,0 +1,29 @@
+[
+  { "wait": "Ready in", "timeout": 60000 },
+  { "sleep": 6000 },
+  { "fetch": "/", "timeout": 90000 },
+  { "mark": "move node_modules/next aside (simulates a concurrent install)" },
+  {
+    "rename": [
+      "__REPO__/node_modules/next",
+      "__REPO__/node_modules/next.stash-review"
+    ]
+  },
+  {
+    "write": "app/page.tsx",
+    "content": "export default function Page() {\n  return <p>hello world (edited)</p>\n}\n"
+  },
+  { "sleep": 10000 },
+  { "fetch": "/late-route", "timeout": 30000 },
+  { "sleep": 4000 },
+  { "mark": "restore node_modules/next" },
+  {
+    "rename": [
+      "__REPO__/node_modules/next.stash-review",
+      "__REPO__/node_modules/next"
+    ]
+  },
+  { "sleep": 10000 },
+  { "fetch": "/late-route", "timeout": 60000 },
+  { "sleep": 1000 }
+]

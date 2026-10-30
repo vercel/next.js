@@ -1,0 +1,15 @@
+[
+  { "wait": "Ready in", "timeout": 60000 },
+  { "sleep": 6000 },
+  { "fetch": "/", "timeout": 90000 },
+  { "sleep": 2000 },
+  { "mark": "make exportPathMap throw, then add a page" },
+  { "write": "EXPORT_FAIL", "content": "1" },
+  {
+    "write": "pages/added.js",
+    "content": "export default function Page() {\n  return <p>added</p>\n}\n"
+  },
+  { "sleep": 10000 },
+  { "fetch": "/", "timeout": 30000 },
+  { "sleep": 1000 }
+]

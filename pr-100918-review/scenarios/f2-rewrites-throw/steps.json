@@ -1,0 +1,15 @@
+[
+  { "wait": "Ready in", "timeout": 60000 },
+  { "sleep": 6000 },
+  { "fetch": "/", "timeout": 90000 },
+  { "sleep": 2000 },
+  { "mark": "make rewrites() throw, then add a route" },
+  { "write": "REWRITES_MODE", "content": "throw" },
+  {
+    "write": "app/added/page.tsx",
+    "content": "export default function Page() {\n  return <p>added</p>\n}\n"
+  },
+  { "sleep": 10000 },
+  { "fetch": "/", "timeout": 30000 },
+  { "sleep": 1000 }
+]

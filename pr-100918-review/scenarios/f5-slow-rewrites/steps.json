@@ -1,0 +1,18 @@
+[
+  { "wait": "Ready in", "timeout": 60000 },
+  { "sleep": 6000 },
+  { "fetch": "/", "timeout": 90000 },
+  { "fetch": "/", "timeout": 90000 },
+  { "mark": "make rewrites() take 8 s, then add a route" },
+  { "write": "REWRITES_MODE", "content": "slow" },
+  {
+    "write": "app/added-slow/page.tsx",
+    "content": "export default function Page() {\n  return <p>added</p>\n}\n"
+  },
+  { "sleep": 1500 },
+  {
+    "mark": "request the already-compiled / while publish() waits on rewrites()"
+  },
+  { "fetch": "/", "timeout": 60000 },
+  { "sleep": 1000 }
+]

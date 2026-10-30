@@ -1,0 +1,29 @@
+[
+  { "wait": "Ready in", "timeout": 60000 },
+  { "sleep": 6000 },
+  { "fetch": "/other", "timeout": 90000 },
+  { "mark": "control: syntax error in an unrelated page route" },
+  {
+    "write": "app/broken/page.tsx",
+    "content": "export default function Page( {\n"
+  },
+  { "sleep": 6000 },
+  { "fetch": "/other", "timeout": 90000 },
+  { "rm": "app/broken" },
+  { "sleep": 6000 },
+  { "mark": "break app/sitemap.ts without ever requesting /sitemap.xml" },
+  {
+    "write": "app/sitemap.ts",
+    "content": "export default function sitemap( {\n"
+  },
+  { "sleep": 6000 },
+  { "fetch": "/other", "timeout": 90000 },
+  { "fetch": "/", "timeout": 90000 },
+  { "mark": "fix app/sitemap.ts" },
+  {
+    "write": "app/sitemap.ts",
+    "content": "export default function sitemap() {\n  return [{ url: 'https://example.com' }]\n}\n"
+  },
+  { "sleep": 6000 },
+  { "fetch": "/other", "timeout": 90000 }
+]
