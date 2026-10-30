@@ -1,0 +1,148 @@
+--- a/app/products/catalog.tsx
++++ b/app/products/catalog.tsx
+@@ -2,24 +2,49 @@
+
+ import { useEffect, useState } from 'react'
+ import Link from 'next/link'
++import { useSearchParams } from 'next/navigation'
+ import type { Product } from '../../lib/products'
+
+ export default function Catalog() {
+-  const [q, setQ] = useState('')
+-  const [category, setCategory] = useState('all')
++  const params = useSearchParams()
++  const [q, setQ] = useState(params.get('q') || '')
++  const [category, setCategory] = useState(params.get('category') || 'all')
+   const [products, setProducts] = useState<Product[]>([])
+-  const [loading, setLoading] = useState(false)
++  const [loading, setLoading] = useState(true)
++  const [error, setError] = useState(false)
++  const [attempt, setAttempt] = useState(0)
++  const selection = new URLSearchParams({ q, category }).toString()
++
++  function update(key: string, value: string) {
++    const next = new URLSearchParams(window.location.search)
++    if (key === 'q') setQ(value)
++    else setCategory(value)
++    next.set(key, value)
++    window.history.replaceState(null, '', `/products?${next}`)
++  }
+
+   useEffect(() => {
++    let active = true
+     setLoading(true)
+-    fetch(`/api/products?${new URLSearchParams({ q, category })}`)
+-      .then((response) => response.json())
+-      .then(setProducts)
+-      .catch(() => setProducts([]))
+-      .finally(() => setLoading(false))
+-  }, [q, category])
+-
+-  if (loading) return <p role="status">Loading products…</p>
++    setError(false)
++    fetch(`/api/products?${selection}`)
++      .then((response) => {
++        if (!response.ok) throw new Error('Catalog unavailable')
++        return response.json()
++      })
++      .then((data) => {
++        if (active) setProducts(data)
++      })
++      .catch(() => {
++        if (active) setError(true)
++      })
++      .finally(() => {
++        if (active) setLoading(false)
++      })
++    return () => {
++      active = false
++    }
++  }, [selection, attempt])
+
+   return (
+     <>
+@@ -27,13 +52,16 @@
+       <form onSubmit={(event) => event.preventDefault()}>
+         <label>
+           Search products
+-          <input value={q} onChange={(event) => setQ(event.target.value)} />
++          <input
++            value={q}
++            onChange={(event) => update('q', event.target.value)}
++          />
+         </label>
+         <label>
+           Category
+           <select
+             value={category}
+-            onChange={(event) => setCategory(event.target.value)}
++            onChange={(event) => update('category', event.target.value)}
+           >
+             <option value="all">All categories</option>
+             <option value="bags">Bags</option>
+@@ -42,13 +70,32 @@
+           </select>
+         </label>
+       </form>
+-      <ul aria-label="Products">
+-        {products.map((product) => (
+-          <li key={product.slug}>
+-            <Link href={`/products/${product.slug}`}>{product.name}</Link>
+-            <p>${product.price}</p>
+-          </li>
+-        ))}
++      <p role="status">
++        {loading
++          ? 'Loading products…'
++          : !error && products.length === 0
++            ? 'No products match. Try another search or category.'
++            : ''}
++      </p>
++      {error && (
++        <div role="alert">
++          Catalog unavailable.{' '}
++          <button onClick={() => setAttempt((value) => value + 1)}>
++            Retry
++          </button>
++        </div>
++      )}
++      <ul aria-label="Products" aria-busy={loading}>
++        {!loading &&
++          !error &&
++          products.map((product) => (
++            <li key={product.slug}>
++              <Link href={`/products/${product.slug}?${selection}`}>
++                {product.name}
++              </Link>
++              <p>${product.price}</p>
++            </li>
++          ))}
+       </ul>
+     </>
+   )
+--- a/app/products/[slug]/page.tsx
++++ b/app/products/[slug]/page.tsx
+@@ -4,15 +4,22 @@
+
+ export default async function ProductPage({
+   params,
++  searchParams,
+ }: {
+   params: Promise<{ slug: string }>
++  searchParams: Promise<{ q?: string; category?: string }>
+ }) {
+   const { slug } = await params
++  const selection = await searchParams
++  const back = new URLSearchParams({
++    q: selection.q || '',
++    category: selection.category || 'all',
++  })
+   const product = products.find((item) => item.slug === slug)
+   if (!product) notFound()
+   return (
+     <>
+-      <Link href="/products">Back to products</Link>
++      <Link href={`/products?${back}`}>Back to products</Link>
+       <h1>{product.name}</h1>
+       <p>
+         {product.category} / ${product.price}
