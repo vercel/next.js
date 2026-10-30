@@ -1,6 +1,5 @@
 import path from 'path'
 import { isNextStart, nextTestSetup } from 'e2e-utils'
-import { gate } from 'next-test-utils'
 
 const assetPrefix = 'https://example.vercel.sh'
 
@@ -12,27 +11,13 @@ if (!isNextStart) {
 
     it('should render correctly with assetPrefix: "/"', async () => {
       const $ = await next.render$('/')
-      const externalBrowserRuntime = await gate((c) => c.externalBrowserRuntime)
-      let runtimeScripts = 0
-      for (const el of $(
+      // Only potential external (assetPrefix) <script /> and <link /> should have crossorigin attribute
+      $(
         'script[src*="https://example.vercel.sh"], link[href*="https://example.vercel.sh"]'
-      ).toArray()) {
+      ).each((_, el) => {
         const crossOrigin = $(el).attr('crossorigin')
-        if (
-          externalBrowserRuntime &&
-          el.tagName === 'script' &&
-          crossOrigin === undefined
-        ) {
-          // React's external runtime API does not accept a crossOrigin option.
-          const response = await next.fetch(new URL($(el).attr('src')).pathname)
-          expect(response.status).toBe(200)
-          expect(await response.text()).toContain('installFizzInstrObserver')
-          runtimeScripts++
-        } else {
-          expect(crossOrigin).toBe('use-credentials')
-        }
-      }
-      expect(runtimeScripts).toBe(externalBrowserRuntime ? 1 : 0)
+        expect(crossOrigin).toBe('use-credentials')
+      })
 
       // Inline <script /> (including RSC payload) and <link /> should not have crossorigin attribute
       $('script:not([src]), link:not([href])').each((_, el) => {
