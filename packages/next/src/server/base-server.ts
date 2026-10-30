@@ -3145,17 +3145,17 @@ export default abstract class Server<
       page = match.definition.page
     }
 
-    const prerendered =
-      isAppPath && !this.dev && !this.minimalMode
-        ? this.getPrerenderManifest().routes[pathname]
-        : undefined
-    if (
-      prerendered?.response === 'complete' &&
-      prerendered.compute === 'static' &&
-      prerendered.initialRevalidateSeconds === false
-    ) {
-      const cached = await this.getPrerenderedAppPage(ctx, page, prerendered)
-      if (cached) return cached
+    if (isAppPath && !this.dev && !this.minimalMode) {
+      const prerendered = this.getPrerenderManifest().routes[pathname]
+
+      if (
+        prerendered?.response === 'complete' &&
+        prerendered.compute === 'static' &&
+        prerendered.initialRevalidateSeconds === false
+      ) {
+        const cached = await this.getPrerenderedAppPage(ctx, page, prerendered)
+        if (cached) return cached
+      }
     }
 
     const result = await this.findPageComponents({
