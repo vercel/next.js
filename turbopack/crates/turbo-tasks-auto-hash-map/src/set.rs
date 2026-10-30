@@ -120,6 +120,15 @@ where
         self.map.remove(key).is_some()
     }
 
+    /// Removes `key` by swapping the last item into its place, like
+    /// [IndexSet::swap_remove](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.swap_remove).
+    ///
+    /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
+    /// the remaining items. For unordered storages it's the same as [`Self::remove`].
+    pub fn swap_remove(&mut self, key: &K) -> bool {
+        self.map.swap_remove(key).is_some()
+    }
+
     /// see [HashSet::extend](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.extend)
     pub fn extend(&mut self, iter: impl IntoIterator<Item = K>) {
         self.map.extend(iter.into_iter().map(|item| (item, ())))
@@ -471,6 +480,28 @@ mod tests {
         assert_eq!(set.iter().copied().collect::<Vec<_>>(), expected);
         set.remove(&expected[0]);
         assert_eq!(set.into_iter().collect::<Vec<_>>(), expected[1..]);
+    }
+
+    #[test]
+    fn test_swap_remove() {
+        for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
+            // Ordered: the last item moves into the removed slot, in list and map mode.
+            let mut set: AutoIndexSet<usize> = (0..n).collect();
+            assert!(set.swap_remove(&1));
+            assert!(!set.swap_remove(&1));
+            assert!(!set.swap_remove(&(n + 7)));
+            let mut expected: Vec<usize> = (0..n).collect();
+            expected.swap_remove(1);
+            assert_eq!(set.iter().copied().collect::<Vec<_>>(), expected);
+
+            // Unordered: the same as `remove`.
+            let mut swapped: AutoSet<usize> = (0..n).collect();
+            let mut removed = swapped.clone();
+            for key in [1, 3, n - 1, n + 7] {
+                assert_eq!(swapped.swap_remove(&key), removed.remove(&key));
+            }
+            assert!(swapped.iter().eq(removed.iter()));
+        }
     }
 
     #[test]

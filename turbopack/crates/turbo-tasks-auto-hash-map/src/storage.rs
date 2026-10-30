@@ -298,6 +298,12 @@ pub trait BackingMapStorage<K, V>: Sized {
     where
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
+    /// Removes `key` by swapping the last entry into its place. This is O(1) for ordered storages
+    /// too, but changes their order. Unordered storages remove the same way as [`Self::remove`].
+    fn swap_remove(&mut self, key: &K) -> Option<V>
+    where
+        K: Eq + Hash,
+        Self::Hasher: BuildHasher;
     fn extend(&mut self, iter: impl Iterator<Item = (K, V)>)
     where
         K: Eq + Hash,
@@ -475,6 +481,13 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         HashMap::insert(self, key, value)
     }
     fn remove(&mut self, key: &K) -> Option<V>
+    where
+        K: Eq + Hash,
+        H: BuildHasher,
+    {
+        HashMap::remove(self, key)
+    }
+    fn swap_remove(&mut self, key: &K) -> Option<V>
     where
         K: Eq + Hash,
         H: BuildHasher,
@@ -734,6 +747,13 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         H: BuildHasher,
     {
         IndexMap::shift_remove(self, key)
+    }
+    fn swap_remove(&mut self, key: &K) -> Option<V>
+    where
+        K: Eq + Hash,
+        H: BuildHasher,
+    {
+        IndexMap::swap_remove(self, key)
     }
     fn extend(&mut self, iter: impl Iterator<Item = (K, V)>)
     where
