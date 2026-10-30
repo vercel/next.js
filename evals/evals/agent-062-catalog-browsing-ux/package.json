@@ -17,6 +17,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "chrome-launcher": "1.2.2",
+    "lighthouse": "13.6.0",
     "typescript": "^5",
     "vitest": "3.1.3"
   }

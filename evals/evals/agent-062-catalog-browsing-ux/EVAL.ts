@@ -10,6 +10,8 @@ import {
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import { createRequire } from 'node:module'
+import lighthouse from 'lighthouse'
+import { launch } from 'chrome-launcher'
 
 // The harness restores this file after the agent finishes. Keep expected data
 // here rather than importing the agent's potentially changed catalog.
@@ -104,8 +106,81 @@ afterEach(async () => {
 })
 afterAll(async () => {
   await browser?.close()
-  server?.kill('SIGTERM')
-})
+  try {
+    if (server && process.env.CATALOG_UX_MEASURE !== '0') {
+      await measureApp()
+    }
+  } finally {
+    server?.kill('SIGTERM')
+  }
+}, 240_000)
+
+// Keep observations separate from behavior assertions. A failed measurement
+// is missing evidence, not a zero score or a failed model task.
+async function measureApp() {
+  const samples: unknown[] = []
+  const errors: string[] = []
+  for (let sample = 0; sample < 3; sample++) {
+    let chrome: Awaited<ReturnType<typeof launch>> | undefined
+    try {
+      chrome = await launch({
+        chromePath: chromium.executablePath(),
+        chromeFlags: ['--headless', '--no-sandbox', '--disable-dev-shm-usage'],
+      })
+      const result = await lighthouse(`${origin}/products`, {
+        port: chrome.port,
+        output: 'json',
+        logLevel: 'error',
+        onlyCategories: ['performance', 'accessibility'],
+        // Lighthouse's simulated mobile profile, identical in both conditions.
+        formFactor: 'mobile',
+        throttlingMethod: 'simulate',
+      })
+      if (!result || result.lhr.runtimeError) {
+        throw new Error(
+          result?.lhr.runtimeError?.code || 'No Lighthouse result'
+        )
+      }
+      const { lhr } = result
+      const value = (id: string) => lhr.audits[id]?.numericValue ?? null
+      const resources = lhr.audits['resource-summary']?.details
+      const scripts =
+        resources?.type === 'table'
+          ? resources.items.find((item) => item.resourceType === 'script')
+          : undefined
+      samples.push({
+        lighthouseVersion: lhr.lighthouseVersion,
+        userAgent: lhr.userAgent,
+        environment: lhr.environment,
+        settings: lhr.configSettings,
+        lcpMs: value('largest-contentful-paint'),
+        cls: value('cumulative-layout-shift'),
+        tbtMs: value('total-blocking-time'),
+        jsTransferBytes: scripts?.transferSize ?? null,
+        totalTransferBytes: value('total-byte-weight'),
+        accessibilityScore: lhr.categories.accessibility?.score ?? null,
+        accessibilityFailures: lhr.categories.accessibility.auditRefs
+          .filter(({ id }) => lhr.audits[id]?.score === 0)
+          .map(({ id }) => ({ id, title: lhr.audits[id].title })),
+        warnings: lhr.runWarnings,
+      })
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error))
+    } finally {
+      await chrome?.kill()
+    }
+  }
+  // Saved in outputs/eval.txt by agent-eval; consumed by the study report.
+  console.log(
+    'CATALOG_UX_METRICS ' +
+      JSON.stringify({
+        status: errors.length ? 'incomplete' : 'complete',
+        source: 'production-localhost',
+        samples,
+        errors,
+      })
+  )
+}
 
 test('the real catalog API keeps the data and filters', async () => {
   const all = await fetch(`${origin}/api/products?q=&category=all`)
@@ -271,9 +346,9 @@ test('keyboard browsing preserves search and category through a product visit', 
     page.getByRole('link', { name: 'Ridge Pack', exact: true })
   ).toBeVisible()
   const category = page.getByRole('combobox', { name: 'Category' })
-  await tabTo(category)
-  await page.keyboard.press('b')
-  await page.keyboard.press('Enter')
+  // Native select typeahead differs across OS/browser combinations. Set the
+  // filter first, then exercise product navigation and return with the keyboard.
+  await category.selectOption('bags')
   await expect(category).toHaveValue('bags')
   await tabTo(page.getByRole('link', { name: 'Trail Pack', exact: true }))
   await page.keyboard.press('Enter')
