@@ -31,14 +31,12 @@ export class NextDevInstance extends NextInstance {
       const msg = chunk.toString()
       process.stdout.write(chunk)
       this._cliOutput += msg
-      this.detectRustPanics('stdout', msg)
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stderr.write(chunk)
       this._cliOutput += msg
-      this.detectRustPanics('stderr', msg)
       this.emit('stderr', [msg])
     })
   }
@@ -162,19 +160,18 @@ export class NextDevInstance extends NextInstance {
         })
 
         this._cliOutput = ''
+        this.rustPanicCheckedLength = 0
 
         this.childProcess.stdout!.on('data', (chunk) => {
           const msg = chunk.toString()
           process.stdout.write(chunk)
           this._cliOutput += msg
-          this.detectRustPanics('stdout', msg)
           this.emit('stdout', [msg])
         })
         this.childProcess.stderr!.on('data', (chunk) => {
           const msg = chunk.toString()
           process.stderr.write(chunk)
           this._cliOutput += msg
-          this.detectRustPanics('stderr', msg)
           this.emit('stderr', [msg])
         })
 
