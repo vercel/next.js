@@ -84,7 +84,7 @@ pub async fn expand_outputs(
 
     let output_assets = entrypoint_groups
         .iter()
-        .map(async |(_, EndpointGroup { primary, .. })| {
+        .map(|(_, EndpointGroup { primary, .. })| {
             let operation = if let &[entry] = &primary.as_slice() {
                 endpoint_outputs(entry.endpoint)
             } else {
@@ -92,7 +92,7 @@ pub async fn expand_outputs(
                     ResolvedVc::cell(primary.iter().map(|entry| entry.endpoint).collect());
                 endpoints_outputs(endpoints)
             };
-            with_loader_emitted_files(project, operation).await
+            with_loader_emitted_files(project, operation)
         })
         .try_join()
         .await?;

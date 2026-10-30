@@ -8,7 +8,7 @@ describe.each([
 ])(
   'shared emitted maps: browser=$browserMaps server=$serverMaps',
   ({ browserMaps, serverMaps }) => {
-    const { next, isNextDev } = nextTestSetup({
+    const { next, isNextDev, isNextDeploy } = nextTestSetup({
       files: __dirname,
       env: {
         TEST_BROWSER_SOURCE_MAPS: String(browserMaps),
@@ -34,12 +34,18 @@ describe.each([
       )
       if (isNextDev || browserMaps) {
         expect(content).toContain('sourceMappingURL=shared.js.map')
+      } else {
+        expect(content).not.toContain('sourceMappingURL=')
+      }
+      if (isNextDeploy) {
+        // The deployment test project blocks source maps regardless of whether a map was emitted.
+        expect(map.status).toBe(403)
+      } else if (isNextDev || browserMaps) {
         expect(map.status).toBe(200)
         const sourceMap = await map.json()
         expect(sourceMap.file.split('/').pop()).toBe('shared.js')
         expect(sourceMap.sourcesContent).toEqual(['original'])
       } else {
-        expect(content).not.toContain('sourceMappingURL=')
         expect(map.status).toBe(404)
       }
     })

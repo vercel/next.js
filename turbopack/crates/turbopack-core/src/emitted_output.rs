@@ -162,7 +162,7 @@ impl Asset for EmittedOutputAsset {
 pub async fn prepare_source_map(
     map: JsonValue,
     content: &File,
-    context: &FileSystemPath,
+    source_path: &FileSystemPath,
 ) -> Result<Option<Rope>> {
     let mut map = match map {
         JsonValue::Object(map) => JsonValue::Object(map),
@@ -185,7 +185,7 @@ pub async fn prepare_source_map(
         }
         _ => return Ok(None),
     };
-    let fs = context.fs().to_resolved().await?;
+    let fs = source_path.fs().to_resolved().await?;
     let prefix = format!(
         "{SOURCE_URL_PROTOCOL_STR}///{}/",
         turbofmt!("[{fs}]").await?
@@ -203,7 +203,7 @@ pub async fn prepare_source_map(
             let (disk_fs, disk) = disk_fs.as_ref()?;
             disk.try_from_sys_path(*disk_fs, &sys_path, None)
         } else {
-            context.try_join(&urlencoding::decode(source).ok()?)
+            source_path.try_join(&urlencoding::decode(source).ok()?)
         }?;
         Some(format!("{prefix}{}", path.path))
     };
