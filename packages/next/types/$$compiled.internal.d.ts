@@ -206,7 +206,7 @@ declare module 'react-server-dom-webpack/server.edge' {
     reference: T,
     id: string,
     exportName: string | null
-  ): unknown
+  ): T
 
   export function createClientModuleProxy(moduleId: string): unknown
 }
