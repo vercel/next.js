@@ -101,7 +101,7 @@ describe('inject-instrumentation', () => {
     })
   })
 
-  describe('injectInstrumentation without a project file', () => {
+  describe('instrumentationInject without a project file', () => {
     const { next, isNextStart } = nextTestSetup({
       files: fixture('inject'),
     })

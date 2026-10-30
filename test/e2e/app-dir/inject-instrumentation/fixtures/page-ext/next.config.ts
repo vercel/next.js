@@ -2,7 +2,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   pageExtensions: ['page.ts', 'tsx', 'ts'],
-  injectInstrumentation: [
+  instrumentationInject: [
     './injected/instrumentation.js',
     './injected/second.js',
   ],

@@ -400,7 +400,7 @@ interface PagePathData {
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
- * @param hasInstrumentationInject Whether `injectInstrumentation` has entries.
+ * @param hasInstrumentationInject Whether `instrumentationInject` has entries.
  */
 export async function findPagePathData(
   rootDir: string,

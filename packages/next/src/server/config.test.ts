@@ -390,37 +390,37 @@ describe('loadConfig', () => {
     })
   })
 
-  describe('injectInstrumentation', () => {
+  describe('instrumentationInject', () => {
     it('defaults to an empty array, so modifyConfig can push to it', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {},
       })
-      expect(result.injectInstrumentation).toEqual([])
+      expect(result.instrumentationInject).toEqual([])
     })
 
     it('gives each load its own array, so a push does not leak into later loads', async () => {
       const first = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {},
       })
-      first.injectInstrumentation.push('./x.js')
+      first.instrumentationInject.push('./x.js')
       first.instrumentationClientInject.push('./y.js')
 
       const second = await loadConfig(PHASE_PRODUCTION_SERVER, __dirname, {
         customConfig: {},
       })
       expect(second).toMatchObject({
-        injectInstrumentation: [],
+        instrumentationInject: [],
         instrumentationClientInject: [],
       })
     })
 
     it('is accepted by the config schema', () => {
       expect(
-        configSchema.safeParse({ injectInstrumentation: ['./script.js'] })
+        configSchema.safeParse({ instrumentationInject: ['./script.js'] })
           .success
       ).toBe(true)
       expect(
-        configSchema.safeParse({ injectInstrumentation: 'script.js' }).success
+        configSchema.safeParse({ instrumentationInject: 'script.js' }).success
       ).toBe(false)
     })
   })

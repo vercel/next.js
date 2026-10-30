@@ -8,7 +8,7 @@ export const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
 )
 
 /**
- * The webpack entry for the instrumentation slot when `injectInstrumentation`
+ * The webpack entry for the instrumentation slot when `instrumentationInject`
  * is set. `next-instrumentation-inject-loader` replaces its contents with a
  * module that runs every entry's hooks, then the project's own
  * `instrumentation` file.

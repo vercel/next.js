@@ -1956,7 +1956,7 @@ export default async function getBaseWebpackConfig(
             },
           },
         },
-        // The server instrumentation entry when `injectInstrumentation` is set.
+        // The server instrumentation entry when `instrumentationInject` is set.
         // The loader emits one module that runs every entry's hooks, then the
         // project's own instrumentation file.
         {
@@ -1964,7 +1964,7 @@ export default async function getBaseWebpackConfig(
           use: {
             loader: 'next-instrumentation-inject-loader',
             options: {
-              modules: config.injectInstrumentation ?? [],
+              modules: config.instrumentationInject ?? [],
             },
           },
         },
@@ -2008,7 +2008,7 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       !isClient &&
-        config.injectInstrumentation?.length &&
+        config.instrumentationInject?.length &&
         new bundler.NormalModuleReplacementPlugin(
           new RegExp(
             `^${escapeStringRegexp(INSTRUMENTATION_INJECT_STUB_PATH)}$`
@@ -2392,7 +2392,7 @@ export default async function getBaseWebpackConfig(
     optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
-    injectInstrumentation: config.injectInstrumentation,
+    instrumentationInject: config.instrumentationInject,
     instrumentationClientInject: config.instrumentationClientInject,
     trailingSlash: config.trailingSlash,
     devIndicatorsPosition:

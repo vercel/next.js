@@ -219,7 +219,7 @@ export function createWebpackAliases({
         }
       : {
           // The project's own `instrumentation.{pageExt}` file, chained after
-          // the `injectInstrumentation` entries by
+          // the `instrumentationInject` entries by
           // `next-instrumentation-inject-loader`. Same lookup as Turbopack:
           // every page extension at the project root, then in `src/`. Exact
           // names, so compound extensions like `page.ts` match.

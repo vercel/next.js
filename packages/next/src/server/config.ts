@@ -460,7 +460,7 @@ function assignDefaultsAndValidate(
 
   // Copy so a push in `modifyConfig` can't change the shared default or a
   // cached user config.
-  result.injectInstrumentation = [...(result.injectInstrumentation ?? [])]
+  result.instrumentationInject = [...(result.instrumentationInject ?? [])]
   result.instrumentationClientInject = [
     ...(result.instrumentationClientInject ?? []),
   ]

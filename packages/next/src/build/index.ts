@@ -1537,7 +1537,7 @@ export default async function build(
       }
 
       const hasInstrumentationInject =
-        (config.injectInstrumentation?.length ?? 0) > 0
+        (config.instrumentationInject?.length ?? 0) > 0
       const hasInstrumentationHook =
         Boolean(instrumentationHookFilePath) || hasInstrumentationInject
       const hasMiddlewareFile = Boolean(middlewareFilePath)

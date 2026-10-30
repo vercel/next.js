@@ -2549,9 +2549,9 @@ impl Project {
         ))
     }
 
-    /// The source compiled into the instrumentation slot. Without `injectInstrumentation`, that is
+    /// The source compiled into the instrumentation slot. Without `instrumentationInject`, that is
     /// the project's instrumentation file, including one in a parent directory. Otherwise a
-    /// virtual module at the project root requires every `injectInstrumentation` entry, so the
+    /// virtual module at the project root requires every `instrumentationInject` entry, so the
     /// bundler resolves them there, then the project's file, and runs all of their hooks.
     /// `entrypoints` and `instrumentation_endpoint` both read this.
     #[turbo_tasks::function]
@@ -2560,7 +2560,7 @@ impl Project {
             FindContextFileResult::Found(fs_path, _) => Some(fs_path.clone()),
             _ => None,
         };
-        let inject = self.next_config().inject_instrumentation().await?;
+        let inject = self.next_config().instrumentation_inject().await?;
         if inject.is_empty() {
             let Some(fs_path) = project_file else {
                 return Ok(Vc::cell(None));

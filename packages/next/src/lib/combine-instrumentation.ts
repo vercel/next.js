@@ -14,7 +14,7 @@ type CombinedInstrumentation = {
 }
 
 /**
- * Combines the `injectInstrumentation` modules and the project's own
+ * Combines the `instrumentationInject` modules and the project's own
  * instrumentation file into one instrumentation module. Each hook runs every
  * module's export in array order. A hook that throws, or a module with
  * top-level await that fails to load, does not stop the others. Errors are

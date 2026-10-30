@@ -1960,7 +1960,7 @@ export interface NextConfig {
    * file's. A hook that throws does not stop the others. Each entry may be a bare
    * npm package name, a path relative to the project root, or an absolute path.
    */
-  injectInstrumentation?: string[]
+  instrumentationInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -2337,7 +2337,7 @@ export const defaultConfig = Object.freeze({
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
-  injectInstrumentation: [],
+  instrumentationInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,

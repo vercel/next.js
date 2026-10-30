@@ -3,7 +3,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['external-instrumentation'],
-  injectInstrumentation: [
+  instrumentationInject: [
     'external-instrumentation/init',
     'bundled-instrumentation/init',
     './injected/instrumentation.js',

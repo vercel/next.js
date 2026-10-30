@@ -258,7 +258,7 @@ async function startWatcher(
   })
 
   const hasInstrumentationInject =
-    (nextConfig.injectInstrumentation?.length ?? 0) > 0
+    (nextConfig.instrumentationInject?.length ?? 0) > 0
   // Turbopack reports instrumentation through its entrypoints
   // (turbopack-utils.ts). Webpack has no such list.
   if (hasInstrumentationInject && !opts.turbo) {
