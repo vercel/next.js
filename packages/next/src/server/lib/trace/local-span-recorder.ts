@@ -117,14 +117,6 @@ export function getOpenTelemetrySpan(span: Span): Span | undefined {
   return span instanceof LocalRecordingSpan ? span.getOpenTelemetrySpan() : span
 }
 
-export function captureLocalSpanContext(parent: LocalSpanParent) {
-  return {
-    ...getCurrentRequestIdentity(),
-    traceId: parent.traceId,
-    parentSpanId: parent.spanId,
-  }
-}
-
 export function reparentLocalSpans(
   parent: LocalSpanParent,
   spans: readonly SpanStoreRecord[]
