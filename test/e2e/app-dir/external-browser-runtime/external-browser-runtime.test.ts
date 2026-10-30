@@ -15,23 +15,22 @@ describe('external-browser-runtime', () => {
     expect(html).toContain('<template data-rci=""')
   })
 
-  if (!isNextDev) {
-    // The point of the whole feature: with React's instructions, the Flight
-    // payload, and the chunk-group bootstrap all carried as data, a production
-    // document has no inline script left, so a Content-Security-Policy no longer
-    // needs `unsafe-inline`.
-    //
-    // Development is excluded on purpose. It still inlines the request id that
-    // the dev overlay and HMR socket read, and the dev server is not the target
-    // for CSP hardening.
-    it('emits no inline scripts', async () => {
-      const html = await next.render('/')
+  it('emits no inline scripts', async () => {
+    const response = await next.fetch('/')
+    const html = await response.text()
 
-      const inlineScripts =
-        html.match(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/g) ?? []
+    const inlineScripts =
+      html.match(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/g) ?? []
+    if (isNextDev) {
+      expect(inlineScripts.length).toBeGreaterThan(0)
+      expect(response.headers.get('content-security-policy')).toBeNull()
+    } else {
       expect(inlineScripts).toEqual([])
-    })
-  }
+      expect(response.headers.get('content-security-policy')).toBe(
+        "script-src 'self'"
+      )
+    }
+  })
 
   it('carries the Flight payload as data instead of inline scripts', async () => {
     const html = await next.render('/')

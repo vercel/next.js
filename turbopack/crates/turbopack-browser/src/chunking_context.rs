@@ -177,7 +177,7 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    /// See [`BrowserChunkingContext::inline_chunk_group_bootstrap`].
+    /// Controls whether entry chunk group bootstrap code is inlined.
     pub fn inline_chunk_group_bootstrap(mut self, inline_chunk_group_bootstrap: bool) -> Self {
         self.chunking_context.inline_chunk_group_bootstrap = inline_chunk_group_bootstrap;
         self
