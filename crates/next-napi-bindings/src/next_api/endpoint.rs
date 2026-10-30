@@ -271,6 +271,21 @@ async fn subscribe_issues_and_diags_operation(
     .cell())
 }
 
+/// Whether the client-changed operation of `endpoint_op` has an issue of severity Error or worse,
+/// using the endpoint's issue filter. Used to tell an issue-backed (recoverable) error apart from
+/// an unexpected one.
+#[turbo_tasks::function(operation, root)]
+async fn client_changed_error_has_issue_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<bool>> {
+    let changed_op = endpoint_client_changed_operation(endpoint_op);
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
+    let issues = get_issues(changed_op, &filter).await?;
+    Ok(Vc::cell(
+        issues.iter().any(|i| i.severity <= IssueSeverity::Error),
+    ))
+}
+
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
@@ -300,9 +315,13 @@ pub fn endpoint_client_changed_subscribe(
                     // (`subscribe_issues_and_diags_operation`) already reports that Issue, so
                     // don't turn the error into a `TurbopackInternalError` here. Issues are only
                     // read on this failure path, so the success path keeps not depending on them.
-                    let filter = issue_filter_from_endpoint(endpoint_op).await;
-                    let issues = get_issues(changed_op, &filter).await?;
-                    if !issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+                    //
+                    // This is a top-level task, so the check runs in an operation that is read
+                    // strongly consistently.
+                    let has_error_issue = client_changed_error_has_issue_operation(endpoint_op)
+                        .read_strongly_consistent()
+                        .await?;
+                    if !*has_error_issue {
                         return Err(err);
                     }
                 }
