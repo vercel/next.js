@@ -158,7 +158,17 @@ class Container extends React.Component<{
   }
 
   componentDidUpdate() {
-    this.scrollToHash()
+    // Only scroll to the hash while we're still in the initial-load phase
+    // (`router.isSsr` stays `true` until the first non-query-updating
+    // navigation). On initial load of auto-exported / SSG / dynamic / fallback
+    // pages, `componentDidMount` triggers a `router.replace(..., { _h: 1 })`
+    // query update whose `change()` intentionally skips hash scrolling
+    // (because `isQueryUpdating` is `true`).
+    // Once `router.isSsr` is `false`, the router handles hash scrolling on
+    // push/replace navigations, avoiding unwanted scrolling on popstate (#13653).
+    if (router.isSsr) {
+      this.scrollToHash()
+    }
   }
 
   scrollToHash() {
