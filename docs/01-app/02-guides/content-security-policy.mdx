@@ -455,7 +455,7 @@ module.exports = {
 
 ## Subresource Integrity (Experimental)
 
-As an alternative to nonces, Next.js offers experimental support for hash-based CSP using Subresource Integrity (SRI). This approach allows you to maintain static generation while still having a strict CSP.
+Next.js offers experimental support for Subresource Integrity (SRI), which lets the browser verify the JavaScript files it downloads. SRI covers files served from a URL; the inline scripts of a page are admitted by a nonce or by their hash, which [`inlineScriptHashes`](#hashes-for-inline-scripts-experimental) provides.
 
 > **Good to know**: This feature is experimental and available in App Router applications.
 
@@ -524,7 +524,7 @@ module.exports = {
 }
 ```
 
-### Benefits of SRI over nonces
+### Benefits of SRI
 
 - **Static generation**: Pages can be statically generated and cached
 - **CDN compatibility**: Static pages work with CDN caching
@@ -536,6 +536,50 @@ module.exports = {
 - **Experimental**: Feature may change or be removed
 - **App Router only**: Not supported in Pages Router
 - **Build-time only**: Cannot handle dynamically generated scripts
+- **External files only**: `integrity` is not consulted when a policy decides whether an inline script may run
+
+## Hashes for Inline Scripts (Experimental)
+
+Next.js inlines the payload of a page as `<script>` elements, and a policy without `'unsafe-inline'` blocks them unless it carries their hashes. `inlineScriptHashes` takes the hashes from the finished document of a cacheable response and adds them to the directive that governs script elements — `script-src-elem` where the policy has one, otherwise `script-src`, otherwise `default-src`.
+
+```js filename="next.config.js"
+const cspHeader = `
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+`
+
+module.exports = {
+  experimental: {
+    inlineScriptHashes: {
+      algorithm: 'sha256', // or 'sha384' or 'sha512'
+    },
+  },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspHeader.replace(/\n/g, ''),
+          },
+        ],
+      },
+    ]
+  },
+}
+```
+
+The hashes are stored next to the cached body, so every hit served from the cache carries the policy that belongs to the document it returns.
+
+> **Good to know**: The hashes are only known once the document is complete, so a cacheable response is buffered instead of streamed. Dynamic responses keep streaming and still need a nonce.
+
+A policy that already carries `'unsafe-inline'` is left as it is: adding a hash makes browsers ignore `'unsafe-inline'`, which would block the inline scripts the policy admits today. Drop `'unsafe-inline'` from the directive to opt in.
 
 </AppOnly>
 
