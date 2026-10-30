@@ -1,16 +1,38 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ModuleKind, ScriptTarget, transpileModule } from 'typescript'
+import { build } from 'esbuild'
 import { readBrowserJsMeasurement } from './browser-js.js'
 import type { BaselineCheck, BrowserJsEvalResult } from './browser-js.js'
 import type {
   EvalRunData,
+  RunCompleteHook,
   RunCompleteContext,
   Sandbox,
+  SetupFunction,
+  SetupResult,
 } from '@vercel/agent-eval'
 import { parseTranscript } from '@vercel/agent-eval'
 
-const FIXTURES = new Set(['agent-059-bundle-optimizer-next-dynamic'])
+export function createBrowserJsHooks(
+  fixtures: Record<string, string>,
+  skills: string[]
+): { setup: SetupFunction; onRunComplete: RunCompleteHook } {
+  return {
+    setup: async (sandbox) => {
+      const pkg = JSON.parse(await sandbox.readFile('package.json'))
+      const fixture = Object.keys(fixtures).find(
+        (name) => fixtures[name] === pkg.name
+      )
+      if (fixture) return prepareBrowserJs(sandbox, fixture)
+    },
+    onRunComplete: (context) => {
+      if (!Object.hasOwn(fixtures, context.fixture.name)) return context.runData
+      const runData = skills.includes('next-bundle-optimizer')
+        ? assertBundleOptimizerSkillInvoked(context)
+        : context.runData
+      return analyzeBrowserJs({ ...context, runData })
+    },
+  }
+}
 
 type VitestReport = {
   numTotalTests: number
@@ -23,66 +45,34 @@ type VitestReport = {
   }[]
 }
 
-function readMeasurementSource(path: string): string {
-  return transpileModule(readFileSync(path, 'utf8'), {
-    fileName: path,
-    compilerOptions: { module: ModuleKind.ESNext, target: ScriptTarget.ES2022 },
-  }).outputText.replaceAll(
-    '../../lib/bundle-optimizer/browser-js.js',
-    './browser-js.mjs'
-  )
-}
-
-export async function prepareBrowserJs(
-  sandbox: Sandbox
-): Promise<{ env: Record<string, string> } | void> {
-  const pkg = JSON.parse(await sandbox.readFile('package.json'))
-  if (!FIXTURES.has(pkg.name)) return
-  const fixture = pkg.name
-  const source = readMeasurementSource(
-    join(process.cwd(), 'evals', fixture, 'measure-browser-js.ts')
-  )
-  const utilsSource = readMeasurementSource(
-    join(process.cwd(), 'lib', 'bundle-optimizer', 'browser-js.ts')
-  )
-  const utilsPath = '__agent_eval__/browser-js.mjs'
-  const measurementPath = '__agent_eval__/measure-browser-js.mjs'
-  // Fixture copies must not expose assertion helpers to the app or coding agent.
-  const removeHelpers = await sandbox.runCommand('node', [
-    '--input-type=module',
-    '--eval',
-    `import { rm } from 'node:fs/promises'; await Promise.all(['measure-browser-js.ts'].map(path => rm(path, { force: true })))`,
-  ])
-  if (removeHelpers.exitCode !== 0)
-    throw new Error('Could not remove fixture assertion helpers')
-  await sandbox.writeFiles({
-    [utilsPath]: utilsSource,
-    [measurementPath]: source,
+async function prepareBrowserJs(
+  sandbox: Sandbox,
+  fixture: string
+): Promise<SetupResult> {
+  const bundled = await build({
+    entryPoints: [join(process.cwd(), 'evals', fixture, 'EVAL.ts')],
+    bundle: true,
+    packages: 'external',
+    platform: 'node',
+    format: 'esm',
+    target: 'node24',
+    write: false,
   })
-  const result = await sandbox.runCommand('node', [measurementPath])
-  if (result.exitCode !== 0) {
-    throw new Error(`Browser JavaScript baseline failed:\n${result.stderr}`)
-  }
-  const before = readBrowserJsMeasurement(result.stdout)
+  const validationFiles = { 'EVAL.ts': bundled.outputFiles[0].text }
   const configPath = '__agent_eval__/browser-js-baseline.config.mjs'
   const reportPath = '__agent_eval__/browser-js-baseline-results.json'
   let baselineChecks: BaselineCheck[] = []
+  let before: BrowserJsEvalResult['before']
   try {
     await sandbox.writeFiles({
-      'EVAL.ts': readFileSync(
-        join(process.cwd(), 'evals', fixture, 'EVAL.ts'),
-        'utf8'
-      ),
-      [configPath]: `export default { test: { include: ['EVAL.ts'], reporters: ['json'], outputFile: '${reportPath}', bail: 0 } }`,
+      ...validationFiles,
+      [configPath]: `export default { test: { include: ['EVAL.ts'], reporters: ['default', 'json'], outputFile: '${reportPath}', bail: 0 } }`,
     })
     const checks = await sandbox.runCommand(
       'npx',
       ['vitest', 'run', '--config', configPath],
       {
         env: {
-          NEXT_EVAL_BROWSER_JS_SOURCE: source,
-          NEXT_EVAL_BROWSER_JS_UTILS_SOURCE: utilsSource,
-          NEXT_EVAL_BROWSER_JS_BEFORE: JSON.stringify(before),
           NEXT_EVAL_BROWSER_JS_PHASE: 'before',
         },
       }
@@ -90,6 +80,17 @@ export async function prepareBrowserJs(
     if (checks.exitCode !== 0 && checks.exitCode !== 1) {
       throw new Error(`Baseline assertions could not run:\n${checks.stderr}`)
     }
+    const match = checks.stdout.match(
+      /NEXT_EVAL_BROWSER_JS_RESULT:(\{[^\r\n]+\})/
+    )
+    if (!match)
+      throw new Error(
+        `Browser JavaScript baseline failed:\n${checks.stdout}\n${checks.stderr}`
+      )
+    const measurement: BrowserJsEvalResult = JSON.parse(match[1])
+    before = readBrowserJsMeasurement(
+      'NEXT_EVAL_BROWSER_JS:' + JSON.stringify(measurement.before)
+    )
     const report: VitestReport = JSON.parse(await sandbox.readFile(reportPath))
     baselineChecks = report.testResults.flatMap((suite) =>
       suite.assertionResults.map((check): BaselineCheck => {
@@ -117,7 +118,7 @@ export async function prepareBrowserJs(
     const cleanup = await sandbox.runCommand('node', [
       '--input-type=module',
       '--eval',
-      `import { rm } from 'node:fs/promises'; await Promise.all(${JSON.stringify(['EVAL.ts', configPath, reportPath, utilsPath, measurementPath])}.map(path => rm(path, { force: true })))`,
+      `import { rm } from 'node:fs/promises'; await Promise.all(${JSON.stringify(['EVAL.ts', configPath, reportPath])}.map(path => rm(path, { force: true })))`,
     ])
     if (cleanup.exitCode !== 0)
       throw new Error('Could not remove baseline assertion files')
@@ -128,22 +129,18 @@ export async function prepareBrowserJs(
   console.log(
     `  Baseline assertions: ${baselineChecks.filter((check) => check.status === 'passed').length} passed, ${baselineChecks.filter((check) => check.status === 'failed').length} failed`
   )
-  // Validation receives the originals even if the agent edits files in the app.
   return {
-    env: {
-      NEXT_EVAL_BROWSER_JS_SOURCE: source,
-      NEXT_EVAL_BROWSER_JS_UTILS_SOURCE: utilsSource,
+    validationFiles,
+    validationEnv: {
       NEXT_EVAL_BROWSER_JS_BEFORE: JSON.stringify(before),
     },
   }
 }
 
-export function assertBundleOptimizerSkillInvoked({
-  fixture,
+function assertBundleOptimizerSkillInvoked({
   config,
   runData,
 }: RunCompleteContext): EvalRunData {
-  if (!FIXTURES.has(fixture.name)) return runData
   const invoked = runData.transcript
     ? parseTranscript(runData.transcript, config.agent).events.some(
         (event) =>
@@ -168,11 +165,7 @@ export function assertBundleOptimizerSkillInvoked({
   }
 }
 
-export function analyzeBrowserJs({
-  fixture,
-  runData,
-}: RunCompleteContext): EvalRunData {
-  if (!FIXTURES.has(fixture.name)) return runData
+function analyzeBrowserJs({ runData }: RunCompleteContext): EvalRunData {
   const output = runData.outputContent?.eval ?? ''
   const match = output.match(/NEXT_EVAL_BROWSER_JS_RESULT:(\{[^\r\n]+\})/)
   if (!match) {

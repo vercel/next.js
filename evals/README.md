@@ -49,6 +49,23 @@ test('exports instant', () => {
 })
 ```
 
+Runtime assertions can import `buildNextApp` and `startNextServer` from
+`./__agent_eval__/next-test-utils.mjs`, which the runner copies into the sandbox.
+Assertions run before the configured build script, so call `buildNextApp()` before
+starting a production server. `startNextServer()` waits for a successful HTTP
+response and returns `{ url, stop }`; call `stop()` in a `finally` block. Fixture
+setup can use `{ mode: 'dev', port: 3100, detached: true, logFile: '/tmp/next-dev.log' }`
+to leave a development server running for the agent.
+
+Type-check the runner and assertions locally:
+
+```bash
+pnpm typescript --project evals/tsconfig.json
+```
+
+`evals/types` resolves sandbox-injected helpers to their source types. Each
+fixture's application is checked separately during its build.
+
 **`app/`** (or `pages/`) — the starting state. Give the agent something to edit, not a blank slate.
 
 `package.json` needs a `build` script. `next.config.ts` and `tsconfig.json` stay unless your feature requires specific config.
@@ -89,6 +106,10 @@ Browser-dependent fixtures declare `@playwright/test` in `dependencies` or
 `devDependencies` in their `package.json`. The runner detects that dependency
 and installs Chromium and its system libraries before the agent starts.
 
+Fixtures opt into before/after JavaScript measurements with `"browserJs": true`
+in `eval.config.json`. The runner adds measurement hooks only to experiments
+containing those fixtures.
+
 The dynamic-editor bundle-optimizer fixture measures cold Turbopack production
 loads in headless Chromium before and after the agent runs. It uses
 plain `next build`, disabled browser caching, and fresh browser contexts. Passing
@@ -99,21 +120,22 @@ The editor must stay unloaded until interaction, preload on pointer hover, and
 remain editable. CodeMirror responses are identified by its
 `cm-content` runtime class.
 
-Shared utilities in `lib/bundle-optimizer/browser-js.ts` handle production builds,
-server and browser cleanup, cold-page measurement, byte summaries, and before/after
-eval results. Content and interaction checks stay in each fixture's
-`measure-browser-js.ts`. `lib/bundle-optimizer/hooks.ts` runs the same assertions
+`lib/next-test-utils.mjs` owns production builds and server cleanup.
+Shared utilities in `lib/bundle-optimizer/browser-js.ts` handle browser cleanup,
+cold-page measurement, byte summaries, and before/after eval results.
+Content and interaction checks stay in each fixture's
+`__eval__/measure-browser-js.ts`. `lib/bundle-optimizer/hooks.ts` runs the same assertions
 before the agent starts and records their outcomes under `analysis.browserJs.before.checks`.
 Expected optimization failures allow the agent run to proceed; build, browser,
 and content failures stop setup. Per-request compressed and decoded sizes,
 before/after totals, and bytes saved are recorded under `analysis.browserJs` in
 `result.json`.
 
-The runner removes fixture measurement scripts from the sandbox and supplies the
-original scripts and shared utilities, transpiled from TypeScript, through
-environment variables. Before validation, EVAL.ts restores the compiled utility
-module and the measurement runs from a file with normal imports. Agent edits to
-sandbox files do not change validation.
+The SDK withholds `__eval__/` resources and `EVAL.ts` before creating the sandbox's
+initial Git commit. The runner bundles the eval and its measurement imports into
+one grader. Setup returns that grader and the baseline through validation-only
+files and environment values; neither reaches the coding agent. The SDK restores
+the grader after the agent completes, so app edits do not change validation.
 
 A run takes ~2–5 min. To validate a fixture without executing:
 
