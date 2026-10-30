@@ -105,27 +105,27 @@ impl Source for InlineLoaderSource {
 }
 
 /// Convert absolute filesystem paths to relative requests, preserving queries and fragments.
-async fn resource_request(context: &FileSystemPath, request: &str) -> Result<RcStr> {
+async fn resource_request(lookup_path: &FileSystemPath, request: &str) -> Result<RcStr> {
     let end = request.find(['?', '#']).unwrap_or(request.len());
     let (path, suffix) = request.split_at(end);
     if !Path::new(path).is_absolute() {
         return Ok(request.into());
     }
-    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(context.fs)
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(lookup_path.fs)
         .context("Inline request origin must use a disk filesystem")?;
     let target = fs
         .await?
-        .try_from_sys_path_across_roots(fs, Path::new(path), context)
+        .try_from_sys_path_across_roots(fs, Path::new(path), lookup_path)
         .await?
         .context("Inline request is outside configured filesystem roots")?;
-    let relative = context
+    let relative = lookup_path
         .get_relative_request_to(&target)
         .context("Inline request is on a different filesystem")?;
     Ok(format!("{relative}{suffix}").into())
 }
 
 pub(crate) async fn resolve_inline_request(
-    context: Vc<ModuleAssetContext>,
+    asset_context: Vc<ModuleAssetContext>,
     origin: FileSystemPath,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
@@ -145,11 +145,12 @@ pub(crate) async fn resolve_inline_request(
     else {
         return Ok(None);
     };
+    let module_options = asset_context.await?.module_options_context.await?;
+    if module_options.enable_webpack_loaders.is_none() {
+        return Ok(None);
+    }
     let parent = origin.parent();
-    let execution_context = context
-        .await?
-        .module_options_context
-        .await?
+    let execution_context = module_options
         .execution_context
         .context("Inline loaders require an execution context")?;
     let project = execution_context.await?.project_path.clone();
@@ -236,7 +237,7 @@ impl InlineLoaderSource {
     #[turbo_tasks::function]
     pub(crate) async fn process(
         self: ResolvedVc<Self>,
-        context: Vc<ModuleAssetContext>,
+        asset_context: Vc<ModuleAssetContext>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
@@ -244,8 +245,8 @@ impl InlineLoaderSource {
         let path = source.ident().await?.path.clone();
         let options = ModuleOptions::new(
             path.parent(),
-            context.module_options_context(),
-            context.resolve_options_context(),
+            asset_context.module_options_context(),
+            asset_context.resolve_options_context(),
         )
         .await?;
         let mut loaders = this.loaders.await?.to_vec();
@@ -291,7 +292,7 @@ impl InlineLoaderSource {
                 source
             };
             return Box::pin(crate::process_default(
-                context,
+                asset_context,
                 source,
                 reference_type,
                 Vec::new(),
@@ -299,7 +300,7 @@ impl InlineLoaderSource {
             ))
             .await;
         }
-        let module_options = context.module_options_context().await?;
+        let module_options = asset_context.module_options_context().await?;
         let webpack_options = module_options
             .enable_webpack_loaders
             .context("Inline loaders require webpack loaders to be enabled")?
@@ -332,16 +333,16 @@ impl InlineLoaderSource {
             webpack_options.mode.clone(),
             // Loader output defaults to JavaScript, even for a CSS or text resource.
             rename_as.or(Some(rcstr!("*.js"))),
-            context.resolve_options_context(),
+            asset_context.resolve_options_context(),
             matches!(module_options.ecmascript.source_maps, SourceMapsType::Full),
             config_tracing_module_context(*execution_context),
         );
         let transformed = transform
-            .transform(*source, Vc::upcast(context))
+            .transform(*source, Vc::upcast(asset_context))
             .to_resolved()
             .await?;
         Box::pin(crate::process_default(
-            context,
+            asset_context,
             transformed,
             reference_type,
             Vec::new(),
