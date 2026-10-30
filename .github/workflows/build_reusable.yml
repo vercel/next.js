@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       futureCompat:
-        description: 'Fail on Node.js deprecations'
+        description: 'Test latest Node.js and fail on deprecations'
         type: boolean
         default: false
       afterBuild:
@@ -277,8 +277,15 @@ jobs:
             jq -r 'to_entries|map("\(.key)=\(.value|tostring|@sh)")|.[]' | \
             xargs -I {} echo "{}" >> $GITHUB_ENV
 
-      - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - name: Use Node.js ${{ inputs.futureCompat && 'latest' || inputs.nodeVersion || env.NODE_LTS_VERSION }}
         run: |
+          set -euo pipefail
+          if [[ "$NEXT_TEST_FUTURE_COMPAT" == "1" ]]; then
+            NODE_VERSION="$(fnm list-remote --latest)"
+            NODE_VERSION="${NODE_VERSION%%[[:space:]]*}"
+            # Latest Node.js may not bundle Corepack. It is installed below.
+            unset FNM_COREPACK_ENABLED
+          fi
           fnm use --install-if-missing "$NODE_VERSION"
           fnm default "$NODE_VERSION"
           eval "$(fnm env)"

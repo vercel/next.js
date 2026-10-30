@@ -467,7 +467,11 @@ export class NextDeployInstance extends NextInstance {
       ...packageJson.engines,
       // A fixture's own `engines.node` wins so it can deliberately deploy
       // with a different version.
-      node: packageJson.engines?.node ?? DEPLOY_TEST_NODE_VERSION,
+      node:
+        packageJson.engines?.node ??
+        (process.env.NEXT_TEST_FUTURE_COMPAT === '1'
+          ? '>=22.0.0'
+          : DEPLOY_TEST_NODE_VERSION),
     }
     this.writeFixtureConfiguration(
       packageJsonPath,
