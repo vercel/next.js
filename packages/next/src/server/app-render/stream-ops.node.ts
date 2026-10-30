@@ -547,7 +547,6 @@ export function renderToNodeFlightStream(
   opts: FlightRenderOptions
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
-    opts.localRenderTiming?.abort()
     throw new Error('renderToPipeableStream is not implemented')
   }
 
@@ -556,21 +555,9 @@ export function renderToNodeFlightStream(
   // the returned pipeable ourselves when it fires. We drop the listener when
   // the passthrough closes so a finished render's `pipeable` isn't retained by
   // the request signal, which can outlive it.
-  const { signal, localRenderTiming, ...renderOptions } = opts ?? {}
+  const { signal, ...renderOptions } = opts ?? {}
 
-  localRenderTiming?.start()
-  const pt = localRenderTiming
-    ? new Transform({
-        transform(chunk, _encoding, callback) {
-          localRenderTiming.readFlightChunk(chunk)
-          callback(null, chunk)
-        },
-        flush(callback) {
-          localRenderTiming.finishFlight()
-          callback()
-        },
-      })
-    : new PassThrough()
+  const pt = new PassThrough()
   let pipeable: ReturnType<
     NonNullable<FlightComponentMod['renderToPipeableStream']>
   >
@@ -581,7 +568,6 @@ export function renderToNodeFlightStream(
       renderOptions
     )
   } catch (error) {
-    localRenderTiming?.abort()
     pt.destroy()
     throw error
   }
@@ -592,7 +578,6 @@ export function renderToNodeFlightStream(
   // know; the listener is registered before piping so it runs before React's.
   pt.once('close', () => {
     if (!pt.writableFinished) {
-      localRenderTiming?.abort()
       pipeable.abort(new ResponseAborted())
     }
   })
@@ -600,20 +585,15 @@ export function renderToNodeFlightStream(
   try {
     pipeable.pipe(pt)
   } catch (error) {
-    localRenderTiming?.abort()
     pt.destroy()
     throw error
   }
 
   if (signal) {
     if (signal.aborted) {
-      localRenderTiming?.abort()
       pipeable.abort(signal.reason)
     } else {
-      const onAbort = () => {
-        localRenderTiming?.abort()
-        pipeable.abort(signal.reason)
-      }
+      const onAbort = () => pipeable.abort(signal.reason)
       signal.addEventListener('abort', onAbort, { once: true })
       pt.on('close', () => signal.removeEventListener('abort', onAbort))
     }

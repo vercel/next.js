@@ -251,15 +251,29 @@ async function fetchServerAction(
       ? processFetch(res).then(({ response: r }) => r)
       : Promise.resolve(res)
 
-    const response: ActionFlightResponse = await createFromFetch(
-      responsePromise,
-      {
+    const debugChannel = createDebugChannel && createDebugChannel(headers)
+    let response: ActionFlightResponse
+    if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+      const { createBrowserReactTiming } =
+        require('../../../dev/react-render-timing') as typeof import('../../../dev/react-render-timing')
+      const timing = createBrowserReactTiming(headers)
+      if (debugChannel?.readable) {
+        debugChannel.readable = timing.wrapStream(debugChannel.readable)
+      }
+      response = await timing.run(() =>
+        createFromFetch<ActionFlightResponse>(
+          timing.wrapResponse(responsePromise),
+          { callServer, findSourceMapURL, temporaryReferences, debugChannel }
+        )
+      )
+    } else {
+      response = await createFromFetch(responsePromise, {
         callServer,
         findSourceMapURL,
         temporaryReferences,
-        debugChannel: createDebugChannel && createDebugChannel(headers),
-      }
-    )
+        debugChannel,
+      })
+    }
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
     actionResult = redirectLocation ? undefined : response.a

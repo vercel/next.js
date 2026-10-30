@@ -145,6 +145,7 @@ import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { createRuntimeErrorStateHandler } from './runtime-error-state'
+import { createBrowserReactTimingReceiver } from '../lib/trace/browser-react-timings'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
@@ -1506,6 +1507,10 @@ export async function createHotReloaderTurbopack(
         const htmlRequestId = req.url
           ? new URL(req.url, 'http://n').searchParams.get('id')
           : null
+        const reactTimings = createBrowserReactTimingReceiver(
+          htmlRequestId,
+          nextConfig.experimental.requestInsights === true
+        )
 
         // Clients with a request ID are inferred App Router clients. If Cache
         // Components is not enabled, we consider those legacy clients. Pages
@@ -1565,6 +1570,7 @@ export async function createHotReloaderTurbopack(
             : undefined
 
         client.on('close', () => {
+          reactTimings.dispose()
           runtimeErrorStateHandler?.dispose()
 
           // Remove active subscriptions
@@ -1588,6 +1594,10 @@ export async function createHotReloaderTurbopack(
 
           // Next.js messages
           switch (parsedData.event) {
+            case HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS: {
+              reactTimings.receive(parsedData, data.toString().length)
+              break
+            }
             case 'span-end': {
               hotReloaderSpan.manualTraceChild(
                 parsedData.spanName,
