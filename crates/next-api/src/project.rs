@@ -28,6 +28,7 @@ use next_core::{
         TurbopackPluginRuntimeStrategy,
     },
     next_edge::context::EdgeChunkingContextOptions,
+    next_manifests::ProxyMatcher,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
@@ -36,7 +37,8 @@ use next_core::{
     },
     next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    route_discovery::{DevelopmentDiscovery, OptionDevelopmentDiscovery},
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, OptionEnvMap},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -50,8 +52,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
-    VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem,
+    FileSystemEntryType, FileSystemPath, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -113,7 +115,7 @@ use crate::{
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
-    middleware::MiddlewareEndpoint,
+    middleware::{MiddlewareEndpoint, get_middleware_matchers},
     next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
     path_utils::convention_file_base_name,
@@ -412,6 +414,7 @@ pub struct DefineEnv {
 pub struct Middleware {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub is_proxy: bool,
+    pub matchers: Vec<ProxyMatcher>,
 }
 
 #[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
@@ -1009,6 +1012,12 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
+    /// Development file inventory, independent of endpoint diagnostics.
+    #[turbo_tasks::function]
+    pub fn development_discovery(self: Vc<Self>) -> Vc<OptionDevelopmentDiscovery> {
+        self.project().development_discovery()
+    }
+
     /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
     pub fn hmr_chunk_names(self: Vc<Self>) -> Vc<Vec<RcStr>> {
@@ -1477,7 +1486,9 @@ impl Project {
                         add_pages_entries = true;
                     }
                 }
-                Route::AppPage(page_routes) => {
+                Route::AppPage {
+                    pages: page_routes, ..
+                } => {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),
                         EndpointGroup {
@@ -2113,6 +2124,44 @@ impl Project {
         Ok(ProjectFeatureUsageSummary { features }.cell())
     }
 
+    /// Authored development files do not depend on compiling valid executable entrypoints. This
+    /// remains available when route diagnostics temporarily prevent creating those entrypoints.
+    #[turbo_tasks::function]
+    pub async fn development_discovery(self: Vc<Self>) -> Result<Vc<OptionDevelopmentDiscovery>> {
+        if !self.next_mode().await?.is_development() {
+            return Ok(Vc::cell(None));
+        }
+        let app = *self.app_project().await?;
+        let mut discovery = DevelopmentDiscovery::default();
+        if let Some(app) = app
+            && let Some(app_discovery) = &*app.development_discovery().await?
+        {
+            discovery = app_discovery.clone();
+        }
+        let pages = self.pages_project();
+        if let Some(pages_discovery) = &*pages.development_discovery().await? {
+            discovery
+                .files
+                .extend(pages_discovery.files.iter().cloned());
+            discovery.authored_pages_special_routes =
+                pages_discovery.authored_pages_special_routes.clone();
+        }
+        let config = self.next_config();
+        let tsconfig_path = config.typescript_tsconfig_path().await?;
+        let project_path = self.project_path().owned().await?;
+        let tsconfig = project_path.join(tsconfig_path.as_deref().unwrap_or("tsconfig.json"))?;
+        discovery.has_type_script_files = *tsconfig.get_type().await? == FileSystemEntryType::File;
+        if !discovery.has_type_script_files {
+            discovery.has_type_script_files = *pages.has_typescript_files().await?;
+            if !discovery.has_type_script_files
+                && let Some(app) = app
+            {
+                discovery.has_type_script_files = *app.has_typescript_files().await?;
+            }
+        }
+        Ok(Vc::cell(Some(discovery)))
+    }
+
     /// Scans the app/pages directories for entry points files (matching the
     /// provided page_extensions).
     #[turbo_tasks::function]
@@ -2202,6 +2251,9 @@ impl Project {
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
                 is_proxy,
+                matchers: get_middleware_matchers(self.next_config(), self.middleware_config())
+                    .owned()
+                    .await?,
             })
         } else {
             None
@@ -2221,6 +2273,7 @@ impl Project {
             routes,
             middleware,
             instrumentation,
+            development: self.development_discovery().owned().await?,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,
@@ -2364,6 +2417,24 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    async fn middleware_config(self: Vc<Self>) -> Result<Vc<NextSegmentConfig>> {
+        let middleware = self.find_middleware();
+        let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
+            return Ok(Default::default());
+        };
+        let source = Vc::upcast(FileSource::new(fs_path.clone()));
+        let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
+        Ok(parse_segment_config_from_source(
+            source,
+            if is_proxy {
+                ParseSegmentMode::Proxy
+            } else {
+                ParseSegmentMode::Base
+            },
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
@@ -2378,14 +2449,7 @@ impl Project {
             .map(|_| AppProject::client_transition_name());
 
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
-        let config = parse_segment_config_from_source(
-            source,
-            if is_proxy {
-                ParseSegmentMode::Proxy
-            } else {
-                ParseSegmentMode::Base
-            },
-        );
+        let config = self.middleware_config();
         let runtime = config.await?.runtime.unwrap_or(if is_proxy {
             NextRuntime::NodeJs
         } else {

@@ -8,9 +8,10 @@ use next_core::{
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
-        get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
-        metadata::route::get_app_metadata_route_entry,
+        AppEntry, AppPage, AppPath, get_app_client_references_chunks,
+        get_app_client_shared_chunk_group, get_app_page_entry, get_app_route_entry,
+        get_client_references_chunks_for_hmr,
+        metadata::route::{get_app_metadata_route_entry, metadata_route_info},
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -38,8 +39,8 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexset,
+    Completion, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
+    Vc, fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -161,6 +162,21 @@ impl AppProject {
             app_dir: self.app_dir.clone(),
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn has_typescript_files(&self) -> Vc<bool> {
+        next_core::route_discovery::has_typescript_files(self.app_dir.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn development_discovery(
+        &self,
+    ) -> Vc<next_core::route_discovery::OptionDevelopmentDiscovery> {
+        next_core::app_structure::development_discovery(
+            self.app_dir.clone(),
+            self.project.next_config().page_extensions(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1040,45 +1056,59 @@ impl AppProject {
 }
 
 #[turbo_tasks::function]
-pub fn app_entry_point_to_route(
+pub async fn app_entry_point_to_route(
     app_project: ResolvedVc<AppProject>,
     entrypoint: AppEntrypoint,
-) -> Vc<Route> {
-    match entrypoint {
+) -> Result<Vc<Route>> {
+    Ok(match entrypoint {
         AppEntrypoint::AppPage {
-            pages, loader_tree, ..
-        } => Route::AppPage(
-            pages
-                .into_iter()
-                .map(|page| AppPageRoute {
-                    original_name: RcStr::from(page.to_string()),
-                    html_endpoint: ResolvedVc::upcast(
-                        AppEndpoint {
-                            ty: AppEndpointType::Page {
-                                ty: AppPageEndpointType::Html,
-                                loader_tree,
-                            },
-                            app_project,
-                            page: page.clone(),
-                        }
-                        .resolved_cell(),
-                    ),
-                    rsc_hmr_endpoint: ResolvedVc::upcast(
-                        AppEndpoint {
-                            ty: AppEndpointType::Page {
-                                ty: AppPageEndpointType::RscHmr,
-                                loader_tree,
-                            },
-                            app_project,
-                            page,
-                        }
-                        .resolved_cell(),
-                    ),
-                })
-                .collect(),
-        ),
+            pages,
+            loader_tree,
+            is_internal,
+            ..
+        } => {
+            let mut app_paths = FxIndexSet::default();
+            if !is_internal {
+                loader_tree.await?.collect_app_paths(&mut app_paths)?;
+            }
+            Route::AppPage {
+                app_paths: app_paths.into_iter().collect(),
+                is_internal,
+                pages: pages
+                    .into_iter()
+                    .map(|page| AppPageRoute {
+                        original_name: RcStr::from(page.to_string()),
+                        html_endpoint: ResolvedVc::upcast(
+                            AppEndpoint {
+                                ty: AppEndpointType::Page {
+                                    ty: AppPageEndpointType::Html,
+                                    loader_tree,
+                                },
+                                app_project,
+                                page: page.clone(),
+                            }
+                            .resolved_cell(),
+                        ),
+                        rsc_hmr_endpoint: ResolvedVc::upcast(
+                            AppEndpoint {
+                                ty: AppEndpointType::Page {
+                                    ty: AppPageEndpointType::RscHmr,
+                                    loader_tree,
+                                },
+                                app_project,
+                                page,
+                            }
+                            .resolved_cell(),
+                        ),
+                    })
+                    .collect(),
+            }
+        }
         AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
+            runtime_page: page.to_string().into(),
+            runtime_pathname: AppPath::from(page.clone()).to_string().into(),
+            static_metadata_source: None,
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
@@ -1091,8 +1121,16 @@ pub fn app_entry_point_to_route(
         },
         AppEntrypoint::AppMetadata { page, metadata, .. } => {
             let has_action_manifest = matches!(metadata, MetadataItem::Dynamic { .. });
+            let static_metadata_source = match &metadata {
+                MetadataItem::Static { path } => Some(path.clone()),
+                MetadataItem::Dynamic { .. } => None,
+            };
+            let info = metadata_route_info(page.clone(), metadata.clone()).await?;
             Route::AppRoute {
                 original_name: page.to_string().into(),
+                runtime_page: info.page.to_string().into(),
+                runtime_pathname: AppPath::from(info.page.clone()).to_string().into(),
+                static_metadata_source,
                 endpoint: ResolvedVc::upcast(
                     AppEndpoint {
                         ty: AppEndpointType::Metadata { metadata },
@@ -1105,7 +1143,7 @@ pub fn app_entry_point_to_route(
             }
         }
     }
-    .cell()
+    .cell())
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]

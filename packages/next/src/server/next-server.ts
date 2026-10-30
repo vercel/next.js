@@ -25,6 +25,7 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
+import { hasRouteFilename } from './route-definitions/route-definition'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -599,11 +600,22 @@ export default class NextNodeServer extends BaseServer<
     req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
     const loader = new NodeModuleLoader()
-    // Dev definitions retain source filenames for watcher bookkeeping. API
-    // execution still needs to load the compiled server bundle.
-    const modulePath = this.isDev
-      ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
-      : match.definition.filename
+    // Development routes identify the compiled bundle without requiring a
+    // source filename. Production definitions point directly at their module.
+    let modulePath: string
+    if (this.isDev) {
+      modulePath = join(
+        this.distDir,
+        'server',
+        `${match.definition.bundlePath}.js`
+      )
+    } else {
+      const definition = match.definition
+      if (!hasRouteFilename(definition)) {
+        throw new Error('Invariant: production API routes require a filename')
+      }
+      modulePath = definition.filename
+    }
     const module = (await loader.load(modulePath)) as {
       handler: (
         req: IncomingMessage,

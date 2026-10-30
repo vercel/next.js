@@ -3,7 +3,7 @@ import type { UrlObject } from 'url'
 import type { Duplex } from 'stream'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteIdentity } from '../route-definitions/route-definition'
 import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
@@ -380,6 +380,8 @@ export interface NextJsHotReloaderInterface {
     reloadAfterInvalidation: boolean
   }): Promise<void> | void
   buildFallbackError(): Promise<void>
+  /** Native inventory query, when discovery is owned by the bundler. */
+  hasPage?(pathname: string): Promise<boolean>
   ensurePage({
     page,
     clientOnly,
@@ -393,7 +395,7 @@ export interface NextJsHotReloaderInterface {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    definition?: RouteDefinition
+    definition?: RouteIdentity
     url?: string
     /**
      * Whether to wire HMR change subscriptions for the compiled entry.

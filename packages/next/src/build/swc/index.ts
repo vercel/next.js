@@ -1,6 +1,8 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import type { ProxyMatcher } from '../analysis/get-page-static-info'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -512,6 +514,7 @@ function bindingToApi(
 
   type NapiEntrypoints = {
     routes: NapiRoute[]
+    development?: import('./types').DevelopmentDiscovery
     middleware?: NapiMiddleware
     instrumentation?: NapiInstrumentation
     pagesDocumentEndpoint: NapiEndpoint
@@ -522,6 +525,7 @@ function bindingToApi(
   type NapiMiddleware = {
     endpoint: NapiEndpoint
     isProxy: boolean
+    matchers: ProxyMatcher[]
   }
 
   type NapiInstrumentation = {
@@ -543,6 +547,8 @@ function bindingToApi(
       }
     | {
         type: 'app-page'
+        appPaths: string[]
+        isInternal: boolean
         pages: {
           originalName: string
           htmlEndpoint: NapiEndpoint
@@ -552,6 +558,9 @@ function bindingToApi(
     | {
         type: 'app-route'
         originalName: string
+        runtimePage: string
+        runtimePathname: string
+        staticMetadataSource?: string
         hasActionManifest: boolean
         endpoint: NapiEndpoint
       }
@@ -754,7 +763,9 @@ function bindingToApi(
 
     entrypointsSubscribe() {
       const subscription = subscribe<
-        TurbopackResult<NapiEntrypoints | {} | null>
+        TurbopackResult<Partial<
+          import('./generated-native').NapiEntrypoints
+        > | null>
       >(false, async (callback) =>
         binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
@@ -762,13 +773,17 @@ function bindingToApi(
         for await (const entrypoints of subscription) {
           if (entrypoints.value && 'routes' in entrypoints.value) {
             yield napiEntrypointsToRawEntrypoints(
-              entrypoints as TurbopackResult<NapiEntrypoints>
+              entrypoints as unknown as TurbopackResult<NapiEntrypoints>
             )
           } else {
             yield {
-              value: {},
+              value: {
+                development: (
+                  entrypoints.value as Partial<NapiEntrypoints> | null
+                )?.development,
+              },
               issues: entrypoints.issues,
-            } as TurbopackResult<{}>
+            } as TurbopackResult<Pick<RawEntrypoints, 'development'>>
           }
         }
       })()
@@ -1235,6 +1250,8 @@ function bindingToApi(
         case 'app-page':
           route = {
             type: 'app-page',
+            appPaths: nativeRoute.appPaths,
+            isInternal: nativeRoute.isInternal,
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
@@ -1246,6 +1263,9 @@ function bindingToApi(
           route = {
             type: 'app-route',
             originalName: nativeRoute.originalName,
+            runtimePage: nativeRoute.runtimePage,
+            runtimePathname: nativeRoute.runtimePathname,
+            staticMetadataSource: nativeRoute.staticMetadataSource,
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
@@ -1268,6 +1288,16 @@ function bindingToApi(
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),
       isProxy: middleware.isProxy,
+      matchers: middleware.matchers.map((matcher) => {
+        if (matcher.regexp.startsWith('^')) return matcher
+        // Native configuration expansion uses the same path-to-regexp sources
+        // as middleware manifests. Normalize before request routing uses them.
+        const parsed = tryToParsePath(matcher.regexp)
+        if (parsed.error || !parsed.regexStr) {
+          throw new Error(`Invalid source: ${matcher.regexp}`)
+        }
+        return { ...matcher, regexp: parsed.regexStr }
+      }),
     })
     const middleware = entrypoints.value.middleware
       ? napiMiddlewareToMiddleware(entrypoints.value.middleware)
@@ -1285,6 +1315,7 @@ function bindingToApi(
     return {
       value: {
         routes,
+        development: entrypoints.value.development,
         middleware,
         instrumentation,
         pagesDocumentEndpoint: new EndpointImpl(

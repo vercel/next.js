@@ -1964,7 +1964,7 @@ export default abstract class Server<
     pathname: string,
     definition: RouteDefinition,
     localeAnalysisResult?: LocaleAnalysisResult
-  ): RouteMatch | null {
+  ): RouteMatch<RouteDefinition> | null {
     const matchPathname = this.getRouteMatchPathname(
       pathname,
       definition,
@@ -2016,7 +2016,7 @@ export default abstract class Server<
   protected getRouteMatch(
     pathname: string,
     localeAnalysisResult?: LocaleAnalysisResult
-  ): RouteMatch | null {
+  ): RouteMatch<RouteDefinition> | null {
     const definitions = this.getRouteDefinitions()
     const dynamicDefinitions: RouteDefinition[] = []
 

@@ -11,7 +11,11 @@ import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { __ApiPreviewProps } from '../../api-utils'
 import type { Params } from '../../request/params'
-import type { RouteDefinition } from '../../route-definitions/route-definition'
+import type {
+  RouteDefinition,
+  RouteIdentity,
+} from '../../route-definitions/route-definition'
+import type { LocaleRouteIdentity } from '../../route-definitions/locale-route-definition'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -78,16 +82,10 @@ export type FsOutput = {
   fsPath?: string
   itemsRoot?: string
   locale?: string
-  route?: RouteDefinition
+  route?: RouteIdentity
   params?: Params
   requestPath?: string
   error?: Error
-}
-
-type FilesystemRouteDefinition = RouteDefinition & {
-  i18n?: {
-    locale?: string
-  }
 }
 
 const debug = setupDebug('next:router-server:filesystem')
@@ -97,6 +95,21 @@ export type FilesystemDynamicRoute = ManifestRoute & {
    * The path matcher that can be used to match paths against this route.
    */
   match: PatchMatcher
+}
+
+/**
+ * All request-routing state produced by one dev route discovery update.
+ * Keeping membership separate from identities supports static metadata and
+ * useFileSystemPublicRoutes without discarding compiler route information.
+ */
+export interface DevRoutesSnapshot {
+  appRoutes: ReadonlyArray<RouteIdentity>
+  pageRoutes: ReadonlyArray<RouteIdentity>
+  appFiles: ReadonlySet<string>
+  pageFiles: ReadonlySet<string>
+  staticMetadataFiles: ReadonlyMap<string, string>
+  nextDataRoutes: ReadonlySet<string>
+  dynamicRoutes: ReadonlyArray<FilesystemDynamicRoute>
 }
 
 const buildFilesystemDynamicRoute = (page: string): FilesystemDynamicRoute => {
@@ -235,8 +248,8 @@ export async function setupFsCheck(opts: {
   // Page and app outputs need route metadata for compilation and rendering.
   // Static assets remain plain filesystem matches.
   const routeDefinitions = {
-    appFile: new Map<string, FilesystemRouteDefinition[]>(),
-    pageFile: new Map<string, FilesystemRouteDefinition[]>(),
+    appFile: new Map<string, LocaleRouteIdentity[]>(),
+    pageFile: new Map<string, LocaleRouteIdentity[]>(),
   }
 
   let middlewareMatcher:
@@ -263,7 +276,7 @@ export async function setupFsCheck(opts: {
   const setRouteDefinition = (
     type: 'appFile' | 'pageFile',
     pathname: string,
-    definition: FilesystemRouteDefinition
+    definition: LocaleRouteIdentity
   ) => {
     const definitions = routeDefinitions[type].get(pathname)
     if (definitions) {
@@ -434,7 +447,7 @@ export async function setupFsCheck(opts: {
               },
             }
           : undefined),
-      } as FilesystemRouteDefinition)
+      } as RouteDefinition)
     }
     for (const key of Object.keys(appRoutesManifest)) {
       appFiles.add(appRoutesManifest[key])
@@ -462,7 +475,7 @@ export async function setupFsCheck(opts: {
         bundlePath: appNormalizers.bundlePath.normalize(page),
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
         appPaths,
-      } as FilesystemRouteDefinition)
+      } as RouteDefinition)
       addAppDynamicRoute(pathname)
     }
 
@@ -477,7 +490,7 @@ export async function setupFsCheck(opts: {
         page,
         bundlePath: appNormalizers.bundlePath.normalize(page),
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
-      } as FilesystemRouteDefinition)
+      } as RouteDefinition)
       addAppDynamicRoute(pathname)
     }
 
@@ -663,18 +676,45 @@ export async function setupFsCheck(opts: {
     staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
-    setRouteDefinitions(
-      type: 'appFile' | 'pageFile',
-      definitions: ReadonlyArray<RouteDefinition>
-    ) {
-      routeDefinitions[type].clear()
-      for (const definition of definitions) {
-        setRouteDefinition(
-          type,
-          definition.pathname,
-          definition as FilesystemRouteDefinition
-        )
+    replaceDevRoutes(snapshot: DevRoutesSnapshot) {
+      if (!opts.dev) {
+        throw new Error('replaceDevRoutes is only available in development')
       }
+
+      // There is no await between replacing these collections. A request sees
+      // route identities and membership from the same discovery update. Keep
+      // the Sets/Maps stable because getItem closes over them.
+      routeDefinitions.appFile.clear()
+      routeDefinitions.pageFile.clear()
+      for (const definition of snapshot.appRoutes) {
+        setRouteDefinition('appFile', definition.pathname, definition)
+      }
+      for (const definition of snapshot.pageRoutes) {
+        setRouteDefinition('pageFile', definition.pathname, definition)
+      }
+
+      if (snapshot.appFiles !== appFiles) {
+        appFiles.clear()
+        for (const pathname of snapshot.appFiles) appFiles.add(pathname)
+      }
+      if (snapshot.pageFiles !== pageFiles) {
+        pageFiles.clear()
+        for (const pathname of snapshot.pageFiles) pageFiles.add(pathname)
+      }
+      if (snapshot.staticMetadataFiles !== staticMetadataFiles) {
+        staticMetadataFiles.clear()
+        for (const [pathname, filename] of snapshot.staticMetadataFiles) {
+          staticMetadataFiles.set(pathname, filename)
+        }
+      }
+      if (snapshot.nextDataRoutes !== nextDataRoutes) {
+        nextDataRoutes.clear()
+        for (const pathname of snapshot.nextDataRoutes) {
+          nextDataRoutes.add(pathname)
+        }
+      }
+      dynamicRoutes = Array.from(snapshot.dynamicRoutes)
+      this.dynamicRoutes = dynamicRoutes
     },
     getRouteDefinition,
 

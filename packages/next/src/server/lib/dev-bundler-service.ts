@@ -74,6 +74,10 @@ export class DevBundlerService {
     return this.bundler.hotReloader.getClientHmrVersion?.()
   }
 
+  public hasPage(pathname: string): Promise<boolean> | undefined {
+    return this.bundler.hotReloader.hasPage?.(pathname)
+  }
+
   public getServerComponentsHmrRefreshHash(): string | undefined {
     return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
   }

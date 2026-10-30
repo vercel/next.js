@@ -1,0 +1,325 @@
+import { nextTestSetup } from 'e2e-utils'
+import { gate, retry, shouldUseTurbopack } from 'next-test-utils'
+
+function watchpackCalls(output: string) {
+  const prefix = '[route-discovery-watch]'
+  const calls: Array<{ files: string[]; directories: string[] }> = output
+    .split('\n')
+    .filter((line) => line.includes(prefix))
+    .map((line) => JSON.parse(line.slice(line.indexOf(prefix) + prefix.length)))
+  return calls
+}
+
+describe('native route discovery', () => {
+  // Watchpack polls every 5007ms when WATCHPACK_POLLING=true. Allow multiple
+  // observation cycles when a directory change also requires compilation.
+  const routeUpdateTimeout = 15_000
+  const { next } = nextTestSetup({
+    files: __dirname,
+    startCommand: 'node server.js',
+    serverReadyPattern: /- Local:/,
+    env: {
+      NODE_OPTIONS: '--require ./observe-watchpack.cjs',
+      TEST_NATIVE_ROUTE_DISCOVERY_TURBOPACK: shouldUseTurbopack() ? '1' : '0',
+    },
+  })
+
+  async function routeDirectoryWatches() {
+    const calls = watchpackCalls(next.cliOutput)
+
+    expect(calls.length).toBeGreaterThan(0)
+    // Prove that the probe observed Next's watcher even when no directory is
+    // watched. Native discovery retains an explicit-file config/env watcher.
+    if (await gate((conditions) => conditions.turbopack)) {
+      expect(calls.some((call) => call.files.includes('.env'))).toBe(true)
+    }
+    return calls
+      .flatMap((call) => call.directories)
+      .filter((directory) => {
+        return (
+          directory === '.' ||
+          /^(?:src\/)?(?:app|pages)(?:\/|$)/.test(directory)
+        )
+      })
+  }
+
+  async function expectPage(pathname: string, text: string) {
+    await retry(async () => {
+      const response = await next.fetch(pathname, {
+        signal: AbortSignal.timeout(10_000),
+      })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain(text)
+    }, routeUpdateTimeout)
+  }
+
+  async function expectMissing(pathname: string) {
+    await retry(async () => {
+      expect(
+        (await next.fetch(pathname, { signal: AbortSignal.timeout(10_000) }))
+          .status
+      ).toBe(404)
+    }, routeUpdateTimeout)
+  }
+
+  async function hasPage(pathname: string) {
+    const response = await next.fetch(
+      `/__test_has_page?${new URLSearchParams({ pathname })}`
+    )
+    expect(response.status).toBe(200)
+    return response.json()
+  }
+
+  it('uses native route observation while retaining explicit config file watches', async () => {
+    await expectPage('/', 'hello world')
+
+    if (await gate((conditions) => conditions.turbopack)) {
+      expect(await routeDirectoryWatches()).toEqual([])
+    } else {
+      expect((await routeDirectoryWatches()).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('uses the effective inventory for grouped App pages and keeps hasPage semantics', async () => {
+    await expectPage('/from-group', 'Grouped page')
+
+    expect(await hasPage('/from-group')).toBe(
+      await gate((conditions) => conditions.turbopack)
+    )
+    expect(await hasPage('/pages-route')).toBe(true)
+    expect(await hasPage('/api/pages-handler')).toBe(true)
+    expect(await hasPage('/api/app-handler')).toBe(false)
+    expect(await hasPage('/missing')).toBe(false)
+    expect(await hasPage('/../invalid')).toBe(false)
+    expect(await hasPage('/_app')).toBe(false)
+
+    const pageApi = await next.fetch('/api/pages-handler')
+    expect(pageApi.status).toBe(200)
+    expect(await pageApi.json()).toEqual({ message: 'Pages API' })
+    const appApi = await next.fetch('/api/app-handler')
+    expect(appApi.status).toBe(200)
+    expect(await appApi.json()).toEqual({ message: 'App route handler' })
+  })
+
+  it('serves static metadata and follows metadata URLs when exports change', async () => {
+    const icon = await next.fetch('/icon.svg')
+    expect(icon.status).toBe(200)
+    expect(await icon.text()).toContain('Native discovery icon')
+
+    await expectPage('/sitemap.xml', 'https://example.com/native-discovery')
+    try {
+      await next.patchFile(
+        'app/sitemap.ts',
+        `export function generateSitemaps() { return [{ id: 0 }] }
+         export default function sitemap() {
+           return [{ url: 'https://example.com/native-discovery-multiple' }]
+         }`
+      )
+      await expectPage(
+        '/sitemap/0.xml',
+        'https://example.com/native-discovery-multiple'
+      )
+      await expectMissing('/sitemap.xml')
+    } finally {
+      await next.patchFile(
+        'app/sitemap.ts',
+        `export default function sitemap() {
+           return [{ url: 'https://example.com/native-discovery' }]
+         }`
+      )
+    }
+  })
+
+  it('updates proxy presence and matchers without the route watcher', async () => {
+    const proxy = (matcher: string) => `
+      import { NextResponse } from 'next/server'
+      export function proxy() {
+        return NextResponse.next({ headers: { 'x-native-discovery-proxy': 'active' } })
+      }
+      export const config = { matcher: ${JSON.stringify(matcher)} }
+    `
+    try {
+      await next.patchFile('proxy.ts', proxy('/pages-route'))
+      await retry(async () => {
+        expect(
+          (await next.fetch('/pages-route')).headers.get(
+            'x-native-discovery-proxy'
+          )
+        ).toBe('active')
+      }, routeUpdateTimeout)
+      expect(
+        (await next.fetch('/')).headers.get('x-native-discovery-proxy')
+      ).toBeNull()
+
+      await next.patchFile('proxy.ts', proxy('/'))
+      await retry(async () => {
+        expect(
+          (await next.fetch('/')).headers.get('x-native-discovery-proxy')
+        ).toBe('active')
+      }, routeUpdateTimeout)
+      expect(
+        (await next.fetch('/pages-route')).headers.get(
+          'x-native-discovery-proxy'
+        )
+      ).toBeNull()
+    } finally {
+      await next.deleteFile('proxy.ts')
+    }
+    await retry(async () => {
+      expect(
+        (await next.fetch('/')).headers.get('x-native-discovery-proxy')
+      ).toBeNull()
+    }, routeUpdateTimeout)
+  })
+
+  it('keeps running and recovers after conflicting dynamic routes are fixed', async () => {
+    try {
+      await next.patchFile(
+        'pages/dynamic-conflict/[id].tsx',
+        'export default function Page() { return <p>Original dynamic page</p> }'
+      )
+      await expectPage('/dynamic-conflict/first', 'Original dynamic page')
+
+      const outputIndex = next.cliOutput.length
+      await next.patchFile(
+        'pages/dynamic-conflict/[slug].tsx',
+        'export default function Page() { return <p>Conflicting dynamic page</p> }'
+      )
+      await retry(async () => {
+        const output = next.cliOutput.slice(outputIndex)
+        expect(output).toContain('Failed to reload dynamic routes')
+        expect(output).toContain(
+          'You cannot use different slug names for the same dynamic path'
+        )
+      }, routeUpdateTimeout)
+
+      // A successful request after the diagnostic proves the server survived.
+      await expectPage('/', 'hello world')
+      await expectPage('/dynamic-conflict/first', 'Original dynamic page')
+
+      await next.deleteFile('pages/dynamic-conflict/[slug].tsx')
+      // Change the compiler key to verify that discovery consumes later updates.
+      await next.renameFile(
+        'pages/dynamic-conflict/[id].tsx',
+        'pages/dynamic-conflict/[recovered].tsx'
+      )
+      await next.patchFile(
+        'pages/dynamic-conflict/[recovered].tsx',
+        'export default function Page() { return <p>Recovered dynamic page</p> }'
+      )
+      await expectPage('/dynamic-conflict/after', 'Recovered dynamic page')
+    } finally {
+      await next.deleteFile('pages/dynamic-conflict')
+    }
+  })
+
+  it('discovers added, renamed, moved, and removed routes without a Next route scan', async () => {
+    try {
+      await next.patchFile(
+        'app/(moving)/created/page.tsx',
+        'export default function Page() { return <p>Added App page</p> }'
+      )
+      await next.patchFile(
+        'pages/created-page.tsx',
+        'export default function Page() { return <p>Added Pages page</p> }'
+      )
+      await expectPage('/created', 'Added App page')
+      await expectPage('/created-page', 'Added Pages page')
+
+      // The URL stays the same while the structural App page key changes.
+      await next.renameFolder('app/(moving)', 'app/(renamed-group)')
+      await next.patchFile(
+        'app/(renamed-group)/created/page.tsx',
+        'export default function Page() { return <p>Moved App page</p> }'
+      )
+      await expectPage('/created', 'Moved App page')
+
+      await next.renameFolder(
+        'app/(renamed-group)/created',
+        'app/(renamed-group)/renamed'
+      )
+      await next.renameFile('pages/created-page.tsx', 'pages/renamed-page.tsx')
+      await expectPage('/renamed', 'Moved App page')
+      await expectPage('/renamed-page', 'Added Pages page')
+      await expectMissing('/created')
+      await expectMissing('/created-page')
+
+      await next.deleteFile('app/(renamed-group)')
+      await next.deleteFile('pages/renamed-page.tsx')
+      await expectMissing('/renamed')
+      await expectMissing('/renamed-page')
+
+      if (await gate((conditions) => conditions.turbopack)) {
+        expect(await routeDirectoryWatches()).toEqual([])
+      } else {
+        expect((await routeDirectoryWatches()).length).toBeGreaterThan(0)
+      }
+    } finally {
+      await next.deleteFile('app/(moving)')
+      await next.deleteFile('app/(renamed-group)')
+      await next.deleteFile('pages/created-page.tsx')
+      await next.deleteFile('pages/renamed-page.tsx')
+    }
+  })
+})
+
+describe('native route discovery with legacy exportPathMap', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    startCommand: 'node server.js',
+    serverReadyPattern: /- Local:/,
+    env: {
+      NODE_OPTIONS: '--require ./observe-watchpack.cjs',
+      TEST_NATIVE_ROUTE_DISCOVERY_TURBOPACK: shouldUseTurbopack() ? '1' : '0',
+    },
+  })
+
+  beforeAll(async () => {
+    await next.patchFile('app/_export-map/pathname.txt', '/legacy-first')
+    await next.patchFile(
+      'next.config.ts',
+      `import { readFileSync } from 'node:fs'
+       import { join } from 'node:path'
+       import type { NextConfig } from 'next'
+
+       const config: NextConfig = {
+         exportPathMap(_defaultMap, { dir }) {
+           const pathname = readFileSync(
+             join(dir, 'app/_export-map/pathname.txt'), 'utf8'
+           ).trim()
+           return { [pathname]: { page: '/pages-route' } }
+         },
+       }
+       export default config`
+    )
+    await next.start()
+  })
+
+  it('refreshes mappings after an in-place edit to an unimported helper', async () => {
+    const initial = await next.fetch('/legacy-first')
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('Pages route')
+    expect(
+      watchpackCalls(next.cliOutput).some((call) =>
+        call.directories.includes('.')
+      )
+    ).toBe(true)
+
+    // This helper was created by the test, so it has no shared hard link.
+    // Modify its existing inode: replacing it would also invalidate the native
+    // directory inventory and could hide a missing legacy callback watcher.
+    await next.writeFileBuffer(
+      'app/_export-map/pathname.txt',
+      Buffer.from('/legacy-after')
+    )
+    await retry(async () => {
+      const updated = await next.fetch('/legacy-after', {
+        signal: AbortSignal.timeout(10_000),
+      })
+      expect(updated.status).toBe(200)
+      expect(await updated.text()).toContain('Pages route')
+      expect((await next.fetch('/legacy-first')).status).toBe(404)
+    }, 15_000)
+  })
+})
