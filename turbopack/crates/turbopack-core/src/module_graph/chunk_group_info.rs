@@ -143,12 +143,6 @@ impl ChunkGroupInfo {
 }
 
 impl ChunkGroupInfo {
-    /// Stores a hand-built `ChunkGroupInfo` in a cell, for tests that need inconsistent states.
-    #[cfg(test)]
-    pub(crate) fn cell_for_test(self) -> Vc<Self> {
-        self.cell()
-    }
-
     /// Returns the chunk group at `index`, for an index read from one of the child cells
     /// ([`ChunkGroupInfo::module_chunk_groups`], [`ChunkGroupInfo::chunk_group_indices`], ...).
     ///
@@ -161,8 +155,7 @@ impl ChunkGroupInfo {
     fn chunk_group_at(&self, index: usize) -> Result<&ChunkGroup> {
         self.chunk_groups.get_index(index).with_context(|| {
             format!(
-                "chunk group index {index} is out of range ({} chunk groups), likely read while \
-                 the chunk group info is recomputed",
+                "chunk group index {index} is out of range ({} chunk groups)",
                 self.chunk_groups.len()
             )
         })
