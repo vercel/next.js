@@ -1959,10 +1959,6 @@ export interface NextConfig {
    * `register` and `onRequestError` run in array order, then the project
    * file's. A hook that throws does not stop the others. Each entry may be a bare
    * npm package name, a path relative to the project root, or an absolute path.
-   * Paths must include the file extension.
-   *
-   * Typically set by a deployment adapter or a config wrapper. Next.js does
-   * not install the modules.
    */
   injectInstrumentation?: string[]
 
