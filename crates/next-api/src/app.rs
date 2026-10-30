@@ -1761,7 +1761,7 @@ impl AppEndpoint {
                             .as_ref()
                             .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
-                        env: project.edge_env().owned().await?,
+                        env: project.edge_env().owned().await?.into_inner(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],

@@ -67,7 +67,7 @@ impl DotenvProcessEnv {
                     .context(turbofmt!("unable to read {} for env vars", self.path).await?);
             }
 
-            Ok(Vc::cell(vars))
+            Ok(Vc::cell(vars.into()))
         } else {
             // We want to cell the value here and not just return the Vc.
             // This is important to avoid Vc changes when adding/removing the env file.

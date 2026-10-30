@@ -249,7 +249,7 @@ impl MiddlewareEndpoint {
                 entrypoint,
                 regions,
                 matchers: matchers.clone(),
-                env: this.project.edge_env().owned().await?,
+                env: this.project.edge_env().owned().await?.into_inner(),
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
                 middleware: [(rcstr!("/"), edge_function_definition)]

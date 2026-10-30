@@ -60,9 +60,12 @@ pub async fn create_page_loader_entry_module(
     let module = client_context
         .process(
             virtual_source,
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("PAGE") => module,
-            })),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {
+                    rcstr!("PAGE") => module,
+                }
+                .into(),
+            )),
         )
         .module();
     Ok(module)

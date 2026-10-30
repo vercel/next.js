@@ -105,7 +105,7 @@ pub async fn get_app_route_entry(
     let mut rsc_entry = module_asset_context
         .process(
             virtual_source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets.into())),
         )
         .module();
 
@@ -210,7 +210,7 @@ async fn wrap_edge_route(
     let wrapped = asset_context
         .process(
             source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets.into())),
         )
         .module();
 

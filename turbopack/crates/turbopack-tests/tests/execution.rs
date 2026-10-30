@@ -578,9 +578,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("TESTS") => test_asset,
-            })),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {
+                    rcstr!("TESTS") => test_asset,
+                }
+                .into(),
+            )),
         )
         .module();
 

@@ -45,8 +45,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
+    OperationVc, OrderedIndexMap, ReadRef, ResolvedVc, State, TransientInstance,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
+    message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -1105,8 +1106,7 @@ pub struct Project {
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
+    pub(crate) additional_roots: OrderedIndexMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 #[turbo_tasks::value]
@@ -1739,7 +1739,7 @@ impl Project {
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
         };
-        Ok(Vc::cell(edge_env))
+        Ok(Vc::cell(edge_env.into()))
     }
 
     #[turbo_tasks::function]

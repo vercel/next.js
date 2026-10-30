@@ -417,9 +417,12 @@ async fn postcss_executor(
                 .await?,
             turbofmt!("?config={postcss_config_path}").await?,
         )),
-        ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-            rcstr!("CONFIG") => config_asset
-        })),
+        ReferenceType::Internal(ResolvedVc::cell(
+            fxindexmap! {
+                rcstr!("CONFIG") => config_asset
+            }
+            .into(),
+        )),
     ))
 }
 

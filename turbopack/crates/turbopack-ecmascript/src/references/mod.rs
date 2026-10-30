@@ -507,7 +507,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 cjs_static_exports: self.cjs_static_exports,
                 has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
-                    runtime: self.env_var_info_runtime,
+                    runtime: self.env_var_info_runtime.into(),
                 }
                 .resolved_cell(),
             },

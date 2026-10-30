@@ -1718,7 +1718,13 @@ impl PageEndpoint {
                         entrypoint,
                         regions,
                         matchers: vec![matchers],
-                        env: this.pages_project.project().edge_env().owned().await?,
+                        env: this
+                            .pages_project
+                            .project()
+                            .edge_env()
+                            .owned()
+                            .await?
+                            .into_inner(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![this.pathname.clone()],

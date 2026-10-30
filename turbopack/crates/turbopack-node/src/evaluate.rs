@@ -341,7 +341,7 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
             }
         }
     }
-    Ok(Vc::cell(filtered))
+    Ok(Vc::cell(filtered.into()))
 }
 
 /// A Node.js process could not connect back to us over the loopback interface.
@@ -576,7 +576,8 @@ pub async fn get_evaluate_entries(
             )),
             ReferenceType::Internal(ResolvedVc::cell(
                 fxindexmap! {rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset},
+                rcstr!("RUNTIME") => runtime_asset}
+                .into(),
             )),
         )
         .module()
