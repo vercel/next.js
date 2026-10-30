@@ -26,14 +26,10 @@ import {
   resetRequestInsightsJournalForTest,
   StaleRequestInsightsHistoryCursorError,
 } from './request-insights-journal'
-import { recordSpan, recordSpans } from './span-store'
-import { createReactTimingSpanRecords } from './react-render-timing'
+import { recordSpan } from './span-store'
 import { createBrowserReactTimingReceiver } from './browser-react-timings'
 import { HMR_MESSAGE_SENT_TO_SERVER } from '../../dev/hot-reloader-types'
-import {
-  captureLocalSpanContext,
-  registerLocalSpanRecorder,
-} from './local-span-recorder'
+import { registerLocalSpanRecorder } from './local-span-recorder'
 import { AppRenderSpan } from './constants'
 import { getTracer } from './tracer'
 import {
@@ -930,12 +926,10 @@ describe('request insights', () => {
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
       startRequestInsight(identity)
-      let context!: ReturnType<typeof captureLocalSpanContext>
       let parentSpanId!: string
       runWithRequestInsightsIdentity(identity, () =>
         getTracer().trace(AppRenderSpan.renderToReadableStream, (span) => {
           parentSpanId = span!.spanContext().spanId
-          context = captureLocalSpanContext(span!.spanContext())
           setRequestInsightRootParent(identity, span!.spanContext())
         })
       )
@@ -961,7 +955,23 @@ describe('request insights', () => {
         startTime: 2,
         durationMs: 3,
       }
-      recordSpans(createReactTimingSpanRecords([component], context, 'render'))
+      const firstReceiver = createBrowserReactTimingReceiver(
+        'react-stream',
+        true
+      )
+      const firstMessage = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS,
+        requestId: 'react-stream',
+        decoderId: '0',
+        records: [component],
+      }
+      firstReceiver.receive(firstMessage, JSON.stringify(firstMessage).length)
+      firstReceiver.dispose()
+      const budget = getRequestInsightForDebugRequest(
+        'react-stream',
+        'react-stream'
+      )!.browserTimings
+      expect(budget.recordCount).toBe(1)
       expect(getRequestInsightsSnapshot().requests[0]).toMatchObject({
         ...responseTiming,
         spans: expect.arrayContaining([
@@ -978,11 +988,20 @@ describe('request insights', () => {
       expect(
         getRequestInsightForDebugRequest('react-stream', 'react-stream')
       ).toMatchObject({ parent: { spanId: parentSpanId } })
+      expect(
+        getRequestInsightForDebugRequest('react-stream', 'react-stream')!
+          .browserTimings
+      ).toBe(budget)
       await readRequestInsightsJournal(distDir, identity)
       expect(
         getRequestInsightForDebugRequest('react-stream', 'react-stream')
       ).toMatchObject({ parent: { spanId: parentSpanId } })
       const receiver = createBrowserReactTimingReceiver('react-stream', true)
+      expect(
+        getRequestInsightForDebugRequest('react-stream', 'react-stream')!
+          .browserTimings
+      ).toBe(budget)
+      receiver.receive(firstMessage, JSON.stringify(firstMessage).length)
       const message = {
         event: HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS,
         requestId: 'react-stream',
@@ -991,6 +1010,7 @@ describe('request insights', () => {
       }
       receiver.receive(message, JSON.stringify(message).length)
       receiver.dispose()
+      expect(budget.recordCount).toBe(2)
 
       const [stored] = await readRequestInsightsJournal(distDir, identity)
       expect(stored).toMatchObject(responseTiming)
