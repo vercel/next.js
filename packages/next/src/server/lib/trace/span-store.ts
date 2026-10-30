@@ -46,6 +46,16 @@ export type SpanStoreRecord = {
   }
 }
 
+export type LocalSpanParent = {
+  traceId: string
+  spanId: string
+}
+
+export type LocalSpanBatch = {
+  spans: SpanStoreRecord[]
+  droppedSpanCount: number
+}
+
 type SpanRecorderForTest = (span: SpanStoreRecord) => void
 type LocalSpanSink = (span: SpanStoreRecord) => void
 
