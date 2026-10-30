@@ -12404,7 +12404,9 @@ function pingSuspendedRoot(root, wakeable, pingedLanes) {
       (workInProgressRootRenderLanes & 62914560) ===
         workInProgressRootRenderLanes &&
       300 > now$1() - globalMostRecentFallbackTime)
-      ? 0 === (executionContext & 2) && prepareFreshStack(root, 0)
+      ? 0 === (executionContext & 2)
+        ? prepareFreshStack(root, 0)
+        : (workInProgressRootPingedLanes |= pingedLanes)
       : (workInProgressRootPingedLanes |= pingedLanes),
     workInProgressSuspendedRetryLanes === workInProgressRootRenderLanes &&
       (workInProgressSuspendedRetryLanes = 0));
