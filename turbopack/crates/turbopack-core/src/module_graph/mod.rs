@@ -4272,8 +4272,7 @@ pub mod tests {
         }
         let graph = SingleModuleGraph::new_with_entries(
             GraphEntries::resolved_cell(GraphEntries::new(entries, vec![])),
-            false,
-            false,
+            ModuleGraphOptions::default(),
         );
         let chunk_group_info = ModuleGraph::from_graphs(vec![graph], None)
             .connect()
@@ -4604,8 +4603,7 @@ pub mod tests {
         }
         let graph = SingleModuleGraph::new_with_entries(
             GraphEntries::resolved_cell(GraphEntries::new(graph_entries, vec![])),
-            false,
-            false,
+            ModuleGraphOptions::default(),
         );
         let modules = graph
             .connect()
