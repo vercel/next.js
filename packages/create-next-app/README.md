@@ -25,6 +25,14 @@ create a TypeScript project:
 
 Select **Yes** to install the necessary types/dependencies and create a new TS project.
 
+To specify some options and prompt for the rest, add `--interactive`:
+
+```bash
+pnpm create next-app my-app --typescript --interactive
+```
+
+Configuration prompts remain disabled in CI or when `--yes` is specified.
+
 ### Non-interactive
 
 You can also pass command line arguments to set up a new project
@@ -112,6 +120,10 @@ Options:
 
     Use previous preferences or defaults for all options that were not
     explicitly specified, without prompting.
+
+  --interactive
+
+    Prompt for configuration options not explicitly specified.
 
   -h, --help                           display help for command
 ```
