@@ -397,11 +397,14 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.6",
  "bincode",
  "codspeed-criterion-compat",
  "hashbrown 0.15.4",
+ "indexmap 2.14.0",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_json",
  "shrink-to-fit",
  "turbo-tasks-malloc",
 ]

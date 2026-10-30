@@ -9,14 +9,17 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+arrayvec = { workspace = true }
 bincode = { workspace = true }
 hashbrown = { workspace = true, features = ["raw-entry", "serde"]}
+indexmap = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 shrink-to-fit = { workspace = true, features = ["hashbrown"] }
 
 [dev-dependencies]
 criterion = { workspace = true }
+serde_json = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 
 [[bench]]
