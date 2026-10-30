@@ -244,7 +244,7 @@ In addition to the [multi-server configuration](/docs/app/guides/self-hosting#mu
 
 By default, calling [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) on one instance only invalidates the cache on that instance. Other instances continue serving stale content until they independently discover the invalidation.
 
-To coordinate tag invalidation across instances, implement the [`refreshTags()`](/docs/app/api-reference/config/next-config-js/cacheHandlers#refreshtags) method in your [custom cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers). This method is called before each request and should sync tag state from shared storage (like Redis) so all instances learn about invalidations promptly.
+To coordinate tag invalidation across instances, implement the [`refreshTags()`](/docs/app/api-reference/config/next-config-js/cacheHandlers#refreshtags) method in your [custom cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers). This method runs before the first cache read for that handler kind in a request and should sync tag state from shared storage (like Redis) so all instances learn about invalidations promptly.
 
 For a detailed explanation of the tag architecture, see [How Revalidation Works](/docs/app/guides/how-revalidation-works).
 

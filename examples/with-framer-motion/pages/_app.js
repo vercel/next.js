@@ -11,7 +11,7 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
   return (
     <>
-      <AnimatePresence mode="wait" onExitComplete={handleExitComplete}>
+      <AnimatePresence exitBeforeEnter onExitComplete={handleExitComplete}>
         <Component {...pageProps} key={router.route} />
       </AnimatePresence>
       <style>
