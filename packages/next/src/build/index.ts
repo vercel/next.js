@@ -144,7 +144,6 @@ import {
   collectRoutesUsingEdgeRuntime,
   collectMeta,
   isProxyFile,
-  isInstrumentationHookFile,
   pageToRoute,
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
@@ -1585,7 +1584,16 @@ export default async function build(
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagePaths: rootPaths,
+            // The stub loads the project's instrumentation file, so don't
+            // create a separate entry for it when instrumentation is injected.
+            pagePaths: instrumentationInject
+              ? rootPaths.filter(
+                  (rootPath) =>
+                    !instrumentationHookDetectionRegExp.test(
+                      path.basename(rootPath)
+                    )
+                )
+              : rootPaths,
             pagesType: PAGE_TYPES.ROOT,
             pagesDir,
             appDir,
@@ -1595,11 +1603,6 @@ export default async function build(
       if (instrumentationInject) {
         // The stub chains the project's instrumentation file after the
         // injected entries, so it replaces that file as the entry.
-        for (const page of Object.keys(NextBuildContext.mappedRootPaths)) {
-          if (isInstrumentationHookFile(page)) {
-            delete NextBuildContext.mappedRootPaths[page]
-          }
-        }
         NextBuildContext.mappedRootPaths[`/${INSTRUMENTATION_HOOK_FILENAME}`] =
           instrumentationInject.file
       }
