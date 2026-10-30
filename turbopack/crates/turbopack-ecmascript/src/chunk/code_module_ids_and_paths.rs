@@ -3,11 +3,12 @@ use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
 };
+use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, MangleType, MinifyType, ModuleId},
-    code_builder::{Code, CodeCells},
+    code_builder::CodeCells,
 };
 
 use crate::{
@@ -94,20 +95,23 @@ async fn code_module_id_and_path(
     };
     Ok(CodeModuleIdAndPath {
         id: item.chunk_item.id().await?,
-        code: cells.to_code().await?,
-        cells: Some(cells.await?),
+        code: cells.await?.code(),
+        cells,
         path: item.chunk_item.asset_ident().to_string().owned().await?,
         strict,
     })
 }
 
+/// A chunk item's module factory, as referenced by a chunk. Holds only references to the
+/// factory's cells, not its bytes, so it stays equal when only the factory's bytes change (and a
+/// chunk's composition, which depends on it, isn't recomputed).
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct CodeModuleIdAndPath {
     pub id: ModuleId,
-    pub code: ReadRef<Code>,
-    /// The persisted cells `code` was read from, so that chunks can reference them. Always set
-    /// outside of tests.
-    pub cells: Option<ReadRef<CodeCells>>,
+    /// The factory's persisted cells.
+    pub cells: ResolvedVc<CodeCells>,
+    /// The cell holding the factory's bytes ([`CodeCells::code`]).
+    pub code: ResolvedVc<Rope>,
     pub path: RcStr,
     pub strict: bool,
 }

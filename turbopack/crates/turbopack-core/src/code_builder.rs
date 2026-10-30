@@ -5,14 +5,14 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
-    CellRope, CellRopeBuilder, File, FileContent,
+    CellRope, CellRopeBuilder, CellRopePart, File, FileContent,
     rope::{Rope, RopeBuilder},
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
@@ -92,7 +92,7 @@ pub struct Code {
 ///
 /// [`Code`] is only hashed in the persistent cache, so this is how a piece of code (e.g. a module
 /// factory) is persisted. Keeping the bytes in their own cells lets composite outputs reference
-/// them through a [`CellRope`] instead of persisting a copy (see [`ComposedCodeBuilder`]).
+/// them through a [`CellRope`] instead of persisting a copy (see [`CodeCompositionBuilder`]).
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct CodeCells {
@@ -132,6 +132,13 @@ impl CodeCells {
             strict_directive: self.strict_directive,
         }
         .cell())
+    }
+}
+
+impl CodeCells {
+    /// The cell holding the code's bytes.
+    pub fn code(&self) -> ResolvedVc<Rope> {
+        self.code
     }
 }
 
@@ -202,22 +209,23 @@ impl Code {
     }
 
     /// Like [`Code::to_rope_with_magic_comments`], but for code whose bytes are described by
-    /// `body` (see [`ComposedCodeBuilder`]). Produces the same bytes.
+    /// `body` (see [`CodeComposition`]). Produces the same bytes; the result references `body`
+    /// instead of copying its segments.
     pub async fn to_cell_rope_with_magic_comments(
         self: Vc<Self>,
-        body: &CellRope,
+        body: ResolvedVc<CellRope>,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
-    ) -> Result<CellRope> {
-        let mut rope_builder = CellRopeBuilder::default();
-        match self.magic_comments(source_map_path_fn).await? {
+    ) -> Result<ResolvedVc<CellRope>> {
+        Ok(match self.magic_comments(source_map_path_fn).await? {
             Some((prefix, suffix)) => {
+                let mut rope_builder = CellRopeBuilder::default();
                 rope_builder.concat(&prefix);
-                rope_builder.append(body);
+                rope_builder.push_rope(body);
                 rope_builder.concat(&suffix);
+                rope_builder.build().resolved_cell()
             }
-            None => rope_builder.append(body),
-        }
-        Ok(rope_builder.build())
+            None => body,
+        })
     }
 
     /// The bytes [`Code::to_rope_with_magic_comments`] puts before and after the code, if any.
@@ -482,90 +490,66 @@ impl From<Code> for CodeBuilder {
     }
 }
 
-/// Builds a [`Code`] like [`CodeBuilder`], and alongside it a [`CellRope`] describing the same
-/// bytes, in which pieces pushed with [`ComposedCodeBuilder::push_code_cells`] are references to
-/// their [`CodeCells`] instead of copies.
+/// Describes code composed of inline scaffolding and pieces stored as [`CodeCells`], without
+/// reading the pieces' bytes. Builds a [`CodeComposition`].
 ///
-/// Composite outputs (chunks) use the `CellRope` as their persisted representation, so each
-/// piece's bytes (and source maps) are persisted once, by the task that owns the cells.
-pub struct ComposedCodeBuilder {
-    code: CodeBuilder,
+/// This is meant to be used by a task that depends only on the composition's structure (which
+/// pieces, in which order, and the scaffolding between them), so that a change to a piece's bytes
+/// doesn't re-execute it, and the persisted body [`CellRope`] isn't rewritten. Everything derived
+/// from the bytes (the flat [`Code`], its hash, source map offsets) is computed by
+/// [`CodeComposition::build_code`] and [`CodeComposition::generate_source_map`], in the tasks that
+/// read them.
+pub struct CodeCompositionBuilder {
     body: CellRopeBuilder,
-    /// Section maps that are cells, by their byte offset in the built code.
-    map_cells: FxHashMap<usize, ResolvedVc<Rope>>,
+    items: Vec<ResolvedVc<CodeCells>>,
+    collect_mappings: bool,
+    should_generate_debug_id: bool,
 }
 
-impl ComposedCodeBuilder {
+impl CodeCompositionBuilder {
     pub fn new(collect_mappings: bool, should_generate_debug_id: bool) -> Self {
         Self {
-            code: CodeBuilder::new(collect_mappings, should_generate_debug_id),
             body: CellRopeBuilder::default(),
-            map_cells: FxHashMap::default(),
+            items: Vec::new(),
+            collect_mappings,
+            should_generate_debug_id,
         }
     }
 
-    /// Appends `code`, which must be `cells` read back with [`CodeCells::to_code`]. The
-    /// [`CellRope`] references the cells instead of copying the bytes.
-    pub fn push_code_cells(&mut self, cells: &CodeCells, code: &Code) {
-        let offset = self.code.len();
-        self.code.push_code(code);
-        if !code.source_code().is_empty() {
-            self.body.push_cell(cells.code);
-        }
-        if self.code.mappings.is_some() {
-            for (index, map) in &cells.mappings {
-                if let Some(map) = map {
-                    self.map_cells.insert(offset + index, *map);
-                }
-            }
-        }
+    /// Appends the code stored in `cells`, whose bytes are in `code` (see [`CodeCells::code`]), by
+    /// reference. Reads neither.
+    ///
+    /// Takes the code cell separately so that callers can depend on just that reference: the
+    /// `CodeCells` value itself changes with the code's length (its mappings are byte offsets).
+    pub fn push_code_cells(&mut self, cells: ResolvedVc<CodeCells>, code: ResolvedVc<Rope>) {
+        self.body.push_cell(code);
+        self.items.push(cells);
     }
 
-    /// Appends code that has no cells of its own; its bytes are inlined into the [`CellRope`].
-    pub fn push_code(&mut self, code: &Code) {
-        self.code.push_code(code);
-        self.body.concat(code.source_code());
-    }
-
-    /// Like [`ComposedCodeBuilder::push_code`], but leaves out the code's recorded strict
-    /// directive (see [`CodeBuilder::push_code_without_strict_directive`]).
-    pub fn push_code_without_strict_directive(&mut self, code: &Code) {
-        self.code.push_code_without_strict_directive(code);
-        match code.strict_directive() {
-            Some(directive) => self.body.concat(&code.source_code().skip(directive)),
-            None => self.body.concat(code.source_code()),
+    pub fn build(self) -> CodeComposition {
+        CodeComposition {
+            body: self.body.build().resolved_cell(),
+            items: self.items,
+            collect_mappings: self.collect_mappings,
+            should_generate_debug_id: self.should_generate_debug_id,
         }
-    }
-
-    pub fn build(self) -> (Code, ComposedCodeParts) {
-        let mut map_cells = self.map_cells.into_iter().collect::<Vec<_>>();
-        map_cells.sort_unstable_by_key(|(offset, _)| *offset);
-        (
-            self.code.build(),
-            ComposedCodeParts {
-                body: self.body.build(),
-                map_cells,
-            },
-        )
     }
 }
 
-impl ops::AddAssign<&'static str> for ComposedCodeBuilder {
+impl ops::AddAssign<&'static str> for CodeCompositionBuilder {
     fn add_assign(&mut self, rhs: &'static str) {
-        self.code += rhs;
         self.body += rhs;
     }
 }
 
-impl Write for ComposedCodeBuilder {
+impl Write for CodeCompositionBuilder {
     fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
-        self.code.write_all(bytes)?;
         self.body.write_all(bytes)?;
         Ok(bytes.len())
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        self.code.flush()
+        Ok(())
     }
 }
 
@@ -693,26 +677,61 @@ impl Code {
     }
 }
 
-/// The [`CellRope`] side of a [`ComposedCodeBuilder`]: the code's bytes, and which of its source
-/// map sections are cells.
-#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
-pub struct ComposedCodeParts {
-    body: CellRope,
-    map_cells: Vec<(usize, ResolvedVc<Rope>)>,
+/// The structure of code composed from inline scaffolding and pieces stored as [`CodeCells`]: a
+/// body [`CellRope`] referencing the pieces' code cells, and the pieces themselves (one per cell
+/// segment of the body, in order). Built by [`CodeCompositionBuilder`].
+///
+/// Nothing in it is derived from the pieces' bytes, so it stays equal when only the bytes change.
+#[turbo_tasks::value(shared)]
+#[derive(Debug)]
+pub struct CodeComposition {
+    body: ResolvedVc<CellRope>,
+    items: Vec<ResolvedVc<CodeCells>>,
+    collect_mappings: bool,
+    should_generate_debug_id: bool,
 }
 
-impl ComposedCodeParts {
-    /// The code's bytes. See [`Code::to_cell_rope_with_magic_comments`].
-    pub fn body(&self) -> &CellRope {
-        &self.body
+impl CodeComposition {
+    /// The composed bytes, as a [`CellRope`] referencing the pieces' code cells.
+    pub fn body(&self) -> ResolvedVc<CellRope> {
+        self.body
     }
 
-    /// Generates the source map for `code` (which must have been built together with these
-    /// parts) as a [`CellRope`]. Produces the same bytes as [`Code::generate_source_map_ref`],
-    /// with the sections that are cells referenced instead of copied.
-    pub fn generate_source_map(&self, code: &Code, debug_id: Option<RcStr>) -> CellRope {
-        let map_cells: FxHashMap<usize, ResolvedVc<Rope>> =
-            self.map_cells.iter().copied().collect();
+    /// Reads the pieces and builds the flat [`Code`], with the same bytes and mappings as
+    /// building it with a [`CodeBuilder`] from the same scaffolding and pieces.
+    pub async fn build_code(&self) -> Result<Code> {
+        let body = self.body.await?;
+        let pieces = self
+            .items
+            .iter()
+            .map(|cells| cells.to_code())
+            .try_join()
+            .await?;
+        let mut pieces = pieces.iter();
+        let mut code = CodeBuilder::new(self.collect_mappings, self.should_generate_debug_id);
+        for part in body.parts() {
+            match part {
+                CellRopePart::Inline(bytes) => code.push_source(&bytes, None::<SectionMap>),
+                CellRopePart::Cell(_) => code.push_code(
+                    pieces
+                        .next()
+                        .context("a composition has one piece per cell segment")?,
+                ),
+                CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
+            }
+        }
+        Ok(code.build())
+    }
+
+    /// Generates the source map for `code` (which must be [`CodeComposition::build_code`]'s
+    /// result) as a [`CellRope`]. Produces the same bytes as [`Code::generate_source_map_ref`],
+    /// with the pieces' section maps referenced instead of copied.
+    pub async fn generate_source_map(
+        &self,
+        code: &Code,
+        debug_id: Option<RcStr>,
+    ) -> Result<CellRope> {
+        let map_cells = self.map_cells().await?;
         let sections = code
             .source_map_sections(debug_id.is_some())
             .into_iter()
@@ -745,7 +764,47 @@ impl ComposedCodeParts {
                 section.push_to(rope)
             });
         }
-        rope.build()
+        Ok(rope.build())
+    }
+
+    /// The pieces' section maps that are cells, by their byte offset in the built code. Reads the
+    /// pieces' bytes to compute the offsets.
+    async fn map_cells(&self) -> Result<FxHashMap<usize, ResolvedVc<Rope>>> {
+        let mut map_cells = FxHashMap::default();
+        if !self.collect_mappings {
+            return Ok(map_cells);
+        }
+        let body = self.body.await?;
+        let pieces = self
+            .items
+            .iter()
+            .map(async |cells| {
+                let cells = cells.await?;
+                let len = cells.code.await?.len();
+                anyhow::Ok((cells, len))
+            })
+            .try_join()
+            .await?;
+        let mut pieces = pieces.iter();
+        let mut offset = 0;
+        for part in body.parts() {
+            match part {
+                CellRopePart::Inline(bytes) => offset += bytes.len(),
+                CellRopePart::Cell(_) => {
+                    let (cells, len) = pieces
+                        .next()
+                        .context("a composition has one piece per cell segment")?;
+                    for (index, map) in &cells.mappings {
+                        if let Some(map) = map {
+                            map_cells.insert(offset + index, *map);
+                        }
+                    }
+                    offset += len;
+                }
+                CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
+            }
+        }
+        Ok(map_cells)
     }
 }
 
@@ -764,21 +823,21 @@ impl ComposedSection {
 }
 
 /// A [`Code`], plus (when its bytes are composed from other tasks' cells) the
-/// [`ComposedCodeParts`] describing them. Output files built from it reference those cells
+/// [`CodeComposition`] describing them. Output files built from it reference those cells
 /// instead of persisting copies (see `turbo_tasks_fs::File::from_cell_rope`).
 #[turbo_tasks::value(shared)]
 pub struct ComposedCode {
     code: ResolvedVc<Code>,
-    parts: Option<ComposedCodeParts>,
+    composition: Option<ResolvedVc<CodeComposition>>,
 }
 
 impl ComposedCode {
-    /// `parts` must have been built together with `code` (see [`ComposedCodeBuilder::build`]),
-    /// or be `None` if `code` was transformed afterwards (e.g. minified as a whole).
-    pub fn new(code: Code, parts: Option<ComposedCodeParts>) -> Self {
+    /// `code` must be `composition`'s [`CodeComposition::build_code`], or `composition` must be
+    /// `None` if `code` was transformed afterwards (e.g. minified as a whole).
+    pub fn new(code: Code, composition: Option<ResolvedVc<CodeComposition>>) -> Self {
         ComposedCode {
             code: code.resolved_cell(),
-            parts,
+            composition,
         }
     }
 
@@ -792,13 +851,13 @@ impl ComposedCode {
         &self,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<File> {
-        match &self.parts {
-            Some(parts) => {
+        match self.composition {
+            Some(composition) => {
                 let rope = self
                     .code
-                    .to_cell_rope_with_magic_comments(parts.body(), source_map_path_fn)
+                    .to_cell_rope_with_magic_comments(composition.await?.body(), source_map_path_fn)
                     .await?;
-                File::from_cell_rope(rope.resolved_cell()).await
+                File::from_cell_rope(rope).await
             }
             None => Ok(File::from(
                 self.code
@@ -810,10 +869,13 @@ impl ComposedCode {
 
     /// The source map file. Same bytes as [`Code::generate_source_map`].
     pub async fn source_map_file_content(&self) -> Result<Vc<FileContent>> {
-        Ok(match &self.parts {
-            Some(parts) => {
+        Ok(match self.composition {
+            Some(composition) => {
                 let debug_id = self.code.debug_id().owned().await?;
-                let rope = parts.generate_source_map(&*self.code.await?, debug_id);
+                let rope = composition
+                    .await?
+                    .generate_source_map(&*self.code.await?, debug_id)
+                    .await?;
                 FileContent::Content(File::from_cell_rope(rope.resolved_cell()).await?).cell()
             }
             None => self.code.generate_source_map(),
@@ -823,6 +885,168 @@ impl ComposedCode {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use anyhow::{Result, ensure};
+    use turbo_rcstr::RcStr;
+    use turbo_tasks::{ReadRef, ResolvedVc, State, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+
+    #[turbo_tasks::value]
+    struct Text {
+        text: State<RcStr>,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    fn text_operation() -> Vc<Text> {
+        Text {
+            text: State::new("one".into()),
+        }
+        .cell()
+    }
+
+    /// Code like a module factory: fixed scaffolding around a source with its own map.
+    fn piece_code(text: &str) -> Code {
+        let mut code = CodeBuilder::new(true, false);
+        code += "(()=>{";
+        let map =
+            format!(r#"{{"version":3,"sources":["{text}.js"],"names":[],"mappings":"AAAA"}}"#);
+        code.push_source(&Rope::from(text.to_string()), Some(Rope::from(map)));
+        code += "})";
+        code.build()
+    }
+
+    #[turbo_tasks::function]
+    async fn edited_piece(text: ResolvedVc<Text>) -> Result<Vc<CodeCells>> {
+        let text = text.await?.text.get().clone();
+        Ok(*piece_code(&text).resolved_code_cells())
+    }
+
+    #[turbo_tasks::function]
+    fn fixed_piece() -> Vc<CodeCells> {
+        *piece_code("fixed").resolved_code_cells()
+    }
+
+    /// What a chunk item's entry exposes to the composition: references only.
+    #[turbo_tasks::value(shared)]
+    struct PieceRef {
+        cells: ResolvedVc<CodeCells>,
+        code: ResolvedVc<Rope>,
+    }
+
+    #[turbo_tasks::function]
+    async fn piece_ref(cells: ResolvedVc<CodeCells>) -> Result<Vc<PieceRef>> {
+        Ok(PieceRef {
+            cells,
+            code: cells.await?.code(),
+        }
+        .cell())
+    }
+
+    static COMPOSITION_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
+
+    /// The structure-only task: `[<edited>,<fixed>]`.
+    #[turbo_tasks::function]
+    async fn composition(text: ResolvedVc<Text>) -> Result<Vc<CodeComposition>> {
+        COMPOSITION_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
+        let mut builder = CodeCompositionBuilder::new(true, false);
+        builder += "[";
+        let edited = piece_ref(edited_piece(*text)).await?;
+        builder.push_code_cells(edited.cells, edited.code);
+        builder += ",";
+        let fixed = piece_ref(fixed_piece()).await?;
+        builder.push_code_cells(fixed.cells, fixed.code);
+        builder += "]";
+        Ok(builder.build().cell())
+    }
+
+    #[turbo_tasks::value(shared, serialization = "skip")]
+    struct Output {
+        code: RcStr,
+        map: RcStr,
+        body: ReadRef<CellRope>,
+    }
+
+    /// Reads the composition like a chunk's content does, and checks it against building the
+    /// same pieces with a `CodeBuilder`.
+    #[turbo_tasks::function(operation, root)]
+    async fn output_operation(text: ResolvedVc<Text>) -> Result<Vc<Output>> {
+        let composition = composition(*text).await?;
+        let code = composition.build_code().await?;
+        let map = composition
+            .generate_source_map(&code, None)
+            .await?
+            .read()
+            .await?;
+
+        let mut flat = CodeBuilder::new(true, false);
+        flat += "[";
+        flat.push_code(&*edited_piece(*text).to_code().await?);
+        flat += ",";
+        flat.push_code(&*fixed_piece().to_code().await?);
+        flat += "]";
+        let flat = flat.build();
+        ensure!(code.source_code() == flat.source_code(), "code differs");
+        ensure!(
+            map == flat.generate_source_map_ref(None),
+            "source map differs"
+        );
+        ensure!(
+            composition.body().await?.read().await? == *code.source_code(),
+            "body differs from the built code"
+        );
+        Ok(Output {
+            code: code.source_code().to_str()?.into(),
+            map: map.to_str()?.into(),
+            body: composition.body().await?,
+        }
+        .cell())
+    }
+
+    /// The point of a structure-only composition: changing a piece's bytes (here also its length,
+    /// which changes its `CodeCells` mappings) updates the output without re-executing the
+    /// composition, so its persisted body isn't rewritten.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn piece_edits_dont_recompose() {
+        turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ))
+        .run_once(async {
+            let text_op = text_operation();
+            let text = text_op.resolve().strongly_consistent().await?;
+            let output = output_operation(text);
+            let before = output.read_strongly_consistent().await?;
+            assert_eq!(before.code.as_str(), "[(()=>{one}),(()=>{fixed})]");
+            assert!(before.map.contains("one.js") && before.map.contains("fixed.js"));
+            let executions = COMPOSITION_EXECUTIONS.load(Ordering::SeqCst);
+
+            text_op
+                .read_strongly_consistent()
+                .await?
+                .text
+                .set("a longer text".into());
+
+            let after = output.read_strongly_consistent().await?;
+            assert_eq!(after.code.as_str(), "[(()=>{a longer text}),(()=>{fixed})]");
+            assert!(after.map.contains("a longer text.js"));
+            assert_eq!(
+                COMPOSITION_EXECUTIONS.load(Ordering::SeqCst),
+                executions,
+                "the composition must not re-execute"
+            );
+            assert_eq!(before.body, after.body);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod strict_directive_tests {
     use serde_json::Value;
     use swc_sourcemap::{DecodedMap, SourceMapBuilder};
     use turbo_tasks_fs::rope::Rope;
