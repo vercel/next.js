@@ -532,6 +532,11 @@ async fn build_manifest(
         // note this only applies to the manifests, assets are placed to the original
         // path still (same as webpack does)
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
+        // The shape of this file (including the deployment ID suffix) is
+        // recognized by `classifyClientReferenceManifestSource` in
+        // `packages/next/src/server/load-manifest.external.ts` to load it faster.
+        // Keep both in sync; unrecognized shapes still work but fall back to a
+        // slower evaluation.
         Ok(ClientReferenceManifestResult {
             content: AssetContent::file(
                 FileContent::Content(File::from(formatdoc! {
