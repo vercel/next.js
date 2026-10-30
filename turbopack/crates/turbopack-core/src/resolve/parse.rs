@@ -444,14 +444,15 @@ impl Request {
             Request::Module {
                 module,
                 path,
-                query: _,
-                fragment: _,
+                query,
+                fragment,
             } => {
                 let mut pat = module.clone();
                 pat.push_front(rcstr!("./").into());
                 pat.push(path.clone());
-                // TODO add query
                 Self::parse(pat)
+                    .with_query(query.clone())
+                    .with_fragment(fragment.clone())
             }
             Request::PackageInternal { path } => {
                 let mut pat = Pattern::Constant(rcstr!("./"));
