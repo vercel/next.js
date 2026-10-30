@@ -33,6 +33,7 @@ import type {
   CompilerSourceCoverage,
 } from './coverage/types'
 import { promisify } from 'node:util'
+import { drainConsoleCallbacks } from './execution/console-drain'
 import { randomUUID } from 'crypto'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { join, relative, isAbsolute, resolve as resolvePath } from 'path'
@@ -130,6 +131,7 @@ export type WatchProcessResult =
     }
 
 export type WatchProcessMessage =
+  | { type: 'console-drain-forwarded'; id: string }
   | {
       type: 'snapshot-preparation-failure'
       failure: SnapshotPreparationFailure
@@ -298,6 +300,8 @@ export async function runWatchProcess(
     writeError?: (text: string) => void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     onEvent?: (event: ResultEvent) => void
+    /** Await actual reporter console callbacks after forwarded output arrives. */
+    onConsoleDrain?: () => Promise<void>
     /** Canonical parent-selected file, issued before its actual compilation. */
     onModuleQueued?: (entry: TestEntry) => void
     onSnapshotPreparationFailure?: (failure: SnapshotPreparationFailure) => void
@@ -628,6 +632,7 @@ export async function runWatchProcess(
     const claimedRuntimeRevisions = new Set<string>()
     const claimedSourceRevisions = new Set<string>()
     const allocations = new Set<Promise<void>>()
+    const consoleDrains = new Map<string, { forwarded(): void }>()
     const reporter =
       request.operation === 'run'
         ? createTestReporter({
@@ -721,6 +726,35 @@ export async function runWatchProcess(
         ? { captureCompletedModuleResult: true as const }
         : {}),
       userCancelSignal: options.userCancelSignal,
+      async onConsoleDrain(signal) {
+        signal.throwIfAborted()
+        const id = randomUUID()
+        let abort!: () => void
+        const forwarded = new Promise<void>(
+          (resolveForwarded, rejectForwarded) => {
+            consoleDrains.set(id, { forwarded: resolveForwarded })
+            abort = () => rejectForwarded(signal.reason)
+            signal.addEventListener('abort', abort, { once: true })
+            if (!child.connected)
+              return rejectForwarded(new Error('Console drain disconnected.'))
+            // The compiler receives this after earlier broker events, and echoes
+            // it after forwarding them on its own ordered coordinator channel.
+            child.send({ type: 'console-drain-forward', id }, (error) => {
+              if (error) rejectForwarded(error)
+            })
+          }
+        )
+        try {
+          await forwarded
+          signal.throwIfAborted()
+          await drainConsoleCallbacks(options.onConsoleDrain, signal)
+          signal.throwIfAborted()
+        } finally {
+          void forwarded.catch(() => {})
+          signal.removeEventListener('abort', abort)
+          consoleDrains.delete(id)
+        }
+      },
       ...(options.userCancelSignal
         ? {
             onWorkerLaunched(identity) {
@@ -1179,6 +1213,10 @@ export async function runWatchProcess(
             fail(error)
             cancel()
           }
+          return
+        }
+        if (value?.type === 'console-drain-forwarded') {
+          consoleDrains.get(value.id)?.forwarded()
           return
         }
         if (value?.type === 'artifact-allocation-request') {

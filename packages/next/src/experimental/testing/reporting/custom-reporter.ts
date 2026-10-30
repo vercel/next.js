@@ -465,6 +465,10 @@ export async function openCustomReporters(options: {
         if (consoleFailure) throw consoleFailure
         await request({ type: 'imported-finish', moduleIds, errors, status })
       },
+      async drainConsole() {
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+      },
       async collectErrors() {
         await consoleQueue
         if (options.signal?.aborted) {

@@ -203,6 +203,7 @@ async function runCohort(
         signal,
         userCancelSignal: _userCancelSignal,
         onEvent: _onEvent,
+        onConsoleDrain: _onConsoleDrain,
         onCoverage: _onCoverage,
         onSnapshotUpdates: _onSnapshotUpdates,
         ...serializable

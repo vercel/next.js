@@ -23,6 +23,7 @@ import type {
   TestExecutionResult,
 } from '../contracts'
 import type { FileResult } from '../reporting/events'
+import { drainConsoleCallbacks } from './console-drain'
 import type { WorkerInput, WorkerMessage } from './protocol'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { runTestProcess } from './process'
@@ -164,6 +165,7 @@ export async function executeWithEnvironment(
   assertNodeProjectEnvironment(artifact, options)
   const {
     onEvent,
+    onConsoleDrain,
     onCoverage,
     onIstanbulCoverage,
     onCustomCoverage,
@@ -254,6 +256,7 @@ export async function executeWithEnvironment(
   let snapshotUpdates: SnapshotUpdate[] | undefined
   let coverage: AnyTestCoverageCompletion | undefined
   let customCoverage: CustomCoverageCompletion | undefined
+  let consoleDrain: Promise<void> | undefined
   let customSuite: Promise<void> | undefined
   let observedSnapshotPreparationFailure = false
   let snapshotPreparationHandoff: Promise<void> | undefined
@@ -385,6 +388,36 @@ export async function executeWithEnvironment(
             throw new Error('Invalid user cancellation finalization.')
           terminateAfterCompletion()
           userCancellationFinalized = true
+        } else if (message.type === 'console-drain') {
+          if (
+            consoleDrain ||
+            result ||
+            message.runId !== options.runId ||
+            message.entryId !== artifact.entryId ||
+            message.revision !== artifact.revision
+          )
+            throw new Error('Invalid console drain request.')
+          consoleDrain = (async () => {
+            let error: ReturnType<typeof serializeDiagnostic> | undefined
+            try {
+              signal.throwIfAborted()
+              await drainConsoleCallbacks(onConsoleDrain, signal)
+              signal.throwIfAborted()
+            } catch (failure) {
+              error = serializeDiagnostic(failure, { phase: 'cleanup' })
+            }
+            if (signal.aborted) return
+            await send({
+              type: 'console-drained',
+              runId: options.runId,
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+              ...(error ? { error } : {}),
+            }).catch((failure) => {
+              if (!signal.aborted) throw failure
+            })
+          })()
+          void consoleDrain.catch(() => {})
         } else if (message.type === 'custom-coverage-suite') {
           if (!options.customCoverage || !onCustomCoverageSuite || customSuite)
             throw new Error('Unrequested or duplicate custom coverage suite')
@@ -522,6 +555,7 @@ export async function executeWithEnvironment(
         'Test worker cleanup and snapshot preparation handoff failed.'
       )
     try {
+      await consoleDrain
       await customSuite
     } catch (suiteError) {
       throw new AggregateError(
@@ -531,6 +565,7 @@ export async function executeWithEnvironment(
     }
     throw error
   })
+  await consoleDrain
   await customSuite
   if (snapshotPreparationHandoff) await snapshotPreparationHandoff
   if (snapshotPreparationHandoffFailure)

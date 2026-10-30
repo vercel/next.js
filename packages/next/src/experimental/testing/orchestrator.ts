@@ -161,6 +161,8 @@ export interface RunTestsOptions {
   allocateArtifact?: TestCompilerSessionOptions['allocateArtifact']
   /** Watch forwards events to its parent, which seals the authoritative run end. */
   onEvent?: (event: ResultEvent) => void
+  /** Parent-owned console callbacks; never a serializable runtime option. */
+  onConsoleDrain?: () => Promise<void>
 }
 
 /** Sequence real compiler/executor producers; compilation never owns evaluation. */
@@ -1261,6 +1263,9 @@ export async function runTests(
           ? { userCancelSignal: options.userCancelSignal }
           : {}),
         onEvent: executionEvent,
+        ...(options.onConsoleDrain
+          ? { onConsoleDrain: options.onConsoleDrain }
+          : {}),
         ...(browser ? { browser } : {}),
       })
       executing = false
@@ -1516,6 +1521,7 @@ export async function runTests(
               }
             : {}),
           onCustomCoverageSuite: options.onCustomCoverageSuite,
+          onConsoleDrain: options.onConsoleDrain,
           onModuleQueued: options.onModuleQueued,
           ...(options.preparePublicSnapshots === true
             ? {

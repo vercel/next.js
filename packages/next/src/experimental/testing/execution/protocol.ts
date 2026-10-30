@@ -17,6 +17,7 @@ export interface WorkerInput {
     | 'signal'
     | 'userCancelSignal'
     | 'onEvent'
+    | 'onConsoleDrain'
     | 'onCoverage'
     | 'onIstanbulCoverage'
     | 'onCustomCoverage'
@@ -35,6 +36,12 @@ export type WorkerMessage =
       failure: SnapshotPreparationFailure
     }
   | { type: 'event'; event: ResultEvent }
+  | {
+      type: 'console-drain'
+      runId: string
+      entryId: string
+      revision: string
+    }
   | {
       type: 'user-cancellation-finalized'
       version: 1

@@ -1214,6 +1214,9 @@ export function createMachineReporter(options: {
       if (event.type === 'diagnostic')
         lastDeliveredDiagnostic = { event, index: eventIndex }
     },
+    async drainConsole() {
+      await custom?.drainConsole()
+    },
     async replayFile(taskTree: ReporterTaskSnapshot) {
       if (!custom?.captureTaskResults) return
       const completion: CustomReporterCompletion = {

@@ -517,6 +517,8 @@ export interface ExecuteTestOptions {
   userCancelSignal?: AbortSignal
   signal: AbortSignal
   onEvent(event: ResultEvent): void
+  /** Parent callback delivery, awaited before an actual environment tears down. */
+  onConsoleDrain?: () => Promise<void>
   browser?: {
     wsEndpoint: string
     baseURL: string

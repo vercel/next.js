@@ -110,15 +110,20 @@ export function installTestConsole(options: {
       groupIndentation: 2,
     }),
   })
+  async function flush() {
+    for (const key of buffers.keys()) flushTask(key)
+    while (pending.size) await Promise.allSettled([...pending])
+    if (failure) throw failure
+  }
   return {
+    flush,
     async dispose() {
       if (active) {
         for (const key of buffers.keys()) flushTask(key)
         active = false
         Object.defineProperty(globalThis, 'console', descriptor)
       }
-      while (pending.size) await Promise.allSettled([...pending])
-      if (failure) throw failure
+      await flush()
     },
   }
 }

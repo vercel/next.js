@@ -72,6 +72,15 @@ let releaseNativeAssertionRecords: (() => void) | undefined
 let reportUnhandledRejection:
   | ((reason: unknown, promise: Promise<unknown>) => void)
   | undefined
+let pendingConsoleDrain:
+  | {
+      runId: string
+      entryId: string
+      revision: string
+      resolve(): void
+      reject(error: unknown): void
+    }
+  | undefined
 let pendingCustomSuite:
   | {
       completion: CustomCoverageCompletion
@@ -87,6 +96,29 @@ function send(message: WorkerMessage): Promise<void> {
       error ? reject(error) : resolveSend()
     )
   })
+}
+
+async function drainParentConsole(identity: {
+  runId: string
+  entryId: string
+  revision: string
+}) {
+  controller.signal.throwIfAborted()
+  if (pendingConsoleDrain) throw new Error('Duplicate console drain.')
+  let cancel!: () => void
+  const received = new Promise<void>((resolveReceived, reject) => {
+    pendingConsoleDrain = { ...identity, resolve: resolveReceived, reject }
+    cancel = () => reject(controller.signal.reason)
+    controller.signal.addEventListener('abort', cancel, { once: true })
+  })
+  try {
+    await send({ type: 'console-drain', ...identity })
+    await received
+  } finally {
+    void received.catch(() => {})
+    controller.signal.removeEventListener('abort', cancel)
+    pendingConsoleDrain = undefined
+  }
 }
 
 async function handOffCustomSuite(completion: CustomCoverageCompletion) {
@@ -1653,6 +1685,28 @@ async function run({
       await diagnostic(error, 'cleanup')
     }
     try {
+      if (environment) {
+        // Keep capture installed for teardown's own writes. Earlier console RPCs
+        // must have reached their real parent callbacks before teardown runs.
+        await consoleCapture?.flush()
+        await drainParentConsole({
+          runId: options.runId,
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+        })
+      }
+    } catch (error) {
+      moduleHostCleanupComplete = false
+      snapshotHostComplete = false
+      coverageComplete = false
+      if (controller.signal.aborted && error === controller.signal.reason) {
+        if (status !== 'failed') status = 'cancelled'
+      } else {
+        status = 'failed'
+        if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
+      }
+    }
+    try {
       await environment?.dispose()
     } catch (error) {
       moduleHostCleanupComplete = false
@@ -2072,7 +2126,21 @@ process.on(
       controller.abort(new Error('Test file cancelled'))
     else if (message.type === 'user-cancel')
       userCancellation.abort(new Error('Test run cancelled by the user.'))
-    else if (message.type === 'custom-coverage-suite-received') {
+    else if (message.type === 'console-drained') {
+      const pending = pendingConsoleDrain
+      if (
+        !pending ||
+        message.runId !== pending.runId ||
+        message.entryId !== pending.entryId ||
+        message.revision !== pending.revision
+      ) {
+        controller.abort(new Error('Mismatched console acknowledgement.'))
+      } else if (message.error) {
+        const error = new Error(message.error.message)
+        if (message.error.stack) error.stack = message.error.stack
+        pending.reject(error)
+      } else pending.resolve()
+    } else if (message.type === 'custom-coverage-suite-received') {
       const pending = pendingCustomSuite
       if (
         !pending ||

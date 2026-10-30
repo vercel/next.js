@@ -7236,3 +7236,130 @@ it('matches the pinned pure keyboard parser and native membership contract', () 
     noAdapterAdmissionClaim: true,
   })
 })
+
+it('flushes prior console delivery without uninstalling capture for environment teardown', async () => {
+  const {
+    installTestConsole,
+  } = require('next/dist/experimental/testing/execution/console')
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'console')!
+  const records: any[] = []
+  let release!: () => void
+  const delivered = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const capture = installTestConsole({
+    fileId: 'environment-file',
+    getTask: () => undefined,
+    publish(record: unknown) {
+      records.push(record)
+      return delivered
+    },
+  })
+  try {
+    console.log('afterAll')
+    let flushed = false
+    const flushing = capture.flush().then(() => {
+      flushed = true
+    })
+    await Promise.resolve()
+    expect(flushed).toBe(false)
+    expect(
+      Object.getOwnPropertyDescriptor(globalThis, 'console')!.value
+    ).not.toBe(original.value)
+    expect(records.map(({ text }) => text)).toEqual(['afterAll\n'])
+    release()
+    await flushing
+    console.log('environment teardown')
+    await capture.flush()
+    expect(records.map(({ text }) => text)).toEqual([
+      'afterAll\n',
+      'environment teardown\n',
+    ])
+    expect(
+      Object.getOwnPropertyDescriptor(globalThis, 'console')!.value
+    ).not.toBe(original.value)
+  } finally {
+    release()
+    await capture.dispose()
+  }
+  expect(Object.getOwnPropertyDescriptor(globalThis, 'console')).toEqual(
+    original
+  )
+})
+
+it('retains actual console delivery failures while restoring capture after a failed flush', async () => {
+  const {
+    installTestConsole,
+  } = require('next/dist/experimental/testing/execution/console')
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'console')!
+  const failure = new Error('actual console delivery failed')
+  const capture = installTestConsole({
+    fileId: 'environment-file',
+    getTask: () => undefined,
+    publish: () => Promise.reject(failure),
+  })
+  console.log('before teardown')
+  try {
+    await expect(capture.flush()).rejects.toBe(failure)
+  } finally {
+    await expect(capture.dispose()).rejects.toBe(failure)
+  }
+  expect(Object.getOwnPropertyDescriptor(globalThis, 'console')).toEqual(
+    original
+  )
+})
+
+it.each(['passed', 'failed'] as const)(
+  'cancels actual file ownership after a %s case while its console callback remains unsettled',
+  (outcome) => {
+    const child = require('node:child_process').spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'console-drain-cancellation.cjs'),
+        process.cwd(),
+        outcome,
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(child.error).toBeUndefined()
+    expect(child.signal).toBeNull()
+    expect(child.status).toBe(0)
+    expect(child.stderr).toBe('')
+    expect(JSON.parse(child.stdout)).toMatchObject({
+      actualCaseOutcome: outcome,
+      actualFileOutcome: outcome === 'failed' ? 'failed' : 'cancelled',
+      earlierCaseErrorRetained: outcome === 'failed' ? true : null,
+      actualConsoleDelivered: true,
+      unsettledCallbackDoesNotHoldExecution: true,
+      realEnvironmentTeardown: true,
+      fileProcessAndGroupAbsent: true,
+      signalListenersRemoved: true,
+    })
+  }
+)
+
+it('removes console drain abort listeners and observes a real callback rejection after cancellation', async () => {
+  const {
+    drainConsoleCallbacks,
+  } = require('next/dist/experimental/testing/execution/console-drain')
+  const { getEventListeners } = require('node:events')
+  const controller = new AbortController()
+  const cancellation = new Error('actual pending console cancellation')
+  const late = new Error('actual later console rejection')
+  let rejectLater!: (error: Error) => void
+  const callback = new Promise<void>((_resolve, reject) => {
+    rejectLater = reject
+  })
+  const pending = drainConsoleCallbacks(() => callback, controller.signal)
+  expect(getEventListeners(controller.signal, 'abort')).toHaveLength(1)
+  controller.abort(cancellation)
+  await expect(pending).rejects.toBe(cancellation)
+  expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
+  rejectLater(late)
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  const skipped = jest.fn(async () => {})
+  await expect(drainConsoleCallbacks(skipped, controller.signal)).rejects.toBe(
+    cancellation
+  )
+  expect(skipped).not.toHaveBeenCalled()
+})

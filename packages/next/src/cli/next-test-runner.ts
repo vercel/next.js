@@ -1226,6 +1226,7 @@ export async function nextTestRunner(
             if (human) terminal.write(text)
           },
           reporter,
+          onConsoleDrain: () => machine.drainConsole(),
           onEvent(event) {
             if (event.type === 'run-end') oneShotExecutionActive = false
             discoveryApi?.onEvent(event)

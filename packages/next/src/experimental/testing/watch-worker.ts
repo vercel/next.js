@@ -318,10 +318,21 @@ function onMessage(
   message:
     | { type: 'cancel' }
     | { type: 'user-cancel' }
+    | { type: 'console-drain-forward'; id: string }
     | { type: 'start'; request: WatchProcessRequest }
     | ArtifactAllocationResponse
 ) {
   if (broker?.handle(message)) return
+  if (message.type === 'console-drain-forward') {
+    if (process.connected)
+      process.send!(
+        { type: 'console-drain-forwarded', id: message.id },
+        (error: Error | null) => {
+          if (error) controller.abort(error)
+        }
+      )
+    return
+  }
   if (message.type === 'artifact-allocation-response') {
     const pending = allocations.get(message.id)
     if (!pending) return

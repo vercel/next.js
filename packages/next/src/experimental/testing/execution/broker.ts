@@ -6,6 +6,7 @@ import {
 import { isTestCI } from '../config-environment'
 import type { CompiledCoverageSource } from '../coverage/types'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
+import { drainConsoleCallbacks } from './console-drain'
 import { randomUUID } from 'node:crypto'
 import type {
   CompiledTestArtifact,
@@ -45,6 +46,7 @@ type SerializableOptions = Omit<
   | 'signal'
   | 'userCancelSignal'
   | 'onEvent'
+  | 'onConsoleDrain'
   | 'onCoverage'
   | 'onIstanbulCoverage'
   | 'onCustomCoverage'
@@ -168,6 +170,8 @@ export function createExecutionBrokerHost(options: {
     revision: string
   }) => void
   send(message: ExecutionBrokerResponse): Promise<void>
+  /** Flush forwarded console callbacks in the actual observing parent. */
+  onConsoleDrain?: (signal: AbortSignal) => Promise<void>
   /** One-shot supervisors only. Watch still rejects coverage. */
   allowCoverage?: boolean
   /** One-shot isolated-profile supervisors only; ordinary watch rejects cohorts. */
@@ -536,6 +540,18 @@ export function createExecutionBrokerHost(options: {
                 : {}),
               signal: request.controller.signal,
               userCancelSignal: options.userCancelSignal,
+              onConsoleDrain: async () => {
+                await drainConsoleCallbacks(
+                  () => sends,
+                  request.controller.signal
+                )
+                await drainConsoleCallbacks(
+                  options.onConsoleDrain
+                    ? () => options.onConsoleDrain!(request.controller.signal)
+                    : undefined,
+                  request.controller.signal
+                )
+              },
               onEvent(event) {
                 void publish({
                   type: 'execution-broker-response',
@@ -810,6 +826,7 @@ export function createExecutionBrokerClient(options: {
       signal,
       userCancelSignal: _userCancelSignal,
       onEvent,
+      onConsoleDrain: _onConsoleDrain,
       onCoverage: _onCoverage,
       onIstanbulCoverage: _onIstanbulCoverage,
       onCustomCoverage: _onCustomCoverage,
@@ -974,6 +991,7 @@ export function createExecutionBrokerClient(options: {
         signal: _signal,
         userCancelSignal: _userCancelSignal,
         onEvent: _onEvent,
+        onConsoleDrain: _onConsoleDrain,
         onCoverage: _onCoverage,
         onIstanbulCoverage: _onIstanbulCoverage,
         onCustomCoverage: _onCustomCoverage,
