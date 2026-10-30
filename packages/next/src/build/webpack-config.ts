@@ -2379,6 +2379,8 @@ export default async function getBaseWebpackConfig(
     optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
+    injectInstrumentation: config.injectInstrumentation,
+    instrumentationClientInject: config.instrumentationClientInject,
     trailingSlash: config.trailingSlash,
     devIndicatorsPosition:
       config.devIndicators === false
