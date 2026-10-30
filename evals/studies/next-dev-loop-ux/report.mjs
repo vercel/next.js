@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
-const root = resolve(process.argv[2] || 'evals/results/catalog-ux-poc')
+const root = resolve(process.argv[2] || 'evals/results/pokedex-dev-loop')
 const pricingFile = process.argv[3]
 const pricing = pricingFile
   ? JSON.parse(readFileSync(pricingFile, 'utf8')).pricing
@@ -22,15 +22,6 @@ function read(path) {
     if (error.code === 'ENOENT') return ''
     throw error
   }
-}
-
-function median(values) {
-  const numbers = values.filter(Number.isFinite).sort((a, b) => a - b)
-  if (!numbers.length) return null
-  const middle = Math.floor(numbers.length / 2)
-  return numbers.length % 2
-    ? numbers[middle]
-    : (numbers[middle - 1] + numbers[middle]) / 2
 }
 
 // This study's Codex session records cumulative usage and per-request usage.
@@ -126,27 +117,12 @@ const rows = findRuns(root)
   .map((path) => {
     const dir = resolve(path, '..')
     const result = JSON.parse(readFileSync(path, 'utf8'))
-    const regrade = JSON.parse(read(join(dir, 'regrade.json')) || 'null')
     const verification = JSON.parse(
       read(join(dir, 'verification.json')) || 'null'
     )
     const acceptance = JSON.parse(read(join(dir, 'acceptance.json')) || 'null')
     const pageMeasurements = JSON.parse(
       read(join(dir, 'measurements.json')) || 'null'
-    )
-    const output = read(join(dir, 'outputs/eval.txt'))
-    const match = output.match(/CATALOG_UX_METRICS (\{[^\n]+\})/)
-    const measurements = match ? JSON.parse(match[1]) : null
-    const samples = measurements?.samples || []
-    const metrics = Object.fromEntries(
-      [
-        'lcpMs',
-        'cls',
-        'tbtMs',
-        'jsTransferBytes',
-        'totalTransferBytes',
-        'accessibilityScore',
-      ].map((name) => [name, median(samples.map((sample) => sample[name]))])
     )
     return {
       run: relative(root, dir),
@@ -155,18 +131,13 @@ const rows = findRuns(root)
         ? verification.acceptanceExitCode === 0
           ? 'passed'
           : 'failed'
-        : (regrade?.status ?? result.status),
-      ...(regrade ? { originalStatus: result.status, regrade } : {}),
+        : result.status,
       runnerSeconds: result.duration,
       ...effort(read(join(dir, 'transcript-raw.jsonl'))),
       agentSeconds: result.agentSeconds ?? null,
       ...(acceptance ? { acceptance: acceptance.stats } : {}),
       ...(pageMeasurements ? { pageMeasurements } : {}),
-      measurementStatus: pageMeasurements
-        ? 'collected'
-        : measurements?.status || 'missing',
-      metricMedians: metrics,
-      measurements,
+      measurementStatus: pageMeasurements ? 'collected' : 'missing',
     }
   })
 

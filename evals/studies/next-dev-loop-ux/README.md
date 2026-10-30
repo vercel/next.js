@@ -1,138 +1,95 @@
-# Compare Next Dev Loop on a browsing task
+# Compare Next Dev Loop on Pokédex
 
-[`agent-062-catalog-browsing-ux`](../../evals/agent-062-catalog-browsing-ux)
-asks an agent to finish a shop's search, filters, and product navigation.
-Compare the delivered experience and the effort needed to build it with and
-without [`next-dev-loop`](../../../skills/next-dev-loop/SKILL.md).
+Compare the effort and app quality produced with and without
+[`next-dev-loop`](../../../skills/next-dev-loop/SKILL.md), using the
+[Pokédex task from Nolan Lawson's study](https://github.com/nolanlawson/agent-framework-benchmark/tree/b95ada03930ca3670c8ff6377c3af815df0ac040).
+The task asks agents to build search, filters, pagination, and linked detail
+pages from a specification and pinned local API data.
 
-## Run the comparison
+Keep the upstream source and data in a separate checkout. This study adds a
+report exporter, not a fixture for `pnpm eval` or the published leaderboard.
 
-Follow the [eval setup](../../README.md#one-time-setup), then run:
+## Compare the two conditions
 
-```bash
-pnpm eval agent-062-catalog-browsing-ux \
-  --variant baseline --variant skills --runs 3
-```
+Both conditions receive the same specification, acceptance tests, bundled-docs
+pointer, browser tools, model, Next.js version, and coding time limit. Only the
+treatment installs Next Dev Loop and asks the agent to use it. The baseline
+chooses whether to use the browser. This measures explicit use of the Skill,
+not whether an agent discovers it.
 
-For this fixture, **both conditions include the same AGENTS.md docs pointer**,
-Playwright, agent-browser 0.31.1, and the same server-start instruction. `skills`
-also installs Next Dev Loop from the checkout. The shared prompt asks the agent
-to use it when installed. This measures explicit use, rather than discovery.
-Skip `agents-md`, which duplicates the control condition here.
+The recorded comparison uses GPT-6 Luna with high reasoning effort, Next.js
+16.4.2, React 19.2.0, Codex 0.166.0, and agent-browser 0.31.1. Each condition has
+one attempt with a 30-minute coding limit, using `@vercel/agent-eval` on Vercel
+Sandbox. The shared prompt is:
 
-Use the same model, Next.js build, limits, and number of attempts. Record the
-checkout SHA and resolved agent/model versions with the results. The wrapper
-selects the model in `run-evals.js`; check that choice and the run budget before
-launching. Use a dedicated, spend-limited model key. Keep infrastructure
-failures separate from scored attempts.
+> Implement the app described in SPEC.md using Next.js 16.4.2. Work autonomously
+> until npm test passes. Keep the pinned Next.js version. All rendering, data
+> fetching, routing and styling choices are yours within the specification.
+> Start the local API with npm run api and the development server with npm
+> --prefix app run dev at http://localhost:3100. Browser tools are installed.
+> If the next-dev-loop Skill is installed, use it for this task. Otherwise use
+> your usual workflow. Do not install additional Skills.
 
-`publish: false` keeps this study out of the public model leaderboard.
+Prepare each agent workspace from upstream `template/`, without its Git
+history, reference app, or performance collector. Download the pinned API data
+and install dependencies before timing the agent. Use a spend-limited model
+key. Keep infrastructure failures separate from scored attempts.
 
-## Read the results
+## Verify the saved apps
 
-`EVAL.ts` builds the app separately from the agent's running dev server and
-checks the production app in Chromium. It controls catalog responses to check
-loading and focus, outdated responses, empty results, retry, and keyboard
-navigation back to the selected search and category. It grades behavior, not
-the choice of APIs or tools.
+Copy only each generated `app/` into a fresh Sandbox containing the original
+template, data, and tests. Run the upstream `npm test`: all 54 Playwright checks
+must pass. Changes the agent made to tests or data must not replace the
+independent checks. Validate the upstream reference app with the same tests.
 
-Report checks passed alongside input/output/cache tokens, cost, and elapsed
-agent time for every attempt. Keep verifier and setup time separate. Use the
-[saved transcripts](../../README.md#running) to review whether verification
-caught a problem, what needed rework, and what the agent missed. Review the
-finished interaction by hand as well, including loading transitions, narrow
-layouts, keyboard use, and recovery from errors.
+Use upstream `bench/measure.mjs` to measure each production app, with three
+mobile Lighthouse samples per URL across its six pages. Keep HTTPS,
+compression, and warmed server caches consistent. In Sandbox, use `localhost`
+on separate ports for the app and API because `/etc/hosts` is read-only. The
+recorded runs use Lighthouse 13.5.0, Playwright 1.64.1, Caddy 2.11.7, and
+2-vCPU / 4-GB Sandboxes. No deployment is needed.
 
-After the behavior checks, the verifier collects three Lighthouse 13.6.0
-samples of `/products` in separate Chromium sessions. It uses the production
-build, real catalog API, and Lighthouse's simulated mobile profile. The
-`CATALOG_UX_METRICS` record in `outputs/eval.txt` retains every sample, browser
-version, measurement settings, and any measurement errors.
-
-| Measurement     | What to report                                                            |
-| --------------- | ------------------------------------------------------------------------- |
-| Agent effort    | Input, cached input, output tokens, model cost, and agent time            |
-| App performance | Median LCP, CLS, TBT, JavaScript transfer bytes, and total transfer bytes |
-| Accessibility   | Automated score and failed checks, alongside keyboard and human review    |
+| Measurement     | What to report                                                              | Preferred direction           |
+| --------------- | --------------------------------------------------------------------------- | ----------------------------- |
+| Success         | Acceptance checks passed                                                    | Higher                        |
+| Agent effort    | Input, cached input, output tokens, model cost, and agent time              | Lower for equivalent outcomes |
+| App performance | LCP, CLS, TBT, JavaScript transfer bytes, and total transfer bytes per page | Lower                         |
+| Accessibility   | Automated score and failed checks, alongside keyboard and human review      | Higher score, fewer failures  |
 
 Run samples serially on comparable machines. Keep failed attempts and their
-spending visible. A missing measurement is not zero, and performance numbers
-do not change the behavior score. These are page-load lab measurements, not
-field Core Web Vitals, INP, interaction quality, or Vercel serving costs. See
+spending visible. A missing measurement is not zero. These are page-load lab
+measurements, not field Core Web Vitals, INP, complete UX quality, or Vercel
+serving costs. Small differences can be noise; see
 [Lighthouse's guidance on variability](https://github.com/GoogleChrome/lighthouse/blob/main/docs/variability.md).
 
-For Codex runs, export a report from the saved results:
+Read the transcripts and inspect the finished app before attributing a
+difference to the Skill. Include the agent's own testing and browser checks in
+its effort totals, even after its tests pass. Keep setup and independent
+verification time separate. One pair does not establish the Skill's average
+effect or reproduce the article's cross-framework rankings.
+
+## Export the report
+
+Save each attempt in its own directory under `evals/results/pokedex-dev-loop/`:
+
+- `result.json`: model, status, `agentSeconds`, and full runner `duration` in seconds.
+- `transcript-raw.jsonl`: the Codex transcript and token usage.
+- `verification.json`: `acceptanceExitCode` from the independent test run.
+- `acceptance.json`: the upstream Playwright JSON report.
+- `measurements.json`: upstream `measurement/results.json`, including every sample.
+
+Retain the exact prompt, source revision, resolved tools, generated app, harness,
+and full Lighthouse reports alongside them for review. Keep these run artifacts
+outside the task definitions.
 
 ```bash
-node evals/studies/next-dev-loop-ux/report.mjs <results-directory> [pricing.json]
+node evals/studies/next-dev-loop-ux/report.mjs \
+  evals/results/pokedex-dev-loop pricing.json
 ```
 
 The optional pricing file contains the selected model's `pricing` object from
-the [Gateway models endpoint](https://ai-gateway.vercel.sh/v1/models). Cost is
-an estimate from per-request tokens and the recorded prices, not a billing
-receipt. Cached input is included in the input total and priced separately.
-The report uses transcript timestamps for agent time when available and records
-full run time separately. Codex CLI streams without timestamps leave agent
-time empty. Their aggregated usage uses base-rate cost estimates because
-per-request pricing tiers cannot be recovered. Review paired attempts before attributing a difference to
-the Skill.
-
-## Validate the task without a model
-
-Run from the repository root. The reference patch stays outside the fixture,
-so the coding agent never receives it.
-
-```bash
-study="$PWD/evals/studies/next-dev-loop-ux"
-fixture="$PWD/evals/evals/agent-062-catalog-browsing-ux"
-scratch="$(mktemp -d)"
-cp -R "$fixture/." "$scratch/"
-cd "$scratch"
-npm install
-npx playwright install chromium
-npx vitest run --config "$study/vitest.config.mjs"
-# The starting app should fail the browsing checks.
-git apply "$study/reference.patch"
-npx vitest run --config "$study/vitest.config.mjs"
-# The reference should pass. Remove the scratch directory when finished.
-```
-
-This local check uses the fixture's pinned npm version. `pnpm eval` replaces
-it with the local Next.js build. The Skill setup checks MCP and browser access
-before the coding agent starts. A setup failure is not a model result. Use
-Node.js 22.19 or later for Lighthouse. Set `CATALOG_UX_MEASURE=0` when checking
-only verifier behavior, so each local test does not repeat the performance
-measurement.
-
-## Compare a complete app
-
-The external [Pokédex study](https://github.com/nolanlawson/agent-framework-benchmark/tree/b95ada03930ca3670c8ff6377c3af815df0ac040)
-asks agents to build an app with search, filters, pagination, and linked detail
-pages from a specification and pinned local API data. It provides a broader
-comparison than repairing the catalog fixture. Keep its source and data in a
-separate checkout.
-
-For the Next.js comparison, use the same specification, docs pointer, browser
-tools, model, and time limit in both conditions. Only the treatment installs
-Next Dev Loop and asks the agent to use it. The baseline chooses whether to
-use the browser. Both agents can read the study's acceptance tests, as in the
-original study. They do not receive the reference app or performance collector.
-
-Check the delivered `app/` against the original 54 Playwright tests in a fresh
-Sandbox. Copy only the app, so changes to tests or data cannot replace the
-checks. Then use the study's Lighthouse collector on the production build:
-three mobile samples per URL across its six pages, with HTTPS, compression,
-and warmed server caches. Keep per-page results; do not compare one page's
-numbers with another page or with the catalog task. In Sandbox, use `localhost`
-on separate ports for the app and API because `/etc/hosts` is read-only.
-
-Save the exact prompt, source revision, resolved tools, agent-only elapsed time,
-transcript, generated app, acceptance results, and Lighthouse reports. The
-report exporter also reads `acceptance.json`, `verification.json`, and
-`measurements.json` beside a run's `result.json`. Report failed checks alongside
-any measurements from an incomplete app. A faster incomplete app is not a
-better outcome.
-
-This comparison measures effort and app quality within Next.js. It does not
-reproduce the article's cross-framework rankings or establish that a larger
-task is harder. It remains separate from the exported eval suite.
+the [Gateway models endpoint](https://ai-gateway.vercel.sh/v1/models). Cached
+input is included in the input total and priced separately. Codex CLI streams
+aggregate API requests, so their cost uses base-rate estimates rather than
+per-request pricing tiers. These estimates exclude Sandbox and serving costs.
+Missing usage, timing, or measurements remain empty rather than zero.

@@ -65,10 +65,5 @@
     "agentFeedback": true,
     "publish": false,
     "timeout": 900
-  },
-  "agent-062-catalog-browsing-ux": {
-    "skills": ["next-dev-loop"],
-    "publish": false,
-    "timeout": 1800
   }
 }
