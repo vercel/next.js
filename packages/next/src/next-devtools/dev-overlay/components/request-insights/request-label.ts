@@ -12,6 +12,19 @@ export function getRequestDisplayUrl(request: RequestIdentity): string {
   return request.url ?? request.route ?? request.requestId
 }
 
+export function getRequestInsightAgentPrompt(
+  request: Pick<RequestInsight, 'requestId'>
+): string {
+  return `Inspect Request Insights request ${request.requestId} with the get_request_insights MCP tool. Focus only on its server fetches. Trace slow, failed, or uncached fetches back to the application code, fix the underlying issue, and verify the request again in Request Insights.`
+}
+
+export function getRequestInsightSpanAgentPrompt(
+  requestId: string,
+  span: { spanId: string; label: string }
+): string {
+  return `Inspect Request Insights request ${requestId} with the get_request_insights MCP tool and focus on span ${span.spanId} (${span.label}). Explain what the span did, where its time went, and whether its children, fetches, cache behavior, or errors explain the duration.`
+}
+
 export function getRequestListDisplayUrl(
   request: RequestIdentity,
   rscRequest: boolean
