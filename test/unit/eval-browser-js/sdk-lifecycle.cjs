@@ -122,8 +122,9 @@ const mocks = {
         name: 'offline-sdk-boundaries',
         setup(builder) {
           builder.onResolve({ filter: /./ }, (args) =>
-            args.importer.endsWith('/plugin/orchestrator.js') &&
-            mocks[args.path]
+            args.importer
+              .replace(/\\/g, '/')
+              .endsWith('/plugin/orchestrator.js') && mocks[args.path]
               ? { path: args.path, namespace: 'sdk-test' }
               : undefined
           )
@@ -231,7 +232,8 @@ const mocks = {
 
   fs.symlinkSync(
     path.join(process.cwd(), 'node_modules'),
-    path.join(directory, 'node_modules')
+    path.join(directory, 'node_modules'),
+    'junction'
   )
   const hooksPath = path.join(directory, 'browser-js-hooks.mjs')
   await build({
