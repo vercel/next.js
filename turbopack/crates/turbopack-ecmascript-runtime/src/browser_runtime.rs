@@ -31,6 +31,14 @@ mod tests {
     }
 }
 
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
+pub struct BrowserRuntimeOptions {
+    pub include_async_module_runtime: bool,
+    pub support_component_chunks: bool,
+    pub bootstrap_metadata_attribute: Option<RcStr>,
+}
+
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
@@ -43,10 +51,14 @@ pub async fn get_browser_runtime_code(
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
-    include_async_module_runtime: bool,
     chunk_loading: Vc<ChunkLoading>,
-    support_component_chunks: bool,
+    options: BrowserRuntimeOptions,
 ) -> Result<Vc<Code>> {
+    let BrowserRuntimeOptions {
+        include_async_module_runtime,
+        support_component_chunks,
+        bootstrap_metadata_attribute,
+    } = options;
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
 
@@ -292,6 +304,23 @@ pub async fn get_browser_runtime_code(
             chunkListsToRegister.forEach(registerChunkList);
         "#,
             chunk_lists_global = StringifyJs(&chunk_lists_global),
+        )?;
+    }
+    if matches!(chunk_loading, ChunkLoading::Dom)
+        && let Some(attribute) = &bootstrap_metadata_attribute
+    {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("browser/runtime/dom/bootstrap-metadata.ts"),
+                generate_source_map,
+            )
+            .await?,
+        );
+        writedoc!(
+            code,
+            "registerBootstrapMetadata({}, registerChunk);",
+            StringifyJs(attribute),
         )?;
     }
     writedoc!(

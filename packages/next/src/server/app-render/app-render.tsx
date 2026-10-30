@@ -30,7 +30,6 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
-import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
 import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
@@ -77,7 +76,11 @@ import type { AnyStream } from './stream-ops'
 import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
-import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
+import {
+  createTurbopackBootstrapStream,
+  getTurbopackBootstrap,
+  type TurbopackBootstrap,
+} from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
 import { NEXT_ROUTER_STALE_TIME_HEADER } from '../../client/components/app-router-headers'
@@ -3636,7 +3639,7 @@ async function renderToStream(
   // The Turbopack chunk-group bootstrap is only set when the shared runtime is
   // used. A Cache Components static shell doesn't include it (see
   // `prerenderToStream`), so resuming one emits it with the request's nonce.
-  let turbopackBootstrapScriptContent: string | undefined
+  let turbopackBootstrap: TurbopackBootstrap | undefined
   if (process.env.__NEXT_DEV_SERVER) {
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
@@ -3648,16 +3651,13 @@ async function renderToStream(
         JSON.stringify(initialHmrVersion)
       )};`
     }
-  } else if (
-    buildManifest.pagesChunkGroupBootstrapParams &&
-    buildManifest.chunkLoadingGlobal
-  ) {
-    turbopackBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
-      buildManifest.pagesChunkGroupBootstrapParams,
-      buildManifest.chunkLoadingGlobal,
-      [page]
+  } else {
+    turbopackBootstrap = getTurbopackBootstrap(
+      buildManifest,
+      [page],
+      externalBrowserRuntime
     )
-    bootstrapScriptContent = turbopackBootstrapScriptContent
+    bootstrapScriptContent = turbopackBootstrap?.scriptContent
   }
 
   // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
@@ -4133,14 +4133,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = withTurbopackBootstrapScript(
+            const inlinedDataStream = withTurbopackBootstrap(
               createNodeInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
                 formState,
                 externalBrowserRuntime
               ),
-              turbopackBootstrapScriptContent,
+              turbopackBootstrap,
               nonce
             )
 
@@ -4190,14 +4190,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: withTurbopackBootstrapScript(
+              inlinedDataStream: withTurbopackBootstrap(
                 createNodeInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
                   formState,
                   externalBrowserRuntime
                 ),
-                turbopackBootstrapScriptContent,
+                turbopackBootstrap,
                 nonce
               ),
               getServerInsertedHTML,
@@ -4258,11 +4258,15 @@ async function renderToStream(
         )
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createNodeInlinedDataStream(
-            reactServerResult.consume(),
-            nonce,
-            formState,
-            externalBrowserRuntime
+          inlinedDataStream: withTurbopackBootstrap(
+            createNodeInlinedDataStream(
+              reactServerResult.consume(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? turbopackBootstrap : undefined,
+            nonce
           ),
           waitForAllReady,
           allReady,
@@ -4280,14 +4284,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = withTurbopackBootstrapScript(
+            const inlinedDataStream = withTurbopackBootstrap(
               createWebInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
                 formState,
                 externalBrowserRuntime
               ),
-              turbopackBootstrapScriptContent,
+              turbopackBootstrap,
               nonce
             )
 
@@ -4337,14 +4341,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: withTurbopackBootstrapScript(
+              inlinedDataStream: withTurbopackBootstrap(
                 createWebInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
                   formState,
                   externalBrowserRuntime
                 ),
-                turbopackBootstrapScriptContent,
+                turbopackBootstrap,
                 nonce
               ),
               getServerInsertedHTML,
@@ -4401,11 +4405,15 @@ async function renderToStream(
         void allReady.then(finishHtmlRender, finishHtmlRender)
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
-            reactServerResult.consume(),
-            nonce,
-            formState,
-            externalBrowserRuntime
+          inlinedDataStream: withTurbopackBootstrap(
+            createWebInlinedDataStream(
+              reactServerResult.consume(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? turbopackBootstrap : undefined,
+            nonce
           ),
           waitForAllReady,
           allReady,
@@ -4485,19 +4493,16 @@ async function renderToStream(
         UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       )
 
-      let errorBootstrapScriptContent: string | undefined
-      if (process.env.__NEXT_DEV_SERVER) {
-        errorBootstrapScriptContent = bootstrapScriptContent
-      } else if (
-        buildManifest.pagesChunkGroupBootstrapParams &&
-        buildManifest.chunkLoadingGlobal
-      ) {
-        errorBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
-          buildManifest.pagesChunkGroupBootstrapParams,
-          buildManifest.chunkLoadingGlobal,
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
-        )
-      }
+      const errorBootstrap = process.env.__NEXT_DEV_SERVER
+        ? undefined
+        : getTurbopackBootstrap(
+            buildManifest,
+            [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY],
+            externalBrowserRuntime
+          )
+      const errorBootstrapScriptContent = process.env.__NEXT_DEV_SERVER
+        ? bootstrapScriptContent
+        : errorBootstrap?.scriptContent
 
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         // MARK: nodeStreams errorRecovery RSC + HTML
@@ -4560,14 +4565,18 @@ async function renderToStream(
           )
 
           return await continueFizzStream(errorHtmlStream, {
-            inlinedDataStream: createNodeInlinedDataStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              reactServerResult.consume(),
-              nonce,
-              formState,
-              externalBrowserRuntime
+            inlinedDataStream: withTurbopackBootstrap(
+              createNodeInlinedDataStream(
+                // This is intentionally using the readable datastream from the
+                // main render rather than the flight data from the error page
+                // render
+                reactServerResult.consume(),
+                nonce,
+                formState,
+                externalBrowserRuntime
+              ),
+              externalBrowserRuntime ? errorBootstrap : undefined,
+              nonce
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4656,14 +4665,18 @@ async function renderToStream(
           void errorAllReady.then(finishHtmlRender, finishHtmlRender)
 
           return await continueFizzStream(errorHtmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              reactServerResult.consume(),
-              nonce,
-              formState,
-              externalBrowserRuntime
+            inlinedDataStream: withTurbopackBootstrap(
+              createWebInlinedDataStream(
+                // This is intentionally using the readable datastream from the
+                // main render rather than the flight data from the error page
+                // render
+                reactServerResult.consume(),
+                nonce,
+                formState,
+                externalBrowserRuntime
+              ),
+              externalBrowserRuntime ? errorBootstrap : undefined,
+              nonce
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -8908,7 +8921,7 @@ async function continueStaticPrerenderWithInlinedData(
   clientModules: Parameters<typeof renderToWebFlightStream>[2],
   filterStackFrameForError: typeof filterStackFrame,
   serverComponentsErrorHandler: (err: unknown) => string | undefined,
-  turbopackBootstrapScriptContent: string | undefined
+  turbopackBootstrap: TurbopackBootstrap | undefined
 ): Promise<AnyStream> {
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
@@ -8936,14 +8949,14 @@ async function continueStaticPrerenderWithInlinedData(
           onError: serverComponentsErrorHandler,
         })
       )
-    const inlinedDataStream = withTurbopackBootstrapScript(
+    const inlinedDataStream = withTurbopackBootstrap(
       createInlinedDataStream(
         emptyReactServerResult.consumeAsStream(),
         nonce,
         formState,
         externalBrowserRuntime
       ),
-      turbopackBootstrapScriptContent,
+      turbopackBootstrap,
       nonce
     )
     return continueStaticFallbackPrerender(htmlStream, {
@@ -8954,14 +8967,14 @@ async function continueStaticPrerenderWithInlinedData(
     })
   }
 
-  const inlinedDataStream = withTurbopackBootstrapScript(
+  const inlinedDataStream = withTurbopackBootstrap(
     createInlinedDataStream(
       reactServerResult.consumeAsStream(),
       nonce,
       formState,
       externalBrowserRuntime
     ),
-    turbopackBootstrapScriptContent,
+    turbopackBootstrap,
     nonce
   )
   return continueStaticPrerender(htmlStream, {
@@ -8973,26 +8986,23 @@ async function continueStaticPrerenderWithInlinedData(
 }
 
 /**
- * Emits the Turbopack chunk-group bootstrap as an inline script ahead of the
- * inlined Flight data. Cache Components prerenders leave it out of the static
+ * Emits the Turbopack chunk-group bootstrap ahead of the inlined Flight data,
+ * as a data template or an inline script. Cache Components leave it out of the static
  * shell, which is prerendered without a request and so can't carry a CSP
  * nonce. The shell then gets it from here: as part of the response when the
  * shell is complete, or from the per-request resume (with the request's nonce)
  * when the shell has postponed parts.
  */
-function withTurbopackBootstrapScript(
+function withTurbopackBootstrap(
   inlinedDataStream: AnyStream,
-  turbopackBootstrapScriptContent: string | undefined,
+  turbopackBootstrap: TurbopackBootstrap | undefined,
   nonce: string | undefined
 ): AnyStream {
-  if (!turbopackBootstrapScriptContent) {
+  if (!turbopackBootstrap) {
     return inlinedDataStream
   }
   return chainStreams(
-    createTurbopackBootstrapScriptStream(
-      turbopackBootstrapScriptContent,
-      nonce
-    ),
+    createTurbopackBootstrapStream(turbopackBootstrap, nonce),
     inlinedDataStream
   )
 }
@@ -9107,16 +9117,12 @@ async function prerenderToStream(
   // Next.js code runs, so it can't be added later either. Instead it's emitted
   // after the shell: in the stored response when the shell is complete, or by
   // the per-request resume (with the nonce) when the shell has postponed parts.
-  // See `withTurbopackBootstrapScript`.
-  const turbopackBootstrapScriptContent =
-    buildManifest.pagesChunkGroupBootstrapParams &&
-    buildManifest.chunkLoadingGlobal
-      ? getTurbopackChunkGroupBootstrap(
-          buildManifest.pagesChunkGroupBootstrapParams,
-          buildManifest.chunkLoadingGlobal,
-          [page]
-        )
-      : undefined
+  // See `withTurbopackBootstrap`.
+  const turbopackBootstrap = getTurbopackBootstrap(
+    buildManifest,
+    [page],
+    externalBrowserRuntime
+  )
 
   let bootstrapScriptContent: string | undefined
 
@@ -10305,7 +10311,7 @@ async function prerenderToStream(
         clientModules,
         filterStackFrame,
         serverComponentsErrorHandler,
-        turbopackBootstrapScriptContent
+        turbopackBootstrap
       )
 
       return {
@@ -10376,12 +10382,12 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce,
-          // Without Cache Components the prerender is a complete document
-          // that's never resumed, so the Turbopack bootstrap stays inline.
-          bootstrapScriptContent: turbopackBootstrapScriptContent
+          // Without Cache Components the document is never resumed, so script
+          // bootstraps can be included in the initial render.
+          bootstrapScriptContent: turbopackBootstrap?.scriptContent
             ? bootstrapScriptContent
-              ? `${turbopackBootstrapScriptContent};${bootstrapScriptContent}`
-              : turbopackBootstrapScriptContent
+              ? `${turbopackBootstrap.scriptContent};${bootstrapScriptContent}`
+              : turbopackBootstrap.scriptContent
             : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
           unstable_externalRuntimeSrc: externalRuntimeSrc,
@@ -10412,11 +10418,15 @@ async function prerenderToStream(
         digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataStream(
-            reactServerResult.consumeAsStream(),
-            nonce,
-            formState,
-            externalBrowserRuntime
+          inlinedDataStream: withTurbopackBootstrap(
+            createInlinedDataStream(
+              reactServerResult.consumeAsStream(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? turbopackBootstrap : undefined,
+            nonce
           ),
           waitForAllReady: true,
           getServerInsertedHTML,
@@ -10527,15 +10537,11 @@ async function prerenderToStream(
       UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
     )
 
-    const errorBootstrapScriptContent =
-      buildManifest.pagesChunkGroupBootstrapParams &&
-      buildManifest.chunkLoadingGlobal
-        ? getTurbopackChunkGroupBootstrap(
-            buildManifest.pagesChunkGroupBootstrapParams,
-            buildManifest.chunkLoadingGlobal,
-            [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
-          )
-        : undefined
+    const errorBootstrap = getTurbopackBootstrap(
+      buildManifest,
+      [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY],
+      externalBrowserRuntime
+    )
 
     if (cacheComponents) {
       const originalFlightPrerenderResult = reactServerPrerenderResult
@@ -10711,7 +10717,7 @@ async function prerenderToStream(
               {
                 nonce,
                 // Like the regular prerender, the Turbopack bootstrap is left
-                // out of the shell; see `withTurbopackBootstrapScript`.
+                // out of the shell; see `withTurbopackBootstrap`.
                 bootstrapScripts: [errorBootstrapScript],
                 unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
@@ -10872,7 +10878,7 @@ async function prerenderToStream(
           clientModules,
           filterStackFrame,
           serverComponentsErrorHandler,
-          errorBootstrapScriptContent
+          errorBootstrap
         )
 
         errorServerResult.consume()
@@ -10963,7 +10969,7 @@ async function prerenderToStream(
         />,
         {
           nonce,
-          bootstrapScriptContent: errorBootstrapScriptContent,
+          bootstrapScriptContent: errorBootstrap?.scriptContent,
           bootstrapScripts: [errorBootstrapScript],
           unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
@@ -10989,11 +10995,15 @@ async function prerenderToStream(
         digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
-            reactServerPrerenderResult.consumeAsStream(),
-            nonce,
-            formState,
-            externalBrowserRuntime
+          inlinedDataStream: withTurbopackBootstrap(
+            createInlinedDataStream(
+              reactServerPrerenderResult.consumeAsStream(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? errorBootstrap : undefined,
+            nonce
           ),
           waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({

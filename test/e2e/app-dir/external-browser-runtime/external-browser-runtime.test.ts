@@ -1,31 +1,22 @@
+import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 describe('external-browser-runtime', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
-  it('streams React instructions as data instead of inline scripts', async () => {
-    const html = await next.render('/')
-
-    // `data-rci` is the "complete boundary" instruction React emits once the
-    // Suspense boundary resolves. Its presence is the direct evidence that Fizz
-    // switched from its SCRIPT streaming format to the DATA format.
-    expect(html).toContain('<template data-rci=""')
-  })
-
   it('emits no inline scripts', async () => {
     const response = await next.fetch('/')
-    const html = await response.text()
-
-    const inlineScripts =
-      html.match(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/g) ?? []
+    expect(response.status).toBe(200)
+    const $ = load(await response.text())
+    const inlineScripts = $('script:not([src])')
     if (isNextDev) {
       expect(inlineScripts.length).toBeGreaterThan(0)
       expect(response.headers.get('content-security-policy')).toBeNull()
     } else {
-      expect(inlineScripts).toEqual([])
+      expect(inlineScripts).toHaveLength(0)
       expect(response.headers.get('content-security-policy')).toBe(
         "script-src 'self'"
       )
@@ -40,6 +31,90 @@ describe('external-browser-runtime', () => {
     // replace, so none should remain.
     expect(html).not.toContain('self.__next_f')
   })
+
+  it.each(['/', '/static', '/missing'])(
+    'carries the Turbopack bootstrap as data for %s',
+    async (pathname) => {
+      const response = await next.fetch(pathname)
+      expect(response.status).toBe(pathname === '/missing' ? 404 : 200)
+      const $ = load(await response.text())
+      const templates = $('template[data-next-turbopack]')
+
+      if (await gate((c) => !c.dev && c.turbopack)) {
+        expect(templates).toHaveLength(1)
+        const params = JSON.parse(templates.attr('data-next-turbopack'))
+        expect(params).toEqual([
+          {
+            otherChunks: expect.any(Array),
+            runtimeModuleIds: expect.any(Array),
+          },
+        ])
+        expect(params[0].otherChunks.length).toBeGreaterThan(0)
+        expect(params[0].runtimeModuleIds.length).toBeGreaterThan(0)
+      } else {
+        expect(templates).toHaveLength(0)
+      }
+
+      if (!isNextDev) {
+        expect($('script:not([src])')).toHaveLength(0)
+        expect(response.headers.get('content-security-policy')).toBe(
+          "script-src 'self'"
+        )
+      }
+    }
+  )
+
+  it.each([
+    ['/', 'before'],
+    ['/', 'after'],
+    ['/static', 'before'],
+    ['/static', 'after'],
+    ['/missing', 'before'],
+    ['/missing', 'after'],
+  ])(
+    'hydrates %s with bootstrap data %s the loader',
+    async (pathname, order) => {
+      const usesBootstrapData = await gate((c) => !c.dev && c.turbopack)
+      const browser = await next.browser(pathname, {
+        async beforePageLoad(page) {
+          if (!usesBootstrapData) return
+
+          await page.route(
+            (url) => url.pathname === pathname,
+            async (route) => {
+              const response = await route.fetch()
+              const $ = load(await response.text())
+              const templates = $('template[data-next-turbopack]')
+              expect(templates).toHaveLength(1)
+
+              templates.remove()
+              if (order === 'before') {
+                $('head').prepend(templates)
+              } else {
+                // Blocking scripts make the loader run before the parser
+                // reaches the bootstrap data at the end of the document.
+                $('head script[src]').removeAttr('async')
+                $('body').append(templates)
+              }
+
+              await route.fulfill({ response, body: $.html() })
+            }
+          )
+        },
+      })
+
+      await browser.elementByCss('#counter').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#counter').text()).toBe('count: 1')
+      })
+      expect(
+        await browser.eval(
+          () =>
+            document.querySelectorAll('template[data-next-turbopack]').length
+        )
+      ).toBe(0)
+    }
+  )
 
   it('loads the runtime as a static asset', async () => {
     const $ = await next.render$('/')
@@ -69,6 +144,18 @@ describe('external-browser-runtime', () => {
     expect($(`script[src="${runtimes[0].src}"]`).attr('crossorigin')).toBe(
       'use-credentials'
     )
+    expect(runtimes[0].body).not.toContain('data-next-turbopack')
+
+    const bootstrapConsumers = responses.filter((r) =>
+      r.body.includes('data-next-turbopack')
+    )
+    if (await gate((c) => !c.dev && c.turbopack)) {
+      expect(bootstrapConsumers).toHaveLength(1)
+      expect(bootstrapConsumers[0].status).toBe(200)
+      expect(bootstrapConsumers[0].src).not.toBe(runtimes[0].src)
+    } else {
+      expect(bootstrapConsumers).toHaveLength(0)
+    }
   })
 
   it('reveals suspended content and hydrates', async () => {

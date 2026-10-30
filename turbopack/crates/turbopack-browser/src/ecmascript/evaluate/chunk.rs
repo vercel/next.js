@@ -209,9 +209,19 @@ impl EcmascriptBrowserEvaluateChunk {
                         this.chunking_context.chunk_loading_global(),
                         this.chunking_context.cross_origin(),
                         this.chunking_context.chunk_load_retry(),
-                        include_async_module_runtime,
                         this.chunking_context.chunk_loading(),
-                        *this.chunking_context.generate_component_chunks().await?,
+                        turbopack_ecmascript_runtime::BrowserRuntimeOptions {
+                            include_async_module_runtime,
+                            support_component_chunks: *this
+                                .chunking_context
+                                .generate_component_chunks()
+                                .await?,
+                            bootstrap_metadata_attribute: this
+                                .chunking_context
+                                .bootstrap_metadata_attribute()
+                                .owned()
+                                .await?,
+                        },
                     );
                     code.push_code(&*runtime_code.await?);
                 }
