@@ -3,6 +3,10 @@ name: Build Reusable
 on:
   workflow_call:
     inputs:
+      futureCompat:
+        description: 'Fail on Node.js deprecations'
+        type: boolean
+        default: false
       afterBuild:
         required: false
         description: 'additional steps to run'
@@ -130,7 +134,7 @@ env:
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
-  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_CACHE: ${{ inputs.futureCompat && 'local:,remote:' || 'local:rw,remote:rw' }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # `skipNativeInstall: 'no'` must force the download even though CI otherwise
@@ -146,6 +150,8 @@ env:
   NEXT_TEST_JOB: 1
   # Per-job memoization of passed test files.
   NEXT_TEST_PASSED_FILE: .next-test-passed.txt
+  NEXT_TEST_FUTURE_COMPAT: ${{ inputs.futureCompat && '1' || '' }}
+  NEXT_TEST_SKIP_RESULT_CACHE: ${{ inputs.futureCompat && '1' || '' }}
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
@@ -178,6 +184,19 @@ jobs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
     steps:
+      - name: Configure future compatibility
+        if: ${{ inputs.futureCompat }}
+        run: |
+          set -euo pipefail
+          shell_env="$(cd "$RUNNER_TEMP" && pwd)/next-future-compat.sh"
+          {
+            if [[ -n "${BASH_ENV:-}" ]]; then
+              printf 'source %q\n' "$BASH_ENV"
+            fi
+            printf '%s\n' 'export NODE_OPTIONS="${NODE_OPTIONS:-} --throw-deprecation"'
+          } > "$shell_env"
+          printf 'BASH_ENV=%s\nTURBO_ENV_MODE=loose\n' "$shell_env" >> "$GITHUB_ENV"
+
       # enforce consistent line endings for git on windows
       - name: Configure git to use LF endings
         if: ${{ runner.os == 'Windows' }}
@@ -479,7 +498,7 @@ jobs:
       # Restore the list of tests that already passed in an earlier
       # attempt of this same workflow run.
       - name: Restore passed-tests cache
-        if: ${{ inputs.afterBuild }}
+        if: ${{ inputs.afterBuild && !inputs.futureCompat }}
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}

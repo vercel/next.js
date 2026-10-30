@@ -15,6 +15,7 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
 import { getDeploymentTestEnvAssignments } from '../e2e-utils/deployment-test-env'
+import { withFutureCompatNodeOptions } from '../future-compat'
 import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
@@ -148,6 +149,8 @@ export class NextInstance {
       this.env.NODE_OPTIONS =
         (this.env.NODE_OPTIONS ?? '') + ' --trace-deprecation'
     }
+
+    this.env = withFutureCompatNodeOptions(this.env)
 
     const nextTestWasm =
       process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
@@ -644,14 +647,14 @@ export class NextInstance {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
-      env: {
+      env: withFutureCompatNodeOptions({
         ...process.env,
         ...this.env,
         ...env,
         NODE_ENV: this.env.NODE_ENV || ('' as any),
         PORT: this.forcedPort ?? '0',
         __NEXT_TEST_MODE: 'e2e',
-      },
+      }),
     }
   }
 
@@ -752,10 +755,11 @@ export class NextInstance {
     command: 'dev' | 'build' | 'start',
     nodeOptions = this.env.NODE_OPTIONS
   ): string[] {
+    const env = withFutureCompatNodeOptions({ NODE_OPTIONS: nodeOptions })
     return [
       'pnpm',
       // Deprecated APIs can be vulnerable and must be flagged.
-      `--config.node-options=${nodeOptions ?? ''} --trace-deprecation --pending-deprecation`,
+      `--config.node-options=${env.NODE_OPTIONS ?? ''} --trace-deprecation --pending-deprecation`,
       'exec',
       'next',
       command,
@@ -831,13 +835,13 @@ export class NextInstance {
       cwd: cwd ?? this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
-      env: {
+      env: withFutureCompatNodeOptions({
         ...process.env,
         ...this.env,
         ...env,
         NODE_ENV: (env?.NODE_ENV ?? this.env.NODE_ENV ?? '') as any,
         __NEXT_TEST_MODE: 'e2e',
-      },
+      }),
     }
 
     require('console').log('running', shellQuote(spawnArgs))
