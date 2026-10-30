@@ -23,8 +23,9 @@ function getHook(mod: unknown, name: Hook) {
 /**
  * Combines the `injectInstrumentation` modules and the project's own
  * instrumentation file into one instrumentation module. Each hook runs every
- * module's export in array order. A module that throws does not stop the
- * others. Errors are rethrown after all have run.
+ * module's export in array order. A hook that throws, or a module with
+ * top-level await that fails to load, does not stop the others. Errors are
+ * rethrown after all have run.
  */
 export function combineInstrumentation(
   modules: readonly unknown[]
@@ -43,7 +44,9 @@ export function combineInstrumentation(
     for (const mod of modules) {
       try {
         // `require()` returns a promise for a module that uses top-level
-        // await. A module that fails to load is collected like a hook error.
+        // await. If one of those fails to load, its error is collected like a
+        // hook error. A module without top-level await that throws while
+        // loading stops startup before this runs.
         const hook = getHook(await mod, name)
         if (hook) await hook(...args)
       } catch (err) {

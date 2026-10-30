@@ -1957,7 +1957,7 @@ export interface NextConfig {
    * Module specifiers compiled into the server `instrumentation` slot, ahead
    * of the project's own `instrumentation.{ts,js}` file. Every entry's
    * `register` and `onRequestError` run in array order, then the project
-   * file's. One that throws does not stop the others. Each entry may be a bare
+   * file's. A hook that throws does not stop the others. Each entry may be a bare
    * npm package name, a path relative to the project root, or an absolute path.
    * Paths must include the file extension.
    *
