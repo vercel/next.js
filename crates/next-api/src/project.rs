@@ -1772,7 +1772,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
-            inline_chunk_group_bootstrap: self.next_config().turbo_inline_chunk_group_bootstrap(),
+            external_browser_runtime: self.next_config().enable_external_browser_runtime(),
             per_page_module_graph: self.per_page_module_graph(),
             lazy_dynamic_imports: self
                 .next_config()

@@ -9,7 +9,8 @@ pub(crate) mod nodejs_runtime;
 pub(crate) mod runtime_type;
 
 pub use browser_runtime::{
-    chunk_update_listeners_global_name, get_browser_runtime_code, get_worker_runtime_code,
+    BrowserRuntimeOptions, chunk_update_listeners_global_name, get_browser_runtime_code,
+    get_worker_runtime_code,
 };
 #[cfg(feature = "test")]
 pub use dummy_runtime::get_dummy_runtime_code;

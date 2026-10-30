@@ -177,9 +177,9 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    /// Controls whether entry chunk group bootstrap code is inlined.
-    pub fn inline_chunk_group_bootstrap(mut self, inline_chunk_group_bootstrap: bool) -> Self {
-        self.chunking_context.inline_chunk_group_bootstrap = inline_chunk_group_bootstrap;
+    /// The template attribute containing JSON-encoded entry bootstrap params.
+    pub fn bootstrap_metadata_attribute(mut self, attribute: Option<RcStr>) -> Self {
+        self.chunking_context.bootstrap_metadata_attribute = attribute;
         self
     }
 
@@ -371,12 +371,9 @@ pub struct BrowserChunkingContext {
     /// entrypoint's chunk group bootstrap params via
     /// `ChunkGroupResult.chunk_group_bootstrap_params`.
     shared_runtime: bool,
-    /// Whether an entry chunk group's bootstrap params may be returned for the host to inline into
-    /// the HTML instead of emitting the per-route evaluate chunk as an asset. Only consulted when
-    /// `shared_runtime` is enabled. Set this to `false` when the host cannot emit inline scripts,
-    /// for example under a Content-Security-Policy without `unsafe-inline`; the evaluate chunk is
-    /// then emitted as a regular asset, which is also what happens when `shared_runtime` is off.
-    inline_chunk_group_bootstrap: bool,
+    /// An optional template attribute containing an array of JSON-encoded entry bootstrap params.
+    /// The DOM runtime consumes these templates as they arrive while the document is loading.
+    bootstrap_metadata_attribute: Option<RcStr>,
     /// Whether the runtime chunk is shared with other module graphs using this context.
     /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
     shared_runtime_chunk: bool,
@@ -459,7 +456,7 @@ impl BrowserChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
                 shared_runtime: false,
-                inline_chunk_group_bootstrap: true,
+                bootstrap_metadata_attribute: None,
                 shared_runtime_chunk: false,
                 environment,
                 runtime_type,
@@ -585,6 +582,11 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn shared_runtime(&self) -> Vc<bool> {
         Vc::cell(self.shared_runtime)
+    }
+
+    #[turbo_tasks::function]
+    pub fn bootstrap_metadata_attribute(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.bootstrap_metadata_attribute.clone())
     }
 
     /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
@@ -1043,30 +1045,26 @@ impl ChunkingContext for BrowserChunkingContext {
 
             // The evaluate chunk registers this entry's chunks/modules onto the
             // `globalThis[TURBOPACK]` queue. When `shared_runtime` is enabled we return that chunk
-            // group's bootstrap params for Next to inline into the HTML and skip emitting the
-            // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups (the page/app client
-            // entries Next renders into HTML) can be inlined. When `shared_runtime` is disabled the
-            // evaluate chunk itself carries the runtime, so it is always emitted as an asset.
-            // `inline_chunk_group_bootstrap` opts out of the inlining while keeping the shared
-            // runtime, for hosts that cannot emit inline scripts.
+            // group's bootstrap params for the host to inline into the HTML and skip emitting the
+            // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups can be inlined. When
+            // `shared_runtime` is disabled the evaluate chunk itself carries the runtime, so it is
+            // always emitted as an asset.
             let evaluate_chunk = self
                 .generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
                 .to_resolved()
                 .await?;
-            let chunk_group_bootstrap_params = if this.shared_runtime
-                && this.inline_chunk_group_bootstrap
-                && matches!(chunk_group, ChunkGroup::Entry(_))
-            {
-                Some(
-                    evaluate_chunk
-                        .chunk_group_bootstrap_params()
-                        .owned()
-                        .await?,
-                )
-            } else {
-                assets.push(ResolvedVc::upcast(evaluate_chunk));
-                None
-            };
+            let chunk_group_bootstrap_params =
+                if this.shared_runtime && matches!(chunk_group, ChunkGroup::Entry(_)) {
+                    Some(
+                        evaluate_chunk
+                            .chunk_group_bootstrap_params()
+                            .owned()
+                            .await?,
+                    )
+                } else {
+                    assets.push(ResolvedVc::upcast(evaluate_chunk));
+                    None
+                };
 
             // The shared runtime chunk must be the LAST asset of the group. It drains
             // the registration queue set up by the chunks above, so it has to load
