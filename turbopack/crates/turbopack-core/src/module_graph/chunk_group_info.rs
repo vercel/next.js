@@ -4,23 +4,37 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use indexmap::map::Entry;
-use rustc_hash::FxHashMap;
+use petgraph::{algo::tarjan_scc, graphmap::DiGraphMap};
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, turbofmt,
 };
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     chunk::ChunkingType,
-    module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, RefData},
+    emit_collect::CollectingModule,
+    module::{ActivatableModule, Module},
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData, collect::CollectedModules},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>);
+
+/// See [`ChunkGroupInfo::chunk_group_ident_hashes`].
+#[turbo_tasks::value(transparent)]
+pub struct ChunkGroupIdentHashes(Vec<u64>);
+
+/// The hash of a [`ChunkGroupKey::ident_str`], i.e. of the identity of one chunk group.
+pub fn chunk_group_ident_hash(ident: &str) -> u64 {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    hasher.write_value(ident);
+    hasher.finish()
+}
 
 #[turbo_tasks::value]
 pub struct ChunkGroupWithIndex {
@@ -43,11 +57,84 @@ pub struct OptionChunkGroupWithIndex(Option<ChunkGroupWithIndex>);
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ChunkGroupKeyToIndex(FxHashMap<ChunkGroupKey, u32>);
 
+/// The parts of an [`crate::chunk::availability_info::AvailabilityInfo`] that chunking an async
+/// chunk group can observe, including everything that is chunked from it (nested async chunk
+/// groups).
+///
+/// Chunking only asks whether one of [`Self::observed_chunk_groups`] intersects the available
+/// chunk groups. Two availabilities that give the same answers for all of them produce the same
+/// chunks. Async loaders use this to avoid being keyed by availability they never look at, which
+/// would make them unique per parent chunk group.
+#[derive(Debug, Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+pub struct AsyncLoaderRelevantChunkGroups {
+    /// The distinct chunk group sets the chunking tests against the available chunk groups: the
+    /// chunk groups of every module it visits and of every async loader it creates. Sorted by
+    /// content.
+    pub observed_chunk_groups: Vec<Bitset>,
+    /// The union of [`Self::observed_chunk_groups`].
+    pub chunk_groups: Bitset,
+    /// Whether the chunking visits a collecting module, which reads the entry group of the
+    /// availability.
+    pub reaches_collecting_module: bool,
+    /// Whether the chunking reaches an async chunk group of an
+    /// [`crate::module::ActivatableModule`]. The observed sets stop at such a chunk group, but the
+    /// availability is passed on to it as is, and chunking behind it may test sets that aren't
+    /// observed here. So [`Self::canonicalize`] only removes chunk groups instead of producing a
+    /// canonical value.
+    pub reaches_activatable: bool,
+}
+
+impl AsyncLoaderRelevantChunkGroups {
+    /// Whether the async loader needs the entry group of the availability: chunking visits a
+    /// collecting module, or reaches an activatable chunk group, behind which one can appear.
+    pub fn needs_entry_group(&self) -> bool {
+        self.reaches_collecting_module || self.reaches_activatable
+    }
+
+    /// A replacement for `available` that answers every observed test the same way.
+    ///
+    /// Usually it is canonical: everything in [`Self::chunk_groups`] except the members of observed
+    /// sets that `available` misses. A set that `available` hits keeps `set ∩ available` (those
+    /// chunk groups are in no missed set), and a missed set loses all of its members. The result
+    /// only depends on which sets are hit, so availabilities that make the same modules available
+    /// map to the same value. It can contain chunk groups that are not in `available`.
+    ///
+    /// With [`Self::reaches_activatable`], it is `available ∩ chunk_groups` instead: a subset of
+    /// `available`, so tests that aren't observed here can only lose availability (which emits a
+    /// module again), never gain it.
+    pub fn canonicalize(&self, available: &Bitset) -> Bitset {
+        if self.reaches_activatable {
+            return &self.chunk_groups & available;
+        }
+        let mut missed = Bitset::new();
+        for observed in &self.observed_chunk_groups {
+            if observed.is_disjoint(available) {
+                missed |= observed;
+            }
+        }
+        &self.chunk_groups - &missed
+    }
+}
+
+/// [`AsyncLoaderRelevantChunkGroups`] for each async chunk group, keyed by the module the async
+/// chunk group is created for (the `m` of [`ChunkGroupKey::Async`]). It is computed together with
+/// the chunk groups in [`compute_chunk_group_info`]. A module has no entry if it has no async chunk
+/// group in this graph, if it is an [`crate::module::ActivatableModule`], or if the chunking of its
+/// async chunk group can't be fully determined (an opaque subgraph). Its async loader then keeps
+/// the given availability.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct AsyncLoaderRelevantChunkGroupsMap(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, AsyncLoaderRelevantChunkGroups>,
+);
+
 #[turbo_tasks::value]
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
     /// For each async module, the chunk groups that contain its async loader.
     pub async_loader_chunk_groups: ResolvedVc<ModuleToChunkGroups>,
+    /// For each async module, the parts of an availability that chunking its async chunk group
+    /// can observe. See [`AsyncLoaderRelevantChunkGroups`].
+    pub async_loader_relevant_chunk_groups: ResolvedVc<AsyncLoaderRelevantChunkGroupsMap>,
     /// Indexed by chunk group index. This must be a `Vec` (not an `IndexSet`) so that equality is
     /// order-sensitive: `IndexSet` compares as a set, so a recomputation that only renumbers the
     /// chunk groups would compare equal and keep the old order, while the bitsets in
@@ -93,6 +180,31 @@ impl ChunkGroupInfo {
     #[turbo_tasks::function]
     pub fn chunk_group_indices(&self) -> Vc<ChunkGroupKeyToIndex> {
         *self.chunk_group_indices
+    }
+
+    /// The keyed async module -> [`AsyncLoaderRelevantChunkGroups`] map. Read a single entry from
+    /// it with [`Vc::get`] to depend only on that module rather than on all of [`ChunkGroupInfo`].
+    #[turbo_tasks::function]
+    pub fn async_loader_relevant_chunk_groups(&self) -> Vc<AsyncLoaderRelevantChunkGroupsMap> {
+        *self.async_loader_relevant_chunk_groups
+    }
+
+    /// A hash of the identity of every chunk group, indexed like [`ChunkGroupInfo::chunk_groups`]:
+    /// [`chunk_group_ident_hash`] of [`ChunkGroupKey::ident_str`].
+    ///
+    /// [`crate::chunk::available_chunk_groups::AvailableChunkGroups::hash`] combines these per
+    /// member, so each chunk group is rendered once per graph, not once for every availability
+    /// that contains it. That keeps hashing a set to one dependency and no string work, however
+    /// large the set is.
+    #[turbo_tasks::function]
+    pub async fn chunk_group_ident_hashes(&self) -> Result<Vc<ChunkGroupIdentHashes>> {
+        let keys = &self.chunk_group_keys;
+        let hashes = keys
+            .iter()
+            .map(async |key| Ok(chunk_group_ident_hash(&key.ident_str(keys).await?)))
+            .try_join()
+            .await?;
+        Ok(Vc::cell(hashes))
     }
 
     /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
@@ -465,9 +577,9 @@ impl ChunkGroupKey {
     /// parent of a merged chunk group is resolved through `keys` and rendered recursively.
     ///
     /// [`crate::chunk::available_chunk_groups::AvailableChunkGroups::hash`] derives output file
-    /// names from this, so two chunk groups must render equally exactly when they are the same
-    /// chunk group. Changing the rendering renames assets; adding anything graph-local to it is a
-    /// correctness bug.
+    /// names from this (through [`ChunkGroupInfo::chunk_group_ident_hashes`]), so two chunk groups
+    /// must render equally exactly when they are the same chunk group. Changing the rendering
+    /// renames assets; adding anything graph-local to it is a correctness bug.
     pub async fn ident_str(
         &self,
         keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
@@ -548,7 +660,10 @@ impl Deref for ChunkGroupId {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(
+    graph: &ModuleGraph,
+    collected_modules: &ReadRef<CollectedModules>,
+) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,
@@ -651,6 +766,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         // `inherits_from[source]` is the set of chunk groups that inherit heuristics from `source`.
         let mut inherits_from: FxHashMap<u32, Bitset> = FxHashMap::default();
 
+        // The async and shared references, recorded during the traversal and resolved to chunk
+        // groups afterwards, once every module's chunk groups are final. They connect a chunk group
+        // to the chunk groups that chunking it continues into.
+        let mut async_references: FxHashSet<AsyncReference> = FxHashSet::default();
+        let mut shared_references: FxHashSet<SharedReference> = FxHashSet::default();
+
         let visit_count = graph.traverse_edges_fixed_point_with_priority(
             entries
                 .iter()
@@ -683,6 +804,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 .get(&parent)
                                 .context("Module chunk group not found")?;
                             *async_loader_chunk_groups.entry(node).or_default() |= parent_groups;
+                            async_references.insert((parent, node));
                             ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
                                 ChunkGroupKey::Async(node),
                             )))
@@ -694,9 +816,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         ))),
                         ChunkingType::Shared {
                             merge_tag: None, ..
-                        } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                            ChunkGroupKey::Shared(node),
-                        ))),
+                        } => {
+                            shared_references.insert((parent, node, None));
+                            ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                                ChunkGroupKey::Shared(node),
+                            )))
+                        }
                         ChunkingType::Isolated {
                             merge_tag: Some(merge_tag),
                             ..
@@ -717,6 +842,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             merge_tag: Some(merge_tag),
                             ..
                         } => {
+                            shared_references.insert((parent, node, Some(merge_tag.clone())));
                             let parents = module_chunk_groups
                                 .get(&parent)
                                 .context("Module chunk group not found")?;
@@ -964,6 +1090,15 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
+        let async_loader_relevant_chunk_groups = compute_async_loader_relevant_chunk_groups(
+            &chunk_groups_map,
+            &module_chunk_groups,
+            &async_loader_chunk_groups,
+            &async_references,
+            &shared_references,
+            collected_modules,
+        )?;
+
         let chunk_group_clusters: Vec<Vec<u16>> = clusters
             .into_iter()
             .map(|bm| bm.iter().map(|id| id as u16).collect())
@@ -973,6 +1108,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             async_loader_chunk_groups: ResolvedVc::cell(async_loader_chunk_groups),
+            async_loader_relevant_chunk_groups: ResolvedVc::cell(
+                async_loader_relevant_chunk_groups,
+            ),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunk_group_indices: ResolvedVc::cell(
                 chunk_groups_map
@@ -1013,4 +1151,368 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     }
     .instrument(span_outer)
     .await
+}
+
+/// An async reference: `(referencing module, referenced module)`.
+type AsyncReference = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
+
+/// A shared reference: `(referencing module, referenced module, merge tag)`.
+type SharedReference = (
+    ResolvedVc<Box<dyn Module>>,
+    ResolvedVc<Box<dyn Module>>,
+    Option<RcStr>,
+);
+
+/// Computes [`AsyncLoaderRelevantChunkGroups`] for every async chunk group whose chunking is fully
+/// known (see the opaque chunk groups below; the others get no entry and keep their availability).
+///
+/// Chunking a chunk group `g` traverses the modules reachable from its entries through parallel,
+/// shared and collected references, and checks each module's chunk groups (and each async loader's
+/// chunk groups) against the available chunk groups. So `g` is affected by an available chunk group
+/// only if it is a member of something the traversal visits. Every visited module is a member of a
+/// chunk group in the closure of `g` over the chunk group graph built here:
+///
+/// - `p -> Shared(x)` (or `SharedMerged { parent: p, .. }`) for a shared reference to `x` from a
+///   module in `p`,
+/// - `p -> Collected(t)` for a collected module `t` of a collecting module in `p`,
+/// - `p -> Async(m)` for an async reference to `m` from a module in `p`. Nested async chunk groups
+///   are chunked with the availability of their parent, so what they observe is observed by the
+///   parent as well.
+///
+/// The observed sets of `g` are then the chunk groups of every module that is a member of a chunk
+/// group in the closure, plus the chunk groups of every async loader created in it. Extra sets are
+/// safe (they only make the canonical availability more specific); missing one would change the
+/// chunking, so this follows the edges the chunking traverses.
+///
+/// Cycles (e.g. two modules that import each other dynamically) are handled by computing the
+/// closure per strongly connected component. Equal sets are interned, so the closure works on set
+/// ids.
+///
+/// The async chunk group of an [`ActivatableModule`] is a boundary. Its references can appear
+/// later, and names derived from the availability of its async loader must not change when they
+/// do. So the closure doesn't continue through it: only its own modules are observed, not the
+/// async loaders created in it or what it references. It gets no entry (its loader keeps the given
+/// availability), and every async chunk group whose closure reaches it uses the subset filter and
+/// keeps the entry group (see [`AsyncLoaderRelevantChunkGroups::reaches_activatable`]).
+/// Activation can still add chunk groups behind the boundary to the chunk groups of modules above
+/// it, but those are never available above it, so the subset-filtered availabilities there don't
+/// change.
+fn compute_async_loader_relevant_chunk_groups<'a>(
+    chunk_groups_map: &FxIndexMap<ChunkGroupKey, FxIndexSet<ResolvedVc<Box<dyn Module>>>>,
+    module_chunk_groups: &'a FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
+    async_loader_chunk_groups: &'a FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
+    async_references: &FxHashSet<AsyncReference>,
+    shared_references: &FxHashSet<SharedReference>,
+    collected_modules: &ReadRef<CollectedModules>,
+) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, AsyncLoaderRelevantChunkGroups>> {
+    let _span = tracing::info_span!("compute async loader relevant chunk groups").entered();
+
+    let index_of = |key: &ChunkGroupKey| chunk_groups_map.get_index_of(key).map(|i| i as u32);
+    let groups_of = |module: &ResolvedVc<Box<dyn Module>>| -> Result<&Bitset> {
+        module_chunk_groups
+            .get(module)
+            .context("Module chunk group not found")
+    };
+
+    // Distinct observed sets, by id.
+    let mut observed_sets: Vec<&Bitset> = Vec::new();
+    let mut observed_ids: FxHashMap<&Bitset, u32> = FxHashMap::default();
+    let mut intern = |set: &'a Bitset| -> u32 {
+        *observed_ids.entry(set).or_insert_with(|| {
+            observed_sets.push(set);
+            (observed_sets.len() - 1) as u32
+        })
+    };
+
+    // The async chunk groups of activatable modules. The closure stops at them: they get no
+    // outgoing edges and no loader sets.
+    let activatable = chunk_groups_map
+        .keys()
+        .enumerate()
+        .filter_map(|(index, key)| match key {
+            ChunkGroupKey::Async(module)
+                if ResolvedVc::try_downcast::<Box<dyn ActivatableModule>>(*module).is_some() =>
+            {
+                Some(index as u32)
+            }
+            _ => None,
+        })
+        .collect::<Bitset>();
+    // The chunk groups of a module that the closure continues from.
+    let outside_activatable = {
+        let activatable = &activatable;
+        move |groups: &'a Bitset| {
+            groups
+                .iter()
+                .filter(move |group| !activatable.contains(*group))
+        }
+    };
+
+    // The chunk group graph, the ids of the chunk group sets of async loaders created while
+    // chunking a chunk group, and the chunk groups that contain a collecting module.
+    let mut graph = DiGraphMap::<u32, ()>::new();
+    let mut loader_sets: FxHashMap<u32, Bitset> = FxHashMap::default();
+    let mut has_collecting_module = Bitset::new();
+
+    for (parent, child) in async_references {
+        let target = index_of(&ChunkGroupKey::Async(*child))
+            .context("Async chunk group not found for async reference")?;
+        let loader_set = intern(
+            async_loader_chunk_groups
+                .get(child)
+                .context("Async loader chunk groups not found for async reference")?,
+        );
+        for group in outside_activatable(groups_of(parent)?) {
+            graph.add_edge(group, target, ());
+            loader_sets.entry(group).or_default().insert(loader_set);
+        }
+    }
+
+    for (parent, child, merge_tag) in shared_references {
+        for group in outside_activatable(groups_of(parent)?) {
+            let key = match merge_tag {
+                None => ChunkGroupKey::Shared(*child),
+                Some(merge_tag) => ChunkGroupKey::SharedMerged {
+                    parent: ChunkGroupId(group),
+                    merge_tag: merge_tag.clone(),
+                },
+            };
+            let target = index_of(&key).context("Shared chunk group not found")?;
+            graph.add_edge(group, target, ());
+        }
+    }
+
+    // A collecting module reads the entry group, even when nothing is collected into it.
+    for (module, groups) in module_chunk_groups {
+        if ResolvedVc::try_downcast::<Box<dyn CollectingModule>>(*module).is_some() {
+            has_collecting_module |= groups;
+        }
+    }
+
+    // Every collected module is the entry of a `Collected` chunk group (see the
+    // `ChunkingType::Emitted` handling in `compute_chunk_group_info`). Chunking continues into it
+    // through the collected reference of the collecting module. Both passes follow the same
+    // references, so a collected module without a `Collected` chunk group isn't expected. If there
+    // is one anyway, its chunking is unknown: its collecting chunk groups are opaque, and async
+    // loaders whose closure contains them keep their availability as is.
+    let mut opaque = Bitset::new();
+    for (collecting_module, per_entry) in collected_modules.iter() {
+        let Some(collecting_groups) = module_chunk_groups.get(collecting_module) else {
+            continue;
+        };
+        let collecting_groups = outside_activatable(collecting_groups).collect::<Bitset>();
+        for (_, references) in per_entry {
+            for (_, collected_module) in references {
+                match index_of(&ChunkGroupKey::Collected(*collected_module)) {
+                    Some(target) => {
+                        for group in collecting_groups.iter() {
+                            graph.add_edge(group, target, ());
+                        }
+                    }
+                    None => opaque |= &collecting_groups,
+                }
+            }
+        }
+    }
+
+    // The async chunk groups, and every chunk group reachable from them.
+    let async_chunk_groups = chunk_groups_map
+        .keys()
+        .enumerate()
+        .filter_map(|(index, key)| match key {
+            ChunkGroupKey::Async(module) => Some((index as u32, *module)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    for (index, _) in &async_chunk_groups {
+        graph.add_node(*index);
+    }
+    let mut reachable = Bitset::new();
+    let mut stack = async_chunk_groups
+        .iter()
+        .map(|(index, _)| *index)
+        .collect::<Vec<_>>();
+    while let Some(group) = stack.pop() {
+        if reachable.insert(group) {
+            stack.extend(
+                graph
+                    .neighbors(group)
+                    .filter(|successor| !reachable.contains(*successor)),
+            );
+        }
+    }
+
+    // For each reachable chunk group, the ids of the chunk group sets of its modules. Modules
+    // reachable through the same references usually have equal chunk groups, so each distinct set
+    // is only processed once.
+    let mut direct_sets: FxHashMap<u32, Bitset> = FxHashMap::default();
+    let mut seen: FxHashSet<&Bitset> = FxHashSet::default();
+    for groups in module_chunk_groups.values() {
+        if groups.is_disjoint(&reachable) || !seen.insert(groups) {
+            continue;
+        }
+        let set = intern(groups);
+        for group in groups.iter().filter(|group| reachable.contains(*group)) {
+            direct_sets.entry(group).or_default().insert(set);
+        }
+    }
+
+    // Close over the chunk group graph, one strongly connected component at a time. `tarjan_scc`
+    // returns the components in reverse topological order, so the successors of a component are
+    // done before it. A component is either entirely reachable from an async chunk group or not
+    // at all, and the unreachable ones are skipped.
+    let components = tarjan_scc(&graph);
+    let mut component_of: FxHashMap<u32, usize> = FxHashMap::default();
+    // Per component: the ids of its observed sets, whether it reaches a collecting module, whether
+    // it is opaque, and whether it reaches an activatable chunk group.
+    let mut closure: Vec<(Bitset, bool, bool, bool)> = Vec::with_capacity(components.len());
+    for (index, component) in components.iter().enumerate() {
+        if !reachable.contains(component[0]) {
+            closure.push(Default::default());
+            continue;
+        }
+        for group in component {
+            component_of.insert(*group, index);
+        }
+        let mut sets = Bitset::new();
+        let mut collecting = false;
+        let mut is_opaque = false;
+        let mut reaches = false;
+        for group in component {
+            for group_sets in [direct_sets.get(group), loader_sets.get(group)]
+                .into_iter()
+                .flatten()
+            {
+                sets |= group_sets;
+            }
+            collecting |= has_collecting_module.contains(*group);
+            is_opaque |= opaque.contains(*group);
+            reaches |= activatable.contains(*group);
+            for successor in graph.neighbors(*group) {
+                let successor = component_of[&successor];
+                if successor != index {
+                    let (successor_sets, successor_collecting, successor_opaque, successor_reaches) =
+                        &closure[successor];
+                    sets |= successor_sets;
+                    collecting |= successor_collecting;
+                    is_opaque |= successor_opaque;
+                    reaches |= successor_reaches;
+                }
+            }
+        }
+        closure.push((sets, collecting, is_opaque, reaches));
+    }
+
+    Ok(async_chunk_groups
+        .into_iter()
+        .filter_map(|(index, module)| {
+            let (sets, reaches_collecting_module, is_opaque, reaches_activatable) =
+                &closure[component_of[&index]];
+            if *is_opaque || activatable.contains(index) {
+                return None;
+            }
+            let mut observed_chunk_groups = sets
+                .iter()
+                .map(|set| observed_sets[set as usize].clone())
+                .collect::<Vec<_>>();
+            // Interned ids follow hash map order. Sort by content, so that an entry only changes
+            // when its sets do.
+            observed_chunk_groups.sort_by(|a, b| a.iter().cmp(b.iter()));
+            let mut chunk_groups = Bitset::new();
+            for set in &observed_chunk_groups {
+                chunk_groups |= set;
+            }
+            Some((
+                module,
+                AsyncLoaderRelevantChunkGroups {
+                    observed_chunk_groups,
+                    chunk_groups,
+                    reaches_collecting_module: *reaches_collecting_module,
+                    reaches_activatable: *reaches_activatable,
+                },
+            ))
+        })
+        .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_bitset::Bitset;
+
+    use super::AsyncLoaderRelevantChunkGroups;
+
+    /// All subsets of `0..n`, as bitsets.
+    fn subsets(n: u32) -> Vec<Bitset> {
+        (0..1u32 << n)
+            .map(|mask| (0..n).filter(|i| mask & (1 << i) != 0).collect())
+            .collect()
+    }
+
+    fn hits(observed: &[Bitset], available: &Bitset) -> Vec<bool> {
+        observed
+            .iter()
+            .map(|set| !set.is_disjoint(available))
+            .collect()
+    }
+
+    fn union(a: &Bitset, b: &Bitset) -> Bitset {
+        let mut result = a.clone();
+        result |= b;
+        result
+    }
+
+    /// Exhaustive over a small universe of 4 chunk groups: for every family of up to 3 observed
+    /// sets and every availability, the canonical availability answers every observed test the
+    /// same way, is a fixed point, and only depends on the answers. Adding chunk groups (as
+    /// chunking nested chunk groups does) keeps the answers equal as well. With
+    /// `reaches_activatable`, the result answers the same way and is a subset.
+    #[test]
+    fn canonicalize_preserves_observed_tests() {
+        let all = subsets(4);
+        let non_empty = &all[1..];
+        for (i, a) in non_empty.iter().enumerate() {
+            for (j, b) in non_empty.iter().enumerate().skip(i) {
+                for c in non_empty.iter().skip(j) {
+                    let mut observed = vec![a.clone(), b.clone(), c.clone()];
+                    observed.dedup();
+                    let mut chunk_groups = Bitset::new();
+                    for set in &observed {
+                        chunk_groups |= set;
+                    }
+                    let relevant = AsyncLoaderRelevantChunkGroups {
+                        observed_chunk_groups: observed,
+                        chunk_groups,
+                        reaches_collecting_module: false,
+                        reaches_activatable: false,
+                    };
+                    let observed = &relevant.observed_chunk_groups;
+                    let subset_only = AsyncLoaderRelevantChunkGroups {
+                        reaches_activatable: true,
+                        ..relevant.clone()
+                    };
+                    let mut by_hits = rustc_hash::FxHashMap::default();
+                    for available in &all {
+                        // Reaching an activatable chunk group only removes chunk groups.
+                        let subset = subset_only.canonicalize(available);
+                        assert!(subset.is_subset(available));
+                        assert_eq!(hits(observed, available), hits(observed, &subset));
+
+                        let canonical = relevant.canonicalize(available);
+                        assert_eq!(hits(observed, available), hits(observed, &canonical));
+                        assert_eq!(relevant.canonicalize(&canonical), canonical);
+                        let previous = by_hits
+                            .entry(hits(observed, available))
+                            .or_insert_with(|| canonical.clone());
+                        assert_eq!(*previous, canonical);
+                        for extra in &all {
+                            assert_eq!(
+                                hits(observed, &union(available, extra)),
+                                hits(observed, &union(&canonical, extra))
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
