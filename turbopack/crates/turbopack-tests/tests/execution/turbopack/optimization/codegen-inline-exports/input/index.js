@@ -1,7 +1,9 @@
 import {
   shortString,
   smallNumber,
+  sixDigitNumber,
   smallBigInt,
+  sixCharacterBigInt,
   booleanFalse,
   nil,
   undef,
@@ -11,6 +13,8 @@ import {
 import { regex } from 'identity-values'
 import {
   longString,
+  sevenDigitNumber,
+  sevenCharacterBigInt,
   nan,
   positiveInfinity,
   negativeInfinity,
@@ -33,7 +37,9 @@ function readShortValues() {
   return [
     shortString,
     smallNumber,
+    sixDigitNumber,
     smallBigInt,
+    sixCharacterBigInt,
     booleanFalse,
     nil,
     undef,
@@ -62,7 +68,9 @@ it('inlines short primitive exports during code generation', () => {
   expect(readShortValues()).toEqual([
     'dev',
     1,
+    999999,
     1n,
+    99999n,
     false,
     null,
     undefined,
@@ -86,6 +94,8 @@ it('inlines short primitive exports during code generation', () => {
   expect(source).toContain('TURBOPACK compile-time value')
   expect(source).not.toContain('shortString')
   expect(source).not.toContain('smallNumber')
+  expect(source).not.toContain('sixDigitNumber')
+  expect(source).not.toContain('sixCharacterBigInt')
   expect(readStaticNamespace.toString()).not.toContain('staticNamespace')
   expect(readShortDefault.toString()).toContain('"def"')
   expect(readShortDefault.toString()).not.toContain('shortDefault')
@@ -128,6 +138,8 @@ it('does not inline reassigned bindings, identity values, long values, or escapi
   expect(escapedNamespace.short).toBe('ns')
   expect(regex).toBe(regex)
   expect(longString).toBe('this value is deliberately too long')
+  expect(sevenDigitNumber).toBe(1000000)
+  expect(sevenCharacterBigInt).toBe(100000n)
   expect(nan).toBeNaN()
   expect(positiveInfinity).toBe(Infinity)
   expect(negativeInfinity).toBe(-Infinity)
