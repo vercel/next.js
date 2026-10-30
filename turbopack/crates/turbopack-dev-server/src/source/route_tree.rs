@@ -2,8 +2,9 @@ use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use crate::source::{GetContentSourceContent, GetContentSourceContents};
 
@@ -100,8 +101,7 @@ impl RouteTrees {
 pub struct RouteTree {
     base: Vec<BaseSegment>,
     sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    static_segments: FxIndexMap<RcStr, ResolvedVc<RouteTree>>,
+    static_segments: FxHashMap<RcStr, ResolvedVc<RouteTree>>,
     dynamic_segments: Vec<ResolvedVc<RouteTree>>,
     catch_all_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
     fallback_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
@@ -140,7 +140,7 @@ impl RouteTree {
     }
 
     async fn flat_merge(&mut self, others: impl IntoIterator<Item = &Self> + '_) -> Result<()> {
-        let mut static_segments = FxIndexMap::default();
+        let mut static_segments = FxHashMap::default();
         for other in others {
             debug_assert_eq!(self.base, other.base);
             self.sources.extend(other.sources.iter().copied());
@@ -151,7 +151,7 @@ impl RouteTree {
             self.not_found_sources
                 .extend(other.not_found_sources.iter().copied());
             for (key, value) in other.static_segments.iter() {
-                if let Some((key, self_value)) = self.static_segments.swap_remove_entry(key) {
+                if let Some((key, self_value)) = self.static_segments.remove_entry(key) {
                     static_segments.insert(key, vec![self_value, *value]);
                 } else if let Some(list) = static_segments.get_mut(key) {
                     list.push(*value);
@@ -334,7 +334,7 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: fxindexmap! { value => inner.resolved_cell() },
+                    static_segments: FxHashMap::from_iter([(value, inner.resolved_cell())]),
                     ..Default::default()
                 }
                 .cell()),

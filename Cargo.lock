@@ -9590,6 +9590,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "auto-hash-map",
  "bincode",
  "either",
  "indoc",
@@ -10044,6 +10045,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "bincode",
  "either",
  "fs-err",

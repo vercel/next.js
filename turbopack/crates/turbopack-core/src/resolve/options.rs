@@ -2,10 +2,10 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, turbofmt,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -22,7 +22,7 @@ use crate::{
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
-pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<RcStr>);
+pub struct ExcludedExtensions(pub FxHashSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode)]
