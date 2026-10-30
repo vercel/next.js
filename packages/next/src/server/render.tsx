@@ -850,12 +850,25 @@ export async function renderToHTMLImpl(
     return <>{styles}</>
   }
 
+  // Preserve any Cache-Control header set before rendering (e.g. via
+  // next.config.js headers()) so that custom _app getInitialProps cannot
+  // override the ISG/SSG cache-control or configured headers.
+  const prevAppCacheControl = isSSG ? res.getHeader('Cache-Control') : undefined
+
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
     Component,
     router,
     ctx,
   })
+
+  if (isSSG) {
+    if (prevAppCacheControl === undefined) {
+      res.removeHeader('Cache-Control')
+    } else {
+      res.setHeader('Cache-Control', prevAppCacheControl)
+    }
+  }
 
   if ((isSSG || getServerSideProps) && isPreview) {
     props.__N_PREVIEW = true
@@ -1326,10 +1339,20 @@ export async function renderToHTMLImpl(
         return { html, head }
       }
       const documentCtx = { ...ctx, renderPage }
+      const prevDocCacheControl = isSSG
+        ? res.getHeader('Cache-Control')
+        : undefined
       const docProps: DocumentInitialProps = await loadGetInitialProps(
         Document,
         documentCtx
       )
+      if (isSSG) {
+        if (prevDocCacheControl === undefined) {
+          res.removeHeader('Cache-Control')
+        } else {
+          res.setHeader('Cache-Control', prevDocCacheControl)
+        }
+      }
       // the response might be finished on the getInitialProps call
       if (isResSent(res) && !isSSG) return null
 
