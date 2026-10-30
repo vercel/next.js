@@ -2,6 +2,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as url from 'url'
 import { SourceMap } from 'module'
+import sourceMapLib from 'next/dist/compiled/source-map'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import WebSocket from 'ws'
@@ -66,19 +67,6 @@ function scriptURLToFileURL(scriptURL: string): string {
   return scriptURL.startsWith('file://')
     ? scriptURL
     : url.pathToFileURL(scriptURL).href
-}
-
-/**
- * The `sources` of a source map. Index maps list theirs in `sections`, and the
- * top-level `sources` of an index map isn't meaningful.
- */
-function sourceMapSources(sourceMap: any): string[] {
-  if (Array.isArray(sourceMap.sections)) {
-    return sourceMap.sections.flatMap((section: any) =>
-      sourceMapSources(section.map)
-    )
-  }
-  return sourceMap.sources ?? []
 }
 
 /**
@@ -438,7 +426,9 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           script.sourceMapURL,
           scriptURLToFileURL(script.url)
         )
-        for (const source of sourceMapSources(sourceMap)) {
+        // Handles index maps, whose sources are listed in `sections`.
+        const consumer = new sourceMapLib.SourceMapConsumer(sourceMap)
+        for (const source of consumer.sources) {
           const resolved = new URL(source, mapURL).href
           expectWellFormedSource(resolved)
           resolvedSources.add(resolved)
