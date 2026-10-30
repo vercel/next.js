@@ -2,7 +2,7 @@
 
 use std::{future::Future, io::Write, pin::Pin};
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use bincode::{
     Decode, Encode,
     de::{Decoder, read::Reader as _},
@@ -26,6 +26,10 @@ use crate::rope::{InnerRope, Rope, RopeBuilder};
 /// computed by whoever reads the rope's bytes. A `CellRope` describes whatever the cells currently
 /// hold; consumers that need its bytes to match a value they computed earlier compare a content
 /// hash (writing a [`crate::File::from_cell_rope`] file does).
+///
+/// A referenced cell's bytes can be patched when the rope is read: see
+/// [`CellRopeBuilder::push_cell_skipping`]. The patch is itself a reference to a cell, so it stays
+/// as independent of the cells' contents as the rest of the rope.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct CellRope {
@@ -38,9 +42,48 @@ enum CellRopeSegment {
     Inline(InlineRope),
     /// Bytes owned (and persisted) by another cell.
     Cell(ResolvedVc<Rope>),
+    /// Bytes owned by another cell, without the range held by `skip` (if any), see
+    /// [`CellRopeBuilder::push_cell_skipping`].
+    SkippedCell {
+        cell: ResolvedVc<Rope>,
+        skip: ResolvedVc<OptionByteRange>,
+    },
     /// All of another `CellRope`'s bytes. Lets a rope extend another one (e.g. append a footer)
     /// without copying its segments.
     Nested(ResolvedVc<CellRope>),
+}
+
+/// An optional range of bytes, as `(start, end)` offsets. Left out of a cell's bytes by
+/// [`CellRopeBuilder::push_cell_skipping`].
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Copy, Debug)]
+pub struct OptionByteRange {
+    range: Option<(usize, usize)>,
+}
+
+impl OptionByteRange {
+    pub fn new(range: Option<std::ops::Range<usize>>) -> Self {
+        OptionByteRange {
+            range: range.map(|range| (range.start, range.end)),
+        }
+    }
+
+    pub fn range(&self) -> Option<std::ops::Range<usize>> {
+        self.range.map(|(start, end)| start..end)
+    }
+}
+
+/// `rope` without the bytes in `skip`. Errors if `skip` doesn't lie within `rope`.
+fn skip_range(rope: Rope, skip: &OptionByteRange) -> Result<Rope> {
+    let Some(range) = skip.range() else {
+        return Ok(rope);
+    };
+    ensure!(
+        range.start <= range.end && range.end <= rope.len(),
+        "skipped range {range:?} is out of bounds for a cell of {} bytes",
+        rope.len()
+    );
+    Ok(rope.skip(range))
 }
 
 /// The contents of an inline segment. Stored without its length, which is recomputed when the
@@ -84,8 +127,9 @@ impl CellRope {
     /// Reads every referenced cell (and nested rope) and concatenates the segments into a flat
     /// [`Rope`].
     ///
-    /// This doesn't copy any bytes: the result shares the cells' buffers. If any cell fails to
-    /// read, this fails too; a partial rope is never returned.
+    /// This doesn't copy any bytes: the result shares the cells' buffers, and skipped ranges are
+    /// left out with [`Rope::skip`]. If any cell fails to read (or a skipped range doesn't fit its
+    /// cell), this fails too; a partial rope is never returned.
     pub async fn read(&self) -> Result<Rope> {
         self.read_segments(true).await
     }
@@ -113,6 +157,14 @@ impl CellRope {
                                 (*cell.untracked().await?).clone()
                             }
                         }
+                        CellRopeSegment::SkippedCell { cell, skip } => {
+                            let (rope, skip) = if tracked {
+                                ((*cell.await?).clone(), *skip.await?)
+                            } else {
+                                ((*cell.untracked().await?).clone(), *skip.untracked().await?)
+                            };
+                            skip_range(rope, &skip)?
+                        }
                         CellRopeSegment::Nested(rope) => {
                             let rope = if tracked {
                                 rope.await?
@@ -137,7 +189,12 @@ impl CellRope {
     pub fn cell_count(&self) -> usize {
         self.segments
             .iter()
-            .filter(|segment| matches!(segment, CellRopeSegment::Cell(_)))
+            .filter(|segment| {
+                matches!(
+                    segment,
+                    CellRopeSegment::Cell(_) | CellRopeSegment::SkippedCell { .. }
+                )
+            })
             .count()
     }
 
@@ -147,7 +204,14 @@ impl CellRope {
             CellRopeSegment::Inline(inline) => {
                 CellRopePart::Inline(Rope::from_inner(inline.0.clone()))
             }
-            CellRopeSegment::Cell(cell) => CellRopePart::Cell(*cell),
+            CellRopeSegment::Cell(cell) => CellRopePart::Cell {
+                cell: *cell,
+                skip: None,
+            },
+            CellRopeSegment::SkippedCell { cell, skip } => CellRopePart::Cell {
+                cell: *cell,
+                skip: Some(*skip),
+            },
             CellRopeSegment::Nested(rope) => CellRopePart::Nested(*rope),
         })
     }
@@ -157,8 +221,12 @@ impl CellRope {
 pub enum CellRopePart {
     /// Bytes owned by the rope itself.
     Inline(Rope),
-    /// A reference to a cell owned by another task.
-    Cell(ResolvedVc<Rope>),
+    /// A reference to a cell owned by another task, and to the range of its bytes to leave out
+    /// (see [`CellRopeBuilder::push_cell_skipping`]).
+    Cell {
+        cell: ResolvedVc<Rope>,
+        skip: Option<ResolvedVc<OptionByteRange>>,
+    },
     /// A reference to all of another `CellRope`'s bytes.
     Nested(ResolvedVc<CellRope>),
 }
@@ -189,6 +257,22 @@ impl CellRopeBuilder {
         self.segments.push(CellRopeSegment::Cell(cell));
     }
 
+    /// Appends a reference to a cell owned by another task, leaving out the range of its bytes
+    /// that `skip` holds (nothing if it holds `None`).
+    ///
+    /// Both are only read when the rope is read, so the range can follow the cell's contents:
+    /// e.g. a cell and a range computed from it by the same task. Reading fails if the range
+    /// doesn't lie within the cell's bytes.
+    pub fn push_cell_skipping(
+        &mut self,
+        cell: ResolvedVc<Rope>,
+        skip: ResolvedVc<OptionByteRange>,
+    ) {
+        self.flush_inline();
+        self.segments
+            .push(CellRopeSegment::SkippedCell { cell, skip });
+    }
+
     /// Appends a reference to all of another `CellRope`'s bytes, without copying its segments.
     pub fn push_rope(&mut self, rope: ResolvedVc<CellRope>) {
         self.flush_inline();
@@ -203,6 +287,9 @@ impl CellRopeBuilder {
                     self.inline.concat(&Rope::from_inner(inline.0.clone()));
                 }
                 CellRopeSegment::Cell(cell) => self.push_cell(*cell),
+                CellRopeSegment::SkippedCell { cell, skip } => {
+                    self.push_cell_skipping(*cell, *skip)
+                }
                 CellRopeSegment::Nested(nested) => self.push_rope(*nested),
             }
         }
@@ -422,6 +509,105 @@ mod tests {
                 noop_backing_storage(),
             ))
         };
+    }
+
+    /// A range owned by its own task, like the range a code cell's producer computes.
+    #[turbo_tasks::function(operation, root)]
+    fn range_operation(range: Option<(usize, usize)>) -> Vc<OptionByteRange> {
+        OptionByteRange::new(range.map(|(start, end)| start..end)).cell()
+    }
+
+    /// `a<cell without skip>d`, referencing both without reading them.
+    #[turbo_tasks::function(operation, root)]
+    fn compose_skipping_operation(
+        cell: ResolvedVc<Rope>,
+        skip: ResolvedVc<OptionByteRange>,
+    ) -> Vc<CellRope> {
+        let mut builder = CellRopeBuilder::default();
+        builder += "a";
+        builder.push_cell_skipping(cell, skip);
+        builder += "d";
+        builder.build().cell()
+    }
+
+    /// Reads `a<"bcxyef" without range>d`, tracked and untracked, checking they agree.
+    async fn read_skipping(range: Option<(usize, usize)>) -> Result<(CellRope, RcStr)> {
+        let switch = switch_operation().resolve().strongly_consistent().await?;
+        let cell = item_operation(switch, "bcxyef".into())
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        let skip = range_operation(range)
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        let rope = compose_skipping_operation(cell, skip)
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        let tracked = read_operation(rope).read_strongly_consistent().await?;
+        let untracked = read_untracked_operation(rope)
+            .read_strongly_consistent()
+            .await?;
+        assert_eq!(tracked, untracked);
+        Ok(((*rope.await?).clone(), (*tracked).clone()))
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skipped_cells_leave_out_their_range_when_read() {
+        turbo_tasks!()
+            .run_once(async {
+                let (rope, text) = read_skipping(Some((2, 4))).await?;
+                assert_eq!(text.as_str(), "abcefd");
+                assert_eq!(rope.cell_count(), 1);
+                assert!(
+                    rope.parts()
+                        .any(|part| matches!(part, CellRopePart::Cell { skip: Some(_), .. }))
+                );
+
+                let (_, text) = read_skipping(None).await?;
+                assert_eq!(text.as_str(), "abcxyefd");
+                let (_, text) = read_skipping(Some((0, 6))).await?;
+                assert_eq!(text.as_str(), "ad");
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skipped_ranges_out_of_bounds_fail_the_read() {
+        turbo_tasks!()
+            .run_once(async {
+                let err = read_skipping(Some((4, 7)))
+                    .await
+                    .expect_err("a range past the cell's end must fail the read");
+                assert!(
+                    format!("{err:?}").contains("out of bounds"),
+                    "unexpected error: {err:?}"
+                );
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    /// The skip is stored as a reference too, and survives encoding.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skipped_cells_round_trip_through_encoding() {
+        turbo_tasks!()
+            .run_once(async {
+                let (rope, _) = read_skipping(Some((2, 4))).await?;
+                let config = bincode::config::standard();
+                let encoded = bincode::encode_to_vec(&rope, config)?;
+                assert!(encoded.len() < 32, "encoded to {} bytes", encoded.len());
+                let (decoded, _): (CellRope, _) = bincode::decode_from_slice(&encoded, config)?;
+                assert_eq!(decoded, rope);
+                assert_eq!(decoded.read().await?.to_str()?, "abcefd");
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
     }
 
     #[test]

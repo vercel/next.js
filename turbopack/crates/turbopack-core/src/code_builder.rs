@@ -5,14 +5,14 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
-    CellRope, CellRopeBuilder, CellRopePart, File, FileContent,
+    CellRope, CellRopeBuilder, CellRopePart, File, FileContent, OptionByteRange,
     rope::{Rope, RopeBuilder},
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
@@ -103,6 +103,10 @@ pub struct CodeCells {
     should_generate_debug_id: bool,
     /// Same as [`Code`]'s strict directive offset.
     strict_directive: Option<usize>,
+    /// [`Code::strict_directive`] as a cell, so that a composition can leave the directive out of
+    /// `code` without reading either (see
+    /// [`CodeCompositionBuilder::push_code_cells_without_strict_directive`]).
+    strict_directive_range: ResolvedVc<OptionByteRange>,
 }
 
 #[turbo_tasks::value_impl]
@@ -139,6 +143,11 @@ impl CodeCells {
     /// The cell holding the code's bytes.
     pub fn code(&self) -> ResolvedVc<Rope> {
         self.code
+    }
+
+    /// The cell holding the byte range of the code's strict directive, if it has one.
+    pub fn strict_directive_range(&self) -> ResolvedVc<OptionByteRange> {
+        self.strict_directive_range
     }
 }
 
@@ -181,11 +190,13 @@ impl Code {
                 )
             })
             .collect();
+        let strict_directive_range = OptionByteRange::new(self.strict_directive()).resolved_cell();
         CodeCells {
             code: self.code.resolved_cell(),
             mappings,
             should_generate_debug_id: self.should_generate_debug_id,
             strict_directive: self.strict_directive,
+            strict_directive_range,
         }
         .resolved_cell()
     }
@@ -526,6 +537,21 @@ impl CodeCompositionBuilder {
         self.items.push(cells);
     }
 
+    /// Like [`CodeCompositionBuilder::push_code_cells`], but leaves out the code's strict
+    /// directive, like [`CodeBuilder::push_code_without_strict_directive`]. `strict_directive` is
+    /// [`CodeCells::strict_directive_range`]; it's applied when the composition is read, so this
+    /// reads none of the cells either, and the composition doesn't depend on where the directive
+    /// is.
+    pub fn push_code_cells_without_strict_directive(
+        &mut self,
+        cells: ResolvedVc<CodeCells>,
+        code: ResolvedVc<Rope>,
+        strict_directive: ResolvedVc<OptionByteRange>,
+    ) {
+        self.body.push_cell_skipping(code, strict_directive);
+        self.items.push(cells);
+    }
+
     pub fn build(self) -> CodeComposition {
         CodeComposition {
             body: self.body.build().resolved_cell(),
@@ -712,11 +738,23 @@ impl CodeComposition {
         for part in body.parts() {
             match part {
                 CellRopePart::Inline(bytes) => code.push_source(&bytes, None::<SectionMap>),
-                CellRopePart::Cell(_) => code.push_code(
-                    pieces
+                CellRopePart::Cell { skip, .. } => {
+                    let piece = pieces
                         .next()
-                        .context("a composition has one piece per cell segment")?,
-                ),
+                        .context("a composition has one piece per cell segment")?;
+                    match skip {
+                        None => code.push_code(piece),
+                        Some(skip) => {
+                            // The body leaves out the range the cell holds; it's the piece's
+                            // directive by construction, which this removes from the mappings.
+                            ensure!(
+                                skip.await?.range() == piece.strict_directive(),
+                                "a skipped range must be the piece's strict directive"
+                            );
+                            code.push_code_without_strict_directive(piece)
+                        }
+                    }
+                }
                 CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
             }
         }
@@ -790,16 +828,29 @@ impl CodeComposition {
         for part in body.parts() {
             match part {
                 CellRopePart::Inline(bytes) => offset += bytes.len(),
-                CellRopePart::Cell(_) => {
+                CellRopePart::Cell { skip, .. } => {
                     let (cells, len) = pieces
                         .next()
                         .context("a composition has one piece per cell segment")?;
+                    // Mirrors `CodeBuilder::push_code_without_strict_directive`.
+                    let directive = if skip.is_some() {
+                        cells
+                            .strict_directive
+                            .map(|start| start..start + STRICT_DIRECTIVE.len())
+                    } else {
+                        None
+                    };
                     for (index, map) in &cells.mappings {
+                        let index = match &directive {
+                            Some(directive) if directive.contains(index) => continue,
+                            Some(directive) if *index >= directive.end => index - directive.len(),
+                            _ => *index,
+                        };
                         if let Some(map) = map {
                             map_cells.insert(offset + index, *map);
                         }
                     }
-                    offset += len;
+                    offset += len - directive.map_or(0, |directive| directive.len());
                 }
                 CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
             }
@@ -966,6 +1017,8 @@ mod tests {
     struct Output {
         code: RcStr,
         map: RcStr,
+        /// How many section maps the source map references as cells instead of copying them.
+        map_cells: usize,
         body: ReadRef<CellRope>,
     }
 
@@ -975,11 +1028,9 @@ mod tests {
     async fn output_operation(text: ResolvedVc<Text>) -> Result<Vc<Output>> {
         let composition = composition(*text).await?;
         let code = composition.build_code().await?;
-        let map = composition
-            .generate_source_map(&code, None)
-            .await?
-            .read()
-            .await?;
+        let map_rope = composition.generate_source_map(&code, None).await?;
+        let map_cells = map_rope.cell_count();
+        let map = map_rope.read().await?;
 
         let mut flat = CodeBuilder::new(true, false);
         flat += "[";
@@ -1000,6 +1051,7 @@ mod tests {
         Ok(Output {
             code: code.source_code().to_str()?.into(),
             map: map.to_str()?.into(),
+            map_cells,
             body: composition.body().await?,
         }
         .cell())
@@ -1034,6 +1086,160 @@ mod tests {
             assert!(after.map.contains("a longer text.js"));
             assert_eq!(
                 COMPOSITION_EXECUTIONS.load(Ordering::SeqCst),
+                executions,
+                "the composition must not re-execute"
+            );
+            assert_eq!(before.body, after.body);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// A strict piece: its directive's offset depends on `text`, like a factory's parameter list
+    /// before its directive.
+    fn strict_piece_code(text: &str) -> Code {
+        let mut code = CodeBuilder::new(true, false);
+        code.push_source(&Rope::from(format!("(({text})=>{{")), None::<SectionMap>);
+        code.push_strict_directive();
+        let map = r#"{"version":3,"sources":["body.js"],"names":[],"mappings":"AAAA,EAAE"}"#;
+        code.push_source(&Rope::from("x();y()".to_string()), Some(Rope::from(map)));
+        code += "})";
+        code.build()
+    }
+
+    #[turbo_tasks::function]
+    async fn edited_strict_piece(text: ResolvedVc<Text>) -> Result<Vc<CodeCells>> {
+        let text = text.await?.text.get().clone();
+        Ok(*strict_piece_code(&text).resolved_code_cells())
+    }
+
+    #[turbo_tasks::function]
+    fn fixed_strict_piece() -> Vc<CodeCells> {
+        *strict_piece_code("fixed").resolved_code_cells()
+    }
+
+    /// What a chunk item's entry exposes for a strict factory: references only.
+    #[turbo_tasks::value(shared)]
+    struct StrictPieceRef {
+        cells: ResolvedVc<CodeCells>,
+        code: ResolvedVc<Rope>,
+        strict_directive: ResolvedVc<OptionByteRange>,
+    }
+
+    #[turbo_tasks::function]
+    async fn strict_piece_ref(cells: ResolvedVc<CodeCells>) -> Result<Vc<StrictPieceRef>> {
+        let value = cells.await?;
+        Ok(StrictPieceRef {
+            cells,
+            code: value.code(),
+            strict_directive: value.strict_directive_range(),
+        }
+        .cell())
+    }
+
+    static STRICT_COMPOSITION_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
+
+    /// `[<edited without directive>,<fixed with directive>,<fixed without directive>]`.
+    #[turbo_tasks::function]
+    async fn strict_composition(text: ResolvedVc<Text>) -> Result<Vc<CodeComposition>> {
+        STRICT_COMPOSITION_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
+        let mut builder = CodeCompositionBuilder::new(true, false);
+        builder += "[";
+        let edited = strict_piece_ref(edited_strict_piece(*text)).await?;
+        builder.push_code_cells_without_strict_directive(
+            edited.cells,
+            edited.code,
+            edited.strict_directive,
+        );
+        builder += ",";
+        let fixed = strict_piece_ref(fixed_strict_piece()).await?;
+        builder.push_code_cells(fixed.cells, fixed.code);
+        builder += ",";
+        builder.push_code_cells_without_strict_directive(
+            fixed.cells,
+            fixed.code,
+            fixed.strict_directive,
+        );
+        builder += "]";
+        Ok(builder.build().cell())
+    }
+
+    /// Like `output_operation`, for the strict composition: checks it against building the same
+    /// pieces with a `CodeBuilder`, which removes the directives itself.
+    #[turbo_tasks::function(operation, root)]
+    async fn strict_output_operation(text: ResolvedVc<Text>) -> Result<Vc<Output>> {
+        let composition = strict_composition(*text).await?;
+        let code = composition.build_code().await?;
+        let map_rope = composition.generate_source_map(&code, None).await?;
+        let map_cells = map_rope.cell_count();
+        let map = map_rope.read().await?;
+
+        let edited = edited_strict_piece(*text).to_code().await?;
+        let fixed = fixed_strict_piece().to_code().await?;
+        let mut flat = CodeBuilder::new(true, false);
+        flat += "[";
+        flat.push_code_without_strict_directive(&edited);
+        flat += ",";
+        flat.push_code(&fixed);
+        flat += ",";
+        flat.push_code_without_strict_directive(&fixed);
+        flat += "]";
+        let flat = flat.build();
+        ensure!(code.source_code() == flat.source_code(), "code differs");
+        ensure!(code.mappings == flat.mappings, "mappings differ");
+        ensure!(
+            map == flat.generate_source_map_ref(None),
+            "source map differs"
+        );
+        ensure!(
+            composition.body().await?.read().await? == *code.source_code(),
+            "body differs from the built code"
+        );
+        Ok(Output {
+            code: code.source_code().to_str()?.into(),
+            map: map.to_str()?.into(),
+            map_cells,
+            body: composition.body().await?,
+        }
+        .cell())
+    }
+
+    /// Strict directives are left out when the composition is read, so moving a piece's
+    /// directive (by editing the code before it) doesn't re-execute the composition either.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skipped_directives_follow_piece_edits_without_recomposing() {
+        turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ))
+        .run_once(async {
+            let text_op = text_operation();
+            let text = text_op.resolve().strongly_consistent().await?;
+            let output = strict_output_operation(text);
+            let before = output.read_strongly_consistent().await?;
+            assert_eq!(
+                before.code.as_str(),
+                r#"[((one)=>{x();y()}),((fixed)=>{"use strict";x();y()}),((fixed)=>{x();y()})]"#
+            );
+            assert!(before.map.contains("body.js"));
+            // Every piece's map is referenced, at its offset after the skipped directives.
+            assert_eq!(before.map_cells, 3);
+            let executions = STRICT_COMPOSITION_EXECUTIONS.load(Ordering::SeqCst);
+
+            text_op
+                .read_strongly_consistent()
+                .await?
+                .text
+                .set("a, longer, list".into());
+
+            let after = output.read_strongly_consistent().await?;
+            assert_eq!(
+                after.code.as_str(),
+                r#"[((a, longer, list)=>{x();y()}),((fixed)=>{"use strict";x();y()}),((fixed)=>{x();y()})]"#
+            );
+            assert_eq!(
+                STRICT_COMPOSITION_EXECUTIONS.load(Ordering::SeqCst),
                 executions,
                 "the composition must not re-execute"
             );

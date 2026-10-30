@@ -5,7 +5,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
 };
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks_fs::{OptionByteRange, rope::Rope};
 use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, MangleType, MinifyType, ModuleId},
     code_builder::CodeCells,
@@ -50,9 +50,11 @@ async fn code_module_id_and_path(
         }
         MinifyType::NoMinify => factory.code,
     };
+    let cells_value = cells.await?;
     Ok(CodeModuleIdAndPath {
         id: item.chunk_item.id().await?,
-        code: cells.await?.code(),
+        code: cells_value.code(),
+        strict_directive: cells_value.strict_directive_range(),
         cells,
         path: item.chunk_item.asset_ident().to_string().owned().await?,
         strict: factory.strict,
@@ -86,6 +88,9 @@ pub struct CodeModuleIdAndPath {
     pub cells: ResolvedVc<CodeCells>,
     /// The cell holding the factory's bytes ([`CodeCells::code`]).
     pub code: ResolvedVc<Rope>,
+    /// The cell holding the byte range of the factory's strict directive
+    /// ([`CodeCells::strict_directive_range`]).
+    pub strict_directive: ResolvedVc<OptionByteRange>,
     pub path: RcStr,
     pub strict: bool,
 }

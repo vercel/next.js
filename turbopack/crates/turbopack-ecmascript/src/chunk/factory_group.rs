@@ -32,8 +32,16 @@ pub trait ModuleFactorySink<F>: Write + AddAssign<&'static str> {
 /// References each factory's cells, so that the chunk's persisted representation doesn't copy
 /// them, and doesn't depend on their bytes.
 impl ModuleFactorySink<CodeModuleIdAndPath> for CodeCompositionBuilder {
-    fn push_factory(&mut self, factory: &CodeModuleIdAndPath, _without_strict_directive: bool) {
-        self.push_code_cells(factory.cells, factory.code);
+    fn push_factory(&mut self, factory: &CodeModuleIdAndPath, without_strict_directive: bool) {
+        if without_strict_directive {
+            self.push_code_cells_without_strict_directive(
+                factory.cells,
+                factory.code,
+                factory.strict_directive,
+            );
+        } else {
+            self.push_code_cells(factory.cells, factory.code);
+        }
     }
 }
 
