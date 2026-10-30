@@ -56,12 +56,14 @@ macro_rules! impl_auto_marker_trait {
         unsafe impl<T: $trait, S, const I: usize> $trait for ::auto_hash_map::AutoSet<T, S, I> {}
         unsafe impl<T: $trait> $trait for ::std::collections::BTreeSet<T> {}
         unsafe impl<T: $trait, S> $trait for ::indexmap::IndexSet<T, S> {}
+        unsafe impl<T: $trait> $trait for $crate::OrderedIndexSet<T> {}
         unsafe impl<T: $trait> $trait for ::turbo_frozenmap::FrozenSet<T> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::std::collections::HashMap<K, V, S> {}
         unsafe impl<K: $trait, V: $trait, S, const I: usize> $trait
             for ::auto_hash_map::AutoMap<K, V, S, I> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::std::collections::BTreeMap<K, V> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::indexmap::IndexMap<K, V, S> {}
+        unsafe impl<K: $trait, V: $trait> $trait for $crate::OrderedIndexMap<K, V> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::turbo_frozenmap::FrozenMap<K, V> {}
         unsafe impl<T> $trait for ::std::pin::Pin<T>
             where T: ::std::ops::Deref, <T as ::std::ops::Deref>::Target: $trait {}

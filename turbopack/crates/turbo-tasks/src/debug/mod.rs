@@ -67,7 +67,9 @@ mod detail {
     use turbo_rcstr::RcStr;
 
     use super::ValueDebugFormat;
-    use crate::{FxIndexMap, FxIndexSet, debug::internal::PassthroughDebug};
+    use crate::{
+        FxIndexMap, FxIndexSet, OrderedIndexMap, OrderedIndexSet, debug::internal::PassthroughDebug,
+    };
 
     /// Output of `ValueDebugFormat::value_debug_format`.
     pub enum ValueDebugFormatString<'a> {
@@ -388,6 +390,25 @@ mod detail {
                 }
                 Ok(format!("{values_string:#?}"))
             }))
+        }
+    }
+
+    impl<T> ValueDebugFormat for OrderedIndexSet<T>
+    where
+        T: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            (**self).value_debug_format(depth)
+        }
+    }
+
+    impl<K, V> ValueDebugFormat for OrderedIndexMap<K, V>
+    where
+        K: ValueDebugFormat,
+        V: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            (**self).value_debug_format(depth)
         }
     }
 
