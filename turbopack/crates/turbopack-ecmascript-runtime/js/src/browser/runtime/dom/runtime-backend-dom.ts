@@ -365,4 +365,36 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     resolver.loadingStarted = true
     return resolver.promise
   }
+
+  /**
+   * Registers entry-only bootstraps embedded as non-executable JSON blocks
+   * (`<script type="application/json" data-turbopack-bootstrap>`) by the
+   * framework. Unlike an inline executable bootstrap, JSON blocks run under
+   * strict `script-src` CSPs that allow no nonce, hash, or 'unsafe-inline'.
+   * Each block holds one params object, registered exactly like an inlined
+   * entry-only queue entry (no source chunk). The blocks precede every chunk
+   * `<script>` in the document, so they are always parsed before this runtime
+   * executes, however the chunk scripts load.
+   */
+  function registerJsonBootstraps() {
+    // The shared runtime chunk also loads in web workers, where there is no
+    // document (workers bootstrap from URL params instead).
+    if (typeof document === 'undefined') return
+    const bootstraps = document.querySelectorAll(
+      'script[type="application/json"][data-turbopack-bootstrap]'
+    )
+    for (let i = 0; i < bootstraps.length; i++) {
+      try {
+        // A bare params object: `BACKEND.registerChunk(undefined, params)`.
+        BACKEND.registerChunk(
+          undefined,
+          JSON.parse(bootstraps[i].textContent ?? '')
+        )
+      } catch {
+        // Ignore malformed bootstrap blocks; the queue-based bootstrap, if any,
+        // still applies.
+      }
+    }
+  }
+  registerJsonBootstraps()
 })()
