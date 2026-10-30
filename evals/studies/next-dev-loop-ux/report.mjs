@@ -127,6 +127,13 @@ const rows = findRuns(root)
     const dir = resolve(path, '..')
     const result = JSON.parse(readFileSync(path, 'utf8'))
     const regrade = JSON.parse(read(join(dir, 'regrade.json')) || 'null')
+    const verification = JSON.parse(
+      read(join(dir, 'verification.json')) || 'null'
+    )
+    const acceptance = JSON.parse(read(join(dir, 'acceptance.json')) || 'null')
+    const pageMeasurements = JSON.parse(
+      read(join(dir, 'measurements.json')) || 'null'
+    )
     const output = read(join(dir, 'outputs/eval.txt'))
     const match = output.match(/CATALOG_UX_METRICS (\{[^\n]+\})/)
     const measurements = match ? JSON.parse(match[1]) : null
@@ -144,11 +151,20 @@ const rows = findRuns(root)
     return {
       run: relative(root, dir),
       model: result.observedModel || result.model,
-      status: regrade?.status ?? result.status,
+      status: verification
+        ? verification.acceptanceExitCode === 0
+          ? 'passed'
+          : 'failed'
+        : (regrade?.status ?? result.status),
       ...(regrade ? { originalStatus: result.status, regrade } : {}),
-      runSecondsIncludingSetupAndVerifier: result.duration,
+      runnerSeconds: result.duration,
       ...effort(read(join(dir, 'transcript-raw.jsonl'))),
-      measurementStatus: measurements?.status || 'missing',
+      agentSeconds: result.agentSeconds ?? null,
+      ...(acceptance ? { acceptance: acceptance.stats } : {}),
+      ...(pageMeasurements ? { pageMeasurements } : {}),
+      measurementStatus: pageMeasurements
+        ? 'collected'
+        : measurements?.status || 'missing',
       metricMedians: metrics,
       measurements,
     }
@@ -160,7 +176,7 @@ console.log(
       notes: [
         'Input tokens include cached input; cached input is shown separately, not added again.',
         'Cost is an estimate using the supplied pricing, not a billing receipt. CLI aggregate usage uses base rates; per-request tiers are unavailable. Sandbox and serving cost are excluded.',
-        'Trace time excludes setup and verification; missing evidence remains null.',
+        'Agent time excludes setup and verification. Runner time includes setup and any verification performed in that runner. Missing evidence remains null.',
         'Lighthouse medians describe three mobile page-load lab samples, not field Core Web Vitals, INP, or complete UX quality.',
       ],
       runs: rows,

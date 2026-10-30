@@ -103,3 +103,36 @@ before the coding agent starts. A setup failure is not a model result. Use
 Node.js 22.19 or later for Lighthouse. Set `CATALOG_UX_MEASURE=0` when checking
 only verifier behavior, so each local test does not repeat the performance
 measurement.
+
+## Compare a complete app
+
+The external [Pokédex study](https://github.com/nolanlawson/agent-framework-benchmark/tree/b95ada03930ca3670c8ff6377c3af815df0ac040)
+asks agents to build an app with search, filters, pagination, and linked detail
+pages from a specification and pinned local API data. It provides a broader
+comparison than repairing the catalog fixture. Keep its source and data in a
+separate checkout.
+
+For the Next.js comparison, use the same specification, docs pointer, browser
+tools, model, and time limit in both conditions. Only the treatment installs
+Next Dev Loop and asks the agent to use it. The baseline chooses whether to
+use the browser. Both agents can read the study's acceptance tests, as in the
+original study. They do not receive the reference app or performance collector.
+
+Check the delivered `app/` against the original 54 Playwright tests in a fresh
+Sandbox. Copy only the app, so changes to tests or data cannot replace the
+checks. Then use the study's Lighthouse collector on the production build:
+three mobile samples per URL across its six pages, with HTTPS, compression,
+and warmed server caches. Keep per-page results; do not compare one page's
+numbers with another page or with the catalog task. In Sandbox, use `localhost`
+on separate ports for the app and API because `/etc/hosts` is read-only.
+
+Save the exact prompt, source revision, resolved tools, agent-only elapsed time,
+transcript, generated app, acceptance results, and Lighthouse reports. The
+report exporter also reads `acceptance.json`, `verification.json`, and
+`measurements.json` beside a run's `result.json`. Report failed checks alongside
+any measurements from an incomplete app. A faster incomplete app is not a
+better outcome.
+
+This comparison measures effort and app quality within Next.js. It does not
+reproduce the article's cross-framework rankings or establish that a larger
+task is harder. It remains separate from the exported eval suite.
