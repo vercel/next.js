@@ -18,6 +18,9 @@ pub trait VcCellMode<T>
 where
     T: VcValueType,
 {
+    /// Whether this type uses explicit, externally writable mutable storage.
+    const MUTABLE: bool = false;
+
     /// Create a new cell.
     fn cell(value: VcReadTarget<T>) -> Vc<T>;
 
@@ -28,6 +31,25 @@ where
     /// [`ReadRef::cell`][crate::ReadRef::cell] or in [`Vc::to_resolved`] when
     /// resolving a local [`Vc`]. This avoids unnecessary cloning.
     fn raw_cell(value: TypedSharedReference) -> RawVc;
+}
+
+/// Experimental mode for task-owned, explicitly writable cells.
+///
+/// Construct these values with `mutable_cell()`, not the ordinary Vc constructors.
+pub struct VcCellMutableMode<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T: VcValueType> VcCellMode<T> for VcCellMutableMode<T> {
+    const MUTABLE: bool = true;
+
+    fn cell(_value: VcReadTarget<T>) -> Vc<T> {
+        panic!("mutable values must be constructed with mutable_cell()")
+    }
+
+    fn raw_cell(_value: TypedSharedReference) -> RawVc {
+        panic!("mutable values must be constructed with mutable_cell()")
+    }
 }
 
 /// Mode that always updates the cell's content.

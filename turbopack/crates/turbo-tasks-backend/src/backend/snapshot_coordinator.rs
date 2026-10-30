@@ -115,6 +115,11 @@ impl SnapshotCoordinator {
         &self.active_operations[id & (self.active_operations.len() - 1)]
     }
 
+    /// Test-only observation of a snapshot waiting for active operations to drain.
+    pub(crate) fn is_waiting_for_operations(&self) -> bool {
+        self.flags.load(Ordering::Acquire) & SNAPSHOT_WAITING_BIT != 0
+    }
+
     /// Begin an operation. Returns a guard that decrements on drop.
     ///
     /// If a snapshot is in flight, blocks until the snapshot finishes before
