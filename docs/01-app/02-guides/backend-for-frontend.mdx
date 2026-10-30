@@ -830,6 +830,8 @@ export async function POST(request) {
 }
 ```
 
+A rate limiter that keeps its counts in memory tracks each server instance separately, and the counts reset when an instance restarts. When your app runs on more than one instance, keep the counts in a shared data store or use your host's rate limiting.
+
 ### Verify payloads
 
 Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
@@ -841,6 +843,8 @@ Store user-generated static assets in dedicated services. When possible, upload 
 ### Access to protected resources
 
 Always verify credentials before granting access. Do not rely on proxy alone for authentication and authorization.
+
+Checks in a Route Handler run only when the handler runs. When a response sets `Cache-Control: public` with a `max-age` or `s-maxage`, a CDN can store it and serve later requests for the same URL without calling the handler. Which headers a CDN reads, and what it includes in the cache key, depends on your host. Credential checks and rate limits do not apply to requests served from the cache, so cache only responses that are safe to serve to anyone with the URL.
 
 Remove sensitive or unnecessary data from responses and backend logs.
 
