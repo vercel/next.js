@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { load } from 'cheerio'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -67,6 +68,31 @@ describe('file-system-cache-clock', () => {
       return (await request(pathname)).data
     }
 
+    // Wait for the expected fetch value to reach disk. Dynamic fetch-cache
+    // writes can finish after the HTTP response.
+    async function waitForFetchEntry(value: string) {
+      return retry(async () => {
+        const fetchCacheDir = join(next.testDir, '.next/cache/fetch-cache')
+        const entries = await Promise.all(
+          (await fs.readdir(fetchCacheDir)).map(async (file) => {
+            const filePath = join(fetchCacheDir, file)
+            return {
+              filePath,
+              entry: JSON.parse(await fs.readFile(filePath, 'utf8')),
+            }
+          })
+        )
+        const matches = entries.filter(({ entry }) => {
+          const data = entry.data
+          return data && Buffer.from(data.body, 'base64').toString() === value
+        })
+        expect(matches).toHaveLength(1)
+        const [match] = matches
+        expect(match.entry.lastModified).toEqual(expect.any(Number))
+        return match
+      })
+    }
+
     // The response cache entry of the ISR page, as written by the default
     // file-system cache handler.
     async function readPageEntry(pathname: string) {
@@ -127,36 +153,25 @@ describe('file-system-cache-clock', () => {
     it('serves fresh data for a dynamic page right after revalidateTag', async () => {
       const cached = await getData('/dynamic')
       expect(cached).toStartWith('/dynamic ')
+      await waitForFetchEntry(cached)
       expect(await getData('/dynamic')).toBe(cached)
 
       await revalidate()
       const fresh = await getData('/dynamic')
       expect(fresh).toStartWith('/dynamic ')
       expect(fresh).not.toBe(cached)
+      await waitForFetchEntry(fresh)
     })
 
     it('reads a fetch cache entry written without a stored timestamp', async () => {
       const cached = await getData('/dynamic')
       expect(cached).toStartWith('/dynamic ')
+      const { filePath, entry } = await waitForFetchEntry(cached)
       await next.stop()
 
-      // Find the entry by its cached value, then rewrite it in the format
-      // written before timestamps were stored, with an earlier mtime.
-      const fetchCacheDir = join(next.testDir, '.next/cache/fetch-cache')
-      const entries = await Promise.all(
-        (await fs.readdir(fetchCacheDir)).map(async (file) => {
-          const filePath = join(fetchCacheDir, file)
-          return { filePath, content: await fs.readFile(filePath, 'utf8') }
-        })
-      )
-      const matches = entries.filter(({ content }) => {
-        const data = JSON.parse(content).data
-        return data && Buffer.from(data.body, 'base64').toString() === cached
-      })
-      expect(matches).toHaveLength(1)
-      const [{ filePath, content }] = matches
-      const { lastModified, ...entry } = JSON.parse(content)
-      expect(typeof lastModified).toBe('number')
+      // Rewrite the entry in the format used before timestamps were stored,
+      // with an earlier mtime.
+      delete entry.lastModified
       await fs.writeFile(filePath, JSON.stringify(entry))
       const modified = new Date(Date.now() - 60_000)
       await fs.utimes(filePath, modified, modified)
@@ -165,11 +180,10 @@ describe('file-system-cache-clock', () => {
 
       expect(await getData('/dynamic')).toBe(cached)
       await revalidate()
-      expect(await getData('/dynamic')).not.toBe(cached)
+      const fresh = await getData('/dynamic')
+      expect(fresh).not.toBe(cached)
       // The fresh value was written in the new format.
-      expect(
-        JSON.parse(await fs.readFile(filePath, 'utf8')).lastModified
-      ).toEqual(expect.any(Number))
+      await waitForFetchEntry(fresh)
     })
   })
 })
