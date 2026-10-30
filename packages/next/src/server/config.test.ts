@@ -1,4 +1,8 @@
-import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import {
+  PHASE_INFO,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from '../api/constants'
 import {
   getStrictRouteMatchingDefaultWarning,
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
@@ -392,6 +396,22 @@ describe('loadConfig', () => {
         customConfig: {},
       })
       expect(result.injectInstrumentation).toEqual([])
+    })
+
+    it('gives each load its own array, so a push does not leak into later loads', async () => {
+      const first = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      first.injectInstrumentation.push('./x.js')
+      first.instrumentationClientInject.push('./y.js')
+
+      const second = await loadConfig(PHASE_PRODUCTION_SERVER, __dirname, {
+        customConfig: {},
+      })
+      expect(second).toMatchObject({
+        injectInstrumentation: [],
+        instrumentationClientInject: [],
+      })
     })
 
     it('is accepted by the config schema', () => {

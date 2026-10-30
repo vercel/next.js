@@ -458,6 +458,13 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Copy so a push in `modifyConfig` can't change the shared default or a
+  // cached user config.
+  result.injectInstrumentation = [...(result.injectInstrumentation ?? [])]
+  result.instrumentationClientInject = [
+    ...(result.instrumentationClientInject ?? []),
+  ]
+
   result.experimental.strictRouteMatching =
     !result.deprecated.looseRouteMatching
 
