@@ -1,5 +1,6 @@
 const { createClient } = require("redis");
 const { PHASE_PRODUCTION_BUILD } = require("next/constants");
+const { version: nextVersion } = require("next/package.json");
 
 // A custom `cacheHandlers.remote` handler backed by Redis. This is a different
 // interface from the singular `cacheHandler` (in `cache-handler.js`): it backs
@@ -13,6 +14,10 @@ const TAG_PREFIX = "nextjs:use-cache-tag:";
 
 const client = createClient({
   url: process.env.REDIS_URL ?? "redis://localhost:6379",
+  // Identify this connection to Redis as a Next.js cache handler: it shows up
+  // in `CLIENT LIST` as `node-redis(next.js_v<version>)` instead of a plain
+  // `node-redis`. See https://redis.io/docs/latest/commands/client-setinfo/
+  clientInfoTag: `next.js_v${nextVersion}`,
   // Fail commands immediately while the connection is down instead of queueing
   // them until Redis is back.
   disableOfflineQueue: true,

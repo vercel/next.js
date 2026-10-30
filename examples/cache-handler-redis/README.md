@@ -59,6 +59,8 @@ The `/[timezone]` page renders a mostly static shell and, inside it, a `'use cac
 
 - **Redis server setup:** ensure your Redis server is running before starting the app. Configure the connection with `REDIS_URL` (defaults to `redis://localhost:6379`).
 
+- **Client identification:** both handlers pass [`clientInfoTag`](https://redis.io/docs/latest/commands/client-setinfo/) to the `redis` client, so their connections show up in Redis's `CLIENT LIST` as `node-redis(next.js_v<version>)` instead of a plain `node-redis`. This makes them easy to tell apart from other clients when monitoring or debugging the server.
+
 > **Note:** This example fetches the current time from a public API (`timeapi.io`) purely as sample data to demonstrate caching and revalidation. It is included for learning purposes only. If you reuse it, review and respect that API's terms of use and rate limits, and swap in your own data source for real applications.
 
 ## Revalidation: paths, soft tags, and advisory parameters
