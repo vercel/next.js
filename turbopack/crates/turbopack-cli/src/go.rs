@@ -24,7 +24,7 @@ use crate::arguments::CommonArguments;
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode)]
 pub struct GoBuild {
-    pub context: GoBuildContext,
+    pub go_context: GoBuildContext,
     project: RcStr,
     files: Vec<RcStr>,
     output_name: RcStr,
@@ -43,19 +43,19 @@ impl<C> Decode<C> for GoBuild {
 impl GoBuild {
     /// Called by the compilation graph when a watch session first needs these inputs.
     pub async fn start_watching(&self) -> Result<()> {
-        for root in [&self.project, &self.context.module_cache] {
+        for root in [&self.project, &self.go_context.module_cache] {
             let fs = filesystem(root.clone())
                 .resolve()
                 .strongly_consistent()
                 .await?;
             let fs = fs.await?;
-            if self.context.is_cancelled() {
+            if self.go_context.is_cancelled() {
                 break;
             }
             fs.start_watching().await?;
             // Shutdown can overlap this initial task. A watcher that started after cleanup
             // reached this root must stop itself before the compilation root settles.
-            if self.context.is_cancelled() {
+            if self.go_context.is_cancelled() {
                 fs.stop_watching().await;
             }
         }
@@ -64,13 +64,13 @@ impl GoBuild {
 
     /// Stop input watching and settle compiler cancellation before the caller stops its engine.
     pub async fn stop_watching(&self) -> Result<()> {
-        self.context.cancel();
+        self.go_context.cancel();
         let fs = filesystem(self.project.clone())
             .resolve()
             .strongly_consistent()
             .await?;
         fs.await?.stop_watching().await;
-        let cache_fs = filesystem(self.context.module_cache.clone())
+        let cache_fs = filesystem(self.go_context.module_cache.clone())
             .resolve()
             .strongly_consistent()
             .await?;
@@ -82,7 +82,7 @@ impl GoBuild {
             fs: ResolvedVc::upcast(fs),
             path: rcstr!(""),
         };
-        let _ = go_bundle(root, self.files.clone(), self.context.clone())
+        let _ = go_bundle(root, self.files.clone(), self.go_context.clone())
             .resolve()
             .strongly_consistent()
             .await;
@@ -177,17 +177,17 @@ pub async fn prepare(common: &CommonArguments) -> Result<Option<Arc<GoBuild>>> {
         "Go build sessions do not support persistent task caching"
     );
     let (project, files) = input_files(common)?;
-    let context = GoBuildContext::host(&common.go.go, None, &common.go.tags).await?;
+    let go_context = GoBuildContext::host(&common.go.go, None, &common.go.tags).await?;
     let name = Path::new(first)
         .file_stem()
         .context("input has no filename")?
         .to_str()
         .context("non-UTF8 Go output name")?;
     Ok(Some(Arc::new(GoBuild {
-        output_name: format!("{name}{}", context.exe_suffix).into(),
+        output_name: format!("{name}{}", go_context.exe_suffix).into(),
         project: project.to_str().context("non-UTF8 Go project")?.into(),
         files,
-        context,
+        go_context,
     })))
 }
 
@@ -210,22 +210,22 @@ pub async fn output_assets(
         .await?
         .context("Go output requires a disk filesystem")?;
     loop {
-        if build.context.is_cancelled() {
+        if build.go_context.is_cancelled() {
             return Ok(OutputAssets::empty());
         }
         // The caller's root read can be interrupted while this cached task is still waiting
         // for graph consistency. Let this task unwind too, before shutdown stops scheduling.
         let result = tokio::select! {
-            result = go_bundle(root.clone(), build.files.clone(), build.context.clone())
+            result = go_bundle(root.clone(), build.files.clone(), build.go_context.clone())
                 .read_strongly_consistent() => result?,
-            _ = build.context.cancelled() => return Ok(OutputAssets::empty()),
+            _ = build.go_context.cancelled() => return Ok(OutputAssets::empty()),
         };
-        if build.context.is_cancelled() {
+        if build.go_context.is_cancelled() {
             return Ok(OutputAssets::empty());
         }
         if !result.is_current()? {
             fs.await?.invalidate();
-            filesystem(build.context.module_cache.clone())
+            filesystem(build.go_context.module_cache.clone())
                 .resolve()
                 .strongly_consistent()
                 .await?

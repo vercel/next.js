@@ -68,11 +68,11 @@ have no special application conventions.
 
 | Option    | Behavior and default                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------- |
-| `--dir`   | Directory used to resolve input filenames; defaults to the current directory.                       |
-| `--root`  | Optional containment check for the module or standalone source directory.                            |
-| `--go`    | Go executable, resolved from `PATH` or a path relative to the current directory; defaults to `go`.  |
-| `--tags`  | Build tags passed to Go discovery and compilation; defaults to no additional tags.                  |
-| `--watch` | Rebuild after input changes with `build`; `dev` watches automatically.                               |
+| `--dir`   | Directory used to resolve input filenames; defaults to the current directory.                      |
+| `--root`  | Optional containment check for the module or standalone source directory.                          |
+| `--go`    | Go executable, resolved from `PATH` or a path relative to the current directory; defaults to `go`. |
+| `--tags`  | Build tags passed to Go discovery and compilation; defaults to no additional tags.                 |
+| `--watch` | Rebuild after input changes with `build`; `dev` watches automatically.                             |
 
 Absolute input filenames also work. The nearest ancestor `go.mod` identifies the
 module; without one, the existing source directory is used. For `main.go helper.go`,
@@ -88,12 +88,12 @@ imported packages:
   --dir path/to/project --tags special
 ```
 
-Keep Go sources and embedded assets outside `dist`. The compiler rejects a Go
-output that overlaps tracked inputs or embed patterns. For executable outputs,
-the shared writer rejects symlinks and Windows junctions in the output path,
-including a redirected `dist` directory or executable. This also applies when
-an executable's output path is replaced during watch mode. Go's build cache must
-be outside both the source project and module cache, and cannot contain either tree.
+Keep Go sources and embedded assets outside `dist`. Go output paths must not
+overlap tracked inputs or embed patterns. Executable output paths must not contain
+symlinks or Windows junctions, including a redirected `dist` directory or executable.
+The shared writer validates this even when an executable's output path changes
+during watch mode. Go's build cache must be outside both the source project and
+module cache, and cannot contain either tree.
 
 ### Module dependencies and environment
 

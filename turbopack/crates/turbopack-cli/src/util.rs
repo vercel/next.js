@@ -91,7 +91,7 @@ pub(crate) fn register_shutdown(
 ) {
     exit.on_exit(async move {
         if let Some(entries) = &go_entries {
-            entries.context.cancel();
+            entries.go_context.cancel();
         }
         // The cleanup task needs its own engine handle because run_once owns a 'static
         // future. Keep the outer handle for disposal and engine shutdown afterward.

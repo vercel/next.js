@@ -192,7 +192,7 @@ impl TurbopackBuildBuilder {
             biased;
             _ = async {
                 match &self.go_entries {
-                    Some(build) => build.context.cancelled().await,
+                    Some(build) => build.go_context.cancelled().await,
                     None => std::future::pending().await,
                 }
             } => {

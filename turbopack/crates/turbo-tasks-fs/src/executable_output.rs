@@ -89,8 +89,56 @@ fn remove_file(directory: &Dir, name: &OsStr) -> io::Result<()> {
     return std::fs::remove_file(pinned_path(directory, name)?);
 }
 
-/// The configured filesystem root is trusted and canonical. Every path below it is opened
-/// one component at a time without following symlinks, including directories created here.
+fn open_or_create_directory(parent: &Dir, name: &OsStr) -> io::Result<Dir> {
+    reject_link(parent, name)?;
+    let directory = match parent.open_dir_nofollow(name) {
+        Ok(directory) => directory,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            match create_directory(parent, name) {
+                Ok(()) => {}
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
+            reject_link(parent, name)?;
+            parent.open_dir_nofollow(name)?
+        }
+        Err(error) => return Err(error),
+    };
+    // On Windows this also excludes reparse-point kinds that are not symlinks.
+    if is_link(&directory.dir_metadata()?) {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, SYMLINK_ERROR));
+    }
+    Ok(directory)
+}
+
+fn open_root(root: &Path) -> io::Result<Dir> {
+    let mut ancestor = root;
+    let mut missing = Vec::new();
+    loop {
+        match Dir::open_ambient_dir(ancestor, ambient_authority()) {
+            Ok(mut directory) => {
+                // Output filesystems may not exist yet. As with an existing root, its
+                // existing ancestry is trusted configuration (and may include OS aliases).
+                // Pin that ancestor, then create the missing suffix without following links.
+                for name in missing.into_iter().rev() {
+                    directory = open_or_create_directory(&directory, name)?;
+                }
+                return Ok(directory);
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                let (Some(name), Some(parent)) = (ancestor.file_name(), ancestor.parent()) else {
+                    return Err(error);
+                };
+                missing.push(name);
+                ancestor = parent;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+/// The configured filesystem root and its existing ancestry are trusted. Every path below
+/// the root, including directories created here, is opened without following symlinks.
 pub(crate) struct ExecutableOutput {
     parent: Dir,
     name: OsString,
@@ -119,27 +167,9 @@ impl ExecutableOutput {
                 "executable output has no filename",
             )
         })?;
-        let mut parent = Dir::open_ambient_dir(root, ambient_authority())?;
+        let mut parent = open_root(root)?;
         for component in relative.parent().unwrap_or(Path::new("")).components() {
-            let name = component.as_os_str();
-            reject_link(&parent, name)?;
-            parent = match parent.open_dir_nofollow(name) {
-                Ok(directory) => directory,
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                    match create_directory(&parent, name) {
-                        Ok(()) => {}
-                        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-                        Err(error) => return Err(error),
-                    }
-                    reject_link(&parent, name)?;
-                    parent.open_dir_nofollow(name)?
-                }
-                Err(error) => return Err(error),
-            };
-            // On Windows this also excludes reparse-point kinds that are not symlinks.
-            if is_link(&parent.dir_metadata()?) {
-                return Err(io::Error::new(io::ErrorKind::InvalidInput, SYMLINK_ERROR));
-            }
+            parent = open_or_create_directory(&parent, component.as_os_str())?;
         }
         reject_link(&parent, name)?;
         Ok(Self {
@@ -235,12 +265,66 @@ mod windows_tests {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 mod tests {
-    use std::{fs, os::unix::fs::symlink};
+    use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink;
 
     use crate::{File, Permissions, executable_output::ExecutableOutput};
 
+    #[test]
+    fn publication_creates_a_missing_filesystem_root() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(scratch.path())
+            .unwrap()
+            .join("missing/output");
+        let target = root.join("dist/main");
+        assert!(!root.exists());
+
+        ExecutableOutput::open(&root, &target)
+            .unwrap()
+            .write(
+                &File::from(b"new executable".to_vec()).with_permissions(Permissions::Executable),
+            )
+            .unwrap();
+
+        assert_eq!(fs::read(target).unwrap(), b"new executable");
+        assert_eq!(fs::read_dir(root.join("dist")).unwrap().count(), 1);
+
+        fs::remove_dir_all(&root).unwrap();
+        ExecutableOutput::open(&root, &root.join("dist/main"))
+            .unwrap()
+            .write(
+                &File::from(b"rebuilt executable".to_vec())
+                    .with_permissions(Permissions::Executable),
+            )
+            .unwrap();
+        assert_eq!(
+            fs::read(root.join("dist/main")).unwrap(),
+            b"rebuilt executable"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn missing_root_rejects_a_dangling_symlink_in_its_missing_suffix() {
+        let scratch = tempfile::tempdir().unwrap();
+        let parent = fs::canonicalize(scratch.path()).unwrap();
+        let outside = parent.join("outside");
+        symlink(&outside, parent.join("redirect")).unwrap();
+        let root = parent.join("redirect/output");
+
+        let error = match ExecutableOutput::open(&root, &root.join("main")) {
+            Ok(_) => panic!("followed a dangling symlink while creating the output root"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("symlink"));
+        assert!(!outside.exists());
+    }
+
+    #[cfg(unix)]
     #[test]
     fn publication_stays_in_the_opened_directory_after_a_symlink_swap() {
         let project = tempfile::tempdir().unwrap();
