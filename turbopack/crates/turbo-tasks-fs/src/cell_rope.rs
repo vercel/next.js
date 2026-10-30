@@ -1,6 +1,6 @@
 //! [`CellRope`]: a rope whose contents are partly owned by other cells.
 
-use std::io::Write;
+use std::{future::Future, io::Write, pin::Pin};
 
 use anyhow::Result;
 use bincode::{
@@ -10,7 +10,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt};
 
 use crate::rope::{InnerRope, Rope, RopeBuilder};
 
@@ -23,10 +23,9 @@ use crate::rope::{InnerRope, Rope, RopeBuilder};
 ///
 /// The cells can change independently of the `CellRope`, so it stores nothing derived from their
 /// contents (not even its total length). Anything derived from them (e.g. source map offsets) is
-/// the responsibility of whoever composes the rope, which reads the cells (tracked) while doing
-/// so. A `CellRope` is therefore only *consistent* for the cell values observed when it was
-/// composed; consumers that need to detect staleness compare a content hash (writing a
-/// [`crate::File::from_cell_rope`] file does).
+/// computed by whoever reads the rope's bytes. A `CellRope` describes whatever the cells currently
+/// hold; consumers that need its bytes to match a value they computed earlier compare a content
+/// hash (writing a [`crate::File::from_cell_rope`] file does).
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct CellRope {
@@ -39,6 +38,9 @@ enum CellRopeSegment {
     Inline(InlineRope),
     /// Bytes owned (and persisted) by another cell.
     Cell(ResolvedVc<Rope>),
+    /// All of another `CellRope`'s bytes. Lets a rope extend another one (e.g. append a footer)
+    /// without copying its segments.
+    Nested(ResolvedVc<CellRope>),
 }
 
 /// The contents of an inline segment. Stored without its length, which is recomputed when the
@@ -79,61 +81,86 @@ impl<Context> Decode<Context> for InlineRope {
 impl_borrow_decode!(InlineRope);
 
 impl CellRope {
-    /// Reads every referenced cell and concatenates the segments into a flat [`Rope`].
+    /// Reads every referenced cell (and nested rope) and concatenates the segments into a flat
+    /// [`Rope`].
     ///
     /// This doesn't copy any bytes: the result shares the cells' buffers. If any cell fails to
     /// read, this fails too; a partial rope is never returned.
     pub async fn read(&self) -> Result<Rope> {
-        let cells = self
-            .segments
-            .iter()
-            .filter_map(|segment| match segment {
-                CellRopeSegment::Cell(cell) => Some(async move { cell.await }),
-                CellRopeSegment::Inline(_) => None,
-            })
-            .try_join()
-            .await?;
-        Ok(self.concat(cells))
+        self.read_segments(true).await
     }
 
     /// Like [`CellRope::read`], but reads the cells without tracking a dependency on them.
     pub async fn read_untracked(&self) -> Result<Rope> {
-        let cells = self
-            .segments
-            .iter()
-            .filter_map(|segment| match segment {
-                CellRopeSegment::Cell(cell) => Some(async move { cell.untracked().await }),
-                CellRopeSegment::Inline(_) => None,
-            })
-            .try_join()
-            .await?;
-        Ok(self.concat(cells))
+        self.read_segments(false).await
     }
 
-    fn concat(&self, cells: Vec<ReadRef<Rope>>) -> Rope {
-        let mut cells = cells.into_iter();
-        let mut builder = RopeBuilder::default();
-        for segment in &self.segments {
-            match segment {
-                CellRopeSegment::Inline(inline) => {
-                    builder.concat(&Rope::from_inner(inline.0.clone()));
-                }
-                CellRopeSegment::Cell(_) => {
-                    let cell = cells.next().expect("one read per cell segment");
-                    builder.concat(&cell);
-                }
+    fn read_segments(
+        &self,
+        tracked: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<Rope>> + Send + '_>> {
+        Box::pin(async move {
+            let parts = self
+                .segments
+                .iter()
+                .map(async |segment| -> Result<Rope> {
+                    Ok(match segment {
+                        CellRopeSegment::Inline(inline) => Rope::from_inner(inline.0.clone()),
+                        CellRopeSegment::Cell(cell) => {
+                            if tracked {
+                                (*cell.await?).clone()
+                            } else {
+                                (*cell.untracked().await?).clone()
+                            }
+                        }
+                        CellRopeSegment::Nested(rope) => {
+                            let rope = if tracked {
+                                rope.await?
+                            } else {
+                                rope.untracked().await?
+                            };
+                            rope.read_segments(tracked).await?
+                        }
+                    })
+                })
+                .try_join()
+                .await?;
+            let mut builder = RopeBuilder::default();
+            for part in &parts {
+                builder.concat(part);
             }
-        }
-        builder.build()
+            Ok(builder.build())
+        })
     }
 
-    /// The number of cells this rope references.
+    /// The number of cells this rope references directly (not counting nested ropes' cells).
     pub fn cell_count(&self) -> usize {
         self.segments
             .iter()
             .filter(|segment| matches!(segment, CellRopeSegment::Cell(_)))
             .count()
     }
+
+    /// The rope's segments, in order, without reading any cells.
+    pub fn parts(&self) -> impl Iterator<Item = CellRopePart> + '_ {
+        self.segments.iter().map(|segment| match segment {
+            CellRopeSegment::Inline(inline) => {
+                CellRopePart::Inline(Rope::from_inner(inline.0.clone()))
+            }
+            CellRopeSegment::Cell(cell) => CellRopePart::Cell(*cell),
+            CellRopeSegment::Nested(rope) => CellRopePart::Nested(*rope),
+        })
+    }
+}
+
+/// A segment of a [`CellRope`], see [`CellRope::parts`].
+pub enum CellRopePart {
+    /// Bytes owned by the rope itself.
+    Inline(Rope),
+    /// A reference to a cell owned by another task.
+    Cell(ResolvedVc<Rope>),
+    /// A reference to all of another `CellRope`'s bytes.
+    Nested(ResolvedVc<CellRope>),
 }
 
 /// Builds a [`CellRope`]. Inline bytes are buffered in a [`RopeBuilder`], so adjacent inline
@@ -155,15 +182,20 @@ impl CellRopeBuilder {
         self.inline.push_static_bytes(bytes);
     }
 
-    /// Appends a reference to a cell owned by another task. `cell` must not be empty: the
-    /// composer is expected to skip empty cells, so that the rope's segments line up with the
-    /// bytes it describes.
+    /// Appends a reference to a cell owned by another task. The cell may be empty, which adds
+    /// no bytes.
     pub fn push_cell(&mut self, cell: ResolvedVc<Rope>) {
         self.flush_inline();
         self.segments.push(CellRopeSegment::Cell(cell));
     }
 
-    /// Appends all of `rope`'s segments.
+    /// Appends a reference to all of another `CellRope`'s bytes, without copying its segments.
+    pub fn push_rope(&mut self, rope: ResolvedVc<CellRope>) {
+        self.flush_inline();
+        self.segments.push(CellRopeSegment::Nested(rope));
+    }
+
+    /// Appends copies of all of `rope`'s segments.
     pub fn append(&mut self, rope: &CellRope) {
         for segment in &rope.segments {
             match segment {
@@ -171,6 +203,7 @@ impl CellRopeBuilder {
                     self.inline.concat(&Rope::from_inner(inline.0.clone()));
                 }
                 CellRopeSegment::Cell(cell) => self.push_cell(*cell),
+                CellRopeSegment::Nested(nested) => self.push_rope(*nested),
             }
         }
     }
@@ -254,6 +287,101 @@ mod tests {
     #[turbo_tasks::function(operation, root)]
     async fn read_operation(rope: ResolvedVc<CellRope>) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(rope.await?.read().await?.to_str()?.into()))
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn read_untracked_operation(rope: ResolvedVc<CellRope>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            rope.untracked()
+                .await?
+                .read_untracked()
+                .await?
+                .to_str()?
+                .into(),
+        ))
+    }
+
+    /// `<inner>` wrapped as `[` + nested(inner) + `]`, without copying `inner`'s segments.
+    #[turbo_tasks::function(operation, root)]
+    fn wrap_operation(inner: ResolvedVc<CellRope>) -> Vc<CellRope> {
+        let mut builder = CellRopeBuilder::default();
+        builder += "[";
+        builder.push_rope(inner);
+        builder += "]";
+        builder.build().cell()
+    }
+
+    /// Like [`read_composed_operation`], but through a rope nesting the composed one.
+    #[turbo_tasks::function(operation, root)]
+    async fn read_nested_composed_operation(switch: ResolvedVc<Switch>) -> Result<Vc<RcStr>> {
+        let mut builder = CellRopeBuilder::default();
+        builder.push_rope(compose(*switch).to_resolved().await?);
+        builder += "!";
+        Ok(Vc::cell(builder.build().read().await?.to_str()?.into()))
+    }
+
+    #[turbo_tasks::value]
+    struct Text {
+        text: State<RcStr>,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    fn text_operation() -> Vc<Text> {
+        Text {
+            text: State::new("bc".into()),
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn text_item(text: ResolvedVc<Text>) -> Result<Vc<Rope>> {
+        Ok(Rope::from(text.await?.text.get().to_string()).cell())
+    }
+
+    /// `a<text>d`, referencing the text item without reading it.
+    #[turbo_tasks::function]
+    async fn inner_rope(text: ResolvedVc<Text>) -> Result<Vc<CellRope>> {
+        let mut builder = CellRopeBuilder::default();
+        builder += "a";
+        builder.push_cell(text_item(*text).to_resolved().await?);
+        builder += "d";
+        Ok(builder.build().cell())
+    }
+
+    /// `[` + nested(inner) + `]`.
+    #[turbo_tasks::function]
+    async fn outer_rope(text: ResolvedVc<Text>) -> Result<Vc<CellRope>> {
+        let mut builder = CellRopeBuilder::default();
+        builder += "[";
+        builder.push_rope(inner_rope(*text).to_resolved().await?);
+        builder += "]";
+        Ok(builder.build().cell())
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn read_outer_operation(text: ResolvedVc<Text>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            outer_rope(*text).await?.read().await?.to_str()?.into(),
+        ))
+    }
+
+    /// Reads untracked; `nonce` makes each call a fresh task, so its result isn't a cached one.
+    #[turbo_tasks::function(operation, root)]
+    async fn read_outer_untracked_operation(
+        text: ResolvedVc<Text>,
+        nonce: u32,
+    ) -> Result<Vc<RcStr>> {
+        let _ = nonce;
+        let outer = outer_rope(*text).to_resolved().await?;
+        Ok(Vc::cell(
+            outer
+                .untracked()
+                .await?
+                .read_untracked()
+                .await?
+                .to_str()?
+                .into(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -366,6 +494,116 @@ mod tests {
                 assert_eq!(rope.read().await?.len(), 200_002);
                 let encoded = bincode::encode_to_vec(&*rope, bincode::config::standard())?;
                 assert!(encoded.len() < 64, "encoded to {} bytes", encoded.len());
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    /// A nested rope reads as the concatenation, tracked and untracked, and an outer rope that
+    /// nests a large one still persists only references.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn nested_ropes_read_flat_and_encode_as_references() {
+        turbo_tasks!()
+            .run_once(async {
+                let switch = switch_operation().resolve().strongly_consistent().await?;
+                let first = item_operation(switch, "bc".into())
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let big = "x".repeat(100_000);
+                let second = item_operation(switch, big.into())
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let inner = compose_operation(first, second)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let outer = wrap_operation(inner)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+
+                let expected = format!("[abcd{}]", "x".repeat(100_000));
+                let tracked = read_operation(outer).read_strongly_consistent().await?;
+                assert_eq!(tracked.as_str(), expected);
+                let untracked = read_untracked_operation(outer)
+                    .read_strongly_consistent()
+                    .await?;
+                assert_eq!(untracked.as_str(), expected);
+
+                let outer = outer.await?;
+                assert_eq!(outer.cell_count(), 0);
+                let encoded = bincode::encode_to_vec(&*outer, bincode::config::standard())?;
+                assert!(encoded.len() < 32, "encoded to {} bytes", encoded.len());
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    /// A tracked read through a nested rope is invalidated by a change of a cell inside the
+    /// nested rope, even though neither rope changes; an untracked read sees the current bytes.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn nested_reads_follow_inner_cell_changes() {
+        turbo_tasks!()
+            .run_once(async {
+                let text_op = text_operation();
+                let text = text_op.resolve().strongly_consistent().await?;
+                let tracked = read_outer_operation(text);
+                assert_eq!(tracked.read_strongly_consistent().await?.as_str(), "[abcd]");
+                assert_eq!(
+                    read_outer_untracked_operation(text, 0)
+                        .read_strongly_consistent()
+                        .await?
+                        .as_str(),
+                    "[abcd]"
+                );
+
+                text_op
+                    .read_strongly_consistent()
+                    .await?
+                    .text
+                    .set("xyz".into());
+
+                assert_eq!(
+                    tracked.read_strongly_consistent().await?.as_str(),
+                    "[axyzd]"
+                );
+                assert_eq!(
+                    read_outer_untracked_operation(text, 1)
+                        .read_strongly_consistent()
+                        .await?
+                        .as_str(),
+                    "[axyzd]"
+                );
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    /// An item error inside a nested rope surfaces when the outer rope is read.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn item_errors_surface_through_nested_ropes() {
+        turbo_tasks!()
+            .run_once(async {
+                let switch_op = switch_operation();
+                let switch = switch_op.resolve().strongly_consistent().await?;
+                let read = read_nested_composed_operation(switch);
+                assert_eq!(read.read_strongly_consistent().await?.as_str(), "abcdef!");
+
+                switch_op.read_strongly_consistent().await?.fail.set(true);
+
+                let err = read
+                    .read_strongly_consistent()
+                    .await
+                    .expect_err("reading must fail once a nested item fails");
+                assert!(
+                    format!("{err:?}").contains("item bc failed"),
+                    "unexpected error: {err:?}"
+                );
                 anyhow::Ok(())
             })
             .await

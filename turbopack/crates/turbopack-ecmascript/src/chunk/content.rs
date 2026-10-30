@@ -5,7 +5,7 @@ use either::Either;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkItem, ChunkItems, ChunkingContext, MangleType, MinifyType, batch_info},
-    code_builder::{Code, ComposedCode, ComposedCodeParts},
+    code_builder::{CodeComposition, ComposedCode},
 };
 
 use crate::{
@@ -57,22 +57,21 @@ impl ChunkMinification {
         }
     }
 
-    /// Applies the whole-chunk minification, if any, to a chunk assembled with a
-    /// [`ComposedCodeBuilder`](turbopack_core::code_builder::ComposedCodeBuilder). The result
-    /// references the chunk items' cells, unless the chunk is minified as a whole (which
-    /// produces new, flat code).
-    pub fn finish_composed_chunk(
+    /// Builds a chunk's code from its [`CodeComposition`] and applies the whole-chunk
+    /// minification, if any. The result references the chunk items' cells through the
+    /// composition, unless the chunk is minified as a whole (which produces new, flat code).
+    pub async fn finish_composition(
         self,
-        code: Code,
-        parts: ComposedCodeParts,
+        composition: ResolvedVc<CodeComposition>,
         source_maps: bool,
     ) -> Result<ComposedCode> {
+        let code = composition.await?.build_code().await?;
         Ok(match self {
             ChunkMinification::WholeChunk { mangle } => {
                 ComposedCode::new(minify(code, source_maps, mangle)?, None)
             }
             ChunkMinification::None | ChunkMinification::PerItem { .. } => {
-                ComposedCode::new(code, Some(parts))
+                ComposedCode::new(code, Some(composition))
             }
         })
     }
