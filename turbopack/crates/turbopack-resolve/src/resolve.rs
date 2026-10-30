@@ -246,10 +246,6 @@ pub async fn resolve_options(
             TsConfigHandling::Disabled => resolve_options,
             TsConfigHandling::ContextFile => find_tsconfig().await?,
             TsConfigHandling::Fixed(tsconfig_path) => {
-                // Check existence via the entry type (derived from the parent directory listing)
-                // instead of reading the file's metadata. This is cheaper, and doesn't depend on
-                // the error that reading the metadata of a missing file returns.
-                //
                 // A symlink counts as existing, even if it's dangling: reading it will fail
                 // loudly instead of silently ignoring it. A failure to read the parent directory
                 // is treated like a missing file.

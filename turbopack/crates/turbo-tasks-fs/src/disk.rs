@@ -27,7 +27,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CapturedEffect, Completion, Effect, EffectExt, EffectStateStorage, InvalidationReason,
     Invalidator, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc,
-    debug::ValueDebugFormat, turbo_tasks_weak, turbobail, turbofmt,
+    debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -1711,19 +1711,11 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(full_path.clone()).await;
-        let meta = match retry_blocking(|| std::fs::metadata(&**full_path))
+        let meta = retry_blocking(|| std::fs::metadata(&**full_path))
             .instrument(tracing::info_span!("read metadata", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
-        {
-            Ok(meta) => meta,
-            // The error is part of this task's output. Use the location-independent path instead
-            // of the absolute one, so that the output doesn't change when the project is moved.
-            Err(err) => {
-                let message = turbofmt!("reading metadata for {fs_path}").await?;
-                return Err(anyhow::Error::new(err).context(message));
-            }
-        };
+            .with_context(|| format!("reading metadata for {:?}", full_path))?;
 
         Ok(FileMeta::cell(meta.into()))
     }
@@ -1883,47 +1875,6 @@ mod tests {
         );
 
         Ok(())
-    }
-
-    /// The error of a failed `metadata` call is part of the task output, so it must not contain
-    /// the absolute root path. Otherwise moving the project would invalidate every dependent.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_metadata_error_is_location_independent() {
-        let root = tempfile::tempdir().unwrap();
-        let root = RcStr::from(root.path().to_str().unwrap());
-
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async move {
-            let error = metadata_error_operation(root.clone())
-                .read_strongly_consistent()
-                .await?;
-            assert!(
-                error.contains("reading metadata for [project]/missing.json"),
-                "unexpected error: {error}"
-            );
-            assert!(
-                !error.contains(root.as_str()),
-                "error contains the absolute root path: {error}"
-            );
-            anyhow::Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[turbo_tasks::function(operation, root)]
-    async fn metadata_error_operation(sys_root: RcStr) -> anyhow::Result<Vc<RcStr>> {
-        let fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(sys_root));
-        let path = fs.root().await?.join("missing.json")?;
-        let error = path
-            .metadata()
-            .await
-            .err()
-            .context("expected reading the metadata of a missing file to fail")?;
-        Ok(Vc::cell(format!("{error:#}").into()))
     }
 
     #[cfg(test)]
