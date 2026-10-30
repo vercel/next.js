@@ -197,6 +197,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<TypedCellContent>;
 
+    /// See [`Backend::drop_task_cell_content_hint`].
+    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId);
+
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(
         &self,
@@ -1949,6 +1952,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     ) -> Result<TypedCellContent> {
         self.backend
             .try_read_own_task_cell(current_task, index, self)
+    }
+
+    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) {
+        self.backend.drop_task_cell_content_hint(task, index, self)
     }
 
     #[track_caller]

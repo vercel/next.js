@@ -320,7 +320,11 @@ async fn build_internal(
         true,
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
-    let binding_usage = compute_binding_usage_info(module_graph, true);
+    let binding_usage = compute_binding_usage_info(
+        module_graph,
+        /* remove_unused_imports */ true,
+        /* drop_unused_module_data */ true,
+    );
     let unused_references = binding_usage
         .connect()
         .unused_references()

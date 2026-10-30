@@ -1,3 +1,5 @@
+use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
@@ -37,6 +39,7 @@ pub enum ModuleSideEffects {
 ///
 /// For documentation about where this is used and how it fits into the rest of Turbopack, see
 /// [`crate::_layers`].
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Module {
     /// The identifier of the [`Module`]. It's expected to be unique and capture all properties of
@@ -77,6 +80,17 @@ pub trait Module {
     /// [packagejson]: https://webpack.js.org/guides/tree-shaking/#mark-the-file-as-side-effect-free
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects>;
+
+    /// Hints that the module won't be code generated (e.g. because tree shaking removed it), so
+    /// data that it only keeps in memory for code generation (e.g. its parsed AST) can be dropped
+    /// to free memory.
+    ///
+    /// Implementations must not compute that data if it isn't in memory, and must stay correct if
+    /// the module is code generated nevertheless (e.g. by recomputing the data). This is not a
+    /// turbo-tasks function, so calling it doesn't create a task. The default does nothing.
+    async fn drop_code_gen_data_hint(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value_trait]
