@@ -579,6 +579,58 @@ describe('unhandled-rejection filter', () => {
       )
     })
 
+    it('should suppress prerender abort errors by digest when no work unit store is available', async () => {
+      async function testForWorker() {
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
+        require('next/dist/server/node-environment-extensions/unhandled-rejection.external')
+
+        const {
+          workUnitAsyncStorage,
+        } = require('next/dist/server/app-render/work-unit-async-storage.external')
+
+        process.on('unhandledRejection', (reason) => {
+          reportResult({
+            type: 'uhr',
+            reason: String((reason as any)?.digest ?? reason),
+          })
+        })
+
+        // Runtimes like Bun don't restore the AsyncLocalStorage context in
+        // unhandledRejection listeners, so these are observed without a store.
+        Promise.reject(
+          Object.assign(new Error('hanging'), {
+            digest: 'HANGING_PROMISE_REJECTION',
+          })
+        )
+        Promise.reject(
+          Object.assign(new Error('client hook'), {
+            digest: 'CLIENT_HOOK_DYNAMIC',
+          })
+        )
+        // Other rejections without a store are still reported.
+        Promise.reject(Object.assign(new Error('other'), { digest: 'OTHER' }))
+        Promise.reject('no digest')
+
+        // When a store exists the existing behavior is unchanged: the same
+        // errors are reported unless the render was aborted.
+        workUnitAsyncStorage.run(
+          { type: 'request' } as WorkUnitStore,
+          async () => {
+            Promise.reject(
+              Object.assign(new Error('hanging'), {
+                digest: 'HANGING_PROMISE_REJECTION',
+              })
+            )
+          }
+        )
+      }
+
+      const { uhr, exitCode } = await runWorkerCode(testForWorker)
+
+      expect(exitCode).toBe(0)
+      expect(uhr).toEqual(['OTHER', 'no digest', 'HANGING_PROMISE_REJECTION'])
+    })
+
     it('should call console.error when no handlers are present', async () => {
       async function testForWorker() {
         process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
