@@ -453,4 +453,50 @@ describe('create-next-app', () => {
       projectFilesShouldNotExist({ cwd, projectName, files: ['node_modules'] })
     })
   })
+
+  it('should replace all import alias occurrences when custom --import-alias is specified', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'custom-import-alias'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--no-app',
+          '--eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--import-alias=@acme/*',
+          '--skip-install',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      const tsConfig = JSON.parse(
+        await readFile(join(cwd, projectName, 'tsconfig.json'), 'utf8')
+      )
+      expect(tsConfig.compilerOptions.paths).toEqual({
+        '@acme/*': ['./*'],
+      })
+      const pageContent = await readFile(
+        join(cwd, projectName, 'pages/index.tsx'),
+        'utf8'
+      )
+      expect(pageContent).toContain('@acme/styles/Home.module.css')
+      expect(pageContent).not.toContain('@/styles/Home.module.css')
+
+      const appContent = await readFile(
+        join(cwd, projectName, 'pages/_app.tsx'),
+        'utf8'
+      )
+      expect(appContent).toContain('@acme/styles/globals.css')
+      expect(appContent).not.toContain('@/styles/globals.css')
+    })
+  })
 })
