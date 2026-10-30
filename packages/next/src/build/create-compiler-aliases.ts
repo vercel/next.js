@@ -170,9 +170,6 @@ export function createWebpackAliases({
             'private-next-empty-module',
           ],
 
-          // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
-          'private-next-empty-module': false as any,
-
           // In the browser bundle, swap every module that has a `.browser` sibling
           // (see browser-variant-modules.ts, generated from the filesystem) for that
           // sibling. The default module holds the full server logic; bundling it would
@@ -234,8 +231,10 @@ export function createWebpackAliases({
             ),
             'private-next-empty-module',
           ],
-          'private-next-empty-module': false as any,
         }),
+
+    // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
+    'private-next-empty-module': false as any,
 
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
