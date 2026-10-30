@@ -8,9 +8,8 @@ export async function register() {
     const originalWriteHead = ServerResponse.prototype.writeHead
     ServerResponse.prototype.writeHead = function (...args) {
       if (!this.headersSent) {
-        const loaded = Object.keys(nodeRequire.cache).some((filename) =>
-          filename.replaceAll('\\', '/').endsWith('/server/app/page.js')
-        )
+        const pageModule = nodeRequire.resolve('./.next/server/app/page.js')
+        const loaded = nodeRequire.cache[pageModule] !== undefined
         this.setHeader('x-test-page-loaded', loaded ? 'yes' : 'no')
       }
       return originalWriteHead.apply(this, args)
