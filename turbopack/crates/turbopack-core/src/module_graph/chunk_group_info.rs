@@ -516,8 +516,12 @@ impl ChunkGroup {
             } => {
                 format!(
                     "ChunkGroup::IsolatedMerged({}, {}, {:?})",
-                    Box::pin(chunk_group_info.chunk_groups[*parent].debug_str(chunk_group_info))
-                        .await?,
+                    Box::pin(
+                        chunk_group_info
+                            .chunk_group_at(*parent)?
+                            .debug_str(chunk_group_info)
+                    )
+                    .await?,
                     merge_tag,
                     entries
                         .iter()
@@ -533,8 +537,12 @@ impl ChunkGroup {
             } => {
                 format!(
                     "ChunkGroup::SharedMerged({}, {}, {:?})",
-                    Box::pin(chunk_group_info.chunk_groups[*parent].debug_str(chunk_group_info))
-                        .await?,
+                    Box::pin(
+                        chunk_group_info
+                            .chunk_group_at(*parent)?
+                            .debug_str(chunk_group_info)
+                    )
+                    .await?,
                     merge_tag,
                     entries
                         .iter()
@@ -580,10 +588,11 @@ impl ChunkGroupKey {
     /// names from this (through [`ChunkGroupInfo::chunk_group_ident_hashes`]), so two chunk groups
     /// must render equally exactly when they are the same chunk group. Changing the rendering
     /// renames assets; adding anything graph-local to it is a correctness bug.
-    pub async fn ident_str(
-        &self,
-        keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
-    ) -> Result<String> {
+    ///
+    /// Errors when the parent of a merged chunk group is not in `keys`. That happens when the
+    /// key comes from a different (e.g. newer) [`ChunkGroupInfo`] than `keys`, which is transient
+    /// with eventual consistency.
+    pub async fn ident_str(&self, keys: &FxIndexSet<ChunkGroupKey>) -> Result<String> {
         Ok(match self {
             ChunkGroupKey::Entry(entries) => format!(
                 "Entry({:?})",
@@ -605,7 +614,7 @@ impl ChunkGroupKey {
             ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                 format!(
                     "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
-                    Box::pin(keys.index(parent.0 as usize).ident_str(keys)).await?,
+                    Box::pin(Self::merged_parent(keys, parent.0 as usize)?.ident_str(keys)).await?,
                     merge_tag
                 )
             }
@@ -623,7 +632,7 @@ impl ChunkGroupKey {
             ChunkGroupKey::SharedMerged { parent, merge_tag } => {
                 format!(
                     "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
-                    Box::pin(keys.index(parent.0 as usize).ident_str(keys)).await?,
+                    Box::pin(Self::merged_parent(keys, parent.0 as usize)?.ident_str(keys)).await?,
                     merge_tag
                 )
             }
@@ -635,11 +644,20 @@ impl ChunkGroupKey {
     /// Delegates to [`Self::ident_str`], which already renders the chunk group unambiguously.
     /// Debug output is free to diverge from it, but note that `ident_str` must stay stable because
     /// asset idents are derived from it -- change this wrapper rather than `ident_str` itself.
-    pub async fn debug_str(
-        &self,
-        keys: &(impl std::ops::Index<usize, Output = Self> + ?Sized),
-    ) -> Result<String> {
+    pub async fn debug_str(&self, keys: &FxIndexSet<ChunkGroupKey>) -> Result<String> {
         self.ident_str(keys).await
+    }
+
+    /// The parent key of a merged chunk group. `parent` can be out of range when the merged key
+    /// comes from a different [`ChunkGroupInfo`] than `keys`, so this is an error, not a panic.
+    fn merged_parent(keys: &FxIndexSet<ChunkGroupKey>, parent: usize) -> Result<&ChunkGroupKey> {
+        keys.get_index(parent).with_context(|| {
+            format!(
+                "parent chunk group {parent} of a merged chunk group is not a known chunk group \
+                 ({} chunk groups)",
+                keys.len()
+            )
+        })
     }
 }
 
@@ -1017,12 +1035,9 @@ pub async fn compute_chunk_group_info(
 
             let mut result = vec![];
             result.push("Chunk Groups:".to_string());
-            for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
-                result.push(format!(
-                    "  {:?}: {}",
-                    i,
-                    key.debug_str(&chunk_groups_map.keys()).await?
-                ));
+            let keys = chunk_groups_map.keys().cloned().collect::<FxIndexSet<_>>();
+            for (i, key) in keys.iter().enumerate() {
+                result.push(format!("  {:?}: {}", i, key.debug_str(&keys).await?));
             }
             result.push("# Module buckets:".to_string());
             for (key, modules) in buckets.iter() {
