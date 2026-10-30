@@ -271,19 +271,29 @@ async fn subscribe_issues_and_diags_operation(
     .cell())
 }
 
-/// Whether the client-changed operation of `endpoint_op` has an issue of severity Error or worse,
-/// using the endpoint's issue filter. Used to tell an issue-backed (recoverable) error apart from
-/// an unexpected one.
+/// [`endpoint_client_changed_operation`] with the error handling of the client-changed
+/// subscription.
+///
+/// Transient build-graph errors (e.g. missing `node_modules/next` during a concurrent install) come
+/// with an Issue. The server subscription (`subscribe_issues_and_diags_operation`) already reports
+/// that Issue, so such an error is turned into a completion here instead of a
+/// `TurbopackInternalError`. Issues are only read on this failure path, so the success path keeps
+/// not depending on them: we don't want to be notified when they change.
 #[turbo_tasks::function(operation, root)]
-async fn client_changed_error_has_issue_operation(
+async fn endpoint_client_changed_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<Vc<bool>> {
+) -> Result<Vc<Completion>> {
     let changed_op = endpoint_client_changed_operation(endpoint_op);
+    let Err(err) = changed_op.connect().await else {
+        return Ok(changed_op.connect());
+    };
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let issues = get_issues(changed_op, &filter).await?;
-    Ok(Vc::cell(
-        issues.iter().any(|i| i.severity <= IssueSeverity::Error),
-    ))
+    if issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        Ok(Completion::new())
+    } else {
+        Err(err)
+    }
 }
 
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
@@ -302,29 +312,11 @@ pub fn endpoint_client_changed_subscribe(
         &func,
         move || {
             async move {
-                let changed_op = endpoint_client_changed_operation(endpoint_op);
-                // We don't capture issues and diagnostics on success since we don't want to be
-                // notified when they change.
-                //
+                let changed_op = endpoint_client_changed_with_issues_operation(endpoint_op);
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
                 // even if the cell id doesn't change.
-                if let Err(err) = changed_op.read_strongly_consistent().await {
-                    // Transient build-graph errors (e.g. missing `node_modules/next` during a
-                    // concurrent install) come with an Issue. The server subscription
-                    // (`subscribe_issues_and_diags_operation`) already reports that Issue, so
-                    // don't turn the error into a `TurbopackInternalError` here. Issues are only
-                    // read on this failure path, so the success path keeps not depending on them.
-                    //
-                    // This is a top-level task, so the check runs in an operation that is read
-                    // strongly consistently.
-                    let has_error_issue = client_changed_error_has_issue_operation(endpoint_op)
-                        .read_strongly_consistent()
-                        .await?;
-                    if !*has_error_issue {
-                        return Err(err);
-                    }
-                }
+                changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
