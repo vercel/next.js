@@ -45,6 +45,10 @@ impl SourcePos {
     /// Line terminators are the classic "\n", "\r", "\r\n" (which counts as
     /// a single terminator), and JS LINE/PARAGRAPH SEPARATORs.
     ///
+    /// `code` is treated as complete text: when source code is passed in multiple calls, it must
+    /// be split between chars and line terminators. A UTF-8 sequence or a "\r\n" that is split
+    /// across two calls can result in an incorrect position.
+    ///
     /// See <https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators>
     pub fn update(&mut self, code: &[u8]) {
         // Only the line terminators need to be found, which `memchr` does with SIMD. The

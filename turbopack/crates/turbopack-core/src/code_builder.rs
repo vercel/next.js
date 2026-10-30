@@ -354,6 +354,11 @@ impl Code {
 
 impl Code {
     /// Generates a source map from the code's mappings.
+    ///
+    /// Section offsets are computed in UTF-16 code units by scanning the code's rope one chunk at
+    /// a time, so every chunk must be self-contained text: rope chunks (and mapping positions)
+    /// must not split a UTF-8 sequence or a "\r\n". Splitting them is a bug in the code that built
+    /// the rope, and can result in incorrect offsets for the sections after it.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
     pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
         // A debug id should be passed only if the code should generate a debug id, it is however
