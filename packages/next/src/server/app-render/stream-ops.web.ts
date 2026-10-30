@@ -11,6 +11,7 @@ import type { PostponedState, PrerenderOptions } from 'react-dom/static'
 import { resume, renderToReadableStream } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import type { renderToReadableStream as flightRenderToReadableStream } from 'react-server-dom-webpack/server'
+import type { LocalRenderTiming } from '../lib/trace/react-render-timing'
 
 import {
   renderToInitialFizzStream,
@@ -80,7 +81,7 @@ export type FlightClientModules = Parameters<FlightRenderToReadableStream>[1]
  */
 export type FlightRenderOptions = NonNullable<
   Parameters<FlightRenderToReadableStream>[2]
->
+> & { localRenderTiming?: LocalRenderTiming }
 
 export type FizzStreamResult = {
   stream: AnyStream
@@ -252,7 +253,74 @@ export function renderToWebFlightStream(
   clientModules: FlightClientModules,
   opts: FlightRenderOptions
 ): AnyStream {
-  return ComponentMod.renderToReadableStream(payload, clientModules, opts)
+  const { localRenderTiming, ...renderOptions } = opts
+  localRenderTiming?.start()
+  let stream: ReadableStream<Uint8Array>
+  try {
+    stream = ComponentMod.renderToReadableStream(
+      payload,
+      clientModules,
+      renderOptions
+    )
+  } catch (error) {
+    localRenderTiming?.abort()
+    throw error
+  }
+  if (!localRenderTiming) return stream
+
+  let reader: ReadableStreamDefaultReader<Uint8Array>
+  try {
+    reader = stream.getReader()
+  } catch (error) {
+    localRenderTiming.abort()
+    throw error
+  }
+  const signal = renderOptions.signal
+  const onAbort = () => localRenderTiming.abort()
+  if (signal?.aborted) onAbort()
+  else signal?.addEventListener('abort', onAbort, { once: true })
+
+  let closed = false
+  function release() {
+    signal?.removeEventListener('abort', onAbort)
+    reader.releaseLock()
+  }
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        try {
+          const result = await reader.read()
+          if (closed) return
+          if (result.done) {
+            closed = true
+            localRenderTiming.finishFlight()
+            release()
+            controller.close()
+          } else {
+            localRenderTiming.readFlightChunk(result.value)
+            controller.enqueue(result.value)
+          }
+        } catch (error) {
+          if (closed) return
+          closed = true
+          localRenderTiming.abort()
+          release()
+          controller.error(error)
+        }
+      },
+      async cancel(reason) {
+        if (closed) return
+        closed = true
+        localRenderTiming.abort()
+        try {
+          await reader.cancel(reason)
+        } finally {
+          release()
+        }
+      },
+    },
+    { highWaterMark: 0 }
+  )
 }
 
 export async function streamToString(stream: AnyStream): Promise<string> {
