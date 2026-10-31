@@ -104,7 +104,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
-    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
+    source_map::{GenerateSourceMap, structured::SplitSourceMap},
 };
 
 use crate::{
@@ -1054,7 +1054,9 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<StructuredSourceMap>,
+    /// Split so that the module factories built from this content, which only rewrite its
+    /// `sources`, reference the rest of the map instead of each persisting a copy of it.
+    pub source_map: Option<SplitSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
@@ -2445,7 +2447,7 @@ async fn emit_content(
 
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
-        source_map,
+        source_map: source_map.map(SplitSourceMap::new),
         is_esm,
         strict,
         additional_ids,

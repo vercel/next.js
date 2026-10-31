@@ -55,10 +55,11 @@ impl StaticEcmascriptCode {
             .module_content_without_analysis(self.generate_source_map)
             .await?;
         let mut code = CodeBuilder::default();
-        code.push_source(
-            &runtime_base_content.inner_code,
-            runtime_base_content.source_map.clone(),
-        );
+        let source_map = match &runtime_base_content.source_map {
+            Some(map) => Some(map.to_section_map(map.head().clone()).await?),
+            None => None,
+        };
+        code.push_source(&runtime_base_content.inner_code, source_map);
         Ok(Code::cell(code.build()))
     }
 }
