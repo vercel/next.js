@@ -25,9 +25,9 @@ use crate::{
     event::EventListener,
     id::{ExecutionId, LocalTaskId, TASK_ID_MAX},
     manager::{
-        ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
-        ScheduleKey, TrackKey, TurboTasksApi, execute_read_target_inline, read_local_output,
-        with_turbo_tasks,
+        CellKey, ReadCellTracking, ReadTracking,
+        SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK, ScheduleKey, TurboTasksApi,
+        execute_read_target_inline, read_local_output, with_turbo_tasks,
     },
     read_options::ReadOutcome,
     registry::get_value_type,
@@ -770,12 +770,12 @@ impl ReadRawVcFuture {
     /// Track the value as a dependency with an key.
     pub fn track_with_key(mut self, key: u64) -> Self {
         self.read_cell_options.tracking = ReadCellTracking::Tracked {
-            key: TrackKey::Key(key),
+            key: Some(CellKey::Hash(key)),
         };
         self.map_resolve(|r| r.track_with_key())
     }
 
-    /// Track the value as a [`TrackKey::Keyed`] dependency of a [`Vc::keyed`](crate::Vc::keyed)
+    /// Track the value as a [`CellKey::Keyed`] dependency of a [`Vc::keyed`](crate::Vc::keyed)
     /// read. Like [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs
     /// while resolving the [`RawVc`].
     ///
@@ -787,20 +787,18 @@ impl ReadRawVcFuture {
         };
         resolve.read_output_options.tracking = ReadTracking::Tracked;
         self.read_cell_options.tracking = ReadCellTracking::Tracked {
-            key: TrackKey::Keyed(id),
+            key: Some(CellKey::Keyed(id)),
         };
     }
 
-    /// Track the remaining reads as normal full dependencies, e.g. when a [`TrackKey::Keyed`] read
+    /// Track the remaining reads as normal full dependencies, e.g. when a [`CellKey::Keyed`] read
     /// continues in a different task execution than the one that allocated its id. Can be called
     /// at any time before the future completes.
     pub(crate) fn set_track_full(&mut self) {
         if let ReadRawVcState::Resolving(resolve) = &mut self.state {
             resolve.read_output_options.tracking = ReadTracking::Tracked;
         }
-        self.read_cell_options.tracking = ReadCellTracking::Tracked {
-            key: TrackKey::None,
-        };
+        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: None };
     }
 
     /// The task cell the [`RawVc`] was resolved to. Only available once the future has completed

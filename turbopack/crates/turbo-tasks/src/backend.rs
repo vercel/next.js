@@ -625,6 +625,11 @@ pub trait Backend: Sized + Sync + Send {
 
     /// Called when a task's execution finishes.
     ///
+    /// `has_keyed_reads` is true when the execution made [`Vc::keyed`][crate::Vc::keyed] reads.
+    /// The backend must then convert all [`CellKey::Keyed`][crate::CellKey::Keyed] dependencies of
+    /// the task that are still present into normal (full) cell dependencies, as their ids are only
+    /// meaningful within this execution.
+    ///
     /// Returns `Some(priority)` if the task was invalidated again while executing and must be
     /// re-run. The caller is responsible for re-scheduling the task at the returned priority
     /// (typically lower than the priority of the just-finished run).
@@ -633,6 +638,7 @@ pub trait Backend: Sized + Sync + Send {
         task: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        has_keyed_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<Self>,
@@ -667,9 +673,9 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<TypedCellContent>>;
 
-    /// Replaces the [`TrackKey::Keyed(id)`][crate::TrackKey::Keyed] dependency of `reader` on the
+    /// Replaces the [`CellKey::Keyed(id)`][crate::CellKey::Keyed] dependency of `reader` on the
     /// cell `index` of `task`, which was created by a [`Vc::keyed`][crate::Vc::keyed] read, with
-    /// [`TrackKey::Key`][crate::TrackKey::Key] dependencies on each of the `key_hashes`, in a
+    /// [`CellKey::Hash`][crate::CellKey::Hash] dependencies on each of the `key_hashes`, in a
     /// single operation.
     ///
     /// Must only be called from within the same execution of `reader` that created the

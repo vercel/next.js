@@ -349,7 +349,7 @@ where
 /// created the future).
 enum KeyedDependencyState {
     NotStarted,
-    /// `None` if the read isn't a [`TrackKey::Keyed`](crate::TrackKey::Keyed) read (no current
+    /// `None` if the read isn't a [`CellKey::Keyed`](crate::CellKey::Keyed) read (no current
     /// task, or the dependency was already handed to the [`KeyedReadRef`]).
     Started(Option<KeyedReadDependency>),
 }

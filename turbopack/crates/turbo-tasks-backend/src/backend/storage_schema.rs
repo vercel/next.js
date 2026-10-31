@@ -25,7 +25,7 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    CellId, CellKey, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -267,9 +267,9 @@ struct TaskStorageSchema {
     )]
     output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Cells this task depends on as a whole (keyless `CellDependency::All`). The common case;
-    /// kept separate from `cell_dependencies_hashed` so it stores a bare `CellRef` instead of the
-    /// wider `CellDependency` enum (no tag, no `u64`).
+    /// Cells this task depends on as a whole (keyless). The common case; kept separate from
+    /// `cell_dependencies_keyed` so it stores a bare `CellRef` instead of a `(CellRef, CellKey)`
+    /// pair.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -279,7 +279,13 @@ struct TaskStorageSchema {
     )]
     cell_dependencies: AutoSet<CellRef, 3>,
 
-    /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
+    /// Cells this task depends on with a `CellKey`. Rare.
+    /// - `CellKey::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
+    /// - `CellKey::Keyed`: a `Vc::keyed()` read that hasn't been converted to `CellKey::Hash`
+    ///   dependencies yet, identified by the `keyed()` call counter of the execution. Invalidated
+    ///   like `cell_dependencies`. Short-lived: the `KeyedReadRef` converts it to `CellKey::Hash`
+    ///   entries when dropped, and any remaining ones are converted to `cell_dependencies` when
+    ///   the execution completes.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -287,20 +293,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
-
-    /// Cells this task depends on via a `Vc::keyed()` read that hasn't been converted to hashed
-    /// dependencies (`TrackKey::Keyed`), identified by the `keyed()` call counter of the
-    /// execution. Invalidated like `cell_dependencies`. Rare and usually short-lived: the
-    /// `KeyedReadRef` converts it to `cell_dependencies_hashed` when dropped.
-    #[field(
-        storage = "auto_set",
-        category = "data",
-        filter_transient,
-        shrink_on_completion,
-        drop_on_completion_if_immutable
-    )]
-    cell_dependencies_keyed: AutoSet<(CellRef, u32), 1>,
+    cell_dependencies_keyed: AutoSet<(CellRef, CellKey), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -320,13 +313,9 @@ struct TaskStorageSchema {
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies: AutoSet<CellRef, 3>,
 
-    /// Outdated hashed cell dependencies to be cleaned up (transient).
+    /// Outdated cell dependencies with a `CellKey` to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
-    outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
-
-    /// Outdated keyed-read cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
-    outdated_cell_dependencies_keyed: AutoSet<(CellRef, u32), 1>,
+    outdated_cell_dependencies_keyed: AutoSet<(CellRef, CellKey), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
@@ -346,25 +335,16 @@ struct TaskStorageSchema {
     )]
     cell_dependents: AutoSet<CellRef, 3>,
 
-    /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
-    /// `cell_dependencies_hashed`.
+    /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
+    /// `cell_dependencies_keyed`. `CellKey::Hash` entries are only invalidated when that sub-value
+    /// changes, `CellKey::Keyed` entries like `cell_dependents`.
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
-
-    /// Tasks that depend on this task's cells via a `Vc::keyed()` read. Reverse of
-    /// `cell_dependencies_keyed`. Invalidated like `cell_dependents`.
-    #[field(
-        storage = "auto_set",
-        category = "data",
-        filter_transient,
-        drop_on_completion_if_immutable
-    )]
-    cell_dependents_keyed: AutoSet<(CellRef, u32), 1>,
+    cell_dependents_keyed: AutoSet<(CellRef, CellKey), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
@@ -879,7 +859,7 @@ impl TaskStorage {
     ///
     /// The `Data`-category dependent sets are deliberately not consulted:
     ///
-    /// - `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry. A cell dependent
+    /// - `cell_dependents` / `cell_dependents_keyed` are redundant with ancestry. A cell dependent
     ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
     ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
     ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
@@ -1005,12 +985,7 @@ impl IsTransient for CellRef {
         CellRef::is_transient(self)
     }
 }
-impl IsTransient for (CellRef, u64) {
-    fn is_transient(&self) -> bool {
-        self.0.is_transient()
-    }
-}
-impl IsTransient for (CellRef, u32) {
+impl IsTransient for (CellRef, CellKey) {
     fn is_transient(&self) -> bool {
         self.0.is_transient()
     }

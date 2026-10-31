@@ -3,7 +3,7 @@ use std::mem::take;
 
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
-use turbo_tasks::TaskId;
+use turbo_tasks::{CellKey, TaskId};
 
 use crate::{
     backend::{
@@ -29,16 +29,11 @@ pub enum OutdatedEdge {
         dependent: TaskId,
         cell: CellRef,
     },
-    HashedCellDependency {
-        dependent: TaskId,
-        cell: CellRef,
-        key: u64,
-    },
-    /// A `Vc::keyed()` read dependency (`TrackKey::Keyed(id)`).
+    /// `dependent` reads `cell` with a [`CellKey`] (a hashed sub-value or a `Vc::keyed()` read).
     KeyedCellDependency {
         dependent: TaskId,
         cell: CellRef,
-        id: u32,
+        key: CellKey,
     },
     /// `dependent` reads the output of `output_task`.
     OutputDependency {
@@ -66,18 +61,11 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 cell,
             }),
     );
-    old_edges.extend(task.iter_cell_dependencies_hashed().map(|(cell, key)| {
-        OutdatedEdge::HashedCellDependency {
-            dependent: task_id,
-            cell,
-            key,
-        }
-    }));
-    old_edges.extend(task.iter_cell_dependencies_keyed().map(|(cell, id)| {
+    old_edges.extend(task.iter_cell_dependencies_keyed().map(|(cell, key)| {
         OutdatedEdge::KeyedCellDependency {
             dependent: task_id,
             cell,
-            id,
+            key,
         }
     }));
     old_edges.extend(
@@ -96,24 +84,14 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 },
             }),
     );
-    old_edges.extend(task.iter_cell_dependents_hashed().map(|(entry, key)| {
-        OutdatedEdge::HashedCellDependency {
-            dependent: entry.task,
-            cell: CellRef {
-                task: task_id,
-                cell: entry.cell,
-            },
-            key,
-        }
-    }));
-    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, id)| {
+    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, key)| {
         OutdatedEdge::KeyedCellDependency {
             dependent: entry.task,
             cell: CellRef {
                 task: task_id,
                 cell: entry.cell,
             },
-            id,
+            key,
         }
     }));
     old_edges.extend(task.iter_output_dependent().map(|dependent| {
@@ -297,32 +275,10 @@ fn cleanup_old_edges_inner(
                     task.remove_outdated_cell_dependencies(&cell);
                 }
             }
-            OutdatedEdge::HashedCellDependency {
-                dependent,
-                cell,
-                key,
-            } => {
-                // Same as above but in the `_hashed` sets.
-                {
-                    let mut task = ctx.task(cell.task, TaskDataCategory::Data);
-                    task.remove_cell_dependents_hashed(&(
-                        CellRef {
-                            task: dependent,
-                            cell: cell.cell,
-                        },
-                        key,
-                    ));
-                }
-                {
-                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
-                    task.remove_cell_dependencies_hashed(&(cell, key));
-                    task.remove_outdated_cell_dependencies_hashed(&(cell, key));
-                }
-            }
             OutdatedEdge::KeyedCellDependency {
                 dependent,
                 cell,
-                id,
+                key,
             } => {
                 // Same as above but in the `_keyed` sets.
                 {
@@ -332,13 +288,13 @@ fn cleanup_old_edges_inner(
                             task: dependent,
                             cell: cell.cell,
                         },
-                        id,
+                        key,
                     ));
                 }
                 {
                     let mut task = ctx.task(dependent, TaskDataCategory::Data);
-                    task.remove_cell_dependencies_keyed(&(cell, id));
-                    task.remove_outdated_cell_dependencies_keyed(&(cell, id));
+                    task.remove_cell_dependencies_keyed(&(cell, key));
+                    task.remove_outdated_cell_dependencies_keyed(&(cell, key));
                 }
             }
             OutdatedEdge::OutputDependency {

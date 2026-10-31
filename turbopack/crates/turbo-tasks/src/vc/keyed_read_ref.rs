@@ -26,9 +26,9 @@ use crate::{
 /// change. The hashes of the accessed keys are recorded. When it is dropped within the task
 /// execution that read it, that dependency is replaced (in a single batch operation) with
 /// dependencies on only the accessed keys, so the task is only invalidated when one of the
-/// accessed keys changes, like with [`Vc::get`](crate::Vc::get). When it is dropped outside of
-/// that task execution (e.g. moved to another thread or task), the dependency on the whole cell
-/// is kept.
+/// accessed keys changes, like with [`Vc::get`](crate::Vc::get). When it is still alive at the end
+/// of that task execution or dropped outside of it (e.g. moved to another thread or task), the
+/// dependency is converted to a normal dependency on the whole cell when the execution completes.
 ///
 /// Note: Like with [`Vc::contains_key`](crate::Vc::contains_key), a
 /// [`contains_key`](KeyedReadRef::contains_key) access is also invalidated when the value of the
