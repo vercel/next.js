@@ -164,6 +164,10 @@ export const conditions: Record<string, Condition> = {
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
   ),
+  futureCompat: staticCondition(
+    'running in future compatibility mode (`NEXT_TEST_FUTURE_COMPAT=1`)',
+    () => process.env.NEXT_TEST_FUTURE_COMPAT === '1'
+  ),
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
   ),
