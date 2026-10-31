@@ -63,11 +63,15 @@ fn main() {
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
 
-    rt.build().unwrap().block_on(main_inner(args)).unwrap();
+    if let Err(error) = rt.build().unwrap().block_on(main_inner(args)) {
+        eprintln!("error: {error:#}");
+        std::process::exit(1);
+    }
 }
 
 async fn main_inner(args: Arguments) -> Result<()> {
-    let exit_handler = ExitHandler::listen();
+    let (exit_handler, receiver) = ExitHandler::new_receiver();
+    let mut trace_guard = None;
 
     let trace = std::env::var("TURBOPACK_TRACING").ok();
     if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
@@ -101,14 +105,49 @@ async fn main_inner(args: Arguments) -> Result<()> {
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        exit_handler
-            .on_exit(async move { tokio::task::spawn_blocking(|| drop(guard)).await.unwrap() });
-
         subscriber.init();
+        trace_guard = Some(guard);
     }
 
-    match args {
-        Arguments::Build(args) => turbopack_cli::build::build(&args).await,
-        Arguments::Dev(args) => turbopack_cli::dev::start_server(&args).await,
+    // One signal subscription covers preparation, compilation, watching and serving.
+    let result = {
+        let command = async {
+            match args {
+                Arguments::Build(args) => turbopack_cli::build::build(&args, &exit_handler).await,
+                Arguments::Dev(args) => {
+                    turbopack_cli::dev::start_server(&args, &exit_handler).await
+                }
+            }
+        };
+        tokio::pin!(command);
+        let result = tokio::select! {
+            // Install the signal handlers before polling synchronous preparation work.
+            biased;
+            signal = interrupted() => signal,
+            result = &mut command => result,
+        };
+        // Keep the command's run_once receivers alive until their tasks have drained, then
+        // drop the suspended command before closing the trace writer.
+        receiver.run_exit_handler().await;
+        result
+    };
+    // Finish compiler shutdown before closing its trace writer.
+    if let Some(guard) = trace_guard {
+        tokio::task::spawn_blocking(|| drop(guard)).await?;
     }
+    result
+}
+
+async fn interrupted() -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => result?,
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    tokio::signal::ctrl_c().await?;
+    Ok(())
 }

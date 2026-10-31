@@ -1,6 +1,6 @@
 use std::{
     env::current_dir,
-    future::{Future, join},
+    future::Future,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
     path::{MAIN_SEPARATOR, PathBuf},
@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use futures::FutureExt;
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
@@ -42,13 +43,17 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_trace_utils::exit::ExitHandler;
 
 use self::web_entry_source::create_web_entry_source;
 use crate::{
     arguments::DevArguments,
+    build::TurbopackBuildBuilder,
     contexts::NodeEnv,
+    go::is_go_entry,
     util::{
         EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
+        register_shutdown,
     },
 };
 
@@ -364,7 +369,8 @@ async fn source(
 }
 
 /// Start a devserver with the given args.
-pub async fn start_server(args: &DevArguments) -> Result<()> {
+pub async fn start_server(args: &DevArguments, exit: &ExitHandler) -> Result<()> {
+    let go_entries = crate::go::prepare(&args.common).await?;
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]
@@ -433,6 +439,45 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         ))
     };
 
+    let entries = normalize_entries(&args.common.entries);
+    let build_task = if go_entries.is_some() {
+        let mut builder = TurbopackBuildBuilder::new(project_dir.clone(), root_dir.clone())
+            .go_entries(go_entries.clone())
+            .log_detail(args.common.log_detail)
+            .log_level(
+                args.common
+                    .log_level
+                    .map_or(IssueSeverity::Warning, |level| level.0),
+            )
+            .show_all(args.common.show_all);
+        if let Some(target) = args.common.target {
+            builder = builder.target(target);
+        }
+        for entry in &entries {
+            builder = builder.entry_request(EntryRequest::Relative(entry.clone()));
+        }
+        Some(builder.start(&tt, true))
+    } else {
+        None
+    };
+
+    register_shutdown(exit, tt.clone(), go_entries, build_task);
+
+    if entries.iter().all(|entry| is_go_entry(entry)) {
+        std::future::pending().await
+    } else {
+        serve(args, tt, project_dir, root_dir, entries, start).await
+    }
+}
+
+async fn serve(
+    args: &DevArguments,
+    tt: Arc<TurboTasks<TurboTasksBackend>>,
+    project_dir: RcStr,
+    root_dir: RcStr,
+    entries: Vec<RcStr>,
+    start: Instant,
+) -> Result<()> {
     let tt_clone = tt.clone();
 
     let mut server = TurbopackDevServerBuilder::new(tt, project_dir, root_dir)
@@ -447,7 +492,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
         );
 
-    for entry in normalize_entries(&args.common.entries) {
+    for entry in entries.into_iter().filter(|entry| !is_go_entry(entry)) {
         server = server.entry_request(EntryRequest::Relative(entry))
     }
 
@@ -566,8 +611,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         }
     };
 
-    join!(stats_future, async { server.future.await.unwrap() }).await;
-
+    futures::future::try_join(server.future, stats_future.map(Ok::<(), anyhow::Error>)).await?;
     Ok(())
 }
 

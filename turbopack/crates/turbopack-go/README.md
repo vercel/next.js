@@ -1,0 +1,108 @@
+# Native Go file compilation
+
+`turbopack-go` compiles explicit `.go` input files into one native host executable.
+Go owns dependency resolution, package compilation and linking through `go list`
+and `go build`. Turbopack tracks the inputs Go reports and validates them around
+compiler execution.
+
+For CLI commands, environment setup and current support limits, see the
+[CLI README](../turbopack-cli/README.md#go-quickstart).
+
+## Integration contract
+
+The public API is in [src/lib.rs](src/lib.rs). The
+[CLI adapter](../turbopack-cli/src/go.rs) wraps the executable as an ordinary
+`OutputAsset`. The [CLI build pipeline](../turbopack-cli/src/build/mod.rs) compiles
+Go and JavaScript entries in the same Turbo Tasks session, writes their assets
+through the same output writer, and owns watching and shutdown.
+
+1. Create a `GoBuildContext` with `GoBuildContext::host`, supplying the Go executable,
+   optional build-cache path and build tags. Reuse that context throughout the session.
+2. Use `filesystem` to create a disk filesystem rooted at a canonical project path:
+   the module directory, or the source directory for standalone inputs. Pass its
+   root `FileSystemPath` to `go_bundle` together with project-relative `.go` filenames.
+   Input files must have the same parent directory, either the project root or one
+   subdirectory, and form a single executable `package main`.
+3. Read `go_bundle` strongly consistently within Turbo Tasks. Inspect the
+   `GoBundleResult` outcome and call `is_current()` before consuming it. If live inputs
+   have changed, invalidate the source and module-cache filesystems and read again.
+4. Before writing output, check `is_input(output_path)` to protect tracked files and
+   potential embed matches. Validate inputs again immediately before publication.
+5. For watching, register watchers on both the project and module-cache filesystems.
+   Cancel the context with `cancel()` when stopping, interrupt pending graph reads,
+   stop the watchers, and await task shutdown. `cancelled()` supports waiting for
+   cancellation; a cancelled context cannot be reused for another session.
+
+The module cache is a second input filesystem root. The tracker maps dependency
+paths reported by Go into `filesystem(context.module_cache)`, while project paths
+use the filesystem passed to `go_bundle`. For watch sessions, library consumers must
+start and stop watching that same module-cache filesystem alongside the project
+filesystem; the CLI does this automatically. These roots are selected explicitly
+from Go's resolved paths. They do not need a cross-root `DiskFileSystemMap`, since
+source symlinks and traversal between roots are unsupported.
+
+`GoBuildOutcome` separates compiler results from transient invalidation and shutdown:
+
+| Outcome           | Consumer action                                                             |
+| ----------------- | --------------------------------------------------------------------------- |
+| `Success(file)`   | Read the executable's `FileContent`, including its executable permissions.  |
+| `Failed(message)` | Report the diagnostic; watch consumers can retain their previous output.    |
+| `Retry`           | Read again after input invalidation; discard any previous attempt's result. |
+| `Cancelled`       | Stop consuming results from this session.                                   |
+
+Task and filesystem errors can also propagate as Rust errors. The crate returns
+executable bytes; consumers choose an output path and own publication and application
+execution. The CLI emits Go failures through the same issue-reporting system used
+for JavaScript compilation errors, so its shared watcher can recover after edits.
+
+## How it works
+
+Source files stay in the original project. Turbopack records a flat input set;
+it does not parse Go imports or implement a Go package graph.
+
+- **Discovery:** `go list -deps` reports package sources and embedded assets. Module
+  configuration comes from `go mod edit -json`. Their inputs, build-tag candidates,
+  directory inventories and missing-dependency parents are tracked through Turbo
+  Tasks FS so edits and newly created files can invalidate discovery.
+- **Validation:** recorded hashes and live metadata detect inconsistent reads.
+  Discovery validates newly registered inputs before handing its plan to compilation.
+- **Compilation:** `go build` writes to a temporary directory. Input stamps and
+  directory membership are checked before and after the command. Changed inputs
+  trigger invalidation and retry; successful builds return executable bytes and
+  permission metadata.
+
+Discovery and compilation are memoized tasks. Go's build cache owns incremental
+package compilation. Filesystem validation is best effort against concurrent
+writers: it does not lock sources or provide a transactional snapshot.
+
+## Operational assumptions
+
+- The installed toolchain and resolved environment are immutable session inputs.
+  See the CLI's [environment guidance](../turbopack-cli/README.md#module-dependencies-and-environment)
+  before preparing a module cache.
+- The source project, module cache and writable build cache must satisfy the CLI's
+  cache-placement restrictions. Consumed source paths cannot contain symlinks.
+- Task memoization is process-local. Persistent Turbo Tasks caching is unsupported;
+  Go's caches persist independently between sessions.
+- At most two Go actions run concurrently. Each command has a 180-second deadline.
+  Cancellation and timeouts terminate its process tree. Compiler subprocess errors
+  become failed build outcomes so a watch consumer can recover after input changes.
+- Temporary compiler output is removed after its bytes are read. The CLI publishes
+  its executable through the same asset writer as other languages; application
+  execution is separate.
+
+## Contributor verification
+
+Run from the repository root with Go on `PATH`:
+
+```sh
+cargo test -p turbopack-go -p turbopack-cli
+```
+
+Use `TURBOPACK_GO=/path/to/go/bin/go` to select another installed toolchain. The CLI
+watch timeout regression adds roughly three minutes to the combined suite.
+
+See the [live integration tests](tests/live.rs), [process tests](src/process.rs),
+[CLI tests](../turbopack-cli/tests/go.rs), and
+[Rust CI workflow](../../../.github/workflows/build_and_test.yml) for verification
+coverage. Its existing workspace test job installs Go and runs both crates.

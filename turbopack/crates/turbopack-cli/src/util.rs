@@ -1,12 +1,16 @@
-use std::{env::current_dir, path::PathBuf};
+use std::{env::current_dir, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{ReadConsistency, TaskId, TurboTasks, Vc};
+use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr,
 };
+use turbopack_trace_utils::exit::ExitHandler;
+
+use crate::go::GoBuild;
 
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
@@ -75,4 +79,46 @@ pub async fn project_fs(
 pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(project_dir));
     Ok(Vc::upcast(disk_fs))
+}
+
+/// Own ordered shutdown while the command future is suspended after a signal.
+/// Registration happens before the command awaits its compilation root.
+pub(crate) fn register_shutdown(
+    exit: &ExitHandler,
+    tasks: Arc<TurboTasks<TurboTasksBackend>>,
+    go_entries: Option<Arc<GoBuild>>,
+    compilation: Option<TaskId>,
+) {
+    exit.on_exit(async move {
+        if let Some(entries) = &go_entries {
+            entries.go_context.cancel();
+        }
+        // The cleanup task needs its own engine handle because run_once owns a 'static
+        // future. Keep the outer handle for disposal and engine shutdown afterward.
+        let cleanup_tasks = tasks.clone();
+        let cleanup = tasks
+            .run_once(async move {
+                let watchers = match go_entries {
+                    Some(entries) => entries.stop_watching().await,
+                    None => Ok(()),
+                };
+                if let Some(task) = compilation {
+                    // The command already reports compilation errors. An error output still
+                    // means the root has settled and is safe to dispose.
+                    let _ = cleanup_tasks
+                        .wait_task_completion(task, ReadConsistency::Strong)
+                        .await;
+                }
+                watchers
+            })
+            .await;
+        if let Some(task) = compilation {
+            tasks.dispose_root_task(task);
+        }
+        // Stopping first would prevent the draining graph from scheduling its remaining work.
+        tasks.stop_and_wait().await;
+        if let Err(error) = cleanup {
+            eprintln!("error during compiler shutdown: {error:#}");
+        }
+    });
 }

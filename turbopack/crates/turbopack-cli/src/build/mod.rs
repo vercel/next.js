@@ -10,8 +10,8 @@ use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Effects, OperationVc, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
-    read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, OperationVc, ReadConsistency, ResolvedVc, TaskId, TransientInstance, TryJoinIterExt,
+    TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
@@ -51,19 +51,21 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_trace_utils::exit::ExitHandler;
 
 use crate::{
     arguments::{BuildArguments, Target},
     contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
+    go::{GoBuild, is_go_entry},
     util::{
         EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
+        register_shutdown,
     },
 };
 
 type Backend = TurboTasksBackend;
 
 pub struct TurbopackBuildBuilder {
-    turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -75,12 +77,13 @@ pub struct TurbopackBuildBuilder {
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
+    // Prepared inputs detected from .go filenames, not a separate opt-in compiler mode.
+    go_entries: Option<Arc<GoBuild>>,
 }
 
 impl TurbopackBuildBuilder {
-    pub fn new(turbo_tasks: Arc<TurboTasks<Backend>>, project_dir: RcStr, root_dir: RcStr) -> Self {
+    pub fn new(project_dir: RcStr, root_dir: RcStr) -> Self {
         TurbopackBuildBuilder {
-            turbo_tasks,
             project_dir,
             root_dir,
             entry_requests: vec![],
@@ -96,6 +99,7 @@ impl TurbopackBuildBuilder {
             },
             target: Target::Node,
             scope_hoist: true,
+            go_entries: None,
         }
     }
 
@@ -144,36 +148,73 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<()> {
-        self.turbo_tasks
-            .run_once(async move {
-                let wrapper_op = extract_effects_operation(build_internal(
-                    self.project_dir.clone(),
-                    self.root_dir,
-                    self.entry_requests.clone(),
-                    self.browserslist_query,
-                    self.source_maps_type,
-                    self.minify_type,
-                    self.target,
-                    self.scope_hoist,
-                ));
+    pub fn go_entries(mut self, entries: Option<Arc<GoBuild>>) -> Self {
+        self.go_entries = entries;
+        self
+    }
 
-                read_strongly_consistent_and_apply_effects(wrapper_op, |e| e).await?;
+    /// The owning session keeps this root until compilation and shutdown have settled.
+    pub(crate) fn start(self, tasks: &TurboTasks<Backend>, watch: bool) -> TaskId {
+        let compilation = Arc::new(self);
+        tasks.spawn_root_task::<(), _, _>(move || {
+            let compilation = compilation.clone();
+            async move {
+                let result = compilation.run(watch).await;
+                if watch {
+                    if let Err(error) = result {
+                        eprintln!("{error:#}");
+                    }
+                } else {
+                    result?;
+                }
+                Ok(Vc::cell(()))
+            }
+        })
+    }
+    async fn run(&self, watch: bool) -> Result<()> {
+        let wrapper_op = extract_effects_operation(build_internal(
+            self.project_dir.clone(),
+            self.root_dir.clone(),
+            self.entry_requests.clone(),
+            self.browserslist_query.clone(),
+            self.source_maps_type,
+            self.minify_type,
+            self.target,
+            self.scope_hoist,
+            watch,
+            self.go_entries.clone(),
+        ));
 
-                let issue_reporter: Vc<Box<dyn IssueReporter>> =
-                    Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
-                        project_dir: PathBuf::from(self.project_dir),
-                        current_dir: current_dir().unwrap(),
-                        show_all: self.show_all,
-                        log_detail: self.log_detail,
-                        log_level: self.log_level,
-                    })));
+        // Cancellation is transient state, so a cached successful graph can still carry
+        // write effects after cancellation. Guard publication here, and let the graph
+        // settle without applying those effects before the owning session stops the engine.
+        tokio::select! {
+            biased;
+            _ = async {
+                match &self.go_entries {
+                    Some(build) => build.go_context.cancelled().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                // Let the shared graph settle without applying its effects. Stopping the
+                // engine first could strand operations that still need to schedule tasks.
+                let _ = wrapper_op.resolve().strongly_consistent().await;
+                return Ok(());
+            },
+            result = read_strongly_consistent_and_apply_effects(wrapper_op, |e| e) => { result?; }
+        }
 
-                handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
+        let issue_reporter: Vc<Box<dyn IssueReporter>> =
+            Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
+                project_dir: PathBuf::from(&*self.project_dir),
+                current_dir: current_dir().unwrap(),
+                show_all: self.show_all,
+                log_detail: self.log_detail,
+                log_level: self.log_level,
+            })));
 
-                Ok(())
-            })
-            .await
+        handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
+        Ok(())
     }
 }
 
@@ -193,7 +234,56 @@ async fn build_internal(
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
+    watch: bool,
+    go_entries: Option<Arc<GoBuild>>,
 ) -> Result<()> {
+    if watch && let Some(entries) = &go_entries {
+        entries.start_watching().await?;
+    }
+    let output_root = output_fs(project_dir.clone()).root().await?.join("dist")?;
+    let js_entries = entry_requests
+        .into_iter()
+        .filter(|entry| !matches!(entry, EntryRequest::Relative(path) if is_go_entry(path)))
+        .collect();
+    let js_assets = build_assets(
+        project_dir,
+        root_dir,
+        js_entries,
+        browserslist_query,
+        source_maps_type,
+        minify_type,
+        target,
+        scope_hoist,
+        watch,
+    );
+    let go_assets = match go_entries {
+        Some(entries) => crate::go::output_assets(entries, output_root),
+        None => OutputAssets::empty(),
+    };
+    let all_assets = js_assets.concatenate(go_assets).await?;
+    all_assets
+        .iter()
+        .map(async |asset| asset.content().write(asset.path().owned().await?).await)
+        .try_join()
+        .await?;
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn build_assets(
+    project_dir: RcStr,
+    root_dir: RcStr,
+    entry_requests: Vec<EntryRequest>,
+    browserslist_query: RcStr,
+    source_maps_type: SourceMapsType,
+    minify_type: MinifyType,
+    target: Target,
+    scope_hoist: bool,
+    watch: bool,
+) -> Result<Vc<OutputAssets>> {
+    if entry_requests.is_empty() {
+        return Ok(OutputAssets::empty());
+    }
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -204,7 +294,7 @@ async fn build_internal(
         .into();
     let project_fs = project_fs(
         root_dir.clone(),
-        /* watch= */ false,
+        watch,
         join_path(project_relative.as_str(), OUTPUT_DIR)
             .unwrap()
             .into(),
@@ -532,23 +622,18 @@ async fn build_internal(
     .instrument(tracing::info_span!("list chunks"))
     .await?;
 
-    all_assets
-        .iter()
-        .map(async |c| c.content().write(c.path().owned().await?).await)
-        .try_join()
-        .await?;
-
-    Ok(())
+    Ok(Vc::cell(all_assets.into_iter().collect()))
 }
 
-pub async fn build(args: &BuildArguments) -> Result<()> {
+pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
+    let go_entries = crate::go::prepare(&args.common).await?;
     let NormalizedDirs {
         project_dir,
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
     let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
-    let is_short_session = true; // build sessions are always short
+    let is_short_session = !args.watch;
 
     let tt = if args.common.persistent_caching {
         let version_info = GitVersionInfo {
@@ -579,7 +664,9 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         };
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                dependency_tracking: false,
+                // Go validates external compiler snapshots and can invalidate stale task
+                // results even in a one-shot build. Those retries need dependency links.
+                dependency_tracking: args.watch || go_entries.is_some(),
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
@@ -598,7 +685,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     } else {
         TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                dependency_tracking: false,
+                dependency_tracking: args.watch || go_entries.is_some(),
                 storage_mode: None,
                 ..Default::default()
             },
@@ -606,7 +693,8 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         ))
     };
 
-    let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
+    let mut builder = TurbopackBuildBuilder::new(project_dir, root_dir)
+        .go_entries(go_entries.clone())
         .log_detail(args.common.log_detail)
         .log_level(
             args.common
@@ -633,7 +721,20 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         builder = builder.entry_request(EntryRequest::Relative(entry));
     }
 
-    builder.build().await?;
+    let task = builder.start(&tt, args.watch);
+    register_shutdown(exit, tt.clone(), go_entries, Some(task));
+
+    let result = if args.watch {
+        std::future::pending().await
+    } else {
+        let tasks = tt.clone();
+        tt.run_once(async move {
+            tasks
+                .wait_task_completion(task, ReadConsistency::Strong)
+                .await
+        })
+        .await
+    };
 
     // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
     // ton of drop calls.
@@ -641,5 +742,5 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         forget(tt);
     }
 
-    Ok(())
+    result
 }
