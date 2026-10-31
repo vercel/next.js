@@ -128,8 +128,8 @@ impl Asset for NftJsonAsset {
 
             let traced_files = this.traced_files.await?;
             let module_data = traced_files.module_data.await?;
-            let module_idents = module_data.idents.keyed().await?;
-            let module_hashes = module_data.hashes.keyed().await?;
+            let module_idents = module_data.idents.keyed_reader().await?;
+            let module_hashes = module_data.hashes.keyed_reader().await?;
 
             let result = all_assets
                 .iter()

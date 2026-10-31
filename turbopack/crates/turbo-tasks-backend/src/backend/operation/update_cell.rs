@@ -142,7 +142,8 @@ pub fn update_cell(
                     CellKey::Hash(key_hash) => updated_key_hashes_set
                         .as_ref()
                         .is_none_or(|set| set.contains(&key_hash)),
-                    // `keyed()` read dependents: always invalidate, like keyless dependents.
+                    // `keyed_reader()` read dependents: always invalidate, like keyless
+                    // dependents.
                     CellKey::Keyed(_) => true,
                 };
                 if affected {
@@ -168,11 +169,9 @@ pub fn update_cell(
             // tasks and after that set the new cell content. When the cell content is unset,
             // readers will wait for it to be set via InProgressCell.
             //
-            // `convert_keyed_cell_dependency` also relies on this: it refuses to narrow a
-            // `CellKey::Keyed` dependency while the content is missing. Removing the content under
-            // the same task lock as collecting the dependents above means a `Keyed` dependent
-            // collected here can't be replaced by `CellKey::Hash` dependencies before it is
-            // checked in `invalidate_cell_dependents`.
+            // `CellKey::Keyed` dependents collected here are always invalidated by
+            // `invalidate_cell_dependents`, even when the dependency was converted (to a full or
+            // `CellKey::Hash` dependencies) in the meantime.
 
             let old_content = task.remove_cell_data(&cell, &value_type.persistence);
 
@@ -270,17 +269,12 @@ fn invalidate_cell_dependents(
                         && dependent.cell_dependencies_keyed_contains(&(cell_ref, key));
                     (in_outdated, in_current)
                 }
-                Some(key @ CellKey::Keyed(_)) => {
-                    let in_outdated =
-                        dependent.outdated_cell_dependencies_keyed_contains(&(cell_ref, key));
-                    // When the execution of the dependent completed in the meantime, the `Keyed`
-                    // dependency was converted to a full dependency on the cell. Accepting a full
-                    // dependency here never over-invalidates: it would invalidate the dependent
-                    // anyway.
-                    let in_current = !in_outdated
-                        && (dependent.cell_dependencies_keyed_contains(&(cell_ref, key))
-                            || dependent.cell_dependencies_contains(&cell_ref));
-                    (in_outdated, in_current)
+                Some(CellKey::Keyed(_)) => {
+                    // The `Keyed` dependency might have been converted in the meantime (to a
+                    // full dependency when the execution of the dependent completed, or to
+                    // `CellKey::Hash` dependencies when its `KeyedReadRef` was dropped). Assume
+                    // the worst case and always invalidate.
+                    (false, true)
                 }
                 None => {
                     let in_outdated = dependent.outdated_cell_dependencies_contains(&cell_ref);
@@ -532,13 +526,26 @@ mod invalidate_cell_dependents_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn removed_keyed_read_dependency_does_not_dirty() {
-        // Only a different `keyed()` read dependency is still tracked.
+    async fn removed_keyed_read_dependency_dirty_and_stale() {
+        // Only a different `keyed_reader()` read dependency is still tracked. The collected `Keyed`
+        // dependent is invalidated anyway (worst case assumed).
         let setup = Setup {
             current_keyed: vec![1],
             ..Default::default()
         };
-        assert_eq!(run(setup, smallvec![keyed(0)]), (false, false));
+        assert_eq!(run(setup, smallvec![keyed(0)]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hash_converted_keyed_read_dependency_dirty_and_stale() {
+        // The `Keyed` dependent was collected, but its `KeyedReadRef` was dropped in the meantime
+        // and converted it to `CellKey::Hash` dependencies on keys that didn't change. The
+        // invalidation must not be lost.
+        let setup = Setup {
+            current_keys: vec![7],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![keyed(0)]), (true, true));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -559,7 +566,7 @@ mod invalidate_cell_dependents_tests {
         {
             let (mut cell_task, mut dependent) =
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
-            // Two `keyed()` reads of the same cell, and a hashed read.
+            // Two `keyed_reader()` reads of the same cell, and a hashed read.
             for key in [CellKey::Keyed(0), CellKey::Keyed(1), CellKey::Hash(5)] {
                 let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), key));
                 let _ = dependent.add_cell_dependencies_keyed((cell_ref(), key));
@@ -592,8 +599,7 @@ mod invalidate_cell_dependents_tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn keyed_conversion_waits_for_cell_content() {
         // While `update_cell` invalidates dependents, the cell content is removed. Converting the
-        // `Keyed` dependency in that window must keep it, so the in-flight invalidation still
-        // finds it and doesn't miss the reader.
+        // `Keyed` dependency in that window conservatively keeps it (depending on the whole cell).
         let tt = backend();
         {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);

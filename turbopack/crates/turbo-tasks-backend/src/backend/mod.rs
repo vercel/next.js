@@ -1211,13 +1211,11 @@ impl TurboTasksBackend {
     }
 
     /// Replaces the [`CellKey::Keyed`] dependency of `reader` on `cell` of `task_id` (created by a
-    /// `Vc::keyed()` read) with [`CellKey::Hash`] dependencies on `key_hashes`.
+    /// `Vc::keyed_reader()` read) with [`CellKey::Hash`] dependencies on `key_hashes`.
     ///
-    /// When the cell content is currently missing, the [`CellKey::Keyed`] dependency is kept
-    /// (conservatively depending on the whole cell). That covers a concurrent `update_cell`
-    /// invalidation: it removes the cell content before it invalidates the dependents it collected
-    /// earlier, and it would skip a [`CellKey::Keyed`] dependency that was removed in between,
-    /// without seeing the hashed dependencies that replaced it.
+    /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
+    /// dependents), the [`CellKey::Keyed`] dependency is kept, conservatively depending on the
+    /// whole cell.
     fn convert_keyed_cell_dependency(
         &self,
         task_id: TaskId,
@@ -1259,17 +1257,16 @@ impl TurboTasksBackend {
     }
 
     /// Converts all [`CellKey::Keyed`] dependencies of `reader` that are still present into normal
-    /// (full) cell dependencies. Called when an execution of `reader` that made `Vc::keyed()` reads
-    /// completes, as the ids are only meaningful within that execution.
+    /// (full) cell dependencies. Called when an execution of `reader` that made
+    /// `Vc::keyed_reader()` reads completes, as the ids are only meaningful within that execution.
     ///
-    /// They remain when a `KeyedReadRef` wasn't dropped within the execution (the manager then also
-    /// fails the task with a panic error, but its dependencies must still be kept, so it's
-    /// re-executed on changes), or when its conversion was refused (see
-    /// `convert_keyed_cell_dependency`).
+    /// They remain when a `KeyedReadRef` wasn't dropped within the execution (the manager then
+    /// panics after the execution completed, but the dependencies are still kept consistent), or
+    /// when its conversion was refused (see `convert_keyed_cell_dependency`).
     ///
     /// A concurrent `update_cell` that collected the [`CellKey::Keyed`] dependent before the
-    /// conversion still invalidates `reader`, as it also accepts a full dependency on the cell when
-    /// it re-checks a [`CellKey::Keyed`] dependent.
+    /// conversion still invalidates `reader`, as it always invalidates collected
+    /// [`CellKey::Keyed`] dependents.
     fn convert_remaining_keyed_cell_dependencies(
         &self,
         ctx: &mut ExecuteContext<'_>,
@@ -2370,7 +2367,7 @@ impl TurboTasksBackend {
         if has_keyed_reads && self.should_track_dependencies() {
             self.convert_remaining_keyed_cell_dependencies(&mut ctx, task_id);
         }
-        // Only checked for executions with `keyed()` reads, so other tasks don't pay for it.
+        // Only checked for executions with `keyed_reader()` reads, so other tasks don't pay for it.
         debug_assert!(
             !has_keyed_reads
                 || !ctx

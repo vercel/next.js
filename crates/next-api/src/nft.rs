@@ -40,7 +40,7 @@ impl EndpointTraceResult {
     #[turbo_tasks::function]
     pub async fn all_files(&self) -> Result<Vc<FileSystemPathVec>> {
         let module_data = self.module_data.await?;
-        let idents = module_data.idents.keyed().await?;
+        let idents = module_data.idents.keyed_reader().await?;
         Ok(Vc::cell(
             self.includes
                 .iter()
@@ -97,7 +97,7 @@ pub async fn trace_endpoint(
         let module_data = traced_module_data_for_graph(*module_graph, traced_entries, hash_salt)
             .to_resolved()
             .await?;
-        let module_paths = module_data.await?.idents.keyed().await?;
+        let module_paths = module_data.await?.idents.keyed_reader().await?;
 
         let modules = all_modules
             .iter()
@@ -318,7 +318,7 @@ pub async fn traced_modules_for_entries(
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
         let idents = traced_module_idents_for_graph(module_graph, traced_entries)
-            .keyed()
+            .keyed_reader()
             .await?;
         Some((exclude_glob, idents))
     } else {

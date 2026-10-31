@@ -13,7 +13,7 @@ use crate::{
     vc::{VcReadTarget, VcValueType},
 };
 
-/// The result of [`Vc::keyed`](crate::Vc::keyed): a read of a keyed cell (a
+/// The result of [`Vc::keyed_reader`](crate::Vc::keyed_reader): a read of a keyed cell (a
 /// [`cell = "keyed"`](macro@crate::value) map or set) that only allows synchronous keyed access via
 /// [`KeyedReadRef::get`] and [`KeyedReadRef::contains_key`].
 ///
@@ -28,11 +28,11 @@ use crate::{
 /// dependencies on only the accessed keys, so the task is only invalidated when one of the
 /// accessed keys changes, like with [`Vc::get`](crate::Vc::get).
 ///
-/// It **must** be dropped within the task execution that read it (it may be dropped in local
-/// tasks of that execution). When it is still alive at the end of that task execution, or
-/// dropped outside of it (e.g. moved to another thread or task), the task fails with a panic error
-/// (replacing its result) and its dependency on the cell is converted to a normal dependency on
-/// the whole cell.
+/// It **must** be dropped within the task execution that called
+/// [`keyed_reader`](crate::Vc::keyed_reader) (it may be dropped in local tasks of that execution),
+/// and the same applies to the future returned by `keyed_reader`. When either is still alive at the
+/// end of that task execution (e.g. forgotten, or moved to another thread or task), that is a bug
+/// in the task function: completing the execution panics, which aborts the process.
 ///
 /// Note: Like with [`Vc::contains_key`](crate::Vc::contains_key), a
 /// [`contains_key`](KeyedReadRef::contains_key) access is also invalidated when the value of the
@@ -54,14 +54,13 @@ where
     T: VcValueType,
     VcReadTarget<T>: KeyedEq,
 {
-    /// `dependency` must only be `Some` within the task execution that created it.
+    /// `dependency` must only be `Some` within the task execution that created it, and must
+    /// already be registered as alive ([`KeyedReadDependency::register_alive_ref`]). The
+    /// registration is released when this is dropped within that execution.
     pub(crate) fn new(
         read_ref: ReadRef<T>,
         dependency: Option<(TaskId, CellId, KeyedReadDependency)>,
     ) -> Self {
-        if let Some((_, _, dependency)) = &dependency {
-            dependency.register_alive_ref();
-        }
         Self {
             read_ref,
             dependency,
@@ -112,8 +111,9 @@ where
             return;
         };
         if !dependency.is_current_execution() {
-            // Keep the conservative dependency on the whole cell. The execution fails as it
-            // still counts this `KeyedReadRef` as alive.
+            // Dropped outside of the creating execution: a bug in the task function. Don't panic
+            // in `drop`. The registration stays counted, so the creating execution panics when it
+            // completes.
             return;
         }
         dependency.release_alive_ref();

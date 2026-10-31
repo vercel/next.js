@@ -775,12 +775,12 @@ impl ReadRawVcFuture {
         self.map_resolve(|r| r.track_with_key())
     }
 
-    /// Track the value as a [`CellKey::Keyed`] dependency of a [`Vc::keyed`](crate::Vc::keyed)
-    /// read. Like [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs
-    /// while resolving the [`RawVc`].
+    /// Track the value as a [`CellKey::Keyed`] dependency of a
+    /// [`Vc::keyed_reader`](crate::Vc::keyed_reader) read. Like
+    /// [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs while
+    /// resolving the [`RawVc`].
     ///
-    /// Must be called before the future is polled the first time or right at the start of the
-    /// first poll, while it's still resolving the [`RawVc`].
+    /// Must be called before the future is polled the first time.
     pub(crate) fn set_track_keyed(&mut self, id: u32) {
         let ReadRawVcState::Resolving(resolve) = &mut self.state else {
             unreachable!("set_track_keyed must be called before the cell is read");
@@ -792,7 +792,7 @@ impl ReadRawVcFuture {
     }
 
     /// Track the remaining reads as normal full dependencies, e.g. when a [`CellKey::Keyed`] read
-    /// continues in a different task execution than the one that allocated its id. Can be called
+    /// is polled in a different task execution than the one that allocated its id. Can be called
     /// at any time before the future completes.
     pub(crate) fn set_track_full(&mut self) {
         if let ReadRawVcState::Resolving(resolve) = &mut self.state {

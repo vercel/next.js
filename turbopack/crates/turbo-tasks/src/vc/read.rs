@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    future::poll_fn,
     hash::{BuildHasher, Hash},
     marker::PhantomData,
     mem::ManuallyDrop,
@@ -230,40 +229,23 @@ where
     /// Read the value once for many synchronous keyed accesses via the returned
     /// [`KeyedReadRef`]. Once that is dropped, the task only depends on the accessed keys instead
     /// of the full value. See [`KeyedReadRef`] for details.
-    pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
+    ///
+    /// The keyed dependency belongs to the task execution that calls this method. The returned
+    /// future and the [`KeyedReadRef`] must not outlive that execution.
+    pub fn keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
         let mut raw = self.raw;
-        // Allocated when the future is first polled, as that's the task execution that reads the
-        // cell (not necessarily the one that created the future).
-        let mut dependency = KeyedReadDependency::new_for_current_task();
+        let dependency = KeyedReadDependency::new_for_current_task();
         if let Some(dependency) = &dependency {
             raw.set_track_keyed(dependency.id);
+            // Counted until the `KeyedReadRef` (or this future, when it doesn't complete) is
+            // dropped within this execution.
+            dependency.register_alive_ref();
         }
-        let content = poll_fn(|cx| {
-            if dependency
-                .as_ref()
-                .is_some_and(|dependency| !dependency.is_current_execution())
-            {
-                // The future moved to a different task execution while pending. The id belongs to
-                // the other execution and could collide with an id of this one, so fall back to a
-                // normal full dependency and never narrow it.
-                raw.set_track_full();
-                dependency = None;
-            }
-            Pin::new(&mut raw).poll(cx)
-        })
-        .await?;
-        let read_ref = VcValueTypeCast::<T>::cast(content)?;
-        // Only narrow the dependency later when the read was completed in the execution that
-        // registered it. Otherwise the `KeyedReadRef` keeps the conservative dependency.
-        let dependency = dependency
-            .filter(|dependency| dependency.is_current_execution())
-            .map(|dependency| {
-                let Some((task, index)) = raw.resolved_cell() else {
-                    unreachable!("a successful read is always resolved to a cell")
-                };
-                (task, index, dependency)
-            });
-        Ok(KeyedReadRef::new(read_ref, dependency))
+        ReadKeyedReaderVcFuture {
+            raw,
+            dependency,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -329,6 +311,92 @@ where
             Poll::Ready(Ok(result)) => Poll::Ready(Ok(ReadRef::into_owned(result))),
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+/// A future returned by [`Vc::keyed_reader`](crate::Vc::keyed_reader).
+#[must_use]
+pub struct ReadKeyedReaderVcFuture<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: KeyedEq,
+{
+    raw: ReadRawVcFuture,
+    /// The [`CellKey::Keyed`](crate::CellKey::Keyed) dependency, registered as alive in the
+    /// execution that created this future. `None` if the read isn't a keyed read (no current
+    /// task), once it was handed to the [`KeyedReadRef`], or once the future was polled in a
+    /// different execution (then the registration is never released).
+    dependency: Option<KeyedReadDependency>,
+    _phantom: PhantomData<fn() -> T>,
+}
+
+impl<T> Future for ReadKeyedReaderVcFuture<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: KeyedEq,
+{
+    type Output = Result<KeyedReadRef<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        let in_creating_execution = this
+            .dependency
+            .as_ref()
+            .is_some_and(|dependency| dependency.is_current_execution());
+        if this.dependency.is_some() && !in_creating_execution {
+            // Polled in a different task execution than the one that created it. That's a leak:
+            // the creating execution keeps counting this future as alive (the registration is
+            // never released, even when this is moved back later) and panics when it completes.
+            // The id belongs to the creating execution and could collide with an id of this one,
+            // so this read is tracked as a normal full dependency and never narrowed.
+            this.raw.set_track_full();
+            this.dependency = None;
+        }
+        let content = match std::task::ready!(Pin::new(&mut this.raw).poll(cx)) {
+            Ok(content) => content,
+            Err(err) => {
+                // Only `Some` in the creating execution.
+                if let Some(dependency) = this.dependency.take() {
+                    dependency.release_alive_ref();
+                }
+                return Poll::Ready(Err(err));
+            }
+        };
+        let dependency = this.dependency.take().map(|dependency| {
+            // Hand the registration over to the `KeyedReadRef`.
+            let Some((task, index)) = this.raw.resolved_cell() else {
+                unreachable!("a successful read is always resolved to a cell")
+            };
+            (task, index, dependency)
+        });
+        let read_ref = match VcValueTypeCast::<T>::cast(content) {
+            Ok(read_ref) => read_ref,
+            Err(err) => {
+                if let Some((_, _, dependency)) = dependency {
+                    dependency.release_alive_ref();
+                }
+                return Poll::Ready(Err(err));
+            }
+        };
+        Poll::Ready(Ok(KeyedReadRef::new(read_ref, dependency)))
+    }
+}
+
+impl<T> Drop for ReadKeyedReaderVcFuture<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: KeyedEq,
+{
+    fn drop(&mut self) {
+        // Not completed (e.g. never awaited or cancelled). Dropping it within the creating
+        // execution is fine. A `CellKey::Keyed` dependency it might have registered is converted
+        // to a normal dependency when the execution completes. Dropping it elsewhere keeps it
+        // counted as leaked.
+        if let Some(dependency) = self.dependency.take()
+            && dependency.is_current_execution()
+        {
+            dependency.release_alive_ref();
         }
     }
 }

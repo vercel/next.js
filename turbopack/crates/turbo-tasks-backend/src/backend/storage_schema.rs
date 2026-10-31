@@ -281,11 +281,11 @@ struct TaskStorageSchema {
 
     /// Cells this task depends on with a `CellKey`. Rare.
     /// - `CellKey::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
-    /// - `CellKey::Keyed`: a `Vc::keyed()` read that hasn't been converted to `CellKey::Hash`
-    ///   dependencies yet, identified by the `keyed()` call counter of the execution. Invalidated
-    ///   like `cell_dependencies`. Short-lived: the `KeyedReadRef` converts it to `CellKey::Hash`
-    ///   entries when dropped, and any remaining ones are converted to `cell_dependencies` when
-    ///   the execution completes.
+    /// - `CellKey::Keyed`: a `Vc::keyed_reader()` read that hasn't been converted to
+    ///   `CellKey::Hash` dependencies yet, identified by the `keyed_reader()` call counter of the
+    ///   execution. Invalidated like `cell_dependencies`. Short-lived: the `KeyedReadRef` converts
+    ///   it to `CellKey::Hash` entries when dropped, and any remaining ones are converted to
+    ///   `cell_dependencies` when the execution completes.
     #[field(
         storage = "auto_set",
         category = "data",

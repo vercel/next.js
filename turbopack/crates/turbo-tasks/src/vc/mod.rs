@@ -40,7 +40,10 @@ pub use crate::vc::{
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     ord::OrdResolvedVc,
     raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
-    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    read::{
+        ReadKeyedReaderVcFuture, ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead,
+        VcTransparentRead,
+    },
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
@@ -591,15 +594,16 @@ where
     }
 
     /// Read the value once for many synchronous keyed accesses via the returned
-    /// [`KeyedReadRef`] (`vc.keyed().await?.get(key)`). This is more efficient than many
+    /// [`KeyedReadRef`] (`vc.keyed_reader().await?.get(key)`). This is more efficient than many
     /// [`Vc::get`] / [`Vc::contains_key`] reads of the same cell within a single task.
     ///
     /// Once the [`KeyedReadRef`] is dropped, the task only depends on the accessed keys instead of
-    /// the full value. It must be dropped within the same task execution, otherwise the task
-    /// fails. See [`KeyedReadRef`] for details.
-    pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
+    /// the full value. The returned future and the [`KeyedReadRef`] must be dropped within the
+    /// task execution that called this method, otherwise completing that execution panics. See
+    /// [`KeyedReadRef`] for details.
+    pub fn keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
         let future: ReadVcFuture<T> = self.node.into_read().into();
-        future.keyed().await
+        future.keyed_reader()
     }
 }
 
