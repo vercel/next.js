@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       futureCompat:
-        description: 'Fail on Node.js deprecations'
+        description: 'Test latest Node.js and fail on deprecations'
         type: boolean
         default: false
       runner:
@@ -44,9 +44,15 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version-file: .node-version
+          node-version: ${{ inputs.futureCompat && 'node' || '' }}
+          node-version-file: ${{ !inputs.futureCompat && '.node-version' || '' }}
           check-latest: true
           package-manager-cache: false
+      - name: Install Corepack for latest Node.js
+        if: ${{ inputs.futureCompat }}
+        run: npm install --global corepack@0.34.7
+        env:
+          NODE_OPTIONS: --throw-deprecation
       - run: corepack enable
         env:
           NODE_OPTIONS: ${{ inputs.futureCompat && '--throw-deprecation' || '' }}

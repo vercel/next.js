@@ -1,4 +1,7 @@
 import execa from 'execa'
+import { promises as fs } from 'fs'
+import os from 'os'
+import path from 'path'
 import { trace } from 'next/dist/trace'
 
 jest.mock('execa', () => jest.fn())
@@ -205,6 +208,80 @@ describe('deployment lifecycle', () => {
     logs = { exitCode: 0, stdout: '', stderr: ids }
     customLogs = logs
   }
+
+  it.each([
+    {
+      futureCompat: false,
+      node: undefined,
+      existingDeployment: false,
+      expected: '22.x',
+    },
+    {
+      futureCompat: true,
+      node: undefined,
+      existingDeployment: false,
+      expected: '>=22.0.0',
+    },
+    {
+      futureCompat: false,
+      node: '24.x',
+      existingDeployment: false,
+      expected: '24.x',
+    },
+    {
+      futureCompat: true,
+      node: '24.x',
+      existingDeployment: false,
+      expected: '24.x',
+    },
+    {
+      futureCompat: false,
+      node: undefined,
+      existingDeployment: true,
+      expected: undefined,
+    },
+    {
+      futureCompat: true,
+      node: undefined,
+      existingDeployment: true,
+      expected: undefined,
+    },
+  ])(
+    'prepares deployment engines with futureCompat=$futureCompat, node=$node, existingDeployment=$existingDeployment',
+    async ({ futureCompat, node, existingDeployment, expected }) => {
+      process.env.NEXT_TEST_FUTURE_COMPAT = futureCompat ? '1' : ''
+      process.env.NEXT_TEST_DEPLOY_URL = existingDeployment ? deploymentUrl : ''
+      jest
+        .mocked((NextDeployInstance.prototype as any).pinNodeVersion)
+        .mockRestore()
+      const testDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'next-deploy-engines-')
+      )
+      try {
+        const packageJsonPath = path.join(testDir, 'package.json')
+        const packageJson = {
+          name: 'next-deploy-engines',
+          engines: { pnpm: '>=9', ...(node ? { node } : {}) },
+        }
+        const original = JSON.stringify(packageJson)
+        await fs.writeFile(packageJsonPath, original)
+        const next = new NextDeployInstance({ files: __dirname })
+        next.testDir = testDir
+        await next.setup(trace('test'))
+
+        const contents = await fs.readFile(packageJsonPath, 'utf8')
+        expect(JSON.parse(contents)).toEqual({
+          ...packageJson,
+          engines: { pnpm: '>=9', ...(expected ? { node: expected } : {}) },
+        })
+        if (existingDeployment) {
+          expect(contents).toBe(original)
+        }
+      } finally {
+        await fs.rm(testDir, { recursive: true, force: true })
+      }
+    }
+  )
 
   it.each([false, true])(
     'forwards future-compat=%s to deployment builds and functions',
