@@ -8,12 +8,14 @@ export function needsExperimentalReact(config: NextConfig) {
     transitionIndicator,
     gestureTransition,
     hydrationChangeEvent,
+    externalBrowserRuntime,
   } = config.experimental || {}
   return Boolean(
     blockingSSR ||
       taint ||
       transitionIndicator ||
       gestureTransition ||
-      hydrationChangeEvent
+      hydrationChangeEvent ||
+      externalBrowserRuntime
   )
 }
