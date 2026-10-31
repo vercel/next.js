@@ -1,9 +1,49 @@
-use std::io::Write;
+use std::{io::Write, ops::AddAssign};
 
 use anyhow::Result;
-use turbopack_core::code_builder::CodeBuilder;
+use turbopack_core::{chunk::ModuleId, code_builder::CodeCompositionBuilder};
 
 use crate::{chunk::CodeModuleIdAndPath, utils::StringifyJs};
+
+/// A module factory placed in a chunk by [`write_module_factories`].
+pub trait ModuleFactory {
+    fn id(&self) -> &ModuleId;
+    fn strict(&self) -> bool;
+}
+
+impl ModuleFactory for CodeModuleIdAndPath {
+    fn id(&self) -> &ModuleId {
+        &self.id
+    }
+
+    fn strict(&self) -> bool {
+        self.strict
+    }
+}
+
+/// Where [`write_module_factories`] writes to.
+pub trait ModuleFactorySink<F>: Write + AddAssign<&'static str> {
+    /// Appends a factory. With `without_strict_directive`, a strict factory's recorded
+    /// `"use strict"` directive may be left out, because the layout already places it in a
+    /// strict context.
+    fn push_factory(&mut self, factory: &F, without_strict_directive: bool);
+}
+
+/// References each factory's cells, so that the chunk's persisted representation doesn't copy
+/// them, and doesn't depend on their bytes.
+impl ModuleFactorySink<CodeModuleIdAndPath> for CodeCompositionBuilder {
+    fn push_factory(&mut self, factory: &CodeModuleIdAndPath, without_strict_directive: bool) {
+        if without_strict_directive {
+            self.push_code_cells_without_strict_directive(
+                factory.cells,
+                factory.code,
+                factory.strict_directive,
+            );
+        } else {
+            self.push_code_cells(factory.cells, factory.code);
+        }
+    }
+}
 
 // The chunk scaffolding is written in minified form in every mode, so a chunk whose factories
 // are minified individually needs no further minification pass.
@@ -38,10 +78,10 @@ pub enum StrictFactoryMode {
 /// The chunk items must be sorted with all strict items first, see
 /// [`EcmascriptChunkContent::chunk_item_code_module_ids_and_paths`](crate::chunk::EcmascriptChunkContent::chunk_item_code_module_ids_and_paths).
 pub fn strict_factory_mode(
-    chunk_items: &[CodeModuleIdAndPath],
+    chunk_items: &[impl ModuleFactory],
     supports_arrow_functions: bool,
 ) -> StrictFactoryMode {
-    let strict = chunk_items.iter().filter(|item| item.strict).count();
+    let strict = chunk_items.iter().filter(|item| item.strict()).count();
     let non_strict = chunk_items.len() - strict;
     if strict == 0 {
         return StrictFactoryMode::Flat;
@@ -94,38 +134,34 @@ const fn mixed_prefix(supports_arrow_functions: bool) -> &'static str {
 ///
 /// Every strict factory carries its own `"use strict"` directive. Where the layout places it in
 /// a strict context anyway (inside the mixed IIFE, or in an all-strict chunk), the directive is
-/// left out (see [`CodeBuilder::push_code_without_strict_directive`]).
+/// left out (see `ModuleFactorySink::push_factory`).
 ///
 /// The chunk items must be sorted with all strict items first.
-pub fn write_module_factories(
-    code: &mut CodeBuilder,
-    chunk_items: &[CodeModuleIdAndPath],
+pub fn write_module_factories<F: ModuleFactory>(
+    code: &mut impl ModuleFactorySink<F>,
+    chunk_items: &[F],
     mode: StrictFactoryMode,
     supports_arrow_functions: bool,
 ) -> Result<()> {
     debug_assert!(
-        chunk_items.is_sorted_by_key(|item| !item.strict),
+        chunk_items.is_sorted_by_key(|item| !item.strict()),
         "strict chunk items must come first"
     );
     let mut in_strict_group = false;
     for (i, item) in chunk_items.iter().enumerate() {
-        if mode == StrictFactoryMode::Mixed && item.strict != in_strict_group {
+        if mode == StrictFactoryMode::Mixed && item.strict() != in_strict_group {
             if in_strict_group {
                 *code += MIXED_SUFFIX;
                 *code += ",";
             } else {
                 *code += mixed_prefix(supports_arrow_functions);
             }
-            in_strict_group = item.strict;
+            in_strict_group = item.strict();
         } else if i > 0 {
             *code += ",";
         }
-        write!(code, "{},", StringifyJs(&item.id))?;
-        if item.strict && mode != StrictFactoryMode::Flat {
-            code.push_code_without_strict_directive(&item.code);
-        } else {
-            code.push_code(&item.code);
-        }
+        write!(code, "{},", StringifyJs(item.id()))?;
+        code.push_factory(item, item.strict() && mode != StrictFactoryMode::Flat);
     }
     if in_strict_group {
         *code += MIXED_SUFFIX;
@@ -135,8 +171,7 @@ pub fn write_module_factories(
 
 #[cfg(test)]
 mod tests {
-    use turbo_tasks::ReadRef;
-    use turbopack_core::{chunk::ModuleId, code_builder::STRICT_DIRECTIVE};
+    use turbopack_core::code_builder::{CodeBuilder, STRICT_DIRECTIVE};
 
     use super::*;
 
@@ -167,25 +202,45 @@ mod tests {
         );
     }
 
-    /// A strict factory `s` carries a recorded directive, a non-strict one `n` does not.
-    fn item(id: u64, strict: bool) -> CodeModuleIdAndPath {
-        let mut code = CodeBuilder::new(false, false);
-        if strict {
-            code += "(()=>{";
-            code.push_strict_directive();
-            code += "s})";
-        } else {
-            code += "(()=>{n})";
+    struct TestFactory {
+        id: ModuleId,
+        strict: bool,
+    }
+
+    impl ModuleFactory for TestFactory {
+        fn id(&self) -> &ModuleId {
+            &self.id
         }
-        CodeModuleIdAndPath {
+
+        fn strict(&self) -> bool {
+            self.strict
+        }
+    }
+
+    /// Writes a strict factory as `(()=>{"use strict";s})`, leaving out the directive when asked
+    /// to, and a non-strict one as `(()=>{n})`.
+    impl ModuleFactorySink<TestFactory> for CodeBuilder {
+        fn push_factory(&mut self, factory: &TestFactory, without_strict_directive: bool) {
+            *self += "(()=>{";
+            if factory.strict {
+                if !without_strict_directive {
+                    *self += STRICT_DIRECTIVE;
+                }
+                *self += "s})";
+            } else {
+                *self += "n})";
+            }
+        }
+    }
+
+    fn item(id: u64, strict: bool) -> TestFactory {
+        TestFactory {
             id: ModuleId::Number(id),
-            code: ReadRef::new_owned(code.build()),
-            path: Default::default(),
             strict,
         }
     }
 
-    fn write(items: &[CodeModuleIdAndPath]) -> String {
+    fn write(items: &[TestFactory]) -> String {
         let mode = strict_factory_mode(items, true);
         let wrapper = strict_chunk_wrapper(mode, true);
         let mut code = CodeBuilder::new(false, false);

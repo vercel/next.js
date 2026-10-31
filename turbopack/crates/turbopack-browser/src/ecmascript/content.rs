@@ -4,11 +4,11 @@ use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc, turbobail};
-use turbo_tasks_fs::{File, FileContent};
+use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, ModuleId},
-    code_builder::{Code, CodeBuilder},
+    code_builder::{Code, CodeComposition, CodeCompositionBuilder, ComposedCode},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
@@ -59,6 +59,30 @@ impl EcmascriptBrowserChunkContent {
 
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+        Ok(self.composed_code().await?.code())
+    }
+
+    /// The chunk's code, built from its [`composition`](Self::composition).
+    #[turbo_tasks::function]
+    async fn composed_code(self: Vc<Self>) -> Result<Vc<ComposedCode>> {
+        let this = self.await?;
+        let source_maps = *this
+            .chunking_context
+            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+            .await?;
+        let minification =
+            ChunkMinification::for_chunking_context(Vc::upcast(*this.chunking_context)).await?;
+        Ok(minification
+            .finish_composition(self.composition().to_resolved().await?, source_maps)
+            .await?
+            .cell())
+    }
+
+    /// The chunk's structure: its scaffolding, and references to its chunk items' cells (see
+    /// [`CodeComposition`]). Doesn't read the chunk items' bytes, so it isn't recomputed (and its
+    /// persisted body isn't rewritten) when only those change.
+    #[turbo_tasks::function]
+    async fn composition(self: Vc<Self>) -> Result<Vc<CodeComposition>> {
         let this = self.await?;
         let source_maps = *this
             .chunking_context
@@ -82,7 +106,7 @@ impl EcmascriptBrowserChunkContent {
                 Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
-        let mut code = CodeBuilder::new(
+        let mut code = CodeCompositionBuilder::new(
             source_maps,
             *this.chunking_context.debug_ids_enabled().await?,
         );
@@ -138,7 +162,7 @@ impl EcmascriptBrowserChunkContent {
             code += suffix;
         }
 
-        Ok(minification.finish_chunk(code.build(), source_maps)?.cell())
+        Ok(code.build().cell())
     }
 
     #[turbo_tasks::function]
@@ -152,15 +176,12 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-
-        Ok(AssetContent::file(
-            FileContent::Content(File::from(
-                self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
-                    .await?,
-            ))
-            .cell(),
-        ))
+        let file = self
+            .composed_code()
+            .await?
+            .to_file_with_magic_comments(|| *this.source_map)
+            .await?;
+        Ok(AssetContent::file(FileContent::Content(file).cell()))
     }
 
     #[turbo_tasks::function]
@@ -198,8 +219,8 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
+        self.composed_code().await?.source_map_file_content().await
     }
 
     #[turbo_tasks::function]
