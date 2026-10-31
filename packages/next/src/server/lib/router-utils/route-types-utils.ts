@@ -150,31 +150,42 @@ function resolveInterceptingRoute(route: string): string {
   }
 }
 
+function isInternalLayoutRoute(route: string) {
+  return (
+    route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+    route === UNDERSCORE_NOT_FOUND_ROUTE
+  )
+}
+
 /**
- * Collects root params from the manifest's layout routes with universality tracking.
+ * Collects root params from the layouts with universality tracking.
  * A root layout is the shallowest layout in each branch — no ancestor layout above it.
  * A param is "universal" if it appears in ALL root layouts.
  *
- * Uses the already-extracted `groups` from `manifest.layoutRoutes` (via `getRouteRegex`)
- * rather than re-parsing segments.
+ * Ancestry is derived from the layout file paths, not from the routes: route
+ * groups are stripped from routes, so `app/(marketing)/layout.tsx` is served at
+ * "/" but is not an ancestor of `app/[locale]/layout.tsx`.
  */
 function collectRootParamsFromLayouts(
-  layoutRoutes: RouteTypesManifest['layoutRoutes']
+  layoutRoutes: RouteInfo[]
 ): Map<string, RootParamInfo> {
-  const routes = Object.keys(layoutRoutes)
+  const layouts = layoutRoutes
+    .filter(({ route }) => !isInternalLayoutRoute(route))
+    .map(({ route, filePath }) => ({
+      // The trailing separator keeps `app/a` from matching `app/ab`.
+      dir: path.dirname(filePath) + path.sep,
+      groups: extractRouteParams(resolveInterceptingRoute(route)),
+    }))
 
-  // Find root layouts: layouts with no ancestor layout above them.
-  const rootLayoutRoutes = routes.filter(
-    // If there are no other layouts whose paths are prefixes of this layout,
-    // then it's a root layout.
-    (route) =>
-      !routes.some(
-        (other) =>
-          other !== route && (other === '/' || route.startsWith(other + '/'))
+  // Find root layouts: layouts with no other layout in a parent directory.
+  const rootLayouts = layouts.filter(
+    (layout) =>
+      !layouts.some(
+        (other) => other.dir !== layout.dir && layout.dir.startsWith(other.dir)
       )
   )
 
-  if (rootLayoutRoutes.length === 0) {
+  if (rootLayouts.length === 0) {
     return new Map()
   }
 
@@ -182,8 +193,8 @@ function collectRootParamsFromLayouts(
   // across roots, so track both param names and shapes.
   const rootParams = new Map<string, RootParamInfo>()
 
-  for (const route of rootLayoutRoutes) {
-    for (const [name, group] of Object.entries(layoutRoutes[route].groups)) {
+  for (const { groups } of rootLayouts) {
+    for (const [name, group] of Object.entries(groups)) {
       const info = rootParams.get(name) ?? new Set<RootParamValueType>()
 
       info.add(group.repeat ? 'string[]' : 'string')
@@ -197,9 +208,7 @@ function collectRootParamsFromLayouts(
 
   // Any param missing from a root layout can be undefined.
   for (const [name, info] of rootParams) {
-    if (
-      rootLayoutRoutes.some((route) => !(name in layoutRoutes[route].groups))
-    ) {
+    if (rootLayouts.some(({ groups }) => !(name in groups))) {
       info.add('undefined')
     }
   }
@@ -312,11 +321,7 @@ export async function createRouteTypesManifest({
 
   // Process layout routes (exclude internal app error/not-found layouts)
   for (const { route, filePath } of layoutRoutes) {
-    if (
-      route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
-      route === UNDERSCORE_NOT_FOUND_ROUTE
-    )
-      continue
+    if (isInternalLayoutRoute(route)) continue
     // Use the resolved route (for interception routes, this gives us the canonical route)
     const resolvedRoute = resolveInterceptingRoute(route)
     if (!manifest.layoutRoutes[resolvedRoute]) {
@@ -415,7 +420,7 @@ export async function createRouteTypesManifest({
   }
 
   // Collect root params from layout routes
-  manifest.rootParams = collectRootParamsFromLayouts(manifest.layoutRoutes)
+  manifest.rootParams = collectRootParamsFromLayouts(layoutRoutes)
 
   return manifest
 }
