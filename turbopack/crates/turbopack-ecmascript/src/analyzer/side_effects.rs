@@ -43,7 +43,7 @@ use swc_core::{
     common::{Mark, comments::Comments},
     ecma::{
         ast::*,
-        utils::prop_name_eq,
+        utils::{find_pat_ids, prop_name_eq},
         visit::{Visit, VisitWith, noop_visit_type},
     },
 };
@@ -498,12 +498,18 @@ fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool
     found
 }
 
+pub struct ModuleSideEffectsAnalysisResult {
+    pub side_effects: ModuleSideEffects,
+    /// Bindings outside functions or class static blocks whose declarations are all pure.
+    pub pure_top_level_declarations: HashSet<Id>,
+}
+
 /// Analyzes a program to determine if it contains side effects at the top level.
 pub fn compute_module_evaluation_side_effects(
     program: &Program,
-    comments: &dyn Comments,
+    comments: Option<&dyn Comments>,
     unresolved_mark: Mark,
-) -> ModuleSideEffects {
+) -> ModuleSideEffectsAnalysisResult {
     let module_exports_tainted = module_exports_is_tainted(program, unresolved_mark);
     let module_exports_has_accessor = module_exports_has_accessor(program, unresolved_mark);
     let safe_assignment_constant_ids = collect_safe_assignment_constant_ids(program);
@@ -515,17 +521,24 @@ pub fn compute_module_evaluation_side_effects(
         safe_assignment_constant_ids,
     );
     program.visit_with(&mut visitor);
-    if visitor.has_side_effects {
+    let side_effects = if visitor.has_side_effects {
         ModuleSideEffects::SideEffectful
     } else if visitor.has_imports {
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree
     } else {
         ModuleSideEffects::SideEffectFree
+    };
+    visitor
+        .pure_top_level_declarations
+        .retain(|id| !visitor.impure_top_level_declarations.contains(id));
+    ModuleSideEffectsAnalysisResult {
+        side_effects,
+        pure_top_level_declarations: visitor.pure_top_level_declarations,
     }
 }
 
 struct SideEffectVisitor<'a> {
-    comments: &'a dyn Comments,
+    comments: Option<&'a dyn Comments>,
     unresolved_mark: Mark,
     /// Whether `module.exports` was reassigned to a non-safe value, making member
     /// writes to `module.exports.*` potentially observable.
@@ -536,14 +549,20 @@ struct SideEffectVisitor<'a> {
     /// local `const` bindings initialized with a fresh object/array literal.
     /// Member mutations rooted at these are not module-evaluation side effects.
     safe_assignment_constant_ids: HashSet<Id>,
+    pure_top_level_declarations: HashSet<Id>,
+    impure_top_level_declarations: HashSet<Id>,
+    /// Functions and class static blocks have their own var scope.
+    in_function: bool,
     has_side_effects: bool,
+    /// Effects that module inference ignores, but that prevent dropping an initializer.
+    has_initializer_side_effects: bool,
     will_invoke_fn_exprs: bool,
     has_imports: bool,
 }
 
 impl<'a> SideEffectVisitor<'a> {
     fn new(
-        comments: &'a dyn Comments,
+        comments: Option<&'a dyn Comments>,
         unresolved_mark: Mark,
         module_exports_tainted: bool,
         module_exports_has_accessor: bool,
@@ -555,7 +574,11 @@ impl<'a> SideEffectVisitor<'a> {
             module_exports_tainted,
             module_exports_has_accessor,
             safe_assignment_constant_ids,
+            pure_top_level_declarations: HashSet::new(),
+            impure_top_level_declarations: HashSet::new(),
+            in_function: false,
             has_side_effects: false,
+            has_initializer_side_effects: false,
             will_invoke_fn_exprs: false,
             has_imports: false,
         }
@@ -564,6 +587,35 @@ impl<'a> SideEffectVisitor<'a> {
     /// Mark that we've found a side effect and stop further analysis.
     fn mark_side_effect(&mut self) {
         self.has_side_effects = true;
+    }
+
+    /// Analyze an item independently, retaining the module's overall result.
+    fn check_for_side_effects(&mut self, f: impl FnOnce(&mut Self)) -> bool {
+        let previous = std::mem::take(&mut self.has_side_effects);
+        let previous_initializer = std::mem::take(&mut self.has_initializer_side_effects);
+        f(self);
+        let has_side_effects = self.has_side_effects || self.has_initializer_side_effects;
+        self.has_side_effects |= previous;
+        self.has_initializer_side_effects |= previous_initializer;
+        has_side_effects
+    }
+
+    fn record_top_level_declarations(
+        &mut self,
+        ids: impl IntoIterator<Item = Id>,
+        has_side_effects: bool,
+    ) {
+        if has_side_effects {
+            self.impure_top_level_declarations.extend(ids);
+        } else {
+            self.pure_top_level_declarations.extend(ids);
+        }
+    }
+
+    fn with_function_scope(&mut self, f: impl FnOnce(&mut Self)) {
+        let previous = std::mem::replace(&mut self.in_function, true);
+        f(self);
+        self.in_function = previous;
     }
 
     /// Temporarily set `will_invoke_fn_exprs` to the given value, execute the closure,
@@ -778,36 +830,9 @@ impl<'a> SideEffectVisitor<'a> {
 
 impl<'a> Visit for SideEffectVisitor<'a> {
     noop_visit_type!();
-    // If we've already found side effects, skip further visitation
-    fn visit_program(&mut self, program: &Program) {
-        check_side_effects!(self);
-        program.visit_children_with(self);
-    }
-
-    fn visit_module(&mut self, module: &Module) {
-        check_side_effects!(self);
-
-        // Only check top-level module items
-        for item in &module.body {
-            check_side_effects!(self);
-            item.visit_with(self);
-        }
-    }
-
-    fn visit_script(&mut self, script: &Script) {
-        check_side_effects!(self);
-
-        // Only check top-level statements
-        for stmt in &script.body {
-            check_side_effects!(self);
-            stmt.visit_with(self);
-        }
-    }
 
     // Module declarations (imports/exports) need special handling
     fn visit_module_decl(&mut self, decl: &ModuleDecl) {
-        check_side_effects!(self);
-
         match decl {
             // Import statements may have side effects, which could require full graph analysis
             // Record that to decide if we can upgrade ModuleEvaluationIsSideEffectFree to
@@ -818,47 +843,16 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
             // Export declarations need to check their contents
             ModuleDecl::ExportDecl(export_decl) => {
-                // Check the declaration being exported
-                match &export_decl.decl {
-                    Decl::Fn(_) => {
-                        // function declarations are pure
-                    }
-                    Decl::Class(class_decl) => {
-                        // Class declarations can have side effects in static blocks, extends or
-                        // static property initializers.
-                        class_decl.visit_with(self);
-                    }
-                    Decl::Var(var_decl) => {
-                        // Variable declarations need their initializers checked
-                        var_decl.visit_with(self);
-                    }
-                    _ => {
-                        // Other declarations should be checked
-                        export_decl.decl.visit_with(self);
-                    }
-                }
+                export_decl.decl.visit_with(self);
             }
 
             ModuleDecl::ExportDefaultDecl(export_default_decl) => {
-                // Check the default export
-                match &export_default_decl.decl {
-                    DefaultDecl::Class(cls) => {
-                        // Class expressions can have side effects in extends clause and static
-                        // members
-                        cls.visit_with(self);
-                    }
-                    DefaultDecl::Fn(_) => {
-                        // function declarations are pure
-                    }
-                    DefaultDecl::TsInterfaceDecl(_) => {
-                        // TypeScript interface declarations are pure
-                    }
-                }
+                export_default_decl.visit_with(self);
             }
 
             ModuleDecl::ExportDefaultExpr(export_default_expr) => {
                 // Check the expression being exported
-                export_default_expr.expr.visit_with(self);
+                self.check_for_side_effects(|this| export_default_expr.expr.visit_with(this));
             }
 
             // Re-exports have no side effects
@@ -891,24 +885,16 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
     // Statement-level detection
     fn visit_stmt(&mut self, stmt: &Stmt) {
-        check_side_effects!(self);
+        // Module-scope statement traversal must continue after finding effects so
+        // nested `var` redeclarations cannot be hidden by an early exit.
+        if self.in_function {
+            check_side_effects!(self);
+        }
 
         match stmt {
             // Expression statements need checking
             Stmt::Expr(expr_stmt) => {
-                expr_stmt.visit_with(self);
-            }
-            // Variable declarations need checking (initializers might have side effects)
-            Stmt::Decl(Decl::Var(var_decl)) => {
-                var_decl.visit_with(self);
-            }
-            // Function declarations are side-effect free
-            Stmt::Decl(Decl::Fn(_)) => {
-                // Function declarations don't execute, so no side effects
-            }
-            // Class declarations can have side effects in extends clause and static members
-            Stmt::Decl(Decl::Class(class_decl)) => {
-                class_decl.visit_with(self);
+                self.check_for_side_effects(|this| expr_stmt.visit_with(this));
             }
             // Other declarations
             Stmt::Decl(decl) => {
@@ -919,7 +905,62 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Most other statement types (if, for, while, etc.) at top level
                 // would be unusual and potentially have side effects
                 self.mark_side_effect();
+                if !self.in_function {
+                    stmt.visit_children_with(self);
+                }
             }
+        }
+    }
+
+    fn visit_var_decl(&mut self, var: &VarDecl) {
+        if self.in_function {
+            var.visit_children_with(self);
+            return;
+        }
+        for declarator in &var.decls {
+            let has_side_effects = self.check_for_side_effects(|this| declarator.visit_with(this));
+            let ids: Vec<Id> = find_pat_ids(&declarator.name);
+            self.record_top_level_declarations(ids, has_side_effects);
+        }
+    }
+
+    fn visit_fn_decl(&mut self, function: &FnDecl) {
+        if !self.in_function {
+            self.record_top_level_declarations([function.ident.to_id()], false);
+        }
+        // Function bodies have their own var scope and do not execute at declaration time.
+    }
+
+    fn visit_function(&mut self, function: &Function) {
+        self.with_function_scope(|this| function.visit_children_with(this));
+    }
+
+    fn visit_arrow_expr(&mut self, arrow: &ArrowExpr) {
+        self.with_function_scope(|this| arrow.visit_children_with(this));
+    }
+
+    fn visit_class_decl(&mut self, class: &ClassDecl) {
+        let collect = !self.in_function;
+        let has_side_effects = self.check_for_side_effects(|this| class.class.visit_with(this));
+        if collect {
+            self.record_top_level_declarations([class.ident.to_id()], has_side_effects);
+        }
+    }
+
+    fn visit_export_default_decl(&mut self, export: &ExportDefaultDecl) {
+        match &export.decl {
+            DefaultDecl::Fn(function) => {
+                if let Some(ident) = &function.ident {
+                    self.record_top_level_declarations([ident.to_id()], false);
+                }
+            }
+            DefaultDecl::Class(class) => {
+                let has_side_effects = self.check_for_side_effects(|this| class.visit_with(this));
+                if let Some(ident) = &class.ident {
+                    self.record_top_level_declarations([ident.to_id()], has_side_effects);
+                }
+            }
+            DefaultDecl::TsInterfaceDecl(_) => {}
         }
     }
 
@@ -1035,10 +1076,13 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     });
                 } else if self.is_require_or_import(&call.callee) {
                     self.has_imports = true;
+                    // Removing the initializer would also remove the imported module's effects.
+                    self.has_initializer_side_effects = true;
                     // It would be weird to have a side effect in a require(...) statement, but not
                     // impossible.
                     call.args.visit_children_with(self);
                 } else if self.define_property_target_is_pure(call) {
+                    self.has_initializer_side_effects = true;
                     call.args.visit_children_with(self);
                 } else {
                     // Unmarked calls are considered to have side effects
@@ -1069,6 +1113,8 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // is excluded up front, so `assign_target_is_pure` already returns
                 // false for member writes that could invoke one.
                 if assign.op == AssignOp::Assign && self.assign_target_is_pure(&assign.left) {
+                    // A module-local mutation can still affect another declaration or an export.
+                    self.has_initializer_side_effects = true;
                     // Still check the assigned value, and the target's computed
                     // property keys (e.g. `exports[sideEffect()] = …`).
                     assign.left.visit_with(self);
@@ -1083,6 +1129,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 self.mark_side_effect();
             }
             Expr::Await(e) => {
+                self.has_initializer_side_effects = true;
                 e.arg.visit_with(self);
             }
             Expr::Yield(e) => {
@@ -1156,12 +1203,30 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
         match prop {
             PropOrSpread::Spread(spread) => {
+                // Copying an unknown object's properties can invoke getters.
+                if !matches!(unparen(&spread.expr), Expr::Object(_))
+                    || contains_getters_or_setters(&spread.expr)
+                {
+                    self.has_initializer_side_effects = true;
+                }
                 spread.expr.visit_with(self);
             }
             PropOrSpread::Prop(prop) => {
                 prop.visit_with(self);
             }
         }
+    }
+
+    fn visit_expr_or_spread(&mut self, expr: &ExprOrSpread) {
+        check_side_effects!(self);
+
+        // Spreading an unknown value invokes its iterator, even in a PURE call.
+        if expr.spread.is_some()
+            && !matches!(unparen(&expr.expr), Expr::Array(_) | Expr::Lit(Lit::Str(_)))
+        {
+            self.has_initializer_side_effects = true;
+        }
+        expr.expr.visit_with(self);
     }
 
     fn visit_prop(&mut self, prop: &Prop) {
@@ -1235,9 +1300,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
             ClassMember::StaticBlock(block) => {
                 // Static blocks may have side effects because they execute immediately
                 // Check the statements in the block
-                for stmt in &block.body.stmts {
-                    stmt.visit_with(self);
-                }
+                self.with_function_scope(|this| block.body.stmts.visit_with(this));
             }
             // Check static properties - they execute at definition time
             ClassMember::ClassProp(class_prop) if class_prop.is_static => {
@@ -1390,7 +1453,7 @@ mod tests {
     use super::*;
 
     /// Helper function to parse JavaScript code from a string and run the resolver
-    fn parse_and_check_for_side_effects(code: &str, expected: ModuleSideEffects) {
+    fn parse_and_analyze(code: &str) -> ModuleSideEffectsAnalysisResult {
         GLOBALS.set(&Default::default(), || {
             let cm = Lrc::new(SourceMap::default());
             let fm = cm.new_source_file(Lrc::new(FileName::Anon), code.to_string());
@@ -1416,18 +1479,70 @@ mod tests {
             let top_level_mark = Mark::new();
             program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-            let actual =
-                compute_module_evaluation_side_effects(&program, &comments, unresolved_mark);
-
-            let msg = match expected {
-                ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
-                    "Expected code to have no local side effects"
-                }
-                ModuleSideEffects::SideEffectFree => "Expected code to be side effect free",
-                ModuleSideEffects::SideEffectful => "Expected code to have side effects",
-            };
-            assert_eq!(actual, expected, "{}:\n{}", msg, code);
+            compute_module_evaluation_side_effects(&program, Some(&comments), unresolved_mark)
         })
+    }
+
+    fn parse_and_check_for_side_effects(code: &str, expected: ModuleSideEffects) {
+        let actual = parse_and_analyze(code);
+        let msg = match expected {
+            ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                "Expected code to have no local side effects"
+            }
+            ModuleSideEffects::SideEffectFree => "Expected code to be side effect free",
+            ModuleSideEffects::SideEffectful => "Expected code to have side effects",
+        };
+        assert_eq!(actual.side_effects, expected, "{}:\n{}", msg, code);
+    }
+
+    #[rstest::rstest]
+    #[case("const a = 1; let b; var c = () => effect();", &["a", "b", "c"])]
+    #[case("effect(); const a = 1, b = effect(), c = 2;", &["a", "c"])]
+    #[case("export const a = effect(), b = 1; export let c = 2;", &["b", "c"])]
+    #[case("const { a, b: [c = 1], ...d } = value;", &["a", "c", "d"])]
+    #[case("const { a = effect(), b } = value; const c = 1;", &["c"])]
+    #[case("function a() { effect(); const nested = 1; } export function b() {}", &["a", "b"])]
+    #[case("class A { method() { effect(); } } class B { static x = effect(); }", &["A"])]
+    #[case("export class A {} export default class B {}", &["A", "B"])]
+    #[case("export default function a() { effect(); }", &["a"])]
+    #[case("export default class A { static x = effect(); }", &[])]
+    #[case("export default function () {}", &[])]
+    #[case("export default class {}", &[])]
+    #[case("const a = class { static { const nested = 1; } };", &["a"])]
+    #[case("const a = [1].map(() => { var nested = 1; });", &["a"])]
+    #[case("[1].map(() => { var nested = 1; }); const a = 1;", &["a"])]
+    #[case("const a = [1].map(function () { var nested = 1; });", &["a"])]
+    #[case("{ const nested = 1; } const a = () => { const nested = 2; };", &["nested", "a"])]
+    #[case("var a = 1; var a = effect(); var b = effect(); var b = 1;", &[])]
+    #[case("var a = 1; { effect(); var a = effect(); }", &[])]
+    #[case("{ effect(); var a = effect(); } var a = 1;", &[])]
+    #[case("var a = 1; if (condition) { var a = effect(); }", &[])]
+    #[case("var a = 1; for (;;) { var a = effect(); }", &[])]
+    #[case("var a = 1; switch (value) { case 0: var a = effect(); }", &[])]
+    #[case("var a = 1; { var a = 2; }", &["a"])]
+    #[case("function a() {} var a = effect();", &[])]
+    #[case("var a = effect(); function a() {}", &[])]
+    #[case("function a() {} { effect(); var a = effect(); }", &[])]
+    #[case("function a() {} var a = () => effect();", &["a"])]
+    #[case("var a = 1; function b() { var a = effect(); }", &["a", "b"])]
+    #[case("var a = 1; { let a = effect(); }", &["a"])]
+    #[case("var a = 1; class B { static { var a = effect(); } }", &["a"])]
+    #[case("{ let a = 1; } { let a = effect(); }", &["a"])]
+    #[case("const a = /*#__PURE__*/ factory(), b = /*#__PURE__*/ factory(effect());", &["a"])]
+    #[case("const a = /*#__PURE__*/ factory(...iterable), b = [...iterable];", &[])]
+    #[case("const a = { ...value }, b = { ...{ x: 1 } };", &["b"])]
+    #[case("const a = require('module'), b = import('module');", &[])]
+    #[case("const object = {}; const a = (object.value = 1);", &["object"])]
+    #[case("const a = await value;", &[])]
+    #[case("for (const a = 1, b = effect(); false;) {}", &["a"])]
+    fn pure_top_level_declarations(#[case] code: &str, #[case] expected: &[&str]) {
+        let actual = parse_and_analyze(code);
+        let names: HashSet<_> = actual
+            .pure_top_level_declarations
+            .iter()
+            .map(|id| id.0.as_ref())
+            .collect();
+        assert_eq!(names, expected.iter().copied().collect(), "{code}");
     }
 
     /// Generate a test that asserts the given code has the expected side effect status

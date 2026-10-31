@@ -1198,7 +1198,7 @@
                 effects: [],
                 range: Exact(
                     AstPathId(
-                        18,
+                        24,
                     ),
                 ),
             },
@@ -1206,7 +1206,7 @@
                 effects: [],
                 range: Exact(
                     AstPathId(
-                        19,
+                        25,
                     ),
                 ),
             },

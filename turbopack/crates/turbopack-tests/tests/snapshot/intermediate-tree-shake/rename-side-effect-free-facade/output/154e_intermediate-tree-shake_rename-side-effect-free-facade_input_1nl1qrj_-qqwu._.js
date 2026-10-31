@@ -11,7 +11,7 @@ __turbopack_context__.s([]);
 "use strict";
 
 const a = 'a';
-const a_unused = 'a_unused';
+const a_unused = /*TURBOPACK unused pure init*/ void 0;
 __turbopack_context__.s([
     "a",
     0,
