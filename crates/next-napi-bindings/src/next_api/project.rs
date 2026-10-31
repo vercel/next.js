@@ -846,7 +846,7 @@ pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let container = project.container;
-    project
+    if let Err(error) = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
@@ -855,7 +855,9 @@ pub async fn project_on_exit(
                 .await
         })
         .await
-        .map_err(|e| napi::Error::from_reason(format!("{e:#}")))?;
+    {
+        eprintln!("Failed to shut down native Go workers: {error:#}");
+    }
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
 }
@@ -893,13 +895,16 @@ pub async fn project_shutdown(
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
     let container = project.container;
-    tt.run_once(async move {
-        shutdown_go_operation(container)
-            .read_strongly_consistent()
-            .await
-    })
-    .await
-    .map_err(|e| napi::Error::from_reason(format!("{e:#}")))?;
+    if let Err(error) = tt
+        .run_once(async move {
+            shutdown_go_operation(container)
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+    {
+        eprintln!("Failed to shut down native Go workers: {error:#}");
+    }
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())

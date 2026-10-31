@@ -1893,6 +1893,18 @@ async function applyModifyConfig(
         projectDir: dir,
       })
     }
+    const target = adapterMod.goTarget
+    if (
+      target !== undefined &&
+      (!target ||
+        !['linux', 'darwin', 'windows'].includes(target.os) ||
+        !['amd64', 'arm64'].includes(target.arch))
+    ) {
+      throw new Error(
+        'Invalid NextAdapter.goTarget: expected a supported Go os and arch'
+      )
+    }
+    config.adapterGoTarget = target
   }
   return config
 }

@@ -88,6 +88,8 @@ export type NextConfigComplete = Required<
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
     // traverse into the output directory.
     distDirRoot: string
+    // Internal bridge populated from NextAdapter.goTarget, not a user config option.
+    adapterGoTarget?: import('../build/adapter/build-complete').NextAdapter['goTarget']
     // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
     repoRoot: string
   }

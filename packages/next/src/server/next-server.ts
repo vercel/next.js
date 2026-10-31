@@ -1,5 +1,5 @@
 import './node-environment'
-import { NativeRouteManager } from './lib/native-route.external'
+import type { NativeRouteManager } from './lib/native-route.external'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -1107,7 +1107,11 @@ export default class NextNodeServer extends BaseServer<
         }
         const entry = this.getAppPathsManifest()?.[match.definition.page]
         if (entry?.endsWith('.native.json')) {
-          this.nativeRoutes ??= new NativeRouteManager(this.distDir, this.dev)
+          if (!this.nativeRoutes) {
+            const { NativeRouteManager } =
+              require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+            this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
+          }
           await this.nativeRoutes.invoke(
             match.definition.page,
             entry,

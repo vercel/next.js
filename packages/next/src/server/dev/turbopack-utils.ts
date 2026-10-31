@@ -458,11 +458,15 @@ export async function handleRouteType({
         )
       }
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
-      if (writtenEndpoint.value.type !== 'native')
-        hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
       const type = writtenEndpoint.value.type
+      const isNative =
+        type === 'native' ||
+        (writtenEndpoint.value.type === 'none' &&
+          writtenEndpoint.value.nativeBuildFailed === true)
+      if (isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
+      if (!isNative) hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -481,7 +485,9 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (!isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       break
     }

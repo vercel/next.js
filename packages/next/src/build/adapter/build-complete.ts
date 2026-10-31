@@ -523,6 +523,11 @@ type Route = {
 
 export interface NextAdapter {
   name: string
+  /** Target for Go route executables. Defaults to the build host; CGO is disabled. */
+  goTarget?: {
+    os: 'linux' | 'darwin' | 'windows'
+    arch: 'amd64' | 'arm64'
+  }
   /**
    * modifyConfig is called for any CLI command that loads the next.config
    * to only apply for specific commands the "phase" should be used
