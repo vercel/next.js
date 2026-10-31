@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withAppSpecialFilesDir = path.join(__dirname, 'with-app-special-files')
+const withDynamicPagesDir = path.join(__dirname, 'with-dynamic-pages')
+const withDynamicAppDir = path.join(__dirname, 'with-dynamic-app')
+const withPublicFilePagesDir = path.join(__dirname, 'with-public-file-pages')
 
 const linters = {
   withoutPages: new Linter({
@@ -18,6 +22,22 @@ const linters = {
   }),
   withApp: new Linter({
     cwd: withAppDir,
+    configType: 'eslintrc',
+  }),
+  withAppSpecialFiles: new Linter({
+    cwd: withAppSpecialFilesDir,
+    configType: 'eslintrc',
+  }),
+  withDynamicPages: new Linter({
+    cwd: withDynamicPagesDir,
+    configType: 'eslintrc',
+  }),
+  withDynamicApp: new Linter({
+    cwd: withDynamicAppDir,
+    configType: 'eslintrc',
+  }),
+  withPublicFilePages: new Linter({
+    cwd: withPublicFilePagesDir,
     configType: 'eslintrc',
   }),
   withNestedPages: new Linter({
@@ -256,6 +276,41 @@ export class Blah extends Head {
 }
 `
 describe('no-html-link-for-pages', function () {
+  it('matches dynamic segments without swallowing static route segments', function () {
+    for (const linter of [linters.withDynamicPages, linters.withDynamicApp]) {
+      for (const href of [
+        '/blog/alice/comments/42',
+        '/blog/alice/comments/42/',
+        '/files/a/b',
+        '/docs',
+        '/docs/a/b',
+      ]) {
+        const report = linter.verify(
+          `<a href="${href}">Link</a>`,
+          linterConfig,
+          { filename: 'foo.js' }
+        )
+        assert.equal(report.length, 1, `${href} should match a route`)
+      }
+
+      for (const href of ['/blog/alice', '/blog/alice/comments', '/files']) {
+        const report = linter.verify(
+          `<a href="${href}">Link</a>`,
+          linterConfig,
+          { filename: 'foo.js' }
+        )
+        assert.deepEqual(report, [], `${href} should not match a route`)
+      }
+    }
+  })
+  it('does not mistake a public file for a dynamic page', function () {
+    const report = linters.withPublicFilePages.verify(
+      '<a href="/presentation.pdf">View PDF</a>',
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     linters.withNestedPages.verify(
@@ -444,6 +499,24 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('does not treat nested App Router special files as pages', function () {
+    for (const href of ['/blog/layout', '/blog/loading']) {
+      const report = linters.withAppSpecialFiles.verify(
+        `<a href="${href}">Blog</a>`,
+        linterConfig,
+        { filename: 'foo.js' }
+      )
+      assert.deepEqual(report, [])
+    }
+  })
+  it('detects a nested App Router page', function () {
+    const [report] = linters.withAppSpecialFiles.verify(
+      '<a href="/blog">Blog</a>',
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
   })
   it('invalid dynamic route with appDir', function () {
     const [report] = linters.withApp.verify(invalidDynamicCode, linterConfig, {
