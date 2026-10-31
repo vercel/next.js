@@ -1632,19 +1632,6 @@ export interface ExperimentalConfig {
   exposeRuntimeErrorsToHMR?: boolean
 
   /**
-   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
-   * build`. Failing to acquire the lock causes the process to exit with an
-   * error message.
-   *
-   * This is because if multiple processes write to the same `distDir` at the
-   * same time, it can mangle the state of the directory. Disabling this option
-   * is not recommended.
-   *
-   * @default true
-   */
-  lockDistDir?: boolean
-
-  /**
    * Hide logs that occur after a render has already aborted.
    * This can help reduce noise in the console when dealing with aborted renders.
    *
@@ -2506,7 +2493,6 @@ export const defaultConfig = Object.freeze({
     explicitParallelRouteChildren: true,
     strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
-    lockDistDir: true,
     disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,

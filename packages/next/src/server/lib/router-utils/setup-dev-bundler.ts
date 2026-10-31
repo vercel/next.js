@@ -218,31 +218,28 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-  let lockfile
-  if (opts.nextConfig.experimental.lockDistDir) {
-    fs.mkdirSync(distDir, { recursive: true })
+  fs.mkdirSync(distDir, { recursive: true })
 
-    // Create server info to store in the lockfile itself
-    // This allows other processes to discover the running server
-    const appUrl =
-      process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
-    const serverInfo: DevServerInfo = {
-      pid: process.pid,
-      port: opts.port,
-      hostname: new URL(appUrl).hostname,
-      appUrl,
-      startedAt: Date.now(),
-    }
-
-    lockfile = await Lockfile.acquireWithRetriesOrExit(
-      path.join(distDir, 'lock'),
-      'next dev',
-      true,
-      JSON.stringify(serverInfo),
-      opts.dir,
-      opts.nextConfig.distDir
-    )
+  // Create server info to store in the lockfile itself
+  // This allows other processes to discover the running server
+  const appUrl =
+    process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
+  const serverInfo: DevServerInfo = {
+    pid: process.pid,
+    port: opts.port,
+    hostname: new URL(appUrl).hostname,
+    appUrl,
+    startedAt: Date.now(),
   }
+
+  const lockfile = await Lockfile.acquireWithRetriesOrExit(
+    path.join(distDir, 'lock'),
+    'next dev',
+    true,
+    JSON.stringify(serverInfo),
+    opts.dir,
+    opts.nextConfig.distDir
+  )
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
