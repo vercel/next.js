@@ -151,7 +151,6 @@ env:
   # Per-job memoization of passed test files.
   NEXT_TEST_PASSED_FILE: .next-test-passed.txt
   NEXT_TEST_FUTURE_COMPAT: ${{ inputs.futureCompat && '1' || '' }}
-  NEXT_TEST_SKIP_RESULT_CACHE: ${{ inputs.futureCompat && '1' || '' }}
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
@@ -498,7 +497,7 @@ jobs:
       # Restore the list of tests that already passed in an earlier
       # attempt of this same workflow run.
       - name: Restore passed-tests cache
-        if: ${{ inputs.afterBuild && !inputs.futureCompat }}
+        if: ${{ inputs.afterBuild }}
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}
