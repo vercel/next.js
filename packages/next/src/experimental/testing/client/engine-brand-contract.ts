@@ -1,3 +1,5 @@
+import { knownClientNativePromiseRoute } from './native-promise-allocation'
+
 // This capability reports only an engine Promise route: 0 non-Promise,
 // 1 exact native prototype, 2 other native Promise. It carries no scope owner
 // and authored callers cannot register arbitrary values.
@@ -13,6 +15,8 @@ export function isExactNativePromise(value: unknown): boolean {
     (typeof value !== 'object' && typeof value !== 'function')
   )
     return false
+  const known = knownClientNativePromiseRoute(value)
+  if (known !== undefined) return known === 1
   if (typeof classify !== 'function')
     throw new Error('Browser Mode engine Promise classifier is unavailable.')
   const decision: unknown = classify(value)

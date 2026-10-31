@@ -1,6 +1,13 @@
+import { getClientNativePromiseIntrinsics } from './native-promise-intrinsics'
+
 /** Captured at the actual client entry, before loading authored modules. */
 export function createClientRpcPrimitives() {
-  const fetchRpc = globalThis.fetch
+  const capturedFetch = globalThis.fetch
+  const intrinsics = getClientNativePromiseIntrinsics()
+  const fetchRpc =
+    intrinsics && capturedFetch === intrinsics.fetch && intrinsics.fetchRpc
+      ? intrinsics.fetchRpc
+      : capturedFetch
   const apply = Reflect.apply
   const getPrototypeOf = Object.getPrototypeOf
   const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor
@@ -20,6 +27,16 @@ export function createClientRpcPrimitives() {
   let responsePrototype: object | undefined
   let responseJson: Response['json'] | undefined
 
+  function callJson(json: Response['json'], response: Response) {
+    return apply(
+      intrinsics && json === intrinsics.json && intrinsics.readRpcJson
+        ? intrinsics.readRpcJson
+        : json,
+      response,
+      []
+    )
+  }
+
   function readRpcJson(response: Response): ReturnType<Response['json']> {
     let capturedResponse = false
     try {
@@ -30,10 +47,10 @@ export function createClientRpcPrimitives() {
     } catch {
       // Optional matching cannot replace the response's original lookup/call.
     }
-    if (capturedResponse) return apply(responseJson!, response, [])
+    if (capturedResponse) return callJson(responseJson!, response)
 
     const json = response.json
-    const result = apply(json, response, [])
+    const result = callJson(json, response)
     if (!initialized) {
       initialized = true
       // The first config response is read before authored code. Plain response

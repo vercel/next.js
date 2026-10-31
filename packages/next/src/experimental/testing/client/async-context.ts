@@ -1,6 +1,10 @@
 import type { AttemptContext, SuiteHookContext } from '../runner/lifecycle'
 import { continueNative } from './native-continuation'
 import { isExactNativePromise } from './engine-brand-contract'
+import {
+  createClientNativePromise,
+  captureClientNativeThen,
+} from './native-promise-allocation'
 import type { ClientCommandAttemptOrigin } from './protocol'
 
 type Owner =
@@ -132,15 +136,13 @@ function createCleanupCallView(owner: Scope, call: BrowserCleanupCall) {
       | Readonly<{ status: 'fulfilled' }>
       | Readonly<{ status: 'rejected'; error: unknown }>
     > {
-      return runInScope(
-        view,
-        () =>
-          new NativePromise((resolve) => {
-            Reflect.apply(nativeThen, adoptInScope(view, awaited), [
-              () => resolve({ status: 'fulfilled' }),
-              (error: unknown) => resolve({ status: 'rejected', error }),
-            ])
-          })
+      return runInScope(view, () =>
+        createClientNativePromise(NativePromise, (resolve) => {
+          Reflect.apply(nativeThen, adoptInScope(view, awaited), [
+            () => resolve({ status: 'fulfilled' }),
+            (error: unknown) => resolve({ status: 'rejected', error }),
+          ])
+        })
       )
     },
     close() {
@@ -241,7 +243,7 @@ function adoptInScope(
   scope: Scope | undefined,
   input: unknown
 ): Promise<AwaitedValue> {
-  return new NativePromise((resolve, reject) => {
+  return createClientNativePromise(NativePromise, (resolve, reject) => {
     const fulfill = (value: unknown) => {
       const box = Object.create(null) as AwaitedValue
       box.value = value
@@ -300,10 +302,17 @@ Object.defineProperty(Promise.prototype, 'then', {
     fulfilled?: Function,
     rejected?: Function
   ) {
-    return Reflect.apply(nativeThen, this, [
+    const nativeCall = captureClientNativeThen(nativeThen, this)
+    if (!nativeCall) {
+      return Reflect.apply(nativeThen, this, [
+        typeof fulfilled === 'function' ? bind(fulfilled) : fulfilled,
+        typeof rejected === 'function' ? bind(rejected) : rejected,
+      ])
+    }
+    return nativeCall(
       typeof fulfilled === 'function' ? bind(fulfilled) : fulfilled,
-      typeof rejected === 'function' ? bind(rejected) : rejected,
-    ])
+      typeof rejected === 'function' ? bind(rejected) : rejected
+    )
   },
 })
 for (const name of [

@@ -1,3 +1,5 @@
+import { knownClientNativePromiseRoute } from './native-promise-allocation'
+
 // Selected only by the native Browser creator graph's resolved framework map.
 // Ordinary/untransformed Node helpers keep engine-brand-contract's legacy exact
 // Promise route. This classifier carries no owner and changes no Scope state.
@@ -16,6 +18,8 @@ export function isExactNativePromise(value: unknown): boolean {
     (typeof value !== 'object' && typeof value !== 'function')
   )
     return false
+  const known = knownClientNativePromiseRoute(value)
+  if (known !== undefined) return true
   if (typeof classify !== 'function')
     throw new Error('Browser Mode engine Promise classifier is unavailable.')
   const decision: unknown = classify(value)

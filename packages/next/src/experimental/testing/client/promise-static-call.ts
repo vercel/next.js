@@ -1,3 +1,4 @@
+import { createClientNativePromise } from './native-promise-allocation'
 import {
   NativePromise,
   nativePromiseResolveFunction,
@@ -18,7 +19,7 @@ function resolveInCallScope(
 ): Promise<unknown> {
   const then = getBrowserActionThen(input)
   if (!then) return Reflect.apply(nativeResolve, NativePromise, [input])
-  return new NativePromise((resolve, reject) => {
+  return createClientNativePromise(NativePromise, (resolve, reject) => {
     // Native resolution schedules one thenable job. Use the captured engine
     // reaction queue even when authored code has replaced queueMicrotask.
     void Reflect.apply(nativePromiseThen, settled, [

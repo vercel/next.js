@@ -7363,3 +7363,54 @@ it('removes console drain abort listeners and observes a real callback rejection
   )
   expect(skipped).not.toHaveBeenCalled()
 })
+
+describe('actual client native Promise producer receipts', () => {
+  it.each([
+    'genuine',
+    'missing',
+    'accessor',
+    'mismatched',
+    'classifier-proxy',
+    'identity-mismatch',
+    'proxy-mismatch',
+    'classifier-accessor',
+  ])(
+    'retains actual producer, unknown-value and constructor contracts for %s',
+    (profile) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'browser-native-producer-intrinsics.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          profile,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      const result = JSON.parse(stdout)
+      expect(result).toMatchObject({
+        mode: profile,
+        cases: profile === 'genuine' ? 20 : 2,
+      })
+      if (profile === 'genuine') {
+        expect(result).toMatchObject({
+          actualAllocationOnly: true,
+          currentNativeAndCreatorRoutes: true,
+          unknownThenableProxyAndSubclassPreserved: true,
+          actualConstructorAndGetterEffects: true,
+          closedAwaiterRetained: true,
+          syntheticAsyncHelperConstructorPreserved: true,
+          thenCases: 12,
+          speciesGetterApplyAndDynamicCatchEffects: true,
+        })
+      } else {
+        expect(result).toMatchObject({
+          unknownFallback: true,
+          actualConstructorCallsPreserved: true,
+          noBridgeGetterInvocation: true,
+          classifierDescriptorReads: 0,
+          classifierAccessorReads: profile === 'classifier-accessor' ? 2 : 0,
+        })
+      }
+    }
+  )
+})

@@ -1,3 +1,4 @@
+import { nativePromiseIntrinsicsKey } from './native-promise-intrinsics'
 import type { BrowserFrameOwner } from '../browser/frame-owner'
 import type { FirefoxFrameOwner } from '../browser/firefox-host'
 import { randomBytes } from 'node:crypto'
@@ -50,14 +51,30 @@ export function createClientEngineBrand(options: {
       ? `  if (globalThis.location.href !== ${JSON.stringify(options.url)}) return;`
       : '  if (globalThis !== globalThis.top) return;',
     '  const Missing = Error;',
+    '  const nativePromiseConstructor = Promise;',
+    '  const nativePromiseResolve = Promise.resolve;',
+    '  const nativeThen = Promise.prototype.then;',
+    '  const nativeConstructorDescriptor = Object.freeze(Object.getOwnPropertyDescriptor(Promise.prototype, "constructor"));',
+    '  const nativeSpeciesDescriptor = Object.freeze(Object.getOwnPropertyDescriptor(Promise, Symbol.species));',
     '  const nativePrototype = Promise.prototype;',
+    '  const nativeFetch = globalThis.fetch;',
+    '  const nativeJson = Response.prototype.json;',
+    '  const apply = Reflect.apply;',
+    '  const rpcPromises = new WeakSet();',
+    '  const rememberRpcPromise = rpcPromises.add.bind(rpcPromises);',
+    '  const hasRpcPromise = rpcPromises.has.bind(rpcPromises);',
+    '  const rpcProducers = { fetch(input) { "use strict"; const promise = apply(nativeFetch, this, arguments); rememberRpcPromise(promise); return promise; }, json() { "use strict"; const promise = apply(nativeJson, this, arguments); rememberRpcPromise(promise); return promise; } };',
+    '  const fetchRpc = rpcProducers.fetch;',
+    '  const readRpcJson = rpcProducers.json;',
     '  const getPrototype = Object.getPrototypeOf;',
     '  const classify = function enginePromiseBrand(value) {',
+    '    if (hasRpcPromise(value)) return getPrototype(value) === nativePrototype ? 1 : 2;',
     '    let decision;',
     '    debugger;',
     '    if (decision !== 0 && decision !== 1) throw new Missing("Browser Mode engine Promise decision is unavailable.");',
     '    return decision === 0 ? 0 : getPrototype(value) === nativePrototype ? 1 : 2;',
     '  };',
+    `  Object.defineProperty(globalThis, Symbol.for(${JSON.stringify(nativePromiseIntrinsicsKey)}), { value: Object.freeze({ classify, constructor: nativePromiseConstructor, resolve: nativePromiseResolve, prototype: nativePrototype, fetch: nativeFetch, fetchRpc, json: nativeJson, readRpcJson, then: nativeThen, apply, reflect: Reflect, hasRpcPromise, constructorDescriptor: nativeConstructorDescriptor, speciesDescriptor: nativeSpeciesDescriptor, species: Symbol.species }) });`,
     `  Object.defineProperty(globalThis, Symbol.for(${JSON.stringify(enginePromiseBrandKey)}), { value: classify });`,
     '  debugger;',
     '})();',

@@ -1,4 +1,5 @@
 import { NativePromise } from './async-context'
+import { createClientNativePromise } from './native-promise-allocation'
 import type { ClientPayload } from './protocol'
 
 /** A real RPC result uses the current authored constructor, like the RPC peer. */
@@ -20,10 +21,13 @@ export async function callClientRpc<T>(
   const rejectResult = capturedReject
   let resolveSent!: () => void
   let rejectSent!: (error: unknown) => void
-  const sent = new NativePromise<void>((resolve, reject) => {
-    resolveSent = resolve
-    rejectSent = reject
-  })
+  const sent = createClientNativePromise<void>(
+    NativePromise,
+    (resolve, reject) => {
+      resolveSent = resolve
+      rejectSent = reject
+    }
+  )
   let started = false
   const fail = (error: unknown) => {
     if (started) rejectResult(error)
