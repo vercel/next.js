@@ -264,16 +264,22 @@ export class Lockfile {
   /**
    * Releases the lockfile and closes the file descriptor.
    *
-   * If this is not called, the lock will be released by the operating system
-   * when the file handle is closed during process exit.
+   * This never throws. If releasing the lock fails, the operating system
+   * releases it when the file handle is closed during process exit, as it does
+   * when this is not called.
    */
   async unlock(): Promise<void> {
     const { nativeLockfile, listener } = this
-    if (nativeLockfile !== undefined) {
-      await this.bindings.lockfileUnlock(nativeLockfile)
-    }
-    if (listener !== undefined) {
-      process.off('exit', listener)
+    try {
+      if (nativeLockfile !== undefined) {
+        await this.bindings.lockfileUnlock(nativeLockfile)
+      }
+    } catch {
+      // The operating system releases the lock when the process exits.
+    } finally {
+      if (listener !== undefined) {
+        process.off('exit', listener)
+      }
     }
   }
 
