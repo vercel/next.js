@@ -67,6 +67,14 @@ export async function middleware(request) {
     )
   }
 
+  if (url.pathname === '/foo/bar') {
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = '/api/proxy/bar/'
+    rewriteUrl.searchParams.set('added', '1')
+    rewriteUrl.searchParams.set('extra', '2')
+    return NextResponse.rewrite(rewriteUrl)
+  }
+
   if (url.pathname.includes('/rewrite-to-static')) {
     request.nextUrl.pathname = '/static-ssg/post-1'
     return NextResponse.rewrite(request.nextUrl)

@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
@@ -9,21 +9,19 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-if (!(globalThis as any).isNextStart) {
+if (!isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   describe('output: standalone with twoslash', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
         twoslash: '0.3.4',
+        'twoslash-protocol': '0.3.4',
+        typescript: '5.9.2',
       },
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     let server: any
     let appPort: number

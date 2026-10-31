@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 
 export default function Page() {
-  const [callFrame, setCallFrame] = useState(null)
+  const [callFrame, setCallFrame] = useState<string | null>(null)
   useEffect(() => {
     const error = new Error('test-top-frame')
     console.error(error)
 
-    const callStack = new Error('test-top-frame').stack.split(
+    const callStack = new Error('test-top-frame').stack!.split(
       'test-top-frame\n'
     )[1]
     // indices might change due to different compiler optimizations

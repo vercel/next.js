@@ -1,23 +1,164 @@
 //@ts-check
 
 const path = require('path')
+const os = require('os')
 const _glob = require('glob')
-const { existsSync } = require('fs')
+const fs = require('fs')
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
+const { getBrowserLaunch } = require('./test/lib/browsers/launch')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
-const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
+const { buildTestReport } = require('./scripts/test-report')
+
+// --- Test profile and result caching via actions cache ---
+// On CI retry attempts, skip tests that already passed on this commit.
+// The file contains null-byte delimited filenames
+
+class TestProfile {
+  // Env vars that always affect test behavior (non-NEXT prefixed).
+  static EXTRA_ENV_VARS = [
+    'IS_WEBPACK_TEST',
+    'IS_TURBOPACK_TEST',
+    'TURBOPACK_DEV',
+    'TURBOPACK_BUILD',
+    'BROWSER_NAME',
+    'DEVICE_NAME',
+  ]
+
+  // NEXT_* / __NEXT* vars that are operational, not behavioral.
+  static IGNORED_VARS = new Set([
+    'NEXT_TELEMETRY_DISABLED',
+    'NEXT_TEST_JOB',
+    'NEXT_JUNIT_TEST_REPORT',
+    'NEXT_TEST_PREFER_OFFLINE',
+    'NEXT_CI_RUNNER',
+    'NEXT_E2E_TEST_TIMEOUT',
+    'NEXT_TURBOPACK_IO_CONCURRENCY',
+    'NEXT_TEST_PASSED_FILE',
+    'NEXT_TEST_BROWSER_WS_ENDPOINT',
+    'TURBO_TASKS_AVAILABLE_PARALLELISM',
+  ])
+
+  // All key=value pairs identifying this test profile, sorted by key.
+  // Used for the diagnostic `log()` output. Computed once at construction
+  // from a snapshot of process.env. The actual cache key for the workflow
+  // is `input_step_key` (see `.github/workflows/build_reusable.yml`).
+  entries
+  // NEXT_*/__NEXT* vars that matched the pattern but were ignored.
+  ignoredVars
+  cachingEnabled
+
+  constructor({ group = '', type = '', testPattern = '', runCount = 1 } = {}) {
+    this.cachingEnabled = !!(
+      process.env.CI &&
+      process.env.GITHUB_SHA &&
+      !process.env.NEXT_FLAKE_DETECTION &&
+      !process.env.NEXT_TEST_SKIP_RESULT_CACHE &&
+      runCount === 1
+    )
+
+    // Snapshot env at construction time so dynamic vars set during the run
+    // (e.g. NEXT_TEST_STARTER, NEXT_TEST_PKG_PATHS) don't pollute the key.
+    const env = { ...process.env }
+
+    // Collect env vars that affect test behavior
+    const vars = new Map()
+    for (const v of TestProfile.EXTRA_ENV_VARS) {
+      if (env[v]) vars.set(v, env[v])
+    }
+    const ignored = []
+    for (const key of Object.keys(env)) {
+      if (
+        (key.startsWith('NEXT_') || key.startsWith('__NEXT')) &&
+        !key.startsWith('NEXT_SKIP_')
+      ) {
+        if (TestProfile.IGNORED_VARS.has(key)) {
+          ignored.push(key)
+        } else {
+          vars.set(key, env[key])
+        }
+      }
+    }
+    this.ignoredVars = ignored.sort()
+
+    // Build the single sorted entries list used for hashing, logging, and descriptions.
+    const branch =
+      process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || ''
+    const map = new Map([
+      ['os', process.platform],
+      ['branch', branch],
+      ['sha', process.env.GITHUB_SHA || ''],
+      ['node', process.versions.node.split('.')[0]],
+    ])
+    if (group) map.set('group', group)
+    if (type) map.set('type', type)
+    if (testPattern) map.set('testPattern', testPattern)
+    for (const [k, v] of [...vars.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0])
+    )) {
+      map.set(k, v)
+    }
+    this.entries = [...map.entries()]
+  }
+
+  get description() {
+    return this.entries
+      .map(([k, v]) => (k === 'sha' ? `sha=${v?.slice(0, 10)}` : `${k}=${v}`))
+      .join(' | ')
+  }
+
+  log() {
+    console.log(`\nTest profile:`)
+    for (const [k, v] of this.entries) {
+      console.log(`  ${k}=${k === 'sha' ? v?.slice(0, 10) : v}`)
+    }
+    if (this.ignoredVars.length > 0) {
+      console.log(`  Ignored: ${this.ignoredVars.join(', ')}`)
+    }
+    console.log(`  Caching: ${this.cachingEnabled ? 'enabled' : 'disabled'}`)
+    console.log('')
+  }
+
+  // Read the passed-tests file (restored from cache by the workflow
+  // before this script runs). Returns a Set of test filenames. Empty
+  // Set on miss / parse error — best-effort by design.
+  loadPassedTests() {
+    if (!this.cachingEnabled) return new Set()
+    const file = process.env.NEXT_TEST_PASSED_FILE
+    if (!file) return new Set()
+    try {
+      const data = fs.readFileSync(file, 'utf8')
+      // The file is created (in append mode) before any test runs, so it's
+      // empty when no test passed (or none ran at all) in the earlier
+      // attempt.
+      if (data === '') {
+        return new Set()
+      }
+      // Tolerate a partial trailing line from a hard kill mid-append by
+      // requiring an explicit '\0' terminator. Lines without it are
+      // dropped.
+      const lines = data.split('\0')
+      return new Set(data.endsWith('\0') ? lines : lines.slice(0, -1))
+    } catch (err) {
+      // ENOENT is the normal "no prior attempt" path — silent.
+      if (err && err.code !== 'ENOENT') {
+        console.log(`Test result cache: failed to load (${err.message})`)
+      }
+      return new Set()
+    }
+  }
+}
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.3.1";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -25,6 +166,11 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .boolean('timings')
   .boolean('write-timings')
   .number('retries')
+  .number('runs')
+  .describe(
+    'runs',
+    'Total runs per selected suite, sharing the concurrency limit (default: 1)'
+  )
   .boolean('debug')
   .string('g')
   .alias('g', 'group')
@@ -46,6 +192,7 @@ function escapeRegexp(str) {
 
 /**
  * @typedef {{ file: string, excludedCases: string[] }} TestFile
+ * @typedef {TestFile & { runNumber: number }} TestRun
  */
 
 const GROUP = process.env.CI ? '##[group]' : ''
@@ -105,8 +252,6 @@ const testFilters = {
   development: new RegExp('^(test/(development|e2e))'),
   production: new RegExp('^(test/(production|e2e))'),
   unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
-  examples: 'examples/',
-  integration: 'test/integration/',
   e2e: 'test/e2e/',
 }
 
@@ -117,56 +262,104 @@ const mockTrace = () => ({
 })
 
 // which types we have configured to run separate
-const configuredTestTypes = Object.values(testFilters)
-/** @type {Map<string, { output: string, failedCases: string[] }>} */
+// `examples/` additionally excludes test files inside example apps, which run
+// with each example's own jest/vitest setup instead of this runner.
+const configuredTestTypes = [...Object.values(testFilters), 'examples/']
+// The run ID prevents a passing run from clearing another run's failure.
+/** @type {Map<string, { file: string, output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
+// GitHub drops the whole job summary of a step if it exceeds 1MiB:
+// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary
+const MAX_SUMMARY_BYTES = 1024 * 1024
+const SUMMARY_TRUNCATION_NOTICE =
+  '\n\n... truncated to fit the job summary size limit ...'
+
+// Strip terminal color/control codes before writing output to the job
+// summary. Mirrors `scripts/pr-ci-comment.mjs`.
+const ANSI_RE =
+  // eslint-disable-next-line no-control-regex
+  /(?:\u001B\][\s\S]*?(?:\u0007|\u001B\\|\u009C))|(?:[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~])/g
+
+// The head commit of this CI run. `GITHUB_SHA` is the merge commit for
+// pull requests, but Datadog test runs and the PR test report comment use
+// the PR head commit, so prefer that when available.
+function getHeadSha() {
+  if (process.env.GITHUB_EVENT_PATH) {
+    try {
+      const event = JSON.parse(
+        fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')
+      )
+      const headSha = event.pull_request?.head?.sha
+      if (headSha) {
+        return headSha
+      }
+    } catch (err) {
+      console.log('Failed to read the head SHA from the event payload', err)
+    }
+  }
+  return process.env.GITHUB_SHA ?? null
+}
+
+// Write a job summary using the same printer as the PR test report comment
+// (`scripts/pr-ci-comment.mjs`), so a truncated comment can refer to the job
+// summary for the full report.
 async function maybeLogSummary() {
   if (process.env.CI && errorsPerTests.size > 0) {
-    const outputTemplate = `
-${Array.from(errorsPerTests.entries())
-  .map(([test, { output }]) => {
-    return `
-<details>
-<summary>${test}</summary>
+    const sha = getHeadSha()
+    const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? '').split('/')
 
-\`\`\`
-${output}
-\`\`\`
-
-</details>
-`
-  })
-  .join('\n')}`
-
-    // Build table rows with one row per failed test case
-    const tableRows = []
-    for (const [test, { failedCases }] of errorsPerTests.entries()) {
-      const testLink = `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`
-      if (failedCases.length === 0) {
-        tableRows.push(['Unknown', testLink])
-      } else {
-        for (const caseName of failedCases) {
-          tableRows.push([caseName, testLink])
-        }
+    const suites = [...errorsPerTests.keys()].sort().map((testRunId) => {
+      const { file, output, failedCases } = errorsPerTests.get(testRunId)
+      return {
+        testPath: file,
+        mode: process.env.NEXT_TEST_MODE,
+        isTurbopack: !!process.env.IS_TURBOPACK_TEST,
+        isRspack: !!process.env.NEXT_RSPACK,
+        isExperimental: process.env.__NEXT_CACHE_COMPONENTS === 'true',
+        isPPR: process.env.__NEXT_EXPERIMENTAL_PPR === 'true',
+        failedCases,
+        resultMessage: ['```', output.replace(ANSI_RE, ''), '```'].join('\n'),
       }
+    })
+
+    let summary = buildTestReport({
+      owner,
+      repo,
+      sha,
+      suites,
+    })
+
+    if (Buffer.byteLength(summary, 'utf8') > MAX_SUMMARY_BYTES) {
+      const truncated = Buffer.from(summary, 'utf8')
+        .subarray(
+          0,
+          MAX_SUMMARY_BYTES - Buffer.byteLength(SUMMARY_TRUNCATION_NOTICE)
+        )
+        .toString('utf8')
+        // A multi-byte character cut at the boundary decodes to U+FFFD.
+        .replace(/�$/, '')
+      summary = truncated + SUMMARY_TRUNCATION_NOTICE
     }
 
-    await core.summary
-      .addHeading('Tests failures')
-      .addTable([
-        [
-          { data: 'Test Name', header: true },
-          { data: 'Test Path', header: true },
-        ],
-        ...tableRows,
-      ])
-      .addRaw(outputTemplate)
-      .write()
+    await core.summary.addRaw(summary).write()
   }
 }
 
 let exiting = false
+
+/**
+ * Browser server shared across all test suites. Suites connect to it via
+ * `test/lib/browsers/playwright.ts` instead of each launching their own
+ * browser process.
+ * @type {import('playwright').BrowserServer | undefined}
+ */
+let sharedBrowserServer
+
+/**
+ * @type {string | undefined}
+ */
+let testRunsDirectory
 
 const cleanUpAndExit = async (code) => {
   if (exiting) {
@@ -175,17 +368,19 @@ const cleanUpAndExit = async (code) => {
   exiting = true
   console.log(`exiting with code ${code}`)
 
+  if (sharedBrowserServer) {
+    await sharedBrowserServer.close().catch((err) => {
+      console.error('Failed to close shared browser server:', err)
+    })
+  }
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
       recursive: true,
       force: true,
     })
   }
-  if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
-      recursive: true,
-      force: true,
-    })
+  if (testRunsDirectory && !process.env.NEXT_TEST_SKIP_CLEANUP) {
+    await fsp.rm(testRunsDirectory, { recursive: true, force: true })
   }
   if (process.env.CI) {
     await maybeLogSummary()
@@ -221,9 +416,6 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
-  // Check for stale or missing build
-  await checkBuildFreshness()
-
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.
   const envConcurrency =
@@ -231,19 +423,28 @@ async function main() {
 
   const options = {
     concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
-    debug: argv.debug ?? false,
+    debug: argv.debug ?? core.isDebug(),
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    runCount: argv.runs ?? 1,
     requireTimings: argv.requireTimings ?? false,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
     printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
+  if (!Number.isSafeInteger(options.runCount) || options.runCount < 1) {
+    throw new Error('--runs must be a positive integer')
+  }
+  if (options.runCount > 1 && process.env.NEXT_SKIP_ISOLATE) {
+    throw new Error(
+      'Multiple runs of a suite require isolated test fixtures; unset NEXT_SKIP_ISOLATE'
+    )
+  }
   const hideOutput = !options.debug && !options.dry
 
   let filterTestsBy
@@ -264,6 +465,12 @@ async function main() {
     }
   }
 
+  if (options.runCount > 1 && numRetries !== 0) {
+    // Retry cleanup resets the suite's files in the shared checkout.
+    // Other runs may still need those files.
+    throw new Error('Multiple runs of a suite require --retries 0')
+  }
+
   console.log(
     'Running tests with concurrency:',
     options.concurrency,
@@ -271,9 +478,18 @@ async function main() {
     process.env.NEXT_TEST_MODE
   )
 
+  const profile = new TestProfile({
+    group: String(options.group || ''),
+    type: String(options.type || ''),
+    testPattern: String(options.testPattern || ''),
+    runCount: options.runCount,
+  })
+  profile.log()
+
   // Only fetch/update shared timing data during grouped CI runs to avoid
   // individual test runs from polluting the timing data
-  const shouldUseSharedTimings = options.timings && options.group
+  const shouldUseSharedTimings =
+    options.timings && options.group && options.runCount === 1
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -473,19 +689,18 @@ ${ENDGROUP}`)
     ((options.type && options.type !== 'unit') ||
       tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // For isolated next tests (e2e, dev, prod) and integration tests we create
-    // a starter Next.js install to re-use to speed up tests to avoid having to
-    // run `pnpm install` each time.
+    // For isolated next tests (e2e, dev, prod) we create a starter Next.js
+    // install to re-use to speed up tests to avoid having to run `pnpm install`
+    // each time.
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
-    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
+    const { installDir, pkgPaths } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
-      keepRepoDir: true,
     })
 
     const serializedPkgPaths = []
@@ -494,13 +709,44 @@ ${ENDGROUP}`)
       serializedPkgPaths.push([key, pkgPaths.get(key)])
     }
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
-    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
     console.log(`${ENDGROUP}`)
   }
 
-  const sema = new Sema(options.concurrency, { capacity: tests.length })
-  const outputSema = new Sema(1, { capacity: tests.length })
+  // best-effort, don't spawn a browser for unit tests, if we don't spawn a
+  // browser but should've, that's okay, `next-webdriver` will still set it up
+  if (
+    !options.dry &&
+    ((options.type && options.type !== 'unit') ||
+      tests.some((test) => !testFilters.unit.test(test.file)))
+  ) {
+    // Launch a single browser server shared by all test suites, instead of
+    // each suite launching its own browser process. Suites connect to it via
+    // the ws endpoint env var in `test/lib/browsers/playwright.ts`.
+    const { browserType, launchOptions } = getBrowserLaunch(
+      process.env.BROWSER_NAME || 'chrome',
+      { headless: true } // matches per-test env below
+    )
+    sharedBrowserServer = await browserType.launchServer(launchOptions)
+    process.env.NEXT_TEST_BROWSER_WS_ENDPOINT = sharedBrowserServer.wsEndpoint()
+  }
+
+  // Expand after sharding so all runs of each suite share a runner and browser.
+  const testRuns = tests.flatMap((test) =>
+    Array.from({ length: options.runCount }, (_, index) => ({
+      ...test,
+      runNumber: index + 1,
+    }))
+  )
+
+  if (options.runCount > 1 && !options.dry) {
+    testRunsDirectory = await fsp.mkdtemp(
+      path.join(process.env.NEXT_TEST_DIR || os.tmpdir(), 'next-test-runs-')
+    )
+  }
+
+  const sema = new Sema(options.concurrency, { capacity: testRuns.length })
+  const outputSema = new Sema(1, { capacity: testRuns.length })
   const children = new Set()
   const jestPath = path.join(
     __dirname,
@@ -511,7 +757,41 @@ ${ENDGROUP}`)
   let firstError = true
   let hadFailures = false
 
-  const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
+  /**
+   * @param {TestRun} testRun
+   */
+  const getTestRunId = (testRun) =>
+    options.runCount === 1
+      ? testRun.file
+      : `${testRun.file}.run-${testRun.runNumber}`
+
+  /**
+   * @param {TestRun} testRun
+   */
+  const getTestRunLabel = (testRun) =>
+    options.runCount === 1
+      ? testRun.file
+      : `${testRun.file} (run ${testRun.runNumber}/${options.runCount})`
+
+  /**
+   * @param {TestRun} testRun
+   */
+  const getTraceDirectory = (testRun) =>
+    path.join(
+      __dirname,
+      'test/traces',
+      path
+        .relative(path.join(__dirname, 'test'), testRun.file)
+        .replace(/\//g, '-'),
+      ...(options.runCount === 1 ? [] : [`run-${testRun.runNumber}`])
+    )
+
+  const runTestOnce = (
+    /** @type {TestRun} */ testRun,
+    isFinalRun,
+    isRetry,
+    /** @type {string | undefined} */ testDirectory
+  ) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -523,14 +803,14 @@ ${ENDGROUP}`)
         '--no-cache',
         '--verbose',
         ...(isTestJob
-          ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
+          ? ['--json', `--outputFile=${getTestRunId(testRun)}${RESULTS_EXT}`]
           : []),
-        test.file,
-        ...(test.excludedCases.length === 0
+        testRun.file,
+        ...(testRun.excludedCases.length === 0
           ? []
           : [
               '--testNamePattern',
-              `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
+              `^(?!(?:${testRun.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
       const deferNextTestWasm = !!process.env.NEXT_TEST_WASM
@@ -545,6 +825,12 @@ ${ENDGROUP}`)
         // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
+        ...(options.runCount > 1
+          ? {
+              NEXT_TEST_RUN_NUMBER: String(testRun.runNumber),
+              NEXT_TEST_DIR: testDirectory,
+            }
+          : {}),
 
         ...(options.local
           ? {}
@@ -559,7 +845,10 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+              JEST_JUNIT_OUTPUT_NAME: getTestRunId(testRun).replaceAll(
+                '/',
+                '_'
+              ),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
               // [NOTE]: This won't affect if junit reporter is not enabled
@@ -567,7 +856,8 @@ ${ENDGROUP}`)
                 `${process.env.NEXT_TEST_MODE ?? 'default'}`,
                 options.group,
                 options.type,
-                test.file,
+                testRun.file,
+                ...(options.runCount > 1 ? [`run-${testRun.runNumber}`] : []),
               ]
                 .filter(Boolean)
                 .join(':'),
@@ -634,9 +924,11 @@ ${ENDGROUP}`)
             const isExpanded = firstError
             if (isExpanded) {
               firstError = false
-              process.stdout.write(`❌ ${test.file} output:\n`)
+              process.stdout.write(`❌ ${getTestRunLabel(testRun)} output:\n`)
             } else {
-              process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
+              process.stdout.write(
+                `${GROUP}❌ ${getTestRunLabel(testRun)} output\n`
+              )
             }
 
             let output = ''
@@ -648,13 +940,21 @@ ${ENDGROUP}`)
             }
 
             if (process.env.CI) {
-              errorsPerTests.set(test.file, { output, failedCases: [] })
+              errorsPerTests.set(getTestRunId(testRun), {
+                file: testRun.file,
+                output,
+                failedCases: [],
+              })
             }
 
             if (isExpanded) {
-              process.stdout.write(`end of ${test.file} output\n`)
+              process.stdout.write(
+                `end of ${getTestRunLabel(testRun)} output\n`
+              )
             } else {
-              process.stdout.write(`end of ${test.file} output\n${ENDGROUP}\n`)
+              process.stdout.write(
+                `end of ${getTestRunLabel(testRun)} output\n${ENDGROUP}\n`
+              )
             }
             outputSema.release()
           }
@@ -669,23 +969,13 @@ ${ENDGROUP}`)
           return reject(err)
         }
 
-        // If environment is CI and if this test execution is failed after retry, preserve test traces
-        // to upload into github actions artifacts for debugging purpose
+        // preserve test traces to upload into github actions artifacts for debugging purposes
         const shouldPreserveTracesOutput =
-          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          (process.env.CI && isChildExitWithNonZero) ||
           process.env.PRESERVE_TRACES_OUTPUT
         if (!shouldPreserveTracesOutput) {
           await fsp
-            .rm(
-              path.join(
-                __dirname,
-                'test/traces',
-                path
-                  .relative(path.join(__dirname, 'test'), test.file)
-                  .replace(/\//g, '-')
-              ),
-              { recursive: true, force: true }
-            )
+            .rm(getTraceDirectory(testRun), { recursive: true, force: true })
             .catch(() => {})
         }
 
@@ -693,26 +983,97 @@ ${ENDGROUP}`)
       })
     })
 
-  const runTest = async (/** @type {TestFile} */ test) => {
+  const isRetryAttempt =
+    process.env.CI && parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10) > 1
+
+  // Load tests that already passed (either on this attempt — restored
+  // from cache by the workflow — or after a timeout/cancel of an earlier
+  // attempt). The workflow's `actions/cache/restore` step lands the file
+  // at the path `loadPassedTests` reads.
+  let cachedPassedTests = new Set()
+  if (process.env.CI) {
+    cachedPassedTests = await profile.loadPassedTests()
+    if (cachedPassedTests.size > 0) {
+      console.log(
+        `Test result cache: loaded ${cachedPassedTests.size} passed test(s) (${profile.description})`
+      )
+    } else if (isRetryAttempt) {
+      console.log(`Test result cache: miss (${profile.description})`)
+    }
+  }
+
+  // Stream passing test names to this file.
+  /** @type {number | null} */
+  let passedTestsFd = null
+  if (profile.cachingEnabled) {
+    try {
+      passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+      // Tell the workflow that the file exists. Its "Save passed-tests
+      // cache" step (see `.github/workflows/build_reusable.yml`) only runs
+      // when this output is present, so jobs that never get here (no
+      // run-tests.js, or result caching disabled) skip the save instead of
+      // warning about a missing path.
+      if (process.env.GITHUB_OUTPUT) {
+        fs.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `passed_tests_file=${process.env.NEXT_TEST_PASSED_FILE}\n`
+        )
+      }
+    } catch (err) {
+      console.log(`Test result cache: open failed (${err.message})`)
+    }
+  }
+  /** @param {string} file */
+  const recordPassed = (file) => {
+    if (passedTestsFd === null) return
+    try {
+      // Ensure durability of our writes by syncing each one.
+      // This is a tiny bit of overhead but shouldn't really matter.
+      fs.writeSync(passedTestsFd, `${file}\0`)
+      fs.fdatasyncSync(passedTestsFd)
+    } catch (err) {
+      console.log(`Test result cache: append failed (${err.message})`)
+    }
+  }
+
+  const runTest = async (/** @type {TestRun} */ testRun) => {
+    const testDirectory = testRunsDirectory
+      ? await fsp.mkdtemp(path.join(testRunsDirectory, 'run-'))
+      : undefined
+    // On CI retry attempts, skip tests that already passed on this commit
+    if (cachedPassedTests.has(testRun.file)) {
+      console.log(
+        `${testRun.file} already passed on this commit (cached) — skipping`
+      )
+      return
+    }
+
     let passed = false
 
     for (let i = 0; i < numRetries + 1; i++) {
       try {
-        console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
-        const time = await runTestOnce(test, i === numRetries, i > 0)
+        console.log(
+          `Starting ${getTestRunLabel(testRun)} retry ${i}/${numRetries}`
+        )
+        const time = await runTestOnce(
+          testRun,
+          i === numRetries,
+          i > 0,
+          testDirectory
+        )
         timings.push({
-          file: test.file,
+          file: testRun.file,
           time,
         })
         passed = true
         console.log(
-          `${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`
+          `${getTestRunLabel(testRun)} finished on retry ${i}/${numRetries} in ${time / 1000}s`
         )
         break
       } catch (err) {
         if (i < numRetries) {
           try {
-            let testDir = path.dirname(path.join(__dirname, test.file))
+            let testDir = path.dirname(path.join(__dirname, testRun.file))
 
             // if test is nested in a test folder traverse up a dir to ensure
             // we clean up relevant test files
@@ -724,15 +1085,24 @@ ${ENDGROUP}`)
             await exec(`git checkout "${testDir}"`)
           } catch (err) {}
         } else {
-          console.error(`${test.file} failed due to ${err}`)
+          console.error(`${getTestRunLabel(testRun)} failed due to ${err}`)
         }
       }
+    }
+
+    if (passed) {
+      recordPassed(testRun.file)
+      // The test may have failed on an earlier attempt; don't report tests
+      // that ultimately passed in the job summary.
+      errorsPerTests.delete(getTestRunId(testRun))
     }
 
     if (!passed) {
       hadFailures = true
       // "failed to pass within" is a keyword parsed by next-pr-webhook
-      console.error(`${test.file} failed to pass within ${numRetries} retries`)
+      console.error(
+        `${testRun.file} failed to pass within ${numRetries} retries`
+      )
     }
 
     // Emit test output, parsed by the commenter webhook to notify about failing tests.
@@ -740,7 +1110,7 @@ ${ENDGROUP}`)
     if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
-          `${test.file}${RESULTS_EXT}`,
+          `${getTestRunId(testRun)}${RESULTS_EXT}`,
           'utf8'
         )
         const obj = JSON.parse(testsOutput)
@@ -760,7 +1130,7 @@ ${ENDGROUP}`)
             }
           }
           // Update errorsPerTests with failed case names
-          const existing = errorsPerTests.get(test.file)
+          const existing = errorsPerTests.get(getTestRunId(testRun))
           if (existing) {
             existing.failedCases = failedCases
           }
@@ -769,6 +1139,9 @@ ${ENDGROUP}`)
         obj.processEnv = {
           NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
           HEADLESS: process.env.HEADLESS,
+          ...(options.runCount > 1
+            ? { NEXT_TEST_RUN_NUMBER: String(testRun.runNumber) }
+            : {}),
         }
         await outputSema.acquire()
         if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
@@ -785,28 +1158,16 @@ ${ENDGROUP}`)
     }
   }
 
-  const directorySemas = new Map()
-
   const results = await Promise.allSettled(
-    tests.map(async (test) => {
-      const dirName = path.dirname(test.file)
-      let dirSema = directorySemas.get(dirName)
-
-      // we only restrict 1 test per directory for
-      // legacy integration tests
-      if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
-        directorySemas.set(dirName, (dirSema = new Sema(1)))
-      }
-      // TODO: Use explicit resource managment instead of this acquire/release pattern
-      // once CI runs with Node.js 24+.
-      if (dirSema) await dirSema.acquire()
+    testRuns.map(async (testRun) => {
+      // TODO: Use explicit resource management instead of this acquire/release
+      // pattern once CI runs with Node.js 24+.
       await sema.acquire()
 
       try {
-        await runTest(test)
+        await runTest(testRun)
       } finally {
         sema.release()
-        if (dirSema) dirSema.release()
       }
     })
   )
@@ -815,6 +1176,21 @@ ${ENDGROUP}`)
     if (result.status === 'rejected') {
       hadFailures = true
       console.error(result.reason)
+    }
+  }
+
+  if (passedTestsFd !== null) {
+    try {
+      fs.closeSync(passedTestsFd)
+    } catch {}
+  }
+
+  if (cachedPassedTests.size > 0) {
+    const skipped = tests.filter((t) => cachedPassedTests.has(t.file)).length
+    if (skipped > 0) {
+      console.log(
+        `Test result cache: skipped ${skipped} cached, re-ran ${tests.length - skipped}`
+      )
     }
   }
 
@@ -857,7 +1233,7 @@ ${ENDGROUP}`)
 
           // Clean up stale timings for deleted tests
           for (const test of Object.keys(newTimings)) {
-            if (!existsSync(path.join(__dirname, test))) {
+            if (!fs.existsSync(path.join(__dirname, test))) {
               console.log('removing stale timing', test)
               delete newTimings[test]
             }

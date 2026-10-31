@@ -1,12 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-module-type', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   // bytes type is Turbopack-only, webpack doesn't have a direct equivalent
   const itTurbopackOnly = isTurbopack ? it : it.skip
@@ -15,7 +12,9 @@ describe('webpack-loader-module-type', () => {
     const $ = await next.render$('/')
     const src = $('#svg-url').text()
     // asset/resource should emit the file and return URL path
-    expect(src).toMatch(/\/_next\/static\/media\/test\.[a-f0-9]+\.svg$/)
+    expect(src).toMatch(
+      /\/_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.svg$/
+    )
   })
 
   itTurbopackOnly(

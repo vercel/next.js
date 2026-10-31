@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2015",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,

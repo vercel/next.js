@@ -1,19 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('custom-cache-handler-image', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     env: {
       // Set max cache entries to 2 to easily test eviction
       MAX_IMAGE_CACHE_ENTRIES: '2',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should use custom cache handler for image optimization', async () => {
     // First, render the page to get the image URLs

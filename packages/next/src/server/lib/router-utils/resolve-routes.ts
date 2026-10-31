@@ -31,8 +31,10 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { RouteKind } from '../../route-kind'
 
 import { addRequestMeta } from '../../request-meta'
+import { isRSCRequestHeader } from '../is-rsc-request'
 import {
   compileNonPath,
   matchHas,
@@ -52,6 +54,7 @@ export function getResolveRoutes(
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
   config: NextConfigRuntime,
+  getAssetPrefix: () => string,
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
@@ -133,6 +136,7 @@ export function getResolveRoutes(
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
   }> {
+    const assetPrefix = getAssetPrefix()
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
@@ -170,7 +174,7 @@ export function getResolveRoutes(
         : 'http'
 
     // When there are hostname and port we build an absolute URL
-    const initUrl = (config.experimental as any).trustHostHeader
+    const initUrl = config.experimental.trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
         ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
@@ -200,8 +204,17 @@ export function getResolveRoutes(
       return pathname
     }
 
+    const setIsNextDataRequest = () => {
+      addRequestMeta(req, 'isNextDataReq', true)
+      req.headers['x-nextjs-data'] = '1'
+    }
+
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
+    // The Pages Router needs an internal default-locale prefix while applying
+    // rewrites. App routes should only see a locale segment that was actually
+    // present in the request or introduced by a rewrite.
+    let localePathWasInferred = false
     let initialLocaleResult:
       | ReturnType<typeof normalizeLocalePath>
       | undefined = undefined
@@ -216,11 +229,8 @@ export function getResolveRoutes(
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
-      } else if (
-        config.assetPrefix &&
-        pathHasPrefix(normalizedPath, config.assetPrefix)
-      ) {
-        normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
+      } else if (assetPrefix && pathHasPrefix(normalizedPath, assetPrefix)) {
+        normalizedPath = removePathPrefix(normalizedPath, assetPrefix)
       }
 
       initialLocaleResult = normalizeLocalePath(
@@ -246,6 +256,7 @@ export function getResolveRoutes(
         !initialLocaleResult.detectedLocale &&
         !initialLocaleResult.pathname.startsWith('/_next/')
       ) {
+        localePathWasInferred = true
         parsedUrl.pathname = addPathPrefix(
           initialLocaleResult.pathname === '/'
             ? `/${defaultLocale}`
@@ -280,7 +291,11 @@ export function getResolveRoutes(
         return
       }
       if (!invokedOutputs?.has(pathname)) {
-        const output = await fsChecker.getItem(pathname)
+        const output = await fsChecker.getItem(
+          pathname,
+          undefined,
+          Boolean(config.i18n && !localePathWasInferred)
+        )
 
         if (output) {
           if (
@@ -312,27 +327,39 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
+        const isAppRoute =
+          route.kind === RouteKind.APP_PAGE ||
+          route.kind === RouteKind.APP_ROUTE
+        // Pages routes match their locale-normalized pathname. App routes own
+        // explicit locale segments and therefore match the literal pathname.
+        const routePathname =
+          isAppRoute && !localePathWasInferred
+            ? curPathname || '/'
+            : localeResult.pathname
+        const params = route.match(routePathname)
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
-            addPathPrefix(route.page, config.basePath || '')
+            addPathPrefix(route.page, config.basePath || ''),
+            curPathname || undefined,
+            isAppRoute && !localePathWasInferred
           )
 
-          // i18n locales aren't matched for app dir
-          if (
-            pageOutput?.type === 'appFile' &&
-            initialLocaleResult?.detectedLocale
-          ) {
-            continue
-          }
-
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            addRequestMeta(req, 'isNextDataReq', true)
+            setIsNextDataRequest()
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
             return pageOutput
+              ? {
+                  ...pageOutput,
+                  // The dynamic-route scan matched the concrete request path;
+                  // keep those params with the fsChecker route definition.
+                  params,
+                  didMatchLocalePrefixedPath:
+                    isAppRoute && routePathname !== localeResult.pathname,
+                }
+              : null
           }
         }
       }
@@ -424,11 +451,18 @@ export function getResolveRoutes(
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
+            const isNextDataPath =
+              pathHasPrefix(normalized, '/_next/data') &&
+              normalized.endsWith('.json')
+            const hasCurrentBuildIdDataPath = normalizers.data.match(normalized)
+
             let updated = false
-            if (normalizers.data.match(normalized)) {
+            if (hasCurrentBuildIdDataPath) {
               updated = true
-              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
+            }
+            if (isNextDataPath) {
+              setIsNextDataRequest()
             }
 
             if (config.i18n) {
@@ -439,6 +473,21 @@ export function getResolveRoutes(
 
               if (curLocaleResult.detectedLocale) {
                 addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
+              } else if (
+                defaultLocale &&
+                !curLocaleResult.pathname.startsWith('/_next/')
+              ) {
+                // Match normalized _next/data requests against the same
+                // locale-prefixed internal pathname shape used by direct page
+                // requests when the default locale was inferred.
+                normalized = addPathPrefix(
+                  curLocaleResult.pathname === '/'
+                    ? `/${defaultLocale}`
+                    : addPathPrefix(
+                        curLocaleResult.pathname || '',
+                        `/${defaultLocale}`
+                      )
+                )
               }
             }
 
@@ -466,7 +515,11 @@ export function getResolveRoutes(
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(pathname)
+          const output = await fsChecker.getItem(
+            pathname,
+            undefined,
+            Boolean(config.i18n && !localePathWasInferred)
+          )
 
           if (
             output &&
@@ -493,13 +546,17 @@ export function getResolveRoutes(
                 output.type === 'nextStaticFolder' &&
                 config.deploymentId
               ) {
-                let useImmutableToken =
-                  config.experimental.immutableAssetToken &&
+                let isImmutableFile =
+                  config.supportsImmutableAssets &&
                   clientHashes![`static${decodeURI(output.itemPath)}`]
-
-                const expectedToken = useImmutableToken
-                  ? config.experimental.immutableAssetToken
-                  : config.deploymentId
+                // Service workers are served at a fixed, stable URL (so the browser can keep the
+                // same registration across builds), so they don't carry a `?dpl` token.
+                const isServiceWorker =
+                  output.itemPath.startsWith('/service-worker/')
+                const expectedToken =
+                  isImmutableFile || isServiceWorker
+                    ? undefined
+                    : config.deploymentId
                 if (parsedUrl.query.dpl !== expectedToken) {
                   console.error(
                     `Invalid dpl query param: ${req.url}, expected: ${expectedToken}`
@@ -568,6 +625,7 @@ export function getResolveRoutes(
             debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
+            let rewriteLocaleWasInferred = false
             let bodyStream: ReadableStream | undefined = undefined
             try {
               try {
@@ -577,6 +635,8 @@ export function getResolveRoutes(
                   throw err
                 }
                 middlewareRes = err.result.response as Response
+                rewriteLocaleWasInferred =
+                  err.result.rewriteLocaleWasInferred === true
                 res.statusCode = middlewareRes.status
 
                 if (middlewareRes.body) {
@@ -702,6 +762,7 @@ export function getResolveRoutes(
               resHeaders['x-middleware-rewrite'] = destination
 
               parsedUrl = parseUrl(destination)
+              localePathWasInferred = rewriteLocaleWasInferred
 
               if (parsedUrl.protocol) {
                 return {
@@ -844,16 +905,21 @@ export function getResolveRoutes(
 
           // Set the rewrite headers only if this is a RSC request.
           if (
-            req.headers[RSC_HEADER] === '1' &&
+            isRSCRequestHeader(req.headers[RSC_HEADER]) &&
             (!parsedDestination.origin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now
-            // that we know that the it's not an external rewrite.
+            // that we know that the it's not an external rewrite. Mirror the
+            // path in resHeaders because those are applied after route
+            // resolution; otherwise, an earlier Proxy rewrite would overwrite
+            // the final route destination.
             if (parsedUrl.pathname !== parsedDestination.pathname) {
               res.setHeader(
                 NEXT_REWRITTEN_PATH_HEADER,
                 parsedDestination.pathname
               )
+              resHeaders[NEXT_REWRITTEN_PATH_HEADER] =
+                parsedDestination.pathname
             }
             if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(
@@ -881,6 +947,18 @@ export function getResolveRoutes(
             if (curLocaleResult.detectedLocale) {
               addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
             }
+
+            // Generated i18n rewrites propagate the internal locale prefix.
+            // That prefix remains inferred unless the destination supplies
+            // an explicit locale instead.
+            localePathWasInferred = Boolean(
+              localePathWasInferred &&
+                route.destination.startsWith(
+                  `${config.basePath || ''}/:nextInternalLocale`
+                ) &&
+                rewriteParams.nextInternalLocale ===
+                  curLocaleResult.detectedLocale
+            )
           }
           didRewrite = true
           parsedUrl.pathname = parsedDestination.pathname

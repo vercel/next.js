@@ -9,6 +9,7 @@ import {
   AppRouterContext,
   type AppRouterInstance,
 } from '../../../shared/lib/app-router-context.shared-runtime'
+import isError from '../../../lib/is-error'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode
@@ -16,36 +17,24 @@ type AppDevOverlayErrorBoundaryProps = {
 }
 
 type AppDevOverlayErrorBoundaryState = {
-  reactError: unknown
+  error: null | { thrownValue: unknown }
 }
 
 function ErroredHtml({
   globalError: [GlobalError, globalErrorStyles],
-  error,
+  thrownValue,
   reset,
-  unstable_retry,
+  retry,
 }: {
   globalError: GlobalErrorState
-  error: unknown
+  thrownValue: unknown
   reset: () => void
-  unstable_retry: () => void
+  retry: () => void
 }) {
-  if (!error) {
-    return (
-      <html>
-        <head />
-        <body />
-      </html>
-    )
-  }
   return (
     <ErrorBoundary errorComponent={DefaultGlobalError}>
       {globalErrorStyles}
-      <GlobalError
-        error={error}
-        reset={reset}
-        unstable_retry={unstable_retry}
-      />
+      <GlobalError error={thrownValue} reset={reset} retry={retry} />
     </ErrorBoundary>
   )
 }
@@ -58,20 +47,23 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   declare context: AppRouterInstance | null
 
   state: AppDevOverlayErrorBoundaryState = {
-    reactError: null,
+    error: null,
   }
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(
+    thrownValue: Error
+  ): Partial<AppDevOverlayErrorBoundaryState> {
     RuntimeErrorHandler.hadRuntimeError = true
 
     return {
-      reactError: error,
+      error: { thrownValue },
     }
   }
 
-  componentDidCatch(err: Error) {
+  componentDidCatch(err: unknown) {
     if (
       process.env.NODE_ENV === 'development' &&
+      isError(err) &&
       err.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
     ) {
       return
@@ -79,7 +71,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     dispatcher.openErrorOverlay()
   }
 
-  unstable_retry = () => {
+  retry = () => {
     startTransition(() => {
       this.context?.refresh()
       this.reset()
@@ -87,22 +79,25 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   }
 
   reset = () => {
-    this.setState({ reactError: null })
+    this.setState({ error: null })
   }
 
   render() {
     const { children, globalError } = this.props
-    const { reactError } = this.state
+    const { error } = this.state
 
-    const fallback = (
-      <ErroredHtml
-        globalError={globalError}
-        error={reactError}
-        reset={this.reset}
-        unstable_retry={this.unstable_retry}
-      />
-    )
+    if (error !== null) {
+      const thrownValue = error.thrownValue
+      return (
+        <ErroredHtml
+          globalError={globalError}
+          thrownValue={thrownValue}
+          reset={this.reset}
+          retry={this.retry}
+        />
+      )
+    }
 
-    return reactError !== null ? fallback : children
+    return children
   }
 }

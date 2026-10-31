@@ -25,17 +25,19 @@ export async function withExecuteRevalidates<T>(
   }
 }
 
-type RevalidationState = Required<
+export type RevalidationState = Required<
   Pick<
     WorkStore,
     'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
   >
 >
 
-function cloneRevalidationState(store: WorkStore): RevalidationState {
+export function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
+    // revalidateTag updates revalidatedAt in place when the tag/profile already
+    // exists, so snapshot the items as well as the array.
     pendingRevalidatedTags: store.pendingRevalidatedTags
-      ? [...store.pendingRevalidatedTags]
+      ? store.pendingRevalidatedTags.map((item) => ({ ...item }))
       : [],
     pendingRevalidates: { ...store.pendingRevalidates },
     pendingRevalidateWrites: store.pendingRevalidateWrites
@@ -44,31 +46,36 @@ function cloneRevalidationState(store: WorkStore): RevalidationState {
   }
 }
 
-function diffRevalidationState(
+function getRevalidatedTagKey({
+  tag,
+  profile,
+}: RevalidationState['pendingRevalidatedTags'][number]): string {
+  return JSON.stringify([tag, typeof profile, profile])
+}
+
+export function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
-  const prevTagsWithProfile = new Set(
-    prev.pendingRevalidatedTags.map((item) => {
-      const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
-      return `${item.tag}:${profileKey}`
-    })
+  const prevTagsWithProfile = new Map(
+    prev.pendingRevalidatedTags.map(
+      (item) => [getRevalidatedTagKey(item), item.revalidatedAt] as const
+    )
   )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
     pendingRevalidatedTags: curr.pendingRevalidatedTags.filter((item) => {
-      const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
-      return !prevTagsWithProfile.has(`${item.tag}:${profileKey}`)
+      const previousRevalidatedAt = prevTagsWithProfile.get(
+        getRevalidatedTagKey(item)
+      )
+      return (
+        previousRevalidatedAt === undefined ||
+        item.revalidatedAt > previousRevalidatedAt
+      )
     }),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
-        ([key]) => !(key in prev.pendingRevalidates)
+        ([key, promise]) => prev.pendingRevalidates[key] !== promise
       )
     ),
     pendingRevalidateWrites: curr.pendingRevalidateWrites.filter(
@@ -89,7 +96,7 @@ async function revalidateTags(
     return
   }
 
-  const handlers = getCacheHandlers()
+  const handlers = getCacheHandlers() ?? []
   const promises: Promise<void>[] = []
 
   // Group tags by profile for batch processing
@@ -149,7 +156,7 @@ async function revalidateTags(
         cacheLife = profile
       } else if (typeof profile === 'string') {
         // Profile is a string key, look it up in workStore
-        cacheLife = workStore?.cacheLifeProfiles?.[profile]
+        cacheLife = workStore?.cacheLifeProfiles[profile]
 
         if (!cacheLife) {
           throw new Error(
@@ -167,7 +174,7 @@ async function revalidateTags(
     // If profile is not found and not 'max', durations will be undefined
     // which will trigger immediate expiration in the cache handler
 
-    for (const handler of handlers || []) {
+    for (const handler of handlers) {
       if (profile) {
         promises.push(handler.updateTags?.(tagsForProfile, durations))
       } else {

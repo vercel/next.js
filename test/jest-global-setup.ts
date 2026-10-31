@@ -1,13 +1,25 @@
-import { checkBuildFreshness } from './lib/check-build-freshness'
-
-// Load the unhandled rejection filter in the host context.
-// This is needed because some unit tests (like fast-set-immediate.external.test.ts)
-// need to intercept unhandledRejection events via process.on(). In Jest's VM context,
-// process.on() operates on a separate EventEmitter from the real process where
-// unhandled rejections fire. The filter patches process.on() to use an internal queue
-// that both the host and VM contexts share, making the interception work.
-import 'next/dist/server/node-environment-extensions/unhandled-rejection.external'
-
-export default async function globalSetup() {
-  await checkBuildFreshness()
+export default function globalSetup() {
+  // `__NEXT_TEST_AXIS` names an alternate flag configuration of the test
+  // matrix. Axes are letters (`A`, `B`, …). A fixture can key an experimental
+  // flag on an axis to cover both states of the flag:
+  //
+  // ```js
+  // experimental: {
+  //   concurrentRouterQueue: process.env.__NEXT_TEST_AXIS !== 'A',
+  // }
+  // ```
+  //
+  // A plain run enables the flag, and the axis run disables it. See
+  // `test/lib/gate/README.md`.
+  //
+  // The only axis today is `A`. It is an alias for the Cache Components run
+  // (`__NEXT_CACHE_COMPONENTS=true`), so CI has no separate job for it. Most
+  // fixtures that use the axis set `cacheComponents: true` themselves, so the
+  // env default of that run does not change them. Setting either variable sets
+  // the other.
+  if (process.env.__NEXT_TEST_AXIS) {
+    process.env.__NEXT_CACHE_COMPONENTS = 'true'
+  } else if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    process.env.__NEXT_TEST_AXIS = 'A'
+  }
 }

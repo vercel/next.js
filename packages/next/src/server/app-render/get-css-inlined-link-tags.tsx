@@ -9,7 +9,7 @@ export function getLinkAndScriptTags(
   injectedCSS: Set<string>,
   injectedScripts: Set<string>,
   collectNewImports?: boolean
-): { styles: CssResource[]; scripts: string[] } {
+): { styles: ReadonlySet<CssResource>; scripts: ReadonlySet<string> } {
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
   const cssChunks = new Set<CssResource>()
   const jsChunks = new Set<string>()
@@ -39,5 +39,5 @@ export function getLinkAndScriptTags(
     }
   }
 
-  return { styles: [...cssChunks], scripts: [...jsChunks] }
+  return { styles: cssChunks, scripts: jsChunks }
 }

@@ -49,7 +49,12 @@ playwright.config.*
 *~
 *.log
 
-# Environment variables (only commit template files)
+# Environment variables - keep credentials out of the build context.
+# Anything left in the context is loaded by `next build` and copied into
+# `.next/standalone`, so it ships inside the runner image. `.env.production` is
+# deliberately not listed: use it for non-secret build-time config, and pass
+# real secrets at run time with `docker run -e`. See the "Environment Variables"
+# section of README.md.
 .env
 .env*.local
 .env.development

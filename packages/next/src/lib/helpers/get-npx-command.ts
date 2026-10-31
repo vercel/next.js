@@ -5,7 +5,7 @@ export function getNpxCommand(baseDir: string) {
   const pkgManager = getPkgManager(baseDir)
   let command = 'npx --yes'
   if (pkgManager === 'pnpm') {
-    command = 'pnpm --silent dlx'
+    command = 'pnpm --loglevel=error dlx'
   } else if (pkgManager === 'yarn') {
     try {
       execSync('yarn dlx --help', { stdio: 'ignore' })

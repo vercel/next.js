@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export { generateStaticParams } from './shared'\n"],"names":[],"mappings":"AAAA,SAAS,oBAAoB,QAAQ,WAAU;6CAAtC;WAAA"}

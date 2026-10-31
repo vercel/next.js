@@ -15,7 +15,7 @@ export const areTagsExpired = (tags: string[], timestamp: Timestamp) => {
     const expiredAt = entry?.expired
 
     if (typeof expiredAt === 'number') {
-      const now = Date.now()
+      const now = performance.timeOrigin + performance.now()
       // For immediate expiration (expiredAt <= now) and tag was invalidated after entry was created
       // OR for future expiration that has now passed (expiredAt > timestamp && expiredAt <= now)
       const isImmediatelyExpired = expiredAt <= now && expiredAt > timestamp

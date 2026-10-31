@@ -37,6 +37,7 @@ export function getGlobalCssLoader(
         modules: false,
         targets: ctx.supportedBrowsers,
         postcss,
+        lightningCssFeatures: ctx.experimental.lightningCssFeatures,
       },
     })
   } else {

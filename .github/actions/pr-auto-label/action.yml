@@ -1,0 +1,16 @@
+name: 'PR Auto-Labeler'
+description: >-
+  Applies labels to a pull request based on changed files and author, using
+  the config in this action's src/config.json.
+
+# This action deliberately has no inputs. It reads `GITHUB_TOKEN` from the
+# environment, which the calling workflow must set via `env:` — typically
+# to `${{ secrets.GITHUB_TOKEN }}`, the job's own token scoped by the
+# workflow's `permissions:` block. Exposing a `github-token` input would
+# let callers pass an unrelated (potentially higher-privileged) token from
+# a fork-controlled context; forcing the use of the job token via `env:`
+# keeps the principle of least privilege tied to the workflow's declared
+# `permissions:` block.
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

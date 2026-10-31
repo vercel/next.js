@@ -18,7 +18,6 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { useMergedRef } from './use-merged-ref'
-import { errorOnce } from '../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -74,7 +73,8 @@ type InternalLinkProps = {
    *
    * In App Router:
    * - "auto", null, undefined (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
-   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
+   * - `true` or `"prefetch"`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
+   * - `"navigation"`: This will prefetch up to where `navigation()` resolves. Without Partial Prefetching, this is the same as `true`.
    * - `false`: This will not prefetch any data, even on hover.
    *
    * In Pages Router:
@@ -82,7 +82,7 @@ type InternalLinkProps = {
    * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
    * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean | 'auto' | null
+  prefetch?: boolean | 'auto' | 'shell' | 'prefetch' | 'navigation' | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -147,9 +147,9 @@ const prefetched = new Set<string>()
 type PrefetchOptions = RouterPrefetchOptions & {
   /**
    * bypassPrefetchedCheck will bypass the check to see if the `href` has
-   * already been fetched.
+   * already been fetched i.e. unconditionally prefetch the `href`.
    */
-  bypassPrefetchedCheck?: boolean
+  bypassPrefetchedCheck: boolean
 }
 
 function prefetch(
@@ -451,11 +451,15 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           if (
             props[key] != null &&
             valType !== 'boolean' &&
-            props[key] !== 'auto'
+            props[key] !== 'auto' &&
+            props[key] !== 'shell' &&
+            props[key] !== 'prefetch' &&
+            props[key] !== 'navigation'
           ) {
             throw createPropError({
               key,
-              expected: '`boolean | "auto"`',
+              expected:
+                '`boolean | "auto" | "shell" | "prefetch" | "navigation"`',
               actual: valType,
             })
           }
@@ -576,7 +580,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as, { locale })
+      prefetch(router, href, as, {
+        // dedupe across appear/disappear of the Link.
+        bypassPrefetchedCheck: false,
+        locale,
+      })
     }, [as, href, isVisible, locale, prefetchEnabled, router?.locale, router])
 
     const childProps: {
@@ -703,6 +711,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     if (legacyBehavior) {
       if (process.env.NODE_ENV === 'development') {
+        const { errorOnce } =
+          require('../shared/lib/utils/error-once') as typeof import('../shared/lib/utils/error-once')
         errorOnce(
           '`legacyBehavior` is deprecated and will be removed in a future ' +
             'release. A codemod is available to upgrade your components:\n\n' +

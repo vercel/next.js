@@ -4,10 +4,9 @@ import stripAnsi from 'strip-ansi'
 
 describe('turbopack-ignore-issue', () => {
   describe('with turbopack.ignoreIssue config', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       // turbopack.ignoreIssue is turbopack-only
-      skipDeployment: true,
       nextConfig: {
         turbopack: {
           ignoreIssue: [
@@ -34,8 +33,6 @@ describe('turbopack-ignore-issue', () => {
         },
       },
     })
-
-    if (skipped) return
     if (!isTurbopack) {
       it('should skip tests since turbopack.ignoreIssue only works with Turbopack', () => {})
       return
@@ -123,12 +120,9 @@ describe('turbopack-ignore-issue', () => {
   })
 
   describe('without turbopack.ignoreIssue config', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-
-    if (skipped) return
 
     it('should show warning in cli output when not ignored', async () => {
       // Trigger compilation of the warning page

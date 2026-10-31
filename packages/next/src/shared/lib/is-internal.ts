@@ -11,6 +11,8 @@ export const nextInternalsRe =
 
 export default function isInternal(file: string | null) {
   if (!file) return false
+  // NOTE: native code has a version of the same logic in crates/next-napi-bindings/src/next_api/utils.rs
+  // keep them in sync.
 
   return (
     nextInternalsRe.test(file) ||

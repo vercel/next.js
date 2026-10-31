@@ -1,14 +1,18 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
+import type { PrerenderResult } from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
 import {
+  prerenderToHTMLOrFlight,
   renderToHTMLOrFlight,
+  runValidationInDevFromSnapshot,
   type AppSharedContext,
 } from '../../app-render/app-render'
+import type { DevValidationWorkerMessage } from '../../app-render/dev-validation-worker-globals'
 import {
   RouteModule,
   type RouteModuleOptions,
@@ -20,8 +24,11 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+import type { ParsedRequestHeaders } from './parse-request-headers'
+import type { ServerActionRequestMetadata } from '../../lib/server-action-request-meta'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -31,8 +38,12 @@ import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/int
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
-import type { IncomingMessage } from 'http'
-import { normalizeAppPageRequestUrl } from './normalize-request-url'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
+import {
+  applyAppPageRscRequestMetaFromHeaders,
+  normalizeAppPageRequestUrl,
+} from './normalize-request-url'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -65,12 +76,37 @@ type AppPageUserlandModule = {
   loaderTree: LoaderTree
 }
 
+export type RouteMatch = {
+  // The pathname produced by route preparation, including its delimiter-safe
+  // encoding for path parameters.
+  readonly resolvedPathname: string
+  readonly couldBeIntercepted: boolean
+}
+
+/** Live dev-server state captured for a render; absent in production and build prerenders. */
+export type DevRenderContext = {
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  readonly hmrRefreshHash: string | undefined
+  readonly initialHmrVersion: string | undefined
+}
+
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+  // Exact path-relative URL (pathname plus search) after route preparation,
+  // preserving its encoded bytes for rendering and prerender request IDs.
+  requestUrl: string
+  // Shared headers after request preparation; retain their live identity.
+  requestHeaders: IncomingHttpHeaders
   page: string
+  routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
+  // Defer access to these params while retaining their concrete request values.
+  // A resumed render prefers the mask recorded in its postponed state.
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
-  serverComponentsHmrCache?: ServerComponentsHmrCache
+  dev: DevRenderContext | undefined
+  parsedRequestHeaders: ParsedRequestHeaders
+  serverActionRequestMetadata: ServerActionRequestMetadata
   sharedContext: AppSharedContext
 }
 
@@ -125,7 +161,7 @@ export class AppPageRouteModule extends RouteModule<
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
@@ -139,11 +175,13 @@ export class AppPageRouteModule extends RouteModule<
 
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
     } else {
       super.normalizeUrl(req, parsedUrl)
     }
 
+    // Minimal adapters can bypass base-server request normalization and invoke
+    // route modules directly, so derive RSC/prefetch metadata from headers.
+    applyAppPageRscRequestMetaFromHeaders(req)
     normalizeAppPageRequestUrl(req, parsedUrl.pathname || '/')
   }
 
@@ -155,16 +193,63 @@ export class AppPageRouteModule extends RouteModule<
     return renderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
+      context.requestHeaders,
+      context.page,
+      context.query,
+      context.fallbackRouteParams,
+      // HEAD responses do not consume the render stream, so they cannot
+      // establish a new status for the dev indicator.
+      process.env.__NEXT_DEV_SERVER && req.method === 'HEAD'
+        ? { ...context.renderOpts, setIsrStatus: undefined }
+        : context.renderOpts,
+      context.dev,
+      context.sharedContext,
+      context.routeMatch,
+      context.parsedRequestHeaders,
+      context.serverActionRequestMetadata,
+      context.stagedFallbackParams,
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
+    )
+  }
+
+  public prerender(
+    res: BaseNextResponse,
+    context: AppPageRouteHandlerContext
+  ): Promise<PrerenderResult> {
+    return prerenderToHTMLOrFlight(
+      res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch,
+      context.parsedRequestHeaders,
+      context.serverActionRequestMetadata
     )
   }
 
-  private pathCouldBeIntercepted(
+  /**
+   * Worker entry point for dev Cache Components dev validation. The dev
+   * validation worker reloads this route's module and calls this so the whole
+   * validation runs inside the app-page bundle's React instance (the same one
+   * the user's client components resolve through `componentMod`), rebuilding
+   * the render context from the transported `message`. `componentMod` is the
+   * reloaded module the worker holds; it's passed in because the route module
+   * has no back-reference to it. Returns the validation errors for the worker
+   * to serialize and the main thread to deliver to the dev overlay.
+   */
+  public runValidationInDev(
+    componentMod: AppPageModule,
+    message: DevValidationWorkerMessage,
+    abortSignal: AbortSignal
+  ): Promise<Array<unknown> | undefined> {
+    return runValidationInDevFromSnapshot(message, componentMod, abortSignal)
+  }
+
+  public pathCouldBeIntercepted(
     resolvedPathname: string,
     interceptionRoutePatterns: RegExp[]
   ): boolean {
@@ -202,6 +287,6 @@ const vendored = {
   contexts: vendoredContexts,
 }
 
-export { renderToHTMLOrFlight, vendored }
+export { prerenderToHTMLOrFlight, renderToHTMLOrFlight, vendored }
 
 export default AppPageRouteModule

@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  experimental: {
+    prefetchInlining: false,
+  },
   logging: {
     fetches: {},
   },

@@ -18,7 +18,7 @@ use turbo_bincode::{
 use unsize::CoerceUnsize;
 
 use crate::{
-    ValueType, ValueTypeId, registry,
+    ValueType, ValueTypeId, ValueTypePersistence, registry,
     triomphe_utils::{coerce_to_any_send_sync, downcast_triomphe_arc},
 };
 
@@ -69,14 +69,14 @@ impl TurboBincodeEncode for TypedSharedReference {
     fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
         let Self { type_id, reference } = self;
         let value_type = registry::get_value_type(*type_id);
-        if let Some(bincode) = value_type.bincode {
+        if let ValueTypePersistence::Persistable(encode_fn, _) = value_type.persistence {
             type_id.encode(encoder)?;
-            bincode.0(&*reference.0, encoder)?;
+            encode_fn(&*reference.0, encoder)?;
             Ok(())
         } else {
             Err(EncodeError::OtherString(format!(
                 "{} is not encodable",
-                value_type.global_name
+                value_type.ty.global_name
             )))
         }
     }
@@ -86,13 +86,13 @@ impl<Context> TurboBincodeDecode<Context> for TypedSharedReference {
     fn decode(decoder: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
         let type_id = ValueTypeId::decode(decoder)?;
         let value_type = registry::get_value_type(type_id);
-        if let Some(bincode) = value_type.bincode {
-            let reference = bincode.1(decoder)?;
+        if let ValueTypePersistence::Persistable(_, decode_fn) = value_type.persistence {
+            let reference = decode_fn(decoder)?;
             Ok(Self { type_id, reference })
         } else {
             #[cold]
             fn not_decodable(value_type: &ValueType) -> DecodeError {
-                DecodeError::OtherString(format!("{} is not decodable", value_type.global_name))
+                DecodeError::OtherString(format!("{} is not decodable", value_type.ty.global_name))
             }
             Err(not_decodable(value_type))
         }
@@ -155,7 +155,7 @@ impl Display for TypedSharedReference {
         write!(
             f,
             "value of type {}",
-            registry::get_value_type(self.type_id).name
+            registry::get_value_type(self.type_id).ty.name
         )
     }
 }

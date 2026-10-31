@@ -1,28 +1,81 @@
+import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  encodeTextChunk,
+  nodeToWebByteStream,
+} from '../stream-utils/node-web-streams-helper'
+
+export type AnyStream = ReadableStream<Uint8Array> | Readable
+
+function isWebStream(stream: AnyStream): stream is ReadableStream<Uint8Array> {
+  return typeof (stream as ReadableStream).tee === 'function'
+}
 
 // React's RSC prerender function will emit an incomplete flight stream when using `prerender`. If the connection
 // closes then whatever hanging chunks exist will be errored. This is because prerender (an experimental feature)
 // has not yet implemented a concept of resume. For now we will simulate a paused connection by wrapping the stream
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
-  private _stream: null | ReadableStream<Uint8Array>
+  private _stream: null | AnyStream
+  private _replayable: ReplayableNodeStream | null
 
-  constructor(stream: ReadableStream<Uint8Array>) {
-    this._stream = stream
+  constructor(stream: AnyStream) {
+    if (process.env.__NEXT_USE_NODE_STREAMS && !isWebStream(stream)) {
+      this._stream = null
+      this._replayable = new ReplayableNodeStream(stream as Readable)
+    } else {
+      this._stream = stream
+      this._replayable = null
+    }
   }
 
-  tee() {
+  tee(): AnyStream {
+    if (this._replayable) {
+      return this._replayable.createReplayStream()
+    }
+
     if (this._stream === null) {
       throw new Error(
         'Cannot tee a ReactServerResult that has already been consumed'
       )
     }
-    const tee = this._stream.tee()
-    this._stream = tee[0]
-    return tee[1]
+    if (isWebStream(this._stream)) {
+      const tee = this._stream.tee()
+      this._stream = tee[0]
+      return tee[1]
+    }
+
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new InvariantError(
+        'Node.js Readable cannot be teed in the edge runtime'
+      )
+    } else {
+      let Readable: typeof import('node:stream').Readable
+      if (process.env.TURBOPACK) {
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      } else {
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      }
+      const webStream = nodeToWebByteStream(this._stream)
+      const tee = webStream.tee()
+      this._stream = Readable.fromWeb(
+        tee[0] as import('stream/web').ReadableStream
+      )
+      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
+    }
   }
 
-  consume() {
+  consume(): AnyStream {
+    if (this._replayable) {
+      const stream = this._replayable.createReplayStream()
+      this._replayable.dispose()
+      this._replayable = null
+      return stream
+    }
+
     if (this._stream === null) {
       throw new Error(
         'Cannot consume a ReactServerResult that has already been consumed'
@@ -31,6 +84,157 @@ export class ReactServerResult {
     const stream = this._stream
     this._stream = null
     return stream
+  }
+}
+
+type ReplayableStreamSubscriber = {
+  onChunk: (chunk: string | Uint8Array) => void
+  onEnd: () => void
+  onError: (err: Error) => void
+}
+
+/**
+ * Buffers byte or string chunks from a Node.js Readable stream and allows creating new
+ * Readable streams that replay the buffered chunks plus any subsequent chunks
+ * from the source. Multiple replay streams can be created independently.
+ */
+export class ReplayableNodeStream {
+  private _chunks: Array<string | Uint8Array> | null
+  private _done: boolean
+  private _error: Error | null
+  private _subscribers: Set<ReplayableStreamSubscriber>
+  private _objectMode: boolean
+
+  constructor(stream: Readable) {
+    this._chunks = []
+    this._done = false
+    this._error = null
+    this._subscribers = new Set()
+    this._objectMode = stream.readableObjectMode
+
+    stream.on('data', (chunk: string | Uint8Array) => {
+      if (this._chunks !== null) {
+        this._chunks.push(chunk)
+      }
+      for (const sub of this._subscribers) {
+        sub.onChunk(chunk)
+      }
+    })
+
+    stream.on('end', () => {
+      this._done = true
+      for (const sub of this._subscribers) {
+        sub.onEnd()
+      }
+      this._subscribers.clear()
+    })
+
+    stream.on('error', (err: Error) => {
+      this._error = err
+      for (const sub of this._subscribers) {
+        sub.onError(err)
+      }
+      this._subscribers.clear()
+    })
+  }
+
+  /**
+   * Creates a new Node.js Readable stream that first emits all buffered chunks,
+   * then forwards any new chunks from the source as they arrive.
+   *
+   * Buffered chunks are delivered via _read() (pull-based) rather than pushed
+   * eagerly. This is critical because createReplayStream() is called outside
+   * of AsyncLocalStorage context, and eagerly pushing chunks triggers internal
+   * Node.js stream scheduling (process.nextTick for maybeReadMore) that
+   * captures the empty ALS context. By deferring to _read(), chunks are only
+   * delivered when the consumer reads, which happens inside the correct ALS
+   * scope (e.g. during Fizz's performWork).
+   */
+  createReplayStream(): Readable {
+    if (this._chunks === null) {
+      throw new InvariantError(
+        'Cannot create a replay stream after the ReplayableNodeStream has been disposed.'
+      )
+    }
+
+    let ReadableCtor: typeof import('node:stream').Readable
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new InvariantError(
+        'Node.js Readable cannot be teed in the edge runtime'
+      )
+    } else {
+      if (
+        process.env.__NEXT_BUNDLER === 'Webpack' ||
+        process.env.__NEXT_BUNDLER === 'Rspack'
+      ) {
+        ReadableCtor = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      } else {
+        ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      }
+    }
+
+    const bufferedChunks = this._chunks.slice()
+    let bufferIndex = 0
+    let bufferDrained = false
+    const isDone = this._done
+    const sourceError = this._error
+
+    const stream = new ReadableCtor({
+      // Replay the source representation, including the original boundaries
+      // that the Node Flight reader uses to frame text rows.
+      objectMode: this._objectMode,
+      read() {
+        if (!bufferDrained) {
+          bufferDrained = true
+          for (let i = bufferIndex; i < bufferedChunks.length; i++) {
+            this.push(bufferedChunks[i])
+          }
+          bufferIndex = bufferedChunks.length
+          if (isDone) {
+            this.push(null)
+          }
+        }
+      },
+    })
+
+    if (sourceError) {
+      stream.destroy(sourceError)
+      return stream
+    }
+
+    if (isDone) {
+      return stream
+    }
+
+    const subscriber: ReplayableStreamSubscriber = {
+      onChunk: (chunk) => {
+        stream.push(chunk)
+      },
+      onEnd: () => {
+        stream.push(null)
+      },
+      onError: (err) => {
+        stream.destroy(err)
+      },
+    }
+    this._subscribers.add(subscriber)
+
+    stream.on('close', () => {
+      this._subscribers.delete(subscriber)
+    })
+
+    return stream
+  }
+
+  /**
+   * Clears the buffered chunks and all subscriber references. After calling
+   * this, no new replay streams can be created.
+   */
+  dispose(): void {
+    this._chunks = null
   }
 }
 
@@ -55,18 +259,26 @@ export async function createReactServerPrerenderResult(
 }
 
 export async function createReactServerPrerenderResultFromRender(
-  underlying: ReadableStream<Uint8Array>
+  underlying: AnyStream
 ): Promise<ReactServerPrerenderResult> {
   const chunks: Array<Uint8Array> = []
-  const reader = underlying.getReader()
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    } else {
-      chunks.push(value)
+
+  if (isWebStream(underlying)) {
+    const reader = underlying.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      } else {
+        chunks.push(value)
+      }
+    }
+  } else {
+    for await (const chunk of underlying) {
+      chunks.push(encodeTextChunk(chunk))
     }
   }
+
   return new ReactServerPrerenderResult(chunks)
 }
 export class ReactServerPrerenderResult {
@@ -93,6 +305,11 @@ export class ReactServerPrerenderResult {
 
   constructor(chunks: Array<Uint8Array>) {
     this._chunks = chunks
+  }
+
+  asChunks(): Array<Uint8Array> {
+    const chunks = this.assertChunks('asChunks()')
+    return chunks
   }
 
   asUnclosingStream(): ReadableStream<Uint8Array> {

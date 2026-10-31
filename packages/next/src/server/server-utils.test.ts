@@ -71,3 +71,134 @@ describe('getParamsFromRouteMatches', () => {
     expect(params).toEqual({ slug: 'hello-world', rest: ['im-the', 'rest'] })
   })
 })
+
+describe('normalizeDynamicRouteParams', () => {
+  it('should reject encoded default placeholders for dynamic params', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: '%5BteamSlug%5D',
+        project: '%5Bproject%5D',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {},
+      hasValidParams: false,
+    })
+  })
+
+  it('should reject doubly encoded default placeholders for dynamic params', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: '%255BteamSlug%255D',
+        project: '%255Bproject%255D',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {},
+      hasValidParams: false,
+    })
+  })
+
+  it('should continue accepting regular dynamic values', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: 'vercel',
+        project: 'nextjs',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {
+        teamSlug: 'vercel',
+        project: 'nextjs',
+      },
+      hasValidParams: true,
+    })
+  })
+
+  it('should not decode matched params beyond the route matcher decode', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: 'acme',
+        project: '%23hash',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {
+        teamSlug: 'acme',
+        project: '%23hash',
+      },
+      hasValidParams: true,
+    })
+  })
+
+  it('should not reject non-placeholder values that only contain decoded placeholder text', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: 'acme',
+        project: '%5Bproject%5D-suffix',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {
+        teamSlug: 'acme',
+        project: '%5Bproject%5D-suffix',
+      },
+      hasValidParams: true,
+    })
+  })
+})

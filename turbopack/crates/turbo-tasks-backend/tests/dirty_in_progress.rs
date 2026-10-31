@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dirty_in_progress() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let cases = [
             (1, 3, 2, 2, ""),
             (11, 13, 12, 42, "12"),
@@ -70,7 +70,7 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("start inner_compute");
     let value = *input.await?.state.get();
@@ -88,7 +88,7 @@ async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);

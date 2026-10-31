@@ -1,20 +1,14 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('app-dir-hide-suppressed-error-during-next-export', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      skipStart: true,
-      files: {
-        'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
-        app: new FileRef(join(__dirname, 'app')),
-      },
-    })
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+      app: new FileRef(join(__dirname, 'app')),
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should not log suppressed error when exporting static page', async () => {
     await expect(next.start()).rejects.toThrow('next build failed')

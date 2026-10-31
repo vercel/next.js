@@ -1,218 +1,109 @@
-use bincode::{Decode, Encode};
 use smallvec::SmallVec;
-use turbo_tasks::{TaskExecutionReason, TaskId, event::EventDescription};
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
+use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
 
 use crate::{
     backend::{
-        TaskDataCategory,
         operation::{
-            ExecuteContext, Operation, TaskGuard,
+            ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
+        storage_schema::TaskStorageAccessors,
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
-#[derive(Encode, Decode, Clone, Default)]
-#[allow(clippy::large_enum_variant)]
-pub enum InvalidateOperation {
-    MakeDirty {
-        task_ids: SmallVec<[TaskId; 4]>,
-        #[cfg(feature = "trace_task_dirty")]
-        cause: TaskDirtyCause,
-    },
-    AggregationUpdate {
-        queue: AggregationUpdateQueue,
-    },
-    #[default]
-    Done,
-}
-
-impl InvalidateOperation {
-    pub fn run(
-        task_ids: SmallVec<[TaskId; 4]>,
-        #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
-        mut ctx: impl ExecuteContext<'_>,
-    ) {
-        InvalidateOperation::MakeDirty {
-            task_ids,
-            #[cfg(feature = "trace_task_dirty")]
-            cause,
-        }
-        .execute(&mut ctx)
-    }
-}
-
-impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
-        loop {
-            ctx.operation_suspend_point(&self);
-            match self {
-                InvalidateOperation::MakeDirty {
-                    task_ids,
-                    #[cfg(feature = "trace_task_dirty")]
-                    cause,
-                } => {
-                    let mut queue = AggregationUpdateQueue::new();
-                    for task_id in task_ids {
-                        make_task_dirty(
-                            task_id,
-                            #[cfg(feature = "trace_task_dirty")]
-                            cause.clone(),
-                            &mut queue,
-                            ctx,
-                        );
-                    }
-                    if queue.is_empty() {
-                        self = InvalidateOperation::Done
-                    } else {
-                        self = InvalidateOperation::AggregationUpdate { queue }
-                    }
-                    continue;
-                }
-                InvalidateOperation::AggregationUpdate { ref mut queue } => {
-                    if queue.process(ctx) {
-                        self = InvalidateOperation::Done
-                    }
-                }
-                InvalidateOperation::Done => {
-                    return;
-                }
-            }
-        }
-    }
-}
-
-#[cfg(feature = "trace_task_dirty")]
-#[derive(Encode, Decode, Clone, Debug)]
-pub enum TaskDirtyCause {
-    InitialDirty,
-    CellChange {
-        value_type: turbo_tasks::ValueTypeId,
-        keys: SmallVec<[Option<u64>; 2]>,
-    },
-    CellRemoved {
-        value_type: turbo_tasks::ValueTypeId,
-    },
-    OutputChange {
-        task_id: TaskId,
-    },
-    CollectiblesChange {
-        collectible_type: turbo_tasks::TraitTypeId,
-    },
-    Invalidator,
-    Unknown,
-}
-
-#[cfg(feature = "trace_task_dirty")]
-struct TaskDirtyCauseInContext<'l> {
-    cause: &'l TaskDirtyCause,
-    task_description: String,
-}
-
-#[cfg(feature = "trace_task_dirty")]
-impl<'l> TaskDirtyCauseInContext<'l> {
-    fn new(cause: &'l TaskDirtyCause, ctx: &'l mut impl ExecuteContext<'_>) -> Self {
-        Self {
-            cause,
-            task_description: match cause {
-                TaskDirtyCause::OutputChange { task_id } => ctx
-                    .task(*task_id, TaskDataCategory::Data)
-                    .get_task_description(),
-                _ => String::new(),
-            },
-        }
-    }
-}
-
-#[cfg(feature = "trace_task_dirty")]
-impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.cause {
-            TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
-            TaskDirtyCause::CellChange { value_type, keys } => {
-                if keys.is_empty() {
-                    write!(
-                        f,
-                        "{} cell changed",
-                        turbo_tasks::registry::get_value_type(*value_type).name
-                    )
-                } else {
-                    write!(
-                        f,
-                        "{} cell changed (keys: {})",
-                        turbo_tasks::registry::get_value_type(*value_type).name,
-                        keys.iter()
-                            .map(|key| match key {
-                                Some(k) => k.to_string(),
-                                None => "*".to_string(),
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    )
-                }
-            }
-            TaskDirtyCause::CellRemoved { value_type } => {
-                write!(
-                    f,
-                    "{} cell removed",
-                    turbo_tasks::registry::get_value_type(*value_type).name
-                )
-            }
-            TaskDirtyCause::OutputChange { .. } => {
-                write!(f, "task {} output changed", self.task_description)
-            }
-            TaskDirtyCause::CollectiblesChange { collectible_type } => {
-                write!(
-                    f,
-                    "{} collectible changed",
-                    turbo_tasks::registry::get_trait(*collectible_type).name
-                )
-            }
-            TaskDirtyCause::Invalidator => write!(f, "invalidator"),
-            TaskDirtyCause::Unknown => write!(f, "unknown"),
-        }
-    }
-}
-
-pub fn make_task_dirty(
-    task_id: TaskId,
-    #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
-    queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
+/// Invalidates `task_ids`. Callers must not pass duplicate ids (the bulk task access expects
+/// unique ids, and deduplicating here would cost every invalidation).
+pub fn invalidate(
+    task_ids: impl IntoIterator<Item = TaskId>,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    mut ctx: ExecuteContext<'_>,
 ) {
-    let task = ctx.task(task_id, TaskDataCategory::All);
-    make_task_dirty_internal(
+    // Debug builds collect the ids to check they are unique. Release builds stream them.
+    #[cfg(debug_assertions)]
+    let task_ids = {
+        let task_ids: Vec<TaskId> = task_ids.into_iter().collect();
+        debug_assert!(
+            task_ids.len() <= 1
+                || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
+            "invalidate() must not be called with duplicate task ids: {task_ids:?}"
+        );
+        task_ids
+    };
+    let task_ids = task_ids.into_iter();
+    let mut queue = AggregationUpdateQueue::new();
+    // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
+    // the scheduler's queue lock once instead of once per task.
+    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.size_hint().0);
+    // Tasks that no longer exist are skipped, there is nothing to invalidate. Tasks that are not
+    // resident are restored from persistent storage in batches.
+    ctx.for_each_try_task_all(task_ids, "invalidate", |mut task, ctx| {
+        if let Some(parent_priority) = make_task_dirty_without_scheduling(
+            &mut task,
+            true,
+            #[cfg(feature = "task_dirty_cause")]
+            cause.clone(),
+            &mut queue,
+            ctx,
+        ) {
+            to_schedule.push((
+                task.id(),
+                ctx.schedule_task_priority(&task, parent_priority),
+            ));
+        }
+    });
+    ctx.schedule_tasks(&to_schedule);
+    queue.execute(&mut ctx);
+}
+
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
+pub fn make_task_dirty_internal(
+    task: &mut TaskGuard<'_>,
+    make_stale: bool,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut ExecuteContext<'_>,
+) {
+    if let Some(parent_priority) = make_task_dirty_without_scheduling(
         task,
-        task_id,
-        true,
-        #[cfg(feature = "trace_task_dirty")]
+        make_stale,
+        #[cfg(feature = "task_dirty_cause")]
         cause,
         queue,
         ctx,
-    );
+    ) {
+        ctx.schedule_task(task, parent_priority);
+    }
 }
 
-pub fn make_task_dirty_internal(
-    mut task: impl TaskGuard,
-    task_id: TaskId,
+/// Like [`make_task_dirty_internal`], but instead of scheduling the task it returns the parent
+/// priority to schedule it with (see [`ExecuteContext::schedule_task`]). The task is already marked
+/// as scheduled when this returns `Some`, so the caller must schedule it.
+///
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
+#[must_use]
+pub(super) fn make_task_dirty_without_scheduling(
+    task: &mut TaskGuard<'_>,
     make_stale: bool,
-    #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
-) {
+    ctx: &mut ExecuteContext<'_>,
+) -> Option<TaskPriority> {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
     if task.immutable() {
-        #[cfg(feature = "trace_task_dirty")]
-        let extra_info = format!(
-            " Invalidation cause: {}",
-            TaskDirtyCauseInContext::new(&cause, ctx)
-        );
-        #[cfg(not(feature = "trace_task_dirty"))]
+        #[cfg(feature = "task_dirty_cause")]
+        let extra_info = format!(" Invalidation cause: {cause}");
+        #[cfg(not(feature = "task_dirty_cause"))]
         let extra_info = "";
 
         panic!(
@@ -225,7 +116,7 @@ pub fn make_task_dirty_internal(
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
     if make_stale
-        && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+        && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
         && !*stale
     {
@@ -234,33 +125,54 @@ pub fn make_task_dirty_internal(
             "make task stale",
             task_id = display(task_id),
             name = task_name,
-            cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+            cause = %cause
         )
         .entered();
         *stale = true;
     }
     let current = task.get_dirty();
+    let parent_priority = ctx.get_current_task_priority();
+    let parent_priority = if matches!(parent_priority, TaskPriority::Recomputation) {
+        // When an invalidation was triggered during recomputation (or an initial execution that was
+        // triggered from recomputation), we do not want to treat that as recomputation.
+        // That would make recomputation to be very viral, and breaks ordering. So we reset
+        // execution order to initial.
+        TaskPriority::Initial
+    } else {
+        parent_priority
+    };
     let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
-        Some(Dirtyness::Dirty(current_priority)) => {
+        Some(Dirtyness::Dirty {
+            parent_priority: current_priority,
+            ..
+        }) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
                 task_id = display(task_id),
                 name = task_name,
-                cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                cause = %cause
             )
             .entered();
             // already dirty
-            let parent_priority = ctx.get_current_task_priority();
-            if *current_priority >= parent_priority {
+            if matches!(*current_priority, TaskPriority::Initial)
+                || *current_priority > parent_priority
+            {
                 // Update the priority to be the lower one
-                task.set_dirty(Dirtyness::Dirty(parent_priority));
+                task.set_dirty(Dirtyness::Dirty {
+                    parent_priority,
+                    #[cfg(feature = "task_dirty_cause")]
+                    cause,
+                });
             }
-            return;
+            return None;
         }
         Some(Dirtyness::SessionDependent) => {
-            let parent_priority = ctx.get_current_task_priority();
-            task.set_dirty(Dirtyness::Dirty(parent_priority));
+            task.set_dirty(Dirtyness::Dirty {
+                parent_priority,
+                #[cfg(feature = "task_dirty_cause")]
+                cause: cause.clone(),
+            });
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = task.current_session_clean();
             if was_current_session_clean {
@@ -273,16 +185,19 @@ pub fn make_task_dirty_internal(
                 let _span = tracing::trace_span!(
                     "session-dependent task already dirty",
                     name = task_name,
-                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                    cause = %cause
                 )
                 .entered();
                 // already dirty
-                return;
+                return None;
             }
         }
         None => {
-            let parent_priority = ctx.get_current_task_priority();
-            task.set_dirty(Dirtyness::Dirty(parent_priority));
+            task.set_dirty(Dirtyness::Dirty {
+                parent_priority,
+                #[cfg(feature = "task_dirty_cause")]
+                cause: cause.clone(),
+            });
             // It was clean before, so we need to increase the dirty count
             (false, false, parent_priority)
         }
@@ -305,7 +220,7 @@ pub fn make_task_dirty_internal(
         "make task dirty",
         task_id = display(task_id),
         name = task_name,
-        cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+        cause = %cause
     )
     .entered();
 
@@ -321,11 +236,8 @@ pub fn make_task_dirty_internal(
     }
     .compute();
 
-    if let Some(aggregated_update) = result.aggregated_update(task_id) {
-        queue.extend(AggregationUpdateJob::data_update(
-            &mut task,
-            aggregated_update,
-        ));
+    if let Some(aggregated_update) = result.aggregated_update(task.id()) {
+        queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
     let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
@@ -333,9 +245,8 @@ pub fn make_task_dirty_internal(
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
         if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
-            drop(task);
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task, parent_priority);
+            return Some(parent_priority);
         }
     }
+    None
 }

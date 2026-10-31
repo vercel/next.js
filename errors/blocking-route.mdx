@@ -8,7 +8,15 @@ When the `cacheComponents` feature is enabled, Next.js expects a parent `Suspens
 
 While some data is inherently only available when a user request is being handled, such as request headers, Next.js assumes that by default any asynchronous data is expected to be accessed each time a user request is being handled unless you specifically cache it using `"use cache"`.
 
-The proper fix for this specific error depends on what data you are accessing and how you want your Next.js app to behave.
+This usually happens when a component does one of the following without a parent `<Suspense>` boundary:
+
+- Awaiting `params` in a Page or Layout, or awaiting `searchParams` in a Page
+- Calling `cookies()`, `headers()`, or `connection()`
+- Fetching data that isn't cached with `"use cache"`
+
+The fix depends on what data you're accessing and how you want your app to behave — see the examples below.
+
+> **Good to know**: In `next dev`, the error overlay usually points at the failing component. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for prerender stack traces that name the exact component.
 
 ## Possible Ways to Fix It
 
@@ -159,7 +167,55 @@ Alternatively you can add a Suspense boundary above the component that is access
 
 ### Params and SearchParams
 
-Layout `params`, and Page `params` and `searchParams` props are promises. If you await them in the Layout or Page component you might be accessing these props higher than is actually required. Try passing these props to deeper components as a promise and awaiting them closer to where the actual param or searchParam is required
+Layout `params` and Page `params` and `searchParams` props are promises. If you await them directly in your Page or Layout component without a `<Suspense>` boundary, the page can be blocked from prerendering. You can fix this by:
+
+- Passing the promise to a child component wrapped in `<Suspense>` and awaiting it there
+- Adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment
+- Using [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide known param values at build time (see [below](#generatestaticparams))
+
+For example, `const { id } = await params` directly in a Page component is a common trigger for this error:
+
+Before:
+
+```jsx filename="app/product/[id]/page.js"
+export default async function ProductPage({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return (
+    <div>
+      <Breadcrumbs />
+      <h1>{product.name}</h1>
+    </div>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/product/[id]/page.js"
+import { Suspense } from 'react'
+
+export default function ProductPage({ params }) {
+  return (
+    <div>
+      <Breadcrumbs />
+      <Suspense fallback={<p>Loading product...</p>}>
+        <ProductDetails params={params} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function ProductDetails({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <h1>{product.name}</h1>
+}
+```
+
+If the entire page depends on `params` and there is no static content to show, adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment is a simpler alternative.
+
+The same pattern applies to `searchParams`:
 
 Before:
 

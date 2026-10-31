@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module/input/index.js"],"sourcesContent":["import { IS_DEV, SOME_VALUE } from './other'\n\nif (SOME_VALUE === 'x') {\n  console.log('x')\n} else {\n  require('./dead-code')\n}\nconsole.log(SOME_VALUE)\n\n// --------------------------------------------------------------------------\n\nif (IS_DEV) {\n  console.log('is_dev')\n} else {\n  require('./dead-code')\n}\nconsole.log(IS_DEV)\n"],"names":["console","log"],"mappings":";;AAEA,wCAAwB;IACtBA,QAAQC,GAAG,CAAC;AACd;;AAGAD,QAAQC,GAAG;AAEX,6EAA6E;AAE7E,wCAAY;IACVD,QAAQC,GAAG,CAAC;AACd;;AAGAD,QAAQC,GAAG"}}]
+}

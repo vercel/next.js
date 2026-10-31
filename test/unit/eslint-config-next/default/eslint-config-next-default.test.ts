@@ -91,6 +91,9 @@ describe('eslint-config-next', () => {
          "@next/next/no-img-element": [
            1,
          ],
+         "@next/next/no-location-assign-relative-destination": [
+           1,
+         ],
          "@next/next/no-page-custom-font": [
            1,
          ],
@@ -140,9 +143,6 @@ describe('eslint-config-next', () => {
          ],
          "jsx-a11y/role-supports-aria-props": [
            1,
-         ],
-         "react-hooks/component-hook-factories": [
-           2,
          ],
          "react-hooks/config": [
            2,

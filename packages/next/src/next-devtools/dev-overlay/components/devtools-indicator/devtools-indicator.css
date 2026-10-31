@@ -79,6 +79,12 @@
   margin-left: auto;
 }
 
+.dev-tools-indicator-issue-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .dev-tools-indicator-issue-count {
   --color-primary: var(--color-gray-800);
   --color-secondary: var(--color-gray-100);
@@ -103,6 +109,11 @@
   &[data-has-issues='true'] {
     --color-primary: var(--color-red-800);
     --color-secondary: var(--color-red-100);
+  }
+
+  &[data-has-issues='true'][data-variant='insight'] {
+    --color-primary: var(--color-amber-800);
+    --color-secondary: var(--color-amber-100);
   }
 
   .dev-tools-indicator-issue-count-indicator {

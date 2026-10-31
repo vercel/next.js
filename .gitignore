@@ -2,11 +2,11 @@
 dist
 !.github/actions/*/dist
 .next
+.next-profiles
 target
 packages/next/wasm/@next
 tarballs/
 packages/**/*.tgz
-.errors/
 
 # rust compiler crashes
 rustc-ice-*.txt
@@ -25,6 +25,7 @@ test/node_modules
 pids
 *.cpuprofile
 *.heapsnapshot
+.next-profiles
 
 # coverage
 .nyc_output
@@ -50,6 +51,7 @@ examples/**/out/*
 
 # env
 .env*.local
+evals/.env
 
 pr-stats.md
 test-timings.json
@@ -71,6 +73,7 @@ test-timings.json
 .claude/plans/
 .claude/todos.json
 .claude/worktrees
+.claude/scheduled_tasks.lock
 CLAUDE.local.md
 
 # Conductor (worktrees created by Conductor app, but keep scripts/)
@@ -79,8 +82,4 @@ CLAUDE.local.md
 
 index.scip
 
-# Evals
-evals/.tarballs/
-evals/experiments/
-evals/results/
-evals/agent-results.json
+.env*

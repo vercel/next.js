@@ -3,10 +3,12 @@
     "strict": true,
     "esModuleInterop": true,
     "target": "es2019",
+    "lib": ["dom", "dom.iterable", "esnext"],
     "outDir": "dist",
     "module": "commonjs",
     "rootDir": "src",
-    "declaration": true
+    "declaration": true,
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

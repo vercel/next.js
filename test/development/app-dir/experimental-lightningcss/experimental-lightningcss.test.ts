@@ -17,7 +17,7 @@ describe('experimental-lightningcss with default mode', () => {
 
       // lightningcss produces different class names in turbo mode
       if (isTurbopack) {
-        // swc_css does not include `-module` in the class name, while lightningcss does.
+        // Turbopack keeps the filename in CSS Module class names during development.
         expect($('p').attr('class')).toBe(
           'search-keyword style-module__hlQ3RG__blue'
         )

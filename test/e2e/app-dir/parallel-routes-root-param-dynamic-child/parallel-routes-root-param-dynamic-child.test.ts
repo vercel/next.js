@@ -175,13 +175,23 @@ describe('parallel-routes-root-param-dynamic-child', () => {
       it.each(['en', 'fr'])(
         'should render a 404 for /%s/gsp/stories/dynamic-123 (slug not in generateStaticParams)',
         async (locale) => {
-          const { browser, act } = await createBrowserActor(`/${locale}`)
-
-          await act(async () => {
-            await browser
-              .elementByCss(`[href="/${locale}/gsp/stories/dynamic-123"]`)
-              .click()
+          // Navigate from a valid locale page to a slug that isn't in
+          // generateStaticParams and assert the client renders the 404.
+          //
+          // We deliberately don't use `createRouterAct` here. The page eagerly
+          // prefetches its sibling nav links — several of which are themselves
+          // 404 routes — so the prefetch network doesn't reliably go idle.
+          // Wrapping the navigation in `act` (which waits for a quiet network)
+          // would time out. This test only cares about the rendered result,
+          // not the prefetch traffic.
+          const browser = await next.browser(`/${locale}`, {
+            cpuThrottleRate: 6,
           })
+          await browser.elementByCss('#reveal').click()
+          await browser.elementByCss('#nav')
+          await browser
+            .elementByCss(`[href="/${locale}/gsp/stories/dynamic-123"]`)
+            .click()
 
           await retry(async () => {
             expect(await browser.elementByCss('.next-error-h1').text()).toBe(

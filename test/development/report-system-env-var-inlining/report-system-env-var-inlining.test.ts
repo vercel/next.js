@@ -16,7 +16,7 @@ import { getRedboxSource, waitForRedbox } from 'next-test-utils'
       const error = await getRedboxSource(browser)
       expect(error).toMatchInlineSnapshot(`
        "./app/foo.tsx (2:14)
-       TP1202 The commit hash is being inlined.
+       Error: TP1202 The commit hash is being inlined.
          1 | export function Foo() {
        > 2 |   return <p>{process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA}</p>
            |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

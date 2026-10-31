@@ -5,19 +5,27 @@
 use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{
-    IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator,
-    unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
-};
+use turbo_tasks::{Invalidator, ResolvedVc, TraitRef, Vc, get_invalidator, with_turbo_tasks};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_ref() {
-    run_once(&REGISTRATION, || async {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        let counter = Counter::cell(Counter {
+    run_once(&REGISTRATION, async || {
+        #[turbo_tasks::function(operation, root)]
+        fn counter_trait_operation(counter: ResolvedVc<Counter>) -> Vc<Box<dyn CounterTrait>> {
+            Vc::upcast(*counter)
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn counter_value_trait_operation(
+            counter: ResolvedVc<Counter>,
+        ) -> Vc<Box<dyn CounterValueTrait>> {
+            Vc::upcast(counter.get_value())
+        }
+
+        let counter = Counter::resolved_cell(Counter {
             value: Mutex::new((0, Default::default())),
         });
 
@@ -32,8 +40,8 @@ async fn trait_ref() {
         assert_eq!(*counter_value.strongly_consistent().await?, 1);
 
         // `ref_counter` will still point to the same `counter` instance as `counter`.
-        let trait_ref_counter = Vc::upcast::<Box<dyn CounterTrait>>(counter)
-            .into_trait_ref()
+        let trait_ref_counter = counter_trait_operation(counter)
+            .read_trait_strongly_consistent()
             .await?;
         let ref_counter = TraitRef::cell(trait_ref_counter.clone());
         let ref_counter_value = ref_counter.get_value();
@@ -42,8 +50,8 @@ async fn trait_ref() {
         // at the time it was turned into a trait reference (just like a `ReadRef`
         // would).
         let local_counter_value = TraitRef::cell(
-            Vc::upcast::<Box<dyn CounterValueTrait>>(counter_value)
-                .into_trait_ref()
+            counter_value_trait_operation(counter)
+                .read_trait_strongly_consistent()
                 .await?,
         )
         .get_value();
@@ -65,9 +73,9 @@ async fn trait_ref() {
 #[derive(Copy, Clone)]
 struct CounterValue(usize);
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
 struct Counter {
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     value: Mutex<(usize, HashSet<Invalidator>)>,
 }
 
@@ -86,7 +94,7 @@ impl Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<CounterValue>;
 
     fn get_value_sync(&self) -> CounterValue;
@@ -94,7 +102,7 @@ trait CounterTrait {
 
 #[turbo_tasks::value_impl]
 impl CounterTrait for Counter {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1.insert(get_invalidator().unwrap());
@@ -108,13 +116,13 @@ impl CounterTrait for Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterValueTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 
 #[turbo_tasks::value_impl]
 impl CounterValueTrait for CounterValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(self: Vc<Self>) -> Vc<Self> {
         self
     }

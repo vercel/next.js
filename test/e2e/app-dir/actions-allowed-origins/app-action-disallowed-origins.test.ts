@@ -2,10 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { join } from 'path'
 
+// @force-gate !deploy
 describe('app-dir action disallowed origins', () => {
   const { next, skipped } = nextTestSetup({
     files: join(__dirname, 'unsafe-origins'),
-    skipDeployment: true,
     dependencies: {
       'server-only': 'latest',
     },
@@ -25,7 +25,7 @@ describe('app-dir action disallowed origins', () => {
       const t = await browser.elementByCss('#res').text()
       return t.includes('Invalid Server Actions request.') ||
         // In prod the message is hidden
-        t.includes('An error occurred in the Server Components render.')
+        t.includes('https://react.dev/errors/441')
         ? 'yes'
         : 'no'
     }, 'yes')

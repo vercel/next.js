@@ -1,8 +1,8 @@
-*anonymous function 66* (const after eval) = (...) => undefined
+*anonymous function 66* = (...) => undefined
 
-*arrow function 118* (const after eval) = (...) => undefined
+*arrow function 118* = (...) => undefined
 
-*arrow function 229* (const after eval) = (...) => undefined
+*arrow function 229* = (...) => undefined
 
 a (const after eval) = (...) => undefined
 

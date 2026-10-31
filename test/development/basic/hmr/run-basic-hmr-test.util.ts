@@ -4,7 +4,7 @@ import {
   retry,
   waitFor,
 } from 'next-test-utils'
-import { createNext, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 export function runBasicHmrTest(nextConfig: {
   basePath: string
@@ -14,6 +14,7 @@ export function runBasicHmrTest(nextConfig: {
     files: __dirname,
     nextConfig,
     patchFileDelay: 500,
+    forcedPort: 'random',
   })
   const { basePath } = nextConfig
 
@@ -90,7 +91,7 @@ export function runBasicHmrTest(nextConfig: {
       )
     })
 
-    await next.destroy()
+    await next.stop()
 
     let reloadPromise = new Promise((resolve) => {
       browser.on('request', (req) => {
@@ -100,13 +101,8 @@ export function runBasicHmrTest(nextConfig: {
       })
     })
 
-    const secondNext = await createNext({
-      files: __dirname,
-      nextConfig,
-      forcedPort: next.appPort,
-    })
+    await next.start()
 
     await reloadPromise
-    await secondNext.destroy()
   })
 }

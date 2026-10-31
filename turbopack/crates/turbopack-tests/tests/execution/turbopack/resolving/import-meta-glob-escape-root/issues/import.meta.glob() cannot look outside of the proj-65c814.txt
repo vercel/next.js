@@ -1,0 +1,17 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js:36:32  import.meta.glob() cannot look outside of the project root
+      32 | })
+      33 | 
+      34 | // A negative pattern that escapes can't exclude anything, and skipping it would
+      35 | // include files the user asked to exclude, so nothing is matched at all.
+         |                                 v-----------------
+      36 + const escapingNegativePattern = import.meta.glob([
+      37 +   './*.js',
+      38 +   '!../../../../../../../../../../../../*.js',
+      39 + ])
+         +--^
+      40 | 
+      41 | it('should return an empty object for a negative pattern above the project root', () => {
+      42 |   expect(escapingNegativePattern).toEqual({})
+      43 | })
+  
+  the pattern "!../../../../../../../../../../../../*.js" of import.meta.glob("./*.js", "!../../../../../../../../../../../../*.js") resolves to a directory above the project root, relative to turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input. Patterns are relative to the importing file, or absolute from the project root when they start with `/`.

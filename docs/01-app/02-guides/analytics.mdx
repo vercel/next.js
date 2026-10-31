@@ -74,7 +74,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> Since the `useReportWebVitals` hook requires the `'use client'` directive, the most performant approach is to create a separate component that the root layout imports. This confines the client boundary exclusively to the `WebVitals` component.
+> Since the `useReportWebVitals` hook must be used in a Client Component, create a separate file for the `WebVitals` component with `'use client'` at the top, before any imports. Import this component into the root layout to keep the client boundary limited to this module and its imports.
 
 View the [API Reference](/docs/app/api-reference/functions/use-report-web-vitals) for more information.
 
@@ -88,7 +88,6 @@ experience of a web page. The following web vitals are all included:
 - [Time to First Byte](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) (TTFB)
 - [First Contentful Paint](https://developer.mozilla.org/docs/Glossary/First_contentful_paint) (FCP)
 - [Largest Contentful Paint](https://web.dev/lcp/) (LCP)
-- [First Input Delay](https://web.dev/fid/) (FID)
 - [Cumulative Layout Shift](https://web.dev/cls/) (CLS)
 - [Interaction to Next Paint](https://web.dev/inp/) (INP)
 

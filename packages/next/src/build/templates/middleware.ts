@@ -4,6 +4,8 @@ import '../../server/web/globals'
 
 import { adapter } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 // Import the userland code.
 import * as _mod from 'VAR_USERLAND'
@@ -72,13 +74,56 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
   }
 }
 
-const internalHandler: EdgeHandler = (opts) => {
-  return adapter({
-    ...opts,
-    IncrementalCache,
-    page,
-    handler: errorHandledHandler(handlerUserland),
-  })
+const internalHandler: EdgeHandler = async (opts) => {
+  let emitInstrumentationSpans: (() => void) | undefined
+  let requestStartTime: number | undefined
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    // This mirrors what `RouteModule#prepare` does for routes
+    // edge runtime handles loading instrumentation at the edge adapter level
+    requestStartTime = performance.timeOrigin + performance.now()
+    const { join, relative } =
+      require('node:path') as typeof import('node:path')
+    const { ensureInstrumentationRegisteredWithDeferredSpans } =
+      require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
+    const absoluteProjectDir = join(
+      /* turbopackIgnore: true */
+      process.cwd(),
+      opts.request.requestMeta?.relativeProjectDir || ''
+    )
+    const absoluteDistDir = opts.request.requestMeta?.distDir
+    const distDir = absoluteDistDir
+      ? relative(absoluteProjectDir, absoluteDistDir)
+      : '.next'
+
+    // When this request registers `instrumentation.ts`, the adapter emits its
+    // lifecycle spans inside the middleware span.
+    emitInstrumentationSpans =
+      await ensureInstrumentationRegisteredWithDeferredSpans(
+        absoluteProjectDir,
+        distDir
+      )
+  }
+
+  try {
+    return await adapter({
+      ...opts,
+      IncrementalCache,
+      incrementalCacheHandler,
+      page,
+      handler: errorHandledHandler(handlerUserland),
+      emitInstrumentationSpans,
+      requestStartTime,
+    })
+  } catch (err) {
+    // The adapter can throw before it runs the middleware and emits the
+    // lifecycle spans (e.g. when the configured cache handler throws). Later
+    // requests won't emit them, so emit them here instead (a no-op if they were
+    // emitted). Tracing must not replace the adapter's error.
+    try {
+      emitInstrumentationSpans?.()
+    } catch {}
+    throw err
+  }
 }
 
 export async function handler(
@@ -125,5 +170,5 @@ export async function handler(
   return result.response
 }
 
-// backwards compat
+// backwards compat for non-adapter setups
 export default internalHandler

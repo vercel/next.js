@@ -22,10 +22,3 @@
    :              ^^^
  6 | export const baz = 42
    `----
-  x Only async functions are allowed to be exported in a "use cache" file.
-  | 
-   ,-[input.js:6:1]
- 5 | export const bar = () => {}
- 6 | export const baz = 42
-   : ^^^^^^^^^^^^^^^^^^^^^
-   `----

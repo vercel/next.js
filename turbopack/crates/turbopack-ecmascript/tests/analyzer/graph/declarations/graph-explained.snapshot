@@ -1,4 +1,4 @@
-*anonymous function 25* (const after eval) = (...) => undefined
+*anonymous function 25* = (...) => undefined
 
 a (const after eval) = (...) => undefined
 

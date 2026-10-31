@@ -10,7 +10,9 @@ describeHeaded('fetch-abort-on-refresh', () => {
   it('should not show abort error in global error boundary when restoring from bfcache', async () => {
     // This test ensures that when restoring a page from the browser bfcache that was pending RSC data,
     // that the abort does not propagate to a user's error boundary.
-    const browser = await next.browser('/', { headless: false })
+    // Requires headed mode, as bfcache is not available in headless mode
+    // (`describeHeaded` skips this suite when the HEADLESS env var is set).
+    const browser = await next.browser('/')
 
     await browser.elementById('trigger-navigation').click()
 

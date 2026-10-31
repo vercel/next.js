@@ -5,6 +5,10 @@ const ignoredLines = [
   'Generating static pages',
   'Inlining static env',
   'Finalizing page optimization',
+  // The config evaluation timing line (e.g. "✓ Running next.config.js took
+  // 15ms") is non-deterministic boot/build noise that is irrelevant to these
+  // runtime-error snapshots.
+  'Running next.config',
 ]
 
 /**
@@ -54,6 +58,13 @@ export function getDeterministicOutput(
   const replaceNumericModuleId = () => `at ${n++} (`
 
   let isErrorWithStackTraceStartingInLibraryInternals = false
+  // With the error-inspect patch disabled (no source maps at runtime), errors
+  // intentionally show the raw framework tail of the stack: frames from the
+  // compiled Next.js runtime, which we collapse into a single placeholder,
+  // and Node.js internals, which we drop since they differ across Node.js
+  // versions.
+  let isCollapsingFrameworkFrames = false
+  let frameAnchor: number | null = null
   for (let line of cliOutput.split('\n')) {
     if (
       !isErrorWithStackTraceStartingInLibraryInternals &&
@@ -96,6 +107,34 @@ export function getDeterministicOutput(
       foundStartingLine &&
       !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
     ) {
+      if (
+        !isCollapsingFrameworkFrames &&
+        /^\s+at .*node_modules\/next\/dist\//.test(line)
+      ) {
+        isCollapsingFrameworkFrames = !line.endsWith(' {')
+        lines.push('    at <next-internal>' + (line.endsWith(' {') ? ' {' : ''))
+        frameAnchor = lines.length - 1
+        continue
+      }
+      if (isCollapsingFrameworkFrames) {
+        if (line.startsWith('    at ')) {
+          if (line.endsWith(' {')) {
+            lines[frameAnchor!] += ' {'
+            isCollapsingFrameworkFrames = false
+          }
+          continue
+        }
+        isCollapsingFrameworkFrames = false
+      }
+      if (/^\s+at (?:async )?(?:[\w$.]+ )?\(?node:/.test(line)) {
+        // The ` {` that opens the printed error properties is attached to the
+        // last frame, so it has to be re-attached to the last kept frame.
+        if (line.endsWith(' {') && frameAnchor !== null) {
+          lines[frameAnchor] += ' {'
+        }
+        continue
+      }
+
       if (isMinified) {
         line = line.replace(
           /at (\S+) \(<anonymous>\)/,
@@ -109,7 +148,7 @@ export function getDeterministicOutput(
       }
 
       line = line
-        .replace(/at (.+?) \(.next[^)]+\)/, replaceNextDistStackFrame)
+        .replace(/at (.+?) \((.*?\/)?.next[^)]+\)/, replaceNextDistStackFrame)
         .replace(
           // Single-letter lower-case names are likely minified.
           /at [a-z] \((?!(<next-dist-dir>|<anonymous>))/,
@@ -119,6 +158,7 @@ export function getDeterministicOutput(
         .replace(/digest: '\d+(@E\d+)?'/, "digest: '<error-digest>'")
 
       lines.push(convertModuleFunctionSequenceExpression(line))
+      frameAnchor = line.startsWith('    at ') ? lines.length - 1 : null
     }
   }
 

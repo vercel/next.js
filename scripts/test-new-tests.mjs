@@ -2,13 +2,18 @@
 import execa from 'execa'
 import yargs from 'yargs'
 import getChangedTests from './get-changed-tests.mjs'
+import {
+  assertPreviewTarballPublished,
+  createPreviewBuildsReadTokenGetter,
+  previewTarballUrl,
+} from './wait-for-preview-tarball.mjs'
 
 /**
  * Run tests for added/changed tests in the current branch
  * CLI Options:
  * --mode: test mode (dev, deploy, start)
  * --group: current group number / total groups
- * --flake-detection: run tests multiple times to detect flaky
+ * --flake-detection: run each suite three times with shared concurrency
  */
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -18,7 +23,9 @@ async function main() {
 
   const testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
-  const attempts = isFlakeDetectionMode ? 3 : 1
+  // Left unset when the env var is not set, so that
+  // wait-for-preview-tarball.mjs owns the default.
+  const previewBuildsBaseUrl = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -84,7 +91,7 @@ async function main() {
     return
   }
 
-  const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
+  const RUN_TESTS_ARGS = ['run-tests.js', '--retries', '0']
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
   // as tests will run against the local version of Next.js.
@@ -92,45 +99,19 @@ async function main() {
   // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      ? previewTarballUrl(previewBuildsBaseUrl, commitSha, 'next')
       : undefined
 
   if (nextTestVersion) {
-    console.log(`Verifying artifacts for commit ${commitSha}`)
-    // Attempt to fetch the deploy artifacts for the commit
-    // These might take a moment to become available, so we'll retry a few times
-    const fetchWithRetry = async (url, retries = 5, timeout = 5000) => {
-      for (let i = 0; i < retries; i++) {
-        const res = await fetch(url)
-        if (res.ok) {
-          return res
-        } else if (i < retries - 1) {
-          console.log(
-            `Attempt ${i + 1} failed. Retrying in ${timeout / 1000} seconds...`
-          )
-          await new Promise((resolve) => setTimeout(resolve, timeout))
-        } else {
-          if (res.status === 404) {
-            throw new Error(
-              `Artifacts not found for commit ${commitSha}. ` +
-                `This can happen if the preview builds either failed or didn't succeed yet. ` +
-                `Once the "Deploy Preview tarball" job has finished, a retry should fix this error.`
-            )
-          }
-          throw new Error(
-            `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
-          )
-        }
-      }
-    }
-
-    try {
-      await fetchWithRetry(nextTestVersion)
-      console.log(`Artifacts verified for commit ${commitSha}`)
-    } catch (error) {
-      console.error(error.message)
-      throw error
-    }
+    // The `wait-for-preview-tarball` job in build_and_test.yml does the
+    // waiting, so this only asserts. It keeps a missing tarball reported as a
+    // missing tarball, rather than as an install failure from run-tests.js
+    // resolving NEXT_TEST_VERSION.
+    await assertPreviewTarballPublished({
+      commitSha,
+      previewBuildsBaseUrl,
+      getReadToken: createPreviewBuildsReadTokenGetter(),
+    })
   }
 
   // We apply the external tests filter before the process.env so that if
@@ -149,39 +130,42 @@ async function main() {
   }
 
   if (isFlakeDetectionMode) {
-    for (let i = 0; i < attempts; i++) {
-      console.log(
-        `\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Turbopack)`
-      )
-      await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
-        ...EXECA_OPTS_STDIO,
-        env: {
-          ...process.env,
-          NEXT_TEST_MODE: testMode,
-          NEXT_TEST_VERSION: nextTestVersion,
-          NEXT_EXTERNAL_TESTS_FILTERS,
-          IS_TURBOPACK_TEST: '1',
-          TURBOPACK_BUILD:
-            testMode === 'start' || testMode === 'deploy' ? '1' : undefined,
-          TURBOPACK_DEV: testMode === 'dev' ? '1' : undefined,
-        },
-      })
-    }
+    console.log(
+      `Running each ${testMode} suite three times with shared concurrency (Turbopack)`
+    )
+    await execa('node', [...RUN_TESTS_ARGS, '--runs', '3', ...currentTests], {
+      ...EXECA_OPTS_STDIO,
+      env: {
+        ...process.env,
+        NEXT_TEST_MODE: testMode,
+        NEXT_TEST_VERSION: nextTestVersion,
+        NEXT_EXTERNAL_TESTS_FILTERS,
+        NEXT_FLAKE_DETECTION: '1',
+        IS_TURBOPACK_TEST: '1',
+        TURBOPACK_BUILD:
+          testMode === 'start' || testMode === 'deploy' ? '1' : undefined,
+        TURBOPACK_DEV: testMode === 'dev' ? '1' : undefined,
+      },
+    })
   } else {
-    for (let i = 0; i < attempts; i++) {
-      console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests`)
-
-      await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
-        ...EXECA_OPTS_STDIO,
-        env: {
-          ...process.env,
-          NEXT_EXTERNAL_TESTS_FILTERS,
-          NEXT_TEST_MODE: testMode,
-          NEXT_TEST_VERSION: nextTestVersion,
-          IS_WEBPACK_TEST: '1',
-        },
-      })
-    }
+    console.log(`Running ${testMode} tests`)
+    await execa('node', [...RUN_TESTS_ARGS, '-c', '1', ...currentTests], {
+      ...EXECA_OPTS_STDIO,
+      env: {
+        ...process.env,
+        NEXT_EXTERNAL_TESTS_FILTERS,
+        NEXT_TEST_MODE: testMode,
+        NEXT_TEST_VERSION: nextTestVersion,
+        TURBOPACK_BUILD:
+          process.env.IS_TURBOPACK_TEST &&
+          (testMode === 'start' || testMode === 'deploy')
+            ? '1'
+            : undefined,
+        TURBOPACK_DEV:
+          process.env.IS_TURBOPACK_TEST && testMode === 'dev' ? '1' : undefined,
+        NEXT_TEST_SKIP_RESULT_CACHE: '1',
+      },
+    })
   }
 }
 

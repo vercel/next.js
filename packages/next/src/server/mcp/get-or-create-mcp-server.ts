@@ -5,8 +5,13 @@ import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
+import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
+import { registerCompileRouteTool } from './tools/compile-route'
+import { registerGetRequestInsightsTool } from './tools/get-request-insights'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
+import type { Project } from '../../build/swc/types'
+import type { FormattedIssue } from './tools/utils/format-compilation-issues'
 
 export interface McpServerOptions {
   projectPath: string
@@ -17,6 +22,11 @@ export interface McpServerOptions {
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
+  getTurbopackProject?: () => Project | undefined
+  compileRoute?: (opts: {
+    routeSpecifier?: string
+    path?: string
+  }) => Promise<{ routeSpecifier: string; issues: FormattedIssue[] }>
 }
 
 let mcpServer: McpServer | undefined
@@ -54,6 +64,15 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     pagesDir: options.pagesDir,
     appDir: options.appDir,
   })
+  registerGetRequestInsightsTool(mcpServer)
+
+  if (options.getTurbopackProject) {
+    registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
+  }
+
+  if (options.compileRoute) {
+    registerCompileRouteTool(mcpServer, options.compileRoute)
+  }
 
   return mcpServer
 }

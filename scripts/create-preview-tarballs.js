@@ -8,7 +8,9 @@ async function main() {
   const [
     githubHeadSha,
     tarballDirectory = path.join(os.tmpdir(), 'vercel-nextjs-preview-tarballs'),
+    baseUrlArg,
   ] = process.argv.slice(2)
+  const baseUrl = baseUrlArg || 'https://vercel-packages.vercel.app/next'
   const repoRoot = path.resolve(__dirname, '..')
 
   await fs.mkdir(tarballDirectory, { recursive: true })
@@ -74,38 +76,54 @@ async function main() {
     })
   )
 
-  const lernaListJson = await execa('pnpm', [
+  // `--depth -1` limits the output to the workspace projects themselves,
+  // without their dependency trees. The filter matches the `packages/*` glob
+  // the release only ever publishes from.
+  const pnpmListJson = await execa('pnpm', [
     '--silent',
-    'lerna',
     'list',
+    '--recursive',
+    '--depth',
+    '-1',
     '--json',
+    '--filter',
+    './packages/**',
   ])
-  const packages = JSON.parse(lernaListJson.stdout)
+  const packages = JSON.parse(pnpmListJson.stdout)
+  for (const packageInfo of packages) {
+    if (!packageInfo.path) {
+      throw new Error(
+        `Unexpected \`pnpm list\` output: no \`path\` for ${packageInfo.name}`
+      )
+    }
+  }
   const packagesByVersion = new Map()
   // vercel-packages finds GH artifacts via the head SHA because that's the only
   // API GitHub offers.
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${packageInfo.name}`
+      `${baseUrl}/commits/${githubHeadSha}/${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${nextSwcPackageName}`
+      `${baseUrl}/commits/${githubHeadSha}/${nextSwcPackageName}`
     )
   }
 
   console.info(`Creating tarballs for regular packages`)
   for (const packageInfo of packages) {
-    if (packageInfo.private) {
-      continue
-    }
-
-    const packageJsonPath = path.join(packageInfo.location, 'package.json')
+    const packageJsonPath = path.join(packageInfo.path, 'package.json')
     const packageJson = await fs.readFile(packageJsonPath, 'utf8')
     const manifest = JSON.parse(packageJson)
+
+    // Read `private` from the manifest rather than from the `pnpm list` entry,
+    // so this does not depend on pnpm surfacing that field.
+    if (manifest.private) {
+      continue
+    }
 
     manifest.version = version
 
@@ -133,6 +151,29 @@ async function main() {
       }
     }
 
+    // Internal dependencies are `workspace:*` in the repo, and the loop above
+    // is what resolves them -- to a tarball URL, not a version, because that is
+    // what preview installs need. `npm pack` below does not understand the
+    // protocol, so anything left unresolved would ship a broken manifest.
+    for (const field of [
+      'dependencies',
+      'devDependencies',
+      'peerDependencies',
+      'optionalDependencies',
+    ]) {
+      for (const [dependencyName, specifier] of Object.entries(
+        manifest[field] ?? {}
+      )) {
+        if (typeof specifier === 'string' && specifier.includes('workspace:')) {
+          throw new Error(
+            `${manifest.name} has an unresolved workspace dependency ` +
+              `${field}.${dependencyName} ("${specifier}"). It is missing from ` +
+              `the release package list.`
+          )
+        }
+      }
+    }
+
     await fs.writeFile(
       packageJsonPath,
       JSON.stringify(manifest, null, 2) +
@@ -147,7 +188,7 @@ async function main() {
       'npm',
       ['pack', '--pack-destination', packDestination],
       {
-        cwd: packageInfo.location,
+        cwd: packageInfo.path,
       }
     )
     // tarball name is printed as the last line of npm-pack
@@ -156,7 +197,7 @@ async function main() {
   }
 
   console.info(
-    `When this job is completed, a Next.js preview build will be available under ${packagesByVersion.get('next')}`
+    `A upload_preview_tarballs (https://github.com/vercel/next.js/actions/workflows/upload_preview_tarballs.yml) will be started once this workflow completes which will make the Next.js preview build available under ${packagesByVersion.get('next')}`
   )
 }
 

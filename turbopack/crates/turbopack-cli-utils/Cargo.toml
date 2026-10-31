@@ -16,7 +16,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-crossterm = "0.26.0"
+async-trait = { workspace = true }
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

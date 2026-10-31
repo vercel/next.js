@@ -1,5 +1,4 @@
-const runtimeStrategy =
-  process.env.TEST_TURBOPACK_PLUGIN_RUNTIME_STRATEGY || 'workerThreads'
+const runtimeStrategy = process.env.TEST_TURBOPACK_PLUGIN_RUNTIME_STRATEGY
 
 module.exports = {
   experimental: {

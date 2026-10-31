@@ -125,6 +125,9 @@ function logIncomingRequests(
     if (middlewareTime) {
       frameworkTime -= middlewareTime
     }
+    if (devGenerateStaticParamsDuration) {
+      frameworkTime -= devGenerateStaticParamsDuration
+    }
     // Insert as the first item to be rendered in the list
     times.unshift(['next.js', frameworkTime])
 

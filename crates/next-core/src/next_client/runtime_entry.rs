@@ -40,7 +40,6 @@ impl RuntimeEntry {
             None,
             ResolveErrorMode::Error,
         )
-        .resolve()
         .await?
         .primary_modules()
         .await?;

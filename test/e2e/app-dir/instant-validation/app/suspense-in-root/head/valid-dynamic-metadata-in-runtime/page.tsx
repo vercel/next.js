@@ -3,10 +3,8 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'partial'
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection()

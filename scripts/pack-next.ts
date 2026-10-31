@@ -1,9 +1,12 @@
 // This script must be run with tsx
 
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
-import { default as patchPackageJson } from './pack-utils/patch-package-json.js'
+import patchPackageJson, {
+  findPackageJsonPath,
+} from './pack-utils/patch-package-json.js'
 import buildNative from './build-native.js'
 
 import {
@@ -14,13 +17,14 @@ import {
   packageFiles,
 } from './pack-util.js'
 
-const TARBALLS = `${NEXT_DIR}/tarballs`
+const TARBALLS_DIRNAME = 'tarballs'
+const TARBALLS = path.join(NEXT_DIR, TARBALLS_DIRNAME)
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
-const NEXT_TARBALL = `${TARBALLS}/next.tar`
-const NEXT_SWC_TARBALL = `${TARBALLS}/next-swc.tar`
-const NEXT_MDX_TARBALL = `${TARBALLS}/next-mdx.tar`
-const NEXT_ENV_TARBALL = `${TARBALLS}/next-env.tar`
-const NEXT_BA_TARBALL = `${TARBALLS}/next-bundle-analyzer.tar`
+const NEXT_TARBALL = 'next.tar'
+const NEXT_SWC_TARBALL = 'next-swc.tar'
+const NEXT_MDX_TARBALL = 'next-mdx.tar'
+const NEXT_ENV_TARBALL = 'next-env.tar'
+const NEXT_BA_TARBALL = 'next-bundle-analyzer.tar'
 
 type CompressOpt = 'none' | 'strip' | 'objcopy-zlib' | 'objcopy-zstd'
 
@@ -41,12 +45,18 @@ const cliOptions = yargs(hideBin(process.argv))
     type: 'boolean',
     describe: 'Create tarballs instead of direct reflinks',
   })
+  .option('deployable-tar', {
+    type: 'boolean',
+    describe:
+      'Create tarballs in the target project directory and patch package.json ' +
+      'with relative file references. Requires `--project` to be set.',
+  })
   .option('compress', {
     describe:
       'How compress the binary, useful on platforms where tarballs can ' +
       'exceed 2 GiB, which causes ERR_FS_FILE_TOO_LARGE with pnpm. Defaults ' +
       'to "strip" on Linux, otherwise defaults to "none". Requires `--tar` ' +
-      'to be set.',
+      'or `--deployable-tar` to be set.',
     choices: [
       'none',
       'strip',
@@ -57,13 +67,28 @@ const cliOptions = yargs(hideBin(process.argv))
   })
   .check((opts) => {
     const compress = opts.compress
-    if (!opts.tar && (compress ?? 'none') !== 'none') {
-      throw new Error('--compress is only valid in combination with --tar')
+    const shouldCreateTarballs = opts.tar || opts.deployableTar
+    if (opts.tar && opts.deployableTar) {
+      throw new Error(
+        '--deployable-tar creates tarballs and cannot be combined with --tar'
+      )
+    }
+    if (opts.deployableTar && opts.project == null) {
+      throw new Error('--deployable-tar requires --project')
+    }
+    if (!shouldCreateTarballs && (compress ?? 'none') !== 'none') {
+      throw new Error(
+        '--compress is only valid in combination with --tar or --deployable-tar'
+      )
     }
     return true
   })
   .middleware((opts) => {
-    if (opts.tar && process.platform === 'linux' && opts.compress == null) {
+    if (
+      (opts.tar || opts.deployableTar) &&
+      process.platform === 'linux' &&
+      opts.compress == null
+    ) {
       opts.compress = 'strip'
     }
   })
@@ -78,12 +103,24 @@ interface PackageFiles {
 }
 
 async function main(): Promise<void> {
+  const shouldCreateTarballs = cliOptions.tar || cliOptions.deployableTar
+  const packageJsonPath = cliOptions.deployableTar
+    ? await findPackageJsonPath(cliOptions.project!)
+    : null
+  const packageJsonDir =
+    packageJsonPath == null ? null : path.dirname(packageJsonPath)
+  const tarballsDir =
+    packageJsonDir == null
+      ? TARBALLS
+      : path.join(packageJsonDir, TARBALLS_DIRNAME)
+  const tarballFiles = getTarballFiles(tarballsDir)
+
   if (cliOptions.jsBuild) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
   }
 
-  if (cliOptions.tar && cliOptions.compress !== 'strip') {
+  if (shouldCreateTarballs && cliOptions.compress !== 'strip') {
     // HACK: delete any pre-existing binaries to force napi-rs to rewrite it
     // We must do this as pre-existing could've been stripped.
     let binaries = await nextSwcBinaries()
@@ -92,24 +129,30 @@ async function main(): Promise<void> {
 
   await buildNative(cliOptions._ as string[])
 
-  if (cliOptions.tar) {
-    await fs.mkdir(TARBALLS, { recursive: true })
+  if (shouldCreateTarballs) {
+    await fs.mkdir(tarballsDir, { recursive: true })
 
     // build all tarfiles in parallel
     await Promise.all([
-      packNextSwcWithTar(cliOptions.compress ?? 'none'),
+      packNextSwcWithTar(
+        cliOptions.compress ?? 'none',
+        tarballFiles.nextSwcFile
+      ),
       ...[
-        [`${NEXT_PACKAGES}/next`, NEXT_TARBALL],
-        [`${NEXT_PACKAGES}/next-mdx`, NEXT_MDX_TARBALL],
-        [`${NEXT_PACKAGES}/next-env`, NEXT_ENV_TARBALL],
-        [`${NEXT_PACKAGES}/next-bundle-analyzer`, NEXT_BA_TARBALL],
+        [`${NEXT_PACKAGES}/next`, tarballFiles.nextFile],
+        [`${NEXT_PACKAGES}/next-mdx`, tarballFiles.nextMdxFile],
+        [`${NEXT_PACKAGES}/next-env`, tarballFiles.nextEnvFile],
+        [`${NEXT_PACKAGES}/next-bundle-analyzer`, tarballFiles.nextBaFile],
       ].map(([packagePath, tarballPath]) =>
         packWithTar(packagePath, tarballPath)
       ),
     ])
   }
 
-  const packageFiles = getPackageFiles(cliOptions.tar)
+  const packageFiles = getPackageFiles(
+    shouldCreateTarballs ? tarballFiles : null,
+    cliOptions.deployableTar ? packageJsonDir : null
+  )
 
   if (cliOptions.project != null) {
     const patchedPath = await patchPackageJson(cliOptions.project, {
@@ -120,6 +163,9 @@ async function main(): Promise<void> {
       nextSwcTarball: packageFiles.nextSwcFile,
     })
     console.log(`Patched ${patchedPath}`)
+    if (cliOptions.deployableTar) {
+      console.log(`Wrote tarballs to ${tarballsDir}`)
+    }
   } else {
     console.log('Add the following overrides to your workspace package.json:')
     console.log(`  "pnpm": {`)
@@ -203,7 +249,10 @@ async function packWithTar(
 // We default to stripping (usually faster), but on Linux, we can compress
 // instead with objcopy, keeping debug symbols intact. This is controlled by
 // `PACK_NEXT_COMPRESS`.
-async function packNextSwcWithTar(compress: CompressOpt): Promise<void> {
+async function packNextSwcWithTar(
+  compress: CompressOpt,
+  tarballPath: string
+): Promise<void> {
   const packagePath = `${NEXT_PACKAGES}/next-swc`
   switch (compress) {
     case 'strip':
@@ -212,7 +261,7 @@ async function packNextSwcWithTar(compress: CompressOpt): Promise<void> {
         ...(process.platform === 'darwin' ? ['-x', '-'] : ['--']),
         ...(await nextSwcBinaries()),
       ])
-      await packWithTar(packagePath, NEXT_SWC_TARBALL)
+      await packWithTar(packagePath, tarballPath)
       break
     case 'objcopy-zstd':
     case 'objcopy-zlib':
@@ -226,10 +275,10 @@ async function packNextSwcWithTar(compress: CompressOpt): Promise<void> {
           )
         )
       )
-      await packWithTar(packagePath, NEXT_SWC_TARBALL)
+      await packWithTar(packagePath, tarballPath)
       break
     case 'none':
-      await packWithTar(packagePath, NEXT_SWC_TARBALL)
+      await packWithTar(packagePath, tarballPath)
       break
     default:
       // should never happen, yargs enforces the `choices` array
@@ -237,15 +286,26 @@ async function packNextSwcWithTar(compress: CompressOpt): Promise<void> {
   }
 }
 
-function getPackageFiles(shouldCreateTarballs?: boolean): PackageFiles {
-  if (shouldCreateTarballs) {
-    return {
-      nextFile: NEXT_TARBALL,
-      nextMdxFile: NEXT_MDX_TARBALL,
-      nextEnvFile: NEXT_ENV_TARBALL,
-      nextBaFile: NEXT_BA_TARBALL,
-      nextSwcFile: NEXT_SWC_TARBALL,
-    }
+function getTarballFiles(tarballsDir: string): PackageFiles {
+  return {
+    nextFile: path.join(tarballsDir, NEXT_TARBALL),
+    nextMdxFile: path.join(tarballsDir, NEXT_MDX_TARBALL),
+    nextEnvFile: path.join(tarballsDir, NEXT_ENV_TARBALL),
+    nextBaFile: path.join(tarballsDir, NEXT_BA_TARBALL),
+    nextSwcFile: path.join(tarballsDir, NEXT_SWC_TARBALL),
+  }
+}
+
+function getPackageFiles(
+  tarballFiles: PackageFiles | null,
+  packageJsonDir: string | null
+): PackageFiles {
+  if (tarballFiles != null) {
+    return packageJsonDir == null
+      ? tarballFiles
+      : mapPackageFiles(tarballFiles, (filePath) =>
+          toProjectRelativePath(packageJsonDir, filePath)
+        )
   }
 
   return {
@@ -255,4 +315,26 @@ function getPackageFiles(shouldCreateTarballs?: boolean): PackageFiles {
     nextBaFile: `${NEXT_PACKAGES}/next-bundle-analyzer`,
     nextSwcFile: `${NEXT_PACKAGES}/next-swc`,
   }
+}
+
+function mapPackageFiles(
+  packageFiles: PackageFiles,
+  mapFile: (filePath: string) => string
+): PackageFiles {
+  return {
+    nextFile: mapFile(packageFiles.nextFile),
+    nextMdxFile: mapFile(packageFiles.nextMdxFile),
+    nextEnvFile: mapFile(packageFiles.nextEnvFile),
+    nextBaFile: mapFile(packageFiles.nextBaFile),
+    nextSwcFile: mapFile(packageFiles.nextSwcFile),
+  }
+}
+
+function toProjectRelativePath(fromDir: string, filePath: string): string {
+  const relativePath = path
+    .relative(fromDir, filePath)
+    .split(path.sep)
+    .join(path.posix.sep)
+
+  return relativePath.startsWith('.') ? relativePath : `./${relativePath}`
 }

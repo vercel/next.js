@@ -1,20 +1,24 @@
-import { createNext } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 
 describe('stale-prefetch-entry', () => {
-  if ((global as any).isNextDev || (global as any).isNextDeploy) {
+  // Deploy mode exclusion: This suite depends on a test-data service running on a local port.
+  if (isNextDev || isNextDeploy) {
     // this is skipped in dev because PPR is not enabled in dev
     // and in deploy we can't rely on this test data service existing
     test('should skip dev & deploy', () => {})
     return
   }
 
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
   let server
-  let next
-  afterEach(async () => {
-    await next?.destroy()
+  afterEach(() => {
     server?.close()
   })
 
@@ -42,10 +46,8 @@ describe('stale-prefetch-entry', () => {
       })
       const port = await findPort()
       server.listen(port)
-      next = await createNext({
-        files: __dirname,
-        env: { TEST_DATA_SERVICE_URL: `http://localhost:${port}` },
-      })
+      next.env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
+      await next.start()
       TestLog.assert(['REQUEST: Some data [static]'])
       autoresolveRequests = false
 

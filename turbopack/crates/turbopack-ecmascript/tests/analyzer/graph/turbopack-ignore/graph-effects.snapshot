@@ -331,9 +331,15 @@
         span: 245..252,
     },
     Call {
-        func: FreeVar(
-            "require",
-        ),
+        func: Unknown {
+            original_value: Some(
+                FreeVar(
+                    "require",
+                ),
+            ),
+            reason: "turbopackIgnore",
+            has_side_effects: true,
+        },
         args: [
             Value(
                 Constant(
@@ -515,9 +521,15 @@
         span: 356..363,
     },
     Call {
-        func: FreeVar(
-            "require",
-        ),
+        func: Unknown {
+            original_value: Some(
+                FreeVar(
+                    "require",
+                ),
+            ),
+            reason: "turbopackIgnore",
+            has_side_effects: true,
+        },
         args: [
             Value(
                 Constant(
@@ -702,9 +714,15 @@
         span: 488..495,
     },
     Call {
-        func: FreeVar(
-            "require",
-        ),
+        func: Unknown {
+            original_value: Some(
+                FreeVar(
+                    "require",
+                ),
+            ),
+            reason: "turbopackIgnore",
+            has_side_effects: true,
+        },
         args: [
             Value(
                 Constant(

@@ -1,5 +1,5 @@
 import path from 'path'
-import { createNext, FileRef, NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -12,13 +12,13 @@ describe('global-default-cache-handler', () => {
   let appPort: number
   let server: any
   let output = ''
-  let next: NextInstance
+
+  const { next } = nextTestSetup({
+    files: new FileRef(__dirname),
+    skipStart: true,
+  })
 
   beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-      skipStart: true,
-    })
     await next.build()
 
     const standaloneServer = '.next/standalone/server.js'
@@ -79,7 +79,6 @@ describe('global-default-cache-handler', () => {
     )
   })
   afterAll(async () => {
-    await next.destroy()
     await killApp(server)
   })
 

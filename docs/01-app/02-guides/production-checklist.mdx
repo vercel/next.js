@@ -44,9 +44,7 @@ While building your application, we recommend using the following features to en
 - **[`<Link>` component](/docs/app/api-reference/components/link):** Use the `<Link>` component for [client-side navigation and prefetching](/docs/app/getting-started/linking-and-navigating#how-navigation-works).
 - **[Error Handling](/docs/app/getting-started/error-handling):** Gracefully handle [catch-all errors](/docs/app/getting-started/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
 - **[Client and Server Components](/docs/app/getting-started/server-and-client-components#examples):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/getting-started/server-and-client-components#reducing-js-bundle-size) to avoid unnecessarily increasing your client-side JavaScript bundle.
-- **Request-time APIs:** Be aware that Request-time APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/glossary#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layout)). Ensure Request-time API usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
-
-> **Good to know**: [Partial Prerendering (experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
+- **[Request-time APIs](/docs/app/getting-started/caching#working-with-runtime-apis):** Request-time APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop read data that is only known when a user makes a request. Wrap the components that use them in `<Suspense>` so the rest of the route can still be prerendered. Without Cache Components, using them opts the entire route into [Dynamic Rendering](/docs/app/glossary#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layout)).
 
 </AppOnly>
 
@@ -99,7 +97,7 @@ While building your application, we recommend using the following features to en
 <AppOnly>
 
 - **[Tainting](/docs/app/api-reference/config/next-config-js/taint):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
-- **[Server Actions](/docs/app/getting-started/mutating-data):** Ensure users are authorized to call Server Actions. Review the recommended [security practices](/blog/security-nextjs-server-components-actions).
+- **[Server Actions](/docs/app/getting-started/mutating-data):** Verify authentication and authorization inside each action. Do not rely on Proxy or layout or page level checks alone. Move database access to a `server-only` [Data Access Layer](/docs/app/guides/data-security#data-access-layer) and consider [rate limiting](/docs/app/guides/backend-for-frontend#rate-limiting) for expensive operations. Review the recommended [security practices](/blog/security-nextjs-server-components-actions).
 
 </AppOnly>
 

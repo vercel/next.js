@@ -32,7 +32,7 @@ export async function installDependencies(
 
     await install(
       path.resolve(baseDir),
-      deps.map((dep: MissingDependency) => dep.pkg),
+      deps.map((dep: MissingDependency) => dep.install ?? dep.pkg),
       { devDependencies: dev, isOnline, packageManager }
     )
     console.log()

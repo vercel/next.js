@@ -50,9 +50,8 @@ export function saveCpuProfile(): void {
 
     let outputPath: string
     if (cpuProfileDir) {
-      if (!fs.existsSync(cpuProfileDir)) {
-        fs.mkdirSync(cpuProfileDir, { recursive: true })
-      }
+      // The CLI created `cpuProfileDir` (with its `.gitignore`) before setting
+      // NEXT_CPU_PROF_DIR, so it already exists in these build workers.
       outputPath = path.join(cpuProfileDir, filename)
     } else {
       outputPath = `./${filename}`

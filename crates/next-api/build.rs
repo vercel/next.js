@@ -6,8 +6,8 @@ fn main() -> anyhow::Result<()> {
         .target_triple(true)
         .build()?;
     vergen::Emitter::default()
-        .add_instructions(&cargo)?
         .fail_on_error()
+        .add_instructions(&cargo)?
         .emit()?;
 
     Ok(())

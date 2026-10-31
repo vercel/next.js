@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkGroupType, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkGroupType, ChunkingType},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
@@ -12,6 +12,8 @@ use turbopack_core::{
     source::OptionSource,
 };
 use turbopack_css::chunk::CssChunkPlaceable;
+
+use crate::next_client_reference::CLIENT_MERGE_TAG;
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
@@ -36,10 +38,14 @@ impl CssClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl Module for CssClientReferenceModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.client_module
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .client_module
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css client reference"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -99,11 +105,10 @@ impl ModuleReference for CssClientReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
-            merge_tag: Some(rcstr!("client")),
-        }))
+            merge_tag: Some(CLIENT_MERGE_TAG),
+        })
     }
 }

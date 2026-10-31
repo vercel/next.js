@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
 
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,

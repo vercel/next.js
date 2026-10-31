@@ -1,6 +1,9 @@
 'use client'
 
-import { computeCacheBustingSearchParam } from '../../../shared/lib/router/utils/cache-busting-search-param'
+import {
+  computeCacheBustingSearchParam,
+  computeLegacyCacheBustingSearchParam,
+} from '../../../shared/lib/router/utils/cache-busting-search-param'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -9,6 +12,26 @@ import {
   NEXT_RSC_UNION_QUERY,
 } from '../app-router-headers'
 import type { RequestHeaders } from './fetch-server-response'
+
+async function computeClientCacheBustingSearchParam(
+  headers: RequestHeaders
+): Promise<string> {
+  if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+    return computeCacheBustingSearchParam(
+      headers[NEXT_ROUTER_PREFETCH_HEADER],
+      headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+      headers[NEXT_ROUTER_STATE_TREE_HEADER],
+      headers[NEXT_URL]
+    )
+  }
+
+  return computeLegacyCacheBustingSearchParam(
+    headers[NEXT_ROUTER_PREFETCH_HEADER],
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+    headers[NEXT_ROUTER_STATE_TREE_HEADER],
+    headers[NEXT_URL]
+  )
+}
 
 /**
  * Mutates the provided URL by adding a cache-busting search parameter for CDNs that don't
@@ -21,21 +44,17 @@ import type { RequestHeaders } from './fetch-server-response'
  * URL before: https://example.com/path?query=1
  * URL after: https://example.com/path?query=1&_rsc=abc123
  *
- * Note: This function mutates the input URL directly and does not return anything.
+ * Note: This function mutates the input URL directly and resolves once the
+ * cache-busting value has been computed and applied.
  *
  * TODO: Since we need to use a search param anyway, we could simplify by removing the custom
  * headers approach entirely and just use search params.
  */
-export const setCacheBustingSearchParam = (
+export const setCacheBustingSearchParam = async (
   url: URL,
   headers: RequestHeaders
-): void => {
-  const uniqueCacheKey = computeCacheBustingSearchParam(
-    headers[NEXT_ROUTER_PREFETCH_HEADER],
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
-    headers[NEXT_ROUTER_STATE_TREE_HEADER],
-    headers[NEXT_URL]
-  )
+): Promise<void> => {
+  const uniqueCacheKey = await computeClientCacheBustingSearchParam(headers)
   setCacheBustingSearchParamWithHash(url, uniqueCacheKey)
 }
 
@@ -50,7 +69,7 @@ export const setCacheBustingSearchParam = (
  * hash: "abc123"
  * URL after: https://example.com/path?query=1&_rsc=abc123
  *
- * If the hash is null, we will set `_rsc` search param without a value.
+ * If the hash is empty, we will set `_rsc` search param without a value.
  * Like this: https://example.com/path?query=1&_rsc
  *
  * Note: This function mutates the input URL directly and does not return anything.

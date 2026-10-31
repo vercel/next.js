@@ -3,4 +3,6 @@ examples/
 **/*/LICENSE.md
 .claude/
 AGENTS.md
-CLAUDE.md
+packages/next/dist/docs/
+REVIEW.md
+review/

@@ -18,25 +18,20 @@ let DEV_BACKEND: DevRuntimeBackend
     unloadChunk(chunkUrl) {
       deleteResolver(chunkUrl)
 
-      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-      const decodedChunkUrl = decodeURI(chunkUrl)
+      // Strip query string so we match links regardless of cache-busting
+      // params (e.g. ?ts=) that may differ between HMR updates.
+      const baseChunkUrl = chunkUrl.split('?')[0]
 
       if (isCss(chunkUrl)) {
-        const links = document.querySelectorAll(
-          `link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`
-        )
-        for (const link of Array.from(links)) {
+        for (const link of findChunkLinks(baseChunkUrl)) {
           link.remove()
         }
       } else if (isJs(chunkUrl)) {
         // Unloading a JS chunk would have no effect, as it lives in the JS
         // runtime once evaluated.
-        // However, we still want to remove the script tag from the DOM to keep
+        // However, we still want to remove the script tag from `<head>` to keep
         // the HTML somewhat consistent from the user's perspective.
-        const scripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
-        )
-        for (const script of Array.from(scripts)) {
+        for (const script of findChunkScripts(baseChunkUrl)) {
           script.remove()
         }
       } else {
@@ -51,28 +46,36 @@ let DEV_BACKEND: DevRuntimeBackend
           return
         }
 
-        const decodedChunkUrl = decodeURI(chunkUrl)
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
-        )
-
-        if (previousLinks.length === 0) {
-          reject(new Error(`No link element found for chunk ${chunkUrl}`))
-          return
-        }
+        // Strip query string so we match links regardless of cache-busting
+        // params (e.g. ?ts=) that may differ between HMR updates.
+        const baseChunkUrl = chunkUrl.split('?')[0]
+        const previousLinks = findChunkStylesheets(baseChunkUrl)
 
         const link = document.createElement('link')
         link.rel = 'stylesheet'
+        link.crossOrigin = CROSS_ORIGIN
 
-        if (navigator.userAgent.includes('Firefox')) {
-          // Firefox won't reload CSS files that were previously loaded on the current page,
-          // we need to add a query param to make sure CSS is actually reloaded from the server.
+        if (
+          navigator.userAgent.includes('Firefox') ||
+          (navigator.userAgent.includes('Safari') &&
+            !navigator.userAgent.includes('Chrome') &&
+            !navigator.userAgent.includes('Chromium'))
+        ) {
+          // Firefox won't reload CSS files that were previously loaded on the
+          // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
           //
-          // I believe this is this issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
+          // Safari serves cached CSS when a <link rel=preload> exists for the
+          // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726
           //
-          // Safari has a similar issue, but only if you have a `<link rel=preload ... />` tag
-          // pointing to the same URL as the stylesheet: https://bugs.webkit.org/show_bug.cgi?id=187726
-          link.href = `${chunkUrl}?ts=${Date.now()}`
+          // Replace or add a fresh `ts` cache-busting param without
+          // discarding other query parameters that may already be present.
+          const url = new URL(chunkUrl, location.origin)
+          // Reduced timer precision in some browers could lead to an update getting dropped
+          // in Firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
+          // So trust that the server is only updating us when it is important and use a
+          // random number to bust the cache.
+          url.searchParams.set('ts', `${Date.now()}.${Math.random()}`)
+          link.href = url.pathname + url.search
         } else {
           link.href = chunkUrl
         }
@@ -84,20 +87,30 @@ let DEV_BACKEND: DevRuntimeBackend
           // First load the new CSS, then remove the old ones. This prevents visible
           // flickering that would happen in-between removing the previous CSS and
           // loading the new one.
-          for (const previousLink of Array.from(previousLinks))
-            previousLink.remove()
+          for (const previousLink of previousLinks) previousLink.remove()
 
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
           resolve()
         }
 
-        // Make sure to insert the new CSS right after the previous one, so that
-        // its precedence is higher.
-        previousLinks[0].parentElement!.insertBefore(
-          link,
-          previousLinks[0].nextSibling
-        )
+        if (previousLinks.length === 0) {
+          // The chunk's <link> was already removed from the DOM (the importing
+          // component unmounted via navigation or a `dynamic(ssr: false)`
+          // boundary, so `unloadChunk` removed it), but its chunk list stays
+          // subscribed and can still receive a 'total' update. Mirror the
+          // 'added' branch of `applyChunkListUpdate` and load the fresh
+          // stylesheet instead of rejecting with "No link element found for
+          // chunk" (an unhandledRejection that forced a full page reload).
+          document.head.appendChild(link)
+        } else {
+          // Make sure to insert the new CSS right after the previous one, so that
+          // its precedence is higher.
+          previousLinks[0].parentElement!.insertBefore(
+            link,
+            previousLinks[0].nextSibling
+          )
+        }
       })
     },
 
@@ -111,7 +124,7 @@ let DEV_BACKEND: DevRuntimeBackend
 
 function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
   code += `\n\n//# sourceURL=${encodeURI(
-    location.origin + CHUNK_BASE_PATH + url + ASSET_SUFFIX
+    location.origin + RUNTIME_CHUNK_BASE_PATH + url + ASSET_SUFFIX
   )}`
   if (map) {
     code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${btoa(

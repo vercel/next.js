@@ -7,9 +7,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                1732584193.0,
-                            ),
+                            1732584193.0,
                         ),
                     ),
                 ),
@@ -64,174 +62,14 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        7.0,
-                                    ),
-                                ),
-                            ),
-                        ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
-                    ],
-                ),
-                Call(
-                    13,
-                    Variable(
-                        (
-                            "md5ff",
-                            #2,
-                        ),
-                    ),
-                    [
-                        Variable(
-                            (
-                                "a",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "b",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "c",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "d",
-                                #3,
-                            ),
-                        ),
-                        Member(
-                            5,
-                            Variable(
-                                (
-                                    "x",
-                                    #3,
-                                ),
-                            ),
-                            Add(
-                                3,
-                                [
-                                    Variable(
-                                        (
-                                            "i",
-                                            #3,
-                                        ),
-                                    ),
-                                    Constant(
-                                        Num(
-                                            ConstantNumber(
-                                                TotalOrderF64(
-                                                    4.0,
-                                                ),
-                                            ),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    TotalOrderF64(
-                                        7.0,
-                                    ),
-                                ),
-                            ),
-                        ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
-                    ],
-                ),
-                Call(
-                    13,
-                    Variable(
-                        (
-                            "md5ff",
-                            #2,
-                        ),
-                    ),
-                    [
-                        Variable(
-                            (
-                                "a",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "b",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "c",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "d",
-                                #3,
-                            ),
-                        ),
-                        Member(
-                            5,
-                            Variable(
-                                (
-                                    "x",
-                                    #3,
-                                ),
-                            ),
-                            Add(
-                                3,
-                                [
-                                    Variable(
-                                        (
-                                            "i",
-                                            #3,
-                                        ),
-                                    ),
-                                    Constant(
-                                        Num(
-                                            ConstantNumber(
-                                                TotalOrderF64(
-                                                    8.0,
-                                                ),
-                                            ),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    TotalOrderF64(
-                                        7.0,
-                                    ),
+                                    7.0,
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        1770035416.0,
-                                    ),
+                                    -680876936.0,
                                 ),
                             ),
                         ),
@@ -290,9 +128,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    12.0,
-                                                ),
+                                                4.0,
                                             ),
                                         ),
                                     ),
@@ -302,18 +138,166 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        7.0,
-                                    ),
+                                    7.0,
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        1804603682.0,
+                                    -176418897.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            "md5ff",
+                            #2,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                "a",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "b",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "c",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "d",
+                                #3,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    "x",
+                                    #3,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            "i",
+                                            #3,
+                                        ),
                                     ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                8.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1770035416.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            "md5ff",
+                            #2,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                "a",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "b",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "c",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "d",
+                                #3,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    "x",
+                                    #3,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            "i",
+                                            #3,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                12.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1804603682.0,
                                 ),
                             ),
                         ),
@@ -342,11 +326,13 @@
         Alternatives {
             total_nodes: 54,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -271733879.0,
+                        ),
+                    ),
+                ),
                 Call(
                     13,
                     Variable(
@@ -400,9 +386,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    3.0,
-                                                ),
+                                                3.0,
                                             ),
                                         ),
                                     ),
@@ -412,17 +396,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        22.0,
-                                    ),
+                                    22.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1044525330.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -478,9 +462,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    7.0,
-                                                ),
+                                                7.0,
                                             ),
                                         ),
                                     ),
@@ -490,17 +472,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        22.0,
-                                    ),
+                                    22.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -45705983.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -556,9 +538,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    11.0,
-                                                ),
+                                                11.0,
                                             ),
                                         ),
                                     ),
@@ -568,17 +548,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        22.0,
-                                    ),
+                                    22.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1990404162.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -634,9 +614,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    15.0,
-                                                ),
+                                                15.0,
                                             ),
                                         ),
                                     ),
@@ -646,18 +624,14 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        22.0,
-                                    ),
+                                    22.0,
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        1236535329.0,
-                                    ),
+                                    1236535329.0,
                                 ),
                             ),
                         ),
@@ -686,11 +660,13 @@
         Alternatives {
             total_nodes: 54,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1732584194.0,
+                        ),
+                    ),
+                ),
                 Call(
                     13,
                     Variable(
@@ -744,9 +720,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    2.0,
-                                                ),
+                                                2.0,
                                             ),
                                         ),
                                     ),
@@ -756,18 +730,14 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        17.0,
-                                    ),
+                                    17.0,
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        606105819.0,
-                                    ),
+                                    606105819.0,
                                 ),
                             ),
                         ),
@@ -826,9 +796,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    6.0,
-                                                ),
+                                                6.0,
                                             ),
                                         ),
                                     ),
@@ -838,17 +806,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        17.0,
-                                    ),
+                                    17.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1473231341.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -904,9 +872,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    10.0,
-                                                ),
+                                                10.0,
                                             ),
                                         ),
                                     ),
@@ -916,17 +882,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        17.0,
-                                    ),
+                                    17.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -42063.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -982,9 +948,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    14.0,
-                                                ),
+                                                14.0,
                                             ),
                                         ),
                                     ),
@@ -994,17 +958,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        17.0,
-                                    ),
+                                    17.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1502002290.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
             ],
@@ -1026,9 +990,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                271733878.0,
-                            ),
+                            271733878.0,
                         ),
                     ),
                 ),
@@ -1085,9 +1047,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    1.0,
-                                                ),
+                                                1.0,
                                             ),
                                         ),
                                     ),
@@ -1097,96 +1057,14 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        12.0,
-                                    ),
-                                ),
-                            ),
-                        ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
-                    ],
-                ),
-                Call(
-                    13,
-                    Variable(
-                        (
-                            "md5ff",
-                            #2,
-                        ),
-                    ),
-                    [
-                        Variable(
-                            (
-                                "d",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "a",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "b",
-                                #3,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "c",
-                                #3,
-                            ),
-                        ),
-                        Member(
-                            5,
-                            Variable(
-                                (
-                                    "x",
-                                    #3,
-                                ),
-                            ),
-                            Add(
-                                3,
-                                [
-                                    Variable(
-                                        (
-                                            "i",
-                                            #3,
-                                        ),
-                                    ),
-                                    Constant(
-                                        Num(
-                                            ConstantNumber(
-                                                TotalOrderF64(
-                                                    5.0,
-                                                ),
-                                            ),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    TotalOrderF64(
-                                        12.0,
-                                    ),
+                                    12.0,
                                 ),
                             ),
                         ),
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        1200080426.0,
-                                    ),
+                                    -389564586.0,
                                 ),
                             ),
                         ),
@@ -1245,9 +1123,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    9.0,
-                                                ),
+                                                5.0,
                                             ),
                                         ),
                                     ),
@@ -1257,17 +1133,17 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        12.0,
-                                    ),
+                                    12.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1200080426.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1323,9 +1199,7 @@
                                     Constant(
                                         Num(
                                             ConstantNumber(
-                                                TotalOrderF64(
-                                                    13.0,
-                                                ),
+                                                9.0,
                                             ),
                                         ),
                                     ),
@@ -1335,17 +1209,93 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        12.0,
-                                    ),
+                                    12.0,
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1958414417.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            "md5ff",
+                            #2,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                "d",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "a",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "b",
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "c",
+                                #3,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    "x",
+                                    #3,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            "i",
+                                            #3,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                13.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    12.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -40341101.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
             ],
@@ -1379,9 +1329,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                0.0,
-                            ),
+                            0.0,
                         ),
                     ),
                 ),
@@ -1397,9 +1345,7 @@
                         Constant(
                             Num(
                                 ConstantNumber(
-                                    TotalOrderF64(
-                                        16.0,
-                                    ),
+                                    16.0,
                                 ),
                             ),
                         ),

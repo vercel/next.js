@@ -674,22 +674,40 @@ export type WithStringifiedURLs<T> = T extends URL
  */
 type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
+type RobotsRuleBase = {
+  allow?: string | string[] | undefined
+  disallow?: string | string[] | undefined
+  crawlDelay?: number | undefined
+  /**
+   * Non-standard per-user-agent directives passed through verbatim to the
+   * generated `robots.txt`. Keys preserve their casing and array values emit
+   * one line per entry.
+   *
+   * @example
+   * ```ts
+   * // Seznam rate-limiting
+   * // https://o-seznam.cz/napoveda/vyhledavani/en/crawling-control/
+   * other: { 'Request-Rate': '10/1m' }
+   *
+   * // Yandex Clean-param (multiple values)
+   * other: { 'Clean-param': ['ref /articles/', 'utm_source /'] }
+   * ```
+   */
+  other?: Record<string, string | number | Array<string | number>> | undefined
+}
+
 type RobotsFile = {
   // Apply rules for all
   rules:
-    | {
+    | (RobotsRuleBase & {
         userAgent?: string | string[] | undefined
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }
+      })
     // Apply rules for specific user agents
-    | Array<{
-        userAgent: string | string[]
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }>
+    | Array<
+        RobotsRuleBase & {
+          userAgent: string | string[]
+        }
+      >
   sitemap?: string | string[] | undefined
   host?: string | undefined
 }

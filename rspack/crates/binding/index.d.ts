@@ -19,3 +19,4 @@ export interface NapiNextExternalsPluginOptions {
 }
 
 export declare function registerNextExternalsPlugin(): void
+export declare function registerForceCompleteRuntimePlugin(): void

@@ -8,7 +8,6 @@ describe('app dir - prefetching (custom staleTime)', () => {
     files: {
       app: new FileRef(join(__dirname, 'app')),
     },
-    skipDeployment: true,
     nextConfig: {
       experimental: {
         staleTimes: {

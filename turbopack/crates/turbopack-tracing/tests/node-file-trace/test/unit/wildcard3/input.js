@@ -1,3 +1,4 @@
+const fs = require('fs')
 const path = require('path')
 
 const num = Math.ceil(Math.random() * 3)

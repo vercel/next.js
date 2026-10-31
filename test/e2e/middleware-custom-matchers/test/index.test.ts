@@ -1,34 +1,22 @@
 /* eslint-env jest */
 import { join } from 'path'
-import webdriver from 'next-webdriver'
-import { fetchViaHTTP } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { fetchViaHTTP, fetchViaRawHttp } from 'next-test-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
-const itif = (condition: boolean) => (condition ? it : it.skip)
-
-const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
-
+// TODO(deploy-test-completion): Re-enable this suite for deployed Node.js middleware.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy || !nodeMiddleware
 describe('Middleware custom matchers', () => {
-  let next: NextInstance
-
-  if ((global as any).isNextDeploy && process.env.TEST_NODE_MIDDLEWARE) {
-    return it('should skip deploy for now', () => {})
-  }
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, '../app')),
-      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
-        ? {
-            'middleware.js': new FileRef(
-              join(__dirname, '../app/middleware-node.js')
-            ),
-          }
-        : {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, '../app')),
+    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+      ? {
+          'middleware.js': new FileRef(
+            join(__dirname, '../app/middleware-node.js')
+          ),
+        }
+      : {},
   })
-  afterAll(() => next.destroy())
 
   const runTests = () => {
     it('should match missing header correctly', async () => {
@@ -110,12 +98,13 @@ describe('Middleware custom matchers', () => {
       expect(res2.status).toBe(404)
     })
 
-    // Cannot modify host when testing with real deployment
-    itif(!isModeDeploy)('should match has host', async () => {
+    // Cannot modify host when testing with a real deployment.
+    // @force-gate !deploy
+    it('should match has host', async () => {
       const res1 = await fetchViaHTTP(next.url, '/has-match-4')
       expect(res1.status).toBe(404)
 
-      const res = await fetchViaHTTP(next.url, '/has-match-4', undefined, {
+      const res = await fetchViaRawHttp(next.appPort, '/has-match-4', {
         headers: {
           host: 'example.com',
         },
@@ -124,7 +113,7 @@ describe('Middleware custom matchers', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-from-middleware')).toBeDefined()
 
-      const res2 = await fetchViaHTTP(next.url, '/has-match-4', undefined, {
+      const res2 = await fetchViaRawHttp(next.appPort, '/has-match-4', {
         headers: {
           host: 'example.org',
         },
@@ -151,37 +140,28 @@ describe('Middleware custom matchers', () => {
 
     // FIXME: Test fails on Vercel deployment for now.
     // See https://linear.app/vercel/issue/EC-160/header-value-set-on-middleware-is-not-propagated-on-client-request-of
-    itif(!isModeDeploy)(
-      'should match has query on client routing',
-      async () => {
-        const browser = await webdriver(next.url, '/routes')
-        await browser.eval('window.__TEST_NO_RELOAD = true')
-        await browser.elementById('has-match-2').click()
-        const fromMiddleware = await browser
-          .elementById('from-middleware')
-          .text()
-        expect(fromMiddleware).toBe('true')
-        const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-        expect(noReload).toBe(true)
-      }
-    )
+    // @force-gate !deploy
+    it('should match has query on client routing', async () => {
+      const browser = await next.browser('/routes')
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+      await browser.elementById('has-match-2').click()
+      const fromMiddleware = await browser.elementById('from-middleware').text()
+      expect(fromMiddleware).toBe('true')
+      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+      expect(noReload).toBe(true)
+    })
 
-    itif(!isModeDeploy)(
-      'should match has cookie on client routing',
-      async () => {
-        const browser = await webdriver(next.url, '/routes')
-        await browser.addCookie({ name: 'loggedIn', value: 'true' })
-        await browser.refresh()
-        await browser.eval('window.__TEST_NO_RELOAD = true')
-        await browser.elementById('has-match-3').click()
-        const fromMiddleware = await browser
-          .elementById('from-middleware')
-          .text()
-        expect(fromMiddleware).toBe('true')
-        const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-        expect(noReload).toBe(true)
-      }
-    )
+    it('should match has cookie on client routing', async () => {
+      const browser = await next.browser('/routes')
+      await browser.addCookie({ name: 'loggedIn', value: 'true' })
+      await browser.refresh()
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+      await browser.elementById('has-match-3').click()
+      const fromMiddleware = await browser.elementById('from-middleware').text()
+      expect(fromMiddleware).toBe('true')
+      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+      expect(noReload).toBe(true)
+    })
   }
   runTests()
 })

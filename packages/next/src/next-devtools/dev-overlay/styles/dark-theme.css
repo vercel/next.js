@@ -57,6 +57,18 @@
   --color-blue-900: #52a9ff;
   --color-blue-1000: #eaf6ff;
 
+  /* Purple Scale Dark */
+  --color-purple-100: #391c4a;
+  --color-purple-200: #422154;
+  --color-purple-300: #53306a;
+  --color-purple-400: #5f3a79;
+  --color-purple-500: #6d4790;
+  --color-purple-600: #8e63d2;
+  --color-purple-700: #8e63d2;
+  --color-purple-800: #7d53c4;
+  --color-purple-900: #c79bfb;
+  --color-purple-1000: #f7f0ff;
+
   /* Red Scale Dark */
   --color-red-100: #2a1314;
   --color-red-200: #3d1719;
@@ -92,6 +104,16 @@
   --color-green-800: #388e4a;
   --color-green-900: #63c174;
   --color-green-1000: #e5fbeb;
+
+  /* Instant Guidance Cards */
+  --color-instant-border-blue: rgba(82, 169, 255, 0.45);
+  --color-instant-border-purple: rgba(160, 120, 240, 0.45);
+  --color-instant-border-red: rgba(255, 99, 105, 0.4);
+  --color-instant-border-amber: rgba(231, 156, 19, 0.5);
+  --color-instant-border-teal: rgba(45, 212, 191, 0.5);
+  --color-instant-text-purple: rgb(160, 120, 240);
+  --color-instant-text-amber: rgb(241, 161, 13);
+  --color-instant-text-teal: rgb(45, 212, 191);
 
   /* Turbopack Dark - Temporary */
   --color-turbopack-text-red: #ff6d92;
@@ -162,6 +184,18 @@
     --color-blue-900: #52a9ff;
     --color-blue-1000: #eaf6ff;
 
+    /* Purple Scale Dark */
+    --color-purple-100: #391c4a;
+    --color-purple-200: #422154;
+    --color-purple-300: #53306a;
+    --color-purple-400: #5f3a79;
+    --color-purple-500: #6d4790;
+    --color-purple-600: #8e63d2;
+    --color-purple-700: #8e63d2;
+    --color-purple-800: #7d53c4;
+    --color-purple-900: #c79bfb;
+    --color-purple-1000: #f7f0ff;
+
     /* Red Scale Dark */
     --color-red-100: #2a1314;
     --color-red-200: #3d1719;
@@ -197,6 +231,16 @@
     --color-green-800: #388e4a;
     --color-green-900: #63c174;
     --color-green-1000: #e5fbeb;
+
+    /* Instant Guidance Cards */
+    --color-instant-border-blue: rgba(82, 169, 255, 0.45);
+    --color-instant-border-purple: rgba(160, 120, 240, 0.45);
+    --color-instant-border-red: rgba(255, 99, 105, 0.4);
+    --color-instant-border-amber: rgba(231, 156, 19, 0.5);
+    --color-instant-border-teal: rgba(45, 212, 191, 0.5);
+    --color-instant-text-purple: rgb(160, 120, 240);
+    --color-instant-text-amber: rgb(241, 161, 13);
+    --color-instant-text-teal: rgb(45, 212, 191);
 
     /* Turbopack Dark - Temporary */
     --color-turbopack-text-red: #ff6d92;

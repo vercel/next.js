@@ -19,19 +19,22 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 bincode = { workspace = true }
 byteorder = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
+itertools = { workspace = true }
 indexmap = { workspace = true }
 next-core = { workspace = true }
 regex = { workspace = true }
-roaring = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+smallvec = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
+tokio = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -52,7 +55,6 @@ turbopack-wasm = { workspace = true }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
-turbo-tasks-malloc = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }

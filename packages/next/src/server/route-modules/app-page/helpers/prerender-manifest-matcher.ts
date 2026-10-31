@@ -3,10 +3,6 @@ import type {
   PrerenderManifest,
 } from '../../../../build'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
-import {
-  getRouteMatcher,
-  type RouteMatchFn,
-} from '../../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 
 /**
@@ -17,7 +13,7 @@ type Matcher = {
    * The matcher for the dynamic route. This is lazily created when the matcher
    * is first used.
    */
-  matcher?: RouteMatchFn
+  matcher?: RegExp
 
   /**
    * The source of the dynamic route.
@@ -27,6 +23,11 @@ type Matcher = {
   /**
    * The route that matches the source.
    */
+  route: DeepReadonly<DynamicPrerenderManifestRoute>
+}
+
+export type PrerenderManifestMatch = {
+  source: string
   route: DeepReadonly<DynamicPrerenderManifestRoute>
 }
 
@@ -57,21 +58,24 @@ export class PrerenderManifestMatcher {
    * @param pathname - The pathname to match.
    * @returns The dynamic route that matches the pathname.
    */
-  public match(
-    pathname: string
-  ): DeepReadonly<DynamicPrerenderManifestRoute> | null {
+  public match(pathname: string): PrerenderManifestMatch | null {
     // Iterate over the matchers. They're already in the correct order of
     // specificity as they were inserted into the prerender manifest that way
     // and iterating over them with Object.entries guarantees that.
     for (const matcher of this.matchers) {
       // Lazily create the matcher, this is only done once per matcher.
       if (!matcher.matcher) {
-        matcher.matcher = getRouteMatcher(getRouteRegex(matcher.source))
+        // The pathname has already been decoded for manifest lookup. We only
+        // need to check its structure here; extracting captures would decode
+        // route parameters again and reject literal percent signs.
+        matcher.matcher = getRouteRegex(matcher.source).re
       }
 
-      const match = matcher.matcher(pathname)
-      if (match) {
-        return matcher.route
+      if (matcher.matcher.test(pathname)) {
+        return {
+          source: matcher.source,
+          route: matcher.route,
+        }
       }
     }
 

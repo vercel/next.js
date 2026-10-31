@@ -70,7 +70,7 @@ pub struct FinderTask {
 
 impl Task for FinderTask {
     type Output = Vec<Atom>;
-    type JsValue = Array;
+    type JsValue = Vec<String>;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let resource_path = PathBuf::from(self.resource_path.take().unwrap());
@@ -155,13 +155,8 @@ impl Task for FinderTask {
         })
     }
 
-    fn resolve(&mut self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        let mut array = env.create_array(result.len() as u32)?;
-        for (i, name) in result.iter().enumerate() {
-            let js_val = env.create_string(name.as_str())?;
-            array.set(i as u32, js_val)?;
-        }
-        Ok(array)
+    fn resolve(&mut self, _env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(result.into_iter().map(|name| name.to_string()).collect())
     }
 }
 
@@ -172,7 +167,7 @@ pub fn get_module_named_exports(resource_path: String) -> AsyncTask<FinderTask> 
     })
 }
 
-#[napi(object)]
+#[napi(object, object_from_js = false)]
 pub struct NapiSourceDiagnostic {
     pub severity: &'static str,
     pub message: String,

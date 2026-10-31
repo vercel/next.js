@@ -16,22 +16,48 @@ function getReactCompiler() {
 const getReactCompilerPlugins = (
   maybeOptions: boolean | ReactCompilerOptions | undefined,
   isServer: boolean,
-  isDev: boolean
+  isDev: boolean,
+  cwd: string
 ): undefined | JSONValue[] => {
   if (!maybeOptions || isServer) {
     return undefined
   }
 
-  const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
-    enableNameAnonymousFunctions: isDev,
+  // Set the React Compiler target based on the installed React version.
+  // Handle only the supported versions.
+  // https://react.dev/reference/react-compiler/target
+  let target: '18' | undefined
+  try {
+    const reactPkgPath = require.resolve('react/package.json', {
+      paths: [cwd],
+    })
+    const majorVersion: string = require(reactPkgPath).version.split('.')[0]
+    if (majorVersion === '18') {
+      target = majorVersion
+    }
+  } catch {
+    // react/package.json not resolvable — skip target detection
   }
+
   const options: ReactCompilerOptions =
     typeof maybeOptions === 'boolean' ? {} : maybeOptions
-  const compilerOptions: JSONValue = {
-    ...options,
+  const { environment: userEnvironment, ...compilerOptions } = options
+  const environment = {
+    enableNameAnonymousFunctions: isDev,
+    ...(userEnvironment?.enablePreserveExistingMemoizationGuarantees !==
+    undefined
+      ? {
+          enablePreserveExistingMemoizationGuarantees:
+            userEnvironment.enablePreserveExistingMemoizationGuarantees,
+        }
+      : {}),
+  } satisfies Partial<EnvironmentConfig>
+  const resolvedCompilerOptions: JSONValue = {
+    ...compilerOptions,
+    ...(target ? { target } : {}),
     environment,
   }
-  return [[getReactCompiler(), compilerOptions]]
+  return [[getReactCompiler(), resolvedCompilerOptions]]
 }
 
 const getBabelLoader = (
@@ -64,7 +90,8 @@ const getBabelLoader = (
       reactCompilerPlugins: getReactCompilerPlugins(
         reactCompilerOptions,
         isServer,
-        dev
+        dev,
+        cwd
       ),
       reactCompilerExclude,
     }
@@ -93,7 +120,8 @@ const getReactCompilerLoader = (
   const reactCompilerPlugins = getReactCompilerPlugins(
     reactCompilerOptions,
     isServer,
-    isDev
+    isDev,
+    cwd
   )
   if (!reactCompilerPlugins) {
     return undefined

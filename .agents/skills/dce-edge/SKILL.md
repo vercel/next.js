@@ -7,6 +7,8 @@ description: >
   Covers if/else branching for webpack DCE, TypeScript definite assignment,
   the NEXT_RUNTIME vs real feature flag distinction, and forcing flags false
   for edge in define-env.ts.
+metadata:
+  internal: true
 ---
 
 # DCE + Edge

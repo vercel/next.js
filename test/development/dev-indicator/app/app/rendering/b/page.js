@@ -4,7 +4,7 @@ import { setTimeout } from 'timers/promises'
 
 export default async function Page() {
   await connection()
-  await setTimeout(100)
+  await setTimeout(1000)
   return (
     <>
       <Link href="/app/rendering/a" id="to-a">

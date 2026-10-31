@@ -14,6 +14,7 @@ import {
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -112,6 +113,34 @@ export function normalizeDynamicRouteParams(
   defaultRouteMatches: ParsedUrlQuery,
   ignoreMissingOptional: boolean
 ) {
+  const isDefaultValueMatch = (
+    candidateValue: string | undefined,
+    defaultValue: string
+  ) => {
+    if (!candidateValue) {
+      return false
+    }
+
+    let normalizedCandidateValue = normalizeRscURL(candidateValue)
+    for (let i = 0; i < 3; i++) {
+      if (normalizedCandidateValue === defaultValue) {
+        return true
+      }
+
+      const decodedCandidateValue = decodeQueryPathParameter(
+        normalizedCandidateValue
+      )
+
+      if (decodedCandidateValue === normalizedCandidateValue) {
+        break
+      }
+
+      normalizedCandidateValue = decodedCandidateValue
+    }
+
+    return false
+  }
+
   let hasValidParams = true
   let params: ParsedUrlQuery = {}
 
@@ -133,10 +162,12 @@ export function normalizeDynamicRouteParams(
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
-            ? value.some((val) => val.includes(defaultVal))
-            : value?.includes(defaultVal)
+            ? value.some((val) => isDefaultValueMatch(val, defaultVal))
+            : isDefaultValueMatch(value, defaultVal)
         })
-      : value?.includes(defaultValue as string)
+      : Array.isArray(value)
+        ? value.some((val) => isDefaultValueMatch(val, defaultValue as string))
+        : isDefaultValueMatch(value, defaultValue as string)
 
     if (
       isDefaultValue ||
@@ -288,7 +319,7 @@ export function getServerUtils({
         if (!fsPathname) return false
 
         if (basePath) {
-          fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/'
+          fsPathname = removePathPrefix(fsPathname, basePath)
         }
 
         if (i18n) {

@@ -1,3 +1,3 @@
 export default async function Home() {
-  return <div>Hello World</div>
+  return <div id="home">Hello World</div>
 }

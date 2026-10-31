@@ -1,55 +1,49 @@
-import { createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
 
 describe('Prerender crawler handling', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page() { 
-            return <p>index page</p>
-          } 
-        `,
-        'pages/blog/[slug].js': `
-          import {useRouter} from 'next/router'
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page() { 
+          return <p>index page</p>
+        } 
+      `,
+      'pages/blog/[slug].js': `
+        import {useRouter} from 'next/router'
+        
+        export default function Page({ slug }) { 
+          const router = useRouter()
           
-          export default function Page({ slug }) { 
-            const router = useRouter()
-            
-            if (router.isFallback) {
-              return 'Loading...'
-            }
-            
-            return (
-              <>
-                <p id='page'>slug page</p>
-                <p id='slug'>{slug}</p>
-              </>
-            )
-          } 
+          if (router.isFallback) {
+            return 'Loading...'
+          }
           
-          export async function getStaticProps({ params }) {
-            return {
-              props: {
-                slug: params.slug
-              }
-            }
-          } 
-          
-          export async function getStaticPaths() {
-            return {
-              paths: ['/blog/first'],
-              fallback: true
+          return (
+            <>
+              <p id='page'>slug page</p>
+              <p id='slug'>{slug}</p>
+            </>
+          )
+        } 
+        
+        export async function getStaticProps({ params }) {
+          return {
+            props: {
+              slug: params.slug
             }
           }
-        `,
-      },
-    })
+        } 
+        
+        export async function getStaticPaths() {
+          return {
+            paths: ['/blog/first'],
+            fallback: true
+          }
+        }
+      `,
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should return prerendered page for correctly', async () => {
     const html = await renderViaHTTP(next.url, '/blog/first')

@@ -3,9 +3,12 @@ title: unstable_cache
 description: API Reference for the unstable_cache function.
 ---
 
+{/* TODO: Remove the cross-deployment persistence guidance once `use cache: remote` entries persist across deployments. */}
+
 > **Note:**
-> This API has been replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) in Next.js 16.
-> We recommend opting into [Cache Components](/docs/app/getting-started/caching) and replacing `unstable_cache` with the `use cache` directive.
+> For most use cases, [`use cache`](/docs/app/api-reference/directives/use-cache) replaces this API in Next.js 16. We recommend opting into [Cache Components](/docs/app/getting-started/caching) and migrating to the `use cache` directive.
+>
+> Continue using `unstable_cache` for non-`fetch` data that must persist across deployments. Cached entries from `use cache` and [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) do not carry over to a new deployment because their cache keys include the build ID or `deploymentId`.
 
 `unstable_cache` allows you to cache the results of expensive operations, like database queries, and reuse them across multiple requests.
 
@@ -26,8 +29,21 @@ export default async function Component({ userID }) {
 
 > **Good to know**:
 >
-> - Accessing uncached data sources such as `headers` or `cookies` inside a cache scope is not supported. If you need this data inside a cached function use `headers` outside of the cached function and pass the required uncached data in as an argument.
+> - Accessing request data such as `headers` or `cookies` inside a cache scope is not supported. Read the data outside the cached function and pass the values you need as arguments.
 > - This API uses Next.js' built-in cache to persist the result across requests and deployments. See [Caching and Revalidating](/docs/app/getting-started/caching).
+
+## Unsupported operations
+
+The function passed to `unstable_cache` cannot depend on the incoming request. Read values from `cookies()` or `headers()` before calling the cached function, then pass those values as arguments so they become part of the cache key.
+
+The cached function also cannot:
+
+- Call `connection()`, which requires an incoming request
+- Enable or disable draft mode
+- Call `revalidateTag()`, `updateTag()`, or `revalidatePath()` during cache execution
+- Call a function that uses the `use cache: private` directive
+
+Perform request-dependent work before calling the cached function. Perform mutations and revalidation afterward from a Server Action or Route Handler.
 
 ## Parameters
 
@@ -72,20 +88,20 @@ export default async function Page({
 ```
 
 ```jsx filename="app/page.jsx" switcher
-import { unstable_cache } from 'next/cache';
+import { unstable_cache } from 'next/cache'
 
-export default async function Page({ params } }) {
+export default async function Page({ params }) {
   const { userId } = await params
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: userId };
+      return { id: userId }
     },
     [userId], // add the user ID to the cache key
     {
-      tags: ["users"],
+      tags: ['users'],
       revalidate: 60,
     }
-  );
+  )
 
   //...
 }

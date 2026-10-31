@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/this-in-arrow/input/index.js"],"sourcesContent":["import { leak } from './lib.js'\n\nconsole.log(leak())\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,IAAA,6OAAI"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/this-in-arrow/input/lib.js"],"sourcesContent":["// `viaThis` is pure and never imported by name, so it looks droppable. But it is\n// read through `this` in a top-level arrow — where `this` aliases `exports` — so\n// the module must be treated as opaque CommonJS and nothing may be dropped.\nexports.viaThis = 'V'\nexports.leak = () => this.viaThis\n"],"names":["exports","viaThis","leak"],"mappings":"AAAA,iFAAiF;AACjF,iFAAiF;AACjF,4EAA4E;AAC5EA,QAAQC,OAAO,GAAG;AAClBD,QAAQE,IAAI,GAAG,IAAM,yDAAKD,OAAO"}}]
+}

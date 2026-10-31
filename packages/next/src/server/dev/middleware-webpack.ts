@@ -12,6 +12,7 @@ import {
 } from '../lib/source-maps'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
+  DEVTOOLS_CODE_FRAME_MAX_WIDTH,
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
   type StackFrame,
@@ -181,12 +182,24 @@ function findOriginalSourcePositionAndContentFromCompilation(
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
+/**
+ * Code frame rendering options. The defaults match terminal consumers; only
+ * the overlay HTTP path opts in to always-on colors and the wide max width.
+ */
+type CodeFrameOptions = {
+  /** Defaults to `process.stdout.isTTY`. */
+  colors?: boolean
+  /** Defaults to the dev server's terminal width. */
+  maxWidth?: number
+}
+
 export async function createOriginalStackFrame({
   ignoredByDefault,
   source,
   rootDirectory,
   frame,
   errorMessage,
+  codeFrameOptions,
 }: {
   /** setting this to true will not consult ignoreList */
   ignoredByDefault: boolean
@@ -194,6 +207,7 @@ export async function createOriginalStackFrame({
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
+  codeFrameOptions?: CodeFrameOptions
 }): Promise<OriginalStackFrameResponse | null> {
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (() => {
@@ -261,7 +275,10 @@ export async function createOriginalStackFrame({
     originalStackFrame: traced,
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
+        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent, {
+          colors: codeFrameOptions?.colors,
+          maxWidth: codeFrameOptions?.maxWidth,
+        })
       }
       return originalCodeFrame
     },
@@ -388,6 +405,7 @@ export async function getOriginalStackFrames({
   serverStats,
   edgeServerStats,
   rootDirectory,
+  codeFrameOptions,
 }: {
   isServer: boolean
   isEdgeServer: boolean
@@ -397,6 +415,7 @@ export async function getOriginalStackFrames({
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
+  codeFrameOptions?: CodeFrameOptions
 }): Promise<OriginalStackFramesResponse> {
   const frameResponses = await Promise.all(
     frames.map(
@@ -410,6 +429,7 @@ export async function getOriginalStackFrames({
           serverStats,
           edgeServerStats,
           rootDirectory,
+          codeFrameOptions,
         }).then(
           (value) => {
             return {
@@ -441,6 +461,7 @@ async function getOriginalStackFrame({
   serverStats,
   edgeServerStats,
   rootDirectory,
+  codeFrameOptions,
 }: {
   isServer: boolean
   isEdgeServer: boolean
@@ -450,6 +471,7 @@ async function getOriginalStackFrame({
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
+  codeFrameOptions?: CodeFrameOptions
 }): Promise<OriginalStackFrameResponse> {
   const filename = frame.file ?? ''
   const source = await getSource(frame, {
@@ -529,6 +551,7 @@ async function getOriginalStackFrame({
     frame,
     source,
     rootDirectory,
+    codeFrameOptions,
   })
 
   if (!originalStackFrameResponse) {
@@ -596,6 +619,13 @@ export function getOverlayMiddleware(options: {
             serverStats,
             edgeServerStats,
             rootDirectory,
+            codeFrameOptions: {
+              // Overlay parses ANSI in JS and renders in a scrollable
+              // `<pre>`, so colors are always wanted and terminal width
+              // is irrelevant.
+              colors: true,
+              maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+            },
           })
         )
       } catch (err) {
@@ -617,8 +647,8 @@ export function getOverlayMiddleware(options: {
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
         const appPath = path.join(
-          'app',
           isSrcDir ? 'src' : '',
+          'app',
           relativeFilePath
         )
         openEditorResult = await openFileInEditor(appPath, 1, 1, rootDirectory)

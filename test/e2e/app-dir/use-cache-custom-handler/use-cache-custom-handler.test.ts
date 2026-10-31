@@ -1,21 +1,39 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import type { CacheWrite } from './cache-writes'
+import { randomUUID } from 'crypto'
 
 const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Skip deployment so we can test the custom cache handlers log output
+// @force-gate !deploy
 describe('use-cache-custom-handler', () => {
-  const { next, skipped, isNextStart } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Skip deployment so we can test the custom cache handlers log output
-    skipDeployment: true,
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
-
-  if (skipped) return
 
   let outputIndex: number
 
   beforeEach(() => {
     outputIndex = next.cliOutput.length
+  })
+
+  it('uses the custom handler for the first request during startup', async () => {
+    const $ = await next.render$('/registration')
+    expect($('#data').text()).toBe('registration')
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      expect(writes).toContainEqual(
+        expect.objectContaining({
+          tags: expect.arrayContaining(['registration']),
+        })
+      )
+    }, 3000)
   })
 
   it('should use a modern custom cache handler if provided', async () => {
@@ -27,12 +45,10 @@ describe('use-cache-custom-handler', () => {
 
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
+    // The implementation parts contain either the code hash and version or the
+    // build ID, followed by an optional HMR refresh hash in development.
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
-    )
-
-    expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::get \["([0-9a-f]{2})+",\[\],\["(development|[A-Za-z0-9_-]+)"(,"[^"]+")*\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
@@ -87,7 +103,7 @@ describe('use-cache-custom-handler', () => {
 
     await retry(async () => {
       expect(next.cliOutput.slice(outputIndex)).toContain(
-        'ModernCustomCacheHandler::updateTags ["modern"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:modern"]'
       )
 
       const data = await browser.elementById('data').text()
@@ -123,11 +139,298 @@ describe('use-cache-custom-handler', () => {
     })
   })
 
+  it('should call updateTags once per profile group', async () => {
+    const browser = await next.browser(`/`)
+
+    outputIndex = next.cliOutput.length
+
+    await browser.elementById('revalidate-multiple-profiles').click()
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:modern"]'
+      )
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:other"]'
+      )
+    })
+  })
+
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
-        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"dynamic-cache"}]\]/
+        /ModernCustomCacheHandler::set \["([0-9a-f]{2})+",\[{"id":"dynamic-cache"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\]/
       )
+    })
+  }
+
+  it('should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly', async () => {
+    const $ = await next.render$('/nested')
+    const values = $('p#inner')
+      .map((_, element) => $(element).text())
+      .get()
+    expect(values).toHaveLength(2)
+    expect(values[0]).toBeTruthy()
+    expect(values[0]).toBe(values[1])
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      const nestedWrites = writes.filter(({ tags }) =>
+        tags.some((tag) => ['inner', 'outer1', 'outer2'].includes(tag))
+      )
+      expect(new Set(nestedWrites.map(({ cacheKey }) => cacheKey)).size).toBe(3)
+      expect(nestedWrites).toEqual([
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer1', 'inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer2', 'inner'],
+        }),
+      ])
+    })
+  })
+
+  it('should reach the cache handler only once for sequential calls in a request', async () => {
+    const $ = await next.render$('/sequential-dedupe')
+
+    expect($('#first').text()).toBe($('#second').text())
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+
+      // The second call reuses the entry generated by the first call. Only one
+      // handler `get()` is needed, even though the calls are sequential.
+      expect(cliOutput).toIncludeRepeated(`ModernCustomCacheHandler::get`, 1)
+
+      // Matched up to the escaped opening bracket of the logged cache key,
+      // since `::set-resolved-entry` would otherwise count as another `::set`.
+      // The matcher compiles its argument as a regular expression.
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set \\[`,
+        1
+      )
+    })
+  })
+
+  // Development serves front-cache hits before reconciling the backing cache.
+  // Its serialized backing reads cannot reach both held lookups concurrently.
+  // @force-gate start
+  it('currently shares a handler lookup across routes and serves old data after revalidatePath()', async () => {
+    const control = (action: string) =>
+      next.fetch('/path-revalidation', { method: 'POST', body: action })
+    const readLookupState = () =>
+      next.fetch('/path-revalidation').then(
+        (response) =>
+          response.json() as Promise<{
+            softTags: string[][]
+            startedRoutes: string[]
+          }>
+      )
+    const initial = (await next.render$('/path-revalidation/a'))('#data').text()
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      expect(writes).toContainEqual(
+        expect.objectContaining({ tags: ['path-revalidation'] })
+      )
+    })
+
+    // Revalidate only route B, so route A can still use the existing entry.
+    // Pause A's `get()` until B calls the same cached function.
+    expect((await control('revalidate-route-b')).status).toBe(204)
+    expect((await control('hold-entry-lookup')).status).toBe(204)
+    const routeARendering = next.render$('/path-revalidation/a')
+    let routeBRendering: ReturnType<typeof next.render$> | undefined
+
+    try {
+      await retry(async () => {
+        expect((await readLookupState()).softTags).toEqual([
+          expect.arrayContaining(['_N_T_/path-revalidation/a/page']),
+        ])
+      })
+      routeBRendering = next.render$('/path-revalidation/b')
+      await retry(async () => {
+        expect((await readLookupState()).startedRoutes).toEqual(['a', 'b'])
+      })
+
+      expect((await control('release-entry-lookup')).status).toBe(204)
+      const [routeAPage, routeBPage] = await Promise.all([
+        routeARendering,
+        routeBRendering,
+      ])
+      // B currently reuses A's handler result despite `revalidatePath()`. Only
+      // A's implicit tags reach `get()`.
+      expect(routeAPage('#data').text()).toBe(initial)
+      expect(routeBPage('#data').text()).toBe(initial)
+      expect(routeBPage('#data').text()).not.toBe('')
+      expect((await readLookupState()).softTags).toEqual([
+        expect.arrayContaining(['_N_T_/path-revalidation/a/page']),
+      ])
+    } finally {
+      await control('release-entry-lookup')
+      await Promise.allSettled([routeARendering, routeBRendering])
+    }
+  })
+
+  // The configured handler validates implicit tags before the test pauses it.
+  // Development's front cache can serve the entry without that handler read.
+  // @force-gate start
+  it('currently shares a handler lookup between equal routes separated by path revalidation', async () => {
+    const id = `same-route-${randomUUID()}`
+    const pathname = `/path-revalidation/a?id=${id}`
+    const control = (action: string) =>
+      next.fetch(`/path-revalidation?id=${id}`, {
+        method: 'POST',
+        body: action,
+      })
+    const readState = () =>
+      next.fetch(`/path-revalidation?id=${id}`).then(
+        (response) =>
+          response.json() as Promise<{
+            selectedEntrySoftTags: string[][]
+            startedRoutes: string[]
+            writes: string[]
+          }>
+      )
+    const initial = (await next.render$(pathname))('#data').text()
+    await retry(async () => {
+      expect((await readState()).writes).toHaveLength(1)
+    })
+    await control('hold-selected-entry')
+    const beforeRevalidation = next.render$(pathname)
+    let afterRevalidation: ReturnType<typeof next.render$> | undefined
+    try {
+      await retry(async () => {
+        expect((await readState()).selectedEntrySoftTags).toHaveLength(1)
+      })
+      await control('revalidate-route-a')
+      const outputIndex = next.cliOutput.length
+      afterRevalidation = next.render$(pathname)
+      await retry(() => {
+        expect(
+          next.cliOutput
+            .slice(outputIndex)
+            .split('\n')
+            .some(
+              (line) =>
+                line.includes('joining pending cross-request invocation') &&
+                line.includes(id)
+            )
+        ).toBe(true)
+      })
+      await control('release-selected-entry')
+      const freshPage = await afterRevalidation
+      expect(freshPage('#data').text()).toBe(initial)
+      expect(freshPage('#data').text()).not.toBe('')
+      expect((await beforeRevalidation)('#data').text()).toBe(initial)
+    } finally {
+      await control('release-selected-entry')
+      await Promise.allSettled([beforeRevalidation, afterRevalidation])
+    }
+  })
+
+  // This test controls when the custom handler's `get()` returns. Development
+  // can serve an entry from its in-memory handler before that call completes.
+  // @force-gate start
+  it('currently shares a pending fill without checking route-specific cache invalidation', async () => {
+    const id = `observed-miss-${randomUUID()}`
+    const pathname = `/path-revalidation?id=${id}`
+    const control = (action: string) =>
+      next.fetch(pathname, { method: 'POST', body: action })
+    const readState = () =>
+      next.fetch(pathname).then(
+        (response) =>
+          response.json() as Promise<{
+            fills: string[]
+            writes: string[]
+            pausedLookupKeys: string[]
+            startedRoutes: string[]
+          }>
+      )
+    const initial = (await next.render$(`/path-revalidation/a?id=${id}`))(
+      '#data'
+    ).text()
+    await retry(async () => {
+      expect((await readState()).writes).toHaveLength(1)
+    })
+
+    // Start generation for A, then revalidate B before that generation
+    // completes. Configure B's `get()` to wait until A's handler write
+    // completes.
+    await control('hold-fill')
+    await control('invalidate-entry')
+    const routeARendering = next.render$(`/path-revalidation/a?id=${id}`)
+    let routeBRendering: ReturnType<typeof next.render$> | undefined
+    try {
+      await retry(async () => {
+        expect((await readState()).fills).toHaveLength(2)
+      })
+      await control('revalidate-route-b')
+      await control('hold-route-lookup-result')
+      routeBRendering = next.render$(`/path-revalidation/b?id=${id}`)
+      await retry(async () => {
+        expect((await readState()).startedRoutes).toContain(`b:${id}`)
+      })
+
+      await control('release-fill')
+      const routeAPage = await routeARendering
+      const refreshed = routeAPage('#data').text()
+      expect(refreshed).not.toBe(initial)
+      expect(refreshed).not.toBe('')
+      await retry(async () => {
+        expect((await readState()).writes).toHaveLength(2)
+      })
+      // B currently joins A's generated result without calling `get()`. The
+      // empty `pausedLookupKeys` array confirms that B skipped its own lookup.
+      await control('release-route-lookup-result')
+      const routeBPage = await routeBRendering
+      expect(routeBPage('#data').text()).toBe(refreshed)
+      expect(routeBPage('#data').text()).not.toBe('')
+      await retry(async () => {
+        const state = await readState()
+        expect(state.pausedLookupKeys).toHaveLength(0)
+        expect(state.fills).toHaveLength(2)
+        expect(state.writes).toHaveLength(2)
+      })
+    } finally {
+      await control('release-fill')
+      await control('release-route-lookup-result')
+      await Promise.allSettled([routeARendering, routeBRendering])
+    }
+  })
+
+  if (isNextStart) {
+    it('handles a failed handler preload without an unhandled rejection', async () => {
+      await next.stop()
+      await next.start({
+        skipBuild: true,
+        env: { NEXT_TEST_FAIL_CUSTOM_CACHE_HANDLER: '1' },
+      })
+
+      await retry(() => {
+        expect(next.cliOutput).toContain('Failed to preload entries:')
+        expect(next.cliOutput).toContain(
+          'test custom cache handler failed to load'
+        )
+      })
+
+      const response = await next.fetch('/registration')
+      expect(response.status).toBe(500)
+      expect(next.cliOutput).not.toContain('unhandledRejection:')
     })
   }
 })

@@ -1,89 +1,64 @@
 use crate::{
     ArcBytes,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
+    rc_bytes::RcBytes,
     static_sorted_file_builder::{Entry, EntryValue},
 };
 
-/// A value from a SST file lookup.
+/// A value from a SST file. Generic over the byte representation, defaulting to
+/// `ArcBytes` for the lookup path. The compaction/iteration path uses
+/// `LookupValue<RcBytes>` which is convertible to `IterValue`.
 #[derive(PartialEq)]
-pub enum LookupValue {
+pub enum LookupValue<B = ArcBytes> {
     /// The value was deleted.
-    Deleted,
+    KeyDeleted,
+    /// A single value was deleted from this key's group (MultiValue families only). Other values
+    /// for the same key are unaffected. The bytes are the deleted value.
+    KeyValueDeleted { value: B },
     /// The value is stored in the SST file.
     ///
-    /// The ArcBytes will be pointing either at a keyblock or a value block in the SST
-    Slice { value: ArcBytes },
+    /// The bytes will be pointing either at a keyblock or a value block in the SST
+    Slice { value: B },
     /// The value is stored in a blob file.
     Blob { sequence_number: u32 },
 }
 
-/// A value from a SST file lookup.
-pub enum LazyLookupValue {
-    /// A LookupValue
-    Eager(LookupValue),
+/// A value from SST file iteration (compaction path, uses RcBytes for
+/// non-atomic refcounting).
+pub enum IterValue {
+    /// The value was deleted.
+    KeyDeleted,
+    /// A single value was deleted from this key's group (MultiValue families only).
+    KeyValueDeleted { value: RcBytes },
+    /// The value is stored in the SST file.
+    Slice { value: RcBytes },
+    /// The value is stored in a blob file.
+    Blob { sequence_number: u32 },
     /// A medium sized value that is still compressed.
     Medium {
         uncompressed_size: u32,
         checksum: u32,
-        block: ArcBytes,
+        block: RcBytes,
     },
 }
-
-impl LazyLookupValue {
-    /// Returns the size of the value in the SST file.
-    pub fn uncompressed_size_in_sst(&self) -> usize {
-        match self {
-            LazyLookupValue::Eager(LookupValue::Slice { value }) => value.len(),
-            LazyLookupValue::Eager(LookupValue::Deleted) => 0,
-            LazyLookupValue::Eager(LookupValue::Blob { .. }) => 0,
-            LazyLookupValue::Medium {
-                uncompressed_size,
-                block,
-                ..
-            } => {
-                if *uncompressed_size == 0 {
-                    block.len()
-                } else {
-                    *uncompressed_size as usize
-                }
-            }
-        }
-    }
-
-    /// Returns true if this value gets its own dedicated value block.
-    pub fn is_medium_value(&self) -> bool {
-        match self {
-            LazyLookupValue::Eager(LookupValue::Slice { value })
-                if value.len() > MAX_SMALL_VALUE_SIZE =>
-            {
-                true
-            }
-            LazyLookupValue::Medium { .. } => true,
-            _ => false,
-        }
-    }
-
-    /// Returns the value size if it will be packed into a small value block, or 0 otherwise.
-    pub fn small_value_size(&self) -> usize {
-        match self {
-            LazyLookupValue::Eager(LookupValue::Slice { value })
-                if value.len() > MAX_INLINE_VALUE_SIZE && value.len() <= MAX_SMALL_VALUE_SIZE =>
-            {
-                value.len()
-            }
-            _ => 0,
+impl From<LookupValue<RcBytes>> for IterValue {
+    fn from(v: LookupValue<RcBytes>) -> Self {
+        match v {
+            LookupValue::KeyDeleted => IterValue::KeyDeleted,
+            LookupValue::KeyValueDeleted { value } => IterValue::KeyValueDeleted { value },
+            LookupValue::Slice { value } => IterValue::Slice { value },
+            LookupValue::Blob { sequence_number } => IterValue::Blob { sequence_number },
         }
     }
 }
-
-/// An entry from a SST file lookup.
+/// An entry from SST file iteration (compaction path, uses RcBytes).
 pub struct LookupEntry {
     /// The hash of the key.
     pub hash: u64,
     /// The key.
-    pub key: ArcBytes,
+    pub key: RcBytes,
     /// The value.
-    pub value: LazyLookupValue,
+    pub value: IterValue,
 }
 
 impl Entry for LookupEntry {
@@ -95,14 +70,15 @@ impl Entry for LookupEntry {
         self.key.len()
     }
 
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(&self.key);
+    fn key_bytes(&self) -> &[u8] {
+        &self.key
     }
 
     fn value(&self) -> EntryValue<'_> {
         match &self.value {
-            LazyLookupValue::Eager(LookupValue::Deleted) => EntryValue::Deleted,
-            LazyLookupValue::Eager(LookupValue::Slice { value }) => {
+            IterValue::KeyDeleted => EntryValue::KeyDeleted,
+            IterValue::KeyValueDeleted { value } => EntryValue::KeyValueDeleted { value },
+            IterValue::Slice { value } => {
                 if value.len() <= MAX_INLINE_VALUE_SIZE {
                     EntryValue::Inline { value }
                 } else if value.len() > MAX_SMALL_VALUE_SIZE {
@@ -111,10 +87,10 @@ impl Entry for LookupEntry {
                     EntryValue::Small { value }
                 }
             }
-            LazyLookupValue::Eager(LookupValue::Blob { sequence_number }) => EntryValue::Large {
+            IterValue::Blob { sequence_number } => EntryValue::Large {
                 blob: *sequence_number,
             },
-            LazyLookupValue::Medium {
+            IterValue::Medium {
                 uncompressed_size,
                 checksum,
                 block,

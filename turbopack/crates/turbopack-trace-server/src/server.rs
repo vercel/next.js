@@ -1,4 +1,5 @@
 use std::{
+    io,
     net::{SocketAddr, SocketAddrV4, TcpListener, TcpStream},
     sync::{Arc, Mutex},
     thread::spawn,
@@ -6,19 +7,20 @@ use std::{
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use tungstenite::{Message, accept};
+use tungstenite::{Message, accept, error::ProtocolError};
 
 use crate::{
     store::SpanId,
     store_container::StoreContainer,
     timestamp::Timestamp,
     u64_string,
-    viewer::{Update, ViewLineUpdate, ViewMode, Viewer},
+    viewer::{SortMode, Update, ViewLineUpdate, ViewMode, Viewer},
 };
 
 #[derive(Serialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::large_enum_variant)] // Short-lived message, serialized right away
 pub enum ServerToClientMessage {
     ViewLine {
         #[serde(flatten)]
@@ -44,6 +46,10 @@ pub enum ServerToClientMessage {
         args: Vec<(String, String)>,
         path: Vec<String>,
         memory_samples: Vec<u64>,
+        memory_pressure_samples: Vec<u8>,
+        memory_footprint_samples: Vec<u64>,
+        active_worker_threads_samples: Vec<u64>,
+        concurrency_samples: Vec<f64>,
     },
 }
 
@@ -119,10 +125,36 @@ pub fn serve(store: Arc<StoreContainer>, port: u16) {
 
         spawn(move || {
             let websocket = accept(stream.unwrap()).unwrap();
-            if let Err(err) = handle_connection(websocket, store) {
-                eprintln!("Error: {err:?}");
+            match handle_connection(websocket, store) {
+                Ok(()) => {}
+                Err(err) if is_disconnect(&err) => {
+                    println!("Trace viewer disconnected");
+                }
+                Err(err) => {
+                    eprintln!("Error: {err:?}");
+                }
             }
         });
+    }
+}
+
+/// Whether the error is caused by the client going away without a clean close handshake, e.g.
+/// when the trace viewer tab is closed or reloaded while an update is being sent.
+fn is_disconnect(err: &anyhow::Error) -> bool {
+    match err.downcast_ref::<tungstenite::Error>() {
+        Some(
+            tungstenite::Error::ConnectionClosed
+            | tungstenite::Error::AlreadyClosed
+            | tungstenite::Error::Protocol(ProtocolError::ResetWithoutClosingHandshake),
+        ) => true,
+        Some(tungstenite::Error::Io(err)) => matches!(
+            err.kind(),
+            io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+                | io::ErrorKind::BrokenPipe
+                | io::ErrorKind::UnexpectedEof
+        ),
+        _ => false,
     }
 }
 
@@ -211,34 +243,39 @@ fn handle_connection(
                         )?;
                     }
                     ClientToServerMessage::ViewMode { id, mode, inherit } => {
-                        let (mode, sorted) = if let Some(mode) = mode.strip_suffix("-sorted") {
-                            (mode, true)
-                        } else {
-                            (mode.as_str(), false)
-                        };
+                        let (mode, sort_mode) =
+                            if let Some(mode) = mode.strip_suffix("-sorted-by-name") {
+                                (mode, SortMode::Name)
+                            } else if let Some(mode) = mode.strip_suffix("-sorted-by-value") {
+                                (mode, SortMode::Value)
+                            } else if let Some(mode) = mode.strip_suffix("-sorted") {
+                                (mode, SortMode::Value)
+                            } else {
+                                (mode.as_str(), SortMode::ExecutionOrder)
+                            };
                         match mode {
                             "raw-spans" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::RawSpans { sorted }, inherit)),
+                                    Some((ViewMode::RawSpans { sort_mode }, inherit)),
                                 );
                             }
                             "aggregated" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::Aggregated { sorted }, inherit)),
+                                    Some((ViewMode::Aggregated { sort_mode }, inherit)),
                                 );
                             }
                             "bottom-up" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::BottomUp { sorted }, inherit)),
+                                    Some((ViewMode::BottomUp { sort_mode }, inherit)),
                                 );
                             }
                             "aggregated-bottom-up" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::AggregatedBottomUp { sorted }, inherit)),
+                                    Some((ViewMode::AggregatedBottomUp { sort_mode }, inherit)),
                                 );
                             }
                             _ => {
@@ -289,6 +326,17 @@ fn handle_connection(
                                 path.reverse();
                                 let memory_samples =
                                     store.memory_samples_for_range(span.start(), span.end());
+                                let memory_pressure_samples = store
+                                    .memory_pressure_samples_for_range(span.start(), span.end());
+                                let memory_footprint_samples = store
+                                    .memory_footprint_samples_for_range(span.start(), span.end());
+                                let active_worker_threads_samples = store
+                                    .active_worker_threads_samples_for_range(
+                                        span.start(),
+                                        span.end(),
+                                    );
+                                let concurrency_samples =
+                                    store.concurrency_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -303,6 +351,10 @@ fn handle_connection(
                                     args,
                                     path,
                                     memory_samples,
+                                    memory_pressure_samples,
+                                    memory_footprint_samples,
+                                    active_worker_threads_samples,
+                                    concurrency_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -319,6 +371,10 @@ fn handle_connection(
                                     args: Vec::new(),
                                     path: Vec::new(),
                                     memory_samples: Vec::new(),
+                                    memory_pressure_samples: Vec::new(),
+                                    memory_footprint_samples: Vec::new(),
+                                    active_worker_threads_samples: Vec::new(),
+                                    concurrency_samples: Vec::new(),
                                 }
                             }
                         };
@@ -362,5 +418,39 @@ fn handle_connection(
                 // thanks for the fish
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_result_serializes_samples_in_camel_case() {
+        let message = ServerToClientMessage::QueryResult {
+            id: SpanId::new(1).unwrap(),
+            is_graph: false,
+            start: Timestamp::ZERO,
+            end: Timestamp::ZERO,
+            duration: Timestamp::ZERO,
+            cpu: Timestamp::ZERO,
+            allocations: 0,
+            deallocations: 0,
+            allocation_count: 0,
+            persistent_allocations: 0,
+            args: Vec::new(),
+            path: Vec::new(),
+            memory_samples: vec![1024],
+            memory_pressure_samples: vec![2],
+            memory_footprint_samples: vec![4096],
+            active_worker_threads_samples: vec![3],
+            concurrency_samples: vec![1.25],
+        };
+        let json = serde_json::to_value(message).unwrap();
+        assert_eq!(json["type"], "query-result");
+        assert_eq!(json["memorySamples"], serde_json::json!([1024]));
+        assert_eq!(json["memoryFootprintSamples"], serde_json::json!([4096]));
+        assert_eq!(json["activeWorkerThreadsSamples"], serde_json::json!([3]));
+        assert_eq!(json["concurrencySamples"], serde_json::json!([1.25]));
     }
 }

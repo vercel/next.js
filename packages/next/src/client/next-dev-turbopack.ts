@@ -43,11 +43,14 @@ initialize({
     }
 
     connect({
+      initialHmrVersion: self.__nextHmrInitialVersion,
       addMessageListener(cb: (message: TurbopackMessageSentToBrowser) => void) {
         devClient.addTurbopackMessageListener(cb)
       },
       sendMessage: devClient.sendTurbopackMessage,
       onUpdateError: devClient.handleUpdateError,
+      chunkUpdateListenersGlobal:
+        process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
 
     return pageBootstrap(assetPrefix)

@@ -1,4 +1,4 @@
-import { NextInstance, createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import glob from 'glob'
 import {
@@ -10,15 +10,15 @@ import {
 import { join } from 'path'
 
 describe('standalone mode: ipv6 hostname', () => {
-  let next: NextInstance
   let server
   let appPort
   let output = ''
 
+  const { next } = nextTestSetup({
+    files: __dirname,
+  })
+
   beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-    })
     await next.stop()
 
     await fs.move(
@@ -67,7 +67,6 @@ describe('standalone mode: ipv6 hostname', () => {
     )
   })
   afterAll(async () => {
-    await next.destroy()
     if (server) await killApp(server)
   })
 

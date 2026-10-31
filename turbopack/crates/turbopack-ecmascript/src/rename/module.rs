@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
@@ -19,7 +18,7 @@ use turbopack_core::{
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -40,7 +39,7 @@ pub struct EcmascriptModuleRenameModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The part of the module that this facade represents.
     /// ModulePart::Facade | ModulePart::RenamedExport |
-    /// ModulePart::RenamedNamespace
+    /// ModulePart::RenamedNamespace | ModulePart::RenamedPartialNamespace
     part: ModulePart,
 }
 
@@ -54,7 +53,9 @@ impl EcmascriptModuleRenameModule {
         assert!(
             matches!(
                 part,
-                ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. }
+                ModulePart::RenamedExport { .. }
+                    | ModulePart::RenamedNamespace { .. }
+                    | ModulePart::RenamedPartialNamespace { .. }
             ),
             "{part:?} is unexpected for EcmascriptModuleRenameModule"
         );
@@ -92,6 +93,15 @@ impl EcmascriptModuleRenameModule {
                 .to_resolved()
                 .await
             }
+            ModulePart::RenamedPartialNamespace { member, .. } => {
+                EcmascriptModulePartReference::new_normal(
+                    *self.module,
+                    self.part.clone(),
+                    ExportUsage::partial_namespace_object(vec![member.clone()]),
+                )
+                .to_resolved()
+                .await
+            }
             ModulePart::RenamedExport {
                 original_export, ..
             } => {
@@ -118,8 +128,14 @@ impl Module for EcmascriptModuleRenameModule {
     }
 
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_part(self.part.clone())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(self.part.clone())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -133,12 +149,12 @@ impl Module for EcmascriptModuleRenameModule {
         let async_module = self.async_module();
         let references = self.references();
         let is_self_async = async_module
-            .resolve()
+            .to_resolved()
             .await?
-            .is_self_async(references.resolve().await?)
-            .resolve()
+            .is_self_async(*references.to_resolved().await?)
+            .to_resolved()
             .await?;
-        Ok(is_self_async)
+        Ok(*is_self_async)
     }
 
     #[turbo_tasks::function]
@@ -163,6 +179,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     fn analyze(&self) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         bail!("EcmascriptModuleRenameModule::analyze shouldn't be called");
+    }
+
+    #[turbo_tasks::function]
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo> {
+        EnvVarInfo::empty()
     }
 
     #[turbo_tasks::function]
@@ -197,6 +218,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -208,34 +230,36 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let reference = self.module_reference().await?;
-        let mut exports = BTreeMap::new();
 
-        match &self.part {
+        let export = match &self.part {
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => {
-                exports.insert(
-                    export.clone(),
-                    EsmExport::ImportedBinding(
-                        ResolvedVc::upcast(reference),
-                        original_export.clone(),
-                        false,
-                    ),
-                );
-            }
-            ModulePart::RenamedNamespace { export } => {
-                exports.insert(
-                    export.clone(),
-                    EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
-                );
-            }
+            } => (
+                export.clone(),
+                EsmExport::ImportedBinding(
+                    ResolvedVc::upcast(reference),
+                    original_export.clone(),
+                    false,
+                ),
+            ),
+            ModulePart::RenamedNamespace { export }
+            | ModulePart::RenamedPartialNamespace { export, .. } => (
+                export.clone(),
+                EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
+            ),
             _ => bail!("Unexpected ModulePart for EcmascriptModuleRenameModule"),
-        }
+        };
 
         let exports = EsmExports {
-            exports,
+            exports: FrozenMap::from_unique_sorted_box(Box::new([export])),
             star_exports: Vec::new(),
+            // This module only re-exports one binding of `self.module` under a different name, so
+            // whether its own key may be shortened follows the module it renames.
+            mangle_export_names: match &*self.module.get_exports().await? {
+                EcmascriptExports::EsmExports(exports) => exports.await?.mangle_export_names,
+                _ => false,
+            },
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

@@ -13,8 +13,19 @@ export class OptionalPeerDependencyResolverPlugin {
           return callback()
         }
 
-        // popping the stack to prevent the recursion check
-        resolveContext.stack?.delete(Array.from(resolveContext.stack).pop()!)
+        // Pop the stack to prevent the recursion check. Webpack's bundled
+        // resolver exposes a Set while external resolver versions can expose
+        // a stack with a pop method.
+        if (resolveContext.stack) {
+          const stack = resolveContext.stack as typeof resolveContext.stack & {
+            pop?: () => unknown
+          }
+          if (typeof stack.delete === 'function') {
+            stack.delete(Array.from(stack).pop()!)
+          } else {
+            stack.pop?.()
+          }
+        }
 
         resolver.doResolve(
           target,

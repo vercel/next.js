@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next'
 import { foo } from '@/foo'
-import { bar } from 'bar'
+import { bar } from '#/bar'
 
 const nextConfig: NextConfig = {
   env: {

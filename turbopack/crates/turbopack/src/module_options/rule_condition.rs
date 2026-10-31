@@ -8,20 +8,23 @@ use bincode::{Decode, Encode};
 use either::Either;
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
-    asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+    asset::Asset,
+    reference_type::{ReferenceType, ReferenceTypeCondition},
+    source::Source,
+    virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
     Not(Box<RuleCondition>),
     True,
     False,
-    ReferenceType(ReferenceType),
+    ReferenceType(ReferenceTypeCondition),
     ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
@@ -30,8 +33,8 @@ pub enum RuleCondition {
     ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
-    ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
-    ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourcePathEsRegex(ReadRef<EsRegex>),
+    ResourceContentEsRegex(ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -40,15 +43,14 @@ pub enum RuleCondition {
     /// project. Globs starting with `**` can match any path.
     ResourcePathGlob {
         base: FileSystemPath,
-        #[turbo_tasks(trace_ignore)]
         glob: ReadRef<Glob>,
     },
-    ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ResourceBasePathGlob(ReadRef<Glob>),
     ResourceQueryContains(String),
     ResourceQueryEquals(String),
-    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
-    ContentTypeGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
-    ContentTypeEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourceQueryEsRegex(ReadRef<EsRegex>),
+    ContentTypeGlob(ReadRef<Glob>),
+    ContentTypeEsRegex(ReadRef<EsRegex>),
 }
 
 impl RuleCondition {
@@ -258,7 +260,7 @@ impl RuleCondition {
                         return Ok(source.ident().await?.content_type.is_none());
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
-                        return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
+                        return Ok(if let Some(rel_path) = base.get_relative_request_to(path) {
                             glob.matches(&rel_path)
                         } else {
                             glob.matches(&path.path)
@@ -482,7 +484,7 @@ pub mod tests {
             .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
@@ -500,7 +502,7 @@ pub mod tests {
                 .await?;
 
         {
-            let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
+            let condition = RuleCondition::ReferenceType(ReferenceTypeCondition::Runtime);
             assert!(
                 condition
                     .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)
@@ -619,7 +621,7 @@ pub mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;

@@ -2,28 +2,22 @@
 
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDeploy } from 'e2e-utils'
 
 describe('Middleware Responses', () => {
-  let next: NextInstance
-
-  afterAll(() => next.destroy())
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, '../app/pages')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
-        'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../app/pages')),
+      'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+      'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
+    },
   })
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
 
     it(`${label}responds with multiple cookies`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/two-cookies`)
-      expect(res.headers.raw()['set-cookie']).toEqual([
+      expect(res.headers.getSetCookie()).toEqual([
         'foo=chocochip',
         'bar=chocochip',
       ])
@@ -33,7 +27,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/stream-a-response`)
       expect(res.status).toBe(200)
 
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
@@ -44,7 +38,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
       expect(res.status).toBe(200)
 
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
@@ -79,7 +73,7 @@ describe('Middleware Responses', () => {
       )
       expect(res.headers.get('x-nested-header')).toBe('valid')
       expect(res.headers.get('x-append-me')).toBe('top')
-      expect(res.headers.raw()['set-cookie']).toEqual(['bar=chocochip'])
+      expect(res.headers.getSetCookie()).toEqual(['bar=chocochip'])
     })
   }
   testsWithLocale()

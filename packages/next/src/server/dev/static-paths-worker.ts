@@ -17,21 +17,17 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import { isAppPageRouteModule } from '../route-modules/checks'
-import {
-  checkIsRoutePPREnabled,
-  type ExperimentalPPRConfig,
-} from '../lib/experimental/ppr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
-import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
-  pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   cacheComponents: boolean
+  partialPrefetching: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -56,7 +52,11 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
+  useCacheTimeout,
+  durableUseCacheEntries,
+  staticPageGenerationTimeout,
   sriEnabled,
 }: {
   dir: string
@@ -74,12 +74,14 @@ export async function loadStaticPaths({
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
+  useCacheTimeout: number
+  durableUseCacheEntries: boolean
+  staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
   // this needs to be initialized before loadComponents otherwise
@@ -112,13 +114,17 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const routeModule = components.routeModule
-    const segments = await collectSegments(
+    const { segments, segmentTree } = await collectSegments(
       // We know this is an app page or app route module because we checked
       // above that the page type is 'app'.
-      routeModule as AppPageRouteModule | AppRouteRouteModule
+      routeModule as AppPageRouteModule | AppRouteRouteModule,
+      {
+        cacheComponents: config.cacheComponents,
+        partialPrefetching: config.partialPrefetching,
+      }
     )
 
-    const route = parseAppRoute(pathname, true)
+    const route = parseNormalizedAppRoute(pathname)
     if (route.dynamicSegments.length === 0) {
       throw new InvariantError(
         `Expected a dynamic route, but got a static route: ${pathname}`
@@ -126,8 +132,12 @@ export async function loadStaticPaths({
     }
 
     const isRoutePPREnabled =
-      isAppPageRouteModule(routeModule) &&
-      checkIsRoutePPREnabled(config.pprConfig)
+      isAppPageRouteModule(routeModule) && config.cacheComponents
+
+    const isEnsureStaticPage =
+      config.cacheComponents &&
+      isRoutePPREnabled &&
+      segments.some((segment) => segment.config?.ensureStatic === 'navigation')
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
@@ -137,6 +147,7 @@ export async function loadStaticPaths({
       route,
       cacheComponents: config.cacheComponents,
       segments,
+      segmentTree,
       distDir,
       requestHeaders,
       cacheHandler,
@@ -147,8 +158,13 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
+      isEnsureStaticPage,
       buildId,
+      deploymentId,
       authInterrupts,
+      useCacheTimeout,
+      durableUseCacheEntries,
+      staticPageGenerationTimeout,
       rootParamKeys,
     })
   } else if (!components.getStaticPaths) {

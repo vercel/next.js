@@ -3,7 +3,6 @@
 /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
-/// <reference path="../../shared-node/node-wasm-utils.ts" />
 /// <reference path="./nodejs-globals.d.ts" />
 
 /**
@@ -15,9 +14,6 @@ process.env.TURBOPACK = '1'
 
 const url = require('url') as typeof import('url')
 
-const moduleFactories: ModuleFactories = new Map()
-const moduleCache: ModuleCache<Module> = Object.create(null)
-
 /**
  * Returns an absolute path to the given module's id.
  */
@@ -25,7 +21,8 @@ function resolvePathFromModule(
   this: TurbopackBaseContext<Module>,
   moduleId: string
 ): string {
-  const exported = this.r(moduleId)
+  const exported = getOrInstantiateModuleFromParent(moduleId, this.m)
+    .exports as Exports
   const exportedPath = exported?.default ?? exported
   if (typeof exportedPath !== 'string') {
     return exported as any
@@ -83,7 +80,7 @@ function loadRuntimeChunkPath(
   try {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
     const chunkModules: CompressedModuleFactories = require(resolved)
-    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
+    installCompressedModuleFactories(chunkModules, 0)
     loadedChunks.add(chunkPath)
   } catch (cause) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
@@ -111,26 +108,66 @@ function loadChunkAsync<TModule extends Module>(
 
   let entry = chunkCache.get(chunkPath)
   if (entry === undefined) {
-    try {
-      // resolve to an absolute path to simplify `require` handling
-      const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-      // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-      // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-      const chunkModules: CompressedModuleFactories = require(resolved)
-      installCompressedModuleFactories(chunkModules, 0, moduleFactories)
-      entry = loadedChunk
-    } catch (cause) {
-      const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
-      const error = new Error(errorMessage, { cause })
-      error.name = 'ChunkLoadError'
-
-      // Cache the failure promise, future requests will also get this same rejection
-      entry = Promise.reject(error)
+    const sourceModuleId = this.m.id
+    // `ensureChunk` is conditionally installed to support lazy dynamic imports during SSR
+    // It can be used to call back into turbopack to compile the chunk we are about to reference.
+    const ensureChunk = globalThis.__turbopack_ensure_chunk__
+    let ensuring: void | Promise<void> = undefined
+    if (ensureChunk !== undefined) {
+      try {
+        // Returns `undefined` when the chunk can be required right away.
+        ensuring = ensureChunk(chunkPath)
+      } catch (error) {
+        // Don't cache a failure to compile the chunk, so that the next load
+        // retries it.
+        return Promise.reject(error)
+      }
+    }
+    if (ensuring === undefined) {
+      entry = requireChunk(chunkPath, sourceModuleId)
+    } else {
+      // The chunk is being compiled on demand before it can be required.
+      // Cache the combined promise right away so that every caller (including
+      // concurrent ones) gets the same promise for this chunk.
+      const ensured: Promise<void> = Promise.resolve(ensuring).then(
+        () => requireChunk(chunkPath, sourceModuleId),
+        (error) => {
+          // Don't cache a failure to compile the chunk, so that the next load
+          // retries it.
+          if (chunkCache.get(chunkPath) === ensured) {
+            chunkCache.delete(chunkPath)
+          }
+          throw error
+        }
+      )
+      entry = ensured
     }
     chunkCache.set(chunkPath, entry)
   }
   // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
   return entry
+}
+
+function requireChunk(
+  chunkPath: ChunkPath,
+  sourceModuleId: ModuleId
+): Promise<void> {
+  try {
+    // resolve to an absolute path to simplify `require` handling
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+    // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+    // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+    const chunkModules: CompressedModuleFactories = require(resolved)
+    installCompressedModuleFactories(chunkModules, 0)
+    return loadedChunk
+  } catch (cause) {
+    const errorMessage = `Failed to load chunk ${chunkPath} from module ${sourceModuleId}`
+    const error = new Error(errorMessage, { cause })
+    error.name = 'ChunkLoadError'
+
+    // Cache the failure promise, future requests will also get this same rejection
+    return Promise.reject(error)
+  }
 }
 contextPrototype.l = loadChunkAsync
 
@@ -143,58 +180,9 @@ function loadChunkAsyncByUrl<TModule extends Module>(
 }
 contextPrototype.L = loadChunkAsyncByUrl
 
-function loadWebAssembly(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return instantiateWebAssemblyFromPath(resolved, imports)
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return compileWebAssemblyFromPath(resolved)
-}
-contextPrototype.u = loadWebAssemblyModule
-
-/**
- * Creates a Node.js worker thread by instantiating the given WorkerConstructor
- * with the appropriate path and options, including forwarded globals.
- *
- * @param WorkerConstructor The Worker constructor from worker_threads
- * @param workerPath Path to the worker entry chunk
- * @param workerOptions options to pass to the Worker constructor (optional)
- */
-function createWorker(
-  WorkerConstructor: { new (path: string, options?: object): unknown },
-  workerPath: string,
-  workerOptions?: { workerData?: unknown; [key: string]: unknown }
-): unknown {
-  // Build the forwarded globals object
-  const forwardedGlobals: Record<string, unknown> = {}
-  for (const name of WORKER_FORWARDED_GLOBALS) {
-    forwardedGlobals[name] = (globalThis as Record<string, unknown>)[name]
-  }
-
-  // Merge workerData with forwarded globals
-  const existingWorkerData = workerOptions?.workerData || {}
-  const options = {
-    ...workerOptions,
-    workerData: {
-      ...(typeof existingWorkerData === 'object' ? existingWorkerData : {}),
-      __turbopack_globals__: forwardedGlobals,
-    },
-  }
-
-  return new WorkerConstructor(workerPath, options)
-}
+// Shared runtime primitive: the root that on-disk chunk paths are resolved
+// against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
+contextPrototype.w = RUNTIME_ROOT
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**

@@ -1,55 +1,49 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('reading request body in middleware', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'middleware.js': `
+        const { NextResponse } = require('next/server');
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'middleware.js': `
-          const { NextResponse } = require('next/server');
-
-          export default async function middleware(request) {
-            if (!request.body) {
-              return new Response(null, { status: 400 });
-            }
-
-            let json;
-
-            if (!request.nextUrl.searchParams.has("no_reading")) {
-              json = await request.json();
-            }
-
-            if (request.nextUrl.searchParams.has("next")) {
-              const res = NextResponse.next();
-              res.headers.set('x-from-root-middleware', '1');
-              return res;
-            }
-
-            return new Response(null, {
-              status: 200,
-              headers: {
-                data: JSON.stringify({ root: true, ...json }),
-              },
-            })
+        export default async function middleware(request) {
+          if (!request.body) {
+            return new Response(null, { status: 400 });
           }
-        `,
 
-        'pages/api/hi.js': `
-          export default function hi(req, res) {
-            res.json({
-              ...req.body,
-              api: true,
-            })
+          let json;
+
+          if (!request.nextUrl.searchParams.has("no_reading")) {
+            json = await request.json();
           }
-        `,
-      },
-      dependencies: {},
-    })
+
+          if (request.nextUrl.searchParams.has("next")) {
+            const res = NextResponse.next();
+            res.headers.set('x-from-root-middleware', '1');
+            return res;
+          }
+
+          return new Response(null, {
+            status: 200,
+            headers: {
+              data: JSON.stringify({ root: true, ...json }),
+            },
+          })
+        }
+      `,
+
+      'pages/api/hi.js': `
+        export default function hi(req, res) {
+          res.json({
+            ...req.body,
+            api: true,
+          })
+        }
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('rejects with 400 for get requests', async () => {
     const response = await fetchViaHTTP(next.url, '/')

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+filtered_args=()
+for arg in "$@"; do
+  # napi-build emits `-Wl -undefined dynamic_lookup` on macOS. When rustc calls
+  # rust-lld directly, `-Wl` is not a real linker flag; the following Darwin
+  # args are already valid for rust-lld and must be preserved.
+  if [[ "$arg" == "-Wl" ]]; then
+    continue
+  fi
+  filtered_args+=("$arg")
+done
+
+sysroot="$(rustc --print sysroot)"
+host="$(rustc -vV | sed -n 's/^host: //p')"
+rust_lld="$sysroot/lib/rustlib/$host/bin/rust-lld"
+
+exec "$rust_lld" "${filtered_args[@]}"

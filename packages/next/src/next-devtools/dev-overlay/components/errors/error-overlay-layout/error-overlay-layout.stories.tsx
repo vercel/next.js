@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorOverlayLayout } from './error-overlay-layout'
-import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayLayout> = {
   component: ErrorOverlayLayout,
@@ -21,7 +21,6 @@ export const Default: Story = {
     },
     errorType: 'Build Error',
     errorMessage: 'Failed to compile',
-    errorCode: 'E001',
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
@@ -38,12 +37,5 @@ export const Turbopack: Story = {
   args: {
     ...Default.args,
     isTurbopack: true,
-  },
-}
-
-export const NoErrorCode: Story = {
-  args: {
-    ...Default.args,
-    errorCode: undefined,
   },
 }

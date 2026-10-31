@@ -1,22 +1,22 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// These tests send SIGINT/SIGTERM to server.mjs and check that after() finishes.
+// Deploy mode does not launch this custom server or give the test runner control
+// over the deployed process's shutdown.
+// @force-gate !deploy
 describe('after during server shutdown - custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.mjs',
     serverReadyPattern: /Custom server started/,
     forcedPort: 'random',
     skipStart: true,
-    skipDeployment: true, // the tests use cli logs and a custom server
     env: {
       NODE_ENV: isNextDev ? 'development' : 'production',
       DEBUG: '1',
     },
   })
-  if (skipped) {
-    return
-  }
 
   beforeEach(async () => {
     await next.start()

@@ -6,6 +6,7 @@ import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'
+import { htmlEscapeJsonString } from '../shared/lib/htmlescape'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
@@ -327,10 +328,9 @@ function Script(props: ScriptProps): JSX.Element | null {
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
-              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                { ...restProps, id },
-              ])})`,
+              __html: `(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([0, { ...restProps, id }])
+              )})`,
             }}
           />
         )
@@ -351,10 +351,9 @@ function Script(props: ScriptProps): JSX.Element | null {
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
-              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                src,
-                { ...restProps, id },
-              ])})`,
+              __html: `(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([src, { ...restProps, id }])
+              )})`,
             }}
           />
         )

@@ -34,9 +34,9 @@ metrics = (???*0* ? undefined : {"clientComponentLoadTimes": (0 | ???*4*)})
 - *6* unsupported expression
   ⚠️  This value might have side effects
 
-options = ???*0*
-- *0* options
-  ⚠️  pattern without value
+options = (???*0* | {})
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
 
 startTime = ???*0*()
 - *0* ???*1*["now"]

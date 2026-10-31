@@ -1,4 +1,5 @@
 import { codeFrameColumns } from '../../shared/lib/errors/code-frame'
+import { stdoutIsTerminal } from '../../lib/picocolors'
 import type { StackFrame } from '../../server/lib/parse-stack'
 import { ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric } from '../../server/lib/source-maps'
 
@@ -24,6 +25,13 @@ export interface OriginalStackFrameResponse {
   originalStackFrame: (StackFrame & { ignored: boolean }) | null
   originalCodeFrame: string | null
 }
+
+type CodeFrameRenderOptions = {
+  colors?: boolean
+  maxWidth?: number
+}
+
+export const DEVTOOLS_CODE_FRAME_MAX_WIDTH = 1000
 
 export function ignoreListAnonymousStackFramesIfSandwiched(
   responses: OriginalStackFramesResponse
@@ -65,11 +73,19 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
 export function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean = process.stdout.isTTY
+  colorsOrOptions: boolean | CodeFrameRenderOptions = stdoutIsTerminal
 ): string | null {
   if (!source || frame.line1 == null) {
     return null
   }
+
+  const { colors, maxWidth } =
+    typeof colorsOrOptions === 'boolean'
+      ? { colors: colorsOrOptions, maxWidth: undefined }
+      : {
+          colors: colorsOrOptions.colors ?? stdoutIsTerminal,
+          maxWidth: colorsOrOptions.maxWidth,
+        }
 
   return (
     codeFrameColumns(
@@ -80,7 +96,10 @@ export function getOriginalCodeFrame(
           column: frame.column1 ?? undefined,
         },
       },
-      { color: colors }
+      {
+        color: colors,
+        maxWidth,
+      }
     ) ?? null
   )
 }

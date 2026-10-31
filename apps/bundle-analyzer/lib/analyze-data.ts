@@ -35,6 +35,7 @@ interface EdgesDataReference {
 }
 
 interface AnalyzeDataHeader {
+  module_index_hash: string
   sources: AnalyzeSource[]
   chunk_parts: AnalyzeChunkPart[]
   output_files: AnalyzeOutputFile[]
@@ -45,11 +46,14 @@ interface AnalyzeDataHeader {
 }
 
 interface ModulesDataHeader {
+  module_index_hash: string
   modules: AnalyzeModule[]
   module_dependents: EdgesDataReference
   async_module_dependents: EdgesDataReference
+  traced_module_dependents: EdgesDataReference
   module_dependencies: EdgesDataReference
   async_module_dependencies: EdgesDataReference
+  traced_module_dependencies: EdgesDataReference
 }
 
 /**
@@ -88,6 +92,14 @@ export class ModulesData {
         this.pathToModuleIndex.set(module.path, [i])
       }
     }
+  }
+
+  moduleIndexHash(): string {
+    const hash = this.modulesHeader.module_index_hash
+    if (typeof hash !== 'string' || !hash) {
+      throw new Error('Missing analyzer module-index fingerprint')
+    }
+    return hash
   }
 
   module(index: ModuleIndex): AnalyzeModule | undefined {
@@ -167,6 +179,13 @@ export class ModulesData {
     )
   }
 
+  tracedModuleDependents(index: ModuleIndex): ModuleIndex[] {
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.traced_module_dependents,
+      index
+    )
+  }
+
   moduleDependencies(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.module_dependencies,
@@ -181,8 +200,28 @@ export class ModulesData {
     )
   }
 
+  tracedModuleDependencies(index: ModuleIndex): ModuleIndex[] {
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.traced_module_dependencies,
+      index
+    )
+  }
+
   getRawModulesHeader(): ModulesDataHeader {
     return this.modulesHeader
+  }
+}
+
+/** Only join a route to the module table from the same snapshot. */
+export function assertMatchingModuleIndex(
+  modules: ModulesData,
+  route: AnalyzeData,
+  side: string
+): void {
+  const moduleHash = modules.moduleIndexHash()
+  const routeHash = route.moduleIndexHash()
+  if (moduleHash !== routeHash) {
+    throw new Error(`${side}: analyzer module-index fingerprint mismatch`)
   }
 }
 
@@ -220,6 +259,14 @@ export class AnalyzeData {
   }
 
   // Accessor methods for header data
+
+  moduleIndexHash(): string {
+    const hash = this.analyzeHeader.module_index_hash
+    if (typeof hash !== 'string' || !hash) {
+      throw new Error('Missing analyzer module-index fingerprint')
+    }
+    return hash
+  }
 
   source(index: SourceIndex): AnalyzeSource | undefined {
     return this.analyzeHeader.sources[index]
@@ -447,10 +494,16 @@ export class AnalyzeData {
         client = true
       } else if (outputFile.filename.startsWith('[project]/')) {
         traced = true
+        server = true
+        continue
       } else {
         server = true
       }
-      if (outputFile.filename.endsWith('.js')) {
+      if (
+        outputFile.filename.endsWith('.js') ||
+        outputFile.filename.endsWith('.mjs') ||
+        outputFile.filename.endsWith('.cjs')
+      ) {
         js = true
       } else if (outputFile.filename.endsWith('.css')) {
         css = true
@@ -476,10 +529,5 @@ export class AnalyzeData {
     return fullSourcePath.endsWith(
       'node_modules/next/dist/build/polyfills/polyfill-nomodule.js'
     )
-  }
-
-  // Get the raw header for debugging
-  getRawAnalyzeHeader(): AnalyzeDataHeader {
-    return this.analyzeHeader
   }
 }

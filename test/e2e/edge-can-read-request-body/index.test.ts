@@ -1,8 +1,6 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
-import type { Response } from 'node-fetch'
 
 async function serialize(response: Response) {
   return {
@@ -13,15 +11,10 @@ async function serialize(response: Response) {
 }
 
 describe('Edge can read request body', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.resolve(__dirname, './app')),
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.resolve(__dirname, './app')),
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('renders the static page', async () => {
     const html = await renderViaHTTP(next.url, '/api/nothing')
@@ -101,7 +94,6 @@ describe('Edge can read request body', () => {
       const formData = new FormData()
       formData.append('hello', 'world')
 
-      // @ts-expect-error use `fetchViaHTTP` when we drop `node-fetch`
       const response: Response = await fetch(
         new URL(next.url + '/api/nothing?middleware-handler=formData'),
         { method: 'POST', body: formData }

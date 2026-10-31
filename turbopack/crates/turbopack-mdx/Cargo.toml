@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 markdown = { workspace = true }
 mdxjs = { workspace = true }
 serde = { workspace = true }
@@ -21,4 +22,3 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
-turbopack-ecmascript = { workspace = true }

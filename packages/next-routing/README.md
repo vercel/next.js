@@ -2,8 +2,6 @@
 
 Shared route resolving package for Next.js.
 
-**NOTE: This package is experimental and will become stable along with adapters API**
-
 ## Overview
 
 This package provides a comprehensive route resolution system that handles rewrites, redirects, middleware invocation, and dynamic route matching with support for conditional routing based on headers, cookies, queries, and host.
@@ -39,8 +37,10 @@ const result = await resolveRoutes({
   },
 })
 
-if (result.matchedPathname) {
-  console.log('Matched:', result.matchedPathname)
+if (result.resolvedPathname) {
+  console.log('Resolved pathname:', result.resolvedPathname)
+  console.log('Resolved query:', result.resolvedQuery)
+  console.log('Invocation target:', result.invocationTarget)
 }
 ```
 
@@ -68,6 +68,7 @@ Each route can have:
 ### Redirects
 
 When a route has:
+
 - A redirect status code (300-399)
 - Headers containing `Location` or `Refresh`
 

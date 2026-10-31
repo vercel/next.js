@@ -32,9 +32,7 @@ export const subscribeToHMR = async () => {
 
   state.initialized = true
 
-  const ws = new WebSocket(
-    `ws://localhost:${process.env.PORT}/_next/webpack-hmr`
-  )
+  const ws = new WebSocket(`ws://localhost:${process.env.PORT}/_next/hmr`)
 
   ws.onmessage = (event: any) => {
     if (typeof event.data === 'string') {

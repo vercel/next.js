@@ -4,6 +4,20 @@ import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
+import { getAgentName } from '../../telemetry/agent-name'
+import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
+import {
+  hasCurrentAgentUpgrade,
+  removeAgentUpgradeFiles,
+  writeAgentUpgradeFiles,
+  hasCurrentAgentFeedback,
+  hasCurrentAgentRules,
+  removeAgentFeedbackFiles,
+  removeAgentRulesFiles,
+  writeAgentFeedbackFiles,
+  writeAgentFiles,
+  type AgentFilesResult,
+} from './generate-agent-files'
 
 // Re-export the type for consumers
 export type { ConfiguredExperimentalFeature }
@@ -23,22 +37,9 @@ export function logStartInfo({
   envInfo?: string[]
   logBundler: boolean
 }) {
-  let versionSuffix = ''
-  const parts = []
-
-  if (logBundler) {
-    if (process.env.TURBOPACK) {
-      parts.push('Turbopack')
-    } else if (process.env.NEXT_RSPACK) {
-      parts.push('Rspack')
-    } else {
-      parts.push('webpack')
-    }
-  }
-
-  if (parts.length > 0) {
-    versionSuffix = ` (${parts.join(', ')})`
-  }
+  const versionSuffix = logBundler
+    ? ` (${bundlerName(getBundlerFromEnv())})`
+    : ''
 
   Log.bootstrap(
     `${bold(
@@ -70,12 +71,18 @@ export function logStartInfo({
 export function logExperimentalInfo({
   experimentalFeatures,
   cacheComponents,
+  partialPrefetching,
 }: {
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
+  partialPrefetching?: boolean
 }) {
   if (cacheComponents) {
     Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (partialPrefetching) {
+    Log.bootstrap(`- Partial Prefetching enabled`)
   }
 
   if (experimentalFeatures?.length) {
@@ -111,6 +118,56 @@ export function logExperimentalInfo({
 
   // New line after the bootstrap info
   Log.info('')
+}
+
+/**
+ * Keep the agent-rules block in sync with next.config. Enabling it still
+ * requires a detected agent; disabling it removes only that managed block,
+ * even when no agent is currently detected.
+ */
+export async function syncAgentRulesForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentRulesFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentRules(dir)) return null
+
+  return writeAgentFiles(dir)
+}
+
+/**
+ * Keep the opt-in agent-feedback block in sync with next.config. Enabling it
+ * still requires a detected agent; disabling it removes only that managed
+ * block, even when no agent is currently detected.
+ */
+export async function syncAgentFeedbackForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentFeedbackFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentFeedback(dir)) return null
+
+  return writeAgentFeedbackFiles(dir)
+}
+
+/**
+ * Sync upgrade delegation using the reminder policy independently of agentRules.
+ * Disabling reminders removes the block even without a detected agent.
+ */
+export async function syncAgentUpgradeForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) {
+    return removeAgentUpgradeFiles(dir)
+  }
+  if ((await getAgentName()) === null || hasCurrentAgentUpgrade(dir)) {
+    return null
+  }
+
+  return writeAgentUpgradeFiles(dir)
 }
 
 /**

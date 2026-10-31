@@ -5,6 +5,15 @@ export const ACTION_HEADER = 'next-action' as const
 // prefetches, which also need to specify a particular segment.
 export const NEXT_ROUTER_STATE_TREE_HEADER = 'next-router-state-tree' as const
 export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
+// The values of NEXT_ROUTER_PREFETCH_HEADER. A static prefetch can be answered
+// from the prerender. It's also how we ask for the legacy prefetch up to the
+// loading boundary.
+export const NEXT_ROUTER_PREFETCH_STATIC = '1' as const
+// A runtime prefetch, rendered with cookies, headers and params, up to the
+// stage it names.
+export const NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH = '2' as const
+export const NEXT_ROUTER_PREFETCH_RUNTIME_SHELL = '3' as const
+export const NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION = '4' as const
 // This contains the path to the segment being prefetched.
 // TODO: If we change next-router-state-tree to be a segment path, we can use
 // that instead. Then next-router-prefetch and next-router-segment-prefetch can
@@ -12,21 +21,12 @@ export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
 export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
   'next-router-segment-prefetch' as const
 export const NEXT_HMR_REFRESH_HEADER = 'next-hmr-refresh' as const
-export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
-// Header for the Instant Navigation Testing API. In development and testing
-// builds, static pre-renders normally don't happen. This header tells the
-// server to perform a static pre-render anyway, allowing tests to assert on
-// the prefetched UI. Not exposed in production builds by default.
-export const NEXT_INSTANT_PREFETCH_HEADER =
-  'next-instant-navigation-testing-prefetch' as const
-
-// Cookie for the Instant Navigation Testing API. Used for MPA navigations
-// (page reload, full page load) where we can't set request headers. When set,
-// the server renders only the static shell. Not exposed in production builds
-// by default.
+// Cookie for the Instant Navigation Testing API. Sent automatically with all
+// requests while a navigation lock is held; the server uses its presence to
+// render only the shell. Not exposed in production builds by default.
 export const NEXT_INSTANT_TEST_COOKIE =
   'next-instant-navigation-testing' as const
 

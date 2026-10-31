@@ -1,9 +1,12 @@
 export default function Page() {
-  return <p>Node</p>
+  return (
+    <h1>
+      {`Page Node instrumentationFinished=${(globalThis as any).instrumentationFinished}`}
+    </h1>
+  )
 }
 
-export function getServerSideProps() {
-  return {
-    props: {},
-  }
+// force dynamic rendering
+export async function getServerSideProps() {
+  return { props: {} }
 }

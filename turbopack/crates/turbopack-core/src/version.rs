@@ -1,22 +1,25 @@
-use std::sync::Arc;
-
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::HashAlgorithm;
 
-use crate::asset::AssetContent;
+use crate::asset::{AssetContent, no_hash_salt};
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
 
-/// The content of an [Asset] alongside its version.
+/// The content of an [`Asset`] alongside its version, returned by [`Asset::versioned_content`].
+///
+/// [`Asset`]: crate::asset::Asset
+/// [`Asset::versioned_content`]: crate::asset::Asset::versioned_content
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
-    /// The content of the [Asset].
+    /// The content of the [`Asset`].
+    ///
+    /// [`Asset`]: crate::asset::Asset
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
@@ -85,7 +88,7 @@ impl VersionedContent for VersionedAssetContent {
 #[turbo_tasks::value_impl]
 impl VersionedAssetContent {
     #[turbo_tasks::function]
-    /// Creates a new [Vc<VersionedAssetContent>] from a [Vc<FileContent>].
+    /// Creates a new instance from a [`Vc<AssetContent>`][AssetContent].
     pub async fn new(asset_content: Vc<AssetContent>) -> Result<Vc<Self>> {
         let asset_content = asset_content.await?;
         Ok(Self::cell(VersionedAssetContent { asset_content }))
@@ -169,7 +172,7 @@ impl Version for NotFoundVersion {
 }
 
 /// Describes an update to a versioned object.
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "skip", shared)]
 #[derive(Debug)]
 pub enum Update {
     /// The asset can't be meaningfully updated while the app is running, so the
@@ -188,28 +191,24 @@ pub enum Update {
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, Debug, Clone, ValueDebugFormat, NonLocalValue)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
     //
-    // TODO: This trace_ignore is wrong, and could cause problems if/when we add a GC. While
-    // `Version` assumes the implementation does not contain `Vc`, `EcmascriptDevChunkListVersion`
-    // is broken and violates this assumption.
-    #[turbo_tasks(trace_ignore)]
+    // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
+    // `EcmascriptDevChunkListVersion` currently violates that assumption.
     pub to: TraitRef<Box<dyn Version>>,
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, Debug, Clone, ValueDebugFormat, NonLocalValue)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
-    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC
-    #[turbo_tasks(trace_ignore)]
+    // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
     pub to: TraitRef<Box<dyn Version>>,
     /// The instructions to be passed to a remote system in order to update the
     /// versioned object.
-    #[turbo_tasks(trace_ignore)]
-    pub instruction: Arc<serde_json::Value>,
+    pub instruction: crate::update_instruction::UpdateInstruction,
 }
 
 /// [`Version`] implementation that hashes a file at a given path and returns
@@ -226,13 +225,13 @@ impl FileHashVersion {
         match asset_content {
             AssetContent::File(file_vc) => {
                 let hash = file_vc
-                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
                     .owned()
                     .await?
                     .context("file not found")?;
                 Ok(Self::cell(FileHashVersion { hash }))
             }
-            AssetContent::Redirect { .. } => bail!("not a file"),
+            AssetContent::Redirect(..) => bail!("not a file"),
         }
     }
 }
@@ -247,15 +246,15 @@ impl Version for FileHashVersion {
 
 /// This is a dummy wrapper type to (incorrectly) implement [`OperationValue`] (required by
 /// [`State`]), because the [`Version`] trait is not (yet?) a subtype of [`OperationValue`].
-#[derive(Debug, Eq, PartialEq, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(Debug, Eq, PartialEq, NonLocalValue, OperationValue)]
 struct VersionRef(
-    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC.
-    // It also allows to `Version`s that don't implement `OperationValue`, which could lead to
-    // incorrect results when attempting to strongly resolve Vcs.
-    #[turbo_tasks(trace_ignore)] TraitRef<Box<dyn Version>>,
+    // TODO: Remove this exemption if `Version` becomes a subtype of `OperationValue`.
+    // It allows `Version`s that don't implement `OperationValue`, which could lead to incorrect
+    // results when attempting to strongly resolve Vcs.
+    #[turbo_tasks(unsafe_ignore)] TraitRef<Box<dyn Version>>,
 );
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct VersionState {
     version: State<VersionRef>,
 }

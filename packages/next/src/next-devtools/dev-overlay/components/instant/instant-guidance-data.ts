@@ -1,0 +1,1160 @@
+export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray'
+
+export type FixCardGroup =
+  | 'stream'
+  | 'block'
+  | 'cache'
+  | 'static'
+  | 'dynamic'
+  | 'client'
+  | 'defer'
+  | 'measure'
+  | 'ignore'
+  | 'render'
+  | 'mark'
+  | 'upgrade'
+  | 'disable'
+  | 'remove'
+
+export type FixCardIcon =
+  | 'align-left'
+  | 'arrow-up'
+  | 'check'
+  | 'database'
+  | 'history'
+  | 'layout'
+  | 'loading'
+  | 'minus'
+  | 'minus-circle'
+  | 'pointer-click'
+  | 'server-stack'
+  | 'timer'
+  | 'zap'
+
+export const FIX_CARD_GROUPS: Record<
+  FixCardGroup,
+  { label: string; color: CardColor; icon: FixCardIcon }
+> = {
+  stream: { label: 'Stream', color: 'blue', icon: 'align-left' },
+  block: { label: 'Block', color: 'red', icon: 'loading' },
+  cache: { label: 'Cache', color: 'purple', icon: 'database' },
+  static: { label: 'Static', color: 'gray', icon: 'zap' },
+  dynamic: { label: 'Dynamic', color: 'blue', icon: 'server-stack' },
+  client: { label: 'Client', color: 'amber', icon: 'layout' },
+  defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
+  measure: { label: 'Measure', color: 'gray', icon: 'timer' },
+  ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
+  render: { label: 'Render', color: 'gray', icon: 'layout' },
+  mark: { label: 'Mark', color: 'amber', icon: 'check' },
+  upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
+  disable: { label: 'Disable', color: 'gray', icon: 'minus' },
+  remove: { label: 'Remove', color: 'red', icon: 'minus' },
+}
+
+export type FixCard = {
+  /** Docs anchor for this card. */
+  id: string
+  title: string
+  group: FixCardGroup
+  /** Docs URL, or null for no link. */
+  link: string | null
+  snippets: Snippet[]
+  /** Show the Copy prompt button on this card. */
+  copyable?: boolean
+}
+
+export type SnippetPart = {
+  text: string
+  highlight?: boolean
+}
+
+export type Snippet = {
+  text: string
+  highlight?: boolean
+  /** Inline highlights within the line; takes precedence over the line-level `highlight` flag. */
+  parts?: SnippetPart[]
+}
+
+// ── Blocking-route cards ──────────────────────────
+
+const linkCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <Details params={params} />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const cacheStageCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const runtimeCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const clientHookSuspenseCard: FixCard = {
+  id: 'wrap-in-or-move-into-suspense',
+  title: 'Wrap in or move into Suspense',
+  group: 'stream',
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense',
+  snippets: [
+    { text: '<Suspense fallback={…}>', highlight: true },
+    { text: '  <SidebarNav />' },
+    { text: '</Suspense>', highlight: true },
+  ],
+  copyable: true,
+}
+
+const clientHookBlockCard: FixCard = {
+  id: 'allow-blocking-route',
+  title: 'Allow blocking route',
+  group: 'block',
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route',
+  snippets: [
+    { text: '// page.tsx or layout.tsx' },
+    { text: 'export const instant = false', highlight: true },
+  ],
+  copyable: true,
+}
+
+const clientHookCards: FixCard[] = [clientHookSuspenseCard, clientHookBlockCard]
+
+const dynamicCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'cache-the-component-or-data',
+    title: 'Cache the component or data',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data',
+    snippets: [
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const unrenderedSegmentCards: FixCard[] = [
+  {
+    id: 'render-the-dropped-segment',
+    title: 'Render the dropped segment',
+    group: 'render',
+    link: 'https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment',
+    snippets: [
+      {
+        text: 'function Layout({ children }) {',
+        parts: [
+          { text: 'function Layout({ ' },
+          { text: 'children', highlight: true },
+          { text: ' }) {' },
+        ],
+      },
+      {
+        text: '  return <><Nav />{children}</>',
+        parts: [
+          { text: '  return <><Nav />{' },
+          { text: 'children', highlight: true },
+          { text: '}</>' },
+        ],
+      },
+      { text: '}' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'skip-validation-on-the-segment',
+    title: 'Skip validation on the segment',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const linkPrefetchPartialCards: FixCard[] = [
+  {
+    id: 'opt-into-partial-prefetching',
+    title: 'Opt into Partial Prefetching',
+    group: 'upgrade',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: "export const prefetch = 'partial'", highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'use-the-default-prefetch',
+    title: 'Use the default prefetch',
+    group: 'disable',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#use-the-default-prefetch',
+    snippets: [
+      { text: '<Link href="/dashboard">', highlight: true },
+      { text: '  Dashboard' },
+      { text: '</Link>' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'disable-validation-on-this-route',
+    title: 'Disable validation on this route',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const metadataRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: '  title: "My Page"' },
+      { text: '}' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'mark-the-route-as-dynamic',
+    title: 'Mark the route as dynamic',
+    group: 'dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+function getMetadataCacheStageCards(
+  variant: 'prefetch' | 'navigation'
+): FixCard[] {
+  const api = variant === 'prefetch' ? 'prefetch' : 'navigation'
+
+  return [
+    {
+      id: 'remove-the-api-call',
+      title: 'Remove the API call',
+      group: 'remove',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-api-call',
+      snippets: [
+        { text: 'async function generateMetadata() {' },
+        { text: `-  await ${api}()`, highlight: true },
+        { text: '}' },
+      ],
+    },
+    {
+      id: 'confirm-the-metadata-delay',
+      title: 'Confirm the metadata delay',
+      group: 'mark',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#confirm-the-metadata-delay',
+      snippets: [
+        { text: '// page.tsx or layout.tsx' },
+        { text: `await ${api}()`, highlight: true },
+      ],
+      copyable: true,
+    },
+  ]
+}
+
+// URL data in `generateMetadata()` shares the same fixes as runtime data.
+const metadataLinkCards = metadataRuntimeCards
+
+const metadataDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-metadata',
+    title: 'Cache the metadata',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata',
+    snippets: [
+      { text: 'async function generateMetadata() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await cms.getMeta(…)' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'mark-the-route-as-dynamic',
+    title: 'Mark the route as dynamic',
+    group: 'dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const viewportRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: '  themeColor: "#000"' },
+      { text: '}' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+function getViewportCacheStageCards(
+  variant: 'prefetch' | 'navigation'
+): FixCard[] {
+  const api = variant === 'prefetch' ? 'prefetch' : 'navigation'
+
+  return [
+    {
+      id: 'remove-the-api-call',
+      title: 'Remove the API call',
+      group: 'remove',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-api-call',
+      snippets: [
+        { text: 'async function generateViewport() {' },
+        { text: `-  await ${api}()`, highlight: true },
+        { text: '}' },
+      ],
+    },
+    {
+      id: 'disable-validation-on-this-route',
+      title: 'Disable validation on this route',
+      group: 'ignore',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#disable-validation-on-this-route',
+      snippets: [
+        { text: '// page.tsx or layout.tsx' },
+        { text: 'export const instant = false', highlight: true },
+      ],
+      copyable: true,
+    },
+  ]
+}
+
+// URL data in `generateViewport()` shares the same fixes as runtime data.
+const viewportLinkCards = viewportRuntimeCards
+
+const viewportDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-viewport-data',
+    title: 'Cache the viewport data',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data',
+    snippets: [
+      { text: 'async function generateViewport() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await db.getViewport(…)' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const syncMathCards: FixCard[] = [
+  {
+    id: 'render-at-request-time',
+    title: 'Generate on every request',
+    group: 'dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request',
+    snippets: [
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = Math.random()' },
+      { text: 'return <Item id={id} />' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'cache-the-random-value',
+    title: 'Cache the random value',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value',
+    snippets: [
+      { text: 'function RandomId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return String(Math.random())' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'render-on-the-client',
+    title: 'Render on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const id = Math.random()' },
+    ],
+    copyable: true,
+  },
+]
+
+const syncDateCards: FixCard[] = [
+  {
+    id: 'render-at-request-time',
+    title: 'Generate on every request',
+    group: 'dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request',
+    snippets: [
+      { text: 'await connection()', highlight: true },
+      { text: 'const t = Date.now()' },
+      { text: 'return <Banner time={t} />' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'cache-the-timestamp',
+    title: 'Cache the timestamp',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp',
+    snippets: [
+      { text: 'function Timestamp() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <time>{Date.now()}</time>' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'render-on-the-client',
+    title: 'Render on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const t = Date.now()' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'measure-elapsed-time',
+    title: 'For telemetry, use a timing API',
+    group: 'measure',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api',
+    snippets: [
+      { text: 'const start = performance.now()', highlight: true },
+      { text: 'doWork()' },
+      { text: 'const ms = performance.now() - start' },
+    ],
+    copyable: true,
+  },
+]
+
+const syncCryptoCards: FixCard[] = [
+  {
+    id: 'render-at-request-time',
+    title: 'Generate on every request',
+    group: 'dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request',
+    snippets: [
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = crypto.randomUUID()' },
+      { text: 'return <Token id={id} />' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'cache-the-generated-value',
+    title: 'Cache the generated value',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value',
+    snippets: [
+      { text: 'function TokenId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return crypto.randomUUID()' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'render-on-the-client',
+    title: 'Render on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const id = crypto.randomUUID()' },
+    ],
+    copyable: true,
+  },
+]
+
+const syncClientDateCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DateDisplay />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'move-into-effect-or-event-handler',
+    title: 'Move into effect or event handler',
+    group: 'defer',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler',
+    snippets: [
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setT(Date.now())' },
+      { text: '}} />' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'measure-elapsed-time',
+    title: 'For telemetry, use a timing API',
+    group: 'measure',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api',
+    snippets: [
+      { text: 'const start = performance.now()', highlight: true },
+      { text: 'doWork()' },
+      { text: 'const ms = performance.now() - start' },
+    ],
+    copyable: true,
+  },
+]
+
+const syncClientMathCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <RandomId />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'move-into-effect-or-event-handler',
+    title: 'Move into effect or event handler',
+    group: 'defer',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#move-into-effect-or-event-handler',
+    snippets: [
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(Math.random())' },
+      { text: '}} />' },
+    ],
+    copyable: true,
+  },
+]
+
+const syncClientCryptoCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <TokenId />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'move-into-effect-or-event-handler',
+    title: 'Move into effect or event handler',
+    group: 'defer',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#move-into-effect-or-event-handler',
+    snippets: [
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(crypto.randomUUID())' },
+      { text: '}} />' },
+    ],
+    copyable: true,
+  },
+]
+
+const staticRouteRuntimeCards: FixCard[] = [
+  {
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
+    group: 'remove',
+    snippets: [
+      { text: 'async function Page() {' },
+      { text: '- const store = await cookies()', highlight: true },
+      { text: '  return <Content />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#remove-the-data-access',
+  },
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const value = readBrowserData()' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
+  },
+]
+
+const staticRouteDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-data',
+    title: 'Cache the data',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function getData() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await db.query(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#cache-the-data',
+  },
+  {
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
+    group: 'remove',
+    snippets: [
+      { text: 'async function Page() {' },
+      { text: '- await connection()', highlight: true },
+      { text: '  return <Content />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#remove-the-data-access',
+  },
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: "const data = useSWR('/api')", highlight: true },
+      { text: 'return <Content data={data} />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#read-the-data-on-the-client',
+  },
+]
+const staticMetadataRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-runtime#use-static-metadata',
+  },
+]
+
+const staticMetadataDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-metadata',
+    title: 'Cache the metadata',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateMetadata() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getMeta(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#cache-the-metadata',
+  },
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#use-static-metadata',
+  },
+]
+const staticViewportRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-runtime#use-static-viewport',
+  },
+]
+
+const staticViewportDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-viewport',
+    title: 'Cache the viewport',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateViewport() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getViewport(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#cache-the-viewport',
+  },
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#use-static-viewport',
+  },
+]
+export type GuidanceKind =
+  | 'static-route'
+  | 'static-metadata'
+  | 'static-viewport'
+  | 'blocking-route'
+  | 'client-hook'
+  | 'metadata'
+  | 'viewport'
+  | 'sync-io'
+  | 'sync-io-client'
+  | 'unrendered-segment'
+  | 'link-prefetch-partial'
+
+export type GuidanceVariant =
+  | 'link'
+  | 'runtime'
+  | 'prefetch'
+  | 'navigation'
+  | 'dynamic'
+
+export const DOCS_URLS: Record<GuidanceKind, string> = {
+  'static-viewport': 'https://nextjs.org/docs/messages/static-viewport',
+  'static-metadata': 'https://nextjs.org/docs/messages/static-metadata',
+  'static-route': 'https://nextjs.org/docs/messages/static-route',
+  'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
+  'client-hook':
+    'https://nextjs.org/docs/messages/blocking-prerender-client-hook',
+  metadata:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
+  viewport:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic',
+  'sync-io': '',
+  'sync-io-client': '',
+  'unrendered-segment':
+    'https://nextjs.org/docs/messages/instant-unrendered-segment',
+  'link-prefetch-partial':
+    'https://nextjs.org/docs/messages/instant-link-prefetch-partial',
+}
+
+export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
+  runtime: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
+  // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
+  prefetch: 'https://nextjs.org/docs/messages/instant-navigation-stage',
+  navigation: 'https://nextjs.org/docs/messages/instant-navigation-stage',
+  dynamic: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic',
+}
+
+export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
+  runtime:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
+  // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
+  prefetch:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-metadata',
+  navigation:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-metadata',
+  dynamic:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
+}
+
+export const BLOCKING_VIEWPORT_DOCS_URLS: Record<GuidanceVariant, string> = {
+  runtime:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
+  // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
+  prefetch:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-viewport',
+  navigation:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-viewport',
+  dynamic:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic',
+}
+
+export const SYNC_IO_DOCS: Record<string, string> = {
+  'Math.random()': 'https://nextjs.org/docs/messages/blocking-prerender-random',
+  'Date.now()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  'Date()': 'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  'new Date()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  'crypto.randomUUID()':
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  'crypto.getRandomValues()':
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').randomUUID()":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').randomBytes(size)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').randomFillSync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').randomInt(min, max)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').generatePrimeSync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').generateKeyPairSync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+  "require('node:crypto').generateKeySync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
+}
+
+export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
+  'Math.random()':
+    'https://nextjs.org/docs/messages/blocking-prerender-random-client',
+  'Date.now()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
+  'Date()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
+  'new Date()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
+  'crypto.randomUUID()':
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  'crypto.getRandomValues()':
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').randomUUID()":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').randomBytes(size)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').randomFillSync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').randomInt(min, max)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').generatePrimeSync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').generateKeyPairSync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+  "require('node:crypto').generateKeySync(...)":
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
+}
+
+export const EXPLANATIONS: Record<GuidanceKind, string> = {
+  'static-viewport':
+    'This route is configured to be fully static, but some data requires rendering at request time.',
+  'static-metadata':
+    'This route is configured to be fully static, but some data requires rendering at request time.',
+  'static-route':
+    'This route is configured to be fully static, but some data requires rendering at request time.',
+  'blocking-route':
+    'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
+  'client-hook':
+    'This blocks prerendering because the value is only available at runtime.',
+  metadata:
+    "This route's metadata is blocked, but the rest of its content can be prerendered.",
+  viewport:
+    'This prevents the page from being prerendered, leading to a slower user experience.',
+  'sync-io': '',
+  'sync-io-client':
+    'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
+  'unrendered-segment':
+    'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
+  'link-prefetch-partial':
+    'This will lead to slower, more expensive prefetches.',
+}
+
+export const BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION =
+  'This prevents the navigation from being instant, leading to a slower user experience.'
+
+export const BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION =
+  'This may prevent the navigation from being instant, leading to a slower user experience.'
+
+export const CACHE_STAGE_METADATA_EXPLANATION =
+  'Metadata can already stream, so delaying it may be unintentional.'
+
+export const CACHE_STAGE_VIEWPORT_EXPLANATION =
+  'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
+
+const syncCardsByCause: Record<string, FixCard[]> = {
+  'Math.random()': syncMathCards,
+  'Date.now()': syncDateCards,
+  'Date()': syncDateCards,
+  'new Date()': syncDateCards,
+  'crypto.randomUUID()': syncCryptoCards,
+  'crypto.getRandomValues()': syncCryptoCards,
+  "require('node:crypto').randomUUID()": syncCryptoCards,
+  "require('node:crypto').randomBytes(size)": syncCryptoCards,
+  "require('node:crypto').randomFillSync(...)": syncCryptoCards,
+  "require('node:crypto').randomInt(min, max)": syncCryptoCards,
+  "require('node:crypto').generatePrimeSync(...)": syncCryptoCards,
+  "require('node:crypto').generateKeyPairSync(...)": syncCryptoCards,
+  "require('node:crypto').generateKeySync(...)": syncCryptoCards,
+}
+
+const syncClientCardsByCause: Record<string, FixCard[]> = {
+  'Math.random()': syncClientMathCards,
+  'Date.now()': syncClientDateCards,
+  'Date()': syncClientDateCards,
+  'new Date()': syncClientDateCards,
+  'crypto.randomUUID()': syncClientCryptoCards,
+  'crypto.getRandomValues()': syncClientCryptoCards,
+  "require('node:crypto').randomUUID()": syncClientCryptoCards,
+  "require('node:crypto').randomBytes(size)": syncClientCryptoCards,
+  "require('node:crypto').randomFillSync(...)": syncClientCryptoCards,
+  "require('node:crypto').randomInt(min, max)": syncClientCryptoCards,
+  "require('node:crypto').generatePrimeSync(...)": syncClientCryptoCards,
+  "require('node:crypto').generateKeyPairSync(...)": syncClientCryptoCards,
+  "require('node:crypto').generateKeySync(...)": syncClientCryptoCards,
+}
+
+// `connection()`-triggered errors can't be cached.
+function filterCacheForConnection(
+  cards: FixCard[],
+  variant: GuidanceVariant,
+  cause: string | undefined
+): FixCard[] {
+  if (variant !== 'dynamic' || cause !== 'connection') return cards
+  return cards.filter((card) => card.group !== 'cache')
+}
+
+export function getCards(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  cause?: string
+): FixCard[] {
+  switch (kind) {
+    case 'static-viewport':
+      return variant === 'runtime'
+        ? staticViewportRuntimeCards
+        : filterCacheForConnection(staticViewportDynamicCards, variant, cause)
+
+    case 'static-metadata':
+      return variant === 'runtime'
+        ? staticMetadataRuntimeCards
+        : filterCacheForConnection(staticMetadataDynamicCards, variant, cause)
+
+    case 'static-route':
+      return variant === 'runtime'
+        ? staticRouteRuntimeCards
+        : filterCacheForConnection(staticRouteDynamicCards, variant, cause)
+
+    case 'blocking-route': {
+      switch (variant) {
+        case 'link':
+          return linkCards
+        case 'runtime':
+          return runtimeCards
+        case 'prefetch':
+        case 'navigation':
+          return cacheStageCards
+        case 'dynamic':
+          return filterCacheForConnection(dynamicCards, variant, cause)
+        default:
+          return variant satisfies never
+      }
+    }
+    case 'client-hook':
+      return clientHookCards
+    case 'metadata': {
+      switch (variant) {
+        case 'link':
+          return metadataLinkCards
+        case 'runtime':
+          return metadataRuntimeCards
+        case 'prefetch':
+        case 'navigation':
+          return getMetadataCacheStageCards(variant)
+        case 'dynamic':
+          return filterCacheForConnection(metadataDynamicCards, variant, cause)
+        default:
+          return variant satisfies never
+      }
+    }
+    case 'viewport': {
+      switch (variant) {
+        case 'link':
+          return viewportLinkCards
+        case 'runtime':
+          return viewportRuntimeCards
+        case 'prefetch':
+        case 'navigation':
+          return getViewportCacheStageCards(variant)
+        case 'dynamic':
+          return filterCacheForConnection(viewportDynamicCards, variant, cause)
+        default:
+          return variant satisfies never
+      }
+    }
+    case 'sync-io':
+      return (cause && syncCardsByCause[cause]) || []
+    case 'sync-io-client':
+      return (cause && syncClientCardsByCause[cause]) || []
+    case 'unrendered-segment':
+      return unrenderedSegmentCards
+    case 'link-prefetch-partial':
+      return linkPrefetchPartialCards
+    default:
+      return kind satisfies never
+  }
+}
+
+export function getStaticRouteDocsUrl(
+  kind: GuidanceKind,
+  variant: GuidanceVariant
+): string {
+  if (variant === 'runtime' || variant === 'dynamic') {
+    return `${DOCS_URLS[kind]}-${variant}`
+  }
+  return DOCS_URLS[kind]
+}

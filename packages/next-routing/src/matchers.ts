@@ -8,7 +8,11 @@ import type { RouteHas } from './types'
 function matchesCondition(
   actualValue: string | undefined,
   conditionValue: string | undefined
-): { matched: boolean; capturedValue?: string } {
+): {
+  matched: boolean
+  capturedValue?: string
+  namedCaptures?: Record<string, string>
+} {
   if (actualValue === undefined) {
     return { matched: false }
   }
@@ -20,10 +24,24 @@ function matchesCondition(
 
   // Try to match as regex first
   try {
-    const regex = new RegExp(conditionValue)
-    const match = actualValue.match(regex)
+    const exactRegex = new RegExp(`^(?:${conditionValue})$`)
+    const fallbackRegex = new RegExp(conditionValue)
+    const match =
+      actualValue.match(exactRegex) ?? actualValue.match(fallbackRegex)
     if (match) {
-      return { matched: true, capturedValue: match[0] }
+      const namedCaptures: Record<string, string> = {}
+      if (match.groups) {
+        for (const [key, value] of Object.entries(match.groups)) {
+          if (typeof value === 'string' && value.length > 0) {
+            namedCaptures[key] = value
+          }
+        }
+      }
+      return {
+        matched: true,
+        capturedValue: match[0],
+        ...(Object.keys(namedCaptures).length > 0 ? { namedCaptures } : {}),
+      }
     }
   } catch (e) {
     // Not a valid regex, fall through to direct match
@@ -102,6 +120,12 @@ export function checkHasConditions(
 
     if (!result.matched) {
       return { matched: false, captures: {} }
+    }
+
+    if (result.namedCaptures) {
+      for (const [key, value] of Object.entries(result.namedCaptures)) {
+        captures[key] = value
+      }
     }
 
     // Store captured value with normalized key name for named replacements

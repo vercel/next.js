@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
+  DEVTOOLS_CODE_FRAME_MAX_WIDTH,
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
   type IgnorableStackFrame,
@@ -129,7 +130,16 @@ function parseFile(fileParam: string | null): string | undefined {
     return undefined
   }
 
-  return devirtualizeReactServerURL(fileParam)
+  const file = devirtualizeReactServerURL(fileParam)
+  // React virtualizes filenames as `'file://' + path`, which is malformed
+  // for paths that need percent-encoding (e.g. a space in the project path)
+  // and then fails both Turbopack's `traceSource` and Node.js' source map
+  // cache lookups. Re-encode through WHATWG URL parsing.
+  // TODO(veil): Revisit if React's virtualization round-trips losslessly.
+  if (file.startsWith('file://') && URL.canParse(file)) {
+    return new URL(file).href
+  }
+  return file
 }
 
 function createStackFrames(
@@ -282,10 +292,22 @@ async function nativeTraceSource(
   return undefined
 }
 
+/**
+ * Code frame rendering options. The defaults match terminal consumers; only
+ * the overlay HTTP path opts in to always-on colors and the wide max width.
+ */
+type CodeFrameOptions = {
+  /** Defaults to `process.stdout.isTTY`. */
+  colors?: boolean
+  /** Defaults to the dev server's terminal width. */
+  maxWidth?: number
+}
+
 async function createOriginalStackFrame(
   project: Project,
   projectPath: string,
-  frame: TurbopackStackFrame
+  frame: TurbopackStackFrame,
+  codeFrameOptions?: CodeFrameOptions
 ): Promise<OriginalStackFrameResponse | null> {
   const traced =
     (await nativeTraceSource(frame)) ??
@@ -322,7 +344,10 @@ async function createOriginalStackFrame(
     },
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source)
+        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source, {
+          colors: codeFrameOptions?.colors,
+          maxWidth: codeFrameOptions?.maxWidth,
+        })
       }
       return originalCodeFrame
     },
@@ -367,6 +392,13 @@ export function getOverlayMiddleware({
         isServer: request.isServer,
         isEdgeServer: request.isEdgeServer,
         isAppDirectory: request.isAppDirectory,
+        codeFrameOptions: {
+          // Overlay parses ANSI in JS and renders in a scrollable
+          // `<pre>`, so colors are always wanted and terminal width is
+          // irrelevant.
+          colors: true,
+          maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+        },
       })
 
       ignoreListAnonymousStackFramesIfSandwiched(result)
@@ -379,8 +411,8 @@ export function getOverlayMiddleware({
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
         const appPath = path.join(
-          'app',
           isSrcDir ? 'src' : '',
+          'app',
           relativeFilePath
         )
         openEditorResult = await openFileInEditor(appPath, 1, 1, projectPath)
@@ -487,6 +519,7 @@ export async function getOriginalStackFrames({
   isServer,
   isEdgeServer,
   isAppDirectory,
+  codeFrameOptions,
 }: {
   project: Project
   projectPath: string
@@ -494,6 +527,7 @@ export async function getOriginalStackFrames({
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean
+  codeFrameOptions?: CodeFrameOptions
 }): Promise<OriginalStackFramesResponse> {
   const stackFrames = createStackFrames({
     frames,
@@ -508,7 +542,8 @@ export async function getOriginalStackFrames({
         const stackFrame = await createOriginalStackFrame(
           project,
           projectPath,
-          frame
+          frame,
+          codeFrameOptions
         )
         if (stackFrame === null) {
           return {

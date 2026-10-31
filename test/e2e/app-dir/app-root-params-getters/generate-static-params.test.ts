@@ -36,4 +36,17 @@ describe('app-root-param-getters - generateStaticParams', () => {
     const $ = await next.render$(`/${params.lang}/${params.locale}`)
     expect($('p').text()).toBe(`hello world ${JSON.stringify(params)}`)
   })
+
+  it('should allow reading root params inside generateStaticParams', async () => {
+    // The [slug] segment's generateStaticParams uses `lang()` to produce
+    // slugs like "en-post". If root params are available during
+    // generateStaticParams, this page should be statically prerenderable.
+    const response = await next.fetch('/en/us/other/en-post')
+    expect(response.status).toBe(200)
+    const $ = cheerio.load(await response.text())
+    expect($('#root-params').text()).toBe(
+      JSON.stringify({ lang: 'en', locale: 'us' })
+    )
+    expect($('#dynamic-params').text()).toBe('en-post')
+  })
 })

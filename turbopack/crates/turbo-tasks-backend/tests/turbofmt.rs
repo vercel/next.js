@@ -16,20 +16,20 @@ struct FmtTest {
     count: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn turbofmt_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
     let s: RcStr = turbofmt!("prefix {} vc {}", 42u32, value).await?;
     Ok(Vc::cell(s))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn turbobail_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
     turbobail!("error: {} with {}", 42u32, value)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbofmt() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let v = FmtTest {
             name: "foo".into(),
             count: 7,
@@ -47,7 +47,7 @@ async fn test_turbofmt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbobail() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let v = FmtTest {
             name: "bar".into(),
             count: 3,

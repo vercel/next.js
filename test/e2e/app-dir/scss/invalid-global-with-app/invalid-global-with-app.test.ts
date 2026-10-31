@@ -1,25 +1,23 @@
 /* eslint-env jest */
 
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('Invalid Global CSS with Custom App', () => {
-  const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
-    skipStart: isNextStart,
-    skipDeployment: true,
+    skipStart: !isNextDev,
     dependencies: { sass: '1.54.0' },
   })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should fail to build', async () => {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).not.toBe(0)
-      expect(cliOutput).toContain('Failed to compile')
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
+
+      if (!isTurbopack) {
+        expect(cliOutput).toContain('Failed to compile')
+      }
       expect(cliOutput).toContain('styles/global.scss')
       expect(cliOutput).toMatch(
         /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
@@ -28,7 +26,7 @@ describe('Invalid Global CSS with Custom App', () => {
       if (!process.env.NEXT_RSPACK) {
         expect(cliOutput).toMatch(/Location:.*pages[\\/]index\.js/)
       }
-    })
+    }, 240_000)
   } else {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
@@ -39,11 +37,12 @@ describe('Invalid Global CSS with Custom App', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./pages/index.js
-         Failed to compile
-             Global CSS cannot be imported from files other than your Custom <App>. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
-             Read more: https://nextjs.org/docs/messages/css-global
+         Error: Global CSS cannot be imported from files other than your Custom <App>.
+         Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
          Location: pages/index.js
-         Import path: ../styles/global.scss"
+         Import path: ../styles/global.scss
+
+         https://nextjs.org/docs/messages/css-global"
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`

@@ -2,14 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('ssg-single-pass', () => {
-  const { next, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should only render the page once during build', async () => {
     expect(next.cliOutput).toIncludeRepeated('home page rendered', 1)

@@ -1,11 +1,20 @@
 import type { Dispatch } from 'react'
-import React, { use, useMemo, useOptimistic } from 'react'
+import React, {
+  startTransition,
+  use,
+  useEffect,
+  useMemo,
+  useOptimistic,
+} from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
-import type {
-  AppRouterState,
-  ReducerActions,
-  ReducerState,
+import {
+  ACTION_HMR_REFRESH,
+  ACTION_REFRESH,
+  type AppRouterState,
+  type HmrRefreshAction,
+  type ReducerActions,
+  type ReducerState,
 } from './router-reducer/router-reducer-types'
 
 // The app router state lives outside of React, so we can import the dispatch
@@ -13,7 +22,44 @@ import type {
 // or context.
 let dispatch: Dispatch<ReducerActions> | null = null
 
+/**
+ * Called when the instant navigation test lock is released. If the router
+ * is initialized, dispatches a soft refresh to fetch dynamic data. If not
+ * (e.g. the lock was released before hydration finished), falls back to a
+ * hard reload.
+ */
+export function refreshOnInstantNavigationUnlock() {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (dispatch !== null) {
+      dispatch({ type: ACTION_REFRESH, bypassCacheInvalidation: true })
+    } else {
+      window.location.reload()
+    }
+  }
+}
+
+// Development only. The HMR WebSocket is opened before the App Router hydrates
+// (see `client/app-index.tsx`), so a server change can be reported before
+// `dispatch` is initialized. Keep the newest such refresh and dispatch it once
+// the router has mounted, instead of losing it and showing stale content. One
+// refresh fetches the latest server state, and `hmrRefresh` aborts superseded
+// generations, so only the newest one is needed.
+let pendingHmrRefresh: HmrRefreshAction | null = null
+
 export function dispatchAppRouterAction(action: ReducerActions) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    action.type === ACTION_HMR_REFRESH
+  ) {
+    if (dispatch === null) {
+      pendingHmrRefresh = action
+      return
+    }
+    // `dispatch` is assigned during render, before the mount effect below
+    // flushes an early refresh. A newer refresh supersedes that one.
+    pendingHmrRefresh = null
+  }
+
   if (dispatch === null) {
     throw new Error(
       'Internal Next.js error: Router action dispatched before initialization.'
@@ -71,6 +117,16 @@ export function useActionQueue(
       require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const appDevRenderingIndicator = useAppDevRenderingIndicator()
+
+    // Dispatch an HMR refresh that arrived before `dispatch` was initialized.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      const action = pendingHmrRefresh
+      pendingHmrRefresh = null
+      if (action !== null) {
+        startTransition(() => dispatchAppRouterAction(action))
+      }
+    }, [])
 
     nextDispatch = (action: ReducerActions) => {
       appDevRenderingIndicator(() => {

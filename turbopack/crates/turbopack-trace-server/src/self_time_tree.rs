@@ -53,6 +53,11 @@ impl<T> SelfTimeTree<T> {
         self.check_for_split();
     }
 
+    fn insert_without_check(&mut self, start: Timestamp, end: Timestamp, item: T) {
+        self.count += 1;
+        self.entries.push(SelfTimeEntry { start, end, item });
+    }
+
     fn check_for_split(&mut self) {
         if self.entries.len() >= SPLIT_COUNT {
             let spanning_entries = if let Some(children) = &mut self.children {
@@ -66,6 +71,17 @@ impl<T> SelfTimeTree<T> {
         }
     }
 
+    pub fn optimize(&mut self) {
+        if self.children.is_some() {
+            self.distribute_entries();
+            self.rebalance();
+            let children = self.children.as_mut().unwrap();
+            children.left.optimize();
+            children.right.optimize();
+        }
+        self.entries.shrink_to_fit();
+    }
+
     fn split(&mut self) {
         debug_assert!(!self.entries.is_empty());
         self.distribute_entries();
@@ -74,13 +90,25 @@ impl<T> SelfTimeTree<T> {
 
     fn distribute_entries(&mut self) {
         if self.children.is_none() {
-            let start = self.entries.iter().min_by_key(|e| e.start).unwrap().start;
-            let end = self.entries.iter().max_by_key(|e| e.end).unwrap().end;
+            let (start, end) = self
+                .entries
+                .iter()
+                .fold((Timestamp::MAX, Timestamp::ZERO), |(lo, hi), e| {
+                    (lo.min(e.start), hi.max(e.end))
+                });
             let middle = (start + end) / 2;
+            // Pre-allocate half the split threshold: after distributing, each child
+            // typically receives ~SPLIT_COUNT / 2 entries.
             self.children = Some(Box::new(SelfTimeChildren {
-                left: SelfTimeTree::new(),
+                left: SelfTimeTree {
+                    entries: Vec::with_capacity(SPLIT_COUNT / 2),
+                    ..SelfTimeTree::default()
+                },
                 split_point: middle,
-                right: SelfTimeTree::new(),
+                right: SelfTimeTree {
+                    entries: Vec::with_capacity(SPLIT_COUNT / 2),
+                    ..SelfTimeTree::default()
+                },
                 spanning_entries: 0,
             }));
         }
@@ -92,20 +120,22 @@ impl<T> SelfTimeTree<T> {
             let SelfTimeEntry { start, end, .. } = self.entries[i];
             if end <= children.split_point {
                 let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
-                children.left.insert(start, end, item);
+                children.left.insert_without_check(start, end, item);
             } else if start >= children.split_point {
                 let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
-                children.right.insert(start, end, item);
+                children.right.insert_without_check(start, end, item);
             } else {
                 self.entries.swap(i, children.spanning_entries);
                 children.spanning_entries += 1;
                 i += 1;
             }
         }
+        children.left.check_for_split();
+        children.right.check_for_split();
     }
 
     fn rebalance(&mut self) {
-        if let Some(box SelfTimeChildren {
+        if let Some(SelfTimeChildren {
             left,
             split_point,
             right,
@@ -129,7 +159,7 @@ impl<T> SelfTimeTree<T> {
                 // right' = (left.right, right) with self.split_point
                 // split_point' = left.split_point
                 // direct entries in self and left are put in self and are redistributed
-                if let Some(box SelfTimeChildren {
+                if let Some(SelfTimeChildren {
                     left: left_left,
                     split_point: left_split_point,
                     right: left_right,
@@ -159,7 +189,7 @@ impl<T> SelfTimeTree<T> {
                 // right' = right.right
                 // split_point' = right.split_point
                 // direct entries in self and right are put in self and are redistributed
-                if let Some(box SelfTimeChildren {
+                if let Some(SelfTimeChildren {
                     left: right_left,
                     split_point: right_split_point,
                     right: right_right,
@@ -180,7 +210,7 @@ impl<T> SelfTimeTree<T> {
                     self.entries.append(right_entries);
                     *right = take(right_right);
                     *spanning_entries = 0;
-                    self.check_for_split();
+                    self.distribute_entries();
                 }
             }
         }
@@ -190,7 +220,7 @@ impl<T> SelfTimeTree<T> {
     pub fn lookup_range_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
         let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
-            if entry.start < end && entry.end > start {
+            if entry.start <= end && entry.end >= start {
                 let start = std::cmp::max(entry.start, start);
                 let end = std::cmp::min(entry.end, end);
                 let span = end - start;
@@ -198,10 +228,10 @@ impl<T> SelfTimeTree<T> {
             }
         }
         if let Some(children) = &self.children {
-            if start < children.split_point {
+            if start <= children.split_point {
                 total_count += children.left.lookup_range_count(start, end);
             }
-            if end > children.split_point {
+            if end >= children.split_point {
                 total_count += children.right.lookup_range_count(start, end);
             }
         }
@@ -209,7 +239,6 @@ impl<T> SelfTimeTree<T> {
     }
 
     pub fn lookup_range_corrected_time(&self, start: Timestamp, end: Timestamp) -> Timestamp {
-        let mut factor_times_1000 = 0u64;
         #[derive(PartialEq, Eq, PartialOrd, Ord)]
         enum Change {
             Start,
@@ -217,7 +246,7 @@ impl<T> SelfTimeTree<T> {
         }
         let mut current_count = 0;
         let mut changes = Vec::new();
-        self.for_each_in_range(start, end, |s, e, _| {
+        self.for_each_in_range(start, end, &mut |s, e, _| {
             if s <= start {
                 current_count += 1;
             } else {
@@ -227,7 +256,18 @@ impl<T> SelfTimeTree<T> {
                 changes.push((e, Change::End));
             }
         });
+
+        // Fast path: every overlapping interval fully contains `[start, end]`, so the
+        // count is constant over the whole window. Skip the sort and the sweep.
+        if changes.is_empty() {
+            if current_count == 0 {
+                return Timestamp::ZERO;
+            }
+            return Timestamp::from_value(*(end - start) / current_count);
+        }
+
         changes.sort_unstable();
+        let mut factor_times_1000 = 0u64;
         let mut current_ts = start;
         for (ts, change) in changes {
             if current_ts < ts {
@@ -248,32 +288,103 @@ impl<T> SelfTimeTree<T> {
         Timestamp::from_value(factor_times_1000 / 1000)
     }
 
-    pub fn for_each_in_range(
+    /// Time-weighted average number of active self-time intervals per segment.
+    /// Enumerates the tree only once, using a difference array for intervals
+    /// that span whole segments instead of visiting each such segment.
+    pub fn lookup_range_concurrency_samples(
         &self,
         start: Timestamp,
         end: Timestamp,
-        mut f: impl FnMut(Timestamp, Timestamp, &T),
-    ) {
-        self.for_each_in_range_ref(start, end, &mut f);
+        max_samples: usize,
+    ) -> Vec<f64> {
+        if start >= end || max_samples == 0 {
+            return Vec::new();
+        }
+        let duration = end - start;
+        let count = max_samples.min(usize::try_from(*duration).unwrap_or(usize::MAX));
+        let boundaries: Vec<u64> = (0..=count)
+            .map(|i| *start + (u128::from(*duration) * i as u128 / count as u128) as u64)
+            .collect();
+        let mut partial_ticks = vec![0u128; count];
+        let mut full_segment_deltas = vec![0i64; count + 1];
+
+        self.for_each_in_range(start, end, &mut |interval_start, interval_end, _| {
+            let from = (*interval_start).max(*start);
+            let to = (*interval_end).min(*end);
+            if from >= to {
+                // The tree also enumerates intervals that only touch a boundary.
+                return;
+            }
+            let first = boundaries.partition_point(|&boundary| boundary <= from) - 1;
+            let last = boundaries.partition_point(|&boundary| boundary < to) - 1;
+            if first == last {
+                partial_ticks[first] += u128::from(to - from);
+            } else {
+                partial_ticks[first] += u128::from(boundaries[first + 1] - from);
+                partial_ticks[last] += u128::from(to - boundaries[last]);
+                if first + 1 < last {
+                    full_segment_deltas[first + 1] += 1;
+                    full_segment_deltas[last] -= 1;
+                }
+            }
+        });
+
+        let mut full_count = 0i64;
+        (0..count)
+            .map(|i| {
+                full_count += full_segment_deltas[i];
+                debug_assert!(full_count >= 0);
+                let width = u128::from(boundaries[i + 1] - boundaries[i]);
+                let total_ticks = partial_ticks[i] + (full_count as u128) * width;
+                // Round the time-weighted average to hundredths before serializing.
+                let hundredths = total_ticks.saturating_mul(100).saturating_add(width / 2) / width;
+                hundredths as f64 / 100.0
+            })
+            .collect()
     }
 
-    fn for_each_in_range_ref(
+    pub fn for_each_in_range(
         &self,
         start: Timestamp,
         end: Timestamp,
         f: &mut impl FnMut(Timestamp, Timestamp, &T),
     ) {
         for entry in &self.entries {
-            if entry.start < end && entry.end > start {
+            if entry.start <= end && entry.end >= start {
                 f(entry.start, entry.end, &entry.item);
             }
         }
         if let Some(children) = &self.children {
-            if start < children.split_point {
-                children.left.for_each_in_range_ref(start, end, f);
+            if start <= children.split_point {
+                children.left.for_each_in_range(start, end, f);
             }
-            if end > children.split_point {
-                children.right.for_each_in_range_ref(start, end, f);
+            if end >= children.split_point {
+                children.right.for_each_in_range(start, end, f);
+            }
+        }
+    }
+
+    pub fn for_each_in_range_optimize(
+        &mut self,
+        start: Timestamp,
+        end: Timestamp,
+        f: &mut impl FnMut(Timestamp, Timestamp, &T),
+    ) {
+        if self.children.is_some() {
+            self.distribute_entries();
+            self.rebalance();
+        }
+        for entry in &self.entries {
+            if entry.start <= end && entry.end >= start {
+                f(entry.start, entry.end, &entry.item);
+            }
+        }
+        if let Some(children) = &mut self.children {
+            if start <= children.split_point {
+                children.left.for_each_in_range_optimize(start, end, f);
+            }
+            if end >= children.split_point {
+                children.right.for_each_in_range_optimize(start, end, f);
             }
         }
     }
@@ -400,5 +511,159 @@ mod tests {
         );
         print_tree(&tree, 0);
         assert_balanced(&tree);
+    }
+
+    #[test]
+    fn concurrency_samples_are_time_weighted_and_half_open() {
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_value(0), Timestamp::from_value(4), 0u32);
+        tree.insert(Timestamp::from_value(1), Timestamp::from_value(3), 1u32);
+        tree.insert(Timestamp::from_value(4), Timestamp::from_value(5), 2u32);
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(0),
+                Timestamp::from_value(4),
+                2,
+            ),
+            vec![1.5, 1.5]
+        );
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(0),
+                Timestamp::from_value(4),
+                4,
+            ),
+            vec![1.0, 2.0, 2.0, 1.0]
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_cover_short_and_empty_ranges() {
+        let tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(1),
+                Timestamp::from_value(4),
+                200,
+            ),
+            vec![0.0; 3]
+        );
+        assert!(
+            tree.lookup_range_concurrency_samples(Timestamp::ZERO, Timestamp::ZERO, 200)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_round_and_handle_long_intervals() {
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_value(0), Timestamp::from_value(200), 0u32);
+        tree.insert(Timestamp::from_value(0), Timestamp::from_value(1), 1u32);
+        let samples = tree.lookup_range_concurrency_samples(
+            Timestamp::from_value(0),
+            Timestamp::from_value(200),
+            2,
+        );
+        assert_eq!(samples, vec![1.01, 1.0]);
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(
+                Timestamp::from_value(0),
+                Timestamp::from_value(200),
+                200,
+            ),
+            std::iter::once(2.0)
+                .chain(std::iter::repeat_n(1.0, 199))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_match_naive_in_a_split_tree() {
+        let mut tree = SelfTimeTree::new();
+        let mut intervals = Vec::new();
+        for i in 0..500u64 {
+            let start = 60 + (i * 73) % 1100;
+            let end = start + 1 + (i * 31) % 150;
+            tree.insert(Timestamp::from_value(start), Timestamp::from_value(end), i);
+            intervals.push((start, end));
+        }
+        let start = 100u64;
+        let end = 1103u64;
+        let count = 200u64;
+        let actual = tree.lookup_range_concurrency_samples(
+            Timestamp::from_value(start),
+            Timestamp::from_value(end),
+            count as usize,
+        );
+        assert_eq!(actual.len(), count as usize);
+        for (i, &sample) in actual.iter().enumerate() {
+            let from = start + (end - start) * i as u64 / count;
+            let to = start + (end - start) * (i as u64 + 1) / count;
+            let overlapping_ticks: u64 = intervals
+                .iter()
+                .map(|&(s, e)| e.min(to).saturating_sub(s.max(from)))
+                .sum();
+            let expected =
+                ((overlapping_ticks * 100 + (to - from) / 2) / (to - from)) as f64 / 100.0;
+            assert_eq!(sample, expected, "segment {i}");
+        }
+    }
+
+    #[test]
+    fn concurrency_samples_handle_near_max_timestamp() {
+        let tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        assert_eq!(
+            tree.lookup_range_concurrency_samples(Timestamp::ZERO, Timestamp::MAX, 200),
+            vec![0.0; 200]
+        );
+    }
+
+    #[test]
+    fn test_corrected_time_no_overlap() {
+        // No intervals at all — corrected time of an empty range is zero.
+        let tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(0), Timestamp::from_micros(100));
+        assert_eq!(r, Timestamp::ZERO);
+    }
+
+    #[test]
+    fn test_corrected_time_single_interval() {
+        // One interval matching the query window exactly: correction factor 1, returns full
+        // duration.
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_micros(0), Timestamp::from_micros(100), 0u32);
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(0), Timestamp::from_micros(100));
+        assert_eq!(r, Timestamp::from_micros(100));
+    }
+
+    #[test]
+    fn test_corrected_time_fast_path_full_containment() {
+        // Two intervals each fully contain [10, 20]: count is 2 throughout, answer = 10/2 = 5us.
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_micros(0), Timestamp::from_micros(100), 0u32);
+        tree.insert(Timestamp::from_micros(5), Timestamp::from_micros(50), 1u32);
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(10), Timestamp::from_micros(20));
+        assert_eq!(r, Timestamp::from_micros(5));
+    }
+
+    #[test]
+    fn test_corrected_time_partial_overlap() {
+        // [0, 100] is the query window. Intervals:
+        //   A: [0, 100]    (covers whole window)
+        //   B: [30, 70]    (fully inside, contributes corrections during [30, 70])
+        // Expected:
+        //   [0, 30):  count=1, time=30, corrected = 30 / 1 = 30
+        //   [30, 70): count=2, time=40, corrected = 40 / 2 = 20
+        //   [70, 100): count=1, time=30, corrected = 30 / 1 = 30
+        // Total: 80us
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_micros(0), Timestamp::from_micros(100), 0u32);
+        tree.insert(Timestamp::from_micros(30), Timestamp::from_micros(70), 1u32);
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(0), Timestamp::from_micros(100));
+        assert_eq!(r, Timestamp::from_micros(80));
     }
 }

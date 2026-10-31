@@ -1,13 +1,14 @@
 use std::fmt::Write;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSource, IssueStage, OptionStyledString, StyledString};
+use super::{Issue, IssueSource, IssueStage, StyledString};
 use crate::{
-    issue::{IssueSeverity, OptionIssueSource},
+    issue::IssueSeverity,
     resolve::{
         options::{ImportMap, ImportMapResult, ResolveOptions},
         parse::Request,
@@ -25,35 +26,31 @@ pub struct ResolvingIssue {
     pub source: Option<IssueSource>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ResolvingIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         let request = self.request.request_pattern().to_string().owned().await?;
         Ok(StyledString::Line(vec![
             StyledString::Strong(rcstr!("Module not found")),
             StyledString::Text(rcstr!(": Can't resolve ")),
             StyledString::Code(request),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut description = String::new();
         if let Some(error_message) = &self.error_message {
             writeln!(description, "{error_message}")?;
@@ -65,8 +62,8 @@ impl Issue for ResolvingIssue {
         };
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
-            for request in request_parts {
-                match lookup_import_map(**import_map, self.file_path.clone(), **request).await {
+            for req in request_parts {
+                match lookup_import_map(**import_map, self.file_path.clone(), **req).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {str}")?,
                     Err(err) => {
@@ -79,13 +76,10 @@ impl Issue for ResolvingIssue {
                 }
             }
         }
-        Ok(Vc::cell(Some(
-            StyledString::Text(description.into()).resolved_cell(),
-        )))
+        Ok(Some(StyledString::Text(description.into())))
     }
 
-    #[turbo_tasks::function]
-    async fn detail(&self) -> Result<Vc<OptionStyledString>> {
+    async fn detail(&self) -> Result<Option<StyledString>> {
         let mut detail = String::new();
 
         if self.error_message.is_some() {
@@ -108,14 +102,11 @@ impl Issue for ResolvingIssue {
             "Type of request: {request_type}",
             request_type = self.request_type,
         )?;
-        Ok(Vc::cell(Some(
-            StyledString::Text(detail.into()).resolved_cell(),
-        )))
+        Ok(Some(StyledString::Text(detail.into())))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+    fn source(&self) -> Option<IssueSource> {
+        self.source
     }
 
     // TODO add sub_issue for a description of resolve_options

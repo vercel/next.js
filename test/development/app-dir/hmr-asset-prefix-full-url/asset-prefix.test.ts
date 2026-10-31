@@ -1,20 +1,21 @@
-import { createNext } from 'e2e-utils'
-import { findPort, retry } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-dir assetPrefix full URL', () => {
-  let next, forcedPort
-  beforeAll(async () => {
-    forcedPort = ((await findPort()) ?? '54321').toString()
-
-    next = await createNext({
-      files: __dirname,
-      forcedPort,
-      nextConfig: {
-        assetPrefix: `http://localhost:${forcedPort}`,
-      },
-    })
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    forcedPort: 'random',
   })
-  afterAll(() => next.destroy())
+
+  beforeAll(async () => {
+    const port = next.forcedPort
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = { assetPrefix: 'http://localhost:${port}' }`
+    )
+    await next.start()
+  })
 
   it('should not break HMR when asset prefix set to full URL', async () => {
     const browser = await next.browser('/')

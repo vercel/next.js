@@ -1,0 +1,78 @@
+import { spawnSync } from 'node:child_process'
+
+function gitExec(args: string[], cwd: string): string {
+  const result = spawnSync('git', args, {
+    cwd,
+    timeout: 2000,
+    stdio: ['ignore', 'pipe', 'ignore'],
+    encoding: 'utf8',
+  })
+  if (result.error) throw result.error
+  if (result.status !== 0) {
+    throw new Error(`git ${args[0]} exited with status ${result.status}`)
+  }
+  return result.stdout.trim()
+}
+
+/**
+ * Returns the current git branch name for the given working directory, or
+ * undefined if it cannot be determined (not a git repo, detached HEAD,
+ * git not installed, etc.). Prefers VERCEL_GIT_COMMIT_REF when set.
+ */
+export function getGitBranch(cwd: string): string | undefined {
+  if (process.env.VERCEL_GIT_COMMIT_REF) {
+    return process.env.VERCEL_GIT_COMMIT_REF
+  }
+  try {
+    // symbolic-ref --short HEAD: returns the branch name for regular branches,
+    // works on repos with no commits, and exits non-zero in detached HEAD state
+    // (caught below and treated as unknown).
+    return gitExec(['symbolic-ref', '--short', 'HEAD'], cwd)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Returns the current git commit SHA for the given working directory, or
+ * undefined if it cannot be determined. Prefers VERCEL_GIT_COMMIT_SHA when
+ * set.
+ */
+export function getGitCommit(cwd: string): string | undefined {
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    return process.env.VERCEL_GIT_COMMIT_SHA
+  }
+  try {
+    return gitExec(['rev-parse', 'HEAD'], cwd)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Returns true if the working tree has uncommitted changes. Returns undefined
+ * when the dirty status cannot be determined (not a git repo, git not
+ * installed, etc.).
+ */
+export function getGitDirty(cwd: string): boolean | undefined {
+  try {
+    return gitExec(['status', '--porcelain'], cwd).length > 0
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Returns the first line of the HEAD commit message, or undefined when it
+ * cannot be determined. Prefers VERCEL_GIT_COMMIT_MESSAGE when set.
+ */
+export function getGitMessage(cwd: string): string | undefined {
+  if (process.env.VERCEL_GIT_COMMIT_MESSAGE) {
+    return process.env.VERCEL_GIT_COMMIT_MESSAGE.split('\n')[0].trim()
+  }
+  try {
+    return gitExec(['log', '-1', '--pretty=%s'], cwd)
+  } catch {
+    return undefined
+  }
+}

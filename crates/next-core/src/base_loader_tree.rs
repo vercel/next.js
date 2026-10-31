@@ -1,7 +1,6 @@
 use anyhow::Result;
-use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
@@ -15,7 +14,7 @@ use turbopack_ecmascript::{magic_identifier, utils::StringifyJs};
 pub struct BaseLoaderTreeBuilder {
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
     counter: usize,
-    pub imports: Vec<RcStr>,
+    pub imports: Vec<(u32, RcStr)>,
     pub module_asset_context: ResolvedVc<ModuleAssetContext>,
     pub server_component_transition: ResolvedVc<Box<dyn Transition>>,
 }
@@ -87,25 +86,37 @@ impl BaseLoaderTreeBuilder {
             .process_module(module, *self.module_asset_context)
     }
 
+    /// The getters use `require()` instead of ESM imports so that the relative
+    /// order of items is retained (which isn't the case when mixing ESM
+    /// imports and requires).
+    pub fn create_module_getter_declaration(
+        &mut self,
+        position: u32,
+        identifier: &str,
+        inner_module_id: &str,
+    ) {
+        self.imports.push((
+            position,
+            format!(
+                "const {identifier} = instrumentModuleGetter(() => \
+                 require(/*turbopackChunkingType: shared*/{inner_module_id}));",
+                inner_module_id = StringifyJs(inner_module_id)
+            )
+            .into(),
+        ));
+    }
+
     pub async fn create_module_tuple_code(
         &mut self,
         module_type: AppDirModuleType,
         path: FileSystemPath,
+        position: u32,
     ) -> Result<String> {
         let name = module_type.name();
         let i = self.unique_number();
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
-        self.imports.push(
-            formatdoc!(
-                r#"
-                const {} = () => require("MODULE_{}");
-                "#,
-                identifier,
-                i
-            )
-            .into(),
-        );
+        self.create_module_getter_declaration(position, &identifier, &format!("MODULE_{i}"));
 
         let module = self
             .process_source(Vc::upcast(FileSource::new(path.clone())))
@@ -118,7 +129,7 @@ impl BaseLoaderTreeBuilder {
         // Use the original source path, not the transformed module path.
         // This is important for MDX files where page.mdx becomes page.mdx.tsx after
         // transformation, but the font manifest uses the original source path.
-        let module_path = path.value_to_string().await?;
+        let module_path = path.to_string_ref().await?;
 
         Ok(format!(
             "[{identifier}, {path}]",

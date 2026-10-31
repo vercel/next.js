@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  output: 'standalone',
+  ...(process.env.TEST_OUTPUT_STANDALONE === 'true'
+    ? { output: 'standalone' }
+    : {}),
 }

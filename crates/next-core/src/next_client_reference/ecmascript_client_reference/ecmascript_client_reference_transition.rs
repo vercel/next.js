@@ -4,7 +4,7 @@ use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
-    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
@@ -39,31 +39,23 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        reference_type: ReferenceType,
+        // The import part this resolution asked for is deliberately ignored: every part of the
+        // same client component maps to one client reference module, so that turbo-tasks interns
+        // it (and its generated proxy) once instead of once per part.
+        _reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        let part = match reference_type {
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
-                part,
-            )) => Some(part),
-            _ => None,
-        };
-
         let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
-        let ident = match part {
-            Some(part) => source.ident().with_part(part.clone()),
-            None => source.ident(),
-        };
+        let ident = source.ident();
         let ident_ref = ident.await?;
-        let ident_path = ident_ref.path.clone();
-        let client_source = if ident_path.path.contains("next/dist/esm/") {
+        let client_source = if ident_ref.path.path.contains("next/dist/esm/") {
             let path = ident_ref
                 .path
                 .root()
                 .await?
-                .join(&ident_path.path.replace("next/dist/esm/", "next/dist/"))?;
+                .join(&ident_ref.path.path.replace("next/dist/esm/", "next/dist/"))?;
             Vc::upcast(FileSource::new_with_query_and_fragment(
                 path,
                 ident_ref.query.clone(),

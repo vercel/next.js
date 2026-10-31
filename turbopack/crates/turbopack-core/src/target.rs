@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, ValueToString, Vc};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Copy, Clone, ValueToString)]
@@ -173,7 +174,7 @@ impl CompileTarget {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Arch {
@@ -214,7 +215,7 @@ impl Display for Arch {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Platform {
@@ -243,6 +244,13 @@ impl Platform {
             Self::Unknown => "unknown",
         }
     }
+
+    pub fn path_separator(&self) -> RcStr {
+        match self {
+            Self::Win32 => rcstr!("\\"),
+            _ => rcstr!("/"),
+        }
+    }
 }
 
 impl Display for Platform {
@@ -251,7 +259,7 @@ impl Display for Platform {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 pub enum Endianness {
     Big,
@@ -273,7 +281,7 @@ impl Display for Endianness {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, NonLocalValue, Encode, Decode)]
 #[repr(u8)]
 pub enum Libc {
     Glibc,

@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["const gsp = async () => []\n\nexport { gsp as generateStaticParams }\n"],"names":[],"mappings":"AAAA,MAAM,MAAM,UAAY,EAAE;AAE1B,SAAS,OAAO,oBAAoB,GAAE;6CAFd;WAAA"}

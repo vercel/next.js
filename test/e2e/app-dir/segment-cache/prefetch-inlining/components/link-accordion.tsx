@@ -6,11 +6,11 @@ import { useState } from 'react'
 export function LinkAccordion({
   href,
   children,
-  id,
+  prefetch,
 }: {
   href: LinkProps['href']
   children: React.ReactNode
-  id?: string
+  prefetch?: LinkProps['prefetch']
 }) {
   const [isVisible, setIsVisible] = useState(false)
   return (
@@ -19,13 +19,31 @@ export function LinkAccordion({
         type="checkbox"
         checked={isVisible}
         onChange={() => setIsVisible(!isVisible)}
-        data-link-accordion={id ?? href}
+        data-link-accordion={href}
+        data-prefetch={getPrefetchKind(prefetch)}
       />
       {isVisible ? (
-        <Link href={href}>{children}</Link>
+        <Link href={href} prefetch={prefetch}>
+          {children}
+        </Link>
       ) : (
         `${children} (link is hidden)`
       )}
     </>
   )
+}
+
+function getPrefetchKind(prefetch: LinkProps['prefetch']) {
+  switch (prefetch) {
+    case false:
+      return 'disabled'
+    case undefined:
+    case null:
+    case 'auto':
+      return 'auto'
+    case true:
+      return 'true'
+    default:
+      prefetch satisfies never
+  }
 }

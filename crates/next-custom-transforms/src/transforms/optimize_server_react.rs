@@ -42,16 +42,16 @@ fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
 
     // We can't optimize if the effect has a function call as a dependency:
     // useEffect(() => {}, x())
-    if let box Expr::Call(_) = &call.args[1].expr {
+    if let Expr::Call(_) = &*call.args[1].expr {
         return true;
     }
 
     // As well as:
     // useEffect(() => {}, [x()])
-    if let box Expr::Array(arr) = &call.args[1].expr {
+    if let Expr::Array(arr) = &*call.args[1].expr {
         for elem in arr.elems.iter().flatten() {
             if let ExprOrSpread {
-                expr: box Expr::Call(_),
+                expr: Expr::Call(_),
                 ..
             } = elem
             {
@@ -137,7 +137,7 @@ impl Fold for OptimizeServerReact {
 
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         if let Expr::Call(call) = &expr {
-            if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
+            if let Callee::Expr(Expr::Ident(f)) = &call.callee {
                 // Mark `useEffect` as DCE'able
                 if let Some(use_effect_ident) = &self.use_effect_ident
                     && &f.to_id() == use_effect_ident
@@ -154,8 +154,8 @@ impl Fold for OptimizeServerReact {
                     return wrap_expr_with_env_prod_condition(call.clone());
                 }
             } else if let Some(react_ident) = &self.react_ident
-                && let Callee::Expr(box Expr::Member(member)) = &call.callee
-                && let box Expr::Ident(f) = &member.obj
+                && let Callee::Expr(Expr::Member(member)) = &call.callee
+                && let Expr::Ident(f) = &*member.obj
                 && &f.to_id() == react_ident
                 && let MemberProp::Ident(i) = &member.prop
             {
@@ -179,8 +179,8 @@ impl Fold for OptimizeServerReact {
 
         if let Pat::Array(array_pat) = &decl.name
             && array_pat.elems.len() == 2
-            && let Some(box Expr::Call(call)) = &decl.init
-            && let Callee::Expr(box Expr::Ident(f)) = &call.callee
+            && let Some(Expr::Call(call)) = &decl.init
+            && let Callee::Expr(Expr::Ident(f)) = &call.callee
             && let Some(use_state_ident) = &self.use_state_ident
             && &f.to_id() == use_state_ident
             && call.args.len() == 1
@@ -190,8 +190,8 @@ impl Fold for OptimizeServerReact {
             // be sure is not a function (e.g. {} or [] lit).
             // This is because useState allows a function as the
             // initialiser.
-            match &call.args[0].expr {
-                box Expr::Lit(_) | box Expr::Object(_) | box Expr::Array(_) => {
+            match &*call.args[0].expr {
+                Expr::Lit(_) | Expr::Object(_) | Expr::Array(_) => {
                     // const [state, setState] = [x, () => {}];
                     return VarDeclarator {
                         definite: false,
@@ -202,9 +202,9 @@ impl Fold for OptimizeServerReact {
                                 Some(
                                     Expr::Arrow(ArrowExpr {
                                         span: DUMMY_SP,
-                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Lit(
-                                            Lit::Null(Null { span: DUMMY_SP }),
-                                        )))),
+                                        body: Box::new(ArrowFunctionBody::Expr(Box::new(
+                                            Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+                                        ))),
                                         is_async: false,
                                         is_generator: false,
                                         params: vec![],

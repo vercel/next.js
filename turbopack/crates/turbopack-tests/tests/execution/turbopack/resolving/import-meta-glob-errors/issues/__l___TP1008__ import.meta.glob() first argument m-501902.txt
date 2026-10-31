@@ -1,0 +1,13 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-errors/input/index.js:10:9  TP1008 import.meta.glob() first argument must be a string literal or array of string literals
+  
+       6 |   return import.meta.glob('./dir/*.js', {}, {})
+       7 | }
+       8 | 
+       9 | function getNumPattern() {
+         +          v-------------------v
+      10 +   return import.meta.glob(123)
+         +          ^-------------------^
+      11 | }
+      12 | 
+      13 | function getNonObjOptions() {
+      14 |   return import.meta.glob('./dir/*.js', 'eager')

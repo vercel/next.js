@@ -8,6 +8,7 @@ import type {
 import {
   createStaticWorker,
   type PrerenderManifest,
+  type PreviewPropsManifest,
   type StaticWorker,
 } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -43,6 +44,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -73,6 +75,8 @@ import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
+import { Bundler } from '../lib/bundler'
+import { getBuildDistDir, getExportPathPageKey } from './utils'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -143,7 +147,7 @@ function buildRDCCacheByPage(
 
     // Normalize app pages before param matching.
     const normalizedPage = normalizeAppPath(page)
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey({ page, path })
     const fallbackParamNames = new Set(
       _fallbackRouteParams.map((param) => param.paramName)
     )
@@ -209,7 +213,7 @@ async function exportAppImpl(
       })
     ))
 
-  const distDir = join(dir, nextConfig.distDir)
+  const distDir = join(dir, getBuildDistDir(nextConfig))
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -220,7 +224,7 @@ async function exportAppImpl(
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
         isCustomServer: null,
-        turboFlag: false,
+        turboFlag: options.bundler === Bundler.Turbopack,
         pagesDir: null,
         appDir: null,
       })
@@ -258,6 +262,11 @@ async function exportAppImpl(
   const pagesManifest =
     !options.pages &&
     (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
+
+  let previewProps: DeepReadonly<PreviewPropsManifest> | undefined
+  try {
+    previewProps = require(join(distDir, 'server', PREVIEW_PROPS_MANIFEST))
+  } catch {}
 
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
@@ -344,8 +353,10 @@ async function exportAppImpl(
     )
   }
 
-  await fs.rm(outDir, { recursive: true, force: true })
-  await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  if (!options.buildExport) {
+    await fs.rm(outDir, { recursive: true, force: true })
+    await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  }
 
   await fs.writeFile(
     join(distDir, EXPORT_DETAIL),
@@ -385,13 +396,6 @@ async function exportAppImpl(
           join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
         )
       )
-  }
-
-  // Get the exportPathMap from the config file
-  if (typeof nextConfig.exportPathMap !== 'function') {
-    nextConfig.exportPathMap = async (defaultMap) => {
-      return defaultMap
-    }
   }
 
   const {
@@ -473,12 +477,14 @@ async function exportAppImpl(
 
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
-    previewProps: prerenderManifest?.preview,
+    previewProps,
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    partialPrefetching: nextConfig.partialPrefetching,
+    validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
@@ -495,11 +501,11 @@ async function exportAppImpl(
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
     cacheLifeProfiles: nextConfig.cacheLife,
+    staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
@@ -508,13 +514,24 @@ async function exportAppImpl(
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
+      parallelRouteMetadata:
+        nextConfig.experimental.parallelRouteMetadata ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,
+      useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+      durableUseCacheEntries: Boolean(
+        nextConfig.experimental.durableUseCacheEntries
+      ),
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      disableResumeDataCacheCompression:
+        nextConfig.experimental.disableResumeDataCacheCompression ?? false,
+      exposeTestingApi:
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
@@ -527,6 +544,10 @@ async function exportAppImpl(
   const exportPathMap = await span
     .traceChild('run-export-path-map')
     .traceAsyncFn(async () => {
+      if (typeof nextConfig.exportPathMap !== 'function') {
+        return defaultPathMap
+      }
+
       const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
         dev: false,
         dir,
@@ -649,7 +670,7 @@ async function exportAppImpl(
   }
 
   const pagesDataDir = options.buildExport
-    ? outDir
+    ? join(distDir, 'server', 'pages')
     : join(outDir, '_next/data', buildId)
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
@@ -702,13 +723,27 @@ async function exportAppImpl(
 
     return (
       await Promise.all(
-        batches.map(async (batch) =>
-          worker.exportPages({
+        batches.map(async (batch) => {
+          // Only send the seeds this batch needs. Sending the whole map to
+          // every worker can exceed the maximum IPC message size.
+          let batchRenderResumeDataCaches: Record<string, string> | undefined
+          if (renderResumeDataCachesByPage) {
+            batchRenderResumeDataCaches = {}
+            for (const exportPath of batch) {
+              const pageKey = getExportPathPageKey(exportPath)
+              if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
+                batchRenderResumeDataCaches[pageKey] =
+                  renderResumeDataCachesByPage[pageKey]
+              }
+            }
+          }
+
+          return worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken:
-              nextConfig.experimental.immutableAssetToken ||
-              nextConfig.deploymentId,
+            clientAssetToken: nextConfig.supportsImmutableAssets
+              ? ''
+              : nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
@@ -716,15 +751,17 @@ async function exportAppImpl(
             options,
             dir,
             distDir,
-            outDir,
+            outDir: options.buildExport
+              ? join(distDir, 'server', 'pages')
+              : outDir,
             nextConfig,
             cacheHandler: nextConfig.cacheHandler,
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-            renderResumeDataCachesByPage,
+            renderResumeDataCachesByPage: batchRenderResumeDataCaches,
           })
-        )
+        })
       )
     ).flat()
   }
@@ -733,11 +770,24 @@ async function exportAppImpl(
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
   if (renderOpts.cacheComponents) {
+    // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
+    const routesWithInstantValidation = new Set<string>()
+
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
       } else {
         initialPhaseExportPaths.push(exportPath)
+      }
+
+      // Always mark routes for potential build validation. The actual
+      // decision of whether to validate is made per-route by
+      // anySegmentNeedsInstantValidationInBuild, which checks both the
+      // default validation level and per-segment level overrides.
+      const route = exportPath.page
+      if (!routesWithInstantValidation.has(route)) {
+        exportPath._runInstantValidation = true
+        routesWithInstantValidation.add(route)
       }
     }
   } else {
@@ -832,6 +882,14 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasPendingUi !== 'undefined') {
+        info.hasPendingUi = result.hasPendingUi
+      }
+
+      if (typeof result.htmlSize !== 'undefined') {
+        info.htmlSize = result.htmlSize
+      }
+
       if (typeof result.hasStaticRsc !== 'undefined') {
         info.hasStaticRsc = result.hasStaticRsc
       }
@@ -857,7 +915,7 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }
@@ -920,19 +978,25 @@ async function exportAppImpl(
         // realizing the implications.
         const route = normalizePagePath(unnormalizedRoute)
 
-        const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
-        const distPagesDir = join(
-          pagePath,
-          // strip leading / and then recurse number of nested dirs
-          // to place from base folder
-          pageName
-            .slice(1)
-            .split('/')
-            .map(() => '..')
-            .join('/')
-        )
-
-        const orig = join(distPagesDir, route)
+        let orig: string
+        if (isAppPath) {
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            // strip leading / and then recurse number of nested dirs
+            // to place from base folder
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+          orig = join(distPagesDir, route)
+        } else {
+          // Pages router files are written directly to server/pages/
+          // by the export worker during build, so read from there.
+          orig = join(distDir, 'server', 'pages', route)
+        }
         const handlerSrc = `${orig}.body`
         const handlerDest = join(outDir, route)
 

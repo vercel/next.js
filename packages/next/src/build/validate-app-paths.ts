@@ -4,7 +4,7 @@ import {
 } from '../shared/lib/router/utils/get-segment-param'
 import {
   isInterceptionAppRoute,
-  parseAppRoute,
+  parseNormalizedAppRoute,
   type NormalizedAppRoute,
   type NormalizedAppRouteSegment,
 } from '../shared/lib/router/routes/app'
@@ -143,8 +143,8 @@ function validateAppRoute(route: NormalizedAppRoute): void {
  */
 function parseAndValidateAppPath(path: string): NormalizedAppRoute {
   // Fast parse the route information. We're expecting this to be a normalized
-  // route, so we pass `true` to the `parseAppRoute` function.
-  const route = parseAppRoute(path, true)
+  // route.
+  const route = parseNormalizedAppRoute(path)
 
   // Slow walk the data from the route in order to validate it.
   validateAppRoute(route)

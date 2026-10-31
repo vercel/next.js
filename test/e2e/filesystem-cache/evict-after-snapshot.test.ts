@@ -1,0 +1,79 @@
+import { nextTestSetup } from 'e2e-utils'
+import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
+import { retry, waitFor } from 'next-test-utils'
+
+// Eviction requires the dev server (HMR) and persistent caching (Turbopack).
+// Skip entirely in prod/start mode.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
+// @force-gate dev
+// @force-gate turbopack
+describe('evict-after-snapshot', () => {
+  const env = {
+    ENABLE_CACHING: '1',
+    TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
+    // Persist even tiny snapshots so the test doesn't depend on the
+    // minimum-compilation-time threshold.
+    TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    ENABLE_EVICTION: '1',
+  }
+
+  const { next } = nextTestSetup({
+    files: __dirname,
+    overrideFiles: getPnpmRealpathWorkaround(),
+    env,
+  })
+
+  async function waitForSnapshotAndEviction() {
+    // The idle timeout is 1s, give extra time for snapshot + eviction to complete
+    await waitFor(5000)
+  }
+
+  it('should serve correct content after eviction and HMR', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+    })
+
+    let currentContent = 'hello world'
+    for (let cycle = 1; cycle <= 3; cycle++) {
+      await waitForSnapshotAndEviction()
+
+      const prevContent = currentContent
+      const nextContent = `cycle ${cycle}`
+      await next.patchFile('app/page.tsx', (content) =>
+        content.replace(prevContent, nextContent)
+      )
+      currentContent = nextContent
+
+      const expected = currentContent
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(expected)
+      }, 10000)
+    }
+
+    await browser.close()
+  }, 90000)
+  it('should handle client component HMR after eviction', async () => {
+    const browser = await next.browser('/client')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+    })
+
+    await waitForSnapshotAndEviction()
+
+    await next.patchFile(
+      'app/client/page.tsx',
+      (content) => content.replace('hello world', 'hello eviction'),
+      async () => {
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('hello eviction')
+        }, 10000)
+      }
+    )
+
+    await browser.close()
+  }, 90000)
+})

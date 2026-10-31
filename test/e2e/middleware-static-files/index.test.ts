@@ -1,12 +1,13 @@
 /* eslint-env jest */
 
-import glob from 'glob'
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { isNextStart, NextInstance } from 'e2e-utils'
+import { FileRef, isNextStart, nextTestSetup } from 'e2e-utils'
+import { listClientChunks } from 'next-test-utils'
 
 describe('Middleware Runtime', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+  })
   let testPaths: Array<{ testPath: string }> = [
     { testPath: '/file.svg' },
     { testPath: '/vercel copy.svg' },
@@ -29,15 +30,6 @@ describe('Middleware Runtime', () => {
     { testPath: '/pages-glob/hello' },
   ]
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-    })
-  })
-  afterAll(async () => {
-    await next.destroy()
-  })
-
   it.each(testPaths)(
     'should match middleware correctly for $testPath',
     async ({ testPath }) => {
@@ -55,17 +47,17 @@ describe('Middleware Runtime', () => {
 
   if (isNextStart && !process.env.IS_TURBOPACK_TEST) {
     it('should match middleware of _next/static', async () => {
-      const cssChunks = glob.sync('*.css', {
-        cwd: join(next.testDir, '.next', 'static', 'css'),
-      })
+      const cssChunks = (
+        await listClientChunks(join(next.testDir, next.distDir))
+      ).filter((f) => f.endsWith('.css'))
 
       if (cssChunks.length < 1) {
         throw new Error(`Failed to find CSS chunk`)
       }
 
       for (const testPath of [
-        `/_next/static/css%2f${cssChunks[0]}`,
-        `/_next/static/css/${cssChunks[0]}`,
+        `/_next%2f${cssChunks[0]}`,
+        `/_next/${cssChunks[0]}`,
       ]) {
         const res = await next.fetch(testPath, {
           redirect: 'manual',

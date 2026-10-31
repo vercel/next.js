@@ -8,6 +8,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="./runtime-types.d.ts" />
+/// <reference path="./async-module.ts" />
 
 type EsmNamespaceObject = Record<string, any>
 
@@ -43,9 +44,6 @@ declare function getOrInstantiateModuleFromParent<M>(
   sourceModule: M
 ): M
 
-// @ts-ignore Defined in `hmr-runtime.ts` (dev mode only)
-declare let devModuleCache: Record<ModuleId, any> | undefined
-
 /**
  * Flag indicating which module object type to create when a module is merged. Set to `true`
  * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
@@ -53,6 +51,11 @@ declare let devModuleCache: Record<ModuleId, any> | undefined
  * uses plain Module objects.
  */
 let createModuleWithDirectionFlag = false
+
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */
+const moduleFactories: ModuleFactories = new Map()
 
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
@@ -75,6 +78,7 @@ function Context(
   this.e = exports
 }
 const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+contextPrototype.M = moduleFactories
 
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
@@ -116,19 +120,34 @@ function defineProp(
   if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options)
 }
 
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */
+function getCachedModule<M extends Module>(
+  moduleCache: ModuleCache<M>,
+  id: ModuleId
+): M | undefined {
+  const module = moduleCache.get(id)
+  if (module?.error) {
+    throw module.error
+  }
+  return module
+}
+
 function getOverwrittenModule(
   moduleCache: ModuleCache<Module>,
   id: ModuleId
 ): Module {
-  let module = moduleCache[id]
-  if (!module) {
+  let module = moduleCache.get(id)
+  if (module === undefined) {
     if (createModuleWithDirectionFlag) {
       // set in development modes for hmr support
       module = createModuleWithDirection(id)
     } else {
       module = createModuleObject(id)
     }
-    moduleCache[id] = module
+    moduleCache.set(id, module)
   }
   return module
 }
@@ -168,9 +187,14 @@ type EsmBindings = Array<
 >
 
 /**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */
+const REEXPORT_GROUP_END = 0
+
+/**
  * Adds the getters to the exports object.
  */
-function esm(exports: Exports, bindings: EsmBindings) {
+function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
   defineProp(exports, '__esModule', { value: true })
   if (toStringTag) defineProp(exports, toStringTag, { value: 'Module' })
   let i = 0
@@ -204,7 +228,14 @@ function esm(exports: Exports, bindings: EsmBindings) {
       }
     }
   }
-  Object.seal(exports)
+  // The properties defined above are already non-configurable and
+  // non-writable, so the namespace's existing exports are effectively
+  // immutable. Sealing additionally makes the object non-extensible, matching
+  // real ESM-namespace semantics. Modules with dynamic re-exports
+  // (`export *` from a CommonJS module) must stay extensible so the dynamic
+  // export proxy can surface keys discovered at runtime, so skip the seal for
+  // them.
+  if (!dynamic) Object.seal(exports)
 }
 
 /**
@@ -213,7 +244,8 @@ function esm(exports: Exports, bindings: EsmBindings) {
 function esmExport(
   this: TurbopackBaseContext<Module>,
   bindings: EsmBindings,
-  id: ModuleId | undefined
+  id: ModuleId | undefined,
+  dynamic?: boolean
 ) {
   let module: Module
   let exports: Module['exports']
@@ -225,9 +257,142 @@ function esmExport(
     exports = this.e
   }
   module.namespaceObject = exports
-  esm(exports, bindings)
+  esm(exports, bindings, dynamic)
 }
 contextPrototype.s = esmExport
+
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace value** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
+ */
+function esmReexport(
+  this: TurbopackBaseContext<Module>,
+  list: EsmReexports,
+  id?: ModuleId
+): void {
+  const bindings: EsmBindings = []
+  let i = 0
+  while (i < list.length) {
+    const head = list[i++]
+    const start = i
+    while (i < list.length && list[i] !== REEXPORT_GROUP_END) i++
+    const end = i
+    // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+    i++
+
+    // Module ids are always strings or numbers. Other values are already-imported namespaces;
+    // notably, interop with a CommonJS function export produces a callable namespace function.
+    // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+    // going through `context.s`, so the producer never routes them here and this stays synchronous.
+    const namespace = (
+      typeof head === 'string' || typeof head === 'number'
+        ? esmImport.call(this, head)
+        : head
+    ) as Record<string, unknown>
+    if (end - start === 1) {
+      const pairs = (list[start] as string).split(',')
+      for (let j = 0; j < pairs.length; j += 2) {
+        appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1])
+      }
+    } else {
+      for (let j = start; j < end; j += 2) {
+        appendReexportBinding(
+          bindings,
+          list[j] as string,
+          namespace,
+          list[j + 1] as string
+        )
+      }
+    }
+  }
+  esmExport.call(this, bindings, id)
+}
+contextPrototype.S = esmReexport
+
+function appendReexportBinding(
+  bindings: EsmBindings,
+  exportedName: string,
+  namespace: Record<string, unknown>,
+  importedName: string
+): void {
+  const descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName)
+  if (descriptor) {
+    if ('value' in descriptor) {
+      // Code generation only routes immutable imported bindings through this helper, so a data
+      // descriptor is a constant export and can be captured once.
+      bindings.push(exportedName, BindingTag_Value, descriptor.value)
+      return
+    }
+    if (descriptor.get) {
+      // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+      // generated code: every group head is either produced by
+      // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+      // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+      // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+      // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+      // of allocating another wrapper getter.
+      bindings.push(exportedName, descriptor.get)
+      return
+    }
+  }
+
+  // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+  bindings.push(exportedName, () => namespace[importedName])
+}
 
 type ReexportedObjects = Record<PropertyKey, unknown>[]
 function ensureDynamicExports(
@@ -239,6 +404,22 @@ function ensureDynamicExports(
 
   if (!reexportedObjects) {
     REEXPORTED_OBJECTS.set(module, (reexportedObjects = []))
+    // Returns the re-exported object that provides `prop` as an own property,
+    // or `undefined` if none does. The traps share this logic so they always
+    // agree on which keys are synthesized from `reexportedObjects`. `default`
+    // is never re-exported by `export *`, so it is never synthesized.
+    const reexportOwning = (prop: PropertyKey) => {
+      if (prop !== 'default') {
+        for (const obj of reexportedObjects!) {
+          if (hasOwnProperty.call(obj, prop)) return obj
+        }
+      }
+      return undefined
+    }
+    // Modules with dynamic re-exports are not sealed by `esm()`, so the
+    // target beneath the namespace stays extensible. That is what lets the
+    // `ownKeys` and `getOwnPropertyDescriptor` traps legally report keys that
+    // exist on `reexportedObjects` but not on the target itself.
     module.exports = module.namespaceObject = new Proxy(exports, {
       get(target, prop) {
         if (
@@ -248,12 +429,44 @@ function ensureDynamicExports(
         ) {
           return Reflect.get(target, prop)
         }
-        for (const obj of reexportedObjects!) {
-          const value = Reflect.get(obj, prop)
-          if (value !== undefined) return value
-        }
-        return undefined
+        const obj = reexportOwning(prop)
+        return obj && Reflect.get(obj, prop)
       },
+      // The namespace is read-only, like a real esm namespace object. The
+      // re-exported modules can still mutate their own exports (exposed live
+      // via `get`), but mutating the namespace itself is rejected. Refusing
+      // here, rather than forwarding to the extensible target, also prevents an
+      // assignment/definition from shadowing a dynamic re-export. It also
+      // prevents delete from removing a static export.
+      set() {
+        return false
+      },
+      defineProperty() {
+        return false
+      },
+      deleteProperty() {
+        return false
+      },
+      // The `has` trap ensures that `'exportName' in starImports` will reflect
+      // the truth of whether a key is exported.
+      has(target, prop) {
+        if (Reflect.has(target, prop)) return true
+        if (prop === 'default' || prop === '__esModule') return false
+        return reexportOwning(prop) !== undefined
+      },
+      // ownKeys and getOwnPropertyDescriptor together make the keys enumerable.
+      // If a value is returned from `ownKeys` but its property descriptor is
+      // not enumerable, it will not be visible to iterator methods.
+      // Collectively, they allow code like the following:
+      //
+      // ```
+      // // module.js re-exports dynamic CJS exports
+      // export * from './legacyModule.cjs'
+      //
+      // // from another JS file, reference the re-exported dynamic values
+      // import * as Namespace from './module.js'
+      // Object.keys(Namespace)
+      // ```
       ownKeys(target) {
         const keys = Reflect.ownKeys(target)
         for (const obj of reexportedObjects!) {
@@ -262,6 +475,22 @@ function ensureDynamicExports(
           }
         }
         return keys
+      },
+      getOwnPropertyDescriptor(target, prop) {
+        const own = Reflect.getOwnPropertyDescriptor(target, prop)
+        if (own || prop === 'default' || prop === '__esModule') return own
+        const obj = reexportOwning(prop)
+        if (obj) {
+          // Synthetic keys don't exist on the target, so they MUST be
+          // reported as configurable. However the set/delete traps above will
+          // prevent them from actually being changed
+          return {
+            enumerable: true,
+            configurable: true,
+            get: () => Reflect.get(obj, prop),
+          }
+        }
+        return undefined
       },
     })
   }
@@ -414,7 +643,7 @@ function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
 ): Promise<Exports> {
-  const loader = this.r(moduleId) as (
+  const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports as (
     importFunction: EsmImport
   ) => Promise<Exports>
   return loader(esmImport.bind(this))
@@ -508,48 +737,20 @@ function getChunkPath(chunkData: ChunkData): ChunkPath {
   return typeof chunkData === 'string' ? chunkData : chunkData.path
 }
 
-function isPromise<T = any>(maybePromise: any): maybePromise is Promise<T> {
-  return (
-    maybePromise != null &&
-    typeof maybePromise === 'object' &&
-    'then' in maybePromise &&
-    typeof maybePromise.then === 'function'
-  )
-}
-
-function isAsyncModuleExt<T extends {}>(obj: T): obj is AsyncModuleExt & T {
-  return turbopackQueues in obj
-}
-
-function createPromise<T>() {
-  let resolve: (value: T | PromiseLike<T>) => void
-  let reject: (reason?: any) => void
-
-  const promise = new Promise<T>((res, rej) => {
-    reject = rej
-    resolve = res
-  })
-
-  return {
-    promise,
-    resolve: resolve!,
-    reject: reject!,
-  }
-}
-
-// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
-// The CompressedModuleFactories format is
-// - 1 or more module ids
-// - a module factory function
-// So walking this is a little complex but the flat structure is also fast to
-// traverse, we can use `typeof` operators to distinguish the two cases.
+// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be prepended as a nested array.
 function installCompressedModuleFactories(
   chunkModules: CompressedModuleFactories,
   offset: number,
-  moduleFactories: ModuleFactories,
   newModuleId?: (id: ModuleId) => void
 ) {
   let i = offset
+  const strictFactories = chunkModules[i]
+  if (Array.isArray(strictFactories)) {
+    installCompressedModuleFactories(strictFactories, 0, newModuleId)
+    i++
+  }
   while (i < chunkModules.length) {
     let end = i + 1
     // Find our factory function
@@ -593,172 +794,9 @@ function installCompressedModuleFactories(
         newModuleId?.(id)
       }
     }
-    i = end + 1 // end is pointing at the last factory advance to the next id or the end of the array.
+    i = end + 1
   }
 }
-
-// everything below is adapted from webpack
-// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-
-const turbopackQueues = Symbol('turbopack queues')
-const turbopackExports = Symbol('turbopack exports')
-const turbopackError = Symbol('turbopack error')
-
-const enum QueueStatus {
-  Unknown = -1,
-  Unresolved = 0,
-  Resolved = 1,
-}
-
-type AsyncQueueFn = (() => void) & { queueCount: number }
-type AsyncQueue = AsyncQueueFn[] & {
-  status: QueueStatus
-}
-
-function resolveQueue(queue?: AsyncQueue) {
-  if (queue && queue.status !== QueueStatus.Resolved) {
-    queue.status = QueueStatus.Resolved
-    queue.forEach((fn) => fn.queueCount--)
-    queue.forEach((fn) => (fn.queueCount-- ? fn.queueCount++ : fn()))
-  }
-}
-
-type Dep = Exports | AsyncModulePromise | Promise<Exports>
-
-type AsyncModuleExt = {
-  [turbopackQueues]: (fn: (queue: AsyncQueue) => void) => void
-  [turbopackExports]: Exports
-  [turbopackError]?: any
-}
-
-type AsyncModulePromise<T = Exports> = Promise<T> & AsyncModuleExt
-
-function wrapDeps(deps: Dep[]): AsyncModuleExt[] {
-  return deps.map((dep): AsyncModuleExt => {
-    if (dep !== null && typeof dep === 'object') {
-      if (isAsyncModuleExt(dep)) return dep
-      if (isPromise(dep)) {
-        const queue: AsyncQueue = Object.assign([], {
-          status: QueueStatus.Unresolved,
-        })
-
-        const obj: AsyncModuleExt = {
-          [turbopackExports]: {},
-          [turbopackQueues]: (fn: (queue: AsyncQueue) => void) => fn(queue),
-        }
-
-        dep.then(
-          (res) => {
-            obj[turbopackExports] = res
-            resolveQueue(queue)
-          },
-          (err) => {
-            obj[turbopackError] = err
-            resolveQueue(queue)
-          }
-        )
-
-        return obj
-      }
-    }
-
-    return {
-      [turbopackExports]: dep,
-      [turbopackQueues]: () => {},
-    }
-  })
-}
-
-function asyncModule(
-  this: TurbopackBaseContext<Module>,
-  body: (
-    handleAsyncDependencies: (
-      deps: Dep[]
-    ) => Exports[] | Promise<() => Exports[]>,
-    asyncResult: (err?: any) => void
-  ) => void,
-  hasAwait: boolean
-) {
-  const module = this.m
-  const queue: AsyncQueue | undefined = hasAwait
-    ? Object.assign([], { status: QueueStatus.Unknown })
-    : undefined
-
-  const depQueues: Set<AsyncQueue> = new Set()
-
-  const { resolve, reject, promise: rawPromise } = createPromise<Exports>()
-
-  const promise: AsyncModulePromise = Object.assign(rawPromise, {
-    [turbopackExports]: module.exports,
-    [turbopackQueues]: (fn) => {
-      queue && fn(queue)
-      depQueues.forEach(fn)
-      promise['catch'](() => {})
-    },
-  } satisfies AsyncModuleExt)
-
-  const attributes: PropertyDescriptor = {
-    get(): any {
-      return promise
-    },
-    set(v: any) {
-      // Calling `esmExport` leads to this.
-      if (v !== promise) {
-        promise[turbopackExports] = v
-      }
-    },
-  }
-
-  Object.defineProperty(module, 'exports', attributes)
-  Object.defineProperty(module, 'namespaceObject', attributes)
-
-  function handleAsyncDependencies(deps: Dep[]) {
-    const currentDeps = wrapDeps(deps)
-
-    const getResult = () =>
-      currentDeps.map((d) => {
-        if (d[turbopackError]) throw d[turbopackError]
-        return d[turbopackExports]
-      })
-
-    const { promise, resolve } = createPromise<() => Exports[]>()
-
-    const fn: AsyncQueueFn = Object.assign(() => resolve(getResult), {
-      queueCount: 0,
-    })
-
-    function fnQueue(q: AsyncQueue) {
-      if (q !== queue && !depQueues.has(q)) {
-        depQueues.add(q)
-        if (q && q.status === QueueStatus.Unresolved) {
-          fn.queueCount++
-          q.push(fn)
-        }
-      }
-    }
-
-    currentDeps.map((dep) => dep[turbopackQueues](fnQueue))
-
-    return fn.queueCount ? promise : getResult()
-  }
-
-  function asyncResult(err?: any) {
-    if (err) {
-      reject((promise[turbopackError] = err))
-    } else {
-      resolve(promise[turbopackExports])
-    }
-
-    resolveQueue(queue)
-  }
-
-  body(handleAsyncDependencies, asyncResult)
-
-  if (queue && queue.status === QueueStatus.Unknown) {
-    queue.status = QueueStatus.Unresolved
-  }
-}
-contextPrototype.a = asyncModule
 
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
@@ -821,6 +859,19 @@ function factoryNotAvailableMessage(
       )
   }
   return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
+}
+
+/**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */
+function placeholderFileUrl(modulePath: string, root?: string): string {
+  return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
 }
 
 /**

@@ -36,8 +36,8 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root);
-            disk_fs.await?.start_watching(None).await?;
+            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME, Vc::cell(root));
+            disk_fs.await?.start_watching().await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);

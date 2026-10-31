@@ -10,14 +10,16 @@ import type { PreloadCallbacks } from './types'
  * For external CSS files, renders a <link> tag pointing to the CSS file.
  */
 export function renderCssResource(
-  entryCssFiles: CssResource[],
+  entryCssFiles: Iterable<CssResource>,
   ctx: AppRenderContext,
   preloadCallbacks?: PreloadCallbacks
 ) {
   const {
     componentMod: { createElement },
   } = ctx
-  return entryCssFiles.map((entryCssFile, index) => {
+  const elements: React.ReactNode[] = []
+  let index = 0
+  for (const entryCssFile of entryCssFiles) {
     // `Precedence` is an opt-in signal for React to handle resource
     // loading and deduplication, etc. It's also used as the key to sort
     // resources so they will be injected in the correct order.
@@ -40,33 +42,39 @@ export function renderCssResource(
     )}${getAssetQueryString(ctx, true)}`
 
     if (entryCssFile.inlined && !ctx.parsedRequestHeaders.isRSCRequest) {
-      return createElement(
-        'style',
-        {
+      elements.push(
+        createElement(
+          'style',
+          {
+            key: index,
+            nonce: ctx.nonce,
+            precedence: precedence,
+            href: fullHref,
+          },
+          entryCssFile.content
+        )
+      )
+    } else {
+      preloadCallbacks?.push(() => {
+        ctx.componentMod.preloadStyle(
+          fullHref,
+          ctx.renderOpts.crossOrigin,
+          ctx.nonce
+        )
+      })
+
+      elements.push(
+        createElement('link', {
           key: index,
-          nonce: ctx.nonce,
-          precedence: precedence,
+          rel: 'stylesheet',
           href: fullHref,
-        },
-        entryCssFile.content
+          precedence: precedence,
+          crossOrigin: ctx.renderOpts.crossOrigin,
+          nonce: ctx.nonce,
+        })
       )
     }
-
-    preloadCallbacks?.push(() => {
-      ctx.componentMod.preloadStyle(
-        fullHref,
-        ctx.renderOpts.crossOrigin,
-        ctx.nonce
-      )
-    })
-
-    return createElement('link', {
-      key: index,
-      rel: 'stylesheet',
-      href: fullHref,
-      precedence: precedence,
-      crossOrigin: ctx.renderOpts.crossOrigin,
-      nonce: ctx.nonce,
-    })
-  })
+    index++
+  }
+  return elements
 }
