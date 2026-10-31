@@ -347,7 +347,7 @@ describe('native route discovery with legacy exportPathMap', () => {
   })
 })
 
-describe('native route discovery when a publication callback throws', () => {
+describe('native route discovery with failing or slow publication callbacks', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -355,8 +355,8 @@ describe('native route discovery when a publication callback throws', () => {
 
   beforeAll(async () => {
     // Route type generation calls rewrites(), and each route publication calls
-    // exportPathMap. Both are user code that can start failing after startup,
-    // like a rewrites() that loads its rules from a CMS.
+    // exportPathMap. Both are user code that can start failing or stalling
+    // after startup, like a rewrites() that loads its rules from a CMS.
     await next.patchFile(
       'next.config.ts',
       `import { existsSync, readFileSync } from 'node:fs'
@@ -372,6 +372,13 @@ describe('native route discovery when a publication callback throws', () => {
          async rewrites() {
            if (fails('rewrites')) {
              throw new Error('rewrites source unavailable (simulated)')
+           }
+           const blocker = join(process.cwd(), 'blocking-rewrites.txt')
+           if (existsSync(blocker)) {
+             console.log('[publication-test] rewrites() is waiting')
+             while (existsSync(blocker)) {
+               await new Promise((resolve) => setTimeout(resolve, 100))
+             }
            }
            return []
          },
@@ -434,4 +441,28 @@ describe('native route discovery when a publication callback throws', () => {
       }
     }
   )
+
+  it('serves a new route while rewrites() is still running for its route types', async () => {
+    await expectPage('/', 'hello world')
+    const outputIndex = next.cliOutput.length
+    try {
+      await next.patchFile('blocking-rewrites.txt', '')
+      await next.patchFile(
+        'app/during-slow-rewrites/page.tsx',
+        'export default function Page() { return <p>Served while rewrites() waits</p> }'
+      )
+      await retry(async () => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          '[publication-test] rewrites() is waiting'
+        )
+      }, 15_000)
+
+      // Route types for this update are blocked. Requests must not be.
+      await expectPage('/during-slow-rewrites', 'Served while rewrites() waits')
+      await expectPage('/', 'hello world')
+    } finally {
+      await next.deleteFile('blocking-rewrites.txt')
+      await next.deleteFile('app/during-slow-rewrites')
+    }
+  })
 })

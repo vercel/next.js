@@ -275,6 +275,38 @@ export async function createTurbopackRoutePublisher(
   }
   let published = false
 
+  // The parts of a publication that requests didn't wait for before native
+  // discovery: the old route watcher ran them in its own callback. They include
+  // user callbacks: rewrites() and redirects() for route types, and
+  // exportPathMap.
+  async function publishTooling(
+    hotReloader: NextJsHotReloaderInterface,
+    inventory: DevelopmentDiscovery | undefined,
+    runtimeChanged: boolean
+  ) {
+    if (inventory) {
+      development = inventory
+      reportAuthoredDiagnostics(inventory)
+    }
+    if (runtimeChanged && nextConfig.experimental.clientRouterFilter) {
+      clientRouterFilters = createClientRouterFilter(
+        Object.keys(serverFields.appPathRoutes || {}),
+        nextConfig.experimental.clientRouterFilterRedirects
+          ? (opts.fsChecker.originalRedirects || []).filter((r) => !r.internal)
+          : [],
+        nextConfig.experimental.clientRouterFilterAllowedRate
+      )
+      const signature = JSON.stringify(clientRouterFilters)
+      if (signature !== previousFilters) {
+        previousFilters = signature
+        await updateDefines(hotReloader)
+      }
+    }
+    if (inventory) await writeTooling(inventory)
+    await updateExportPathMap()
+    await writeEnvTypes()
+  }
+
   return {
     get sortedRoutes() {
       return sortedRoutes
@@ -320,49 +352,31 @@ export async function createTurbopackRoutePublisher(
       inventory?: DevelopmentDiscovery,
       runtimeChanged = false
     ) {
-      // Publication runs user callbacks: rewrites() and redirects() for route
-      // types, and exportPathMap. As with the old route watcher, a failure in
-      // the first publication fails startup, and later failures are logged so
-      // a callback that throws cannot stop a running dev server.
+      // As with the old route watcher, a failure in the first publication
+      // fails startup, and later failures are logged so a user callback that
+      // throws cannot stop a running dev server.
       const isStartup = !published
       published = true
-      return enqueue(async () => {
-        try {
-          if (inventory) {
-            development = inventory
-            reportAuthoredDiagnostics(inventory)
-          }
-          if (runtimeChanged) {
-            await propagateServerField(
-              opts,
-              'appPathRoutes',
-              serverFields.appPathRoutes
-            )
-            if (nextConfig.experimental.clientRouterFilter) {
-              clientRouterFilters = createClientRouterFilter(
-                Object.keys(serverFields.appPathRoutes || {}),
-                nextConfig.experimental.clientRouterFilterRedirects
-                  ? (opts.fsChecker.originalRedirects || []).filter(
-                      (r) => !r.internal
-                    )
-                  : [],
-                nextConfig.experimental.clientRouterFilterAllowedRate
-              )
-              const signature = JSON.stringify(clientRouterFilters)
-              if (signature !== previousFilters) {
-                previousFilters = signature
-                await updateDefines(hotReloader)
-              }
-            }
-          }
-          if (inventory) await writeTooling(inventory)
-          await updateExportPathMap()
-          await writeEnvTypes()
-        } catch (error) {
-          if (isStartup) throw error
-          Log.warn('Failed to reload dynamic routes:', error)
-        }
-      })
+      const handleError = (error: unknown) => {
+        if (isStartup) throw error
+        Log.warn('Failed to reload dynamic routes:', error)
+      }
+      // Waiting requests are released when publish() returns, so only what
+      // serving the new routes needs runs first: the render server resolves
+      // App paths with appPathRoutes.
+      if (runtimeChanged) {
+        await propagateServerField(
+          opts,
+          'appPathRoutes',
+          serverFields.appPathRoutes
+        ).catch(handleError)
+      }
+      const tooling = enqueue(() =>
+        publishTooling(hotReloader, inventory, runtimeChanged)
+      ).catch(handleError)
+      // Startup still waits for the rest, as it waited for the old route
+      // watcher's first pass. Later updates run it in the background.
+      if (isStartup) await tooling
     },
     async watchConfig(hotReloader: NextJsHotReloaderInterface) {
       const envFiles = [
