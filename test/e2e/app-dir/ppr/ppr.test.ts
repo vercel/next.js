@@ -3,7 +3,8 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('ppr', () => {
+// @force-gate FIXME
+describe('ppr', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     env: {

@@ -10,7 +10,6 @@ compiled/
 # ast-grep snapshots (managed by ast-grep, not prettier)
 .config/ast-grep/rule-tests/__snapshots__/
 
-lerna.json
 test-timings.json
 pnpm-lock.yaml
 
@@ -84,7 +83,7 @@ test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/pag
 /apps/*/next-env.d.ts
 
 # Symlink files
-readme.md
+/readme.md
 test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx
 test/development/app-dir/hmr-symlink/app/symlink-link/page.tsx
 test/development/app-dir/ssr-in-rsc/node_modules/random-react-library

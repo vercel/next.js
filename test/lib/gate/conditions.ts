@@ -95,6 +95,19 @@ export const conditions: Record<string, Condition> = {
     'running against a real deployment',
     () => getGateTestContext().mode === 'deploy'
   ),
+  // Other hosts run the deploy suites through custom scripts to validate their
+  // adapters, so gate on `vercel` rather than `deploy` when the reason is
+  // specific to Vercel: `@force-gate vercel` for a Vercel-only suite,
+  // `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to
+  // skip only Vercel. The host is declared, not inferred: our CI sets
+  // `NEXT_TEST_DEPLOY_TARGET_VERCEL=1` on every job that deploys to Vercel.
+  vercel: staticCondition(
+    'running against a Vercel deployment (`NEXT_TEST_DEPLOY_TARGET_VERCEL=1`); ' +
+      'false outside deploy mode',
+    () =>
+      getGateTestContext().mode === 'deploy' &&
+      process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL === '1'
+  ),
 
   // Semantic aliases for `!dev`. A gate is a claim about *why* a suite cannot
   // run, so prefer the name that states the reason over the bare mode check.
@@ -105,6 +118,10 @@ export const conditions: Record<string, Condition> = {
   prefetching: staticCondition(
     'links prefetch — disabled in dev, the usual reason a suite skips it',
     () => getGateTestContext().mode !== 'dev'
+  ),
+  prerelease: staticCondition(
+    'the installed Next.js version is a prerelease',
+    () => require('next/package.json').version.includes('-')
   ),
 
   bundler: staticCondition(
@@ -179,6 +196,10 @@ export const conditions: Record<string, Condition> = {
   cacheComponents: lazyCondition(
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
+  ),
+  strictRouteTypes: lazyCondition(
+    'strict route type validation is enabled for the fixture',
+    (config) => config.experimental?.strictRouteTypes
   ),
   partialPrefetchingGlobal: lazyCondition(
     'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',

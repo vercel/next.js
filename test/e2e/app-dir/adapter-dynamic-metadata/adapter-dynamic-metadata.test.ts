@@ -39,6 +39,21 @@ describe('adapter-dynamic-metadata', () => {
         expect(appRoute?.runtime).toBe('nodejs')
       }
     })
+
+    it('should preserve segment config from the original metadata source', async () => {
+      const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+        await next.readJSON('build-complete.json')
+
+      expect(
+        outputs.appRoutes.find((item) => item.pathname === '/sitemap.xml')
+      ).toMatchObject({
+        runtime: 'nodejs',
+        config: {
+          maxDuration: 42,
+          preferredRegion: ['iad1', 'sfo1'],
+        },
+      })
+    })
   }
 
   it('should serve dynamic metadata routes', async () => {

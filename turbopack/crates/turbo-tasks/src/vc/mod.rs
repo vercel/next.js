@@ -439,8 +439,26 @@ where
         }
     }
 
+    /// Hint that the cell content this `Vc` points to is no longer needed, so it may be dropped to
+    /// free memory. Future reads might need to recompute the value.
+    ///
+    /// This resolves `self` like [`Vc::to_resolved`] does (tracking the dependencies on task
+    /// outputs, and waiting for them if needed), but unlike [`Vc::final_read_hint`] it never reads
+    /// the cell content. If the content isn't present (e.g. it was already dropped, or it was never
+    /// computed because its dependents were restored from a persistent cache), this does nothing,
+    /// and in particular doesn't recompute it.
+    ///
+    /// This does not track any dependency on the cell.
+    pub async fn drop_content_hint(self) -> Result<()> {
+        let RawVcUnpacked::TaskCell(task, index) = self.node.resolve().await?.unpack() else {
+            unreachable!("resolve always returns a TaskCell");
+        };
+        crate::turbo_tasks().drop_task_cell_content_hint(task, index);
+        Ok(())
+    }
+
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
-    /// [`RawVc::TaskCell`] representation.
+    /// [`RawVcUnpacked::TaskCell`] representation.
     ///
     /// If you need resolved [`Vc`] value, it's typically better to use the [`ResolvedVc`] type to
     /// enforce your requirements statically instead of dynamically at runtime.

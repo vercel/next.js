@@ -3,7 +3,10 @@
 import { Check, ChevronsUpDown, Route } from 'lucide-react'
 import { useEffect, useState, type Ref } from 'react'
 import { Button } from '@/components/ui/button'
-import { useSuspenseJsonData } from '@/lib/analyzer-data'
+import {
+  routesFromSummaries,
+  useSuspenseRouteSummaries,
+} from '@/lib/analyzer-data'
 import {
   Command,
   CommandEmpty,
@@ -171,8 +174,8 @@ export function RouteTypeaheadContent(
     }
 ) {
   const { selectedRoute, routeDiff, useCompressed = true, routeTotals } = props
-  const routes = useSuspenseJsonData<string[]>(
-    `${props.routesBaseDir ?? '/data'}/routes.json`
+  const routes = routesFromSummaries(
+    useSuspenseRouteSummaries(props.routesBaseDir ?? '/data')
   )
 
   // When a route diff is provided, sort routes by largest absolute impact so
@@ -309,9 +312,9 @@ function DeltaBadge({
 
   const tone =
     row.status === 'added' || d > 0
-      ? 'text-red-600 dark:text-red-400'
+      ? 'text-delta-increase'
       : row.status === 'removed' || d < 0
-        ? 'text-green-600 dark:text-green-400'
+        ? 'text-delta-decrease'
         : 'text-muted-foreground'
 
   return (

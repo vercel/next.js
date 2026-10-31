@@ -16,7 +16,7 @@ Using an **inline script** that runs synchronously as the browser parses the HTM
 
 ## Example
 
-The companion [demo](https://preventing-flash-before-hydration.labs.vercel.dev/) ([source](https://github.com/vercel-labs/preventing-flash-before-hydration)) is built with `LANG=ja_JP.UTF-8` to simulate a server/client locale mismatch. It lets you compare:
+The companion [demo](https://preventing-flash-before-hydration.labs.vercel.dev/) ([source](https://github.com/nextjs/preventing-flash-before-hydration)) is built with `LANG=ja_JP.UTF-8` to simulate a server/client locale mismatch. It lets you compare:
 
 - Inline script date formatting with no flash and no hydration error
 - A Client Component that calls `toLocaleDateString()` directly, showing the hydration error

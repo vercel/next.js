@@ -9,6 +9,11 @@ describe('use-cache-segment-configs', () => {
       skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     })
 
+  // The deploy snapshots match Vercel's build-log format, which drops
+  // code-frame indentation, and `getBuildOutput()` stops at Vercel's
+  // `Error: Command "..." exited with N` line. Other hosts format their build
+  // logs differently.
+  // @force-gate !deploy || vercel
   it("it should error when using segment configs that aren't supported by useCache", async () => {
     if (isNextDev) {
       const browser = await next.browser('/runtime')
@@ -90,7 +95,7 @@ describe('use-cache-segment-configs', () => {
          3 | export default function Page() {
          4 |   return <div>This page uses \`export const runtime\`.</div>
          Ecmascript file had an error
-         at ignore-listed frames"
+         at printBuildErrors (<next-internal>)"
         `)
       } else if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
@@ -106,8 +111,7 @@ describe('use-cache-segment-configs', () => {
          Ecmascript file had an error
 
 
-             at ignore-listed frames
-         "
+             at printBuildErrors (<next-internal>)"
         `)
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
@@ -181,15 +185,34 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
   let skipLines = true
 
   for (const line of cliOutput.split('\n')) {
-    // The command exit status and inspect metadata are not compiler output.
-    if (isNextDeploy && /^Error: Command .* exited with \d+$/.test(line)) break
+    // Package-manager command failures and inspect metadata are not compiler output.
+    if (
+      isNextDeploy &&
+      /^(?:\[ELIFECYCLE\]\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+        stripAnsi(line).trim()
+      )
+    ) {
+      break
+    }
     if (!skipLines) {
+      if (line.includes('at turbopackBuild')) {
+        break
+      }
+
       if (line.includes('__next_edge_ssr_entry__')) {
         lines.push(
           '// TODO(veil): Fix broken import trace for Webpack loader resource.'
         )
       } else {
-        lines.push(stripAnsi(line))
+        lines.push(
+          // Framework frames are intentionally printed unsourcemapped (the
+          // build process has no source maps); their install-specific paths
+          // are not stable.
+          stripAnsi(line).replace(
+            /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+            '$1 (<next-internal>)'
+          )
+        )
       }
     } else if (
       line.includes('Build error occurred') ||

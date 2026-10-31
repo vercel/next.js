@@ -1,7 +1,8 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, cmp::Reverse};
 
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
+use turbo_bitset::Bitset;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
@@ -10,10 +11,7 @@ use crate::{
     emit_collect::CollectingModule,
     issue::{IssueExt, module::ModuleIssue},
     module::Module,
-    module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData,
-        chunk_group_info::{ChunkGroupEntry, RoaringBitmapWrapper, TraversalPriority},
-    },
+    module_graph::{GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::ChunkGroupEntry},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -60,7 +58,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         .collect::<Vec<_>>();
 
     // Create a mapping of module -> ChunkGroupEntry::Entry that import it
-    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+    let mut module_entry_membership: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
         FxHashMap::with_capacity_and_hasher(module_count, Default::default());
     for (i, entries) in entry_groups.iter().enumerate() {
         for entry in *entries {
@@ -71,26 +69,12 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
         }
     }
 
-    // First, compute the depth for each module in the graph
-    let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
-        let mut module_depth =
-            FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-        graph.traverse_edges_bfs(entry_group_modules.iter().copied(), |parent, node| {
-            if let Some((parent, _)) = parent {
-                let parent_depth = *module_depth
-                    .get(&parent)
-                    .context("Module depth not found")?;
-                module_depth.entry(node).or_insert(parent_depth + 1);
-            } else {
-                module_depth.insert(node, 0);
-            };
-
-            module_entry_membership.entry(node).or_default();
-
-            Ok(GraphTraversalAction::Continue)
-        })?;
-        module_depth
-    };
+    // First, rank every module in reverse postorder (so that a module is visited after the
+    // modules importing it), and initialize the membership of every reachable module.
+    let module_rank = graph.reverse_postorder_ranks(entry_group_modules.iter().copied())?;
+    for module in module_rank.keys() {
+        module_entry_membership.entry(*module).or_default();
+    }
 
     // - Discover all collecting module
     // - Discover all emitted references
@@ -105,10 +89,7 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
             .map(|e| {
                 Ok((
                     *e,
-                    TraversalPriority {
-                        depth: *module_depth.get(e).context("Module depth not found")?,
-                        chunk_group_len: 0,
-                    },
+                    Reverse(*module_rank.get(e).context("Module rank not found")?),
                 ))
             })
             .collect::<Result<Vec<_>>>()?,
@@ -144,13 +125,9 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                     bail!("Module entry membership not found");
                 };
 
-                if current_membership.is_empty() {
-                    // Initial visit, clone instead of merging
-                    *current_membership = parent_membership.clone();
-                    Ok(GraphTraversalAction::Continue)
-                } else if parent_membership.is_proper_superset(current_membership) {
-                    // Add bits from parent, and continue traversal because changed
-                    **current_membership |= &**parent_membership;
+                // On the initial visit, `union_with` copies the parent's membership.
+                if current_membership.union_with(parent_membership) {
+                    // Added bits from parent, continue traversal because changed
                     Ok(GraphTraversalAction::Continue)
                 } else {
                     // Unchanged, no need to forward to children
@@ -158,16 +135,14 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
                 }
             }
         },
-        |successor, (module_entry_membership, _)| {
-            Ok(TraversalPriority {
-                depth: *module_depth
+        // Visit modules in reverse postorder (lowest rank first, the traversal visits the highest
+        // priority first), so that most modules are visited once, with their final membership.
+        |successor, _| {
+            Ok(Reverse(
+                *module_rank
                     .get(&successor)
-                    .context("Module depth not found")?,
-                chunk_group_len: module_entry_membership
-                    .get(&successor)
-                    .context("Module entry membership not found")?
-                    .len(),
-            })
+                    .context("Module rank not found")?,
+            ))
         },
     )?;
 
@@ -177,7 +152,9 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
             .get(&collecting_module)
             .context("Module entry membership not found")?;
 
-        if collecting_membership.len() > 1 {
+        // Reachable from more than one entry. The iterator is lazy, so this stops at the second
+        // bit instead of counting all of them.
+        if collecting_membership.iter().nth(1).is_some() {
             ModuleIssue::new(
                 *collecting_module.ident().to_resolved().await?,
                 rcstr!("Invalid use of __turbopack_collect__"),
@@ -238,17 +215,18 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
 
             let matching_chunk_groups = if *emit_to_all_entries {
                 // Add to all entry groups the collecting module is in.
-                Cow::Borrowed(&**collecting_membership)
+                Cow::Borrowed(collecting_membership)
             } else {
                 // Add to all entry groups the collecting module is in that also contain the emitted
                 // module.
-                Cow::Owned((**collecting_membership).clone() & (&**emitted_membership))
+                Cow::Owned(collecting_membership & emitted_membership)
             };
-            if !matching_chunk_groups.is_empty() {
+            let mut matching_chunk_groups = matching_chunk_groups.iter().peekable();
+            if matching_chunk_groups.peek().is_some() {
                 let refs = collected_references
                     .entry(ResolvedVc::upcast(*collecting_module))
                     .or_default();
-                for entry in matching_chunk_groups.iter() {
+                for entry in matching_chunk_groups {
                     refs.entry(entry).or_default().push((
                         RefData {
                             chunking_type: ChunkingType::Collected {

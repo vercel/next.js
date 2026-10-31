@@ -1,19 +1,17 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { rgba } from 'polished'
 
 import type { AnalyzeData } from '@/lib/analyze-data'
 import type { DiffSummary, SourceDiffRow } from '@/lib/diff'
 import { delta, formatDelta } from '@/lib/diff'
 import { createDiffTreemapLayout } from '@/lib/diff-treemap-layout'
 import { SizeMode, type LayoutNode } from '@/lib/treemap-layout'
-import { TreemapVisualizer } from '@/components/treemap-visualizer'
-
-/** Color-blind-safe blue/amber palette for bundle-size increases/decreases. */
-const COLOR_INCREASE = '#2563eb' // blue-600
-const COLOR_INCREASE_MUTED = 'rgba(37, 99, 235, 0.6)'
-const COLOR_DECREASE = '#d97706' // amber-600
-const COLOR_DECREASE_MUTED = 'rgba(217, 119, 6, 0.6)'
+import {
+  TreemapVisualizer,
+  type CanvasColors,
+} from '@/components/treemap-visualizer'
 
 interface DiffTreemapProps {
   summary: DiffSummary<SourceDiffRow>
@@ -68,10 +66,13 @@ export function DiffTreemap({
   )
   const { rowBySourceIndex, sourceIndexByKey } = diffLayout
 
-  function getFileColorOverride(node: LayoutNode): string | undefined {
+  function getFileColorOverride(
+    node: LayoutNode,
+    colors: CanvasColors
+  ): string | undefined {
     if (node.sourceIndex === undefined) return undefined
     const row = rowBySourceIndex.get(node.sourceIndex)
-    return row ? colorForRow(row, useCompressed) : undefined
+    return row ? colorForRow(row, useCompressed, colors) : undefined
   }
 
   // Show size deltas on changed tiles instead of absolute sizes.
@@ -129,9 +130,13 @@ export function DiffTreemap({
  * scheme: bright blue/amber for added/removed and lighter tints scaled by the
  * relative magnitude of the change for grew/shrank.
  */
-function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
-  if (row.status === 'added') return COLOR_INCREASE
-  if (row.status === 'removed') return COLOR_DECREASE
+function colorForRow(
+  row: SourceDiffRow,
+  useCompressed: boolean,
+  colors: CanvasColors
+): string {
+  if (row.status === 'added') return colors.increase
+  if (row.status === 'removed') return colors.decrease
   const deltaValue = useCompressed
     ? row.compressedB - row.compressedA
     : row.sizeB - row.sizeA
@@ -141,18 +146,16 @@ function colorForRow(row: SourceDiffRow, useCompressed: boolean): string {
   const ratio =
     baseline === 0 ? 1 : Math.min(1, Math.abs(deltaValue) / baseline)
   const alpha = 0.35 + ratio * 0.5
-  return deltaValue > 0
-    ? `rgba(37, 99, 235, ${alpha.toFixed(2)})`
-    : `rgba(217, 119, 6, ${alpha.toFixed(2)})`
+  return rgba(deltaValue > 0 ? colors.increase : colors.decrease, alpha)
 }
 
 /** Static legend overlay so users can decode the color scheme at a glance. */
 function DiffLegend() {
-  const items: Array<{ label: string; color: string }> = [
-    { label: 'Added', color: COLOR_INCREASE },
-    { label: 'Grew', color: COLOR_INCREASE_MUTED },
-    { label: 'Shrank', color: COLOR_DECREASE_MUTED },
-    { label: 'Removed', color: COLOR_DECREASE },
+  const items: Array<{ label: string; className: string }> = [
+    { label: 'Added', className: 'bg-delta-increase' },
+    { label: 'Grew', className: 'bg-delta-increase/60' },
+    { label: 'Shrank', className: 'bg-delta-decrease/60' },
+    { label: 'Removed', className: 'bg-delta-decrease' },
   ]
   return (
     <div className="absolute bottom-2 left-2 flex items-center gap-3 rounded border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
@@ -160,8 +163,7 @@ function DiffLegend() {
         <span key={item.label} className="flex items-center gap-1.5">
           <span
             aria-hidden
-            className="inline-block h-3 w-3 rounded-sm"
-            style={{ backgroundColor: item.color }}
+            className={`inline-block h-3 w-3 rounded-sm ${item.className}`}
           />
           {item.label}
         </span>

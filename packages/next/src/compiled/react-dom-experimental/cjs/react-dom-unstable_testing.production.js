@@ -2974,10 +2974,9 @@ function pushTreeId(workInProgress, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     treeContextId =
@@ -10429,10 +10428,6 @@ function commitBeforeMutationEffects_complete(
       current = fiber.alternate,
       flags = fiber.flags;
     switch (fiber.tag) {
-      case 0:
-      case 11:
-      case 15:
-        break;
       case 1:
         if (0 !== (flags & 1024) && null !== current) {
           isViewTransitionEligible = void 0;
@@ -10474,6 +10469,9 @@ function commitBeforeMutationEffects_complete(
                 current.textContent = "";
             }
         break;
+      case 0:
+      case 11:
+      case 15:
       case 5:
       case 26:
       case 27:
@@ -11138,8 +11136,8 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
         null !== current)
       )
         for (var ii = 0; ii < current.length; ii++) {
-          var _eventPayloads$ii2 = current[ii];
-          _eventPayloads$ii2.ref.impl = _eventPayloads$ii2.nextImpl;
+          var _eventPayloads$ii = current[ii];
+          _eventPayloads$ii.ref.impl = _eventPayloads$ii.nextImpl;
         }
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
       commitReconciliationEffects(finishedWork);
@@ -11222,12 +11220,12 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
                         ).get(root + (lanes.href || "")))
                       )
                         for (
-                          _eventPayloads$ii2 = 0;
-                          _eventPayloads$ii2 < ii.length;
-                          _eventPayloads$ii2++
+                          _eventPayloads$ii = 0;
+                          _eventPayloads$ii < ii.length;
+                          _eventPayloads$ii++
                         )
                           if (
-                            ((current = ii[_eventPayloads$ii2]),
+                            ((current = ii[_eventPayloads$ii]),
                             current.getAttribute("href") ===
                               (null == lanes.href || "" === lanes.href
                                 ? null
@@ -11241,7 +11239,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
                                   ? null
                                   : lanes.crossOrigin))
                           ) {
-                            ii.splice(_eventPayloads$ii2, 1);
+                            ii.splice(_eventPayloads$ii, 1);
                             break b;
                           }
                       current = flags.createElement(root);
@@ -11257,12 +11255,12 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
                         ).get(root + (lanes.content || "")))
                       )
                         for (
-                          _eventPayloads$ii2 = 0;
-                          _eventPayloads$ii2 < ii.length;
-                          _eventPayloads$ii2++
+                          _eventPayloads$ii = 0;
+                          _eventPayloads$ii < ii.length;
+                          _eventPayloads$ii++
                         )
                           if (
-                            ((current = ii[_eventPayloads$ii2]),
+                            ((current = ii[_eventPayloads$ii]),
                             current.getAttribute("content") ===
                               (null == lanes.content
                                 ? null
@@ -11280,7 +11278,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
                               current.getAttribute("charset") ===
                                 (null == lanes.charSet ? null : lanes.charSet))
                           ) {
-                            ii.splice(_eventPayloads$ii2, 1);
+                            ii.splice(_eventPayloads$ii, 1);
                             break b;
                           }
                       current = flags.createElement(root);
@@ -11450,7 +11448,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
       break;
     case 22:
       ii = null !== finishedWork.memoizedState;
-      _eventPayloads$ii2 = null !== current && null !== current.memoizedState;
+      _eventPayloads$ii = null !== current && null !== current.memoizedState;
       var prevOffscreenSubtreeIsHidden = offscreenSubtreeIsHidden,
         prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden,
         prevOffscreenDirectParentIsHidden$173 = offscreenDirectParentIsHidden;
@@ -11458,7 +11456,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
       offscreenDirectParentIsHidden =
         prevOffscreenDirectParentIsHidden$173 || ii;
       offscreenSubtreeWasHidden =
-        prevOffscreenSubtreeWasHidden || _eventPayloads$ii2;
+        prevOffscreenSubtreeWasHidden || _eventPayloads$ii;
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
       offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
       offscreenDirectParentIsHidden = prevOffscreenDirectParentIsHidden$173;
@@ -11469,10 +11467,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
         (root._visibility = ii ? root._visibility & -2 : root._visibility | 1),
         !ii ||
           null === current ||
-          _eventPayloads$ii2 ||
+          _eventPayloads$ii ||
           offscreenSubtreeIsHidden ||
           offscreenSubtreeWasHidden ||
-          ((root = _eventPayloads$ii2 || offscreenSubtreeWasHidden),
+          ((root = _eventPayloads$ii || offscreenSubtreeWasHidden),
           (lanes = offscreenSubtreeIsHidden),
           (current = offscreenSubtreeWasHidden),
           (offscreenSubtreeIsHidden = ii || offscreenSubtreeIsHidden),
@@ -11506,10 +11504,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           safelyDetachRef(current, current.return));
       flags = pushMutationContext();
       ii = inUpdateViewTransition;
-      _eventPayloads$ii2 = (lanes & 335544064) === lanes;
+      _eventPayloads$ii = (lanes & 335544064) === lanes;
       prevOffscreenSubtreeIsHidden = finishedWork.memoizedProps;
       inUpdateViewTransition =
-        _eventPayloads$ii2 &&
+        _eventPayloads$ii &&
         "none" !==
           getViewTransitionClassName(
             prevOffscreenSubtreeIsHidden.default,
@@ -11517,7 +11515,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           );
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
       commitReconciliationEffects(finishedWork);
-      _eventPayloads$ii2 &&
+      _eventPayloads$ii &&
         null !== current &&
         viewTransitionMutationContext &&
         (finishedWork.flags |= 4);
@@ -13784,7 +13782,9 @@ function resetWorkInProgressStack() {
 function prepareFreshStack(root, lanes) {
   var timeoutHandle = root.timeoutHandle;
   -1 !== timeoutHandle &&
-    ((root.timeoutHandle = -1), cancelTimeout(timeoutHandle));
+    ((root.timeoutHandle = -1),
+    cancelTimeout(timeoutHandle),
+    markRootPinged$1(root, pendingEffectsLanes));
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
@@ -15079,7 +15079,9 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
       retryCache = boundaryFiber.stateNode;
       break;
     case 22:
-      retryCache = boundaryFiber.stateNode._retryCache;
+      retryCache = boundaryFiber.stateNode;
+      if (null === retryCache) return;
+      retryCache = retryCache._retryCache;
       break;
     default:
       throw Error(formatProdErrorMessage(314));
@@ -15455,20 +15457,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1825 = 0;
-  i$jscomp$inline_1825 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1825++
+  var i$jscomp$inline_1828 = 0;
+  i$jscomp$inline_1828 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1828++
 ) {
-  var eventName$jscomp$inline_1826 =
-      simpleEventPluginEvents[i$jscomp$inline_1825],
-    domEventName$jscomp$inline_1827 =
-      eventName$jscomp$inline_1826.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1828 =
-      eventName$jscomp$inline_1826[0].toUpperCase() +
-      eventName$jscomp$inline_1826.slice(1);
+  var eventName$jscomp$inline_1829 =
+      simpleEventPluginEvents[i$jscomp$inline_1828],
+    domEventName$jscomp$inline_1830 =
+      eventName$jscomp$inline_1829.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1831 =
+      eventName$jscomp$inline_1829[0].toUpperCase() +
+      eventName$jscomp$inline_1829.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1827,
-    "on" + capitalizedEvent$jscomp$inline_1828
+    domEventName$jscomp$inline_1830,
+    "on" + capitalizedEvent$jscomp$inline_1831
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -15774,7 +15776,10 @@ function dispatchEventForPluginEventSystem(
           case ANIMATION_START:
             SyntheticEventCtor = SyntheticAnimationEvent;
             break;
+          case TRANSITION_CANCEL:
           case TRANSITION_END:
+          case TRANSITION_RUN:
+          case TRANSITION_START:
             SyntheticEventCtor = SyntheticTransitionEvent;
             break;
           case "scroll":
@@ -17498,11 +17503,15 @@ function hideOrUnhideDehydratedBoundary(suspenseInstance, isHidden) {
           ? ((node._stashedText = node.nodeValue), (node.nodeValue = ""))
           : (node.nodeValue = node._stashedText || ""));
     if (nextNode && 8 === nextNode.nodeType)
-      if (((node = nextNode.data), "/$" === node))
+      if (((node = nextNode.data), "/$" === node || "/&" === node))
         if (0 === suspenseInstance) break;
         else suspenseInstance--;
       else
-        ("$" !== node && "$?" !== node && "$~" !== node && "$!" !== node) ||
+        ("$" !== node &&
+          "$?" !== node &&
+          "$~" !== node &&
+          "$!" !== node &&
+          "&" !== node) ||
           suspenseInstance++;
     node = nextNode;
   } while (node);
@@ -17680,16 +17689,18 @@ function customizeViewTransitionError(error, ignoreAbort) {
         if (ignoreAbort) return null;
         break;
       case "InvalidStateError":
-        if (
-          "View transition was skipped because document visibility state is hidden." ===
-            error.message ||
-          "Skipping view transition because document visibility state has become hidden." ===
-            error.message ||
-          "Skipping view transition because viewport size changed." ===
-            error.message ||
-          "Transition was aborted because of invalid state" === error.message
-        )
-          return null;
+        switch (error.message) {
+          case "Transition was aborted because of invalid state":
+          case "Transition was aborted because of invalid state.":
+          case "Transition was aborted because of invalid state. Document hidden":
+          case "Transition was aborted because of invalid state. Viewport size changed":
+          case "Skipped ViewTransition due to document being hidden":
+          case "Skipped view transition due to viewport resize":
+          case "View transition was skipped because document visibility state is hidden.":
+          case "Skipping view transition because document visibility state has become hidden.":
+          case "Skipping view transition because viewport size changed.":
+            return null;
+        }
     }
   return error;
 }
@@ -20789,16 +20800,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2273 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2276 = React.version;
 if (
-  "19.3.0-experimental-278794d7-20261002" !==
-  isomorphicReactPackageVersion$jscomp$inline_2273
+  "19.3.0-experimental-e84e1492-20261031" !==
+  isomorphicReactPackageVersion$jscomp$inline_2276
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2273,
-      "19.3.0-experimental-278794d7-20261002"
+      isomorphicReactPackageVersion$jscomp$inline_2276,
+      "19.3.0-experimental-e84e1492-20261031"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20818,24 +20829,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2939 = {
+var internals$jscomp$inline_2942 = {
   bundleType: 0,
-  version: "19.3.0-experimental-278794d7-20261002",
+  version: "19.3.0-experimental-e84e1492-20261031",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-278794d7-20261002"
+  reconcilerVersion: "19.3.0-experimental-e84e1492-20261031"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2940 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2943 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2940.isDisabled &&
-    hook$jscomp$inline_2940.supportsFiber
+    !hook$jscomp$inline_2943.isDisabled &&
+    hook$jscomp$inline_2943.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2940.inject(
-        internals$jscomp$inline_2939
+      (rendererID = hook$jscomp$inline_2943.inject(
+        internals$jscomp$inline_2942
       )),
-        (injectedHook = hook$jscomp$inline_2940);
+        (injectedHook = hook$jscomp$inline_2943);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -21081,4 +21092,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-278794d7-20261002";
+exports.version = "19.3.0-experimental-e84e1492-20261031";

@@ -2,6 +2,12 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // With Cache Components, a navigation writes segment data into the cache
+  // through its embedded runtime prefetch, which needs Partial Prefetching.
+  // That's what lets the prefetch in this test find the photo page's
+  // segments. Partial Prefetching requires Cache Components, so it's only
+  // enabled in that run.
+  partialPrefetching: process.env.__NEXT_CACHE_COMPONENTS === 'true',
   experimental: {
     // The client segment cache currently only writes segment data during
     // prefetches, not during navigations. The staleTimes feature is an

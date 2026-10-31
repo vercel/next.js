@@ -8,7 +8,6 @@ describe('Scroll Back Restoration Support', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   it('should restore the scroll position on navigating back', async () => {

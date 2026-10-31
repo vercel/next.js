@@ -160,7 +160,9 @@ where
     T: ?Sized,
     Cast: VcCast,
 {
-    /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
+    /// Do not use this: Use
+    /// [`OperationVc::read_strongly_consistent`](crate::OperationVc::read_strongly_consistent)
+    /// instead.
     pub(crate) fn strongly_consistent(mut self) -> Self {
         self.raw = self.raw.strongly_consistent();
         self

@@ -965,6 +965,12 @@ pub struct TurbopackChunkingConfig {
     /// Minimum size, in bytes (default `20000`), for a component chunk to be emitted on its
     /// own when `generate_component_chunks` is enabled.
     min_component_chunk_size: Option<usize>,
+    /// Avoid creating more than one Node.js server chunk smaller than this size, in bytes
+    /// (default `4000`). Doesn't apply to edge chunks.
+    min_server_chunk_size: Option<usize>,
+    /// Don't merge Node.js server chunks bigger than this size, in bytes, with other chunks
+    /// (default `100000`). Doesn't apply to edge chunks.
+    max_merge_server_chunk_size: Option<usize>,
 }
 
 #[turbo_tasks::value]
@@ -988,6 +994,10 @@ pub struct TurbopackChunking {
     pub max_merge_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
+    /// Override for the Node.js server JS `min_chunk_size`, or `None` to use the default.
+    pub min_server_chunk_size: Option<usize>,
+    /// Override for the Node.js server JS `max_merge_chunk_size`, or `None` to use the default.
+    pub max_merge_server_chunk_size: Option<usize>,
     /// Whether to emit component chunks alongside merged chunks (default `false`).
     pub generate_component_chunks: bool,
 }
@@ -1107,6 +1117,7 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
+    use_cache_static_root_param_tracking: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
 
@@ -1160,6 +1171,7 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    hydration_change_event: Option<bool>,
     /// Forks the client router's entry-point modules to the experimental
     /// concurrent router queue implementation via the import map.
     concurrent_router_queue: Option<bool>,
@@ -1973,6 +1985,8 @@ impl NextConfig {
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
+            min_server_chunk_size: config.and_then(|c| c.min_server_chunk_size),
+            max_merge_server_chunk_size: config.and_then(|c| c.max_merge_server_chunk_size),
             generate_component_chunks: config
                 .and_then(|c| c.generate_component_chunks)
                 .unwrap_or(false),
@@ -2231,13 +2245,38 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn enable_use_cache_static_root_param_tracking(
+        self: Vc<Self>,
+        mode: Vc<NextMode>,
+    ) -> Result<Vc<bool>> {
+        Ok(match *mode.await? {
+            NextMode::Development => Vc::cell(false),
+            NextMode::Build => Vc::cell(
+                *self.enable_use_cache().await?
+                    && self
+                        .await?
+                        .experimental
+                        .use_cache_static_root_param_tracking
+                        .unwrap_or(false),
+            ),
+        })
+    }
+
+    #[turbo_tasks::function]
     pub fn use_react_experimental(&self) -> Vc<bool> {
         // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
         let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
         let taint = self.experimental.taint.unwrap_or(false);
         let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
         let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
-        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
+        let hydration_change_event = self.experimental.hydration_change_event.unwrap_or(false);
+        Vc::cell(
+            blocking_ssr
+                || taint
+                || transition_indicator
+                || gesture_transition
+                || hydration_change_event,
+        )
     }
 
     #[turbo_tasks::function]

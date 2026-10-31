@@ -47,9 +47,9 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
@@ -500,8 +500,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             heuristics: EntryHeuristics::default(),
         }])
         .resolved_cell(),
-        false,
-        true,
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_side_effect_free_module_info` (run below via `compute_binding_usage_info`
+            // when removing unused imports) reads `side_effects` from the graph node.
+            include_side_effects: options.remove_unused_imports,
+            // Module merging (driven by `scope_hoisting` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: options.scope_hoisting,
+            ..Default::default()
+        },
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
@@ -509,6 +517,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Some(compute_binding_usage_info(
             module_graph,
             options.remove_unused_imports,
+            /* drop_unused_module_data */ false,
         ))
     } else {
         None
@@ -641,7 +650,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         chunk_root_path
                             .join(entry_module.ident().await?.path.file_stem().unwrap())?
                             .with_extension("entry.js"),
-                        ChunkGroup::Entry(entry_modules),
+                        ChunkGroupKey::Entry(entry_modules),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
@@ -656,7 +665,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .cell(),
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
-            ChunkGroup::Entry(entry_modules.into_iter().collect()),
+            ChunkGroupKey::Entry(entry_modules.into_iter().collect()),
             module_graph,
             OutputAssets::empty(),
             AvailabilityInfo::root(),
@@ -670,7 +679,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().await?.path.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            ChunkGroup::Entry(entry_modules),
+                            ChunkGroupKey::Entry(entry_modules),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),

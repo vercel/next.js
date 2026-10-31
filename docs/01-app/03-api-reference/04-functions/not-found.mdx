@@ -8,7 +8,7 @@ related:
     - app/api-reference/functions/unauthorized
 ---
 
-The `notFound` function throws an error that renders a Next.js 404 page. It's useful for handling missing resources in your application. You can customize the UI using the [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found).
+The `notFound` function throws an error that renders the not-found UI. It's useful for handling missing resources in your application. You can customize the UI using the [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found).
 
 Invoking `notFound()` throws a `NEXT_HTTP_ERROR_FALLBACK;404` error and terminates rendering of the route segment where it was thrown. Next.js also injects a `<meta name="robots" content="noindex" />` tag so the page is not indexed. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no not-found UI renders (in development the server logs `⨯ unhandledRejection: NEXT_HTTP_ERROR_FALLBACK;404`).
 
@@ -192,7 +192,7 @@ export default function NotFound() {
 
 The response starts streaming from the `<Suspense>` boundary before `notFound()` runs, so it keeps its `200` status. Next.js adds a `noindex` tag.
 
-Calling `notFound()` before streaming starts returns a `404`. A page that reaches `notFound()` during prerendering can remain `○` Static and serve a `404`. A request-time check can run in [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+`notFound()` returns a `404` when it runs before the response starts, including during prerendering. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Serving a 404 from a Route Handler
 

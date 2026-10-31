@@ -5,7 +5,7 @@
 #include <node.h>
 
 NODE_MODULE_INIT(/* exports, module, context */) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   exports
       ->Set(context,
             v8::String::NewFromUtf8(isolate, "CONTEXT_AWARE").ToLocalChecked(),

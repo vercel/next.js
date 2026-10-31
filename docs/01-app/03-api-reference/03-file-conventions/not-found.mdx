@@ -132,7 +132,10 @@ Unlike `not-found.js`, this file must return a full HTML document, including `<h
 
 `not-found.js` or `global-not-found.js` components do not accept any props.
 
-> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/not-found.js` and `app/global-not-found.js` files handle any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the exported UI.
+> **Good to know**:
+>
+> - In addition to catching expected `notFound()` errors, the root `app/not-found.js` and `app/global-not-found.js` files handle any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the exported UI.
+> - Next.js sends each `not-found.js` file with every route under its segment, not only with pages that are not found, and loads the Client Components it imports on those pages. For the root `app/not-found.js`, that is every page of your app, so prefer Server Components and [`<Link>`](/docs/app/api-reference/components/link) there over interactive UI.
 
 ## Examples
 

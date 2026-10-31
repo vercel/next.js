@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { gate } from '../../../lib/next-test-utils'
 
 // @force-gate prod
 describe('cached-navigations-sync-io', () => {
@@ -41,8 +42,13 @@ describe('cached-navigations-sync-io', () => {
     return { browser, page, act, startDate, navigate }
   }
 
+  // These routes use Partial Prefetching, so their navigations embed a runtime
+  // prefetch.
   for (const { pathname, description } of [
-    { pathname: '/uncached-time', description: 'does not reuse uncached time' },
+    {
+      pathname: '/partial-uncached-time',
+      description: 'does not reuse uncached time',
+    },
     {
       pathname: '/delayed-sync-io',
       description: 'reuses content before synchronous IO',
@@ -50,6 +56,7 @@ describe('cached-navigations-sync-io', () => {
   ]) {
     for (const source of ['dynamic RSC', 'initial HTML']) {
       it(`${description} from ${source}`, async () => {
+        const getCliOutput = next.getCliOutputFromHere()
         const { browser, page, act, startDate, navigate } = await startBrowser()
 
         if (source === 'dynamic RSC') {
@@ -60,6 +67,14 @@ describe('cached-navigations-sync-io', () => {
           const response = await page.goto(next.url + pathname)
           expect(response?.status()).toBe(200)
           expect(await response?.text()).toContain('Uncached time:')
+        }
+
+        // These routes opt into Partial Prefetching, even without the global
+        // config, so the sync IO in their embedded runtime prefetch is logged.
+        const syncIOErrorText = `Route "${pathname}": Next.js encountered the unstable value \`Date.now()\` while prerendering`
+        // No CLI logs in deploy
+        if (!(await gate('deploy'))) {
+          expect(getCliOutput()).toInclude(syncIOErrorText)
         }
 
         const timestamp = await browser.elementById('timestamp').text()
@@ -100,9 +115,21 @@ describe('cached-navigations-sync-io', () => {
     }
   }
 
+  // In Partial Prefetching, `prefetch={true}` is no longer a full prefetch that includes uncached data.
+  // @gate !partialPrefetchingGlobal
   it('finishes a full prefetch after synchronous IO interrupts its static stage', async () => {
+    const getCliOutput = next.getCliOutputFromHere()
     const { browser, act, navigate } = await startBrowser()
     await act(() => navigate('/uncached-time'), { includes: 'Dynamic content' })
+    // This route doesn't opt into Partial Prefetching, so its navigation has no
+    // embedded runtime prefetch and nothing is logged: Cached Navigations are
+    // something the user didn't opt into.
+    // No CLI logs in deploy
+    if (!(await gate('deploy'))) {
+      expect(getCliOutput()).not.toInclude(
+        'Route "/uncached-time": Next.js encountered the unstable value `Date.now()` while prerendering'
+      )
+    }
     const timestamp = await browser.elementById('timestamp').text()
     expect(timestamp).toMatch(/^Uncached time: \d+$/)
     await browser.eval('window.navigationMarker = "same document"')
@@ -117,7 +144,7 @@ describe('cached-navigations-sync-io', () => {
 
     // Refresh clears segment data and BFCache but retains the route tree. The
     // full prefetch must fetch new data without a cold static tree prerender.
-    const href = '/uncached-time#full-prefetch'
+    const href = '/uncached-time#prefetch-true'
     await act(
       async () => {
         await browser

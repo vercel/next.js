@@ -71,7 +71,7 @@ const sharedExternals = [
   'critters',
   'next/dist/compiled/node-html-parser',
   'next/dist/compiled/compression',
-  'next/dist/compiled/jsonwebtoken',
+  'next/dist/compiled/fast-jwt',
   'next/dist/compiled/@opentelemetry/api',
   'next/dist/compiled/@mswjs/interceptors/ClientRequest',
   'next/dist/compiled/ws',

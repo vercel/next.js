@@ -4,6 +4,7 @@
  * Pack the locally-built `next` package and run agent evals against it.
  *
  *   pnpm eval <eval-name>             run one eval and its configured variants
+ *   pnpm eval --suite regression      run a named eval suite
  *   pnpm eval <eval-name> --dry       preview without executing
  *   pnpm eval --all                   run every eval (slow — normally only CI does this)
  *   NEXT_SKIP_PACK=1 pnpm eval ...    reuse tarball from last run
@@ -30,11 +31,12 @@ const ROOT = __dirname
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
 const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
+const EVAL_SUITES_PATH = path.join(EVALS_DIR, 'eval.suites.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
-/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean }} EvalConfig */
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean, browserJs?: boolean }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
@@ -58,18 +60,40 @@ function pack() {
   packPackage(path.join(ROOT, 'packages/next'), TARBALL)
 }
 
-/** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName, variants, timeout, runs) {
+/** @param {string[] | null} selectedEvals  null means all evals */
+function writeExperiments(selectedEvals, variants, timeout, runs) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
   for (const v of variants) {
-    const selectedEvals = v.evals ?? (evalName ? [evalName] : null)
-    const evalsField = selectedEvals
-      ? `\n  evals: ${JSON.stringify(selectedEvals.length === 1 ? selectedEvals[0] : selectedEvals)},`
+    const variantEvals = v.evals ?? selectedEvals
+    const evalsField = variantEvals
+      ? `\n  evals: ${JSON.stringify(variantEvals.length === 1 ? variantEvals[0] : variantEvals)},`
       : ''
+    const browserJsFixtures = Object.fromEntries(
+      (variantEvals ?? listEvals())
+        .filter((name) => readFixtureConfig(name).browserJs)
+        .map((name) => {
+          const pkg = JSON.parse(
+            fs.readFileSync(
+              path.join(FIXTURES_DIR, name, 'package.json'),
+              'utf8'
+            )
+          )
+          return [name, pkg.name]
+        })
+    )
+    const measuresBrowserJs = Object.keys(browserJsFixtures).length > 0
+    let onRunComplete = v.onRunComplete
+    if (measuresBrowserJs) {
+      const runData = onRunComplete
+        ? `${onRunComplete}(context)`
+        : 'context.runData'
+      onRunComplete = `(context) => browserJs.onRunComplete({ ...context, runData: ${runData} })`
+    }
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
+${measuresBrowserJs ? `import { createBrowserJsHooks } from '../lib/bundle-optimizer/hooks.js'\n\nconst browserJs = createBrowserJsHooks(${JSON.stringify(browserJsFixtures)}, ${JSON.stringify(v.skills ?? [])})\n` : ''}
 
 const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
@@ -84,9 +108,10 @@ const config: ExperimentConfig = {
   earlyExit: ${runs === 1},
   timeout: ${timeout},
   sandbox: 'auto',
-  ${v.onRunComplete ? `onRunComplete: ${v.onRunComplete},` : ''}
+  ${onRunComplete ? `onRunComplete: ${onRunComplete},` : ''}
   setup: async (sandbox) => {
     ${v.setup}
+    ${measuresBrowserJs ? 'return browserJs.setup(sandbox)' : ''}
   },
 }
 
@@ -101,6 +126,50 @@ function listEvals() {
     .readdirSync(FIXTURES_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
+}
+
+function readEvalSuites() {
+  /** @type {unknown} */
+  const parsed = JSON.parse(fs.readFileSync(EVAL_SUITES_PATH, 'utf-8'))
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${EVAL_SUITES_PATH} must contain an object of eval suites`)
+  }
+
+  const fixtureNames = new Set(listEvals())
+  const seen = new Map()
+  /** @type {Record<string, string[]>} */
+  const suites = {}
+
+  for (const [suite, evalNames] of Object.entries(parsed)) {
+    if (!Array.isArray(evalNames) || evalNames.length === 0) {
+      throw new Error(`${EVAL_SUITES_PATH}: ${suite} must be a non-empty array`)
+    }
+    for (const evalName of evalNames) {
+      if (typeof evalName !== 'string' || !fixtureNames.has(evalName)) {
+        throw new Error(`${EVAL_SUITES_PATH}: unknown eval ${String(evalName)}`)
+      }
+      const previousSuite = seen.get(evalName)
+      if (previousSuite) {
+        throw new Error(
+          `${EVAL_SUITES_PATH}: ${evalName} is in both ${previousSuite} and ${suite}`
+        )
+      }
+      seen.set(evalName, suite)
+    }
+    suites[suite] = evalNames
+  }
+
+  const unclassified = [...fixtureNames].filter(
+    (evalName) =>
+      EVAL_CONFIG[evalName]?.publish !== false && !seen.has(evalName)
+  )
+  if (unclassified.length > 0) {
+    throw new Error(
+      `${EVAL_SUITES_PATH}: public evals must belong to a suite: ${unclassified.join(', ')}`
+    )
+  }
+
+  return suites
 }
 
 function readFixtureConfig(evalName) {
@@ -130,15 +199,21 @@ function readFixtureConfig(evalName) {
       `${EVAL_CONFIG_PATH}: ${evalName}.agentFeedback must be a boolean`
     )
   }
+  if (config.browserJs !== undefined && typeof config.browserJs !== 'boolean') {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.browserJs must be a boolean`
+    )
+  }
   return {
     skills: skillNames,
     timeout: config.timeout ?? 720,
     agentFeedback: config.agentFeedback ?? false,
+    browserJs: config.browserJs ?? false,
   }
 }
 
-function getExperimentSettings(evalName) {
-  const skillEvals = (evalName ? [evalName] : listEvals()).map((name) => ({
+function getExperimentSettings(selectedEvals) {
+  const skillEvals = (selectedEvals ?? listEvals()).map((name) => ({
     name,
     ...readFixtureConfig(name),
   }))
@@ -162,6 +237,7 @@ function getExperimentSettings(evalName) {
     suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
     imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
     setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    skills,
     evals,
   }))
 
@@ -200,6 +276,7 @@ function getExperimentSettings(evalName) {
 }
 
 function main() {
+  const evalSuites = readEvalSuites()
   const argv = require('yargs/yargs')(process.argv.slice(2))
     .command(
       '$0 [eval-name]',
@@ -212,6 +289,9 @@ function main() {
     )
     .boolean('all')
     .describe('all', 'Run every eval (slow — normally only CI does this)')
+    .string('suite')
+    .choices('suite', Object.keys(evalSuites))
+    .describe('suite', 'Run every eval in a named suite')
     .boolean('dry')
     .describe('dry', 'Preview without executing')
     .number('runs')
@@ -221,8 +301,9 @@ function main() {
     .string('variant')
     .describe('variant', 'Run only the named generated variant (repeatable)')
     .conflicts('all', 'eval-name')
+    .conflicts('suite', ['all', 'eval-name'])
     .check((argv) => {
-      if (!argv.all && !argv.evalName) {
+      if (!argv.all && !argv.evalName && !argv.suite) {
         throw new Error(
           `Missing <eval-name>.\n\nAvailable evals:\n${listEvals()
             .map((n) => `  ${n}`)
@@ -245,10 +326,16 @@ function main() {
     .strict()
     .help().argv
 
-  /** @type {string | null} */
-  const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
+  /** @type {string | undefined} */
+  const evalName = argv.evalName
+  /** @type {string[] | null} */
+  const selectedEvals = argv.suite
+    ? evalSuites[argv.suite]
+    : argv.all
+      ? null
+      : [/** @type {string} */ (evalName)]
   const { variants: availableVariants, timeout } =
-    getExperimentSettings(evalName)
+    getExperimentSettings(selectedEvals)
   const requestedVariants = argv.variant ?? []
   const unknownVariants = requestedVariants.filter(
     (name) => !availableVariants.some((variant) => variant.suffix === name)
@@ -292,11 +379,11 @@ function main() {
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
   linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(evalName, variants, timeout, argv.runs)
+  writeExperiments(selectedEvals, variants, timeout, argv.runs)
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
-      : `> Running all evals (${variants.map((v) => v.suffix).join(' + ')})`
+      : `> Running ${argv.suite ? `${argv.suite} suite` : 'all evals'} (${variants.map((v) => v.suffix).join(' + ')})`
   )
 
   // Same handoff pattern as run-tests.js with NEXT_TEST_PKG_PATHS. We invoke
