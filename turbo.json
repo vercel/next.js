@@ -6,7 +6,7 @@
     "CARGO_BUILD_WARNINGS",
     "NEXT_TEST_FUTURE_COMPAT"
   ],
-  "globalPassThroughEnv": ["RUSTC_WRAPPER", "SCCACHE_*"],
+  "globalPassThroughEnv": ["RUSTC_WRAPPER", "SCCACHE_*", "NODE_OPTIONS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

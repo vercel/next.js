@@ -194,7 +194,7 @@ jobs:
             fi
             printf '%s\n' 'export NODE_OPTIONS="${NODE_OPTIONS:-} --throw-deprecation"'
           } > "$shell_env"
-          printf 'BASH_ENV=%s\nTURBO_ENV_MODE=loose\n' "$shell_env" >> "$GITHUB_ENV"
+          printf 'BASH_ENV=%s\n' "$shell_env" >> "$GITHUB_ENV"
 
       # enforce consistent line endings for git on windows
       - name: Configure git to use LF endings
