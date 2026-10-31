@@ -1084,16 +1084,14 @@ export function createPatchedFetcher(
 
           if (isCacheableRevalidate && !cachedFetchData) {
             handleUnlock = await incrementalCache.lock(cacheKey)
-            const entry = workStore.isOnDemandRevalidate
-              ? null
-              : await incrementalCache.get(cacheKey, {
-                  kind: IncrementalCacheKind.FETCH,
-                  revalidate: finalRevalidate,
-                  fetchUrl,
-                  fetchIdx,
-                  tags,
-                  softTags: implicitTags?.tags,
-                })
+            const entry = await incrementalCache.get(cacheKey, {
+              kind: IncrementalCacheKind.FETCH,
+              revalidate: finalRevalidate,
+              fetchUrl,
+              fetchIdx,
+              tags,
+              softTags: implicitTags?.tags,
+            })
 
             if (hasNoExplicitCacheConfig && workUnitStore) {
               switch (workUnitStore.type) {

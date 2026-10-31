@@ -519,6 +519,9 @@ export class IncrementalCache implements IncrementalCacheType {
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (ctx.kind === IncrementalCacheKind.FETCH) {
+      const workStore = workAsyncStorage.getStore()
+      const isOnDemandRevalidate =
+        this.isOnDemandRevalidate || workStore?.isOnDemandRevalidate
       const workUnitStore = workUnitAsyncStorage.getStore()
       const resumeDataCache = workUnitStore
         ? getResumeDataCache(workUnitStore)
@@ -529,7 +532,6 @@ export class IncrementalCache implements IncrementalCacheType {
           // Check if any tags were recently revalidated before returning RDC entry.
           // When a server action calls updateTag(), the re-render should see fresh
           // data instead of stale RDC data.
-          const workStore = workAsyncStorage.getStore()
           const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
           const hasRevalidatedTag = combinedTags.some(
             (tag) =>
@@ -558,6 +560,13 @@ export class IncrementalCache implements IncrementalCacheType {
         if (IncrementalCache.debug) {
           console.log('IncrementalCache: rdc:no-resume-data')
         }
+      }
+
+      if (isOnDemandRevalidate) {
+        // On-demand revalidation reuses the current render's RDC, but
+        // recomputes persisted data even when its revalidate interval has not
+        // elapsed.
+        return null
       }
     }
 
