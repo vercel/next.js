@@ -1,0 +1,11 @@
+{
+  "source": "nolanlawson/agent-framework-benchmark",
+  "sourceRevision": "b95ada03930ca3670c8ff6377c3af815df0ac040",
+  "sourceSha256": "56a1fae810494f70e7a35aead1eaa7570c791a34afc7702842af2f4374d5c838",
+  "agent": "vercel-ai-gateway/codex",
+  "model": "openai/gpt-6-luna?reasoningEffort=high",
+  "codexVersion": "0.166.0",
+  "agentBrowser": "0.31.1",
+  "agentTimeoutSeconds": 1800,
+  "lighthouseSamples": 3
+}
