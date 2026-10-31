@@ -2852,6 +2852,92 @@ mod tests {
         .unwrap();
     }
 
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_read_matches_skips_unreadable_directories() {
+        use std::{
+            fs::{Permissions, create_dir_all, metadata, set_permissions},
+            os::unix::fs::PermissionsExt,
+            path::PathBuf,
+        };
+
+        use turbo_tasks_fs::canonicalize_to_rcstr;
+
+        /// Restores the original permissions on drop so the temporary directory can be removed.
+        struct RestorePermissions(PathBuf, Permissions);
+        impl Drop for RestorePermissions {
+            fn drop(&mut self) {
+                let _ = set_permissions(&self.0, self.1.clone());
+            }
+        }
+
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        create_dir_all(root.join("readable/out")).unwrap();
+        std::fs::write(root.join("readable/out/file.js"), "content").unwrap();
+        create_dir_all(root.join("unreadable/out")).unwrap();
+        std::fs::write(root.join("unreadable/out/file.js"), "content").unwrap();
+        let disk_root = canonicalize_to_rcstr(root).unwrap();
+
+        let unreadable = root.join("unreadable");
+        let _restore = RestorePermissions(
+            unreadable.clone(),
+            metadata(&unreadable).unwrap().permissions(),
+        );
+        set_permissions(&unreadable, Permissions::from_mode(0o000)).unwrap();
+        if std::fs::read_dir(&unreadable).is_ok() {
+            // Permissions are not enforced for this user, e.g. when running as root.
+            eprintln!(
+                "skipping test_read_matches_skips_unreadable_directories: permissions are not \
+                 enforced"
+            );
+            return;
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr) -> anyhow::Result<()> {
+            let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            // `path.join(dir, "out")` with an unknown `dir` is traced with this pattern.
+            let mut path_join = Pattern::Concatenation(vec![
+                Pattern::Dynamic,
+                Pattern::Alternatives(vec![
+                    Pattern::Constant(rcstr!("/")),
+                    Pattern::Constant(rcstr!("")),
+                ]),
+                Pattern::Constant(rcstr!("out")),
+            ]);
+            path_join.normalize();
+            let matches = read_matches(
+                root,
+                rcstr!(""),
+                true,
+                Pattern::new(path_join.or_any_nested_file()),
+            )
+            .await?;
+            let names = matches.iter().map(|m| m.name()).collect::<Vec<_>>();
+            assert!(names.contains(&"readable/out/file.js"), "{names:?}");
+            assert!(
+                !names.iter().any(|name| name.starts_with("unreadable")),
+                "{names:?}"
+            );
+            Ok(())
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            operation(disk_root).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_read_matches() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(

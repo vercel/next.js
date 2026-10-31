@@ -983,10 +983,16 @@ impl FileSystem for DiskFileSystem {
                 self.ensure_path_is_realpath("read_dir", &full_path).await?;
                 dir
             }
+            // A directory we are not allowed to list is treated like one that doesn't exist.
+            // Pattern and glob walks (e.g. tracing `path.join(dir, "out")`) visit every directory
+            // under the project root, and a single unreadable one, such as a Docker volume owned
+            // by another user, would otherwise fail the whole build. Reading an unreadable file
+            // still reports the error.
             Err(e)
                 if e.kind() == ErrorKind::NotFound
                     || e.kind() == ErrorKind::NotADirectory
-                    || e.kind() == ErrorKind::InvalidFilename =>
+                    || e.kind() == ErrorKind::InvalidFilename
+                    || e.kind() == ErrorKind::PermissionDenied =>
             {
                 return Ok(RawDirectoryContent::not_found());
             }
@@ -3024,6 +3030,115 @@ mod tests {
                 .read_strongly_consistent()
                 .await?;
 
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+    }
+
+    #[cfg(unix)]
+    mod permission_denied_tests {
+        use std::{
+            fs::{File, Permissions, create_dir_all, metadata, set_permissions},
+            os::unix::fs::PermissionsExt,
+            path::PathBuf,
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::Vc;
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{
+            DirectoryContent, DirectoryEntry, DiskFileSystem, FileSystem, canonicalize_to_rcstr,
+            glob::{Glob, GlobOptions},
+        };
+
+        /// Removes all permissions from `path` and restores them on drop, so that the temporary
+        /// directory can be cleaned up even if an assertion fails.
+        struct NoPermissions {
+            path: PathBuf,
+            mode: u32,
+        }
+
+        impl NoPermissions {
+            fn new(path: PathBuf) -> Self {
+                let mode = metadata(&path).unwrap().permissions().mode();
+                set_permissions(&path, Permissions::from_mode(0o000)).unwrap();
+                Self { path, mode }
+            }
+        }
+
+        impl Drop for NoPermissions {
+            fn drop(&mut self) {
+                let _ = set_permissions(&self.path, Permissions::from_mode(self.mode));
+            }
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_unreadable_directory() {
+            #[turbo_tasks::function(operation, root)]
+            async fn test_operation(root: RcStr) -> anyhow::Result<()> {
+                let fs = DiskFileSystem::new(rcstr!("test"), Vc::cell(root));
+                let root_path = fs.root().await?;
+
+                // The parent directory still lists the unreadable directory.
+                let DirectoryContent::Entries(entries) = &*root_path.read_dir().await? else {
+                    panic!("root directory should exist");
+                };
+                assert!(matches!(
+                    entries.get("unreadable_dir"),
+                    Some(DirectoryEntry::Directory(_))
+                ));
+
+                // Listing the unreadable directory behaves like listing a missing one.
+                let unreadable_dir = root_path.join("unreadable_dir")?;
+                assert!(matches!(
+                    &*unreadable_dir.read_dir().await?,
+                    DirectoryContent::NotFound
+                ));
+
+                // A glob walk over the root skips the unreadable directory instead of failing.
+                let glob_result = root_path
+                    .read_glob(Glob::new(rcstr!("**/*.txt"), GlobOptions::default()))
+                    .await?;
+                let readable_dir = glob_result.inner.get("readable_dir").unwrap().await?;
+                assert!(readable_dir.results.contains_key("file.txt"));
+                if let Some(unreadable_dir) = glob_result.inner.get("unreadable_dir") {
+                    let unreadable_dir = unreadable_dir.await?;
+                    assert!(unreadable_dir.results.is_empty() && unreadable_dir.inner.is_empty());
+                }
+
+                // Reading a file without permission is still an error.
+                let unreadable_file = root_path.join("unreadable_file.txt")?;
+                assert!(unreadable_file.read().await.is_err());
+
+                Ok(())
+            }
+
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path();
+            create_dir_all(path.join("readable_dir")).unwrap();
+            File::create_new(path.join("readable_dir/file.txt")).unwrap();
+            create_dir_all(path.join("unreadable_dir")).unwrap();
+            File::create_new(path.join("unreadable_dir/secret.txt")).unwrap();
+            File::create_new(path.join("unreadable_file.txt")).unwrap();
+            let root = canonicalize_to_rcstr(path).unwrap();
+
+            let _unreadable_dir = NoPermissions::new(path.join("unreadable_dir"));
+            let _unreadable_file = NoPermissions::new(path.join("unreadable_file.txt"));
+            if std::fs::read_dir(path.join("unreadable_dir")).is_ok() {
+                // Permissions are not enforced for this user, e.g. when running as root.
+                eprintln!("skipping test_unreadable_directory: permissions are not enforced");
+                return;
+            }
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root).read_strongly_consistent().await?;
                 anyhow::Ok(())
             })
             .await
