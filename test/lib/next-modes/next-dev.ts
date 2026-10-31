@@ -41,8 +41,8 @@ export class NextDevInstance extends NextInstance {
     })
   }
 
-  private getBuildArgs(args?: string[]) {
-    let buildArgs = ['pnpm', 'next', 'build']
+  private getBuildArgs(args?: string[], nodeOptions?: string) {
+    let buildArgs = this.getNextCommandArgs('build', nodeOptions)
 
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
@@ -81,7 +81,10 @@ export class NextDevInstance extends NextInstance {
     }>((resolve) => {
       const curOutput = this._cliOutput.length
       const spawnOpts = this.getSpawnOpts(options.env)
-      const buildArgs = this.getBuildArgs(options.args)
+      const buildArgs = this.getBuildArgs(
+        options.args,
+        options.env?.NODE_OPTIONS
+      )
 
       console.log('running', shellQuote(buildArgs))
 
@@ -118,8 +121,7 @@ export class NextDevInstance extends NextInstance {
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
-      'pnpm',
-      'next',
+      ...this.getNextCommandArgs('dev', options.env?.NODE_OPTIONS),
       useTurbo ? '--turbopack' : undefined,
     ].filter(Boolean) as string[]
 

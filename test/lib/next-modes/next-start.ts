@@ -102,7 +102,7 @@ export class NextStartInstance extends NextInstance {
     this._cliOutput = ''
     const spawnOpts = this.getSpawnOpts(options.env)
 
-    let startArgs = ['pnpm', 'next', 'start']
+    let startArgs = this.getNextCommandArgs('start', options.env?.NODE_OPTIONS)
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
@@ -121,7 +121,7 @@ export class NextStartInstance extends NextInstance {
 
     if (!options.skipBuild) {
       this._phase = 'building'
-      const buildArgs = this.getBuildArgs()
+      const buildArgs = this.getBuildArgs(undefined, options.env?.NODE_OPTIONS)
       console.log('running', shellQuote(buildArgs))
       await new Promise<void>((resolve, reject) => {
         try {
@@ -240,8 +240,8 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  private getBuildArgs(args?: string[]) {
-    let buildArgs = ['pnpm', 'next', 'build']
+  private getBuildArgs(args?: string[], nodeOptions?: string) {
+    let buildArgs = this.getNextCommandArgs('build', nodeOptions)
 
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
@@ -279,7 +279,10 @@ export class NextStartInstance extends NextInstance {
       this._phase = 'building'
       const curOutput = this._cliOutput.length
       const spawnOpts = this.getSpawnOpts(options.env)
-      const buildArgs = this.getBuildArgs(options.args)
+      const buildArgs = this.getBuildArgs(
+        options.args,
+        options.env?.NODE_OPTIONS
+      )
 
       console.log('running', shellQuote(buildArgs))
 

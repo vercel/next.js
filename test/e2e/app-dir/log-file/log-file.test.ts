@@ -44,6 +44,16 @@ describe('log-file', () => {
           // Parse JSON and filter out the noise logs
           try {
             const log = JSON.parse(line)
+            // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
+            if (
+              log.source === 'Server' &&
+              log.level === 'ERROR' &&
+              /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent/.test(
+                log.message
+              )
+            ) {
+              return false
+            }
             if (
               /Download the React DevTools|connected to ws at|received ws message|Next.js page already hydrated|Next.js hydrate callback fired|Compiling|Compiled|Ready in/.test(
                 log.message
@@ -90,6 +100,11 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
+        if (process.env.IS_WEBPACK_TEST) {
+          expect(readLogFile()).toContain(
+            '[DEP0144] DeprecationWarning: module.parent'
+          )
+        }
         const newLogContent = getNewLogContent()
         // The server logs will be replayed in the browser, but they'll not be forwarded to terminal,
         // as terminal already has them in the first place.
