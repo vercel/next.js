@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { collectLocalFiles, createSandbox } from '@vercel/agent-eval'
 import { installPlaywright } from '../../lib/setup.ts'
-import { task } from './prepare.mjs'
+import { patchSortHelper, task } from './prepare.mjs'
 
 const directory = process.argv[2]
 if (!directory)
@@ -48,6 +48,9 @@ try {
   // The verifier receives public task files and the saved app, never the model key.
   await sandbox.uploadFiles(await collectLocalFiles(join(source, 'template')))
   await sandbox.writeFiles({
+    'tests/specs/helpers.mjs': patchSortHelper(
+      readFileSync(join(source, 'template/tests/specs/helpers.mjs'), 'utf8')
+    ),
     'package-lock.json': readFileSync(
       join(source, 'template/package-lock.json'),
       'utf8'
@@ -135,6 +138,7 @@ load(PHASE_PRODUCTION_BUILD, resolve('app')).then(config => {
         {
           acceptanceExitCode: passed ? 0 : 1,
           testExitCode: tests.exitCode,
+          sortHeaderWait: true,
           configurationExitCode: config.exitCode,
           sandboxId: sandbox.sandboxId,
           sourceRevision: task.sourceRevision,

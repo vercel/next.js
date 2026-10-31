@@ -99,6 +99,12 @@ must pass, with none skipped. Disabling Cache Components or Partial Prefetching
 fails the task. Agent changes to tests and data do not replace these checks.
 The upstream reference app was validated against the same 54 tests.
 
+One shared helper waits for a streamed table header before choosing its sort
+button. The upstream helper calls `count()` immediately, which can return zero
+before the table renders and send the click to the wrong element. The task and
+verifier apply the same wait; the assertions are unchanged. Preserve the
+original verification when rechecking a saved app after this fix.
+
 After successful acceptance checks, use `--metrics-only` to retry performance
 collection without repeating acceptance tests.
 
