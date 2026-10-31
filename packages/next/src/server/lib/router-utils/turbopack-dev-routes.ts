@@ -177,6 +177,11 @@ export async function createTurbopackRoutePublisher(
             route: route.replace(/\/layout$/, '') || '/',
           })
           break
+        case 'app-default':
+        case 'app-special':
+          // Defaults and special files (error, loading, not-found and so on)
+          // have no route types of their own.
+          break
       }
     }
     const manifest = await createRouteTypesManifest({
