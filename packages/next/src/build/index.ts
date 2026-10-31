@@ -2565,7 +2565,7 @@ export default async function build(
                   : undefined
 
                 if (staticInfo?.hadUnsupportedValue) {
-                  errorFromUnsupportedSegmentConfig()
+                  errorFromUnsupportedSegmentConfig(pageFilePath)
                 }
 
                 // If there's any thing that would contribute to the functions
@@ -2965,7 +2965,7 @@ export default async function build(
         })
 
         if (staticInfo.hadUnsupportedValue) {
-          errorFromUnsupportedSegmentConfig()
+          errorFromUnsupportedSegmentConfig(path.join(dir, middlewareFile))
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
@@ -4928,9 +4928,12 @@ export default async function build(
   }
 }
 
-function errorFromUnsupportedSegmentConfig(): never {
+function errorFromUnsupportedSegmentConfig(pageFilePath?: string): never {
   Log.error(
-    `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
+    `Invalid segment configuration export detected` +
+      (pageFilePath ? ` in "${pageFilePath}"` : '') +
+      `. The exported \`config\` must use statically analyzable values. Dynamic expressions like \`String.raw\`, template literals with variables, or function calls are not supported.\n` +
+      `Read More - https://nextjs.org/docs/messages/invalid-page-config`
   )
   process.exit(1)
 }

@@ -48,6 +48,11 @@ describe('Exported runtimes value validation', () => {
         expect(cliOutput).toContain(
           'Unknown identifier "dynamicPath" at "config.matcher[1]"'
         )
+        // The final build error names the file that failed.
+        expect(cliOutput).toMatch(
+          /Invalid segment configuration export detected in ".*middleware\.js"/
+        )
+        expect(cliOutput).toContain('statically analyzable')
       }
     })
   })
