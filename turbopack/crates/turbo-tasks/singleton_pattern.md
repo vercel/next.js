@@ -14,7 +14,7 @@ To use the singleton pattern in turbo-tasks:
 3. The [constructor arguments][TaskInput] act as a key for the constructor task which ensures that the same value is always celled in the same task.
 4. Keep in mind that you should only compare `ResolvedVc`s by equality. Unresolved `Vc`s might not be equal to each other.
 
-[value]: crate::value
+[value]: macro@crate::value
 [function]: crate::function
 [TaskInput]: crate::TaskInput
 

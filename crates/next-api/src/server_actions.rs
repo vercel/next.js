@@ -11,8 +11,10 @@ use next_core::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
         ActionManifestWorkerEntryDurability, ServerReferenceManifest,
     },
+    root_param_getters_path,
     util::NextRuntime,
 };
+use smallvec::SmallVec;
 use swc_core::{
     atoms::{Atom, atom},
     common::comments::Comments,
@@ -28,23 +30,29 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleId,
+        ChunkGroupResult, ChunkItem, ChunkItemExt, ChunkableModule, ChunkingConfigs,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource, MinifyType,
+        ModuleId, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
     context::AssetContext,
+    environment::{ChunkLoading, Environment},
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
     module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
+        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode,
+        async_module_info::AsyncModulesInfo, binding_usage_info::ModuleExportUsage,
+        chunk_group_info::ChunkGroupKey,
     },
-    output::{OutputAsset, OutputAssetsReference},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_source::VirtualSource,
@@ -263,6 +271,9 @@ impl Asset for ServerActionManifestAsset {
         let durable_use_cache_entries = *next_config
             .enable_durable_use_cache_entries(self.project.next_mode())
             .await?;
+        let static_root_param_tracking_enabled = *next_config
+            .enable_use_cache_static_root_param_tracking(self.project.next_mode())
+            .await?;
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
@@ -291,31 +302,22 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/image-config-context.shared-runtime
         // - next/dist/shared/lib/router-context.shared-runtime
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
-        let app_project = self.project.app_project().await?.unwrap();
-        let next_dir = get_next_package(self.project.project_path().owned().await?).await?;
-        let source_to_ignore = FileSource::new(
-            next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?,
-        );
-        let modules_to_ignore = Vc::cell(
-            [
-                app_project.rsc_module_context(),
-                app_project.route_module_context(),
-            ]
-            .iter()
-            .map(|c| {
-                c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
-                    .module()
-                    .to_resolved()
-            })
-            .try_join()
-            .await?,
-        );
+        let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
+            .then(|| get_use_cache_modules_to_ignore(*self.project));
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
             data: Option<ReadRef<ModulesInformation>>,
+            root_param_dependencies: Option<ReadRef<Vec<RcStr>>>,
         }
+
+        // Keep module ids in the hashed factory independent of the rest of the build.
+        let chunking_context_for_content_hash = ResolvedVc::upcast(
+            UseCacheContentHashChunkingContext::new(*self.chunking_context)
+                .to_resolved()
+                .await?,
+        );
 
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
             .iter()
@@ -337,9 +339,26 @@ impl Asset for ServerActionManifestAsset {
                         compute_subtree_content_hash(
                             *self.module_graph,
                             **module,
-                            *self.chunking_context,
+                            *chunking_context_for_content_hash,
                             hash_salt,
-                            modules_to_ignore,
+                            modules_to_ignore
+                                .expect("cache metadata collection requires module exclusions"),
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                };
+                let root_param_dependencies = if static_root_param_tracking_enabled
+                    && extract_type_from_server_reference_id(hash_id)
+                        == ServerReferenceType::UseCache
+                {
+                    Some(
+                        collect_root_param_dependencies_from_graph(
+                            *self.module_graph,
+                            **module,
+                            modules_to_ignore
+                                .expect("cache metadata collection requires module exclusions"),
                         )
                         .await?,
                     )
@@ -353,6 +372,7 @@ impl Asset for ServerActionManifestAsset {
                         exported_name: &meta.name,
                         filename,
                         data,
+                        root_param_dependencies,
                     },
                 ))
             })
@@ -366,6 +386,7 @@ impl Asset for ServerActionManifestAsset {
                 exported_name,
                 filename,
                 data,
+                root_param_dependencies,
             },
         ) in &action_metadata
         {
@@ -378,10 +399,13 @@ impl Asset for ServerActionManifestAsset {
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
                     durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
-                        code_hash: d.ident_code_hash.as_str(),
+                        code_hash: d.path_code_hash.as_str(),
                         runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
                         runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
                     }),
+                    root_param_dependencies: root_param_dependencies
+                        .as_ref()
+                        .map(|names| names.as_slice()),
                 },
             );
 
@@ -433,12 +457,112 @@ pub async fn to_rsc_context(
 #[derive(Debug)]
 struct ModulesInformation {
     /// The combined code hash of all modules in the subgraph.
-    pub ident_code_hash: RcStr,
+    pub path_code_hash: RcStr,
     /// The merged and deduplicated list of all runtime env vars read in the subgraph.
     pub runtime_env_vars_read: Vec<RcStr>,
     /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
     /// in the subgraph.
     pub runtime_env_vars_existence: Vec<RcStr>,
+}
+
+#[turbo_tasks::function]
+async fn get_use_cache_modules_to_ignore(project: ResolvedVc<Project>) -> Result<Vc<Modules>> {
+    let app_project = project.app_project().await?.unwrap();
+    let next_dir = get_next_package(project.project_path().owned().await?).await?;
+    let source_to_ignore =
+        FileSource::new(next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?);
+    Ok(Vc::cell(
+        [
+            app_project.rsc_module_context(),
+            app_project.route_module_context(),
+        ]
+        .iter()
+        .map(|c| {
+            c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
+                .module()
+                .to_resolved()
+        })
+        .try_join()
+        .await?,
+    ))
+}
+
+fn collect_cache_modules(
+    graph: &ModuleGraph,
+    entry: ResolvedVc<Box<dyn Module>>,
+    ignored: &[ResolvedVc<Box<dyn Module>>],
+) -> Result<FxIndexSet<ResolvedVc<Box<dyn Module>>>> {
+    let mut modules = FxIndexSet::default();
+    graph.traverse_edges_dfs(
+        std::iter::once(entry),
+        &mut (),
+        |_, target, _| {
+            if ignored.contains(&target) {
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
+                // CSS client references do not execute code on the server.
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target).is_some() {
+                // Include the proxy, but do not traverse client
+                // implementations.
+                modules.insert(target);
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            modules.insert(target);
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        // Include traced modules, they still affect runtime behavior.
+        true,
+        // Collect the full dependency subtree, binding usage can differ between entry points and
+        // would cause the hashes to change unnecessarily.
+        true,
+    )?;
+    Ok(modules)
+}
+
+// Returns the sorted root param dependencies from this cache module's graph. A
+// callable received at runtime can read other root params. The runtime must
+// check reads against this list when it uses the list for upfront cache keys.
+#[turbo_tasks::function]
+async fn collect_root_param_dependencies_from_graph(
+    module_graph: ResolvedVc<ModuleGraph>,
+    entry: ResolvedVc<Box<dyn Module>>,
+    modules_to_ignore: Vc<Modules>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let span = tracing::info_span!(
+        "collect use-cache root param dependencies",
+        entry = display(entry.ident_string().await?)
+    );
+    async {
+        let graph = module_graph.await?;
+        let ignored = modules_to_ignore.await?;
+        let modules = collect_cache_modules(&graph, entry, &ignored)?;
+        let getters_path = root_param_getters_path().await?;
+        let mut names = modules
+            .iter()
+            .map(async |module| {
+                let ident = module.ident().await?;
+                if let Some(filename) = getters_path.get_path_to(&ident.path)
+                    && let Some(name) = filename.strip_suffix(".js")
+                    && !name.is_empty()
+                    && !name.contains('/')
+                {
+                    Ok(Some(RcStr::from(name)))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
+            .await?;
+        names.sort_unstable();
+        names.dedup();
+        anyhow::Ok(Vc::cell(names))
+    }
+    .instrument(span)
+    .await
 }
 
 #[turbo_tasks::function]
@@ -458,34 +582,7 @@ async fn compute_subtree_content_hash(
         let async_module_info = module_graph.async_module_info();
 
         let modules_to_ignore = modules_to_ignore.await?;
-        let mut modules = FxIndexSet::default();
-        module_graph_value.traverse_edges_dfs(
-            std::iter::once(entry),
-            /* state */ &mut (),
-            /* visit_preorder */
-            |_, target, _| {
-                if modules_to_ignore.contains(&target) {
-                    Ok(GraphTraversalAction::Exclude)
-                } else if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target)
-                    .is_some()
-                {
-                    // Don't include the module at all. There is nothing that executes on the server
-                    Ok(GraphTraversalAction::Exclude)
-                } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
-                    .is_some()
-                {
-                    // Include the client reference proxy module, but not the referenced client
-                    // modules themselves.
-                    modules.insert(target);
-                    Ok(GraphTraversalAction::Exclude)
-                } else {
-                    modules.insert(target);
-                    Ok(GraphTraversalAction::Continue)
-                }
-            },
-            /* visit_postorder */ |_, _, _| Ok(()),
-            /* include_traced */ true,
-        )?;
+        let modules = collect_cache_modules(&module_graph_value, entry, &modules_to_ignore)?;
 
         let data = modules
             .into_iter()
@@ -512,13 +609,22 @@ async fn compute_subtree_content_hash(
         if *PRINT_USE_CACHE_SUBTREE {
             println!(
                 "Modules in subtree for {}:\n{}",
-                entry.ident().await?.path,
+                entry.ident_string().await?,
                 data.iter()
                     .map(async |(m, data)| {
                         Ok(format!(
-                            "  '{}': {} with env: {}",
-                            m.ident_string().await?,
-                            data.ident_code_hash,
+                            "  '{}': {}{}{}",
+                            m.ident().await?.path.to_string_ref().await?,
+                            data.path_code_hash,
+                            if data
+                                .env_var_info
+                                .as_ref()
+                                .is_some_and(|e| !e.runtime.is_empty())
+                            {
+                                " with env: "
+                            } else {
+                                ""
+                            },
                             data.env_var_info
                                 .as_ref()
                                 .map(|e| {
@@ -546,7 +652,7 @@ async fn compute_subtree_content_hash(
         let mut runtime_env_vars = FxIndexMap::default();
 
         for (_m, data) in &data {
-            hashes.push(&data.ident_code_hash);
+            hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
                 for (name, mode) in &env.runtime {
                     match mode {
@@ -566,7 +672,7 @@ async fn compute_subtree_content_hash(
         }
 
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
-        let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
+        let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
             runtime_env_vars.into_iter().partition_map(|(name, mode)| {
                 if mode == EnvVarAccessMode::Read {
                     Either::Left(name)
@@ -575,9 +681,12 @@ async fn compute_subtree_content_hash(
                 }
             });
 
+        // Sort for more stable return values (less invalidation)
+        runtime_read.sort_unstable();
+        runtime_existence.sort_unstable();
         anyhow::Ok(
             ModulesInformation {
-                ident_code_hash: hash,
+                path_code_hash: hash,
                 runtime_env_vars_read: runtime_read,
                 runtime_env_vars_existence: runtime_existence,
             }
@@ -602,7 +711,7 @@ async fn compute_subtree_content_hash(
 #[turbo_tasks::value]
 #[derive(Debug)]
 struct ModuleInformation {
-    pub ident_code_hash: RcStr,
+    pub path_code_hash: RcStr,
     pub env_var_info: Option<ReadRef<EnvVarInfo>>,
 }
 
@@ -616,7 +725,7 @@ async fn module_hash(
 ) -> Result<Vc<ModuleInformation>> {
     let ident = m.ident();
     let ident_value = ident.await?;
-    let ident_str = ident.to_string().await?;
+    let ident_str = ident.to_string_without_layer().await?;
 
     if cfg!(debug_assertions)
         && (ident_str
@@ -639,7 +748,7 @@ async fn module_hash(
             None
         };
 
-    let ident_code_hash = if let Some(placeable_module) =
+    let path_code_hash = if let Some(placeable_module) =
         ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
         && !ident_value
             .layer
@@ -681,7 +790,7 @@ async fn module_hash(
     };
 
     Ok(ModuleInformation {
-        ident_code_hash,
+        path_code_hash,
         env_var_info,
     }
     .cell())
@@ -707,7 +816,7 @@ impl ServerActionInfoRaw {
 }
 
 /// Simplified action entry for storage in turbo_tasks values
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionEntry {
     pub name: String,
 }
@@ -902,7 +1011,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 }
 
 /// Action metadata including name and source path
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionMeta {
     pub name: String,
     /// The original source file path (from entry_path in the action comment)
@@ -953,13 +1062,20 @@ pub struct AllModuleActions(
 pub async fn map_server_actions(
     graph: OperationVc<ModuleGraphLayer>,
 ) -> Result<Vc<AllModuleActions>> {
-    let graph = graph.connect();
+    let graph = graph.connect().await?;
     let actions = graph
-        .await?
-        .iter_reachable_modules()?
-        .map(async |module| {
+        .iter_reachable_nodes()?
+        .map(async |(idx, node)| {
+            let SingleModuleGraphNode::Module(module) = node else {
+                // VisitedModule nodes were handled in their owning graph.
+                return Ok(None);
+            };
+            let ident = graph
+                .node_ident(idx)
+                .context("Module nodes always have an ident")?;
             // TODO: compare module contexts instead?
-            let layer = match module.ident().await?.layer.as_ref() {
+            let ident = ident.await?;
+            let layer = match ident.layer.as_ref() {
                 Some(layer)
                     if layer.name() == "app-rsc"
                         || layer.name() == "app-edge-rsc"
@@ -974,9 +1090,9 @@ pub async fn map_server_actions(
             };
             // TODO the old implementation did parse_actions(to_rsc_context(module))
             // is that really necessary?
-            Ok(parse_actions(*module)
+            Ok(parse_actions(**module)
                 .await?
-                .map(|action_map| (module, (layer, action_map))))
+                .map(|action_map| (*module, (layer, action_map))))
         })
         .try_flat_join()
         .await?;
@@ -999,6 +1115,273 @@ fn extract_type_from_server_reference_id(id: &str) -> ServerReferenceType {
         ServerReferenceType::UseCache
     } else {
         ServerReferenceType::ServerAction
+    }
+}
+
+/// Wrap an inner chunking context and override certain behaviors for use cache content hashing.
+///
+/// Be careful when overriding anything here, to not normalize anything that might actually have a
+/// behavior effect on the use-cache return value.
+#[turbo_tasks::value]
+struct UseCacheContentHashChunkingContext {
+    inner: ResolvedVc<Box<dyn ChunkingContext>>,
+}
+
+#[turbo_tasks::value_impl]
+impl UseCacheContentHashChunkingContext {
+    #[turbo_tasks::function]
+    pub fn new(inner: ResolvedVc<Box<dyn ChunkingContext>>) -> Vc<Self> {
+        Self { inner }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkingContext for UseCacheContentHashChunkingContext {
+    #[turbo_tasks::function]
+    fn name(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!("UseCacheContentHashChunkingContext"))
+    }
+
+    #[turbo_tasks::function]
+    fn root_path(&self) -> Vc<FileSystemPath> {
+        self.inner.root_path()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root(&self) -> Vc<FileSystemPath> {
+        self.inner.output_root()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root_to_root_path(&self) -> Vc<RcStr> {
+        self.inner.output_root_to_root_path()
+    }
+
+    #[turbo_tasks::function]
+    fn environment(&self) -> Vc<Environment> {
+        self.inner.environment()
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_root_path(&self) -> Vc<FileSystemPath> {
+        self.inner.chunk_root_path()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_path(
+        &self,
+        asset: Option<Vc<Box<dyn Asset>>>,
+        ident: Vc<AssetIdent>,
+        prefix: Option<RcStr>,
+        extension: RcStr,
+    ) -> Vc<FileSystemPath> {
+        self.inner.chunk_path(asset, ident, prefix, extension)
+    }
+
+    #[turbo_tasks::function]
+    async fn asset_url(&self, ident: FileSystemPath, tag: Option<RcStr>) -> Vc<RcStr> {
+        self.inner.asset_url(ident, tag)
+    }
+
+    #[turbo_tasks::function]
+    fn service_worker_scope_base_path(&self) -> Vc<RcStr> {
+        self.inner.service_worker_scope_base_path()
+    }
+
+    #[turbo_tasks::function]
+    fn reference_chunk_source_maps(
+        self: Vc<Self>,
+        _chunk: Vc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<bool>> {
+        bail!(
+            "reference_chunk_source_maps should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        self.inner.reference_module_source_maps(module)
+    }
+
+    #[turbo_tasks::function]
+    async fn asset_path(
+        &self,
+        content: Vc<AssetContent>,
+        original_asset_ident: Vc<AssetIdent>,
+        tag: Option<RcStr>,
+    ) -> Vc<FileSystemPath> {
+        self.inner.asset_path(content, original_asset_ident, tag)
+    }
+
+    #[turbo_tasks::function]
+    fn url_behavior(&self, tag: Option<RcStr>) -> Vc<UrlBehavior> {
+        self.inner.url_behavior(tag)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_configs(self: Vc<Self>) -> Result<Vc<ChunkingConfigs>> {
+        bail!("chunking_configs should not be called in UseCacheContentHashChunkingContext")
+    }
+
+    #[turbo_tasks::function]
+    fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
+        self.inner.source_map_source_type()
+    }
+
+    #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "is_nested_async_availability_enabled should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn is_module_merging_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "is_module_merging_enabled should not be called in UseCacheContentHashChunkingContext"
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "is_dynamic_chunk_content_loading_enabled should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        // Intentionally override: we are not performing chunking, so minify_type is only used for
+        // generating less whitespace during AST emitting (which means less data and thus slightly
+        // faster)
+        MinifyType::default().cell()
+    }
+
+    #[turbo_tasks::function]
+    fn should_use_absolute_url_references(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "should_use_absolute_url_references should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_group(
+        self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
+        _module_graph: ResolvedVc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<ChunkGroupResult>> {
+        bail!("chunk_group should not be called in UseCacheContentHashChunkingContext");
+    }
+
+    #[turbo_tasks::function]
+    async fn evaluated_chunk_group(
+        self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunk_group: ChunkGroupKey,
+        _module_graph: ResolvedVc<ModuleGraph>,
+        _extra_chunks: Vc<OutputAssets>,
+        _input_availability_info: AvailabilityInfo,
+    ) -> Result<Vc<ChunkGroupResult>> {
+        bail!("evaluated_chunk_group should not be called in UseCacheContentHashChunkingContext");
+    }
+
+    #[turbo_tasks::function]
+    async fn hmr_chunk_list(
+        self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunks: Vc<OutputAssets>,
+        _source: HmrChunkListSource,
+    ) -> Result<Vc<OutputAssets>> {
+        bail!("hmr_chunk_list should not be called in UseCacheContentHashChunkingContext");
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_chunk_group(
+        self: Vc<Self>,
+        _path: FileSystemPath,
+        _chunk_group: ChunkGroupKey,
+        _module_graph: ResolvedVc<ModuleGraph>,
+        _extra_chunks: Vc<OutputAssets>,
+        _extra_referenced_assets: Vc<OutputAssets>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<EntryChunkGroupResult>> {
+        bail!("entry_chunk_group should not be called in UseCacheContentHashChunkingContext");
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_id_strategy(&self) -> Vc<ModuleIdStrategy> {
+        // Intentionally make this return only paths to
+        // 1. more stable module IDs even as the short numeric ones might change
+        // 2. ensure that app-rsc and app-route codegen reference the same module ids (=paths) in
+        //    imports
+        ModuleIdStrategy::new_ident_without_layer()
+    }
+
+    #[turbo_tasks::function]
+    async fn async_loader_chunk_item(
+        self: Vc<Self>,
+        _module: Vc<Box<dyn ChunkableModule>>,
+        _module_graph: Vc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        bail!("async_loader_chunk_item should not be called in UseCacheContentHashChunkingContext")
+    }
+
+    #[turbo_tasks::function]
+    async fn standalone_chunk(
+        self: Vc<Self>,
+        _chunk_item: Vc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        bail!("standalone_chunk should not be called in UseCacheContentHashChunkingContext")
+    }
+
+    #[turbo_tasks::function]
+    async fn async_loader_chunk_item_ident(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<AssetIdent> {
+        self.inner.async_loader_chunk_item_ident(module)
+    }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        _module: ResolvedVc<Box<dyn Module>>,
+    ) -> Vc<ModuleExportUsage> {
+        // Intentionally empty for more stable hashes
+        ModuleExportUsage::unknown()
+    }
+
+    #[turbo_tasks::function]
+    fn unused_references(self: Vc<Self>) -> Vc<UnusedReferences> {
+        // Intentionally empty for more stable hashes
+        Vc::cell(Default::default())
+    }
+
+    #[turbo_tasks::function]
+    async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!("debug_ids_enabled should not be called in UseCacheContentHashChunkingContext")
+    }
+
+    #[turbo_tasks::function]
+    fn worker_configuration_options(&self) -> Vc<WorkerConfigurationOptions> {
+        self.inner.worker_configuration_options()
+    }
+
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(&self) -> Vc<Box<dyn OutputAsset>> {
+        self.inner.worker_entrypoint()
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_loading(&self) -> Vc<ChunkLoading> {
+        self.inner.chunk_loading()
     }
 }
 

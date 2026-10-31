@@ -653,27 +653,33 @@ function bindingToApi(
   async function rustifyProjectOptions(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
+    const projectPath = path.join(options.rootPath, options.projectPath)
+    const additionalRoots = Object.entries(
+      options.nextConfig.experimental.turbopackAdditionalRoots ?? {}
+    ).map(([key, root]) => ({ key, ...root }))
     return {
       ...options,
+      additionalRoots,
       nextConfig: await serializeNextConfig(
         options.nextConfig,
-        path.join(options.rootPath, options.projectPath)
+        projectPath,
+        path.isAbsolute(options.distDir)
+          ? path.relative(projectPath, options.distDir)
+          : options.distDir
       ),
       env: rustifyEnv(options.env),
     }
   }
 
   async function rustifyPartialProjectOptions(
-    options: PartialProjectOptions
+    options: PartialProjectOptions,
+    projectPath: string
   ): Promise<NapiPartialProjectOptions> {
     return {
       ...options,
       nextConfig:
         options.nextConfig &&
-        (await serializeNextConfig(
-          options.nextConfig,
-          path.join(options.rootPath, options.projectPath)
-        )),
+        (await serializeNextConfig(options.nextConfig, projectPath)),
       env: options.env && rustifyEnv(options.env),
     }
   }
@@ -681,7 +687,10 @@ function bindingToApi(
   class ProjectImpl implements Project {
     private readonly _nativeProject: { __napiType: 'Project' }
 
-    constructor(nativeProject: { __napiType: 'Project' }) {
+    constructor(
+      nativeProject: { __napiType: 'Project' },
+      private readonly projectPath: string
+    ) {
       this._nativeProject = nativeProject
 
       if (typeof binding.registerWorkerScheduler === 'function') {
@@ -692,7 +701,7 @@ function bindingToApi(
     async update(options: PartialProjectOptions) {
       await binding.projectUpdate(
         this._nativeProject,
-        await rustifyPartialProjectOptions(options)
+        await rustifyPartialProjectOptions(options, this.projectPath)
       )
     }
 
@@ -897,7 +906,8 @@ function bindingToApi(
 
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
-    projectPath: string
+    projectPath: string,
+    distDir?: string
   ): Promise<string> {
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
@@ -927,7 +937,7 @@ function bindingToApi(
 
     // These are relative paths, but might be backslash-separated on Windows
     nextConfigSerializable.distDir = normalizePathOnWindows(
-      nextConfigSerializable.distDir
+      distDir ?? nextConfigSerializable.distDir
     )
     nextConfigSerializable.distDirRoot = normalizePathOnWindows(
       nextConfigSerializable.distDirRoot
@@ -984,7 +994,7 @@ function bindingToApi(
       const turbopack = { ...nextConfigSerializable.turbopack }
 
       if (turbopack.rules) {
-        turbopack.rules = serializeTurbopackRules(turbopack.rules)
+        turbopack.rules = serializeTurbopackRules(turbopack.rules, projectPath)
       }
 
       // Serialize ignoreIssue rules: convert RegExp to {source, flags}
@@ -1124,7 +1134,8 @@ function bindingToApi(
 
   // Note: Returns an updated `turbopackRules` with serialized conditions. Does not mutate in-place.
   function serializeTurbopackRules(
-    turbopackRules: Record<string, TurbopackRuleConfigCollection>
+    turbopackRules: Record<string, TurbopackRuleConfigCollection>,
+    projectPath: string
   ): Record<string, any> {
     const serializedRules: Record<string, any> = {}
     for (const [glob, rule] of Object.entries(turbopackRules)) {
@@ -1136,8 +1147,7 @@ function bindingToApi(
           ) {
             return serializeConfigItem(item as TurbopackRuleConfigItem, glob)
           } else {
-            checkLoaderItem(item as TurbopackLoaderItem, glob)
-            return item
+            return serializeLoaderItem(item as TurbopackLoaderItem, glob)
           }
         })
       } else {
@@ -1153,8 +1163,9 @@ function bindingToApi(
     ): any {
       if (!rule) return rule
       if (rule.loaders) {
-        for (const item of rule.loaders) {
-          checkLoaderItem(item, glob)
+        rule = {
+          ...rule,
+          loaders: rule.loaders.map((item) => serializeLoaderItem(item, glob)),
         }
       }
       let serializedRule: any = rule
@@ -1167,19 +1178,36 @@ function bindingToApi(
       return serializedRule
     }
 
-    function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
-      if (
-        typeof loaderItem !== 'string' &&
-        !(require('util') as typeof import('util')).isDeepStrictEqual(
-          loaderItem,
-          JSON.parse(JSON.stringify(loaderItem))
-        )
-      ) {
-        throw new Error(
-          `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
-            'Ensure that options passed are plain JavaScript objects and values.'
-        )
+    function serializeLoaderItem(
+      loaderItem: TurbopackLoaderItem,
+      glob: string
+    ): TurbopackLoaderItem {
+      if (typeof loaderItem === 'string') {
+        return serializeLoader(loaderItem)
+      } else {
+        if (
+          !(require('util') as typeof import('util')).isDeepStrictEqual(
+            loaderItem,
+            JSON.parse(JSON.stringify(loaderItem))
+          )
+        ) {
+          throw new Error(
+            `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
+              'Ensure that options passed are plain JavaScript objects and values.'
+          )
+        }
+        return {
+          ...loaderItem,
+          loader: serializeLoader(loaderItem.loader),
+        }
       }
+    }
+
+    // Webpack loader specifiers can be absolute paths, we need it to be relative for turbopack.
+    function serializeLoader(loader: string) {
+      return path.isAbsolute(loader)
+        ? normalizePathOnWindows('./' + path.relative(projectPath, loader))
+        : loader
     }
   }
 
@@ -1276,18 +1304,23 @@ function bindingToApi(
     turboEngineOptions,
     callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
-    return new ProjectImpl(
-      await binding.projectNew(
-        await rustifyProjectOptions(options),
-        turboEngineOptions,
-        {
-          throwTurbopackInternalError: (
-            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
-          ).throwTurbopackInternalError,
-          onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
-        }
-      )
+    const { value, issues } = await binding.projectNew(
+      await rustifyProjectOptions(options),
+      turboEngineOptions,
+      {
+        throwTurbopackInternalError: (
+          require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
+        ).throwTurbopackInternalError,
+        onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
+      }
     )
+    return {
+      value: new ProjectImpl(
+        value.project,
+        path.join(options.rootPath, options.projectPath)
+      ),
+      issues,
+    }
   }
 }
 
@@ -1419,7 +1452,7 @@ async function loadWasm(importPath = '') {
         _options: ProjectOptions,
         _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
-      ): Promise<Project> {
+      ): Promise<TurbopackResult<Project>> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +

@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
+use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -26,7 +27,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
-        chunk_group_info::ChunkGroup,
+        chunk_group_info::{ChunkGroup, ChunkGroupKey},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
@@ -877,19 +878,24 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
+            let chunk_group_info = module_graph.chunk_group_info();
+            let mut groups = SmallVec::with_capacity(chunk_groups.len());
+            for key in chunk_groups {
+                groups.push(chunk_group_info.get_chunk_group(key).await?);
+            }
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group,
+                groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -921,7 +927,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn evaluated_chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: ResolvedVc<ModuleGraph>,
         // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
         // group. Used to cover RSC client reference chunks that are built separately.
@@ -935,12 +941,16 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         async move {
             let this = self.await?;
+            let chunk_group = module_graph
+                .chunk_group_info()
+                .get_chunk_group(chunk_group)
+                .await?;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -1105,7 +1115,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -1125,12 +1135,16 @@ impl ChunkingContext for BrowserChunkingContext {
             chunking_type = "single-chunk entry",
         );
         async move {
+            let chunk_group = module_graph
+                .chunk_group_info()
+                .get_chunk_group(chunk_group)
+                .await?;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -1306,7 +1320,7 @@ impl ChunkingContext for BrowserChunkingContext {
         if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsage::all())
+            Ok(ModuleExportUsage::unknown())
         }
     }
 

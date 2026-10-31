@@ -2,7 +2,7 @@ import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
-import type { RoutesManifest } from '../../../build'
+import type { PrerenderManifest, RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
@@ -88,7 +88,6 @@ import {
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
-import { normalizePath } from '../../../lib/normalize-path'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
@@ -103,6 +102,7 @@ import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app
 import { MissingCanonicalInterceptionRoutesError } from '../../../shared/lib/errors/missing-canonical-interception-routes-error'
 import { IncompatibleParallelRouteSlotsError } from '../../../shared/lib/errors/incompatible-parallel-route-slots-error'
 import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
+import { getStrictRouteMatchingDefaultWarning } from './strict-route-matching-config'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -141,6 +141,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  hasVulnerabilityInsight: Promise<boolean>
 }
 
 export interface DevRoutesManifest {
@@ -294,6 +295,7 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
         })
       })()
 
@@ -332,10 +334,7 @@ async function startWatcher(
     i18n: nextConfig.i18n || undefined,
     skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
-  await fs.promises.writeFile(
-    routesManifestPath,
-    JSON.stringify(routesManifest)
-  )
+  fs.writeFileSync(routesManifestPath, JSON.stringify(routesManifest))
 
   const previewPropsManifestPath = path.join(
     distDir,
@@ -343,24 +342,23 @@ async function startWatcher(
     PREVIEW_PROPS_MANIFEST
   )
   fs.mkdirSync(path.join(distDir, SERVER_DIRECTORY), { recursive: true })
-  await fs.promises.writeFile(
+  fs.writeFileSync(
     previewPropsManifestPath,
     JSON.stringify(opts.fsChecker.previewProps, null, 2)
   )
 
+  const prerenderManifest: Omit<PrerenderManifest, 'preview'> = {
+    version: 4,
+    routes: {},
+    dynamicRoutes: {},
+    notFoundRoutes: [],
+    // Technically required in the manifest type, but we don't provide it here
+    // preview: ...
+  }
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
-  await fs.promises.writeFile(
+  fs.writeFileSync(
     prerenderManifestPath,
-    JSON.stringify(
-      {
-        version: 4,
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-      },
-      null,
-      2
-    )
+    JSON.stringify(prerenderManifest, null, 2)
   )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
@@ -906,8 +904,8 @@ async function startWatcher(
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
+            ? (opts.fsChecker.originalRedirects || []).filter(
+                (r) => !r.internal
               )
             : [],
           nextConfig.experimental.clientRouterFilterAllowedRate
@@ -942,10 +940,6 @@ async function startWatcher(
             opts.fsChecker.rewrites.beforeFiles.length > 0 ||
             opts.fsChecker.rewrites.fallback.length > 0
 
-          const rootPath =
-            opts.nextConfig.turbopack?.root ||
-            opts.nextConfig.outputFileTracingRoot ||
-            opts.dir
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
@@ -961,8 +955,6 @@ async function startWatcher(
               projectPath: opts.dir,
               rewrites: opts.fsChecker.rewrites,
             }),
-            rootPath,
-            projectPath: normalizePath(path.relative(rootPath, dir)),
           })
         } else {
           let tsconfigResult:
@@ -1154,6 +1146,10 @@ async function startWatcher(
         for (const error of routeMatchingErrors) {
           Log.error(error.message)
         }
+        const warning = getStrictRouteMatchingDefaultWarning(nextConfig)
+        if (warning) {
+          Log.warnOnce(warning)
+        }
       }
       // Turbopack reports route-matching failures as app-structure issues.
       // Webpack needs an HMR server error so dev can finish booting and surface
@@ -1239,6 +1235,13 @@ async function startWatcher(
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
 
+      const routeKinds = new Map(
+        [...pageRouteDefinitions, ...appRouteDefinitions].map((definition) => [
+          definition.pathname,
+          definition.kind,
+        ])
+      )
+
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
@@ -1321,6 +1324,9 @@ async function startWatcher(
               routeKeys: regex.routeKeys,
               match: getRouteMatcher(regex),
               page,
+              kind:
+                routeKinds.get(page) ??
+                (isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES),
             }
           }
         )
@@ -1350,6 +1356,9 @@ async function startWatcher(
                 : new RegExp(route.dataRouteRegex),
               groups: routeRegex.groups,
             }),
+            kind: isAPIRoute(route.page)
+              ? RouteKind.PAGES_API
+              : RouteKind.PAGES,
           })
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)

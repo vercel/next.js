@@ -62,26 +62,26 @@ test('opts the featured product link into per-link prefetching', () => {
 
 test('uses the prefetch cache stage', () => {
   const prefetchImport = source.match(
-    /\bunstable_prefetch(?:\s+as\s+([A-Za-z_$][\w$]*))?/
+    /import\s*\{[^}]*\bprefetch\b(?:\s+as\s+([A-Za-z_$][\w$]*))?[^}]*\}\s*from\s*['"]next\/cache['"]/
   )
   expect(prefetchImport).not.toBeNull()
 
-  const localName = prefetchImport?.[1] ?? 'unstable_prefetch'
+  const localName = prefetchImport?.[1] ?? 'prefetch'
   expect(source).toMatch(new RegExp(`await\\s+${localName}\\s*\\(`))
 })
 
 test('keeps stable product content in the reusable shell', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The product title and description must remain in the reusable product App Shell. The related-products section must remain outside that shell, beneath its own Suspense boundary. Reject solutions that put the whole product page behind the prefetch stage or move related products into the App Shell. Accept equivalent component and file organization.`
+    `The product title and description must remain in the reusable product App Shell. The related-product data must remain outside that shell, beneath its own Suspense boundary. A static section wrapper, heading, or loading fallback may remain in the shell. Reject solutions that put the whole product page behind the prefetch stage or include the actual related-product items in the App Shell. Accept equivalent component and file organization.`
   )
 })
 
 test('includes related products only in the selected prefetch', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The related-products section must be available before navigation from the featured-product Link without joining the default product App Shell.
+    `The related-product data must be available before navigation from the featured-product Link without joining the default product App Shell. Do not fail a static section wrapper, heading, or loading fallback that remains in the shell.
 
-Render related products through an async component that awaits unstable_prefetch() before calling the cached getRelatedProducts() function. The unstable_prefetch() call must be outside every use cache scope, while the existing cached data function stays below it.
+Render related products through an async component that awaits prefetch() before calling the cached getRelatedProducts() function. The prefetch() call must be outside every use cache scope, while the existing cached data function stays below it.
 
-Reject solutions that replace the stage with connection() or unstable_navigation(), make the related-products data uncached, or defer it until after navigation. Accept equivalent component and file organization.`
+Reject solutions that replace the stage with connection() or navigation(), make the related-products data uncached, or defer it until after navigation. Accept equivalent component and file organization.`
   )
 })

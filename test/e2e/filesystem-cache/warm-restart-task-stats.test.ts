@@ -40,7 +40,7 @@ describe('warm-restart task statistics', () => {
     TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
     NEXT_TURBOPACK_TASK_STATISTICS: STATS_RELATIVE_PATH,
     // Wait for turbo-tasks to persist the cache before the dev process exits.
-    NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
+    __NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
   }
 
   const { next } = nextTestSetup({
@@ -79,32 +79,32 @@ describe('warm-restart task statistics', () => {
     return misses
   }
 
-  if (isNextDev) {
-    it('snapshot of tasks with cache misses on warm dev restart', async () => {
-      // Cycle 1: the harness already auto-started; perform a request so the
-      // SSR/Node chunk work runs and gets persisted on shutdown.
-      async function runDevCycle() {
-        const browser = await next.browser('/')
-        // Wait for actual rendered content before declaring "ready".
-        await browser.elementByCss('p')
-        // Settle: the dev server keeps doing background work after first
-        // paint (HMR socket handshake, tail compilation). A fixed sleep
-        // is the least-bad option here since next.js doesn't expose
-        // turbopack's internal idle signal. If this proves flaky in CI,
-        // raise the value.
-        await waitFor(2000)
-        await browser.close()
-      }
-      await runDevCycle()
-      await stop()
+  // @force-gate dev
+  it('snapshot of tasks with cache misses on warm dev restart', async () => {
+    // Cycle 1: the harness already auto-started; perform a request so the
+    // SSR/Node chunk work runs and gets persisted on shutdown.
+    async function runDevCycle() {
+      const browser = await next.browser('/')
+      // Wait for actual rendered content before declaring "ready".
+      await browser.elementByCss('p')
+      // Settle: the dev server keeps doing background work after first
+      // paint (HMR socket handshake, tail compilation). A fixed sleep
+      // is the least-bad option here since next.js doesn't expose
+      // turbopack's internal idle signal. If this proves flaky in CI,
+      // raise the value.
+      await waitFor(2000)
+      await browser.close()
+    }
+    await runDevCycle()
+    await stop()
 
-      // Cycle 2: warm.
-      await next.start()
-      await runDevCycle()
-      await stop()
+    // Cycle 2: warm.
+    await next.start()
+    await runDevCycle()
+    await stop()
 
-      const missed = await readMissedTaskNames()
-      expect(missed).toMatchInlineSnapshot(`
+    const missed = await readMissedTaskNames()
+    expect(missed).toMatchInlineSnapshot(`
          [
            "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
            "next_api::project::Project::hmr_update",
@@ -114,21 +114,21 @@ describe('warm-restart task statistics', () => {
            "turbopack_core::version::VersionState::get",
          ]
         `)
-    }, 180_000)
-  } else {
-    it('snapshot of tasks with cache misses on warm build', async () => {
-      // In start mode the harness auto-runs `next build` then `next start`.
-      // The build is cycle 1. We stop the server (we don't care about it)
-      // and run a second build manually for the warm measurement.
-      await stop()
+  }, 180_000)
 
-      const result = await (next as any).build()
-      if (result.exitCode !== 0) {
-        throw new Error(`next build exited with ${result.exitCode}`)
-      }
+  // @force-gate start
+  it('snapshot of tasks with cache misses on warm build', async () => {
+    // In start mode the harness auto-runs `next build` then `next start`.
+    // The build is cycle 1. We stop the server (we don't care about it)
+    // and run a second build manually for the warm measurement.
+    await stop()
 
-      const missed = await readMissedTaskNames()
-      expect(missed).toMatchInlineSnapshot(`[]`)
-    }, 240_000)
-  }
+    const result = await (next as any).build()
+    if (result.exitCode !== 0) {
+      throw new Error(`next build exited with ${result.exitCode}`)
+    }
+
+    const missed = await readMissedTaskNames()
+    expect(missed).toMatchInlineSnapshot(`[]`)
+  }, 240_000)
 })

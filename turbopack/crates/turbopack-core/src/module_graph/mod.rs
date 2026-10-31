@@ -1,13 +1,15 @@
 use std::{
     collections::{BinaryHeap, VecDeque},
     future::Future,
+    hash::{Hash, Hasher},
     iter::FusedIterator,
     ops::Deref,
-    sync::OnceLock,
+    sync::{Mutex, OnceLock},
 };
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use fixedbitset::FixedBitSet;
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -22,20 +24,19 @@ use turbo_tasks::{
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::TraceRawVcs,
+    keyed::KeyedAccess,
+    util::SharedError,
 };
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
-    issue::{
-        ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, StyledString,
-        analyze::AnalyzeIssue,
-    },
-    module::Module,
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, MergeableModule, TracedMode},
+    ident::AssetIdent,
+    issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
+    module::{Module, ModuleSideEffects},
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
-        binding_usage_info::BindingUsageInfo,
+        binding_usage_info::{BindingUsageInfo, UnusedReferenceEdges},
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
         collect::{CollectedModules, collect_graph},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
@@ -68,24 +69,10 @@ mod traced_di_graph;
 pub use self::module_batches::BatchingConfig;
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, Encode, Decode,
 )]
 pub struct GraphNodeIndex {
-    #[turbo_tasks(trace_ignore)]
     graph_idx: u32,
-    #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     node_idx: NodeIndex,
 }
@@ -101,22 +88,11 @@ impl GraphNodeIndex {
 unsafe impl NonLocalValue for GraphNodeIndex {}
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, NonLocalValue, Encode, Decode,
 )]
 pub struct GraphEdgeIndex {
     graph_idx: u32,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     edge_idx: EdgeIndex,
 }
@@ -295,6 +271,47 @@ impl GraphEntries {
     }
 }
 
+/// Options controlling what data [`SingleModuleGraph`] collects while walking module references.
+/// Passed by value to the graph constructors.
+#[turbo_tasks::task_input]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, Encode, Decode)]
+pub struct ModuleGraphOptions {
+    /// Eagerly resolve and store each module's `ident_string()` `Vc` in its graph node, so the
+    /// module-id strategy reads it from the in-memory graph instead of fanning out a
+    /// `module.ident_string()` (i.e. `ident().to_string()`) turbo-task launch per module. Only the
+    /// whole-app/CLI-build graphs that run the global module-id strategy
+    /// (`turbopack::global_module_ids::get_global_module_id_strategy`) need it; other graphs leave
+    /// it off to avoid the per-module `to_string` resolve.
+    ///
+    /// (`ident()` itself is always collected — see [`ModuleGraphSnapshot::module_ident`].)
+    pub include_ident_strings: bool,
+    /// Eagerly resolve and store each module's `side_effects()` `Vc` in its graph node, so the
+    /// side-effect-free aggregation reads it from the in-memory graph instead of fanning out a
+    /// `module.side_effects()` turbo-task launch per module. Required by
+    /// `compute_side_effect_free_module_info`: that pass `bail!`s on graphs built without this.
+    pub include_side_effects: bool,
+    /// Eagerly resolve and store each module's `MergeableModule::is_mergeable()` `Vc` in its graph
+    /// node, so module merging (scope hoisting) reads it from the in-memory graph instead of
+    /// fanning out a `module.is_mergeable()` turbo-task launch per module. Required by
+    /// [`compute_merged_modules`]: that pass `bail!`s on graphs built without this. Should be
+    /// enabled wherever the chunking context has module merging enabled
+    /// ([`ChunkingContext::is_module_merging_enabled`]).
+    ///
+    /// When set, every `Module` node stores `Some`: the module's real `is_mergeable()` for types
+    /// that implement [`MergeableModule`], or a resolved `false` for types that don't (so `None`
+    /// unambiguously means "this graph wasn't built with `include_mergeable`").
+    ///
+    /// [`compute_merged_modules`]: crate::module_graph::merged_modules::compute_merged_modules
+    /// [`MergeableModule`]: crate::chunk::MergeableModule
+    /// [`ChunkingContext::is_module_merging_enabled`]:
+    /// crate::chunk::ChunkingContext::is_module_merging_enabled
+    pub include_mergeable: bool,
+    /// Whether to walk `ChunkingType::Traced` references.
+    pub include_traced: bool,
+    /// Whether to read `ModuleReference::binding_usage()`.
+    pub include_binding_usage: bool,
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 #[derive(Default)]
 pub struct SingleModuleGraph {
@@ -303,22 +320,40 @@ pub struct SingleModuleGraph {
     /// The number of modules in the graph (excluding VisitedModule nodes)
     pub number_of_modules: usize,
 
+    // Per-module data eagerly resolved at construction, stored as columns indexed by
+    // `NodeIndex::index()`. `new_inner` adds every `Module` node before any `VisitedModule` node,
+    // so the `Module` nodes are exactly `0..number_of_modules` and each column has one entry per
+    // `Module` node; an index past the end is a `VisitedModule` node, whose data lives in the
+    // graph that owns it. Consumers read these tracked: the producing tasks were already
+    // resolved here, so the read is cheap while still depending on the value.
+    /// Always collected: idents have many consumers (NFT, feature usage, module ids, import
+    /// tracing).
+    idents: Vec<ResolvedVc<AssetIdent>>,
+    /// Always collected: `async_module_info()` runs during chunking for every graph.
+    is_self_async: Vec<ResolvedVc<bool>>,
+    /// `ident().to_string()`, collected with [`ModuleGraphOptions::include_ident_strings`].
+    ident_strings: Option<Vec<ResolvedVc<RcStr>>>,
+    /// Collected with [`ModuleGraphOptions::include_side_effects`].
+    side_effects: Option<Vec<ResolvedVc<ModuleSideEffects>>>,
+    /// Collected with [`ModuleGraphOptions::include_mergeable`]: the module's `is_mergeable()`
+    /// for types that implement [`MergeableModule`], `false` for the others.
+    is_mergeable: Option<Vec<ResolvedVc<bool>>>,
+
     // NodeIndex isn't necessarily stable (because of swap_remove), but we never remove nodes.
     //
     // HashMaps have nondeterministic order, but this map is only used for lookups (in
     // `get_module`) and not iteration.
     //
-    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
-    #[turbo_tasks(trace_ignore)]
+    // This contains Vcs, but they are already contained in the graph.
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
-    #[turbo_tasks(trace_ignore)]
     entries: GraphEntries,
 
     /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
     /// indices are stable because graph nodes are never removed.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "OnceLock::new")]
     entry_nodes: OnceLock<FxHashSet<NodeIndex>>,
 }
@@ -328,6 +363,11 @@ impl Clone for SingleModuleGraph {
         Self {
             graph: self.graph.clone(),
             number_of_modules: self.number_of_modules,
+            idents: self.idents.clone(),
+            is_self_async: self.is_self_async.clone(),
+            ident_strings: self.ident_strings.clone(),
+            side_effects: self.side_effects.clone(),
+            is_mergeable: self.is_mergeable.clone(),
             modules: self.modules.clone(),
             entries: self.entries.clone(),
             // Never carry derived state into a clone that might be modified before being stored.
@@ -340,7 +380,6 @@ impl Clone for SingleModuleGraph {
     Debug,
     Clone,
     Hash,
-    TraceRawVcs,
     Serialize,
     Deserialize,
     Eq,
@@ -363,8 +402,7 @@ impl SingleModuleGraph {
     async fn new_inner(
         entries: &GraphEntries,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_nodes = entries
@@ -375,19 +413,26 @@ impl SingleModuleGraph {
             .try_join()
             .await?;
 
+        let node_data = Mutex::new(FxHashMap::default());
         let children_nodes_iter = AdjacencyMap::new()
             .visit(
                 root_nodes,
                 SingleModuleGraphBuilder {
                     visited_modules,
+                    node_data: &node_data,
                     emit_spans,
-                    include_traced,
-                    include_binding_usage,
+                    options,
                 },
             )
             .await
             .completed()?;
         let node_count = children_nodes_iter.len();
+
+        let edges = children_nodes_iter
+            .into_breadth_first_edges()
+            .collect::<Vec<_>>();
+        // The traversal resolved every module's node data in `edges()`.
+        let mut node_data = node_data.into_inner().unwrap();
 
         let mut graph: DiGraph<SingleModuleGraphNode, RefData> = DiGraph::with_capacity(
             node_count,
@@ -396,40 +441,64 @@ impl SingleModuleGraph {
             node_count * 4,
         );
 
-        let mut number_of_modules = 0;
         let mut modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> =
             FxHashMap::with_capacity_and_hasher(node_count, Default::default());
+        let module_count = node_data.len();
+        let mut idents = Vec::with_capacity(module_count);
+        let mut is_self_async = Vec::with_capacity(module_count);
+        let mut ident_strings = options
+            .include_ident_strings
+            .then(|| Vec::with_capacity(module_count));
+        let mut side_effects = options
+            .include_side_effects
+            .then(|| Vec::with_capacity(module_count));
+        let mut is_mergeable = options
+            .include_mergeable
+            .then(|| Vec::with_capacity(module_count));
         {
             let _span = tracing::info_span!("build module graph").entered();
-            for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
-                let (module, graph_node, count) = match current {
-                    SingleModuleGraphBuilderNode::Module {
-                        module,
-                        is_traced: _,
-                        ident: _,
-                    } => (module, SingleModuleGraphNode::Module(module), 1),
-                    SingleModuleGraphBuilderNode::VisitedModule { module, idx } => (
-                        module,
-                        SingleModuleGraphNode::VisitedModule { idx, module },
-                        0,
-                    ),
-                };
+            // Synchronous: no `.await` here (the loop holds the `tracing` span guard and many
+            // mutable locals across iterations; the per-module `node_data` was resolved during the
+            // traversal).
 
-                // Find the current node, if it was already added
-                let current_idx = if let Some(current_idx) = modules.get(&module) {
-                    *current_idx
-                } else {
-                    let idx = graph.add_node(graph_node);
-                    number_of_modules += count;
-                    modules.insert(module, idx);
-                    idx
-                };
-                // Add the edge
+            // Nodes are added in breadth-first order, but all `Module` nodes before any
+            // `VisitedModule` node, so the per-module columns line up with `0..number_of_modules`.
+            for (_, current) in &edges {
+                if let &SingleModuleGraphBuilderNode::Module { module, .. } = current
+                    && !modules.contains_key(&module)
+                {
+                    let data = node_data
+                        .remove(&module)
+                        .context("the traversal resolves node data for every module it reaches")?;
+                    let node_idx = graph.add_node(SingleModuleGraphNode::Module(module));
+                    debug_assert_eq!(
+                        node_idx.index(),
+                        idents.len(),
+                        "node indices must line up with the per-module columns"
+                    );
+                    modules.insert(module, node_idx);
+                    idents.push(data.ident);
+                    is_self_async.push(data.is_self_async);
+                    push_collected(&mut ident_strings, data.ident_string);
+                    push_collected(&mut side_effects, data.side_effects);
+                    push_collected(&mut is_mergeable, data.is_mergeable);
+                }
+            }
+            for (_, current) in &edges {
+                if let &SingleModuleGraphBuilderNode::VisitedModule { module, idx } = current
+                    && !modules.contains_key(&module)
+                {
+                    modules.insert(
+                        module,
+                        graph.add_node(SingleModuleGraphNode::VisitedModule { idx, module }),
+                    );
+                }
+            }
+            for (parent, current) in edges {
                 if let Some((SingleModuleGraphBuilderNode::Module { module, .. }, ref_data)) =
                     parent
                 {
-                    let parent_idx = *modules.get(&module).unwrap();
-                    graph.add_edge(parent_idx, current_idx, ref_data);
+                    graph.add_edge(modules[&module], modules[&current.module()], ref_data);
                 }
             }
         }
@@ -520,9 +589,33 @@ impl SingleModuleGraph {
             }
         }
 
+        let number_of_modules = idents.len();
+        debug_assert!(
+            graph
+                .node_indices()
+                .all(|idx| matches!(graph[idx], SingleModuleGraphNode::Module(_))
+                    == (idx.index() < number_of_modules)),
+            "all Module nodes must come before all VisitedModule nodes"
+        );
+        debug_assert!(
+            [
+                ident_strings.as_ref().map(Vec::len),
+                side_effects.as_ref().map(Vec::len),
+                is_mergeable.as_ref().map(Vec::len),
+            ]
+            .into_iter()
+            .flatten()
+            .all(|len| len == number_of_modules),
+            "collected columns must have one entry per Module node"
+        );
         let graph = SingleModuleGraph {
             graph: TracedDiGraph::new(graph),
             number_of_modules,
+            idents,
+            is_self_async,
+            ident_strings,
+            side_effects,
+            is_mergeable,
             modules,
             entries: entries.clone(),
             entry_nodes: OnceLock::new(),
@@ -539,9 +632,20 @@ impl SingleModuleGraph {
     /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graph.node_weights().filter_map(|n| match n {
-            SingleModuleGraphNode::Module(node) => Some(*node),
+            SingleModuleGraphNode::Module(module) => Some(*module),
             SingleModuleGraphNode::VisitedModule { .. } => None,
         })
+    }
+
+    /// Iterates the `Module` nodes with their eagerly-resolved idents. The `Module` nodes are the
+    /// first `number_of_modules` nodes, in the same order as the `idents` column.
+    pub fn iter_modules_with_idents(
+        &self,
+    ) -> impl Iterator<Item = (ResolvedVc<Box<dyn Module>>, ResolvedVc<AssetIdent>)> + '_ {
+        self.graph
+            .node_weights()
+            .zip(&self.idents)
+            .map(|(node, ident)| (node.module(), *ident))
     }
 
     fn entry_nodes(&self) -> &FxHashSet<NodeIndex> {
@@ -581,7 +685,7 @@ impl SingleModuleGraph {
         edge_filter: impl Fn(&'l RefData) -> bool,
         mut visit_cycle: impl FnMut(&[&'l ResolvedVc<Box<dyn Module>>]) -> Result<()>,
         graph_idx: u32,
-        binding_usage: &'l Option<ReadRef<BindingUsageInfo>>,
+        unused_references_edges: &'l Option<ReadRef<UnusedReferenceEdges>>,
     ) -> Result<()> {
         // See https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm, but
         // implemented iteratively instead of recursively.
@@ -626,9 +730,8 @@ impl SingleModuleGraph {
                         visit_stack.push(VisitStep::AfterVisit(node));
                         let mut neighbors = self.graph.neighbors(node).detach();
                         while let Some((edge, succ)) = neighbors.next(&self.graph) {
-                            if binding_usage.as_ref().is_some_and(|binding_usage| {
-                                binding_usage
-                                    .is_reference_unused_edge(&GraphEdgeIndex::new(graph_idx, edge))
+                            if unused_references_edges.as_ref().is_some_and(|edges| {
+                                edges.contains_key(&GraphEdgeIndex::new(graph_idx, edge))
                             }) {
                                 continue;
                             }
@@ -713,12 +816,19 @@ impl ModuleGraphImportTracer {
     // Compute this mapping on demand since it might not always be needed.
     #[turbo_tasks::function]
     async fn path_to_modules(&self) -> Result<Vc<PathToModulesMap>> {
-        let path_and_modules = self
+        let graph = self.graph.await?;
+        let path_and_modules = graph
             .graph
-            .await?
-            .modules
-            .iter()
-            .map(async |(&module, _)| Ok((module.ident().await?.path.clone(), module)))
+            .node_references()
+            .map(async |(idx, n)| {
+                let (module, ident) = match n {
+                    SingleModuleGraphNode::Module(module) => (*module, graph.idents[idx.index()]),
+                    SingleModuleGraphNode::VisitedModule { module, .. } => {
+                        (*module, module.ident().to_resolved().await?)
+                    }
+                };
+                Ok((ident.await?.path.clone(), module))
+            })
             .try_join()
             .await?;
         let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
@@ -791,12 +901,11 @@ impl ImportTracer for ModuleGraphImportTracer {
                             AnalyzeIssue::new(
                                 IssueSeverity::Bug,
                                 module.ident(),
-                                Vc::cell(rcstr!("Module graph is missing an entry point")),
-                                StyledString::Text(rcstr!(
+                                rcstr!("Module graph is missing an entry point"),
+                                rcstr!(
                                     "The module cannot reach any of the explicit entry points in \
                                      its module graph."
-                                ))
-                                .cell(),
+                                ),
                                 None,
                                 None,
                             )
@@ -868,11 +977,12 @@ impl ModuleGraph {
                 graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
                 skip_visited_module_children: false,
                 graph_idx_override: None,
-                binding_usage: if let Some(binding_usage) = binding_usage {
-                    Some(binding_usage.connect().await?)
+                unused_references_edges: if let Some(binding_usage) = binding_usage {
+                    Some(binding_usage.connect().unused_references_edges().await?)
                 } else {
                     None
                 },
+                entry_ranks: OnceLock::new(),
             },
         }
         .cell())
@@ -885,7 +995,8 @@ impl ModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn chunk_group_info(self: Vc<Self>) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(&*self.await?).await
+        let collected_modules = self.collected_modules().await?;
+        compute_chunk_group_info(&*self.await?, &collected_modules).await
     }
 
     #[turbo_tasks::function]
@@ -951,7 +1062,7 @@ impl ModuleGraph {
 
         let entry = graph_ref.get_entry(module)?;
         let referenced_modules = graph_ref
-            .iter_graphs_neighbors_rev(entry, Direction::Outgoing, false)
+            .iter_graphs_neighbors_rev(entry, Direction::Outgoing, false, false)
             .filter(|(edge_idx, _)| {
                 let ty = graph_ref.get_edge(*edge_idx).unwrap();
                 ty.chunking_type.is_inherit_async()
@@ -1008,11 +1119,12 @@ impl ModuleGraphLayer {
                 graphs: vec![graph.connect().await?],
                 skip_visited_module_children: true,
                 graph_idx_override: Some(graph_idx),
-                binding_usage: if let Some(binding_usage) = binding_usage {
-                    Some(binding_usage.connect().await?)
+                unused_references_edges: if let Some(binding_usage) = binding_usage {
+                    Some(binding_usage.connect().unused_references_edges().await?)
                 } else {
                     None
                 },
+                entry_ranks: OnceLock::new(),
             },
         }
         .cell())
@@ -1030,16 +1142,19 @@ impl Deref for ModuleGraphLayer {
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
 
+/// The reverse postorder rank of each module, see [`ModuleGraphSnapshot::reverse_postorder_ranks`].
+type ModuleRanks = FxHashMap<ResolvedVc<Box<dyn Module>>, usize>;
+
 /// This struct provides traversal functionality for the module graph.
 ///
-/// Some edges might be ignored during traversal: unused references listed in binding_usage are
-/// always skipped, and references with ChunkingType::Traced are skipped by default (can be
-/// overridden in some functions via the include_traced parameter).
+/// Some edges might be ignored during traversal: unused references listed in
+/// unused_references_edges and references with ChunkingType::Traced are skipped by default (can be
+/// overridden in some functions via the include_unused and include_traced parameters).
 ///
 /// The API across the functions is pretty consistent, apart from:
 /// - traverse_edges_fixed_point_with_priority additionally provides the GraphEdgeIndex
-/// - traverse_edges_dfs is the only function with include_traced
-#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+/// - traverse_edges_dfs is the only function with include_traced and include_unused
+#[derive(ValueDebugFormat, NonLocalValue)]
 pub struct ModuleGraphSnapshot {
     // TODO make this non-public
     pub graphs: Vec<ReadRef<SingleModuleGraph>>,
@@ -1050,7 +1165,14 @@ pub struct ModuleGraphSnapshot {
 
     graph_idx_override: Option<u32>,
 
-    binding_usage: Option<ReadRef<BindingUsageInfo>>,
+    /// The edges of unused references (from [`BindingUsageInfo::unused_references_edges`]), which
+    /// are skipped during traversals.
+    unused_references_edges: Option<ReadRef<UnusedReferenceEdges>>,
+
+    /// Lazily computed [`Self::entry_ranks`] (or the error computing them). Derived from the
+    /// immutable graphs, so it never needs to be invalidated.
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    entry_ranks: OnceLock<Result<ModuleRanks, SharedError>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -1148,6 +1270,7 @@ impl ModuleGraphSnapshot {
         node: GraphNodeIndex,
         direction: Direction,
         include_traced: bool,
+        include_unused: bool,
     ) -> impl Iterator<Item = (GraphEdgeIndex, GraphNodeIndex)> + 'a {
         let graph = &*self.get_graph(node.graph_idx).graph;
 
@@ -1162,10 +1285,11 @@ impl ModuleGraphSnapshot {
         std::iter::from_fn(move || {
             while let Some((edge_idx, succ_idx)) = walker.next(graph) {
                 let edge_idx = GraphEdgeIndex::new(node.graph_idx, edge_idx);
-                if self
-                    .binding_usage
-                    .as_ref()
-                    .is_some_and(|binding_usage| binding_usage.is_reference_unused_edge(&edge_idx))
+                if !include_unused
+                    && self
+                        .unused_references_edges
+                        .as_ref()
+                        .is_some_and(|edges| edges.contains_key(&edge_idx))
                 {
                     // Don't just return None here, that would end the iterator
                     continue;
@@ -1190,6 +1314,93 @@ impl ModuleGraphSnapshot {
             .await
             .into_iter()
             .collect()
+    }
+
+    /// Returns a module's eagerly-resolved `AssetIdent` `Vc`. Idents are always collected, and
+    /// `get_entry` only resolves a module to its `Module` node, so this always finds one. The
+    /// returned `ResolvedVc` is read tracked by callers.
+    pub fn module_ident(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<ResolvedVc<AssetIdent>> {
+        let idx = self.get_entry(module)?;
+        self.node_ident(idx)
+            .context("get_entry resolves a module to its Module node")
+    }
+
+    /// Returns a module's eagerly-resolved `ident_string()` `Vc`.
+    ///
+    /// Requires the graph to have been built with [`ModuleGraphOptions::include_ident_strings`];
+    /// `bail!`s otherwise. Asking a graph for an ident string it never collected is a programming
+    /// error — only the whole-app/CLI-build graphs that run the module-id strategy set the bit, and
+    /// those are exactly the graphs this is called on.
+    pub fn module_ident_string(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<ResolvedVc<RcStr>> {
+        let idx = self.get_entry(module)?;
+        node_column(
+            &self.get_graph(idx.graph_idx).ident_strings,
+            idx,
+            "module_ident_string() requires the module graph to be built with \
+             `ModuleGraphOptions::include_ident_strings`",
+        )?
+        .context("get_entry resolves a module to its Module node")
+    }
+
+    /// The eagerly-resolved ident of a `Module` node, or `None` for a `VisitedModule` node (whose
+    /// ident lives in the graph that owns the module).
+    pub fn node_ident(&self, node: GraphNodeIndex) -> Option<ResolvedVc<AssetIdent>> {
+        self.get_graph(node.graph_idx)
+            .idents
+            .get(node.node_idx.index())
+            .copied()
+    }
+
+    /// The eagerly-resolved `is_self_async()` of a `Module` node, or `None` for a `VisitedModule`
+    /// node.
+    pub fn node_is_self_async(&self, node: GraphNodeIndex) -> Option<ResolvedVc<bool>> {
+        self.get_graph(node.graph_idx)
+            .is_self_async
+            .get(node.node_idx.index())
+            .copied()
+    }
+
+    /// The eagerly-resolved `side_effects()` of a `Module` node, or `None` for a `VisitedModule`
+    /// node. `bail!`s unless the graph was built with
+    /// [`ModuleGraphOptions::include_side_effects`].
+    pub fn node_side_effects(
+        &self,
+        node: GraphNodeIndex,
+    ) -> Result<Option<ResolvedVc<ModuleSideEffects>>> {
+        node_column(
+            &self.get_graph(node.graph_idx).side_effects,
+            node,
+            "side effects require the module graph to be built with \
+             `ModuleGraphOptions::include_side_effects`",
+        )
+    }
+
+    /// The eagerly-resolved `is_mergeable()` of a `Module` node (`false` for modules that don't
+    /// implement [`MergeableModule`]), or `None` for a `VisitedModule` node. `bail!`s unless the
+    /// graph was built with [`ModuleGraphOptions::include_mergeable`].
+    pub fn node_is_mergeable(&self, node: GraphNodeIndex) -> Result<Option<ResolvedVc<bool>>> {
+        node_column(
+            &self.get_graph(node.graph_idx).is_mergeable,
+            node,
+            "mergeability requires the module graph to be built with \
+             `ModuleGraphOptions::include_mergeable`",
+        )
+    }
+
+    /// Iterates every `Module` node of every graph with its eagerly-resolved ident. Unlike
+    /// [`Self::module_ident`], this needs no lookup per module.
+    pub fn iter_modules_with_idents(
+        &self,
+    ) -> impl Iterator<Item = (ResolvedVc<Box<dyn Module>>, ResolvedVc<AssetIdent>)> + '_ {
+        self.graphs
+            .iter()
+            .flat_map(|g| g.iter_modules_with_idents())
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.
@@ -1240,8 +1451,13 @@ impl ModuleGraphSnapshot {
                             .target_idx(Direction::Outgoing)
                             .unwrap_or(current);
                         stack.extend(
-                            self.iter_graphs_neighbors_rev(current, Direction::Outgoing, false)
-                                .map(|(_, child)| (Pass::ExpandAndVisit, child)),
+                            self.iter_graphs_neighbors_rev(
+                                current,
+                                Direction::Outgoing,
+                                false,
+                                false,
+                            )
+                            .map(|(_, child)| (Pass::ExpandAndVisit, child)),
                         );
                     }
                 }
@@ -1282,7 +1498,8 @@ impl ModuleGraphSnapshot {
         while let Some(node) = queue.pop_front() {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing, false)
+                for (edge, succ) in
+                    self.iter_graphs_neighbors_rev(node, Direction::Outgoing, false, false)
                 {
                     let succ_weight = self.get_node(succ)?;
                     let action = visitor(
@@ -1329,6 +1546,7 @@ impl ModuleGraphSnapshot {
             },
             |_, _, _| Ok(()),
             false,
+            false,
         )
     }
 
@@ -1350,6 +1568,8 @@ impl ModuleGraphSnapshot {
     /// * `visit_postorder` - Called after visiting the children of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
+    /// * `include_traced` - Include references with ChunkingType::Traced.
+    /// * `include_unused` - Include references marked unused by binding usage.
     pub fn traverse_edges_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
@@ -1365,6 +1585,7 @@ impl ModuleGraphSnapshot {
             &mut S,
         ) -> Result<()>,
         include_traced: bool,
+        include_unused: bool,
     ) -> Result<()> {
         self.traverse_edges_dfs_impl::<S>(
             entries,
@@ -1373,6 +1594,7 @@ impl ModuleGraphSnapshot {
             visit_postorder,
             Direction::Outgoing,
             include_traced,
+            include_unused,
         )
     }
 
@@ -1414,6 +1636,7 @@ impl ModuleGraphSnapshot {
             visit_postorder,
             Direction::Incoming,
             false,
+            false,
         )
     }
 
@@ -1433,6 +1656,7 @@ impl ModuleGraphSnapshot {
         ) -> Result<()>,
         direction: Direction,
         include_traced: bool,
+        include_unused: bool,
     ) -> Result<()> {
         if direction == Direction::Incoming {
             debug_assert!(
@@ -1482,10 +1706,15 @@ impl ModuleGraphSnapshot {
                     {
                         let current = current_node.target_idx(direction).unwrap_or(current);
                         stack.extend(
-                            self.iter_graphs_neighbors_rev(current, direction, include_traced)
-                                .map(|(edge, child)| {
-                                    (Pass::ExpandAndVisit, Some((current, edge)), child)
-                                }),
+                            self.iter_graphs_neighbors_rev(
+                                current,
+                                direction,
+                                include_traced,
+                                include_unused,
+                            )
+                            .map(|(edge, child)| {
+                                (Pass::ExpandAndVisit, Some((current, edge)), child)
+                            }),
                         );
                     }
                 }
@@ -1508,10 +1737,131 @@ impl ModuleGraphSnapshot {
                 &edge_filter,
                 &mut visit_cycle,
                 graph_idx as u32,
-                &self.binding_usage,
+                &self.unused_references_edges,
             )?;
         }
         Ok(())
+    }
+
+    /// Computes a priority for [`Self::traverse_edges_fixed_point_with_priority`] that
+    /// minimizes the number of retraversals, as the *reverse postorder* of a depth-first search
+    /// from `entries`.
+    ///
+    /// Every module reachable from `entries` (following the same edges as the fixed point
+    /// traversal: traced and unused references are ignored) gets a unique rank. For every
+    /// reference that is not a back edge of the depth-first search (every reference outside of a
+    /// cycle is never a back edge), the importing module has a lower rank than the imported
+    /// module. When the graph has no cycles, visiting lower ranks first (e.g. using
+    /// [`std::cmp::Reverse`] as the priority, as the traversal visits high priorities first)
+    /// therefore visits every module only after all of the modules importing it, so each module is
+    /// visited exactly once. In contrast to using the BFS depth, a module is not revisited just
+    /// because a longer path to it is processed later. Modules in or after a cycle can still be
+    /// visited multiple times.
+    ///
+    /// Runs in linear time and without recursion.
+    ///
+    /// Must be called on the whole graph, not on an individual graph layer (where `VisitedModule`
+    /// nodes can't be resolved).
+    ///
+    /// Use [`Self::entry_ranks`] for the ranks from the entries of the graph, which are computed
+    /// once per snapshot. This is only for other roots, e.g. a subset of the entries.
+    fn reverse_postorder_ranks(
+        &self,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+    ) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
+        assert!(
+            !self.skip_visited_module_children && self.graph_idx_override.is_none(),
+            "reverse_postorder_ranks musn't be called on individual graphs"
+        );
+        // Nodes are identified by their canonical node (i.e. never a `VisitedModule`), which is
+        // the node the fixed point traversal expands.
+        let canonical = |node: GraphNodeIndex| -> Result<GraphNodeIndex> {
+            Ok(self
+                .get_node(node)?
+                .target_idx(Direction::Outgoing)
+                .unwrap_or(node))
+        };
+
+        // Node indices of a `DiGraph` are dense, so a bitset per graph tracks the visited nodes.
+        let mut visited = self
+            .graphs
+            .iter()
+            .map(|g| FixedBitSet::with_capacity(g.graph.node_count()))
+            .collect::<Vec<_>>();
+        // Marks `node` as visited, returns whether it wasn't visited before.
+        let mut visit =
+            |node: GraphNodeIndex| !visited[node.graph_idx as usize].put(node.node_idx.index());
+
+        let mut postorder: Vec<GraphNodeIndex> = Vec::with_capacity(
+            self.graphs
+                .iter()
+                .map(|g| g.graph.node_count())
+                .sum::<usize>(),
+        );
+        let mut stack = Vec::new();
+        for entry in entries {
+            let entry = canonical(self.get_entry(entry)?)?;
+            if !visit(entry) {
+                continue;
+            }
+            stack.push((
+                entry,
+                self.iter_graphs_neighbors_rev(entry, Direction::Outgoing, false, false),
+            ));
+            while let Some((node, children)) = stack.last_mut() {
+                if let Some((_, child)) = children.next() {
+                    let child = canonical(child)?;
+                    if visit(child) {
+                        stack.push((
+                            child,
+                            self.iter_graphs_neighbors_rev(
+                                child,
+                                Direction::Outgoing,
+                                false,
+                                false,
+                            ),
+                        ));
+                    }
+                } else {
+                    postorder.push(*node);
+                    stack.pop();
+                }
+            }
+        }
+
+        let count = postorder.len();
+        let mut ranks = FxHashMap::with_capacity_and_hasher(count, Default::default());
+        for (i, node) in postorder.into_iter().enumerate() {
+            ranks.insert(self.get_node(node)?.module(), count - 1 - i);
+        }
+        Ok(ranks)
+    }
+
+    /// A priority for [`Self::traverse_edges_fixed_point_with_priority`] that minimizes the number
+    /// of retraversals: the rank of every module reachable from the entries of the graph, i.e. the
+    /// entries of its chunk groups ([`Self::all_chunk_group_entry_modules`]), in the *reverse
+    /// postorder* of a depth-first search from them.
+    ///
+    /// Traced and unused references are ignored, like in the fixed point traversal. For every
+    /// reference outside of a cycle, the importing module has a lower rank than the imported
+    /// module. So when the graph has no cycles, visiting lower ranks first (e.g. using
+    /// [`std::cmp::Reverse`] as the priority, as the traversal visits high priorities first) visits
+    /// every module only after all of the modules importing it, i.e. exactly once. Modules in or
+    /// after a cycle can still be visited multiple times.
+    ///
+    /// They are computed on the first call and cached in this snapshot, so that all analyses of
+    /// the same graph that need exactly these ranks share one computation. As the snapshot is
+    /// immutable, the cached ranks always match the graph. They are computed only once, even with
+    /// concurrent callers (which wait for the first one). An error is cached as well and returned
+    /// to every caller.
+    pub fn entry_ranks(&self) -> Result<&FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
+        self.entry_ranks
+            .get_or_init(|| {
+                self.reverse_postorder_ranks(self.all_chunk_group_entry_modules())
+                    .map_err(SharedError::new)
+            })
+            .as_ref()
+            .map_err(|err| err.clone().into())
     }
 
     /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
@@ -1521,7 +1871,8 @@ impl ModuleGraphSnapshot {
     ///
     /// Nodes are (re)visited according to the returned priority of the node, prioritizing high
     /// values. This priority is intended to be used a heuristic to reduce the number of
-    /// retraversals.
+    /// retraversals. [`ModuleGraphSnapshot::entry_ranks`] computes a priority that
+    /// avoids retraversals for all modules not in or after a cycle.
     ///
     /// * `entries` - The entry modules to start the traversal from
     /// * `state` - The state to be passed to the callbacks
@@ -1583,18 +1934,20 @@ impl ModuleGraphSnapshot {
         }
 
         let mut queue_set = FxHashSet::default();
-        let mut queue = BinaryHeap::from_iter(
-            entries
-                .into_iter()
-                .map(|(m, priority)| {
-                    Ok(NodeWithPriority {
-                        node: self.get_entry(m)?,
-                        priority,
-                        visit_order: order(),
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?,
-        );
+        let mut queue = BinaryHeap::new();
+        for (m, priority) in entries {
+            let node = self.get_entry(m)?;
+            // Entries are tracked in `queue_set` like any other queued node, so that an entry
+            // that is also reachable from another entry isn't queued (and visited) twice, and
+            // duplicate entries are ignored.
+            if queue_set.insert(node) {
+                queue.push(NodeWithPriority {
+                    node,
+                    priority,
+                    visit_order: order(),
+                });
+            }
+        }
 
         for entry_node in &queue {
             visit(
@@ -1613,7 +1966,9 @@ impl ModuleGraphSnapshot {
 
             visit_count += 1;
 
-            for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing, false) {
+            for (edge, succ) in
+                self.iter_graphs_neighbors_rev(node, Direction::Outgoing, false, false)
+            {
                 let succ_weight = self.get_node(succ)?;
 
                 let action = visit(
@@ -1641,7 +1996,7 @@ impl ModuleGraphSnapshot {
     pub fn iter_reachable_modules(
         &self,
     ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>>> {
-        Ok(self.iter_reachable_nodes()?.filter_map(|n| match n {
+        Ok(self.iter_reachable_nodes()?.filter_map(|(_, n)| match n {
             SingleModuleGraphNode::Module(m) => Some(*m),
             SingleModuleGraphNode::VisitedModule { .. } => None,
         }))
@@ -1651,7 +2006,7 @@ impl ModuleGraphSnapshot {
     /// This includes VisitedModule nodes (which means that some modules are returned twice).
     pub fn iter_reachable_nodes<'a>(
         &'a self,
-    ) -> Result<impl Iterator<Item = &'a SingleModuleGraphNode> + 'a> {
+    ) -> Result<impl Iterator<Item = (GraphNodeIndex, &'a SingleModuleGraphNode)> + 'a> {
         ModuleGraphSnapshotNodeIterator::new(self)
     }
 }
@@ -1679,7 +2034,7 @@ impl<'a> ModuleGraphSnapshotNodeIterator<'a> {
     }
 }
 impl<'a> Iterator for ModuleGraphSnapshotNodeIterator<'a> {
-    type Item = &'a SingleModuleGraphNode;
+    type Item = (GraphNodeIndex, &'a SingleModuleGraphNode);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(node_idx) = self.visit_queue.pop_front() {
@@ -1694,12 +2049,12 @@ impl<'a> Iterator for ModuleGraphSnapshotNodeIterator<'a> {
                         .unwrap_or(node_idx);
                     self.visit_queue.extend(
                         self.graph
-                            .iter_graphs_neighbors_rev(node, Direction::Outgoing, false)
+                            .iter_graphs_neighbors_rev(node, Direction::Outgoing, false, false)
                             .map(|(_, succ)| succ)
                             .filter(|succ| !self.visited.contains(succ)),
                     );
                 }
-                return Some(node_weight);
+                return Some((node_idx, node_weight));
             }
         }
         None
@@ -1712,14 +2067,12 @@ impl SingleModuleGraph {
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entry(
         entry: ChunkGroupEntry,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
-            include_traced,
-            include_binding_usage,
+            options,
         )
         .await
     }
@@ -1727,30 +2080,21 @@ impl SingleModuleGraph {
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entries(
         entries: ResolvedVc<GraphEntries>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            &*entries.await?,
-            &Default::default(),
-            include_traced,
-            include_binding_usage,
-        )
-        .await
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), options).await
     }
 
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entries_visited(
         entries: ResolvedVc<GraphEntries>,
         visited_modules: OperationVc<VisitedModules>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.connect().await?.modules,
-            include_traced,
-            include_binding_usage,
+            options,
         )
         .await
     }
@@ -1760,16 +2104,10 @@ impl SingleModuleGraph {
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntries,
         visited_modules: OperationVc<VisitedModules>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            &entries,
-            &visited_modules.connect().await?.modules,
-            include_traced,
-            include_binding_usage,
-        )
-        .await
+        SingleModuleGraph::new_inner(&entries, &visited_modules.connect().await?.modules, options)
+            .await
     }
 
     #[turbo_tasks::function]
@@ -1783,7 +2121,7 @@ impl SingleModuleGraph {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum SingleModuleGraphNode {
     Module(ResolvedVc<Box<dyn Module>>),
     // Models a module that is referenced but has already been visited by an earlier graph.
@@ -1791,6 +2129,18 @@ pub enum SingleModuleGraphNode {
         idx: GraphNodeIndex,
         module: ResolvedVc<Box<dyn Module>>,
     },
+}
+#[cfg(test)]
+mod size_test {
+    use crate::module_graph::SingleModuleGraphNode;
+
+    /// Guards the per-module node size — there is one of these per module in the graph, so growth
+    /// here is multiplied across the whole app. Per-module data belongs in the
+    /// `SingleModuleGraph` columns instead.
+    #[test]
+    pub fn test_size() {
+        assert_eq!(16, size_of::<SingleModuleGraphNode>());
+    }
 }
 
 impl SingleModuleGraphNode {
@@ -1800,6 +2150,7 @@ impl SingleModuleGraphNode {
             SingleModuleGraphNode::VisitedModule { module, .. } => *module,
         }
     }
+
     pub fn target_idx(&self, direction: Direction) -> Option<GraphNodeIndex> {
         match self {
             SingleModuleGraphNode::VisitedModule { idx, .. } => match direction {
@@ -1823,13 +2174,17 @@ pub enum GraphTraversalAction {
 
 // These nodes are created while walking the Turbopack modules references, and are used to then
 // afterwards build the SingleModuleGraph.
-#[derive(Clone, Hash, PartialEq, Eq)]
+#[derive(Clone)]
 enum SingleModuleGraphBuilderNode {
     /// A regular module
     Module {
         module: ResolvedVc<Box<dyn Module>>,
-        /// module.ident().to_string(), eagerly computed for tracing, otherwise None
-        ident: Option<ReadRef<RcStr>>,
+        /// The module's `ident().to_string()`, read (untracked) only when `emit_spans` so [`span`]
+        /// can use it as the span name synchronously. Transient (never reaches the graph node) and
+        /// excluded from `Hash`/`Eq`.
+        ///
+        /// [`span`]: SingleModuleGraphBuilder::span
+        span_name: Option<ReadRef<RcStr>>,
         /// whether this module is a tracing context
         is_traced: bool,
     },
@@ -1840,7 +2195,156 @@ enum SingleModuleGraphBuilderNode {
     },
 }
 
+// `Hash`/`Eq` are implemented manually over the identity-determining fields only (`module` +
+// `is_traced` / `idx`), deliberately excluding `ident`. This node is the `AdjacencyMap` visit dedup
+// key; `ident` is fully determined by `module`, so including it would only waste cycles hashing a
+// full `AssetIdent` per insert.
+impl PartialEq for SingleModuleGraphBuilderNode {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                SingleModuleGraphBuilderNode::Module {
+                    module: l_module,
+                    is_traced: l_is_traced,
+                    ..
+                },
+                SingleModuleGraphBuilderNode::Module {
+                    module: r_module,
+                    is_traced: r_is_traced,
+                    ..
+                },
+            ) => l_module == r_module && l_is_traced == r_is_traced,
+            (
+                SingleModuleGraphBuilderNode::VisitedModule {
+                    module: l_module,
+                    idx: l_idx,
+                },
+                SingleModuleGraphBuilderNode::VisitedModule {
+                    module: r_module,
+                    idx: r_idx,
+                },
+            ) => l_module == r_module && l_idx == r_idx,
+            _ => false,
+        }
+    }
+}
+impl Eq for SingleModuleGraphBuilderNode {}
+impl Hash for SingleModuleGraphBuilderNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            SingleModuleGraphBuilderNode::Module {
+                module, is_traced, ..
+            } => {
+                module.hash(state);
+                is_traced.hash(state);
+            }
+            SingleModuleGraphBuilderNode::VisitedModule { module, idx } => {
+                module.hash(state);
+                idx.hash(state);
+            }
+        }
+    }
+}
+
+/// Reads a node's entry from a per-module column of [`SingleModuleGraph`]: `None` for a
+/// `VisitedModule` node, which sits past the end of every column. `bail!`s with `missing` when the
+/// graph was built without collecting the column.
+fn node_column<T: Copy>(
+    column: &Option<Vec<T>>,
+    node: GraphNodeIndex,
+    missing: &'static str,
+) -> Result<Option<T>> {
+    Ok(column
+        .as_ref()
+        .context(missing)?
+        .get(node.node_idx.index())
+        .copied())
+}
+
+/// Appends to a per-module column of [`SingleModuleGraph`] if the graph collects it.
+fn push_collected<T>(column: &mut Option<Vec<T>>, value: Option<T>) {
+    if let (Some(column), Some(value)) = (column, value) {
+        column.push(value);
+    }
+}
+
+/// The eagerly-resolved per-module data, stored in the per-module columns of [`SingleModuleGraph`].
+struct ModuleGraphNodeData {
+    ident: ResolvedVc<AssetIdent>,
+    ident_string: Option<ResolvedVc<RcStr>>,
+    is_self_async: ResolvedVc<bool>,
+    side_effects: Option<ResolvedVc<ModuleSideEffects>>,
+    is_mergeable: Option<ResolvedVc<bool>>,
+}
+
+/// Resolves a module's graph-node data. Each `to_resolved()` resolves the pointer chain (executing
+/// the producing task, without reading the cell content).
+///
+/// This is deliberately a plain `async fn` rather than a `#[turbo_tasks::function]`: the producing
+/// tasks become children of the graph-construction task instead of a new task per module. On a
+/// large app the extra edges added little to the construction task's batched connect, while a task
+/// per module costs a creation, an execution and a connect of its own.
+///
+/// All calls are issued before the first `.await`: calling a turbo-tasks function schedules its
+/// task, so they execute concurrently rather than one after another.
+async fn module_graph_node_data(
+    module: ResolvedVc<Box<dyn Module>>,
+    ModuleGraphOptions {
+        include_ident_strings,
+        include_side_effects,
+        include_mergeable,
+        ..
+    }: ModuleGraphOptions,
+) -> Result<ModuleGraphNodeData> {
+    // Always collected: idents have many consumers (NFT, feature usage, module-id strategy, import
+    // tracer).
+    let ident = module.ident();
+    // Always collected: `async_module_info()` runs during chunking for every graph. Cheap to
+    // resolve (trait default `Vc::cell(false)`; ecma reads already-cached `references()`).
+    let is_self_async = module.is_self_async();
+    let side_effects = include_side_effects.then(|| module.side_effects());
+    // When collecting mergeability, store `Some` for *every* module so that `None` at the node
+    // level unambiguously means "graph not built with `include_mergeable`". Types that implement
+    // `MergeableModule` get their real `is_mergeable()`; others get a resolved `false` (the
+    // interned `false` cell, so this is cheap and deduped).
+    let is_mergeable = include_mergeable.then(|| {
+        match ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module) {
+            Some(mergeable) => mergeable.is_mergeable(),
+            None => Vc::<bool>::default(),
+        }
+    });
+
+    let ident = ident.to_resolved().await?;
+    Ok(ModuleGraphNodeData {
+        ident,
+        // Only the module-id strategy needs the stringified ident, and only on the graphs that set
+        // this bit. `ident_string()` is real work (recursive stringify), so it's gated.
+        ident_string: if include_ident_strings {
+            Some(ident.to_string().to_resolved().await?)
+        } else {
+            None
+        },
+        is_self_async: is_self_async.to_resolved().await?,
+        side_effects: match side_effects {
+            Some(side_effects) => Some(side_effects.to_resolved().await?),
+            None => None,
+        },
+        is_mergeable: match is_mergeable {
+            Some(is_mergeable) => Some(is_mergeable.to_resolved().await?),
+            None => None,
+        },
+    })
+}
+
 impl SingleModuleGraphBuilderNode {
+    fn module(&self) -> ResolvedVc<Box<dyn Module>> {
+        match self {
+            SingleModuleGraphBuilderNode::Module { module, .. } => *module,
+            SingleModuleGraphBuilderNode::VisitedModule { module, .. } => *module,
+        }
+    }
+
     async fn new_module(
         emit_spans: bool,
         module: ResolvedVc<Box<dyn Module>>,
@@ -1848,9 +2352,11 @@ impl SingleModuleGraphBuilderNode {
     ) -> Result<Self> {
         Ok(Self::Module {
             module,
-            ident: if emit_spans {
-                // INVALIDATION: we don't need to invalidate when the span name changes
-                Some(module.ident_string().untracked().await?)
+            // The span name needs the ident string synchronously. Read it (untracked — its value is
+            // non-load-bearing for correctness) only when spans are enabled. Stays on the builder
+            // node; never reaches the graph node.
+            span_name: if emit_spans {
+                Some(module.ident().to_string().untracked().await?)
             } else {
                 None
             },
@@ -1865,13 +2371,13 @@ impl SingleModuleGraphBuilderNode {
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
 
+    /// Filled by `edges()`, which the traversal calls once per unique module, so each module's
+    /// node data is resolved exactly once and concurrently with the traversal.
+    node_data: &'a Mutex<FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleGraphNodeData>>,
+
     emit_spans: bool,
 
-    /// Whether to walk ChunkingType::Traced references
-    include_traced: bool,
-
-    /// Whether to read ModuleReference::binding_usage()
-    include_binding_usage: bool,
+    options: ModuleGraphOptions,
 }
 impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'_> {
     type EdgesIntoIter = Vec<(SingleModuleGraphBuilderNode, RefData)>;
@@ -1899,16 +2405,24 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
             unreachable!()
         };
         let visited_modules = self.visited_modules;
+        let node_data = self.node_data;
         let emit_spans = self.emit_spans;
-        let include_traced = self.include_traced;
-        let include_binding_usage = self.include_binding_usage;
+        let options = self.options;
+        let ModuleGraphOptions {
+            include_traced,
+            include_binding_usage,
+            ..
+        } = options;
         async move {
+            // Issued before resolving the node data so both run concurrently.
             let refs_cell = if !is_traced {
                 primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
             } else {
                 // Currently we don't care about the binding usage of traced references
                 referenced_modules_and_affecting_sources(*module, false)
             };
+            let data = module_graph_node_data(module, options).await?;
+            node_data.lock().unwrap().insert(module, data);
             let refs = match refs_cell.await {
                 Ok(refs) => refs,
                 Err(e) => {
@@ -1979,14 +2493,22 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
 
         let mut span = match node {
             SingleModuleGraphBuilderNode::Module {
-                ident: Some(ident), ..
+                span_name: Some(span_name),
+                ..
             } => {
-                tracing::info_span!("module", name = display(ident))
+                // Use the precomputed `ident().to_string()` (read untracked in `new_module`).
+                // `span_name` is populated whenever `emit_spans`, so this arm is taken for every
+                // `Module` node here.
+                tracing::info_span!("module", name = display(span_name))
+            }
+            SingleModuleGraphBuilderNode::Module {
+                span_name: None, ..
+            } => {
+                tracing::info_span!("module")
             }
             SingleModuleGraphBuilderNode::VisitedModule { .. } => {
                 tracing::info_span!("visited module")
             }
-            _ => unreachable!(),
         };
 
         if let Some(edge) = edge {
@@ -2042,18 +2564,26 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
 pub mod tests {
     use anyhow::Result;
     use rustc_hash::FxHashMap;
+    use turbo_bitset::Bitset;
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+    use turbo_tasks::{
+        ReadRef, ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    };
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
 
     use super::*;
     use crate::{
         asset::{Asset, AssetContent},
+        chunk::{ChunkItem, availability_info::AvailabilityInfo},
+        emit_collect::CollectingModule,
         ident::AssetIdent,
         issue::{CollectibleIssuesExt, IssueSeverity},
-        module::{Module, ModuleSideEffects},
-        module_graph::chunk_group_info::EntryHeuristics,
+        module::{ActivatableModule, Module, ModuleSideEffects, Modules},
+        module_graph::chunk_group_info::{
+            AsyncLoaderRelevantChunkGroups, AsyncLoaderRelevantChunkGroupsMap, ChunkGroup,
+            ChunkGroupKey, EntryHeuristics,
+        },
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
     };
@@ -2087,8 +2617,7 @@ pub mod tests {
                 }],
                 vec![],
             )),
-            false,
-            false,
+            ModuleGraphOptions::default(),
         )
         .connect()
         .to_resolved()
@@ -2239,6 +2768,7 @@ pub mod tests {
                         Ok(())
                     },
                     false,
+                    false,
                 )?;
                 assert_eq!(
                     vec![
@@ -2299,6 +2829,7 @@ pub mod tests {
                         ));
                         Ok(())
                     },
+                    false,
                     false,
                 )?;
                 assert_eq!(
@@ -2527,8 +3058,7 @@ pub mod tests {
                         heuristics: EntryHeuristics::default(),
                     }])
                     .resolved_cell(),
-                    false,
-                    false,
+                    ModuleGraphOptions::default(),
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2541,8 +3071,7 @@ pub mod tests {
                             }])
                             .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
-                            false,
-                            false,
+                            ModuleGraphOptions::default(),
                         ),
                     ],
                     None,
@@ -2566,6 +3095,7 @@ pub mod tests {
                         Ok(GraphTraversalAction::Continue)
                     },
                     |_, _, _| Ok(()),
+                    false,
                     false,
                 )?;
                 let forward = visited_forward
@@ -2708,8 +3238,10 @@ pub mod tests {
                         heuristics: EntryHeuristics::default(),
                     }])
                     .resolved_cell(),
-                    true,
-                    false,
+                    ModuleGraphOptions {
+                        include_traced: true,
+                        ..Default::default()
+                    },
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2722,8 +3254,10 @@ pub mod tests {
                             }])
                             .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
-                            true,
-                            false,
+                            ModuleGraphOptions {
+                                include_traced: true,
+                                ..Default::default()
+                            },
                         ),
                     ],
                     None,
@@ -2735,7 +3269,7 @@ pub mod tests {
                     iter_nodes: module_graph
                         .await?
                         .iter_reachable_nodes()?
-                        .map(async |node| {
+                        .map(async |(_, node)| {
                             Ok(match node {
                                 SingleModuleGraphNode::Module(module) => {
                                     module.ident_string().owned().await?
@@ -2761,7 +3295,7 @@ pub mod tests {
                                 .connect()
                                 .await?
                                 .iter_reachable_nodes()?
-                                .map(async |node| {
+                                .map(async |(_, node)| {
                                     Ok(match node {
                                         SingleModuleGraphNode::Module(module) => {
                                             module.ident_string().owned().await?
@@ -2954,9 +3488,7 @@ pub mod tests {
                     deps.iter()
                         .map(async |p| {
                             Vc::upcast::<Box<dyn ModuleReference>>(MockModuleReference::new(
-                                ResolvedVc::upcast(
-                                    MockModule::new(p.clone(), *self.repo).to_resolved().await?,
-                                ),
+                                mock_module(p.clone(), *self.repo).to_resolved().await?,
                                 rcstr!("normal-dep"),
                                 repo.chunking_types
                                     .get(&(self.path.clone(), p.clone()))
@@ -2980,6 +3512,136 @@ pub mod tests {
         #[turbo_tasks::function]
         fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
             ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    /// Creates the mock module for `path`. Files named `collect*.js` become collecting modules
+    /// (namespace `ns`), files named `proxy*.js` activatable modules, everything else a plain
+    /// [`MockModule`].
+    fn mock_module(path: FileSystemPath, repo: Vc<TestRepo>) -> Vc<Box<dyn Module>> {
+        if path.file_name().starts_with("collect") {
+            Vc::upcast(MockCollectingModule::new(path, repo))
+        } else if path.file_name().starts_with("proxy") {
+            Vc::upcast(MockActivatableModule::new(path, repo))
+        } else {
+            Vc::upcast(MockModule::new(path, repo))
+        }
+    }
+
+    /// A [`MockModule`] that is also an [`ActivatableModule`].
+    #[turbo_tasks::value]
+    struct MockActivatableModule {
+        inner: ResolvedVc<MockModule>,
+    }
+
+    #[turbo_tasks::value_impl]
+    impl MockActivatableModule {
+        #[turbo_tasks::function]
+        async fn new(path: FileSystemPath, repo: ResolvedVc<TestRepo>) -> Result<Vc<Self>> {
+            Ok(Self {
+                inner: MockModule::new(path, *repo).to_resolved().await?,
+            }
+            .cell())
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Asset for MockActivatableModule {
+        #[turbo_tasks::function]
+        fn content(&self) -> Vc<AssetContent> {
+            panic!("MockActivatableModule::content shouldn't be called")
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Module for MockActivatableModule {
+        #[turbo_tasks::function]
+        fn ident(&self) -> Vc<AssetIdent> {
+            self.inner.ident()
+        }
+
+        #[turbo_tasks::function]
+        fn source(&self) -> Vc<crate::source::OptionSource> {
+            Vc::cell(None)
+        }
+
+        #[turbo_tasks::function]
+        fn references(&self) -> Vc<ModuleReferences> {
+            self.inner.references()
+        }
+
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl ActivatableModule for MockActivatableModule {}
+
+    /// A [`MockModule`] that is also a [`CollectingModule`].
+    #[turbo_tasks::value]
+    struct MockCollectingModule {
+        inner: ResolvedVc<MockModule>,
+    }
+
+    #[turbo_tasks::value_impl]
+    impl MockCollectingModule {
+        #[turbo_tasks::function]
+        async fn new(path: FileSystemPath, repo: ResolvedVc<TestRepo>) -> Result<Vc<Self>> {
+            Ok(Self {
+                inner: MockModule::new(path, *repo).to_resolved().await?,
+            }
+            .cell())
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Asset for MockCollectingModule {
+        #[turbo_tasks::function]
+        fn content(&self) -> Vc<AssetContent> {
+            panic!("MockCollectingModule::content shouldn't be called")
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Module for MockCollectingModule {
+        #[turbo_tasks::function]
+        fn ident(&self) -> Vc<AssetIdent> {
+            self.inner.ident()
+        }
+
+        #[turbo_tasks::function]
+        fn source(&self) -> Vc<crate::source::OptionSource> {
+            Vc::cell(None)
+        }
+
+        #[turbo_tasks::function]
+        fn references(&self) -> Vc<ModuleReferences> {
+            self.inner.references()
+        }
+
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl CollectingModule for MockCollectingModule {
+        #[turbo_tasks::function]
+        fn namespace(&self) -> Vc<RcStr> {
+            Vc::cell(rcstr!("ns"))
+        }
+
+        #[turbo_tasks::function]
+        fn as_chunk_item(
+            &self,
+            _module_graph: Vc<ModuleGraph>,
+            _chunking_context: Vc<Box<dyn ChunkingContext>>,
+            _entry_chunk_group: Vc<Modules>,
+        ) -> Vc<Box<dyn ChunkItem>> {
+            panic!("MockCollectingModule::as_chunk_item shouldn't be called")
         }
     }
 
@@ -3075,8 +3737,7 @@ pub mod tests {
                     }],
                     vec![],
                 )),
-                false,
-                false,
+                ModuleGraphOptions::default(),
             );
 
             // Create a simple name mapping to make analyzing the visitors easier.
@@ -3122,5 +3783,1701 @@ pub mod tests {
         })
         .await
         .unwrap();
+    }
+
+    /// Asserts that the ranks are a permutation of `0..n` and that every (non back-) edge in
+    /// `edges` goes from a lower to a higher rank.
+    fn assert_ranks(
+        ranks: &FxHashMap<ResolvedVc<Box<dyn Module>>, usize>,
+        module_to_name: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
+        edges: &[(&str, &str)],
+    ) -> FxHashMap<RcStr, usize> {
+        let by_name: FxHashMap<RcStr, usize> = ranks
+            .iter()
+            .map(|(m, r)| (module_to_name[m].clone(), *r))
+            .collect();
+        assert_eq!(by_name.len(), ranks.len(), "modules must be ranked once");
+        let mut sorted = ranks.values().copied().collect::<Vec<_>>();
+        sorted.sort();
+        assert_eq!(sorted, (0..ranks.len()).collect::<Vec<_>>());
+        for (from, to) in edges {
+            assert!(
+                by_name[*from] < by_name[*to],
+                "expected rank({from}) < rank({to}), ranks: {by_name:?}"
+            );
+        }
+        by_name
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_diamond() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                // d is reachable via paths of length 1, 2 and 3
+                let mut deps = FxHashMap::default();
+                deps.insert(
+                    rcstr!("a.js"),
+                    vec![rcstr!("b.js"), rcstr!("d.js"), rcstr!("e.js")],
+                );
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("e.js"), vec![rcstr!("d.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let ranks = graph.reverse_postorder_ranks(entry_modules.clone())?;
+                assert_eq!(ranks.len(), 5);
+                assert_ranks(
+                    &ranks,
+                    &module_to_name,
+                    &[
+                        ("a.js", "b.js"),
+                        ("a.js", "d.js"),
+                        ("a.js", "e.js"),
+                        ("b.js", "c.js"),
+                        ("c.js", "d.js"),
+                        ("e.js", "d.js"),
+                    ],
+                );
+
+                // Using the ranks as priority, every module is visited exactly once, even if the
+                // visitor always continues.
+                let visit_count = graph.traverse_edges_fixed_point_with_priority(
+                    entry_modules
+                        .iter()
+                        .map(|m| (*m, std::cmp::Reverse(ranks[m])))
+                        .collect::<Vec<_>>(),
+                    &mut (),
+                    |_, _, _, _| Ok(GraphTraversalAction::Continue),
+                    |m, _| Ok(std::cmp::Reverse(ranks[&m])),
+                )?;
+                assert_eq!(visit_count, 5);
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_cycle() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("a.js"), rcstr!("d.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let ranks = graph.reverse_postorder_ranks(entry_modules)?;
+                assert_eq!(ranks.len(), 4);
+                // c -> a is the back edge
+                assert_ranks(
+                    &ranks,
+                    &module_to_name,
+                    &[("a.js", "b.js"), ("b.js", "c.js"), ("c.js", "d.js")],
+                );
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_multiple_entries() {
+        run_graph_test(
+            vec![rcstr!("a.js"), rcstr!("b.js")],
+            {
+                let mut deps = FxHashMap::default();
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let [a, b] = entry_modules[..] else {
+                    panic!("expected two entries");
+                };
+                // The importing entry `a` must be ranked before `b`, independent of the order of
+                // the entries, and duplicate entries are ignored.
+                for entries in [vec![a, b], vec![b, a], vec![b, a, b, a]] {
+                    let ranks = graph.reverse_postorder_ranks(entries)?;
+                    assert_eq!(ranks.len(), 3);
+                    assert_ranks(
+                        &ranks,
+                        &module_to_name,
+                        &[("a.js", "b.js"), ("b.js", "c.js")],
+                    );
+                }
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_through_layered_graph() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value]
+            struct Results {
+                ranks_from_child_entry: Vec<(RcStr, usize)>,
+                ranks_from_all_entries: Vec<(RcStr, usize)>,
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn layered_ranks_operation() -> Result<Vc<Results>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+
+                // a -> b -> c -> x -> y -> z, but x -> y -> z is in a parent graph, so the child
+                // graph only contains a `VisitedModule` node for x
+                let repo = TestRepo::new(
+                    &root,
+                    [
+                        ("a.js", vec!["b.js"]),
+                        ("b.js", vec!["c.js"]),
+                        ("c.js", vec!["x.js"]),
+                        ("x.js", vec!["y.js"]),
+                        ("y.js", vec!["z.js"]),
+                    ],
+                );
+                let make_module = |name| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                };
+                let x_module = make_module("x.js").await?;
+                let a_module = make_module("a.js").await?;
+
+                let parent_graph = SingleModuleGraph::new_with_entries(
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![x_module],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    ModuleGraphOptions::default(),
+                );
+                let module_graph = ModuleGraph::from_graphs(
+                    vec![
+                        parent_graph,
+                        SingleModuleGraph::new_with_entries_visited(
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                                modules: vec![a_module],
+                                heuristics: EntryHeuristics::default(),
+                            }])
+                            .resolved_cell(),
+                            VisitedModules::from_graph(parent_graph),
+                            ModuleGraphOptions::default(),
+                        ),
+                    ],
+                    None,
+                )
+                .connect()
+                .await?;
+
+                async fn named(
+                    ranks: FxHashMap<ResolvedVc<Box<dyn Module>>, usize>,
+                ) -> Result<Vec<(RcStr, usize)>> {
+                    let mut ranks = ranks
+                        .into_iter()
+                        .map(async |(m, r)| Ok((m.ident().await?.path.path.clone(), r)))
+                        .try_join()
+                        .await?;
+                    ranks.sort_by_key(|(_, r)| *r);
+                    Ok(ranks)
+                }
+
+                Ok(Results {
+                    ranks_from_child_entry: named(
+                        module_graph.reverse_postorder_ranks([a_module])?,
+                    )
+                    .await?,
+                    ranks_from_all_entries: named(
+                        module_graph.reverse_postorder_ranks([x_module, a_module])?,
+                    )
+                    .await?,
+                }
+                .cell())
+            }
+
+            let results = layered_ranks_operation().read_strongly_consistent().await?;
+
+            // Every module is ranked exactly once, with the `VisitedModule` x resolved to the
+            // module in the parent graph, and the ranks follow the edges across the graphs.
+            let expected = ["a.js", "b.js", "c.js", "x.js", "y.js", "z.js"]
+                .into_iter()
+                .enumerate()
+                .map(|(i, name)| (RcStr::from(name), i))
+                .collect::<Vec<_>>();
+            assert_eq!(results.ranks_from_child_entry, expected);
+            assert_eq!(results.ranks_from_all_entries, expected);
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_entry_ranks_cached() {
+        run_graph_test(
+            vec![rcstr!("a.js"), rcstr!("e.js")],
+            {
+                // A diamond (a -> b, c -> d) and a cycle (d -> a)
+                let mut deps = FxHashMap::default();
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("c.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("d.js")]);
+                deps.insert(rcstr!("d.js"), vec![rcstr!("a.js")]);
+                deps.insert(rcstr!("e.js"), vec![rcstr!("c.js")]);
+                deps
+            },
+            |graph, _, _| {
+                let shared = graph.entry_ranks()?;
+                let expected =
+                    graph.reverse_postorder_ranks(graph.all_chunk_group_entry_modules())?;
+                assert_eq!(shared, &expected);
+                assert_eq!(shared.len(), 5);
+                // The second call returns the cached map
+                assert!(std::ptr::eq(shared, graph.entry_ranks()?));
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_entry_ranks_new_snapshot() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value]
+            struct Results {
+                old_len_before: usize,
+                old_len_after: usize,
+                old_unchanged: bool,
+                new_len: usize,
+                new_matches_fresh: bool,
+                new_contains_c: bool,
+                old_contains_c: bool,
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn new_snapshot_operation() -> Result<Vc<Results>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+
+                async fn graph_for(
+                    root: &FileSystemPath,
+                    deps: Vec<(&'static str, Vec<&'static str>)>,
+                ) -> Result<(ReadRef<ModuleGraph>, ResolvedVc<Box<dyn Module>>)> {
+                    let repo = TestRepo::new(root, deps);
+                    let module = |name| {
+                        Vc::upcast::<Box<dyn Module>>(MockModule::new(
+                            root.join(name).unwrap(),
+                            repo,
+                        ))
+                        .to_resolved()
+                    };
+                    let a = module("a.js").await?;
+                    let c = module("c.js").await?;
+                    let graph = SingleModuleGraph::new_with_entries(
+                        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                            modules: vec![a],
+                            heuristics: EntryHeuristics::default(),
+                        }])
+                        .resolved_cell(),
+                        ModuleGraphOptions::default(),
+                    );
+                    let graph = ModuleGraph::from_graphs(vec![graph], None)
+                        .connect()
+                        .await?;
+                    Ok((graph, c))
+                }
+
+                // The first graph: a -> b
+                let (old_graph, old_c_module) =
+                    graph_for(&root, vec![("a.js", vec!["b.js"])]).await?;
+                let old_ranks = old_graph.entry_ranks()?;
+                let old_len_before = old_ranks.len();
+
+                // The edited graph: a -> b -> c
+                let (new_graph, c_module) =
+                    graph_for(&root, vec![("a.js", vec!["b.js"]), ("b.js", vec!["c.js"])]).await?;
+                let new_ranks = new_graph.entry_ranks()?;
+                let fresh =
+                    new_graph.reverse_postorder_ranks(new_graph.all_chunk_group_entry_modules())?;
+
+                Ok(Results {
+                    old_len_before,
+                    old_len_after: old_graph.entry_ranks()?.len(),
+                    old_unchanged: std::ptr::eq(old_ranks, old_graph.entry_ranks()?),
+                    new_len: new_ranks.len(),
+                    new_matches_fresh: new_ranks == &fresh,
+                    new_contains_c: new_ranks.contains_key(&c_module),
+                    old_contains_c: old_ranks.contains_key(&old_c_module),
+                }
+                .cell())
+            }
+
+            let results = new_snapshot_operation().read_strongly_consistent().await?;
+            assert_eq!(results.old_len_before, 2);
+            assert_eq!(results.old_len_after, 2);
+            assert!(results.old_unchanged);
+            assert!(!results.old_contains_c);
+            assert_eq!(results.new_len, 3);
+            assert!(results.new_matches_fresh);
+            assert!(results.new_contains_c);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_layer_snapshot_panics() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn layer_panics_operation() -> Result<Vc<bool>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+                let repo = TestRepo::new(&root, [("a.js", vec!["b.js"])]);
+                let a = Vc::upcast::<Box<dyn Module>>(MockModule::new(
+                    root.join("a.js").unwrap(),
+                    repo,
+                ))
+                .to_resolved()
+                .await?;
+                let graph = SingleModuleGraph::new_with_entries(
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![a],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    ModuleGraphOptions::default(),
+                );
+                let layers = ModuleGraph::from_graphs(vec![graph], None)
+                    .connect()
+                    .iter_graphs()
+                    .await?;
+                let layer = layers[0].connect().await?;
+                let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let _ = layer.reverse_postorder_ranks([a]);
+                }))
+                .is_err();
+                Ok(Vc::cell(panicked))
+            }
+
+            assert!(*layer_panics_operation().read_strongly_consistent().await?);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_edges_fixed_point_dedups_entries() {
+        run_graph_test(
+            vec![rcstr!("a.js"), rcstr!("b.js")],
+            {
+                let mut deps = FxHashMap::default();
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                deps
+            },
+            |graph, entry_modules, _| {
+                let [a, b] = entry_modules[..] else {
+                    panic!("expected two entries");
+                };
+                let mut root_visits = 0;
+                // `b` is an entry and reachable from the entry `a`, and `a` is passed twice. `a`
+                // is visited first, its reference to the already queued entry `b` must not queue
+                // `b` a second time.
+                let visit_count = graph.traverse_edges_fixed_point_with_priority(
+                    [(a, 1), (b, 0), (a, 1)],
+                    &mut (),
+                    |parent, _, _, _| {
+                        if parent.is_none() {
+                            root_visits += 1;
+                        }
+                        Ok(GraphTraversalAction::Continue)
+                    },
+                    |_, _| Ok(0),
+                )?;
+                assert_eq!(root_visits, 2);
+                assert_eq!(visit_count, 2);
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[turbo_tasks::value]
+    struct EntryOrder {
+        swapped: turbo_tasks::State<bool>,
+    }
+
+    #[turbo_tasks::value(transparent)]
+    struct ChunkGroupDescriptions(Vec<RcStr>);
+
+    /// Builds a graph with two entries that each have an async child, in the order given by
+    /// `order`, and describes the chunk groups that `get_chunk_groups_for_module` returns for
+    /// `page1.js` and `lazy1.js`.
+    ///
+    /// ```text
+    /// page1 -async-> lazy1
+    /// page2 -async-> lazy2
+    /// ```
+    #[turbo_tasks::function(operation, root)]
+    async fn chunk_groups_by_entry_order(
+        order: ResolvedVc<EntryOrder>,
+    ) -> Result<Vc<ChunkGroupDescriptions>> {
+        let swapped = *order.await?.swapped.get();
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let repo = TestRepo::new_with_chunking_types(
+            &root,
+            [
+                ("page1.js", vec!["lazy1.js"]),
+                ("page2.js", vec!["lazy2.js"]),
+            ],
+            [
+                ("page1.js", "lazy1.js", ChunkingType::Async),
+                ("page2.js", "lazy2.js", ChunkingType::Async),
+            ],
+        );
+        let module = |name: &str| {
+            Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                .to_resolved()
+        };
+        let page1 = module("page1.js").await?;
+        let page2 = module("page2.js").await?;
+        let lazy1 = module("lazy1.js").await?;
+        let entry = |module| ChunkGroupEntry::Entry {
+            modules: vec![module],
+            heuristics: EntryHeuristics::default(),
+        };
+        let mut entries = vec![entry(page1), entry(page2)];
+        if swapped {
+            entries.reverse();
+        }
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(entries, vec![])),
+            ModuleGraphOptions::default(),
+        );
+        let chunk_group_info = ModuleGraph::from_graphs(vec![graph], None)
+            .connect()
+            .chunk_group_info();
+
+        let mut descriptions = Vec::new();
+        for module in [page1, lazy1] {
+            let module_name = module.ident().await?.path.path.clone();
+            for group in chunk_group_info
+                .get_chunk_groups_for_module(*module)
+                .await?
+                .iter()
+            {
+                let kind = match &group.chunk_group {
+                    ChunkGroup::Entry(_) => "entry",
+                    ChunkGroup::Async(_) => "async",
+                    _ => "other",
+                };
+                let entry_names = group
+                    .chunk_group
+                    .entries()
+                    .map(async |entry| Ok(entry.ident().await?.path.path.clone()))
+                    .try_join()
+                    .await?;
+                descriptions
+                    .push(format!("{module_name}: {kind} {}", entry_names.join(",")).into());
+            }
+        }
+        Ok(Vc::cell(descriptions))
+    }
+
+    /// Reordering the graph entries renumbers the chunk groups but keeps the same set of them.
+    /// The recomputed `ChunkGroupInfo` must not compare equal to the old one: if it did, the cell
+    /// would keep the old order while `module_chunk_groups` takes the new indices, and modules
+    /// would map to another entry's chunk groups.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_info_reordered_entries() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let order = EntryOrder {
+                swapped: turbo_tasks::State::new(false),
+            }
+            .resolved_cell();
+            let expected = vec![
+                rcstr!("page1.js: entry page1.js"),
+                rcstr!("lazy1.js: async lazy1.js"),
+            ];
+
+            let descriptions = chunk_groups_by_entry_order(order)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*descriptions, expected);
+
+            order.await?.swapped.set(true);
+            let descriptions = chunk_groups_by_entry_order(order)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*descriptions, expected);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
+    struct ChunkGroupInfoTestGraph {
+        chunk_group_info: ReadRef<ChunkGroupInfo>,
+        module_to_name: FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
+    }
+
+    /// Two entries with heuristics, a diamond with paths of different lengths into a shared
+    /// module, an async reference and an isolated reference with a merge tag:
+    ///
+    /// ```text
+    /// page1 (clusters [0])                 page2 (clusters [1], high priority)
+    ///  |-> a1 -> a2 -> shared <-------------|
+    ///  |-> shared -> lib                    |-isolated(merge_tag "m")-> iso -> lib
+    ///  |-async-> lazy -> lib
+    /// ```
+    #[turbo_tasks::function(operation, root)]
+    async fn chunk_group_info_test_graph() -> Result<Vc<ChunkGroupInfoTestGraph>> {
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let repo = TestRepo::new_with_chunking_types(
+            &root,
+            [
+                ("page1.js", vec!["a1.js", "shared.js", "lazy.js"]),
+                ("a1.js", vec!["a2.js"]),
+                ("a2.js", vec!["shared.js"]),
+                ("page2.js", vec!["shared.js", "iso.js"]),
+                ("shared.js", vec!["lib.js"]),
+                ("lazy.js", vec!["lib.js"]),
+                ("iso.js", vec!["lib.js"]),
+            ],
+            [
+                ("page1.js", "lazy.js", ChunkingType::Async),
+                (
+                    "page2.js",
+                    "iso.js",
+                    ChunkingType::Isolated {
+                        _ty: crate::chunk::ChunkGroupType::Entry,
+                        merge_tag: Some(rcstr!("m")),
+                    },
+                ),
+            ],
+        );
+        let module = |name: &str| {
+            Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                .to_resolved()
+        };
+        let entries = vec![
+            ChunkGroupEntry::Entry {
+                modules: vec![module("page1.js").await?],
+                heuristics: EntryHeuristics {
+                    clusters: vec![0],
+                    high_priority: false,
+                },
+            },
+            ChunkGroupEntry::Entry {
+                modules: vec![module("page2.js").await?],
+                heuristics: EntryHeuristics {
+                    clusters: vec![1],
+                    high_priority: true,
+                },
+            },
+        ];
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(entries, vec![])),
+            ModuleGraphOptions::default(),
+        );
+        let module_to_name = graph
+            .connect()
+            .await?
+            .modules
+            .keys()
+            .map(async |m| Ok((*m, m.ident().await?.path.path.clone())))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+        let chunk_group_info = ModuleGraph::from_graphs(vec![graph], None)
+            .connect()
+            .chunk_group_info()
+            .await?;
+        Ok(ChunkGroupInfoTestGraph {
+            chunk_group_info,
+            module_to_name,
+        }
+        .cell())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_info_semantics() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let setup = chunk_group_info_test_graph()
+                .read_strongly_consistent()
+                .await?;
+            let names = &setup.module_to_name;
+            let name = |m: &ResolvedVc<Box<dyn Module>>| names[m].to_string();
+            let info = setup.chunk_group_info.clone();
+
+            // Describe chunk groups by name, independent of their index.
+            fn describe(
+                info: &ChunkGroupInfo,
+                index: usize,
+                names: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
+            ) -> String {
+                let list = |modules: &[ResolvedVc<Box<dyn Module>>]| {
+                    modules
+                        .iter()
+                        .map(|m| names[m].to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                };
+                match info.chunk_groups.get(index).unwrap() {
+                    ChunkGroup::Entry(modules) => format!("entry {}", list(modules)),
+                    ChunkGroup::Async(module) => format!("async {}", names[module]),
+                    ChunkGroup::IsolatedMerged {
+                        parent,
+                        merge_tag,
+                        entries,
+                    } => format!(
+                        "isolated merged {merge_tag} [{}] of ({})",
+                        list(entries),
+                        describe(info, *parent, names)
+                    ),
+                    other => panic!("unexpected chunk group {other:?}"),
+                }
+            }
+
+            let mut membership = info
+                .module_chunk_groups
+                .await?
+                .iter()
+                .map(|(module, groups)| {
+                    let mut groups = groups
+                        .iter()
+                        .map(|i| describe(&info, i as usize, names))
+                        .collect::<Vec<_>>();
+                    groups.sort();
+                    (name(module), groups)
+                })
+                .collect::<Vec<_>>();
+            membership.sort();
+
+            let page1 = "entry page1.js";
+            let page2 = "entry page2.js";
+            let lazy = "async lazy.js";
+            let iso = "isolated merged m [iso.js] of (entry page2.js)";
+            let expected = |groups: &[&str]| {
+                let mut groups = groups.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+                groups.sort();
+                groups
+            };
+            assert_eq!(
+                membership,
+                vec![
+                    ("a1.js".to_string(), expected(&[page1])),
+                    ("a2.js".to_string(), expected(&[page1])),
+                    ("iso.js".to_string(), expected(&[iso])),
+                    ("lazy.js".to_string(), expected(&[lazy])),
+                    ("lib.js".to_string(), expected(&[page1, page2, lazy, iso])),
+                    ("page1.js".to_string(), expected(&[page1])),
+                    ("page2.js".to_string(), expected(&[page2])),
+                    ("shared.js".to_string(), expected(&[page1, page2])),
+                ]
+            );
+
+            // Heuristics: async groups inherit from the groups of the referencing module, merged
+            // groups from their parent group.
+            let mut heuristics = (0..info.chunk_groups.len())
+                .map(|i| {
+                    (
+                        describe(&info, i, names),
+                        info.chunking_heuristics.clusters[i].clone(),
+                        info.chunking_heuristics.priority_routes.contains(i as u32),
+                    )
+                })
+                .collect::<Vec<_>>();
+            heuristics.sort();
+            assert_eq!(
+                heuristics,
+                vec![
+                    (lazy.to_string(), vec![0], false),
+                    (page1.to_string(), vec![0], false),
+                    (page2.to_string(), vec![1], true),
+                    (iso.to_string(), vec![1], true),
+                ]
+            );
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    // ---- async loader availability ----
+
+    /// The chunking types used by the async loader availability test graphs, by short name.
+    fn test_chunking_type(kind: &str) -> ChunkingType {
+        match kind {
+            "async" => ChunkingType::Async,
+            "shared" => ChunkingType::Shared {
+                inherit_async: false,
+                merge_tag: None,
+            },
+            "shared-merged" => ChunkingType::Shared {
+                inherit_async: false,
+                merge_tag: Some(rcstr!("m")),
+            },
+            "isolated" => ChunkingType::Isolated {
+                _ty: crate::chunk::ChunkGroupType::Entry,
+                merge_tag: None,
+            },
+            "traced" => ChunkingType::Traced {
+                mode: TracedMode::Entry,
+            },
+            "emitted" => ChunkingType::Emitted {
+                namespace: rcstr!("ns"),
+                emit_to_all_entries: false,
+            },
+            "per-entry" => ChunkingType::PerEntry,
+            _ => panic!("unknown chunking type {kind}"),
+        }
+    }
+
+    #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
+    struct AsyncAvailabilityTestGraph {
+        module_graph: ResolvedVc<ModuleGraph>,
+        modules: FxHashMap<RcStr, ResolvedVc<Box<dyn Module>>>,
+    }
+
+    /// A graph with one `ChunkGroupEntry::Entry` per name in `entries` and one
+    /// `ChunkGroupEntry::Async` per name in `async_entries`.
+    #[turbo_tasks::function(operation, root)]
+    async fn async_availability_test_graph(
+        dependencies: Vec<(RcStr, Vec<RcStr>)>,
+        chunking_types: Vec<(RcStr, RcStr, RcStr)>,
+        entries: Vec<RcStr>,
+        async_entries: Vec<RcStr>,
+    ) -> Result<Vc<AsyncAvailabilityTestGraph>> {
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let repo = TestRepo::new_with_chunking_types(
+            &root,
+            dependencies,
+            chunking_types
+                .iter()
+                .map(|(from, to, kind)| (from.clone(), to.clone(), test_chunking_type(kind))),
+        );
+        let module = async |name: &RcStr| mock_module(root.join(name)?, repo).to_resolved().await;
+        let mut graph_entries = Vec::new();
+        for entry in &entries {
+            graph_entries.push(ChunkGroupEntry::Entry {
+                modules: vec![module(entry).await?],
+                heuristics: EntryHeuristics::default(),
+            });
+        }
+        for entry in &async_entries {
+            graph_entries.push(ChunkGroupEntry::Async(module(entry).await?));
+        }
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(graph_entries, vec![])),
+            ModuleGraphOptions::default(),
+        );
+        let modules = graph
+            .connect()
+            .await?
+            .modules
+            .keys()
+            .map(async |m| Ok((m.ident().await?.path.path.clone(), *m)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+        let module_graph = ModuleGraph::from_graphs(vec![graph], None)
+            .connect()
+            .to_resolved()
+            .await?;
+        Ok(AsyncAvailabilityTestGraph {
+            module_graph,
+            modules,
+        }
+        .cell())
+    }
+
+    async fn run_turbo_test(test: impl Future<Output = Result<()>> + Send + 'static) {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(test).await.unwrap();
+    }
+
+    struct AsyncAvailabilityTest {
+        module_graph: ResolvedVc<ModuleGraph>,
+        modules: FxHashMap<RcStr, ResolvedVc<Box<dyn Module>>>,
+    }
+
+    impl AsyncAvailabilityTest {
+        async fn new(
+            dependencies: &[(&str, &[&str])],
+            chunking_types: &[(&str, &str, &str)],
+            entries: &[&str],
+            async_entries: &[&str],
+        ) -> Result<Self> {
+            let names = |names: &[&str]| names.iter().map(|n| RcStr::from(*n)).collect::<Vec<_>>();
+            let setup = async_availability_test_graph(
+                dependencies
+                    .iter()
+                    .map(|(module, deps)| (RcStr::from(*module), names(deps)))
+                    .collect(),
+                chunking_types
+                    .iter()
+                    .map(|(from, to, kind)| ((*from).into(), (*to).into(), (*kind).into()))
+                    .collect(),
+                names(entries),
+                names(async_entries),
+            )
+            .read_strongly_consistent()
+            .await?;
+            Ok(Self {
+                module_graph: setup.module_graph,
+                modules: setup.modules.clone(),
+            })
+        }
+
+        fn module(&self, name: &str) -> ResolvedVc<Box<dyn Module>> {
+            *self
+                .modules
+                .get(&RcStr::from(name))
+                .unwrap_or_else(|| panic!("no module {name}"))
+        }
+
+        /// Inspects the graph from a task (top-level code may only read strongly consistent). Each
+        /// query is `(pages, in_async_module, async module)`.
+        async fn report(
+            &self,
+            queries: &[(&[&str], bool, &str)],
+        ) -> Result<ReadRef<AsyncAvailabilityTestReport>> {
+            async_availability_test_report(
+                self.module_graph,
+                self.modules
+                    .iter()
+                    .map(|(name, module)| (name.clone(), *module))
+                    .collect(),
+                queries
+                    .iter()
+                    .map(|(pages, in_async_module, module)| {
+                        (
+                            pages.iter().map(|p| RcStr::from(*p)).collect(),
+                            *in_async_module,
+                            RcStr::from(*module),
+                        )
+                    })
+                    .collect(),
+            )
+            .read_strongly_consistent()
+            .await
+        }
+    }
+
+    #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
+    struct AsyncAvailabilityTestReport {
+        /// The relevant chunk groups of each async module, described by name.
+        relevant: Vec<(String, Vec<String>, bool)>,
+        /// For each query: the availability before and after narrowing, and the narrowed available
+        /// chunk groups by name.
+        narrowed: Vec<(AvailabilityInfo, AvailabilityInfo, Vec<String>)>,
+        /// For each query: the available chunk groups before narrowing, by name.
+        narrowed_input: Vec<Vec<String>>,
+    }
+
+    /// For each query, builds the availability that `chunk_group_content` produces for the entry
+    /// chunk groups of `pages` (or the root availability), and narrows it for the async module.
+    #[turbo_tasks::function(operation, root)]
+    async fn async_availability_test_report(
+        module_graph: ResolvedVc<ModuleGraph>,
+        modules: Vec<(RcStr, ResolvedVc<Box<dyn Module>>)>,
+        queries: Vec<(Vec<RcStr>, bool, RcStr)>,
+    ) -> Result<Vc<AsyncAvailabilityTestReport>> {
+        let by_name = modules.iter().cloned().collect::<FxHashMap<_, _>>();
+        let names = modules
+            .iter()
+            .map(|(name, module)| (*module, name.clone()))
+            .collect::<FxHashMap<_, _>>();
+        let info = module_graph.chunk_group_info().await?;
+        let describe = |groups: &Bitset| {
+            let mut groups = groups
+                .iter()
+                .map(|index| describe_chunk_group(&info, index as usize, &names))
+                .collect::<Vec<_>>();
+            groups.sort();
+            groups
+        };
+
+        let mut relevant = info
+            .async_loader_relevant_chunk_groups
+            .await?
+            .iter()
+            .map(|(module, relevant)| {
+                // Stored in a stable order, so that an entry only changes when its sets do.
+                assert!(
+                    relevant
+                        .observed_chunk_groups
+                        .windows(2)
+                        .all(|w| w[0].iter().lt(w[1].iter())),
+                    "observed chunk groups must be distinct and sorted"
+                );
+                (
+                    names[module].to_string(),
+                    describe(&relevant.chunk_groups),
+                    relevant.needs_entry_group(),
+                )
+            })
+            .collect::<Vec<_>>();
+        relevant.sort();
+
+        let mut narrowed = Vec::new();
+        let mut narrowed_input = Vec::new();
+        for (pages, in_async_module, module) in queries {
+            let pages = pages.iter().map(|p| by_name[p]).collect::<Vec<_>>();
+            let mut availability = AvailabilityInfo::root();
+            for page in &pages {
+                availability = availability
+                    .with_chunk_group(module_graph, ChunkGroupKey::Entry(vec![*page]))
+                    .await?;
+            }
+            if !pages.is_empty() {
+                availability = availability.with_entry_group(ResolvedVc::cell(pages));
+            }
+            if in_async_module {
+                availability = availability.in_async_module();
+            }
+            let result = availability
+                .canonicalize_for_async_loader(module_graph, by_name[&module])
+                .await?;
+            // The canonical availability must answer every observed test like the original one.
+            if let Some(relevant) = info
+                .async_loader_relevant_chunk_groups
+                .get(&by_name[&module])
+                .await?
+            {
+                let chunk_groups = async |availability: AvailabilityInfo| -> Result<Bitset> {
+                    Ok(match availability.available_chunk_groups() {
+                        Some(available) => available.await?.chunk_groups(module_graph)?.clone(),
+                        None => Bitset::new(),
+                    })
+                };
+                let before = chunk_groups(availability).await?;
+                let after = chunk_groups(result).await?;
+                for observed in &relevant.observed_chunk_groups {
+                    assert_eq!(
+                        observed.is_disjoint(&before),
+                        observed.is_disjoint(&after),
+                        "canonical availability changes the test for {observed:?}"
+                    );
+                }
+            }
+            let available = match result.available_chunk_groups() {
+                Some(available) => describe(available.await?.chunk_groups(module_graph)?),
+                None => vec![],
+            };
+            narrowed_input.push(match availability.available_chunk_groups() {
+                Some(available) => describe(available.await?.chunk_groups(module_graph)?),
+                None => vec![],
+            });
+            narrowed.push((availability, result, available));
+        }
+
+        Ok(AsyncAvailabilityTestReport {
+            relevant,
+            narrowed,
+            narrowed_input,
+        }
+        .cell())
+    }
+
+    fn describe_chunk_group(
+        info: &ChunkGroupInfo,
+        index: usize,
+        names: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
+    ) -> String {
+        let name = |module: &ResolvedVc<Box<dyn Module>>| names[module].to_string();
+        match &info.chunk_groups[index] {
+            ChunkGroup::Entry(modules) => format!(
+                "entry {}",
+                modules.iter().map(name).collect::<Vec<_>>().join(",")
+            ),
+            ChunkGroup::Async(module) => format!("async {}", name(module)),
+            ChunkGroup::Shared(module) => format!("shared {}", name(module)),
+            ChunkGroup::Isolated(module) => format!("isolated {}", name(module)),
+            ChunkGroup::Collected(module) => format!("collected {}", name(module)),
+            ChunkGroup::SharedMerged {
+                parent, merge_tag, ..
+            } => format!(
+                "shared merged {merge_tag} of ({})",
+                describe_chunk_group(info, *parent, names)
+            ),
+            other => panic!("unexpected chunk group {other:?}"),
+        }
+    }
+
+    fn relevant(
+        module: &str,
+        groups: &[&str],
+        needs_entry_group: bool,
+    ) -> (String, Vec<String>, bool) {
+        let mut groups = groups.iter().map(|g| g.to_string()).collect::<Vec<_>>();
+        groups.sort();
+        (module.to_string(), groups, needs_entry_group)
+    }
+
+    /// Two pages load the same async module, whose subgraph is disjoint from both pages: the
+    /// narrowed availability is identical, so both share one async loader.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_disjoint() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["lazy.js", "s.js"]),
+                    ("p2.js", &["lazy.js", "s.js"]),
+                    ("lazy.js", &["leaf.js"]),
+                ],
+                &[("p1.js", "lazy.js", "async"), ("p2.js", "lazy.js", "async")],
+                &["p1.js", "p2.js"],
+                &[],
+            )
+            .await?;
+            let report = test
+                .report(&[(&["p1.js"], true, "lazy.js"), (&["p2.js"], true, "lazy.js")])
+                .await?;
+            assert_eq!(
+                report.relevant,
+                vec![relevant("lazy.js", &["async lazy.js"], false)]
+            );
+
+            let (p1_before, p1, _) = report.narrowed[0];
+            let (p2_before, p2, _) = report.narrowed[1];
+            assert_ne!(p1_before, p2_before);
+            // Equal task inputs, so `async_loader_chunk_item(lazy, graph, availability)` is one
+            // task for both pages.
+            assert_eq!(p1, p2);
+            assert_eq!(p1.available_chunk_groups(), None);
+            assert_eq!(p1.entry_group(), None);
+            assert!(p1.is_in_async_module());
+            Ok(())
+        })
+        .await
+    }
+
+    /// Both pages and the async module use one shared module, like `react/jsx-runtime`. Both pages
+    /// make the same modules available, so they share one loader.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_shared_with_all_pages() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["lazy.js", "runtime.js"]),
+                    ("p2.js", &["lazy.js", "runtime.js"]),
+                    ("lazy.js", &["runtime.js", "leaf.js"]),
+                ],
+                &[("p1.js", "lazy.js", "async"), ("p2.js", "lazy.js", "async")],
+                &["p1.js", "p2.js"],
+                &[],
+            )
+            .await?;
+            let report = test
+                .report(&[(&["p1.js"], true, "lazy.js"), (&["p2.js"], true, "lazy.js")])
+                .await?;
+            let (p1_before, p1, ref p1_available) = report.narrowed[0];
+            let (p2_before, p2, _) = report.narrowed[1];
+            assert_ne!(p1_before, p2_before);
+            assert_eq!(p1, p2);
+            assert_eq!(
+                p1_available,
+                &vec!["entry p1.js".to_string(), "entry p2.js".to_string()]
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// A module shared between a page and the async module keeps that page's chunk group, which
+    /// makes the module available in the async chunk group.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_shared_with_page() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["lazy.js", "shared.js"]),
+                    ("p2.js", &["lazy.js"]),
+                    ("lazy.js", &["shared.js"]),
+                ],
+                &[("p1.js", "lazy.js", "async"), ("p2.js", "lazy.js", "async")],
+                &["p1.js", "p2.js"],
+                &[],
+            )
+            .await?;
+            let report = test
+                .report(&[
+                    (&["p1.js"], true, "lazy.js"),
+                    (&["p2.js"], true, "lazy.js"),
+                    (&["p1.js", "p2.js"], true, "lazy.js"),
+                ])
+                .await?;
+            assert_eq!(
+                report.relevant,
+                vec![relevant(
+                    "lazy.js",
+                    &["async lazy.js", "entry p1.js"],
+                    false
+                )]
+            );
+
+            let (_, from_p1, ref from_p1_available) = report.narrowed[0];
+            assert_eq!(from_p1_available, &vec!["entry p1.js".to_string()]);
+            let (_, from_p2, _) = report.narrowed[1];
+            assert_eq!(from_p2.available_chunk_groups(), None);
+
+            // Narrowing to an equal set yields the same cell, however the input was built.
+            let (_, from_both, _) = report.narrowed[2];
+            assert_eq!(
+                from_both.available_chunk_groups(),
+                from_p1.available_chunk_groups()
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// Nested async chunk groups are chunked with the availability of their parent, so the parent
+    /// depends on what they observe, and on the chunk groups of the nested async loader (which
+    /// includes importers outside of the parent).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_nested() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["a.js", "x.js"]),
+                    ("p2.js", &["b.js"]),
+                    ("a.js", &["b.js"]),
+                    ("b.js", &["x.js"]),
+                ],
+                &[
+                    ("p1.js", "a.js", "async"),
+                    ("a.js", "b.js", "async"),
+                    ("p2.js", "b.js", "async"),
+                ],
+                &["p1.js", "p2.js"],
+                &[],
+            )
+            .await?;
+            // The queries also check that the canonical availability keeps every observed test.
+            let report = test
+                .report(&[
+                    (&["p1.js"], true, "a.js"),
+                    (&["p2.js"], true, "a.js"),
+                    (&["p1.js", "p2.js"], true, "a.js"),
+                    (&["p1.js"], true, "b.js"),
+                    (&["p2.js"], true, "b.js"),
+                ])
+                .await?;
+            assert_eq!(
+                report.relevant,
+                vec![
+                    relevant(
+                        "a.js",
+                        &["async a.js", "async b.js", "entry p1.js", "entry p2.js"],
+                        false
+                    ),
+                    relevant("b.js", &["async b.js", "entry p1.js"], false),
+                ]
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// Chunking continues through shared references, so the members of shared (and shared merged)
+    /// chunk groups count.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_shared_references() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["a.js", "y.js"]),
+                    ("p2.js", &["w.js"]),
+                    ("a.js", &["s.js", "t.js"]),
+                    ("s.js", &["y.js"]),
+                    ("t.js", &["w.js"]),
+                ],
+                &[
+                    ("p1.js", "a.js", "async"),
+                    ("a.js", "s.js", "shared"),
+                    ("a.js", "t.js", "shared-merged"),
+                ],
+                &["p1.js", "p2.js"],
+                &[],
+            )
+            .await?;
+            assert_eq!(
+                test.report(&[]).await?.relevant,
+                vec![relevant(
+                    "a.js",
+                    &[
+                        "async a.js",
+                        "entry p1.js",
+                        "entry p2.js",
+                        "shared merged m of (async a.js)",
+                        "shared s.js"
+                    ],
+                    false
+                )]
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// Async modules that import each other (and themselves) share the closure.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_cycles() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["a.js", "c.js", "d.js", "z.js"]),
+                    ("a.js", &["b.js"]),
+                    ("b.js", &["a.js", "z.js"]),
+                    ("c.js", &["c.js"]),
+                    ("d.js", &["q.js"]),
+                ],
+                &[
+                    ("p1.js", "a.js", "async"),
+                    ("a.js", "b.js", "async"),
+                    ("b.js", "a.js", "async"),
+                    ("p1.js", "c.js", "async"),
+                    ("c.js", "c.js", "async"),
+                    ("p1.js", "d.js", "async"),
+                ],
+                &["p1.js"],
+                &[],
+            )
+            .await?;
+            assert_eq!(
+                test.report(&[]).await?.relevant,
+                vec![
+                    relevant("a.js", &["async a.js", "async b.js", "entry p1.js"], false),
+                    relevant("b.js", &["async a.js", "async b.js", "entry p1.js"], false),
+                    // The self import creates a loader for `c` inside of `c`.
+                    relevant("c.js", &["async c.js", "entry p1.js"], false),
+                    relevant("d.js", &["async d.js"], false),
+                ]
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// Chunking doesn't continue through isolated and traced references.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_isolated_and_traced() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["a.js", "w.js", "v.js"]),
+                    ("a.js", &["i.js", "t.js"]),
+                    ("i.js", &["w.js"]),
+                    ("t.js", &["v.js"]),
+                ],
+                &[
+                    ("p1.js", "a.js", "async"),
+                    ("a.js", "i.js", "isolated"),
+                    ("a.js", "t.js", "traced"),
+                ],
+                &["p1.js"],
+                &[],
+            )
+            .await?;
+            assert_eq!(
+                test.report(&[]).await?.relevant,
+                vec![relevant("a.js", &["async a.js"], false)]
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// An async chunk group that is a graph entry, without an importer.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_async_entry() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[("p1.js", &["f.js"]), ("e.js", &["f.js"])],
+                &[],
+                &["p1.js"],
+                &["e.js"],
+            )
+            .await?;
+            assert_eq!(
+                test.report(&[]).await?.relevant,
+                vec![relevant("e.js", &["async e.js", "entry p1.js"], false)]
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// Without available chunk groups there is nothing to narrow; the flags are kept.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_root() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[("p1.js", &["lazy.js"])],
+                &[("p1.js", "lazy.js", "async")],
+                &["p1.js"],
+                &[],
+            )
+            .await?;
+            let report = test
+                .report(&[(&[], false, "lazy.js"), (&[], true, "lazy.js")])
+                .await?;
+            for (before, after, _) in &report.narrowed {
+                assert_eq!(after, before);
+            }
+            assert!(!report.narrowed[0].1.is_in_async_module());
+            assert!(report.narrowed[1].1.is_in_async_module());
+            Ok(())
+        })
+        .await
+    }
+
+    /// A collecting module reads the entry group. Collected modules are chunked into the chunk
+    /// group of the collecting module, so their chunk groups count too.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_collect() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[
+                    ("p1.js", &["a.js", "b.js", "e.js"]),
+                    ("p2.js", &["c.js"]),
+                    ("a.js", &["collect.js"]),
+                    ("b.js", &["h.js"]),
+                    ("c.js", &["collect-empty.js"]),
+                    ("e.js", &["g.js"]),
+                ],
+                &[
+                    ("p1.js", "a.js", "async"),
+                    ("p1.js", "b.js", "async"),
+                    ("p2.js", "c.js", "async"),
+                    ("p1.js", "e.js", "emitted"),
+                    ("a.js", "collect.js", "per-entry"),
+                    ("c.js", "collect-empty.js", "per-entry"),
+                ],
+                &["p1.js", "p2.js"],
+                &[],
+            )
+            .await?;
+            let report = test
+                .report(&[(&["p1.js"], true, "a.js"), (&["p1.js"], true, "b.js")])
+                .await?;
+            assert_eq!(
+                report.relevant,
+                vec![
+                    relevant("a.js", &["async a.js", "collected e.js"], true),
+                    relevant("b.js", &["async b.js"], false),
+                    // Nothing is collected, but the collecting module still reads the entry group.
+                    relevant("c.js", &["async c.js"], true),
+                ]
+            );
+
+            let (p1, a, _) = report.narrowed[0];
+            assert_eq!(a.entry_group(), p1.entry_group());
+            assert!(a.entry_group().is_some());
+            let (_, b, _) = report.narrowed[1];
+            assert_eq!(b.entry_group(), None);
+            Ok(())
+        })
+        .await
+    }
+
+    /// An activatable module (a lazily compiled dynamic import) keeps the availability its loader
+    /// is given, so that names derived from it don't change when it activates. Async targets whose
+    /// chunking reaches it stop at it and use the subset filter instead of the canonical
+    /// availability (which may contain chunk groups the activated subgraph would misread), keep the
+    /// entry group, and don't change on activation either.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_activatable() {
+        run_turbo_test(async {
+            let dependencies = |active: bool| -> Vec<(&'static str, &'static [&'static str])> {
+                let mut dependencies: Vec<(&str, &[&str])> = vec![
+                    ("p1.js", &["a.js", "u.js", "runtime.js", "shared.js"]),
+                    ("p2.js", &["a.js", "u.js", "runtime.js", "x.js"]),
+                    ("a.js", &["proxy.js", "runtime.js", "shared.js"]),
+                    ("u.js", &["runtime.js"]),
+                ];
+                if active {
+                    dependencies.push(("proxy.js", &["leaf.js"]));
+                    dependencies.push(("leaf.js", &["runtime.js", "x.js", "collect.js"]));
+                }
+                dependencies
+            };
+            let chunking_types = |active: bool| {
+                let mut chunking_types = vec![
+                    ("p1.js", "a.js", "async"),
+                    ("p2.js", "a.js", "async"),
+                    ("p1.js", "u.js", "async"),
+                    ("p2.js", "u.js", "async"),
+                    ("a.js", "proxy.js", "async"),
+                ];
+                if active {
+                    chunking_types.push(("proxy.js", "leaf.js", "async"));
+                    chunking_types.push(("leaf.js", "collect.js", "per-entry"));
+                }
+                chunking_types
+            };
+            let queries: &[(&[&str], bool, &str)] = &[
+                (&["p1.js"], true, "a.js"),
+                (&["p2.js"], true, "a.js"),
+                (&["p1.js"], true, "u.js"),
+                (&["p2.js"], true, "u.js"),
+            ];
+
+            let mut reports = Vec::new();
+            for active in [false, true] {
+                let test = AsyncAvailabilityTest::new(
+                    &dependencies(active),
+                    &chunking_types(active),
+                    &["p1.js", "p2.js"],
+                    &[],
+                )
+                .await?;
+                let mut queries = queries.to_vec();
+                if active {
+                    // `proxy` and `leaf` are only chunked through `a`.
+                    queries.push((&["p1.js"], true, "proxy.js"));
+                    queries.push((&["p1.js"], true, "leaf.js"));
+                }
+                reports.push(test.report(&queries).await?);
+            }
+            let (inactive, active) = (&reports[0], &reports[1]);
+
+            let relevant_of = |report: &AsyncAvailabilityTestReport, module: &str| {
+                report.relevant.iter().find(|(m, ..)| m == module).cloned()
+            };
+            for (report, behind_proxy) in [(inactive, &[][..]), (active, &["async leaf.js"][..])] {
+                // The activatable target keeps its availability.
+                assert_eq!(relevant_of(report, "proxy.js"), None);
+                // Its containing target stops at it and keeps the entry group. (The chunk groups
+                // of `runtime.js` grow on activation, but only by chunk groups behind the proxy,
+                // which are never available above it.)
+                let mut groups = vec![
+                    "async a.js",
+                    "async proxy.js",
+                    "async u.js",
+                    "entry p1.js",
+                    "entry p2.js",
+                ];
+                groups.extend(behind_proxy);
+                assert_eq!(
+                    relevant_of(report, "a.js"),
+                    Some(relevant("a.js", &groups, true))
+                );
+                // An unrelated target is still canonical: both pages get the same availability,
+                // which isn't a subset of either page's.
+                let (_, from_p1, ref from_p1_available) = report.narrowed[2];
+                let (_, from_p2, _) = report.narrowed[3];
+                assert_eq!(from_p1, from_p2);
+                assert!(from_p1_available.contains(&"entry p2.js".to_string()));
+            }
+
+            // The containing target uses the subset filter and keeps the entry group.
+            for (index, report) in [inactive, active].into_iter().enumerate() {
+                for query in 0..2 {
+                    let (before, after, ref after_available) = report.narrowed[query];
+                    let before_available = &report.narrowed_input[query];
+                    assert!(
+                        after_available.iter().all(|g| before_available.contains(g)),
+                        "graph {index}, query {query}: {after_available:?} is not a subset of \
+                         {before_available:?}"
+                    );
+                    assert!(after.entry_group().is_some());
+                    assert_eq!(after.entry_group(), before.entry_group());
+                }
+            }
+            // Activation doesn't change it.
+            for query in 0..2 {
+                assert_eq!(inactive.narrowed[query].2, active.narrowed[query].2);
+            }
+
+            // Behind the proxy, the activated target is canonicalized on its own (its collecting
+            // module reads the entry group).
+            assert_eq!(
+                relevant_of(active, "leaf.js"),
+                Some(relevant(
+                    "leaf.js",
+                    &[
+                        "async a.js",
+                        "async leaf.js",
+                        "async u.js",
+                        "entry p1.js",
+                        "entry p2.js"
+                    ],
+                    true
+                ))
+            );
+            // The proxy's own loader keeps the availability it is given.
+            let (before, after, _) = active.narrowed[4];
+            assert_eq!(after, before);
+            // The activated target isn't limited to a subset: its canonical availability contains
+            // chunk groups the input doesn't.
+            let (_, _, ref leaf_available) = active.narrowed[5];
+            assert!(
+                leaf_available
+                    .iter()
+                    .any(|g| !active.narrowed_input[5].contains(g)),
+                "{leaf_available:?} should be canonical"
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    #[turbo_tasks::value(transparent)]
+    struct TestStep(State<u32>);
+
+    #[turbo_tasks::function(operation, root)]
+    fn test_step_operation() -> Vc<TestStep> {
+        TestStep(State::new(0)).cell()
+    }
+
+    /// Step 1: `a` and `b` don't read the entry group. Step 2: `b` does. Step 3: `a` does too.
+    #[turbo_tasks::function(operation, root)]
+    async fn test_relevant_chunk_groups_operation(
+        step: ResolvedVc<TestStep>,
+        a: ResolvedVc<Box<dyn Module>>,
+        b: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<AsyncLoaderRelevantChunkGroupsMap>> {
+        let step = *step.await?.get();
+        let entry = |reaches_collecting_module| AsyncLoaderRelevantChunkGroups {
+            observed_chunk_groups: Default::default(),
+            chunk_groups: Default::default(),
+            reaches_collecting_module,
+            reaches_activatable: false,
+        };
+        Ok(Vc::cell(FxHashMap::from_iter([
+            (a, entry(step >= 3)),
+            (b, entry(step >= 2)),
+        ])))
+    }
+
+    static NARROWED_EXECUTIONS: std::sync::atomic::AtomicUsize =
+        std::sync::atomic::AtomicUsize::new(0);
+
+    #[turbo_tasks::value]
+    struct NarrowedTestResult {
+        keeps_entry_group: bool,
+        execution: usize,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn test_narrowed_operation(
+        relevant: OperationVc<AsyncLoaderRelevantChunkGroupsMap>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        module: ResolvedVc<Box<dyn Module>>,
+        entry_group: ResolvedVc<Modules>,
+    ) -> Result<Vc<NarrowedTestResult>> {
+        let narrowed = AvailabilityInfo::root()
+            .with_entry_group(entry_group)
+            .canonicalize_for_async_loader_with(module_graph, relevant.connect(), module)
+            .await?;
+        Ok(NarrowedTestResult {
+            keeps_entry_group: narrowed.entry_group().is_some(),
+            execution: NARROWED_EXECUTIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+        }
+        .cell())
+    }
+
+    /// Narrowing reads only the entry of the async module, so a change to another async module's
+    /// entry doesn't invalidate it.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_async_loader_availability_keyed_invalidation() {
+        run_turbo_test(async {
+            let test = AsyncAvailabilityTest::new(
+                &[("p1.js", &["a.js", "b.js"])],
+                &[("p1.js", "a.js", "async"), ("p1.js", "b.js", "async")],
+                &["p1.js"],
+                &[],
+            )
+            .await?;
+            let step_op = test_step_operation();
+            let step_vc = step_op.resolve().strongly_consistent().await?;
+            let step = step_op.read_strongly_consistent().await?;
+            step.set(1);
+
+            let relevant = test_relevant_chunk_groups_operation(
+                step_vc,
+                test.module("a.js"),
+                test.module("b.js"),
+            );
+            let entry_group = ResolvedVc::cell(vec![test.module("p1.js")]);
+            let a = test_narrowed_operation(
+                relevant,
+                test.module_graph,
+                test.module("a.js"),
+                entry_group,
+            );
+            let b = test_narrowed_operation(
+                relevant,
+                test.module_graph,
+                test.module("b.js"),
+                entry_group,
+            );
+
+            let a1 = a.read_strongly_consistent().await?;
+            let b1 = b.read_strongly_consistent().await?;
+            assert!(!a1.keeps_entry_group);
+            assert!(!b1.keeps_entry_group);
+
+            // Only `b` changes.
+            step.set(2);
+            let a2 = a.read_strongly_consistent().await?;
+            let b2 = b.read_strongly_consistent().await?;
+            assert!(!a2.keeps_entry_group);
+            assert!(b2.keeps_entry_group);
+            assert_eq!(a1.execution, a2.execution, "`a` must not be invalidated");
+            assert_ne!(b1.execution, b2.execution);
+
+            // Only `a` changes.
+            step.set(3);
+            let a3 = a.read_strongly_consistent().await?;
+            let b3 = b.read_strongly_consistent().await?;
+            assert!(a3.keeps_entry_group);
+            assert!(b3.keeps_entry_group);
+            assert_ne!(a2.execution, a3.execution);
+            assert_eq!(b2.execution, b3.execution, "`b` must not be invalidated");
+            Ok(())
+        })
+        .await
     }
 }

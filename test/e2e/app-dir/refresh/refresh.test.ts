@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
+// We do not have access to runtime logs when deployed
+// @force-gate !deploy
 describe('app-dir refresh', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
-    // We do not have access to runtime logs when deployed
-    skipDeployment: true,
   })
 
   if (skipped) return

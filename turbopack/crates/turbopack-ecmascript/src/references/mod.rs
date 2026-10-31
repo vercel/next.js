@@ -78,7 +78,7 @@ use turbopack_core::{
         InputRelativeConstant,
     },
     environment::Rendering,
-    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
+    issue::{IssueExt, IssueSeverity, IssueSource, analyze::AnalyzeIssue},
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
@@ -124,19 +124,16 @@ use crate::{
             AmdDefineWithDependenciesCodeGen,
         },
         async_module::{AsyncModule, OptionAsyncModule},
-        cjs::{
-            CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
-            CjsRequireResolveAssetReference,
-        },
+        cjs::{CjsAssetReference, CjsRequireAssetReference, CjsRequireResolveAssetReference},
         cross_module_constants::{
             is_import_name_eligible_for_exports, module_value_to_constants_module,
         },
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
-            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
-            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, ImportMetaBinding,
+            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
+            binding::EsmBindingsBuilder, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -175,6 +172,9 @@ pub struct AnalyzeEcmascriptModuleResult {
     /// Present when the module is a statically-analyzable CommonJS module;
     /// carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
+    /// `true` when the module contains a direct `eval(...)` call, which can access bindings in
+    /// its lexical scope by name. Such a module must not be merged with others.
+    pub has_direct_eval: bool,
 
     pub env_var_info: ResolvedVc<EnvVarInfo>,
 }
@@ -229,6 +229,8 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
+    esm_bindings: EsmBindingsBuilder,
+
     code_gens: CodeGenCollection,
     /// Interns the AST paths referenced by `code_gens`, so overlapping paths share storage.
     /// Handed to the resulting [`CodeGens`] once analysis finishes.
@@ -239,6 +241,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     cjs_static_exports: Option<CjsStaticExports>,
+    has_direct_eval: bool,
 
     env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
 
@@ -256,12 +259,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_reexport_references: Default::default(),
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
+            esm_bindings: Default::default(),
             code_gens: Default::default(),
             ast_paths: Default::default(),
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
             cjs_static_exports: None,
+            has_direct_eval: false,
             env_var_info_runtime: Default::default(),
             #[cfg(debug_assertions)]
             ident: Default::default(),
@@ -307,10 +312,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 self.add_code_gen(code_gen);
             }
             ValueLinkContext::InAlternative => {
-                debug_assert!(
-                    self.analyze_mode.is_tracing_assets(),
-                    "unexpected add_reference_code_gen InAlternative in non-tracing mode"
-                );
                 self.references.insert(reference.into_reference());
             }
         }
@@ -341,7 +342,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         C: Into<CodeGen>,
     {
-        if self.analyze_mode.is_code_gen() {
+        if self.analyze_mode.is_codegen {
             #[cfg(debug_assertions)]
             {
                 let (index, added) = self.code_gens.insert_full(code_gen.into());
@@ -466,9 +467,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             }
         }
 
+        if let Some(esm_bindings) = std::mem::take(&mut self.esm_bindings).build() {
+            self.add_code_gen(CodeGen::EsmBindings(esm_bindings));
+        }
+
         let references: Vec<_> = self.references.into_iter().collect();
 
-        if !self.analyze_mode.is_code_gen() {
+        if !self.analyze_mode.is_codegen {
             debug_assert!(self.code_gens.is_empty());
         }
 
@@ -500,6 +505,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 successful: self.successful,
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
+                has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
                     runtime: self.env_var_info_runtime,
                 }
@@ -731,7 +737,7 @@ async fn analyze_ecmascript_module_internal(
         // This reads the ParseResult, so it has to happen before the final_read_hint.
     } = &*compute_ecmascript_module_exports(*module, part).await?;
 
-    let parsed = if !analyze_mode.is_code_gen() {
+    let parsed = if !analyze_mode.is_codegen {
         // We are never code-gening the module, so we can drop the AST after the analysis.
         parsed.final_read_hint().await?
     } else {
@@ -853,9 +859,8 @@ async fn analyze_ecmascript_module_internal(
             AnalyzeIssue::new(
                 IssueSeverity::Error,
                 source.ident(),
-                Vc::cell(rcstr!("unexpected top level await")),
-                StyledString::Text(rcstr!("top level await is only supported in ESM modules."))
-                    .cell(),
+                rcstr!("unexpected top level await"),
+                rcstr!("top level await is only supported in ESM modules."),
                 None,
                 Some(issue_source(source, span)),
             )
@@ -902,6 +907,7 @@ async fn analyze_ecmascript_module_internal(
         let require_binding_usage = take(&mut var_graph.require_usage);
         // The module's static CommonJS exports, if any, for scope hoisting.
         analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
+        analysis.has_direct_eval = var_graph.has_direct_eval;
         let compile_time_info_ref = compile_time_info.await?;
 
         let mut analysis_state = AnalysisState {
@@ -932,8 +938,8 @@ async fn analyze_ecmascript_module_internal(
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
-            collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
-            tracing_only: !options.analyze_mode.is_code_gen(),
+            collect_affecting_sources: options.analyze_mode.trace_file_references,
+            tracing_only: !options.analyze_mode.is_codegen,
             is_esm,
             import_references,
             imports: &eval_context.imports,
@@ -963,7 +969,7 @@ async fn analyze_ecmascript_module_internal(
             match effect {
                 Effect::Unreachable { start_ast_path } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        analyze_mode.is_codegen,
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
@@ -988,7 +994,7 @@ async fn analyze_ecmascript_module_internal(
 
                     macro_rules! inactive {
                         ($block:ident) => {
-                            if analyze_mode.is_code_gen() {
+                            if analyze_mode.is_codegen {
                                 analysis.add_code_gen(RemovalCodeGen::new(
                                     unreachable_comment(),
                                     $block.range.clone(),
@@ -998,7 +1004,7 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! condition {
                         ($expr:expr) => {
-                            if analyze_mode.is_code_gen() && !condition_has_side_effects {
+                            if analyze_mode.is_codegen && !condition_has_side_effects {
                                 analysis.add_code_gen(ConstantConditionCodeGen::new(
                                     $expr,
                                     analysis.intern_path(&condition_ast_path),
@@ -1270,7 +1276,7 @@ async fn analyze_ecmascript_module_internal(
                     span,
                 } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        analyze_mode.is_codegen,
                         "unexpected Effect::FreeVar in tracing mode"
                     );
 
@@ -1413,6 +1419,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::ImportedBinding {
                     esm_reference_index,
                     export,
+                    member,
                     ast_path,
                     span: _,
                 } => {
@@ -1480,21 +1487,46 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_keep_this(
+                                analysis.esm_bindings.add_keep_this(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
-                                ));
+                                );
+                                continue;
+                            }
+
+                            if let Some(ModulePart::Export(export_name)) =
+                                &original_reference.export_name
+                                && let Some(member) = member
+                            {
+                                // Ask for just the static member if the named export resolves to a
+                                // namespace object.
+                                let narrowed_reference = analysis
+                                    .add_esm_reference_namespace_resolved(
+                                        esm_reference_index,
+                                        member.clone(),
+                                        || {
+                                            original_reference
+                                                .rewrite_for_export(ModulePart::partial_export(
+                                                    export_name.clone(),
+                                                    member.clone(),
+                                                ))
+                                                .resolved_cell()
+                                        },
+                                    );
+                                analysis.esm_bindings.add(
+                                    narrowed_reference,
+                                    export,
+                                    analysis.intern_path(&ast_path),
+                                );
                                 continue;
                             }
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(
-                            *r,
-                            export,
-                            analysis.intern_path(&ast_path),
-                        ));
+                        analysis
+                            .esm_bindings
+                            .add(*r, export, analysis.intern_path(&ast_path));
                     }
                 }
                 Effect::TypeOf {
@@ -1503,7 +1535,7 @@ async fn analyze_ecmascript_module_internal(
                     span,
                 } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        analyze_mode.is_codegen,
                         "unexpected Effect::TypeOf in tracing mode"
                     );
                     let arg = analysis_state
@@ -1513,7 +1545,7 @@ async fn analyze_ecmascript_module_internal(
                 }
                 Effect::ImportMeta { ast_path, span: _ } => {
                     debug_assert!(
-                        analyze_mode.is_code_gen(),
+                        analyze_mode.is_codegen,
                         "unexpected Effect::ImportMeta in tracing mode"
                     );
                     if analysis_state.first_import_meta {
@@ -2015,10 +2047,13 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
-    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.is_tracing_assets()
+    if link_context == ValueLinkContext::InAlternative
+        && analysis.analyze_mode.is_codegen
+        && !analysis.analyze_mode.trace_file_references
     {
-        // We are in an alternative (can't do any replacement anyway) and are not tracing assets, so
-        // we can skip further processing.
+        // We are in an alternative (can't do any replacement anyway) and are only running
+        // codegen, so assume that we only care about the bundled output, not speculative
+        // references. Tracing modes still need to collect these references.
         return Ok(());
     }
 
@@ -2033,23 +2068,17 @@ where
         ResolveErrorMode::Error
     };
 
-    let get_traced_project_dir = async || -> Result<FileSystemPath> {
-        // readFileSync("./foo") should always be relative to the project root, but this is
-        // dangerous inside of node_modules as it can cause a lot of false positives in the
-        // tracing, if some package does `path.join(dynamic)`, it would include
-        // everything from the project root as well.
-        //
-        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
-        // shouldn't assume a `process.cwd()` for all of node_modules), fallback to
-        // the source file directory. This still allows relative file accesses, just
-        // not from the project root.
-        if state.allow_project_root_tracing
-            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
-        {
-            Ok(cwd)
-        } else {
-            Ok(source.ident().await?.path.parent())
+    let get_traced_project_dirs = async || -> Result<(Option<FileSystemPath>, FileSystemPath)> {
+        let fallback = source.ident().await?.path.parent();
+        if let Some(cwd) = compile_time_info.environment().cwd().owned().await? {
+            if state.allow_project_root_tracing {
+                return Ok((None, cwd));
+            }
+            // Resolve only static files from the project root. All paths, including dynamic
+            // alternatives and directories, are still traced from the package directory.
+            return Ok((Some(cwd), fallback));
         }
+        Ok((None, fallback))
     };
 
     let get_issue_source =
@@ -2225,18 +2254,19 @@ where
                     };
                     // WorkerThreads resolve URLs relative to import.meta.url
                     // and string paths relative to the process root
-                    let context_dir = if matches!(
+                    let (static_files_only_context_dir, fallback_context_dir) = if matches!(
                         args.first(),
                         Some(JsValue::Url(_, JsValueUrlKind::Relative))
                     ) {
-                        origin.into_trait_ref().await?.origin_path().parent()
+                        (None, origin.into_trait_ref().await?.origin_path().parent())
                     } else {
-                        get_traced_project_dir().await?
+                        get_traced_project_dirs().await?
                     };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
-                            context_dir,
+                            static_files_only_context_dir,
+                            fallback_context_dir,
                             Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),
@@ -2497,6 +2527,7 @@ where
                     origin,
                     options.patterns,
                     options.eager,
+                    state.lazy_compilation,
                     options.import,
                     options.query,
                     options.base,
@@ -2545,26 +2576,36 @@ where
             );
         }
 
-        WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::FsReadMethod(name)
+            if analysis.analyze_mode.trace_file_references =>
+        {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("fs.{name}({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("fs.{name}({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 analysis.add_reference(
                     FileSourceReference::new(
-                        get_traced_project_dir().await?,
+                        static_files_only_context_dir,
+                        fallback_context_dir,
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
@@ -2582,26 +2623,34 @@ where
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
-        WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("fs.readdir({args}) is very dynamic{hints}"),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("fs.readdir({args}) is very dynamic{hints}"),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 analysis.add_reference(
                     DirAssetReference::new(
-                        get_traced_project_dir().await?,
+                        static_files_only_context_dir,
+                        fallback_context_dir,
                         Pattern::new(pat),
                         get_issue_source(),
                         rcstr!("fs.readdir"),
@@ -2618,7 +2667,7 @@ where
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
-        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.trace_file_references => {
             let parent_path = origin.into_trait_ref().await?.origin_path().parent();
             let args = linked_args().await?;
 
@@ -2643,22 +2692,30 @@ where
                 .await?;
 
             let pat = js_value_to_pattern(&linked_func_call);
-            if !pat.has_constant_parts() {
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("path.resolve({args}) is very dynamic{hints}",),
-                    DiagnosticId::Lint(
-                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                    ),
-                );
-                if ignore_dynamic_requests {
-                    return Ok(());
+            let pat = match pat.filter_non_dynamic() {
+                Some(filtered) if ignore_dynamic_requests => filtered,
+                Some(_) => pat,
+                None => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("path.resolve({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                    pat
                 }
-            }
+            };
+            let (static_files_only_context_dir, fallback_context_dir) =
+                get_traced_project_dirs().await?;
             analysis.add_reference(
                 DirAssetReference::new(
-                    get_traced_project_dir().await?,
+                    static_files_only_context_dir,
+                    fallback_context_dir,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.resolve"),
@@ -2668,7 +2725,7 @@ where
             );
             return Ok(());
         }
-        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.trace_file_references => {
             // ignore path.join in `node-gyp`, it will includes too many files
             if source
                 .ident()
@@ -2695,22 +2752,30 @@ where
                 )
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
-            if !pat.has_constant_parts() {
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("path.join({args}) is very dynamic{hints}",),
-                    DiagnosticId::Lint(
-                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                    ),
-                );
-                if ignore_dynamic_requests {
-                    return Ok(());
+            let pat = match pat.filter_non_dynamic() {
+                Some(filtered) if ignore_dynamic_requests => filtered,
+                Some(_) => pat,
+                None => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("path.join({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                    pat
                 }
-            }
+            };
+            let (static_files_only_context_dir, fallback_context_dir) =
+                get_traced_project_dirs().await?;
             analysis.add_reference(
                 DirAssetReference::new(
-                    get_traced_project_dir().await?,
+                    static_files_only_context_dir,
+                    fallback_context_dir,
                     Pattern::new(pat),
                     get_issue_source(),
                     rcstr!("path.join"),
@@ -2721,7 +2786,7 @@ where
             return Ok(());
         }
         WellKnownFunctionKind::ChildProcessSpawnMethod(name)
-            if analysis.analyze_mode.is_tracing_assets() =>
+            if analysis.analyze_mode.trace_file_references =>
         {
             let args = linked_args().await?;
 
@@ -2765,14 +2830,21 @@ where
                         );
                     }
                 }
-                let dynamic = !pat.has_constant_parts();
-                if dynamic {
-                    show_dynamic_warning = true;
-                }
-                if !dynamic || !ignore_dynamic_requests {
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => Some(filtered),
+                    Some(_) => Some(pat),
+                    None => {
+                        show_dynamic_warning = true;
+                        (!ignore_dynamic_requests).then_some(pat)
+                    }
+                };
+                if let Some(pat) = pat {
+                    let (static_files_only_context_dir, fallback_context_dir) =
+                        get_traced_project_dirs().await?;
                     analysis.add_reference(
                         FileSourceReference::new(
-                            get_traced_project_dir().await?,
+                            static_files_only_context_dir,
+                            fallback_context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
                             IssueSource::from_swc_offsets(
@@ -2807,24 +2879,30 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
                 let pat = js_value_to_pattern(first_arg);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("child_process.fork({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
+                let pat = match pat.filter_non_dynamic() {
+                    Some(filtered) if ignore_dynamic_requests => filtered,
+                    Some(_) => pat,
+                    None => {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("child_process.fork({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN
+                                    .to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                        pat
                     }
-                }
+                };
                 let error_mode = if in_try {
                     ResolveErrorMode::Warn
                 } else {
@@ -2851,7 +2929,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.trace_file_references => {
             use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
 
             let args = linked_args().await?;
@@ -2894,7 +2972,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.trace_file_references => {
             use turbopack_resolve::node_native_binding::NodeGypBuildReference;
 
             let args = linked_args().await?;
@@ -2937,7 +3015,7 @@ where
                     ),
                 )
         }
-        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.trace_file_references => {
             use turbopack_resolve::node_native_binding::NodeBindingsReference;
 
             let args = linked_args().await?;
@@ -2970,7 +3048,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if args.len() == 2
                 && let Some(s) = args.first().and_then(|arg| arg.as_str())
@@ -3012,9 +3090,12 @@ where
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
+                            let (static_files_only_context_dir, fallback_context_dir) =
+                                get_traced_project_dirs().await?;
                             analysis.add_reference(
                                 DirAssetReference::new(
-                                    get_traced_project_dir().await?,
+                                    static_files_only_context_dir,
+                                    fallback_context_dir,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
                                     rcstr!("express().set"),
@@ -3061,7 +3142,7 @@ where
             )
         }
         WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir
-            if analysis.analyze_mode.is_tracing_assets() =>
+            if analysis.analyze_mode.trace_file_references =>
         {
             let args = linked_args().await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
@@ -3084,9 +3165,12 @@ where
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 analysis.add_reference(
                     DirAssetReference::new(
-                        get_traced_project_dir().await?,
+                        static_files_only_context_dir,
+                        fallback_context_dir,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
                         rcstr!("strong-globalize.SetRootDir"),
@@ -3108,7 +3192,7 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 let error_mode = if in_try {
@@ -3137,12 +3221,13 @@ where
                 ),
             )
         }
-        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing_assets() => {
+        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.trace_file_references => {
             let args = linked_args().await?;
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                let context_dir = get_traced_project_dir().await?;
+                let (static_files_only_context_dir, fallback_context_dir) =
+                    get_traced_project_dirs().await?;
                 let resolved_dirs = parts
                     .iter()
                     .filter_map(|object_part| match object_part {
@@ -3157,7 +3242,8 @@ where
                     .flatten()
                     .map(|dir| {
                         DirAssetReference::new(
-                            context_dir.clone(),
+                            static_files_only_context_dir.clone(),
+                            fallback_context_dir.clone(),
                             Pattern::new(Pattern::Constant(dir.into())),
                             get_issue_source(),
                             rcstr!("protobufjs.load"),
@@ -3617,16 +3703,33 @@ async fn handle_membership<'a>(
             if is_prop_cache
                 && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
             {
-                analysis.add_code_gen::<CodeGen>(match ty {
+                match ty {
                     MembershipType::Member { .. } => {
-                        CjsRequireCacheAccess::new(analysis.intern_path(ast_path)).into()
+                        // Only add references if we are performing codegen
+                        if analysis.analyze_mode.is_codegen {
+                            handle_free_var_reference(
+                                ast_path,
+                                // Import the `cache` proxy wrapper helper to satisfy require.cache
+                                // This re-exposes the `Map` the runtime uses as a object.
+                                &FreeVarReference::EcmaScriptModule {
+                                    request: rcstr!("@turbopack/module-cache"),
+                                    lookup_path: None,
+                                    export: Some(rcstr!("cache")),
+                                },
+                                span,
+                                state,
+                                analysis,
+                            )
+                            .await?;
+                        }
                     }
-                    MembershipType::In => ConstantValueCodeGen::new(
-                        CompileTimeDefineValue::Bool(true),
-                        analysis.intern_path(ast_path),
-                    )
-                    .into(),
-                });
+                    MembershipType::In => {
+                        analysis.add_code_gen(ConstantValueCodeGen::new(
+                            CompileTimeDefineValue::Bool(true),
+                            analysis.intern_path(ast_path),
+                        ));
+                    }
+                }
                 return Ok(());
             }
         }
@@ -3808,11 +3911,11 @@ async fn handle_free_var_reference(
                 })
                 .await?;
 
-            analysis.add_code_gen(EsmBinding::new(
+            analysis.esm_bindings.add(
                 esm_reference,
                 export.clone(),
                 analysis.intern_path(ast_path),
-            ));
+            );
         }
         FreeVarReference::InputRelative(kind) => {
             let source_path = (*state.source).ident().await?.path.clone();

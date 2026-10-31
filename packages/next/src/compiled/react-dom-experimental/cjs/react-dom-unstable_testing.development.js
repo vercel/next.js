@@ -5462,10 +5462,9 @@
       var length = 32 - clz32(totalChildren) + baseLength;
       if (30 < length) {
         var numberOfOverflowBits = baseLength - (baseLength % 5);
-        length = (
-          baseIdWithLeadingBit &
-          ((1 << numberOfOverflowBits) - 1)
-        ).toString(32);
+        length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+          .toString(32)
+          .padStart(numberOfOverflowBits / 5, "0");
         baseIdWithLeadingBit >>= numberOfOverflowBits;
         baseLength -= numberOfOverflowBits;
         treeContextId =
@@ -6450,7 +6449,7 @@
             )),
           thenable.then(noop$1, noop$1),
           (thenable = index));
-      if (void 0 === thenable._debugInfo) {
+      if (void 0 === thenable._debugInfo && Object.isExtensible(thenable)) {
         thenableState = performance.now();
         trackedThenables = thenable.displayName;
         var ioInfo = {
@@ -15508,10 +15507,6 @@
           current = finishedWork.alternate,
           flags = finishedWork.flags;
         switch (finishedWork.tag) {
-          case 0:
-          case 11:
-          case 15:
-            break;
           case 1:
             0 !== (flags & 1024) &&
               null !== current &&
@@ -15537,6 +15532,9 @@
                     isViewTransitionEligible.textContent = "";
                 }
             break;
+          case 0:
+          case 11:
+          case 15:
           case 5:
           case 26:
           case 27:
@@ -16369,8 +16367,8 @@
             null !== current)
           )
             for (var ii = 0; ii < current.length; ii++) {
-              var _eventPayloads$ii2 = current[ii];
-              _eventPayloads$ii2.ref.impl = _eventPayloads$ii2.nextImpl;
+              var _eventPayloads$ii = current[ii];
+              _eventPayloads$ii.ref.impl = _eventPayloads$ii.nextImpl;
             }
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
@@ -16461,12 +16459,12 @@
                             ).get(root + (lanes.href || "")))
                           )
                             for (
-                              _eventPayloads$ii2 = 0;
-                              _eventPayloads$ii2 < ii.length;
-                              _eventPayloads$ii2++
+                              _eventPayloads$ii = 0;
+                              _eventPayloads$ii < ii.length;
+                              _eventPayloads$ii++
                             )
                               if (
-                                ((current = ii[_eventPayloads$ii2]),
+                                ((current = ii[_eventPayloads$ii]),
                                 current.getAttribute("href") ===
                                   (null == lanes.href || "" === lanes.href
                                     ? null
@@ -16482,7 +16480,7 @@
                                       ? null
                                       : lanes.crossOrigin))
                               ) {
-                                ii.splice(_eventPayloads$ii2, 1);
+                                ii.splice(_eventPayloads$ii, 1);
                                 break b;
                               }
                           current = flags.createElement(root);
@@ -16498,12 +16496,12 @@
                             ).get(root + (lanes.content || "")))
                           )
                             for (
-                              _eventPayloads$ii2 = 0;
-                              _eventPayloads$ii2 < ii.length;
-                              _eventPayloads$ii2++
+                              _eventPayloads$ii = 0;
+                              _eventPayloads$ii < ii.length;
+                              _eventPayloads$ii++
                             )
                               if (
-                                ((current = ii[_eventPayloads$ii2]),
+                                ((current = ii[_eventPayloads$ii]),
                                 checkAttributeStringCoercion(
                                   lanes.content,
                                   "content"
@@ -16527,7 +16525,7 @@
                                       ? null
                                       : lanes.charSet))
                               ) {
-                                ii.splice(_eventPayloads$ii2, 1);
+                                ii.splice(_eventPayloads$ii, 1);
                                 break b;
                               }
                           current = flags.createElement(root);
@@ -16662,10 +16660,10 @@
           ii = pushNestedEffectDurations();
           viewTransitionMutationContext = rootMutationContext = !1;
           tagCaches = null;
-          _eventPayloads$ii2 = currentHoistableRoot;
+          _eventPayloads$ii = currentHoistableRoot;
           currentHoistableRoot = getHoistableRoot(root.containerInfo);
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
-          currentHoistableRoot = _eventPayloads$ii2;
+          currentHoistableRoot = _eventPayloads$ii;
           commitReconciliationEffects(finishedWork);
           if (
             flags & 4 &&
@@ -16738,7 +16736,7 @@
           break;
         case 22:
           ii = null !== finishedWork.memoizedState;
-          _eventPayloads$ii2 =
+          _eventPayloads$ii =
             null !== current && null !== current.memoizedState;
           var prevOffscreenSubtreeIsHidden = offscreenSubtreeIsHidden,
             prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden,
@@ -16747,12 +16745,12 @@
           offscreenDirectParentIsHidden =
             _prevOffscreenDirectParentIsHidden2 || ii;
           offscreenSubtreeWasHidden =
-            prevOffscreenSubtreeWasHidden || _eventPayloads$ii2;
+            prevOffscreenSubtreeWasHidden || _eventPayloads$ii;
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
           offscreenDirectParentIsHidden = _prevOffscreenDirectParentIsHidden2;
           offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
-          _eventPayloads$ii2 &&
+          _eventPayloads$ii &&
             !ii &&
             !prevOffscreenSubtreeIsHidden &&
             !prevOffscreenSubtreeWasHidden &&
@@ -16773,13 +16771,13 @@
               : root._visibility | OffscreenVisible),
             !ii ||
               null === current ||
-              _eventPayloads$ii2 ||
+              _eventPayloads$ii ||
               offscreenSubtreeIsHidden ||
               offscreenSubtreeWasHidden ||
               ((root = IncludeHostSingletons),
-              (lanes = _eventPayloads$ii2 || offscreenSubtreeWasHidden),
+              (lanes = _eventPayloads$ii || offscreenSubtreeWasHidden),
               (current = offscreenSubtreeIsHidden),
-              (_eventPayloads$ii2 = offscreenSubtreeWasHidden),
+              (_eventPayloads$ii = offscreenSubtreeWasHidden),
               (offscreenSubtreeIsHidden = ii || offscreenSubtreeIsHidden),
               (offscreenSubtreeWasHidden = lanes),
               recursivelyTraverseDisappearLayoutEffects(finishedWork, root),
@@ -16794,7 +16792,7 @@
                   "Disconnect"
                 ),
               (offscreenSubtreeIsHidden = current),
-              (offscreenSubtreeWasHidden = _eventPayloads$ii2)),
+              (offscreenSubtreeWasHidden = _eventPayloads$ii)),
             (!ii && offscreenDirectParentIsHidden) ||
               hideOrUnhideAllChildren(finishedWork, ii));
           flags & 4 &&
@@ -16821,10 +16819,10 @@
               safelyDetachRef(current, current.return));
           flags = pushMutationContext();
           ii = inUpdateViewTransition;
-          _eventPayloads$ii2 = (lanes & 335544064) === lanes;
+          _eventPayloads$ii = (lanes & 335544064) === lanes;
           prevOffscreenSubtreeIsHidden = finishedWork.memoizedProps;
           inUpdateViewTransition =
-            _eventPayloads$ii2 &&
+            _eventPayloads$ii &&
             "none" !==
               getViewTransitionClassName(
                 prevOffscreenSubtreeIsHidden.default,
@@ -16832,7 +16830,7 @@
               );
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
-          _eventPayloads$ii2 &&
+          _eventPayloads$ii &&
             null !== current &&
             viewTransitionMutationContext &&
             (finishedWork.flags |= 4);
@@ -19476,10 +19474,13 @@
                   errorRetryLanes,
                   !1
                 );
-                if (
-                  errorRetryLanes !== RootErrored &&
-                  errorRetryLanes !== RootSuspendedAtTheShell
-                ) {
+                if (errorRetryLanes === RootSuspendedAtTheShell)
+                  wasRootDehydrated ||
+                    (yieldedFiber.errorRecoveryDisabledLanes =
+                      yieldedFiber.errorRecoveryDisabledLanes |
+                      startTime |
+                      workInProgressDeferredLane);
+                else if (errorRetryLanes !== RootErrored) {
                   if (
                     workInProgressRootDidAttachPingListener &&
                     !wasRootDehydrated
@@ -20316,7 +20317,8 @@
       previousRenderStartTime = root.timeoutHandle;
       previousRenderStartTime !== noTimeout &&
         ((root.timeoutHandle = noTimeout),
-        cancelTimeout(previousRenderStartTime));
+        cancelTimeout(previousRenderStartTime),
+        markRootPinged$1(root, pendingEffectsLanes));
       previousRenderStartTime = root.cancelPendingCommit;
       null !== previousRenderStartTime &&
         ((root.cancelPendingCommit = null), previousRenderStartTime());
@@ -22249,7 +22251,9 @@
           retryCache = boundaryFiber.stateNode;
           break;
         case 22:
-          retryCache = boundaryFiber.stateNode._retryCache;
+          retryCache = boundaryFiber.stateNode;
+          if (null === retryCache) return;
+          retryCache = retryCache._retryCache;
           break;
         default:
           throw Error(
@@ -23050,7 +23054,10 @@
               case ANIMATION_START:
                 SyntheticEventCtor = SyntheticAnimationEvent;
                 break;
+              case TRANSITION_CANCEL:
               case TRANSITION_END:
+              case TRANSITION_RUN:
+              case TRANSITION_START:
                 SyntheticEventCtor = SyntheticTransitionEvent;
                 break;
               case "scroll":
@@ -26306,14 +26313,18 @@
               ? ((node._stashedText = node.nodeValue), (node.nodeValue = ""))
               : (node.nodeValue = node._stashedText || ""));
         if (nextNode && 8 === nextNode.nodeType)
-          if (((node = nextNode.data), node === SUSPENSE_END_DATA))
+          if (
+            ((node = nextNode.data),
+            node === SUSPENSE_END_DATA || node === ACTIVITY_END_DATA)
+          )
             if (0 === suspenseInstance) break;
             else suspenseInstance--;
           else
             (node !== SUSPENSE_START_DATA &&
               node !== SUSPENSE_PENDING_START_DATA &&
               node !== SUSPENSE_QUEUED_START_DATA &&
-              node !== SUSPENSE_FALLBACK_START_DATA) ||
+              node !== SUSPENSE_FALLBACK_START_DATA &&
+              node !== ACTIVITY_START_DATA) ||
               suspenseInstance++;
         node = nextNode;
       } while (node);
@@ -26558,17 +26569,24 @@
                   { cause: error }
                 );
           case "InvalidStateError":
-            if (
-              "View transition was skipped because document visibility state is hidden." ===
-                error.message ||
-              "Skipping view transition because document visibility state has become hidden." ===
-                error.message ||
-              "Skipping view transition because viewport size changed." ===
-                error.message ||
-              "Transition was aborted because of invalid state" ===
-                error.message
-            )
-              return null;
+            switch (error.message) {
+              case "Transition was aborted because of invalid state":
+              case "Transition was aborted because of invalid state.":
+              case "Transition was aborted because of invalid state. Document hidden":
+              case "Transition was aborted because of invalid state. Viewport size changed":
+              case "Skipped ViewTransition due to document being hidden":
+              case "Skipped view transition due to viewport resize":
+              case "View transition was skipped because document visibility state is hidden.":
+              case "Skipping view transition because document visibility state has become hidden.":
+              case "Skipping view transition because viewport size changed.":
+                return null;
+              case "Transition was aborted because of invalid state. Snapshot capture failed":
+              case "Transition was aborted because of invalid state. Animation start failed":
+                return Error(
+                  "A ViewTransition could not start. This usually means that two elements have the same view-transition-name at the same time. Check the console for details.",
+                  { cause: error }
+                );
+            }
         }
       return error;
     }
@@ -33798,11 +33816,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-ff8f88fc-20260915" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-e84e1492-20261031" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-ff8f88fc-20260915\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-e84e1492-20261031\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33839,10 +33857,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-ff8f88fc-20260915",
+          version: "19.3.0-experimental-e84e1492-20261031",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-ff8f88fc-20260915"
+          reconcilerVersion: "19.3.0-experimental-e84e1492-20261031"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -34156,5 +34174,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-ff8f88fc-20260915";
+    exports.version = "19.3.0-experimental-e84e1492-20261031";
   })();

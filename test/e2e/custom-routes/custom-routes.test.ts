@@ -12,16 +12,17 @@ import {
   fetchViaRawHttp,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
+// @force-gate !deploy
 describe('Custom routes', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let externalServerPort: number
   let externalServer: http.Server
@@ -3473,16 +3474,17 @@ describe('Custom routes', () => {
     })
   }
 })
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
+// @force-gate !deploy
 describe('Custom routes no-op rewrite', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: {
       ADD_NOOP_REWRITE: 'true',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
   if (isTurbopack && isNextStart) {
     it('skipped - not supported in turbopack build mode', () => {})
     return
@@ -3530,14 +3532,15 @@ describe('Custom routes no-op rewrite', () => {
   })
 })
 
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
+// @force-gate !deploy
 describe('Custom routes solo types', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let externalServer: http.Server
   let externalServerPort: number
@@ -3653,13 +3656,12 @@ describe('Custom routes solo types', () => {
     }
   })
 })
-;(isNextStart ? describe : describe.skip)('Custom routes export', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+// @force-gate start
+describe('Custom routes export', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (isNextDeploy) return
 
   it('should not show warning for custom routes when not next export', async () => {
     await next.patchFile('next.config.js', (content) =>

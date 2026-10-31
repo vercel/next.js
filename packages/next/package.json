@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.4.0-canary.35",
+  "version": "16.5.0-canary.35",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -10,6 +10,7 @@
   "types": "index.d.ts",
   "files": [
     "AGENTS.md",
+    "analyze",
     "dist",
     "app.js",
     "app.d.ts",
@@ -38,6 +39,8 @@
     "head.d.ts",
     "image.js",
     "image.d.ts",
+    "image-optimizer-transform.js",
+    "image-optimizer-transform.d.ts",
     "link.js",
     "link.d.ts",
     "offline.js",
@@ -100,7 +103,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "16.4.0-canary.35",
+    "@next/env": "workspace:*",
     "@swc/helpers": "0.5.23",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
@@ -130,7 +133,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@babel/core": "7.26.10",
@@ -162,13 +165,13 @@
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@modelcontextprotocol/sdk": "1.18.1",
-    "@mswjs/interceptors": "0.42.5",
+    "@mswjs/interceptors": "0.45.9",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "16.4.0-canary.35",
-    "@next/polyfill-module": "16.4.0-canary.35",
-    "@next/polyfill-nomodule": "16.4.0-canary.35",
-    "@next/react-refresh-utils": "16.4.0-canary.35",
-    "@next/swc": "16.4.0-canary.35",
+    "@next/font": "workspace:*",
+    "@next/polyfill-module": "workspace:*",
+    "@next/polyfill-nomodule": "workspace:*",
+    "@next/react-refresh-utils": "workspace:*",
+    "@next/swc": "workspace:*",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.61.0",
     "@rspack/core": "1.6.7",
@@ -201,7 +204,6 @@
     "@types/express-serve-static-core": "4.17.33",
     "@types/fresh": "0.5.0",
     "@types/glob": "7.1.1",
-    "@types/jsonwebtoken": "9.0.0",
     "@types/lodash": "4.14.198",
     "@types/lodash.curry": "4.1.6",
     "@types/path-to-regexp": "1.7.0",
@@ -263,10 +265,12 @@
     "domain-browser": "4.19.0",
     "edge-runtime": "4.0.1",
     "events": "3.3.0",
+    "fast-jwt": "6.3.5",
     "find-up": "4.1.0",
     "fresh": "0.5.2",
     "glob": "7.1.7",
     "gzip-size": "5.1.1",
+    "hash.js": "1.1.7",
     "http-proxy-agent": "5.0.0",
     "https-browserify": "1.0.0",
     "https-proxy-agent": "5.0.1",
@@ -279,7 +283,6 @@
     "is-wsl": "2.2.0",
     "jest-worker": "27.5.1",
     "json5": "2.2.3",
-    "jsonwebtoken": "9.0.0",
     "loader-runner": "4.3.0",
     "loader-utils2": "npm:loader-utils@2.0.4",
     "loader-utils3": "npm:loader-utils@3.1.3",

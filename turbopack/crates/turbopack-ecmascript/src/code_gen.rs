@@ -11,7 +11,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
     references::{
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
-            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen,
             CjsRequireResolveAssetReferenceCodeGen,
         },
         constant_condition::ConstantConditionCodeGen,
@@ -29,7 +29,7 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::CollectReferenceCodeGen,
         esm::{
-            EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
+            EsmBindings, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
             dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
             url::UrlAssetReferenceCodeGen,
         },
@@ -179,18 +179,15 @@ impl_modify!(visit_mut_function_body, FunctionBody);
 impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
     CollectReferenceCodeGen(CollectReferenceCodeGen),
-    CjsRequireCacheAccess(CjsRequireCacheAccess),
     ConstantConditionCodeGen(ConstantConditionCodeGen),
     ConstantValueCodeGen(ConstantValueCodeGen),
     DynamicExpression(DynamicExpression),
-    EsmBinding(EsmBinding),
+    EsmBindings(EsmBindings),
     EsmModuleItem(EsmModuleItem),
     ExportsInfoBinding(ExportsInfoBinding),
     ExportsInfoRef(ExportsInfoRef),
@@ -224,12 +221,11 @@ impl CodeGen {
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(trie, ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(trie, ctx).await,
             Self::ConstantConditionCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::DynamicExpression(v) => v.code_generation(trie, ctx).await,
-            Self::EsmBinding(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
+            Self::EsmBindings(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(trie, ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,

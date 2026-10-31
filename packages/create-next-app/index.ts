@@ -111,6 +111,14 @@ const program = new Command(packageJson.name)
     '--agents-md',
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
+  .option(
+    '--agent-feedback',
+    'Prepare anonymized Next.js feedback for your review.'
+  )
+  .option(
+    '--no-agent-feedback',
+    'Do not prepare anonymized Next.js feedback for your review.'
+  )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
@@ -137,7 +145,10 @@ const packageManager: PackageManager = !!opts.useNpm
         : getPkgManager()
 
 async function run(): Promise<void> {
-  const conf = new Conf({ projectName: 'create-next-app' })
+  const conf = new Conf({
+    projectName: 'create-next-app',
+    cwd: process.env.NEXT_PRIVATE_TEST_CONFIG_DIR,
+  })
 
   if (opts.resetPreferences) {
     const { resetPreferences } = await prompts({
@@ -232,6 +243,7 @@ async function run(): Promise<void> {
    */
   let skipPrompt = ciInfo.isCI || opts.yes
   let useRecommendedDefaults = false
+  let enableAgentFeedbackByDefault = false
 
   if (!example) {
     const defaults: typeof preferences = {
@@ -239,19 +251,23 @@ async function run(): Promise<void> {
       eslint: false,
       linter: 'eslint',
       tailwind: true,
-      app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
       disableGit: false,
       reactCompiler: false,
-      cacheComponents: false,
+      cacheComponents: true,
       agentsMd: true,
     }
 
+    const recommendedDefaults = {
+      ...defaults,
+      agentFeedback: true,
+    }
+
     type DisplayConfigItem = {
-      key: keyof typeof defaults
+      key: keyof typeof defaults | 'agentFeedback'
       values?: Record<string, string>
       flags?: Record<string, string>
     }
@@ -283,11 +299,6 @@ async function run(): Promise<void> {
         flags: { true: '--src-dir', false: '--no-src-dir' },
       },
       {
-        key: 'app',
-        values: { true: 'App Router', false: 'Pages Router' },
-        flags: { true: '--app', false: '--no-app' },
-      },
-      {
         key: 'cacheComponents',
         values: { true: 'Cache Components', false: 'No Cache Components' },
         flags: { true: '--cache-components', false: '--no-cache-components' },
@@ -296,6 +307,10 @@ async function run(): Promise<void> {
         key: 'agentsMd',
         values: { true: 'AGENTS.md', false: 'No AGENTS.md' },
         flags: { true: '--agents-md', false: '--no-agents-md' },
+      },
+      {
+        key: 'agentFeedback',
+        values: { true: 'Agent feedback', false: 'No agent feedback' },
       },
     ]
 
@@ -329,6 +344,8 @@ async function run(): Promise<void> {
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
     const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+    const shouldPromptForAgentFeedback =
+      !ciInfo.isCI && !opts.yes && !hasProvidedOptions
 
     if (!skipPrompt && hasProvidedOptions) {
       skipPrompt = true
@@ -347,7 +364,7 @@ async function run(): Promise<void> {
         {
           title: 'Yes, use recommended defaults',
           value: 'recommended',
-          description: formatSettingsDescription(defaults),
+          description: formatSettingsDescription(recommendedDefaults),
         },
         {
           title: 'No, customize settings',
@@ -384,6 +401,7 @@ async function run(): Promise<void> {
 
       if (setupChoice === 'recommended') {
         useRecommendedDefaults = true
+        enableAgentFeedbackByDefault = recommendedDefaults.agentFeedback
         skipPrompt = true
       } else if (setupChoice === 'reuse') {
         skipPrompt = true
@@ -570,30 +588,16 @@ async function run(): Promise<void> {
       }
     }
 
+    // New projects always use the App Router. Saved preferences from older
+    // versions are ignored; only an explicit --no-app opts out.
     if (!opts.app && !args.includes('--no-app') && !opts.api) {
-      if (skipPrompt) {
-        opts.app = getPrefOrDefault('app')
-      } else {
-        const styledAppDir = blue('App Router')
-        const { app } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'app',
-          message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: getPrefOrDefault('app'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.app = Boolean(app)
-        preferences.app = Boolean(app)
-      }
+      opts.app = true
     }
 
     // Cache Components is an App Router feature, so only offer it when the App
-    // Router is in use.
+    // Router is in use, including API-only projects.
     if (
-      opts.app &&
-      !opts.api &&
+      (opts.app || opts.api) &&
       !opts.cacheComponents &&
       !args.includes('--no-cache-components')
     ) {
@@ -686,6 +690,34 @@ async function run(): Promise<void> {
       }
     }
 
+    if (opts.agentFeedback === false) {
+      opts.agentFeedback = false
+    } else if (!opts.agentFeedback) {
+      if (enableAgentFeedbackByDefault) {
+        opts.agentFeedback = true
+      } else if (shouldPromptForAgentFeedback) {
+        const { agentFeedback } = await prompts(
+          {
+            type: 'toggle',
+            name: 'agentFeedback',
+            message: `Would you like to help improve Next.js by letting agents prepare ${blue('anonymized feedback')} for your review as you code? (Disable anytime with \`experimental.agentFeedback: false\`.)`,
+            initial: true,
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        opts.agentFeedback = Boolean(agentFeedback)
+      } else {
+        opts.agentFeedback = false
+      }
+    }
+
     // When prompts were skipped because flags were provided, print the
     // defaults that were assumed so agents and users know what to override.
     if (hasProvidedOptions && useRecommendedDefaults) {
@@ -715,6 +747,15 @@ async function run(): Promise<void> {
 
         const altText = alts.length > 0 ? ` (use ${alts.join(', ')})` : ''
         lines.push(`  ${flag.padEnd(24)}${label}${altText}`)
+      }
+
+      const hasAgentFeedback = process.argv.some(
+        (arg) => arg === '--agent-feedback' || arg === '--no-agent-feedback'
+      )
+      if (!hasAgentFeedback) {
+        lines.push(
+          `  ${'--no-agent-feedback'.padEnd(24)}No agent feedback (use --agent-feedback for Agent feedback)`
+        )
       }
 
       // Import alias is not a boolean toggle, handle separately
@@ -760,6 +801,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      agentFeedback: opts.agentFeedback,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -796,6 +838,7 @@ async function run(): Promise<void> {
       reactCompiler: opts.reactCompiler,
       cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      agentFeedback: opts.agentFeedback,
     })
   }
   conf.set('preferences', preferences)

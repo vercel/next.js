@@ -8,8 +8,15 @@ use std::{
 };
 
 use anyhow::Result;
-use bincode::{Decode, Encode};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError, IntegerType},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize};
+use turbo_bincode::fixed_width;
 
 use crate::{
     ReadCellOptions, ReadConsistency, ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId,
@@ -36,8 +43,31 @@ use crate::{
 /// bits 21..=0  (22 bits): cell index
 /// ```
 /// Because the `ValueTypeId` is always `>= 1`, the type is trivially non-zero
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellId(NonZeroU32);
+
+// The `ValueTypeId` occupies the high bits, so the packed word is always `>= 2^22` and a varint
+// would always take 5 bytes.
+impl Encode for CellId {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        fixed_width::encode_u32(encoder, self.raw())
+    }
+}
+
+impl<Context> Decode<Context> for CellId {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let raw = fixed_width::decode_u32(decoder)?;
+        if raw >> CELL_INDEX_BITS == 0 {
+            return Err(DecodeError::NonZeroTypeIsZero {
+                non_zero_type: IntegerType::U32,
+            });
+        }
+        // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
+        Ok(unsafe { Self::from_raw(raw) })
+    }
+}
+
+impl_borrow_decode!(CellId);
 
 /// Number of low bits used for the cell index.
 const CELL_INDEX_BITS: u32 = 22;
@@ -143,8 +173,41 @@ impl Display for CellId {
 /// ```
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub struct RawVc(NonZeroU64);
+
+// RawVc serializes its packed integer directly, so TaskId's guards cannot check embedded task
+// ids. Keep the original serde newtype shape while rejecting transient values.
+impl Serialize for RawVc {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient RawVc must not be serialized"
+        );
+        serializer.serialize_newtype_struct("RawVc", &self.0)
+    }
+}
+
+// Encoded `RawVc`s are almost always `TaskCell`s, whose high bits hold a `CellId`, so a varint
+// would take 9 bytes. `OperationVc` (always `TaskOutput`) stores a bare `TaskId`, not a `RawVc`.
+impl Encode for RawVc {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
+        fixed_width::encode_u64(encoder, self.bits())
+    }
+}
+
+impl<Context> Decode<Context> for RawVc {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        NonZeroU64::new(fixed_width::decode_u64(decoder)?)
+            .map(RawVc)
+            .ok_or(DecodeError::NonZeroTypeIsZero {
+                non_zero_type: IntegerType::U64,
+            })
+    }
+}
+
+impl_borrow_decode!(RawVc);
 
 /// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -153,7 +216,7 @@ pub enum RawVcUnpacked {
     /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
     /// A pointer to a specific [`Vc::cell`][crate::Vc::cell] or `.cell()` call within a task. This
-    /// is the representation used by [`ResolvedVc`].
+    /// is the representation used by [`ResolvedVc`][crate::ResolvedVc].
     ///
     /// [`CellId`] contains the [`ValueTypeId`], which can be useful for efficient downcasting.
     TaskCell(TaskId, CellId),
@@ -618,7 +681,7 @@ impl Future for ResolveRawVcFuture {
                             }
                             Ok(Err(listener)) => (
                                 listener,
-                                Some(ScheduleKey::LocalTask(execution_id, local_task_id)),
+                                Some(ScheduleKey::current_local_task(execution_id, local_task_id)),
                             ),
                             Err(err) => return Poll::Ready(Err(err)),
                         }
@@ -664,7 +727,7 @@ pub struct ReadRawVcFuture {
 /// Phase 1 and phase 2 of [`ReadRawVcFuture`] use disjoint sets of fields. Storing them in an
 /// enum keeps the future smaller than holding both sets simultaneously.
 enum ReadRawVcState {
-    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
+    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVcUnpacked::TaskCell`].
     Resolving(ResolveRawVcFuture),
     /// Phase 2: the resolved task/cell identity plus a listener for the cell read wait.
     Reading {
@@ -975,6 +1038,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "TaskId exceeds 31 bits")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn task_output_panics_on_out_of_range_task_id() {
         // `TASK_ID_MAX + 1` is the first value that sets bit 31.
         // SAFETY: non-zero.
@@ -985,6 +1052,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "TaskId exceeds 31 bits")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn task_cell_panics_on_out_of_range_task_id() {
         // SAFETY: non-zero.
         let task = unsafe { TaskId::new_unchecked(TASK_ID_MAX + 1) };
@@ -995,6 +1066,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "exceeds")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn cell_id_panics_on_out_of_range_type_id() {
         // SAFETY: `MAX_VALUE_TYPE_ID + 1` is non-zero.
         let type_id = unsafe { ValueTypeId::new_unchecked(CellId::MAX_VALUE_TYPE_ID + 1) };
@@ -1003,6 +1078,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "exceeds")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn cell_id_panics_on_out_of_range_index() {
         let type_id = unsafe { ValueTypeId::new_unchecked(1) };
         let _ = CellId::new(type_id, CellId::MAX_CELL_INDEX + 1);

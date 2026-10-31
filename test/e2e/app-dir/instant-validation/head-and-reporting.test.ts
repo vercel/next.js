@@ -1,6 +1,9 @@
 import { runInstantValidationTests } from './harness.util'
 import { registerHeadAndReportingTests } from './head-and-reporting.util'
 
-runInstantValidationTests((ctx) => {
-  registerHeadAndReportingTests(ctx)
+// @force-gate !deploy
+describe('instant validation', () => {
+  runInstantValidationTests((ctx) => {
+    registerHeadAndReportingTests(ctx)
+  })
 })

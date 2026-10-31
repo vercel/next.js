@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -186,7 +186,6 @@ pub async fn get_server_resolve_options_context(
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -211,7 +210,6 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -219,13 +217,10 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path.clone())
+    let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
+    let next_node_shared_runtime_plugin = NextNodeSharedRuntimeResolvePlugin::new(ty.clone())
         .to_resolved()
         .await?;
-    let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path.clone(), ty.clone())
-            .to_resolved()
-            .await?;
 
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
@@ -552,6 +547,9 @@ pub async fn get_server_module_options_context(
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            mangle_via_materialized_namespace_object: *next_config
+                .turbopack_mangle_via_materialized_namespace_object()
+                .await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             ..Default::default()
@@ -573,9 +571,9 @@ pub async fn get_server_module_options_context(
                 .await?,
         ),
         analyze_mode: if enable_tracing {
-            AnalyzeMode::CodeGenerationAndTracing
+            AnalyzeMode::code_generation_and_tracing()
         } else {
-            AnalyzeMode::CodeGeneration
+            AnalyzeMode::code_generation()
         },
         enable_externals_tracing: if enable_tracing {
             Some(
@@ -593,6 +591,10 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     };
 
+    let lazy_compilation = matches!(next_runtime, NextRuntime::NodeJs)
+        && *next_config
+            .turbopack_lazy_dynamic_imports_ssr(*next_mode)
+            .await?;
     let module_options_context = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             next_server_rules.extend(source_transform_rules);
@@ -652,6 +654,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -717,6 +720,7 @@ pub async fn get_server_module_options_context(
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     // React Compiler only optimizes the React client runtime, so skip it.
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -799,6 +803,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -877,6 +882,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -1005,7 +1011,7 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -1028,6 +1034,11 @@ pub struct ServerChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
+    pub lazy_dynamic_imports: bool,
+    /// Override for the production JS `min_chunk_size` (default `4_000`).
+    pub chunking_min_chunk_size: Option<usize>,
+    /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
+    pub chunking_max_merge_chunk_size: Option<usize>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1057,6 +1068,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1106,7 +1120,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     // Per-page graphs each see only one page, so none of them can decide what the shared runtime
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .manifest_chunks(lazy_dynamic_imports);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1118,9 +1133,11 @@ pub async fn get_server_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
-                    max_merge_chunk_size: 100_000,
+                    // Server chunks are loaded with require(), not fetched over the network.
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    max_chunk_count_per_group: 0,
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
+                    request_cost: Some(10_000),
                     ..Default::default()
                 },
             )
@@ -1165,6 +1182,9 @@ pub async fn get_server_chunking_context(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1217,7 +1237,8 @@ pub async fn get_server_chunking_context(
     // Per-page graphs each see only one page, so none of them can decide what the shared runtime
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .manifest_chunks(lazy_dynamic_imports);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
@@ -1227,9 +1248,11 @@ pub async fn get_server_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
-                    max_merge_chunk_size: 100_000,
+                    // Server chunks are loaded with require(), not fetched over the network.
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    max_chunk_count_per_group: 0,
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
+                    request_cost: Some(10_000),
                     ..Default::default()
                 },
             )

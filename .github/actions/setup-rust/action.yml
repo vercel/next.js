@@ -22,3 +22,9 @@ runs:
     - name: 'Add cargo problem matchers'
       shell: bash
       run: echo "::add-matcher::${{ github.action_path }}/matchers.json"
+
+    - name: 'Deny Rust warnings in CI'
+      shell: bash
+      # Cargo's warning policy preserves the target-specific rustflags.
+      # https://doc.rust-lang.org/cargo/reference/config.html#buildwarnings
+      run: echo 'CARGO_BUILD_WARNINGS=deny' >> "$GITHUB_ENV"

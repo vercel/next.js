@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('hydrate/render ordering', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('correctly measures hydrate followed by render', async () => {
       const browser = await next.browser('/')

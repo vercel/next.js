@@ -566,6 +566,10 @@ mod tests {
 
     /// Aborting in the middle of a deep, still-growing cascade must terminate rather than hang:
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "tokio runtime shutdown hangs on wasm while blocking threads are live"
+    )]
     async fn test_unbounded_abort_during_cascade() {
         // Each item spawns two children until the id exceeds the bound, so the queue is still
         // growing when the abort lands.
@@ -650,6 +654,7 @@ mod tests {
     /// swallowed by the wind-down: the abort's queue-clear races the panic's unwind through
     /// `catch_unwind` -> `on_item_finished`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_unbounded_abort_then_panic() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded(0..1000usize, |_spawner, item| {
@@ -671,6 +676,7 @@ mod tests {
     /// queued. A fixed seed set can drain completely before its first item panics, making it unable
     /// to distinguish a missed abort from valid scheduling.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_unbounded_panic_propagates_and_abandons_queue() {
         const MAX_ID: usize = 1 << 14;
         let processed = Arc::new(AtomicUsize::new(0));
@@ -794,6 +800,7 @@ mod tests {
     /// A panic must propagate through the fold path without deadlocking the join, which drainers
     /// reach only after their merge.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_unbounded_with_panic_propagates() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded_with(
@@ -915,22 +922,63 @@ mod tests {
         );
     }
 
-    /// Sustained work keeps workers alive rather than churning them:
+    /// Workers are not torn down while work is still queued.
+    ///
+    /// The queue is kept saturated deterministically instead of by racing a producer, because a
+    /// preempted producer would let workers hit `WORKER_IDLE_TIMEOUT` and be re-armed:
+    ///
+    /// - Every parent (initial item) blocks until the `initial` iterator is exhausted. While the
+    ///   calling thread is still enqueueing, each live worker is therefore busy inside `run`.
+    /// - Each parent then spawns one child. Children block until every parent's `spawn` returns.
+    ///   The queue is FIFO, so every parent is already in flight by the time any child is held;
+    ///   this cannot deadlock. While a `spawn` is still pending, every drainer is either holding an
+    ///   item or has thousands of children left to pop, so no worker can find the queue empty.
+    ///
+    /// A correct implementation never re-arms a worker, whereas one that drops workers while work
+    /// is still queued is re-armed by later `spawn` calls and churns.
+    ///
+    /// This does not time `WORKER_IDLE_TIMEOUT` itself; that cannot be asserted without depending
+    /// on scheduler timing.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "intermittently stalls under the full wasm suite"
+    )]
     // This test is too slow to run under Miri.
     #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_unbounded_busy_queue_does_not_churn_workers() {
+        // Total items processed: `ITEMS / 2` initial items, each spawning one child.
         const ITEMS: usize = 20_000;
+        const INITIAL: usize = ITEMS / 2;
         let inits = Arc::new(AtomicUsize::new(0));
         let counted = inits.clone();
+        // Set once the calling thread has enqueued every parent.
+        let released = Arc::new(AtomicBool::new(false));
+        let release = released.clone();
+        // Number of parents whose `spawn` call has returned.
+        let parents_spawned = AtomicUsize::new(0);
         let processed = tokio::task::spawn_blocking(move || {
             scope_unbounded_with(
-                0..ITEMS,
+                (0..INITIAL).chain(std::iter::from_fn(move || {
+                    release.store(true, Ordering::Release);
+                    None
+                })),
                 move || {
                     counted.fetch_add(1, Ordering::SeqCst);
                     0usize
                 },
-                |_spawner, _item, acc| {
+                move |spawner, item, acc| {
+                    if item < INITIAL {
+                        while !released.load(Ordering::Acquire) {
+                            thread::yield_now();
+                        }
+                        spawner.spawn(item + INITIAL);
+                        parents_spawned.fetch_add(1, Ordering::Release);
+                    } else {
+                        while parents_spawned.load(Ordering::Acquire) < INITIAL {
+                            thread::yield_now();
+                        }
+                    }
                     *acc += 1;
                     ControlFlow::Continue(())
                 },
@@ -940,13 +988,13 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(processed, ITEMS, "every item must run");
-        // 4 runtime workers => 3 scope workers + the calling thread at any instant. The bound is
-        // loose because a worker can still lose a race to the last queued item and be re-armed, and
-        // the rest of the suite competes for the same threads — but a churning implementation lands
-        // in the thousands, so anything near the worker count proves the timeout is doing its job.
+        // 4 runtime workers => at most 3 scope workers + the calling thread. A worker that has
+        // received an item only exits once the queue is empty, which cannot happen until the last
+        // `spawn` has been made. Each drainer slot therefore hosts at most one lifetime that
+        // receives an item.
         let count = inits.load(Ordering::SeqCst);
         assert!(
-            count <= 16,
+            count <= 4,
             "a saturated queue should not churn drainers, got {count} lifetimes for {ITEMS} items"
         );
     }

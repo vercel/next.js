@@ -148,21 +148,21 @@ impl Visit for IdentCollector {
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     Ok {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         program: Program,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         comments: Arc<ImmutableComments>,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         eval_context: EvalContext,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         globals: Arc<Globals>,
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
         source_mapping_url: Option<RcStr>,
         /// Raw bytes of the source that produced this parse, captured atomically
         /// with the AST. `failsafe_parse` uses this to recover good parses in development on
         /// error.
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(debug_ignore)]
         program_source: Rope,
     },
     Unparsable {
@@ -280,7 +280,7 @@ pub async fn parse(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     node_env: RcStr,
-    is_external_tracing: bool,
+    loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
@@ -294,7 +294,7 @@ pub async fn parse(
         ty,
         transforms,
         node_env,
-        is_external_tracing,
+        loose_errors,
         inline_helpers,
     )
     .instrument(span)
@@ -588,12 +588,7 @@ async fn parse_file_content(
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
-                    // The emitter created in here only uses StyledString::Text
-                    if let StyledString::Text(xx) = &*error.await?.message.await? {
-                        Some(vec![xx.clone()])
-                    } else {
-                        None
-                    }
+                    Some(vec![error.await?.message.clone()])
                 } else {
                     None
                 };

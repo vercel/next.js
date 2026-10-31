@@ -7,7 +7,7 @@ import { CacheSignal } from '../cache-signal'
 let _moduleLoadingSignal: CacheSignal | null
 function getModuleLoadingSignal() {
   if (!_moduleLoadingSignal) {
-    _moduleLoadingSignal = new CacheSignal()
+    _moduleLoadingSignal = new CacheSignal(null)
   }
   return _moduleLoadingSignal
 }

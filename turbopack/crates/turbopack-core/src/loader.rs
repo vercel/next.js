@@ -2,7 +2,8 @@ use std::hash::{Hash, Hasher};
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, OperationValue, TaskInput, trace::TraceRawVcs};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{NonLocalValue, OperationValue, TaskInput};
 use turbo_tasks_fs::FileSystemPath;
 
 #[derive(
@@ -10,7 +11,6 @@ use turbo_tasks_fs::FileSystemPath;
     PartialEq,
     Eq,
     Debug,
-    TraceRawVcs,
     Serialize,
     Deserialize,
     NonLocalValue,
@@ -19,7 +19,7 @@ use turbo_tasks_fs::FileSystemPath;
     Decode,
 )]
 pub struct WebpackLoaderItem {
-    pub loader: turbo_rcstr::RcStr,
+    pub loader: RcStr,
     #[serde(default)]
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub options: serde_json::Map<String, serde_json::Value>,
@@ -43,7 +43,7 @@ impl TaskInput for WebpackLoaderItem {
 }
 
 /// Like `WebpackLoaderItem`, but with the loader path already resolved to a `FileSystemPath`.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct ResolvedWebpackLoaderItem {
     pub loader: FileSystemPath,
     #[bincode(with = "turbo_bincode::serde_self_describing")]

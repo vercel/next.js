@@ -8,6 +8,7 @@ import { retry, waitFor } from 'next-test-utils'
 // It likely mutates files in the isolated local fixture after setup.
 // @force-gate !deploy
 // @force-gate dev
+// @force-gate turbopack
 describe('evict-after-snapshot', () => {
   const env = {
     ENABLE_CACHING: '1',
@@ -30,60 +31,49 @@ describe('evict-after-snapshot', () => {
     await waitFor(5000)
   }
 
-  // Turbopack-only: eviction requires persistent caching
-  ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
-    'should serve correct content after eviction and HMR',
-    async () => {
-      const browser = await next.browser('/')
-      await retry(async () => {
-        expect(await browser.elementByCss('p').text()).toBe('hello world')
-      })
+  it('should serve correct content after eviction and HMR', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+    })
 
-      let currentContent = 'hello world'
-      for (let cycle = 1; cycle <= 3; cycle++) {
-        await waitForSnapshotAndEviction()
-
-        const prevContent = currentContent
-        const nextContent = `cycle ${cycle}`
-        await next.patchFile('app/page.tsx', (content) =>
-          content.replace(prevContent, nextContent)
-        )
-        currentContent = nextContent
-
-        const expected = currentContent
-        await retry(async () => {
-          expect(await browser.elementByCss('p').text()).toBe(expected)
-        }, 10000)
-      }
-
-      await browser.close()
-    },
-    90000
-  )
-  ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
-    'should handle client component HMR after eviction',
-    async () => {
-      const browser = await next.browser('/client')
-      await retry(async () => {
-        expect(await browser.elementByCss('p').text()).toBe('hello world')
-      })
-
+    let currentContent = 'hello world'
+    for (let cycle = 1; cycle <= 3; cycle++) {
       await waitForSnapshotAndEviction()
 
-      await next.patchFile(
-        'app/client/page.tsx',
-        (content) => content.replace('hello world', 'hello eviction'),
-        async () => {
-          await retry(async () => {
-            expect(await browser.elementByCss('p').text()).toBe(
-              'hello eviction'
-            )
-          }, 10000)
-        }
+      const prevContent = currentContent
+      const nextContent = `cycle ${cycle}`
+      await next.patchFile('app/page.tsx', (content) =>
+        content.replace(prevContent, nextContent)
       )
+      currentContent = nextContent
 
-      await browser.close()
-    },
-    90000
-  )
+      const expected = currentContent
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(expected)
+      }, 10000)
+    }
+
+    await browser.close()
+  }, 90000)
+  it('should handle client component HMR after eviction', async () => {
+    const browser = await next.browser('/client')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+    })
+
+    await waitForSnapshotAndEviction()
+
+    await next.patchFile(
+      'app/client/page.tsx',
+      (content) => content.replace('hello world', 'hello eviction'),
+      async () => {
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('hello eviction')
+        }, 10000)
+      }
+    )
+
+    await browser.close()
+  }, 90000)
 })

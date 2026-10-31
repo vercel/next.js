@@ -1,6 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
-import { writeFile } from 'node:fs/promises'
 
 const errorMessage = `This function is what Next.js runs for every request handled by this proxy (previously called middleware).
 
@@ -16,127 +15,62 @@ To fix it:
 Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
 describe('proxy-missing-export', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
-    skipStart: true,
-  })
-
-  if (skipped) {
-    return
+  const sharedFiles = {
+    app: new FileRef(join(__dirname, 'app')),
+    'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
   }
 
-  it('should error when proxy file has invalid export named middleware', async () => {
-    await writeFile(
-      join(next.testDir, 'proxy.ts'),
-      'export function middleware() {}'
-    )
+  describe.each([
+    'default-function',
+    'default-arrow',
+    'named-function',
+    'named-arrow',
+  ])('%s export', (fixture) => {
+    const { next } = nextTestSetup({
+      files: {
+        ...sharedFiles,
+        'proxy.ts': new FileRef(join(__dirname, 'proxies', `${fixture}.ts`)),
+      },
+    })
 
-    let cliOutput: string
+    it('should render with a valid proxy export', async () => {
+      const browser = await next.browser('/')
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+    })
+  })
 
-    if (isNextDev) {
-      await next.start().catch(() => {})
-      // Use .catch() because Turbopack errors during compile and exits before runtime.
-      await next.browser('/').catch(() => {})
-      cliOutput = next.cliOutput
-    } else {
-      cliOutput = (await next.build()).cliOutput
-    }
+  describe.each(['named-middleware', 'aliased-handler'])(
+    '%s export',
+    (fixture) => {
+      const { next, isNextDev, isTurbopack } = nextTestSetup({
+        files: {
+          ...sharedFiles,
+          'proxy.ts': new FileRef(join(__dirname, 'proxies', `${fixture}.ts`)),
+        },
+        skipStart: true,
+      })
 
-    // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
-    if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
-      expect(cliOutput).toContain(`./proxy.ts
+      it('should error with an invalid proxy export', async () => {
+        if (isNextDev) {
+          // Turbopack can fail during compilation before a server is ready.
+          await next.start().catch(() => {})
+          await next.browser('/').catch(() => {})
+        } else {
+          await expect(next.start()).rejects.toThrow()
+        }
+
+        const cliOutput = next.cliOutput
+
+        if (isTurbopack && !isNextDev) {
+          expect(cliOutput).toContain(`./proxy.ts
 Error: Proxy is missing expected function export name
 ${errorMessage}`)
-    } else {
-      expect(cliOutput)
-        .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
+        } else {
+          expect(cliOutput)
+            .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
 ${errorMessage}`)
+        }
+      }, 240_000)
     }
-
-    await next.stop()
-  })
-
-  it('should NOT error when proxy file has a default function export', async () => {
-    await writeFile(
-      join(next.testDir, 'proxy.ts'),
-      'export default function handler() {}'
-    )
-
-    await next.start()
-
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
-
-    await next.stop()
-  })
-
-  it('should NOT error when proxy file has a default arrow function export', async () => {
-    await writeFile(join(next.testDir, 'proxy.ts'), 'export default () => {}')
-
-    await next.start()
-
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
-
-    await next.stop()
-  })
-
-  it('should NOT error when proxy file has a named declaration function export', async () => {
-    await writeFile(
-      join(next.testDir, 'proxy.ts'),
-      'const proxy = function() {}; export { proxy };'
-    )
-
-    await next.start()
-
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
-
-    await next.stop()
-  })
-
-  it('should NOT error when proxy file has a named declaration arrow function export', async () => {
-    await writeFile(
-      join(next.testDir, 'proxy.ts'),
-      'const proxy = () => {}; export { proxy };'
-    )
-
-    await next.start()
-
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
-
-    await next.stop()
-  })
-
-  it('should error when proxy file has a named export with different name alias', async () => {
-    await writeFile(
-      join(next.testDir, 'proxy.ts'),
-      'const proxy = () => {}; export { proxy as handler };'
-    )
-
-    let cliOutput: string
-
-    if (isNextDev) {
-      await next.start().catch(() => {})
-      // Use .catch() because Turbopack errors during compile and exits before runtime.
-      await next.browser('/').catch(() => {})
-      cliOutput = next.cliOutput
-    } else {
-      cliOutput = (await next.build()).cliOutput
-    }
-
-    // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
-    if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
-      expect(cliOutput).toContain(`./proxy.ts
-Error: Proxy is missing expected function export name
-${errorMessage}`)
-    } else {
-      expect(cliOutput)
-        .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
-${errorMessage}`)
-    }
-    await next.stop()
-  })
+  )
 })

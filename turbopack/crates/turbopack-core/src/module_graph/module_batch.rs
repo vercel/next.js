@@ -3,17 +3,14 @@ use std::fmt::Debug;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
-use crate::{
-    chunk::ChunkableModule, module::Module, module_graph::chunk_group_info::RoaringBitmapWrapper,
-};
+use crate::{chunk::ChunkableModule, module::Module};
 
 #[turbo_tasks::task_input]
-#[derive(
-    Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
@@ -33,7 +30,7 @@ impl ModuleOrBatch {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),
@@ -91,7 +88,7 @@ impl Debug for IdentStrings {
 #[turbo_tasks::value]
 pub struct ModuleBatch {
     pub modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
-    pub chunk_groups: Option<RoaringBitmapWrapper>,
+    pub chunk_groups: Option<Bitset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -99,7 +96,7 @@ impl ModuleBatch {
     #[turbo_tasks::function]
     pub fn new(
         modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
-        chunk_groups: Option<RoaringBitmapWrapper>,
+        chunk_groups: Option<Bitset>,
     ) -> Vc<Self> {
         Self {
             modules,
@@ -123,13 +120,13 @@ impl ModuleBatch {
 #[turbo_tasks::value]
 pub struct ModuleBatchGroup {
     pub items: Vec<ModuleOrBatch>,
-    pub chunk_groups: RoaringBitmapWrapper,
+    pub chunk_groups: Bitset,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleBatchGroup {
     #[turbo_tasks::function]
-    pub fn new(items: Vec<ModuleOrBatch>, chunk_groups: RoaringBitmapWrapper) -> Vc<Self> {
+    pub fn new(items: Vec<ModuleOrBatch>, chunk_groups: Bitset) -> Vc<Self> {
         Self {
             items,
             chunk_groups,
@@ -141,7 +138,7 @@ impl ModuleBatchGroup {
 #[turbo_tasks::value]
 pub struct ChunkableModuleBatchGroup {
     pub items: Vec<ChunkableModuleOrBatch>,
-    pub chunk_groups: RoaringBitmapWrapper,
+    pub chunk_groups: Bitset,
 }
 
 #[turbo_tasks::value_impl]

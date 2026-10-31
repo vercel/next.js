@@ -94,7 +94,7 @@ pub struct ValueType {
     pub evictability: Evictability,
 
     /// An implementation of
-    /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
+    /// [`VcCellMode::raw_cell`].
     ///
     /// Allows dynamically constructing a cell using the type id. Used inside of
     /// [`TraitRef`][crate::TraitRef] where we have a type id, but not the concrete type `T` of
@@ -146,7 +146,7 @@ impl ValueType {
     /// Construct a `ValueType` for a non-codec persistence mode
     /// ([`ValueTypePersistence::Skip`] / [`ValueTypePersistence::HashOnly`]).
     ///
-    /// Used by [`#[turbo_tasks::value]`][crate::value] for `serialization =
+    /// Used by [`#[turbo_tasks::value]`][macro@crate::value] for `serialization =
     /// "skip"` and `serialization = "hash"`. For `serialization = "auto" |
     /// "custom"` use [`ValueType::persistable`] instead — its codec functions
     /// inline at the call site.
@@ -161,7 +161,7 @@ impl ValueType {
     /// Construct a `ValueType` whose cells round-trip through the persistent
     /// cache via the auto-derived bincode `Encode` / `Decode` impls.
     ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// This is internally used by [`#[turbo_tasks::value]`][macro@crate::value] for
     /// `serialization = "auto"` and `serialization = "custom"`.
     pub const fn persistable<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,
@@ -342,7 +342,8 @@ impl TraitMethod {
         // SAFETY: Written during single-threaded Lazy init. Lazy provides acquire barrier.
         let raw = unsafe { std::ptr::read(self.trait_type.ty.id.get()) };
         debug_assert!(raw != 0, "TraitMethod::trait_type_id not initialized");
-        unsafe { TraitTypeId::new_unchecked(raw) }
+        // The registry caps trait ids at `TraitTypeId::MAX`, so this cannot truncate.
+        unsafe { TraitTypeId::new_unchecked(raw as u8) }
     }
 
     pub(crate) fn resolve_span(&self, priority: TaskPriority) -> Span {
@@ -467,13 +468,13 @@ mod tests {
     use crate::{self as turbo_tasks, VcValueType, registry};
 
     #[turbo_tasks::value(serialization = "skip")]
-    struct SkipValue(#[turbo_tasks(trace_ignore)] u32);
+    struct SkipValue(u32);
 
     #[turbo_tasks::value(serialization = "hash")]
     struct HashValue(u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "last")]
-    struct SkipExpensiveValue(#[turbo_tasks(trace_ignore)] u32);
+    struct SkipExpensiveValue(u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulValue;

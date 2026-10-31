@@ -1,17 +1,16 @@
 use std::{collections::BTreeMap, hash::Hash, mem::replace, ops::DerefMut};
 
 use bincode::{Decode, Encode};
-use turbo_tasks::trace::TraceRawVcs;
 
 /// A parsed query string from a http request
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Hash, Encode, Decode)]
 pub struct Headers(BTreeMap<String, HeaderValue>);
 
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum HeaderValue {
     SingleString(String),
     SingleBytes(Vec<u8>),

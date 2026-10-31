@@ -1,7 +1,7 @@
 import { ConditionalCookies } from '../../cached-value'
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 
 export default async function Page() {
   return (
@@ -27,7 +27,7 @@ export default async function Page() {
 }
 
 async function PrefetchOnly({ children }) {
-  await unstable_prefetch()
+  await prefetch()
   return children
 }
 

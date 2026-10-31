@@ -285,6 +285,8 @@ impl From<MemoryEvictionMode> for EvictionMode {
     }
 }
 
+/// Tuning for Turbopack's reference-counting GC, mirroring the
+/// `experimental.turbopackGc` config option.
 #[napi(object)]
 #[derive(Debug, Clone, Copy)]
 pub struct NapiTurbopackGcOptions {

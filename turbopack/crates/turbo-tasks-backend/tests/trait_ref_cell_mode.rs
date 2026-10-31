@@ -2,9 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_tasks::{
-    State, TraitRef, Upcast, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, State, TraitRef, Upcast, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -14,25 +12,35 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_shared_cell_mode() {
     run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+        #[turbo_tasks::function(operation, root)]
+        fn operation(input: ResolvedVc<CellIdSelector>) -> Vc<Box<dyn ValueTrait>> {
+            shared_value_from_input(*input)
+        }
+
         let input = CellIdSelector {
             value: 42,
             cell_idx: State::new(0),
         }
-        .cell();
+        .resolved_cell();
 
         // create the task and compute it
-        let counter_value_vc = shared_value_from_input(input);
-        let trait_ref_a = counter_value_vc.into_trait_ref().await?;
+        let counter_value_op = operation(input);
+        let trait_ref_a = counter_value_op.read_trait_strongly_consistent().await?;
 
         // invalidate the task, and pick a different cell id for the next execution
         input.await?.cell_idx.set_unconditionally(1);
 
         // recompute the task
-        let trait_ref_b = counter_value_vc.into_trait_ref().await?;
+        let trait_ref_b = counter_value_op.read_trait_strongly_consistent().await?;
 
         for trait_ref in [&trait_ref_a, &trait_ref_b] {
-            assert_eq!(*TraitRef::cell(trait_ref.clone()).get_value().await?, 42);
+            assert_eq!(
+                *TraitRef::cell(trait_ref.clone())
+                    .get_value()
+                    .strongly_consistent()
+                    .await?,
+                42
+            );
         }
 
         // because we're using `cell = "compare"`, these trait refs must use the same
@@ -50,25 +58,35 @@ async fn test_trait_ref_shared_cell_mode() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_new_cell_mode() {
     run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+        #[turbo_tasks::function(operation, root)]
+        fn operation(input: ResolvedVc<CellIdSelector>) -> Vc<Box<dyn ValueTrait>> {
+            new_value_from_input(*input)
+        }
+
         let input = CellIdSelector {
             value: 42,
             cell_idx: State::new(0),
         }
-        .cell();
+        .resolved_cell();
 
         // create the task and compute it
-        let counter_value_vc = new_value_from_input(input);
-        let trait_ref_a = counter_value_vc.into_trait_ref().await?;
+        let counter_value_op = operation(input);
+        let trait_ref_a = counter_value_op.read_trait_strongly_consistent().await?;
 
         // invalidate the task, and pick a different cell id for the next execution
         input.await?.cell_idx.set_unconditionally(1);
 
         // recompute the task
-        let trait_ref_b = counter_value_vc.into_trait_ref().await?;
+        let trait_ref_b = counter_value_op.read_trait_strongly_consistent().await?;
 
         for trait_ref in [&trait_ref_a, &trait_ref_b] {
-            assert_eq!(*TraitRef::cell(trait_ref.clone()).get_value().await?, 42);
+            assert_eq!(
+                *TraitRef::cell(trait_ref.clone())
+                    .get_value()
+                    .strongly_consistent()
+                    .await?,
+                42
+            );
         }
 
         // because we're using `cell = "new"`, these trait refs must use different
@@ -83,7 +101,7 @@ async fn test_trait_ref_new_cell_mode() {
 
 #[turbo_tasks::value_trait]
 trait ValueTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<usize>;
 }
 
@@ -95,7 +113,7 @@ struct NewValue(usize);
 
 #[turbo_tasks::value_impl]
 impl ValueTrait for SharedValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<usize> {
         Vc::cell(self.0)
     }
@@ -103,7 +121,7 @@ impl ValueTrait for SharedValue {
 
 #[turbo_tasks::value_impl]
 impl ValueTrait for NewValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<usize> {
         Vc::cell(self.0)
     }

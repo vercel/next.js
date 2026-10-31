@@ -1,13 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('remove-unused-imports', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should remove unused imports', async () => {
     const browser = await next.browser('/')

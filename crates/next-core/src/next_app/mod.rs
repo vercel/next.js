@@ -14,7 +14,6 @@ use std::{
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::trace::TraceRawVcs;
 
 pub use crate::next_app::{
     app_client_references_chunks::{
@@ -29,7 +28,7 @@ pub use crate::next_app::{
 
 /// See [AppPage].
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub enum PageSegment {
     /// e.g. `/dashboard`
     Static(RcStr),
@@ -122,7 +121,7 @@ impl Display for PageSegment {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub enum PageType {
     Page,
     Route,
@@ -141,7 +140,7 @@ impl Display for PageType {
 /// intercepting routes, parallel routes and route/page suffixes that are not
 /// part of the pathname.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, Encode, Decode)]
 pub struct AppPage(pub Vec<PageSegment>);
 
 impl AppPage {
@@ -325,7 +324,7 @@ impl PartialOrd for AppPage {
 ///
 /// Also see [AppPath].
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub enum PathSegment {
     /// e.g. `/dashboard`
     Static(RcStr),
@@ -366,7 +365,7 @@ impl Display for PathSegment {
 /// Does not include internal modifiers as it's the equivalent of the http
 /// request path.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, Encode, Decode)]
 pub struct AppPath(pub Vec<PathSegment>);
 
 impl AppPath {

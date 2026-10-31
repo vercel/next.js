@@ -62,6 +62,8 @@ import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
+import { verifyDistDir } from '../lib/dist-dir'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -456,6 +458,9 @@ function assignDefaultsAndValidate(
     },
   }
 
+  result.experimental.strictRouteMatching =
+    !result.deprecated.looseRouteMatching
+
   // Pruning assumes that children only exists when it is backed by an
   // ordinary route branch. Restoring the legacy implicit children slot must
   // therefore also restore the legacy matcher behavior.
@@ -511,15 +516,16 @@ function assignDefaultsAndValidate(
   // rootTtlMs? } | undefined`) into the object napi expects
   const turbopackGc = result.experimental.turbopackGc
   let turbopackGcOptions: TurbopackGcOptions | undefined
-  if (turbopackGc === true) {
-    turbopackGcOptions = {}
+  if (typeof turbopackGc === 'boolean') {
+    turbopackGcOptions = turbopackGc ? {} : undefined
   } else if (typeof turbopackGc === 'object' && turbopackGc !== null) {
     turbopackGcOptions = {
       minProgressMs: turbopackGc.minProgressMs,
       rootTtlMs: turbopackGc.rootTtlMs,
     }
   } else {
-    turbopackGcOptions = undefined
+    // Enable by default on canary releases.
+    turbopackGcOptions = isStableBuild() ? undefined : {}
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
@@ -569,10 +575,9 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
-  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
+  // Build and development phases validate bundler-specific options. Server,
+  // info, and test phases do not select a bundler. They must accept
+  // configuration from either bundler.
   if (
     phase !== PHASE_PRODUCTION_SERVER &&
     phase !== PHASE_INFO &&
@@ -581,6 +586,16 @@ function assignDefaultsAndValidate(
     if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
       throw new Error(
         `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.useCacheStaticRootParamTracking &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.useCacheStaticRootParamTracking: true\` is only supported with Turbopack. ` +
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
       )
     }
@@ -638,6 +653,23 @@ function assignDefaultsAndValidate(
   if (result.partialPrefetching && !result.cacheComponents) {
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
+  // so apps can migrate before both features are enabled together by default.
+  if (
+    result.cacheComponents &&
+    result.partialPrefetching === undefined &&
+    !silent
+  ) {
+    Log.warnOnce(
+      [
+        '`cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+        "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+        'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+        'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+      ].join('\n\n')
     )
   }
 
@@ -1261,6 +1293,8 @@ function assignDefaultsAndValidate(
   // Ensure both properties are set to the same value
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
+
+  verifyDistDir(resolve(dir, result.distDir), dir, repoRoot)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 
@@ -1993,7 +2027,7 @@ async function loadConfigImpl(
   // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
-      loadWebpackHook()
+      loadWebpackHook(dir)
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included

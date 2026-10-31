@@ -374,6 +374,7 @@ pub async fn traced_modules_for_entries(
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
 
     for (parent, reference) in forbidden_issues {
@@ -448,12 +449,13 @@ async fn traced_module_idents_for_graph(
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
 
     Ok(Vc::cell(
         traced_modules
             .into_iter()
-            .map(async |module| Ok((module, module.ident().await?)))
+            .map(async |module| Ok((module, module_graph.module_ident(module)?.await?)))
             .try_join()
             .await?
             .into_iter()

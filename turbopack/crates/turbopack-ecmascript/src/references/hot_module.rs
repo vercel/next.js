@@ -12,7 +12,6 @@ use swc_core::{
 };
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
@@ -102,9 +101,7 @@ impl ModuleReference for ModuleHotReferenceAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ModuleHotReferenceCodeGen {
     references: Vec<ResolvedVc<ModuleHotReferenceAssetReference>>,
     /// For ESM modules, the matching ESM import reference for each dep (if any).

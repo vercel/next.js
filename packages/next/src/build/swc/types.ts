@@ -15,6 +15,8 @@ import type {
   MemoryEvictionMode,
   NapiTurbopackGcOptions,
   ServerHmrVersion as NativeServerHmrVersion,
+  LockfileError,
+  LockfileResult,
   projectCompilationEventsSubscribe,
   projectFeatureUsage,
   projectInvalidateFileSystemCache,
@@ -24,6 +26,7 @@ import type {
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+export type { LockfileError }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
@@ -44,7 +47,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
-    ): Promise<Project>
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
@@ -103,8 +106,8 @@ export interface Binding {
   lockfileTryAcquire(
     path: string,
     content?: string | null
-  ): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
+  ): Promise<LockfileResult>
+  lockfileTryAcquireSync(path: string, content?: string | null): LockfileResult
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
   codeFrameColumns(
@@ -499,7 +502,7 @@ export type WrittenEndpoint =
     }
 
 export interface ProjectOptions
-  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'additionalRoots' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -513,8 +516,6 @@ export interface ProjectOptions
 
 export interface PartialProjectOptions
   extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
-  rootPath: NapiProjectOptions['rootPath']
-  projectPath: NapiProjectOptions['projectPath']
   /**
    * The next.config.js contents.
    */

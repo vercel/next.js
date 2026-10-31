@@ -7,9 +7,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use indoc::indoc;
-use turbo_tasks::{
-    PrettyPrintError, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{OperationVc, PrettyPrintError, Vc, VcValueType};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -18,11 +16,27 @@ static REGISTRATION: Registration = register!();
 // Helper function to test error messages
 // ============================================================================
 
-async fn assert_error<T: Debug>(
+async fn assert_error<T: VcValueType>(
+    operation: OperationVc<T>,
+    expected: &'static str,
+) -> Result<()> {
+    let error = match operation.read_strongly_consistent().await {
+        Ok(_) => panic!("expected an error"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        &PrettyPrintError(&error).to_string(),
+        expected,
+        "{:#?}",
+        error
+    );
+    Ok(())
+}
+
+async fn assert_future_error<T: Debug>(
     future: impl IntoFuture<Output = Result<T>>,
     expected: &'static str,
 ) -> Result<()> {
-    unmark_top_level_task_may_leak_eventually_consistent_state();
     let error = future.into_future().await.unwrap_err();
     assert_eq!(
         &PrettyPrintError(&error).to_string(),
@@ -44,22 +58,22 @@ where
 // Direct error functions
 // ============================================================================
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 fn direct_bail() -> Result<Vc<u32>> {
     bail!("direct bail error")
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 fn direct_bail_with_context() -> Result<Vc<u32>> {
     Err(anyhow::anyhow!("direct bail error")).context("bail-context")
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 fn direct_panic() -> Result<Vc<u32>> {
     panic!("direct panic error")
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 fn direct_panic_with_context() -> Result<Vc<u32>> {
     // Note: panic! is synchronous, so context cannot wrap it
     panic!("direct panic error")
@@ -69,27 +83,27 @@ fn direct_panic_with_context() -> Result<Vc<u32>> {
 // Indirect error functions (call another function that errors)
 // ============================================================================
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 async fn indirect_bail() -> Result<Vc<u32>> {
-    direct_bail().await?;
+    direct_bail().connect().await?;
     Ok(Vc::cell(0))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 async fn indirect_bail_with_context() -> Result<Vc<u32>> {
-    direct_bail().await.context("indirect-context")?;
+    direct_bail().connect().await.context("indirect-context")?;
     Ok(Vc::cell(0))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 async fn indirect_panic() -> Result<Vc<u32>> {
-    direct_panic().await?;
+    direct_panic().connect().await?;
     Ok(Vc::cell(0))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 async fn indirect_panic_with_context() -> Result<Vc<u32>> {
-    direct_panic().await.context("indirect-context")?;
+    direct_panic().connect().await.context("indirect-context")?;
     Ok(Vc::cell(0))
 }
 
@@ -251,46 +265,70 @@ async fn test_indirect_panic_with_context() {
 }
 
 // ============================================================================
-// In-context wrapper functions (not turbo_tasks functions)
+// In-context wrapper operations
 // ============================================================================
 
 async fn direct_bail_in_context() -> Result<()> {
-    direct_bail().await.context("in-context")?;
+    direct_bail()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn direct_bail_with_context_in_context() -> Result<()> {
-    direct_bail_with_context().await.context("in-context")?;
+    direct_bail_with_context()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn direct_panic_in_context() -> Result<()> {
-    direct_panic().await.context("in-context")?;
+    direct_panic()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn direct_panic_with_context_in_context() -> Result<()> {
-    direct_panic_with_context().await.context("in-context")?;
+    direct_panic_with_context()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn indirect_bail_in_context() -> Result<()> {
-    indirect_bail().await.context("in-context")?;
+    indirect_bail()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn indirect_bail_with_context_in_context() -> Result<()> {
-    indirect_bail_with_context().await.context("in-context")?;
+    indirect_bail_with_context()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn indirect_panic_in_context() -> Result<()> {
-    indirect_panic().await.context("in-context")?;
+    indirect_panic()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
 async fn indirect_panic_with_context_in_context() -> Result<()> {
-    indirect_panic_with_context().await.context("in-context")?;
+    indirect_panic_with_context()
+        .read_strongly_consistent()
+        .await
+        .context("in-context")?;
     Ok(())
 }
 
@@ -301,7 +339,7 @@ async fn indirect_panic_with_context_in_context() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             direct_bail_in_context(),
             indoc! {"
                 in-context
@@ -322,7 +360,7 @@ async fn test_direct_bail_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_with_context_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             direct_bail_with_context_in_context(),
             indoc! {"
                 in-context
@@ -345,7 +383,7 @@ async fn test_direct_bail_with_context_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             direct_panic_in_context(),
             indoc! {"
                 in-context
@@ -366,7 +404,7 @@ async fn test_direct_panic_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_with_context_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             direct_panic_with_context_in_context(),
             indoc! {"
                 in-context
@@ -387,7 +425,7 @@ async fn test_direct_panic_with_context_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             indirect_bail_in_context(),
             indoc! {"
                 in-context
@@ -409,7 +447,7 @@ async fn test_indirect_bail_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_with_context_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             indirect_bail_with_context_in_context(),
             indoc! {"
                 in-context
@@ -433,7 +471,7 @@ async fn test_indirect_bail_with_context_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             indirect_panic_in_context(),
             indoc! {"
                 in-context
@@ -455,7 +493,7 @@ async fn test_indirect_panic_in_context() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_with_context_in_context() {
     test(async || {
-        assert_error(
+        assert_future_error(
             indirect_panic_with_context_in_context(),
             indoc! {"
                 in-context

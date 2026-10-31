@@ -47,8 +47,9 @@ function hasRustChanges(sinceCommit) {
   try {
     // Omit HEAD to compare against the working tree, which includes
     // committed, staged, and unstaged changes.
+    // `js/src` directories are compiled into the binary via `embed_directory!`.
     const diff = execSync(
-      `git diff --name-only ${sinceCommit} -- ':(glob)**/*.rs' ':(glob)**/*.toml' ':(glob).cargo/**' Cargo.lock rust-toolchain`,
+      `git diff --name-only ${sinceCommit} -- ':(glob)**/*.rs' ':(glob)**/*.toml' ':(glob).cargo/**' ':(glob)crates/*/js/src/**' ':(glob)turbopack/crates/*/js/src/**' Cargo.lock rust-toolchain`,
       { cwd: ROOT_DIR, encoding: 'utf8' }
     ).trim()
     return diff.length > 0

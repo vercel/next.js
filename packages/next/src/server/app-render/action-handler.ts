@@ -44,8 +44,10 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
@@ -71,7 +73,6 @@ import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { executeRevalidates } from '../revalidation-utils'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
@@ -278,7 +279,24 @@ async function createForwardedActionResponse(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      body = req.stream()
+      // If the action body was already stashed (and consumed from the
+      // request stream) so it could be replayed for the local action
+      // handler (e.g. when resume state was read from the body first),
+      // forward that stashed body instead of re-reading the now-exhausted
+      // stream, which would otherwise hang forever. Since the forwarded
+      // body no longer starts with the postponed state, the resume headers
+      // no longer apply and must be dropped so the receiving worker doesn't
+      // try to read postponed state from it.
+      // The platform can attach the target page's postponed state, including
+      // its RDC, to the forwarded request independently of these headers.
+      const actionBody = getRequestMeta(req, 'actionBody')
+      if (actionBody) {
+        body = new Uint8Array(actionBody)
+        forwardedHeaders.delete(NEXT_RESUME_HEADER)
+        forwardedHeaders.delete(NEXT_RESUME_STATE_LENGTH_HEADER)
+      } else {
+        body = req.stream()
+      }
     } else {
       throw new Error('Invariant: Unknown request type.')
     }
@@ -590,12 +608,14 @@ function getRevalidationWaitUntil(
     return undefined
   }
 
-  const revalidatesPromise = executeRevalidates(workStore)
+  const revalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
 export async function handleAction({
   req,
+  serverActionRequestMetadata,
   res,
   ComponentMod,
   generateFlight,
@@ -606,6 +626,7 @@ export async function handleAction({
   metadata,
 }: {
   req: BaseNextRequest
+  serverActionRequestMetadata: ServerActionRequestMetadata
   res: BaseNextResponse
   ComponentMod: AppPageModule
   generateFlight: GenerateFlight
@@ -625,7 +646,7 @@ export async function handleAction({
     isFetchAction,
     isURLEncodedAction,
     isPossibleServerAction,
-  } = getServerActionRequestMetadata(req)
+  } = serverActionRequestMetadata
 
   const handleUnrecognizedAction = (
     err: unknown,
@@ -759,7 +780,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, requestStore, {
+          result: await generateFlight(ctx, requestStore, {
             actionResult: promise,
             // We didn't execute an action, so no revalidations could have
             // occurred. We can skip rendering the page.
@@ -932,6 +953,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
+                  false,
                   actionWasForwarded
                 )
 
@@ -1150,6 +1172,7 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
+                  false,
                   actionWasForwarded
                 )
 
@@ -1282,6 +1305,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
+            isFetchAction,
             shouldSkipPageRendering
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
@@ -1302,7 +1326,7 @@ export async function handleAction({
           return {
             type: 'done',
             result: await actionAsyncStorage.exit(() =>
-              generateFlight(req, ctx, requestStore, {
+              generateFlight(ctx, requestStore, {
                 actionResult: Promise.resolve(actionResult),
                 skipPageRendering,
                 temporaryReferences,
@@ -1372,7 +1396,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, requestStore, {
+          result: await generateFlight(ctx, requestStore, {
             skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
@@ -1417,7 +1441,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight(req, ctx, requestStore, {
+        result: await generateFlight(ctx, requestStore, {
           actionResult: promise,
           // If the page was not revalidated, or if this is an action-only
           // request, we can skip rendering the page.
@@ -1446,12 +1470,14 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
+  isFetchAction: boolean,
   shouldSkipPageRendering: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
+  const wasDraftModeEnabled = requestStore.draftMode.isEnabled
   let skipPageRendering = shouldSkipPageRendering
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
@@ -1465,11 +1491,13 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if this is an action-only request,
-    // we can skip rendering the page.
+    // Fetch actions can skip rendering when the page was not revalidated. MPA
+    // form submissions still need a complete HTML response with their form
+    // state.
     skipPageRendering ||=
-      workStore.pathWasRevalidated === undefined ||
-      workStore.pathWasRevalidated === ActionDidNotRevalidate
+      isFetchAction &&
+      (workStore.pathWasRevalidated === undefined ||
+        workStore.pathWasRevalidated === ActionDidNotRevalidate)
 
     return { actionResult, skipPageRendering }
   } finally {
@@ -1487,10 +1515,17 @@ async function executeActionAndPrepareForRender<
       // that in the work store to be up-to-date for subsequent rendering.
       workStore.isDraftMode = requestStore.draftMode.isEnabled
 
+      // The action may enable draft mode after the request received a
+      // published RDC. The re-render must generate fresh values without that
+      // RDC.
+      if (!wasDraftModeEnabled && requestStore.draftMode.isEnabled) {
+        requestStore.resumeDataCache = null
+      }
+
       // If the action called revalidateTag/revalidatePath, then that might
       // affect data used by the subsequent render, so we need to make sure all
       // revalidations are applied before that.
-      await executeRevalidates(workStore)
+      await workStore.afterContext.executeRevalidations(workStore)
     }
   }
 }

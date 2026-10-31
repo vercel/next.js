@@ -6,4 +6,4 @@ export default function Page() {
 }
 
 export const runtime = 'edge'
-export const preferredRegion = 'test-region'
+export const preferredRegion = 'iad1'

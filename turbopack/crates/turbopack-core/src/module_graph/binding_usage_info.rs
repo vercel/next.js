@@ -1,11 +1,11 @@
-use std::collections::hash_map::Entry;
+use std::{cmp::Reverse, collections::hash_map::Entry};
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::chunking_context::UnusedReferences,
@@ -35,12 +35,16 @@ pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
+/// The module graph edges of references that are unused and should be skipped during traversals.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[derive(Debug)]
+pub struct UnusedReferenceEdges(FxHashSet<GraphEdgeIndex>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
     unused_references: ResolvedVc<UnusedReferences>,
-    #[turbo_tasks(trace_ignore)]
-    unused_references_edges: FxHashSet<GraphEdgeIndex>,
+    unused_references_edges: ResolvedVc<UnusedReferenceEdges>,
 
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
@@ -53,7 +57,8 @@ pub struct OptionBindingUsageInfo(Option<ResolvedVc<BindingUsageInfo>>);
 #[turbo_tasks::value]
 pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
-    // Whether this module exists in an import cycle and has been selected to break the cycle.
+    /// Whether this module must expose exports before imports. This is conservative when export
+    /// usage analysis did not run, because a cycle cannot be ruled out.
     pub is_circuit_breaker: bool,
     /// Whether this module is read through a namespace value somewhere, which means one of those
     /// reads may still use an original export name. See [`PartialNamespaceModules`].
@@ -62,7 +67,7 @@ pub struct ModuleExportUsage {
 #[turbo_tasks::value_impl]
 impl ModuleExportUsage {
     #[turbo_tasks::function]
-    pub async fn all() -> Result<Vc<Self>> {
+    pub async fn unknown() -> Result<Vc<Self>> {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
@@ -73,27 +78,16 @@ impl ModuleExportUsage {
 }
 
 impl BindingUsageInfo {
-    pub fn is_reference_unused_edge(&self, edge: &GraphEdgeIndex) -> bool {
-        self.unused_references_edges.contains(edge)
-    }
-
     pub async fn used_exports(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
         let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
         let Some(exports) = self.used_exports.get(&module).await? else {
-            // There are some module that are codegened, but not referenced in the module graph,
-            let ident = module.ident_string().await?;
-            if ident.contains(".wasm_.loader.mjs") || ident.contains("/__nextjs-internal-proxy.") {
-                // Both the turbopack-wasm `ModuleChunkItem` and `EcmascriptClientReferenceModule`
-                // do `self.slightly_different_module().as_chunk_item()`, so the
-                // module that codegen sees isn't actually in the module graph.
-                // TODO fix these cases
-                return Ok(ModuleExportUsage::all());
-            }
-
-            bail!("export usage not found for module: {ident:?}");
+            bail!(
+                "export usage not found for module: {:?}",
+                module.ident_string().await?
+            );
         };
         let namespace_object_may_escape =
             self.partial_namespace_modules.contains_key(&module).await?;
@@ -112,12 +106,24 @@ impl BindingUsageInfo {
     pub fn unused_references(&self) -> Vc<UnusedReferences> {
         *self.unused_references
     }
+
+    #[turbo_tasks::function]
+    pub fn unused_references_edges(&self) -> Vc<UnusedReferenceEdges> {
+        *self.unused_references_edges
+    }
 }
 
+/// Computes which exports and references of the modules in `graph` are used.
+///
+/// With `drop_unused_module_data`, modules that are not reachable via used references (i.e. that
+/// remove_unused_imports removes) are hinted to drop data they only retain for code generation, see
+/// [`Module::drop_code_gen_data_hint`]. Only enable this when this graph decides which modules
+/// are code generated, otherwise the data might be needed again and has to be recomputed.
 #[turbo_tasks::function(operation)]
 pub async fn compute_binding_usage_info(
     graph: OperationVc<ModuleGraph>,
     remove_unused_imports: bool,
+    drop_unused_module_data: bool,
 ) -> Result<Vc<BindingUsageInfo>> {
     let span_outer = tracing::info_span!(
         "compute binding usage info",
@@ -141,9 +147,9 @@ pub async fn compute_binding_usage_info(
 
         let graph = graph.connect();
         let graph_ref = graph.await?;
-        if graph_ref.binding_usage.is_some() {
-            // If the graph already has binding usage info, return it directly. This is
-            // unfortunately easy to do with
+        if graph_ref.unused_references_edges.is_some() {
+            // Reject graphs that already have binding usage info. Recomputing it on such a graph
+            // is unfortunately easy to do with
             // ```
             // fn get_module_graph(){
             //   let graph = ....;
@@ -166,10 +172,23 @@ pub async fn compute_binding_usage_info(
             None
         };
 
-        let entries = graph_ref.all_chunk_group_entry_modules();
+        // Visit modules in reverse postorder. In an acyclic graph, this processes each module only
+        // after all modules importing it, i.e. once, with its final usage. Cycles still rely on the
+        // fixed point and may revisit modules in or after them. This avoids order-dependent
+        // revisits in DAG-shaped graphs, at the cost of an additional traversal to compute ranks
+        // (shared with the other analyses of this graph).
+        let module_rank = graph_ref.entry_ranks()?;
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
-            entries.map(|m| (m, 0)),
+            graph_ref
+                .all_chunk_group_entry_modules()
+                .map(|m| {
+                    Ok((
+                        m,
+                        Reverse(*module_rank.get(&m).context("Module rank not found")?),
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent, target, _, _| {
                 // Entries are always used
@@ -280,23 +299,35 @@ pub async fn compute_binding_usage_info(
                         } else {
                             false
                         };
-                        let passthrough_usage = used_exports
-                            .get(&parent)
-                            .context("parent module must have usage info")?
-                            .clone();
-                        let usage_changed = used_exports
-                            .entry(target)
-                            .or_default()
-                            .add_usage_info(&passthrough_usage);
+                        let usage_changed = if parent == target {
+                            // Merging the usage of a module into itself never changes it (and
+                            // `get_disjoint_mut` would panic on the duplicate key).
+                            false
+                        } else {
+                            used_exports.entry(target).or_default();
+                            let [Some(parent_usage), Some(target_usage)] =
+                                used_exports.get_disjoint_mut([&parent, &target])
+                            else {
+                                bail!("parent module must have usage info");
+                            };
+                            target_usage.add_usage_info(parent_usage)
+                        };
                         namespace_changed || usage_changed
                     }
                     export_usage => {
-                        if matches!(export_usage, ExportUsage::PartialNamespaceObject(_)) {
-                            // `target` is read through a namespace value. We know which names are
-                            // used, but not that every read was lowered to a direct named access.
-                            partial_namespace_modules.insert(target);
-                        }
-                        used_exports.entry(target).or_default().add(export_usage)
+                        // A partial namespace edge means `target` is read through a namespace
+                        // value. We know which names are used, but not that every read was
+                        // lowered to a direct named access.
+                        //
+                        // The provenance can be new even when the used names are not (the target
+                        // already uses `All` or these names), and it still has to be forwarded
+                        // over the target's passthrough edges, so it counts as a change.
+                        let namespace_changed =
+                            matches!(export_usage, ExportUsage::PartialNamespaceObject(_))
+                                && partial_namespace_modules.insert(target);
+                        let usage_changed =
+                            used_exports.entry(target).or_default().add(export_usage);
+                        namespace_changed || usage_changed
                     }
                 };
                 if changed || is_first_visit {
@@ -307,7 +338,13 @@ pub async fn compute_binding_usage_info(
                     Ok(GraphTraversalAction::Skip)
                 }
             },
-            |_, _| Ok(0),
+            |successor, _| {
+                Ok(Reverse(
+                    *module_rank
+                        .get(&successor)
+                        .context("Module rank not found")?,
+                ))
+            },
         )?;
 
         // Compute cycles and select modules to be 'circuit breakers'
@@ -343,6 +380,23 @@ pub async fn compute_binding_usage_info(
 
         span.record("visit_count", visit_count);
         span.record("unused_reference_count", unused_references.len());
+
+        if drop_unused_module_data {
+            // The traversal visits every module that is reachable via used references (and sets
+            // its usage), so the remaining ones are unused.
+            graph_ref
+                .iter_nodes()
+                .filter(|module| !used_exports.contains_key(module))
+                .map(async |module| {
+                    module
+                        .into_trait_ref()
+                        .await?
+                        .drop_code_gen_data_hint()
+                        .await
+                })
+                .try_join()
+                .await?;
+        }
 
         #[cfg(debug_assertions)]
         {
@@ -386,7 +440,7 @@ pub async fn compute_binding_usage_info(
 
         Ok(BindingUsageInfo {
             unused_references: ResolvedVc::cell(unused_references),
-            unused_references_edges,
+            unused_references_edges: ResolvedVc::cell(unused_references_edges),
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
@@ -518,5 +572,275 @@ mod tests {
             namespace_object_may_escape: false,
         }));
         assert!(matches!(usage, ModuleExportUsageInfo::All));
+    }
+}
+
+#[cfg(test)]
+mod graph_tests {
+    use anyhow::Result;
+    use rustc_hash::FxHashMap;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
+
+    use super::compute_binding_usage_info;
+    use crate::{
+        asset::{Asset, AssetContent},
+        ident::AssetIdent,
+        module::{Module, ModuleSideEffects},
+        module_graph::{
+            GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+            chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
+        },
+        reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
+        resolve::ExportUsage,
+    };
+
+    /// Module name -> outgoing edges `(target name, export usage of the edge)`, in reference order.
+    type Edges = Vec<(RcStr, Vec<(RcStr, ExportUsage)>)>;
+
+    #[turbo_tasks::value(shared)]
+    struct UsageTestRepo {
+        edges: FxHashMap<RcStr, Vec<(RcStr, ExportUsage)>>,
+    }
+
+    #[turbo_tasks::value]
+    struct UsageTestModule {
+        root: FileSystemPath,
+        name: RcStr,
+        repo: ResolvedVc<UsageTestRepo>,
+    }
+
+    #[turbo_tasks::value_impl]
+    impl UsageTestModule {
+        /// Interned through a task so that every reference to the same name yields the same module.
+        #[turbo_tasks::function]
+        fn new(root: FileSystemPath, name: RcStr, repo: ResolvedVc<UsageTestRepo>) -> Vc<Self> {
+            Self { root, name, repo }.cell()
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Asset for UsageTestModule {
+        #[turbo_tasks::function]
+        fn content(&self) -> Vc<AssetContent> {
+            panic!("UsageTestModule::content shouldn't be called")
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Module for UsageTestModule {
+        #[turbo_tasks::function]
+        fn ident(&self) -> Result<Vc<AssetIdent>> {
+            Ok(AssetIdent::from_path(self.root.join(&self.name)?).into_vc())
+        }
+
+        #[turbo_tasks::function]
+        fn source(&self) -> Vc<crate::source::OptionSource> {
+            Vc::cell(None)
+        }
+
+        #[turbo_tasks::function]
+        async fn references(&self) -> Result<Vc<ModuleReferences>> {
+            let repo = self.repo.await?;
+            let references = repo
+                .edges
+                .get(&self.name)
+                .into_iter()
+                .flatten()
+                .map(async |(target, export)| {
+                    let target =
+                        UsageTestModule::new(self.root.clone(), target.clone(), *self.repo);
+                    Ok(ResolvedVc::upcast::<Box<dyn ModuleReference>>(
+                        SingleChunkableModuleReference::new(
+                            Vc::upcast(target),
+                            rcstr!("test-dep"),
+                            export_usage_vc(export),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                })
+                .try_join()
+                .await?;
+            Ok(Vc::cell(references))
+        }
+
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    /// `ExportUsage` cells are private to `resolve`, so go through its public constructors.
+    fn export_usage_vc(export: &ExportUsage) -> Vc<ExportUsage> {
+        match export {
+            ExportUsage::All => ExportUsage::all(),
+            ExportUsage::Named(name) => ExportUsage::named(name.clone()),
+            ExportUsage::PartialNamespaceObject(names) => {
+                ExportUsage::partial_namespace_object(names.to_vec())
+            }
+            ExportUsage::Evaluation => ExportUsage::evaluation(),
+            ExportUsage::Passthrough {
+                namespace_object_may_escape,
+            } => ExportUsage::passthrough(*namespace_object_may_escape),
+        }
+    }
+
+    /// `(module name, namespace_object_may_escape)` for every module in the graph, sorted by name.
+    #[turbo_tasks::value(transparent)]
+    struct NamespaceEscapes(Vec<(RcStr, bool)>);
+
+    #[turbo_tasks::function(operation, root)]
+    async fn namespace_escapes_operation(
+        namespace_path_is_longer: bool,
+        plain_usage_is_all: bool,
+    ) -> Result<Vc<NamespaceEscapes>> {
+        let plain_usage = if plain_usage_is_all {
+            ExportUsage::All
+        } else {
+            ExportUsage::Named(rcstr!("a"))
+        };
+        let edges = namespace_graph(namespace_path_is_longer, plain_usage);
+        let root = VirtualFileSystem::new_with_name(rcstr!("test"))
+            .root()
+            .owned()
+            .await?;
+        let names = edges
+            .iter()
+            .flat_map(|(from, to)| {
+                std::iter::once(from.clone()).chain(to.iter().map(|(t, _)| t.clone()))
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        let repo = UsageTestRepo {
+            edges: edges.into_iter().collect(),
+        }
+        .resolved_cell();
+        let module = async |name: &RcStr| -> Result<ResolvedVc<Box<dyn Module>>> {
+            Ok(ResolvedVc::upcast(
+                UsageTestModule::new(root.clone(), name.clone(), *repo)
+                    .to_resolved()
+                    .await?,
+            ))
+        };
+
+        let single_graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(
+                vec![ChunkGroupEntry::Entry {
+                    modules: vec![module(&rcstr!("entry")).await?],
+                    heuristics: EntryHeuristics::default(),
+                }],
+                vec![],
+            )),
+            ModuleGraphOptions {
+                include_binding_usage: true,
+                ..Default::default()
+            },
+        );
+        let graph = ModuleGraph::from_graphs(vec![single_graph], None);
+        let binding_usage = compute_binding_usage_info(
+            graph, /* remove_unused_imports */ false, /* drop_unused_module_data */ false,
+        )
+        .connect()
+        .await?;
+
+        let escapes = names
+            .iter()
+            .map(async |name| {
+                let usage = binding_usage
+                    .used_exports(module(name).await?)
+                    .await?
+                    .await?;
+                Ok((name.clone(), usage.namespace_object_may_escape))
+            })
+            .try_join()
+            .await?;
+        Ok(Vc::cell(escapes))
+    }
+
+    async fn namespace_escapes(
+        namespace_path_is_longer: bool,
+        plain_usage_is_all: bool,
+    ) -> Vec<(RcStr, bool)> {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let escapes = namespace_escapes_operation(namespace_path_is_longer, plain_usage_is_all)
+                .read_strongly_consistent()
+                .await?;
+            Ok((*escapes).clone())
+        })
+        .await
+        .unwrap()
+    }
+
+    fn namespace_a() -> ExportUsage {
+        ExportUsage::PartialNamespaceObject([rcstr!("a")].into_iter().collect())
+    }
+
+    fn reexport_all() -> ExportUsage {
+        // `export * from "y"`
+        ExportUsage::Passthrough {
+            namespace_object_may_escape: false,
+        }
+    }
+
+    /// `x` is reached directly from `entry` and through `entry -> m1 -> m2 -> x`; `x -> y` is an
+    /// `export *` passthrough edge.
+    ///
+    /// When `namespace_path_is_longer` is true, the plain edge reaches `x` first and its
+    /// passthrough is processed before the namespace edge. In that order, the namespace usage does
+    /// not add any export to `x`. Otherwise namespace provenance reaches `x` first.
+    fn namespace_graph(namespace_path_is_longer: bool, plain_usage: ExportUsage) -> Edges {
+        let (direct_usage, late_usage) = if namespace_path_is_longer {
+            (plain_usage, namespace_a())
+        } else {
+            (namespace_a(), plain_usage)
+        };
+        vec![
+            (
+                rcstr!("entry"),
+                vec![
+                    (rcstr!("x"), direct_usage),
+                    (rcstr!("m1"), ExportUsage::All),
+                ],
+            ),
+            (rcstr!("m1"), vec![(rcstr!("m2"), ExportUsage::All)]),
+            (rcstr!("m2"), vec![(rcstr!("x"), late_usage)]),
+            (rcstr!("x"), vec![(rcstr!("y"), reexport_all())]),
+        ]
+    }
+
+    fn expected_escapes() -> Vec<(RcStr, bool)> {
+        vec![
+            (rcstr!("entry"), false),
+            (rcstr!("m1"), false),
+            (rcstr!("m2"), false),
+            (rcstr!("x"), true),
+            (rcstr!("y"), true),
+        ]
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn late_namespace_usage_of_all_module_reaches_passthrough_target() {
+        assert_eq!(namespace_escapes(true, true).await, expected_escapes());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn late_namespace_usage_of_already_used_name_reaches_passthrough_target() {
+        assert_eq!(namespace_escapes(true, false).await, expected_escapes());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn early_namespace_usage_of_all_module_reaches_passthrough_target() {
+        assert_eq!(namespace_escapes(false, true).await, expected_escapes());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn early_namespace_usage_of_already_used_name_reaches_passthrough_target() {
+        assert_eq!(namespace_escapes(false, false).await, expected_escapes());
     }
 }

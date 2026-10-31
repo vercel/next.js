@@ -77,3 +77,9 @@ See [Routing Information](/docs/app/api-reference/adapters/routing-information).
 ## Use Cases
 
 See [Use Cases](/docs/app/api-reference/adapters/use-cases).
+
+## Version History
+
+| Version   | Changes                                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| `v16.2.0` | `adapterPath` stabilized and moved from `experimental.adapterPath` to the top-level `adapterPath` option. |

@@ -1,5 +1,5 @@
 pub mod availability_info;
-pub mod available_modules;
+pub mod available_chunk_groups;
 pub mod chunk_group;
 pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::DeterministicHash;
 
@@ -37,7 +37,7 @@ pub use crate::chunk::{
 };
 use crate::{
     asset::Asset,
-    chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
+    chunk::availability_info::AvailabilityInfo,
     emit_collect::CollectingModule,
     ident::AssetIdent,
     module::Module,
@@ -49,9 +49,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, DeterministicHash, Encode, Decode,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, DeterministicHash, Encode, Decode)]
 pub enum ContentHashing {
     /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
     /// Benefit: No hash manifest needed.
@@ -203,7 +201,7 @@ impl MergeableModules {
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, Hash, Encode, Decode)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
     // used (and no namespace object is required).
@@ -302,7 +300,6 @@ pub trait OutputChunk: Asset {
     Clone,
     Copy,
     Hash,
-    TraceRawVcs,
     Serialize,
     Deserialize,
     Eq,
@@ -335,7 +332,6 @@ impl Display for TracedMode {
     Debug,
     Clone,
     Hash,
-    TraceRawVcs,
     Serialize,
     Deserialize,
     Eq,
@@ -532,7 +528,6 @@ pub struct ChunkGroupContentInner {
     /// All modules that implement CollectingModule
     #[bincode(with = "turbo_bincode::indexset")]
     pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
-    pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 
 pub struct ChunkGroupContent {
@@ -618,7 +613,7 @@ impl AsyncModuleInfo {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,

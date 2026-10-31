@@ -139,6 +139,11 @@ impl EcmascriptBrowserChunkContent {
 
         Ok(code.cell())
     }
+
+    #[turbo_tasks::function]
+    pub(crate) async fn has_source_map(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.code().await?.has_source_map()))
+    }
 }
 
 #[turbo_tasks::value_impl]
