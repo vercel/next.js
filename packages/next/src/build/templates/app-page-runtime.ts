@@ -627,10 +627,6 @@ export function createAppPageEntrypoint({
         !shouldForceDynamicPPRRender
     )
 
-    // When a page supports cacheComponents, we can support RDC for Navigations
-    const supportsRDCForNavigations =
-      isRoutePPREnabled && nextConfig.cacheComponents === true
-
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
@@ -647,7 +643,7 @@ export function createAppPageEntrypoint({
       // If this handler supports onCacheEntryV2, then we can only support
       // dynamic responses if it's a dynamic RSC request and not in minimal mode. If it
       // doesn't support it we must fallback to the default behavior.
-      (supportsRDCForNavigations && getRequestMeta(req, 'onCacheEntryV2')
+      (isRoutePPREnabled && getRequestMeta(req, 'onCacheEntryV2')
         ? // In minimal mode, we'll always want to generate a static response
           // which will generate the RDC for the route. When resuming a Dynamic
           // RSC request, we'll pass the minimal postponed data to the render
@@ -1319,17 +1315,10 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // When cacheComponents is enabled, we can use the fallback
-            // response if the request is not a dynamic RSC request because the
-            // RSC data when this feature flag is enabled does not contain any
-            // param references. Without this feature flag enabled, the RSC data
-            // contains param references, and therefore we can't use the fallback.
-            if (
-              isRoutePPREnabled &&
-              (nextConfig.cacheComponents
-                ? !isDynamicRSCRequest
-                : !isRSCRequest)
-            ) {
+            // Serve the fallback for document and static RSC requests. Dynamic
+            // RSC requests render separately and can reuse the RDC from cached
+            // postponed state.
+            if (isRoutePPREnabled && !isDynamicRSCRequest) {
               const cacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
@@ -1496,11 +1485,11 @@ export function createAppPageEntrypoint({
           let hasFullyStaticCacheEntry = false
 
           if (
-            // Dynamic RSC and Server Action requests reuse the static render's
-            // postponed state when RDC for Navigations is enabled. Its RDC
-            // keeps cache values consistent with the static render. Draft mode
-            // requests must generate fresh values without this published RDC.
-            supportsRDCForNavigations &&
+            // Dynamic RSC and Server Action requests reuse the RDC from cached
+            // postponed state to keep cached values consistent with the
+            // prerender. Draft mode requests render fresh values without this
+            // published RDC.
+            isRoutePPREnabled &&
             !isDraftMode &&
             process.env.NEXT_RUNTIME !== 'edge' &&
             !isMinimalMode &&
@@ -1758,9 +1747,9 @@ export function createAppPageEntrypoint({
       }
 
       const invokeOnCacheEntry = (cacheEntry: ResponseCacheEntry) => {
-        // If we support RDC for Navigations, prefer the callback that can
-        // deliver postponed state for both document and RSC requests.
-        const onCacheEntry = supportsRDCForNavigations
+        // Prefer onCacheEntryV2 for PPR entries so the callback can receive
+        // postponed state for both document and RSC requests.
+        const onCacheEntry = isRoutePPREnabled
           ? (getRequestMeta(req, 'onCacheEntryV2') ??
             getRequestMeta(req, 'onCacheEntry'))
           : getRequestMeta(req, 'onCacheEntry')
