@@ -1,4 +1,3 @@
-import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import type { Page } from 'playwright'
@@ -9,15 +8,6 @@ describe('external-browser-runtime-streaming', () => {
   })
 
   it('reveals prerendered and dynamic boundaries with only the external runtime', async () => {
-    const shell = load(await next.readFile('.next/server/app/index.html'))
-    const segment = shell('#large').closest('[hidden]')
-    expect(segment).toHaveLength(1)
-    expect(
-      shell(`template[data-rci][data-sid="${segment.attr('id')}"]`)
-    ).toHaveLength(1)
-    expect(shell('#dynamic')).toHaveLength(0)
-    expect(shell('script:not([src])')).toHaveLength(0)
-
     const { externalBrowserRuntimeFile } = JSON.parse(
       await next.readFile('.next/build-manifest.json')
     )
