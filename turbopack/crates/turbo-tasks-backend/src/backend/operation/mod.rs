@@ -1201,6 +1201,24 @@ impl<'e> ExecuteContext<'e> {
         self.backend.should_track_activeness()
     }
 
+    /// Changes the count of aggregation update queues that are processing work.
+    pub fn update_active_aggregation_update_queues(&self, active: bool) {
+        let counter = &self.backend.active_aggregation_update_queues;
+        if active {
+            counter.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        } else {
+            counter.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        }
+    }
+
+    /// The number of aggregation update queues that are processing work. Queues that only wait
+    /// for the matching add of a lost follower are not counted.
+    pub fn active_aggregation_update_queues(&self) -> usize {
+        self.backend
+            .active_aggregation_update_queues
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
     pub fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {
         self.turbo_tasks.pin()
     }
