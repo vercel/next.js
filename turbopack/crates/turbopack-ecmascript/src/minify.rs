@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use bytes_str::BytesStr;
 use swc_core::{
-    atoms::atom,
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
@@ -16,7 +15,7 @@ use swc_core::{
             Emitter,
             text_writer::{self, JsWriter, WriteJs},
         },
-        minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
+        minifier::option::{ExtraOptions, MinifyOptions},
         parser::{Parser, StringInput, Syntax, lexer::Lexer},
         transforms::base::{
             fixer::paren_remover,
@@ -26,15 +25,12 @@ use swc_core::{
     },
 };
 use tracing::instrument;
-use turbopack_core::{
-    chunk::MangleType,
-    code_builder::{Code, CodeBuilder},
-};
+use turbopack_core::code_builder::{Code, CodeBuilder};
 
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(code: Code, source_maps: bool, swc_minify_options: &MinifyOptions) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
     let source_maps = source_maps.then(|| code.generate_source_map_ref(None));
@@ -93,31 +89,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                         cm.clone(),
                         Some(&comments),
                         None,
-                        &MinifyOptions {
-                            compress: Some(CompressOptions {
-                                // Only run 2 passes, this is a tradeoff between performance and
-                                // compression size. Default is 3 passes.
-                                passes: 2,
-                                keep_classnames: mangle.is_none(),
-                                keep_fnames: mangle.is_none(),
-                                ..Default::default()
-                            }),
-                            mangle: mangle.map(|mangle| {
-                                let reserved = vec![atom!("AbortSignal")];
-                                match mangle {
-                                    MangleType::OptimalSize => MangleOptions {
-                                        reserved,
-                                        ..Default::default()
-                                    },
-                                    MangleType::Deterministic => MangleOptions {
-                                        reserved,
-                                        disable_char_freq: true,
-                                        ..Default::default()
-                                    },
-                                }
-                            }),
-                            ..Default::default()
-                        },
+                        swc_minify_options,
                         &ExtraOptions {
                             top_level_mark,
                             unresolved_mark,
@@ -125,7 +97,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                         },
                     );
 
-                    if mangle.is_none() {
+                    if swc_minify_options.mangle.is_none() {
                         program.mutate(hygiene_with_config(hygiene::Config {
                             top_level_mark,
                             ..Default::default()

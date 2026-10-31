@@ -3,24 +3,24 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
-use turbopack_core::{
-    chunk::{MinifyType, ModuleId},
-    version::Version,
-};
+use turbopack_core::{chunk::ModuleId, version::Version};
 
-use crate::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
+use crate::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    emit_options::EcmascriptEmitOptions,
+};
 
 /// The version of a single Ecmascript chunk's content, tracked as the set of
 /// per-module content hashes.
 ///
 /// Runtime-agnostic: the browser and node chunking contexts share this one
-/// implementation rather than each carrying a copy. `minify_type` participates
-/// in the hash because minification changes the emitted bytes without changing
-/// any module's own hash.
+/// implementation rather than each carrying a copy. The emit options participate
+/// in the hash because options such as minification change the emitted bytes
+/// without changing any module's own hash.
 #[turbo_tasks::value(serialization = "skip")]
 pub struct EcmascriptChunkVersion {
     pub chunk_path: RcStr,
-    pub minify_type: MinifyType,
+    pub emit_options: ReadRef<EcmascriptEmitOptions>,
     pub entries_hashes: FxIndexMap<ModuleId, u128>,
 }
 
@@ -31,7 +31,7 @@ impl EcmascriptChunkVersion {
         output_root: FileSystemPath,
         chunk_path: FileSystemPath,
         content: Vc<EcmascriptChunkContent>,
-        minify_type: MinifyType,
+        emit_options: Vc<EcmascriptEmitOptions>,
     ) -> Result<Vc<Self>> {
         let Some(chunk_path) = output_root.get_path_to(&chunk_path) else {
             turbobail!("chunk path {chunk_path} is not in output root {output_root}");
@@ -47,7 +47,7 @@ impl EcmascriptChunkVersion {
 
         Ok(EcmascriptChunkVersion {
             chunk_path: chunk_path.into(),
-            minify_type,
+            emit_options: emit_options.await?,
             entries_hashes,
         }
         .cell())
@@ -60,7 +60,7 @@ impl Version for EcmascriptChunkVersion {
     fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
-        hasher.write_ref(&self.minify_type);
+        hasher.write_value(self.emit_options.deterministic_hash());
         let sorted_hashes = {
             let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
             hashes.sort();
