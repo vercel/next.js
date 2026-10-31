@@ -1486,7 +1486,7 @@ export async function createTestCompilerSession(
       !(
         sourceAnalysis &&
         preparingIstanbulTypeScript &&
-        /\.[jt]sx$/.test(entry.file)
+        /\.(?:ts|mts|[jt]sx)$/.test(entry.file)
       )
     )
       throw new Error(

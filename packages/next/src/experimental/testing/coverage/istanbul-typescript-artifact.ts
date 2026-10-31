@@ -299,7 +299,10 @@ export async function readIstanbulTypeScriptDeclarations({
   }
   lease()
   assertIstanbulProfile(profile)
-  if (profile.mode !== 'development' && !/\.[jt]sx$/.test(source.file))
+  if (
+    profile.mode !== 'development' &&
+    !/\.(?:ts|mts|[jt]sx)$/.test(source.file)
+  )
     throw new Error(
       'Typed Istanbul requires its qualified development profile.'
     )

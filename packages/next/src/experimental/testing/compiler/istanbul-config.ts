@@ -27,7 +27,7 @@ export function withIstanbulInstrumentation(
   if (profile.mode === 'production')
     for (const source of descriptor.metadata.sources) {
       assertIstanbulSourceExtension(profile, source.file)
-      if (source.typeScriptSource && !/\.[jt]sx$/.test(source.file))
+      if (source.typeScriptSource && !/\.(?:ts|mts|[jt]sx)$/.test(source.file))
         throw new Error(
           'Production typed Istanbul metadata is not implemented.'
         )
@@ -79,8 +79,7 @@ export function withIstanbulTypeScriptInstrumentation(
       ...actual.turbopack,
       rules: {
         ...rules,
-        [profile.mode === 'production' ? '*.{tsx,jsx}' : '*.{ts,mts,tsx,jsx}']:
-          rules['*.{js,mjs,cjs}'],
+        '*.{ts,mts,tsx,jsx}': rules['*.{js,mjs,cjs}'],
       },
     },
   }

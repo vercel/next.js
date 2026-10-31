@@ -24820,3 +24820,60 @@ describe('production intrinsic JSX/TSX Istanbul complete public reports', () => 
     }
   }, 250000)
 })
+
+describe('production ordinary TypeScript/MTS Istanbul complete public reports', () => {
+  const models = require('./fixtures/istanbul-provider/production-typescript-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches complete genuine cases, maps, reports and lifecycle for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-production-typescript-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'production-istanbul-typescript-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+  it('preserves actual spec-load SIGINT, no publication and recovery for production TypeScript', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-production-typescript-cancel-')
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'production-istanbul-typescript-cancel-recovery.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          stdio: 'pipe',
+          timeout: 245000,
+        }
+      )
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})

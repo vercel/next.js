@@ -89,19 +89,19 @@ export async function createIstanbulSourcePlan(options: {
         throw new Error('Istanbul source must be a canonical regular file.')
       const bytes = await readFile(file)
       if (options.profile.mode === 'production') {
-        if (!/\.(?:js|mjs|[jt]sx)$/.test(file)) {
+        if (!/\.(?:js|mjs|ts|mts|[jt]sx)$/.test(file)) {
           if (importedOnly) continue
           assertIstanbulSourceExtension(options.profile, file)
         }
         if (
-          /\.[jt]sx$/.test(file) &&
+          /\.(?:ts|mts|[jt]sx)$/.test(file) &&
           !(
             await import('./istanbul-typescript-artifact.js')
           ).isIstanbulTypeScriptSource(file, bytes.toString('utf8'))
         ) {
           if (importedOnly) continue
           throw new Error(
-            'Production Istanbul requires ordinary Node JS/MJS sources or qualified intrinsic JSX sources.'
+            'Production Istanbul requires ordinary Node JS/MJS sources or qualified TypeScript or intrinsic JSX sources.'
           )
         }
       }
@@ -406,7 +406,7 @@ export async function openIstanbulInstrumentation(options: {
                 !selected.has(file)
               )
                 throw new Error(
-                  'Production Istanbul requires ordinary Node JS/MJS sources or qualified intrinsic JSX sources.'
+                  'Production Istanbul requires ordinary Node JS/MJS sources or qualified TypeScript or intrinsic JSX sources.'
                 )
               if (!/\.(?:js|mjs|cjs)$/.test(file))
                 throw new Error(

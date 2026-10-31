@@ -135,7 +135,7 @@ async function assertArtifact(
   if (artifact.profile.mode === 'production') {
     for (const source of coverage.istanbul.sources) {
       assertIstanbulSourceExtension(artifact.profile, source.file)
-      if (source.typeScriptSource && !/\.[jt]sx$/.test(source.file))
+      if (source.typeScriptSource && !/\.(?:ts|mts|[jt]sx)$/.test(source.file))
         throw new Error(
           'Production typed Istanbul metadata is not implemented.'
         )
