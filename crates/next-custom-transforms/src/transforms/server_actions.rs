@@ -48,8 +48,65 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub is_development: bool,
     pub use_cache_enabled: bool,
-    pub hash_salt: String,
+    pub hash_salt: HashSalt,
     pub cache_kinds: FxHashSet<RcStr>,
+}
+
+/// The salt mixed into every generated server reference ID.
+///
+/// It is only read when the transform generates a server reference ID, i.e. for modules with
+/// `"use server"` or `"use cache"` functions. A [lazy](HashSalt::lazy) salt allows callers to
+/// avoid computing (or depending on) the salt for all other modules.
+#[derive(Clone, Deserialize)]
+#[serde(from = "String")]
+pub struct HashSalt(HashSaltInner);
+
+#[derive(Clone)]
+enum HashSaltInner {
+    Value(RcStr),
+    Lazy(Arc<dyn Fn() -> RcStr + Send + Sync>),
+}
+
+impl HashSalt {
+    /// A salt that is computed by `get` when it is needed. `get` may be called multiple times.
+    pub fn lazy(get: impl Fn() -> RcStr + Send + Sync + 'static) -> Self {
+        Self(HashSaltInner::Lazy(Arc::new(get)))
+    }
+
+    fn get(&self) -> RcStr {
+        match &self.0 {
+            HashSaltInner::Value(value) => value.clone(),
+            HashSaltInner::Lazy(get) => get(),
+        }
+    }
+}
+
+impl From<RcStr> for HashSalt {
+    fn from(value: RcStr) -> Self {
+        Self(HashSaltInner::Value(value))
+    }
+}
+
+impl From<String> for HashSalt {
+    fn from(value: String) -> Self {
+        RcStr::from(value).into()
+    }
+}
+
+impl From<&str> for HashSalt {
+    fn from(value: &str) -> Self {
+        RcStr::from(value).into()
+    }
+}
+
+impl std::fmt::Debug for HashSalt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Don't print the salt: it can be a secret (e.g. the server actions encryption key).
+        f.write_str(match &self.0 {
+            HashSaltInner::Value(_) => "HashSalt(..)",
+            HashSaltInner::Lazy(_) => "HashSalt(lazy)",
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -296,7 +353,7 @@ impl<C: Comments> ServerActions<C> {
         // Currently encoded as hex.
 
         let mut hasher = Sha1::new();
-        hasher.update(self.config.hash_salt.as_bytes());
+        hasher.update(self.config.hash_salt.get().as_bytes());
         hasher.update(self.file_name.as_bytes());
         hasher.update(b":");
 
