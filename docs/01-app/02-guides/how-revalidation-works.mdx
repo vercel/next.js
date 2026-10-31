@@ -59,7 +59,7 @@ When running multiple Next.js instances behind a load balancer, revalidation eve
 The cache handler API provides two hooks for distributed coordination:
 
 - **`updateTags()`** is called when `revalidateTag()` is invoked. Your handler should write the invalidation event to shared storage (for example, Redis or a database) so other instances can discover it.
-- **`refreshTags()`** is called periodically, but always before starting a new request. Your handler should check shared storage for recent invalidation events and update its local tag state accordingly.
+- **`refreshTags()`** runs once per request, before the first cache read for that handler kind. Requests that do not read from that handler do not call it. Your handler should check shared storage for recent invalidation events and update its local tag state accordingly.
 
 For implementation details and a Redis example, see [Custom Cache Handlers](/docs/app/api-reference/config/next-config-js/cacheHandlers).
 

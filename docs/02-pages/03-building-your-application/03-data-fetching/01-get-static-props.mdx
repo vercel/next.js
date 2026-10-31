@@ -63,7 +63,7 @@ You should use `getStaticProps` if:
 - `getStaticProps` runs in the background when using `revalidate`
 - `getStaticProps` runs on-demand in the background when using [`revalidate()`](/docs/pages/guides/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath)
 
-When combined with [Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
+When the revalidation interval has passed, the next request receives the cached page while `getStaticProps` regenerates it in the background. Subsequent requests receive the updated page after regeneration succeeds. See [Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration) for more details.
 
 `getStaticProps` does not have access to the incoming request (such as query parameters or HTTP headers) as it generates static HTML. If you need access to the request for your page, consider using [Proxy](/docs/pages/api-reference/file-conventions/proxy) in addition to `getStaticProps`.
 
