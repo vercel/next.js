@@ -209,6 +209,9 @@ impl ValueToString for RouteTree {
         if !base.is_empty() {
             result.push_str(", ");
         }
+        // `static_segments` is a hash map, so sort for a deterministic string.
+        let mut static_segments = static_segments.iter().collect::<Vec<_>>();
+        static_segments.sort_unstable_by_key(|(key, _)| *key);
         for (key, tree) in static_segments {
             let tree = tree.to_string().await?;
             write!(result, "{key}: {tree}, ")?;
