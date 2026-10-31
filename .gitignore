@@ -83,3 +83,6 @@ CLAUDE.local.md
 index.scip
 
 .env*
+
+# Agent Build eval fixtures pin their dependencies; their Dockerfiles run npm ci.
+!evals/agent-build/**/package-lock.json

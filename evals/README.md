@@ -4,6 +4,21 @@ Agent evals for Next.js. Each eval is a small Next.js app + a prompt + assertion
 
 The point: find places where agents get Next.js wrong because their training data is stale, then fix it by shipping better docs in the `next` package itself.
 
+## Two kinds of evals
+
+This directory holds two kinds of evals. The rest of this file covers the
+`agent-eval` fixtures. Agent Build tasks have their own docs in
+[`agent-build/README.md`](agent-build/README.md).
+
+|          | `agent-eval` fixtures                                                     | Agent Build tasks                             |
+| -------- | ------------------------------------------------------------------------- | --------------------------------------------- |
+| Location | `evals/evals/agent-*`                                                     | `evals/agent-build/<task>`                    |
+| Format   | `PROMPT.md`, `EVAL.ts`, and the fixture app                               | Harbor task with a separate, offline verifier |
+| Labels   | `regression` and `competency` in `eval.suites.json`                       | None                                          |
+| Runner   | `run-evals.js` over `@vercel/agent-eval`                                  | Harbor on Vercel Sandbox                      |
+| Results  | Published to `next-evals-oss` and nextjs.org/evals                        | Reported in the pull request, not published   |
+| Status   | Kept running for their published history. Their future is not decided yet | New tasks go here                             |
+
 ## How it works
 
 The runner is [`@vercel/agent-eval`](https://github.com/vercel-labs/agent-eval). It spins up a sandbox (Vercel or local Docker), copies the fixture in, runs the coding agent against `PROMPT.md`, then executes `EVAL.ts` as a vitest file against whatever the agent wrote. The `PROMPT.md` / `EVAL.ts` / fixture-dir convention you'll see below is that package's convention — see its README for the full spec.
@@ -22,9 +37,13 @@ vc env pull   # writes .env.local to repo root
 
 External contributors can run the same evals in local Docker with their own API key — see [Running without Vercel sandbox access](#running-without-vercel-sandbox-access).
 
-## Writing an eval
+## Existing agent-eval format
 
-Copy an existing fixture. Take the next free number — gaps are fine.
+Use this format when maintaining an existing fixture. New tasks use the
+[Agent Build format](agent-build/README.md).
+
+To split or replace an existing fixture, copy it and take the next free number.
+Gaps are fine.
 
 ```bash
 cp -r evals/evals/agent-034-async-cookies evals/evals/agent-042-your-thing
@@ -156,15 +175,14 @@ pnpm eval --suite regression
 pnpm eval --suite competency --dry
 ```
 
-- `audit` is the starting point for new or unverified evals.
 - `competency` contains verified evals that distinguish model capability.
 - `regression` contains evals that reach at least 90% valid pass@1 across
   frontier and weaker models over multiple runs or versions.
 
-Every eval under active measurement must appear in exactly one suite. A suite
-still runs both `baseline` and `agents-md`. Set `publish: false` in
-`eval.config.json` while an eval is being audited, when its results should stay
-internal, or when it belongs in another measurement system.
+Every public agent-eval fixture must appear in exactly one suite. A suite still
+runs both `baseline` and `agents-md`. Keep an existing fixture outside the
+named suites and set `publish: false` while it is under review, when its results
+should stay internal, or when it belongs in another measurement system.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 
@@ -191,7 +209,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 `pnpm eval` packs `packages/next/dist/` into a tarball and ships that to the sandbox. It does not build. If you changed `packages/next/src/**` or `docs/**`, run `pnpm --filter=next build` first or the sandbox will see stale code. If you only changed fixture files, no rebuild is needed.
 
-## Workflow
+## Bundled docs workflow
 
 1. **Write the fixture.** `PROMPT.md` describes a user-facing problem. `EVAL.ts` asserts the API you expect the agent to reach for.
 
@@ -211,6 +229,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ```
 evals/
+├── agent-build/     # Agent Build tasks in Harbor format, with their own docs
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
 ├── lib/bundle-optimizer/ # optimizer measurement and transcript hooks
