@@ -1328,7 +1328,7 @@ impl AggregationUpdateQueue {
             && self.removal_jobs.is_empty())
         {
             self.process(ctx);
-            balance_queue.extend(take(&mut self.balance_queue));
+            balance_queue.extend(self.balance_queue.drain(..));
         }
         assert!(
             self.find_and_schedule.is_empty() && self.scheduled_tasks.is_empty(),
