@@ -88,6 +88,7 @@ import {
   getReactCompilerLoader,
 } from './get-babel-loader-config'
 import {
+  INSTRUMENTATION_INJECT_STUB_PATH,
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
@@ -1373,6 +1374,7 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-instrumentation-client-loader',
+        'next-instrumentation-inject-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1954,6 +1956,18 @@ export default async function getBaseWebpackConfig(
             },
           },
         },
+        // The server instrumentation entry when `instrumentationInject` is set.
+        // The loader emits one module that runs every entry's hooks, then the
+        // project's own instrumentation file.
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-inject-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-inject-loader',
+            options: {
+              modules: config.instrumentationInject ?? [],
+            },
+          },
+        },
         {
           // This loader rule should be before other rules, as it can output code
           // that still contains `"use client"` or `"use server"` statements that
@@ -1993,6 +2007,18 @@ export default async function getBaseWebpackConfig(
       ],
     },
     plugins: [
+      !isClient &&
+        config.instrumentationInject?.length &&
+        new bundler.NormalModuleReplacementPlugin(
+          new RegExp(
+            `^${escapeStringRegexp(INSTRUMENTATION_INJECT_STUB_PATH)}$`
+          ),
+          ({ createData }) => {
+            if (createData?.resource === INSTRUMENTATION_INJECT_STUB_PATH) {
+              createData.context = dir
+            }
+          }
+        ),
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
       dev && new CompleteRuntimePlugin(),
@@ -2366,6 +2392,8 @@ export default async function getBaseWebpackConfig(
     optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
+    instrumentationInject: config.instrumentationInject,
+    instrumentationClientInject: config.instrumentationClientInject,
     trailingSlash: config.trailingSlash,
     devIndicatorsPosition:
       config.devIndicators === false

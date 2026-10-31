@@ -1953,6 +1953,15 @@ export interface NextConfig {
    */
   instrumentationClientInject?: string[]
 
+  /**
+   * Module specifiers compiled into the server `instrumentation` slot, ahead
+   * of the project's own `instrumentation.{ts,js}` file. Every entry's
+   * `register` and `onRequestError` run in array order, then the project
+   * file's. A hook that throws does not stop the others. Each entry may be a bare
+   * npm package name, a path relative to the project root, or an absolute path.
+   */
+  instrumentationInject?: string[]
+
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
@@ -2328,6 +2337,7 @@ export const defaultConfig = Object.freeze({
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
+  instrumentationInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,

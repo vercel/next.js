@@ -170,9 +170,6 @@ export function createWebpackAliases({
             'private-next-empty-module',
           ],
 
-          // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
-          'private-next-empty-module': false as any,
-
           // In the browser bundle, swap every module that has a `.browser` sibling
           // (see browser-variant-modules.ts, generated from the filesystem) for that
           // sibling. The default module holds the full server logic; bundling it would
@@ -220,7 +217,24 @@ export function createWebpackAliases({
               }
             : {}),
         }
-      : {}),
+      : {
+          // The project's own `instrumentation.{pageExt}` file, chained after
+          // the `instrumentationInject` entries by
+          // `next-instrumentation-inject-loader`. Same lookup as Turbopack:
+          // every page extension at the project root, then in `src/`. Exact
+          // names, so compound extensions like `page.ts` match.
+          'private-next-instrumentation-user': [
+            ...['', 'src'].flatMap((subDir) =>
+              pageExtensions.map((ext) =>
+                path.join(dir, subDir, `instrumentation.${ext}`)
+              )
+            ),
+            'private-next-empty-module',
+          ],
+        }),
+
+    // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
+    'private-next-empty-module': false as any,
 
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
