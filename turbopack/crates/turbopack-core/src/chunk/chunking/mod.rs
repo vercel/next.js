@@ -32,6 +32,8 @@ mod dev;
 mod production;
 mod style_production;
 
+pub use production::DEFAULT_ESTIMATED_REQUEST_COST_BYTES;
+
 #[turbo_tasks::value]
 struct ChunkItemsWithInfo {
     #[allow(clippy::type_complexity)]

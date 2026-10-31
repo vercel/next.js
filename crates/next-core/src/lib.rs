@@ -7,6 +7,7 @@ pub mod app_structure;
 mod base_loader_tree;
 mod bootstrap;
 mod browser_variant_modules;
+mod chunk_size_defaults;
 mod embed_js;
 mod emit;
 pub mod hmr_entry;
