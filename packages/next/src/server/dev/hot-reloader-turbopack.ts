@@ -31,6 +31,7 @@ import type {
   TurbopackResult,
   Project,
   Entrypoints,
+  Issue,
   NodeJsPartialHmrUpdate,
   ServerHmrVersion,
 } from '../../build/swc/types'
@@ -127,7 +128,10 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
-import { printBuildErrors } from '../../build/print-build-errors'
+import {
+  isStrictRouteMatchingIssue,
+  printBuildErrors,
+} from '../../build/print-build-errors'
 import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
@@ -624,6 +628,7 @@ export async function createHotReloaderTurbopack(
 
   const currentTopLevelIssues: TopLevelIssuesMap = new Map()
   const currentEntryIssues: EntryIssuesMap = new Map()
+  let previousStrictRouteMatchingIssues = ''
 
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
@@ -1218,6 +1223,22 @@ export async function createHotReloaderTurbopack(
     state.clientIssues.delete(key)
   }
 
+  // Strict route-matching problems are top-level Error issues that still leave
+  // routes to serve, and the handler prints top-level issues only when no
+  // routes are returned. Print them and the looseRouteMatching hint when they
+  // change, as the old route watcher did.
+  function reportStrictRouteMatchingIssues(issues: Issue[]) {
+    const strictIssues = issues.filter(isStrictRouteMatchingIssue)
+    const signature = strictIssues.map(formatIssue).join('\n')
+    if (signature === previousStrictRouteMatchingIssues) return
+    previousStrictRouteMatchingIssues = signature
+    if (strictIssues.length === 0) return
+    printBuildErrors({ value: undefined, issues: strictIssues }, true, {
+      strictRouteMatchingDefaultWarning:
+        getStrictRouteMatchingDefaultWarning(nextConfig),
+    })
+  }
+
   async function handleEntrypointsSubscription() {
     for await (const entrypoints of entrypointsSubscription) {
       if (!currentEntriesHandlingResolve) {
@@ -1243,6 +1264,8 @@ export async function createHotReloaderTurbopack(
         currentEntriesHandlingResolve = undefined
         continue
       }
+
+      reportStrictRouteMatchingIssues(entrypoints.issues)
 
       try {
         routeSnapshot = routePublisher.install(entrypoints.value)
