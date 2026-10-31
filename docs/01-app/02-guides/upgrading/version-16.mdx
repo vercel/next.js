@@ -1259,6 +1259,23 @@ If you were not actively adopting Cache Components, remove the flags instead. En
 
 For the full migration path, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
+### `experimental.appNewScrollHandler`
+
+The `experimental.appNewScrollHandler` flag was removed in 16.4.0. Its scroll handler became the App Router default in 16.3.0, so remove the flag from your Next config:
+
+```js filename="next.config.js"
+// Before
+module.exports = {
+  experimental: {
+    appNewScrollHandler: true,
+  },
+}
+```
+
+Leaving the flag in place does not change scroll behavior, but `next.config.ts` fails type checking with `'appNewScrollHandler' does not exist in type 'ExperimentalConfig'`, and Next.js warns about invalid config options.
+
+With the handler always on, a navigation scrolls to the updated segment and leaves focus unchanged instead of focusing the first focusable element inside that segment.
+
 ### `unstable_rootParams`
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
