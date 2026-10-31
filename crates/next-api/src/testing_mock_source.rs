@@ -28,17 +28,158 @@ pub(crate) struct StaticMockPlan {
     /// certificate.
     pub throw_only_runtime_requests: Vec<String>,
 }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct NativeUnmockTarget {
+    pub request: String,
+    pub retained: bool,
+    pub surviving_factories: usize,
+}
+
+/// Callers supply actual resolved identities; distinct spellings cannot share one.
+pub(crate) fn native_unmock_original_is_available<K: Eq + std::hash::Hash>(
+    known: &HashMap<K, NativeUnmockTarget>,
+    original: &K,
+    request: &str,
+) -> bool {
+    known.iter().all(|(previous, target)| {
+        if previous == original {
+            target.request == request
+        } else {
+            target.request != request
+        }
+    })
+}
+
 impl StaticMockPlan {
+    /// Syntax groups only. Native resolution/certificates remain assembly-owned.
+    pub(crate) fn native_unmock_targets(&self) -> Option<Vec<NativeUnmockTarget>> {
+        if self.declarations.is_empty()
+            || self.unmocks.is_empty()
+            || !self.reset_modules
+            || !self.hoisted.is_empty()
+            || !self.mock_imports.is_empty()
+        {
+            return None;
+        }
+        let ranges = self
+            .declarations
+            .iter()
+            .map(|factory| {
+                factory
+                    .factory_start
+                    .checked_add(factory.original_factory_source.len())
+                    .map(|end| (factory.factory_start, end))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let mut requests = Vec::new();
+        for factory in &self.declarations {
+            let request = factory.request.as_str();
+            if request.is_empty()
+                || request.starts_with(['.', '/', '#', '\\'])
+                || request.contains(['?', '#', ':'])
+                || factory.automatic
+                || factory.spy
+                || !factory.has_object_return
+                || factory.has_spread
+                || factory.original_factory_source.is_empty()
+            {
+                return None;
+            }
+            if !requests.contains(&request) {
+                requests.push(request);
+            }
+        }
+        // New multi-target combinations are bare package roots only. Aliased
+        // subpath equivalence needs its own resolved/runtime conformance model.
+        if requests.len() > 1
+            && requests.iter().any(|request| {
+                if request.starts_with('@') {
+                    let parts = request.split('/').collect::<Vec<_>>();
+                    parts.len() != 2 || parts[0].len() <= 1 || parts[1].is_empty()
+                } else {
+                    request.contains('/')
+                }
+            })
+        {
+            return None;
+        }
+        if ranges.windows(2).any(|pair| pair[0].1 > pair[1].0)
+            || self
+                .unmocks
+                .windows(2)
+                .any(|pair| pair[0].end > pair[1].start)
+            || self.unmocks.iter().any(|cut| {
+                !requests.contains(&cut.request.as_str())
+                    || cut.start >= cut.end
+                    || ranges
+                        .iter()
+                        .any(|&(start, end)| cut.start < end && cut.end > start)
+            })
+            || self.runtime_requests.len() != requests.len()
+            || self.runtime_requests.iter().collect::<HashSet<_>>().len() != requests.len()
+            || self
+                .runtime_requests
+                .iter()
+                .any(|request| !requests.contains(&request.as_str()))
+            || self
+                .actual_imports
+                .iter()
+                .any(|actual| !requests.contains(&actual.request.as_str()))
+        {
+            return None;
+        }
+        requests
+            .into_iter()
+            .map(|request| {
+                let cut = self
+                    .unmocks
+                    .iter()
+                    .filter(|cut| cut.request == request)
+                    .last()?;
+                let factory = self
+                    .declarations
+                    .iter()
+                    .filter(|factory| factory.request == request)
+                    .last()?;
+                let end = factory
+                    .factory_start
+                    .checked_add(factory.original_factory_source.len())?;
+                let retained = cut.end <= factory.factory_start;
+                if (!retained && cut.start < end)
+                    || !self
+                        .actual_imports
+                        .iter()
+                        .any(|actual| actual.request == request)
+                {
+                    return None;
+                }
+                Some(NativeUnmockTarget {
+                    request: request.to_owned(),
+                    retained,
+                    surviving_factories: self
+                        .declarations
+                        .iter()
+                        .filter(|factory| {
+                            factory.request == request && factory.factory_start >= cut.end
+                        })
+                        .count(),
+                })
+            })
+            .collect()
+    }
     // Syntax candidates only. Assembly proves the actual cancelled/surviving
     // declaration, canonical original, helper owner and native provider.
+    #[cfg(test)]
     pub(crate) fn retained_single_native_unmock(&self) -> Option<&str> {
         self.single_native_unmock(true)
     }
 
+    #[cfg(test)]
     pub(crate) fn cancelled_single_native_unmock(&self) -> Option<&str> {
         self.single_native_unmock(false)
     }
 
+    #[cfg(test)]
     fn single_native_unmock(&self, retained: bool) -> Option<&str> {
         let unmock = self.unmocks.last()?;
         let declaration = self.declarations.last()?;
@@ -569,39 +710,49 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     if calls.reset_calls.iter().any(|call| !call.args.is_empty()) {
         bail!("vi.resetModules currently requires no arguments ({filename}).");
     }
-    // Retain source-ordered direct cuts for one native target/factory. The
-    // assembly still proves the actual original and surviving registration.
+    // Each direct literal target owns factories, cuts, runtime registration and
+    // an actual helper. Canonical identities remain independently certified.
+    let top_level = |call: &CallExpr| {
+        module.body.iter().any(|item| {
+            matches!(item,
+            ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
+                Expr::Call(top) if top.span == call.span))
+        })
+    };
     let native_unmock_sequence = allow_runtime
         && !calls.unmock_calls.is_empty()
         && !calls.calls.is_empty()
         && !calls.actual_calls.is_empty()
         && !calls.reset_calls.is_empty()
-        && calls
-            .runtime_calls
-            .iter()
-            .any(|(registration, _)| *registration)
-        && native_static_request(&calls.calls[0]).is_some_and(|request| {
-            !request.contains(':')
-                && calls.calls.iter().all(|factory| {
-                    native_static_request(factory) == Some(request)
-                        && module.body.iter().any(|item| {
-                            matches!(item,
-                            ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
-                                Expr::Call(top) if top.span == factory.span))
-                        })
-                })
-                && calls.unmock_calls.iter().all(|unmock| {
-                    native_static_request(unmock) == Some(request)
-                        && unmock.args.len() == 1
-                        && calls.calls.iter().all(|factory| {
-                            unmock.span.hi <= factory.span.lo || unmock.span.lo >= factory.span.hi
-                        })
-                        && module.body.iter().any(|item| {
-                            matches!(item,
-                            ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr,
-                                Expr::Call(top) if top.span == unmock.span))
-                        })
-                })
+        && calls.calls.iter().all(|factory| {
+            native_static_request(factory).is_some_and(|request| {
+                !request.contains(':')
+                    && top_level(factory)
+                    && calls
+                        .unmock_calls
+                        .iter()
+                        .any(|cut| native_static_request(cut) == Some(request))
+                    && calls
+                        .actual_calls
+                        .iter()
+                        .any(|actual| native_static_request(actual) == Some(request))
+                    && calls.runtime_calls.iter().any(|(registration, runtime)| {
+                        *registration && native_static_request(runtime) == Some(request)
+                    })
+            })
+        })
+        && calls.unmock_calls.iter().all(|cut| {
+            native_static_request(cut).is_some_and(|request| {
+                cut.args.len() == 1
+                    && top_level(cut)
+                    && calls
+                        .calls
+                        .iter()
+                        .any(|factory| native_static_request(factory) == Some(request))
+                    && calls.calls.iter().all(|factory| {
+                        cut.span.hi <= factory.span.lo || cut.span.lo >= factory.span.hi
+                    })
+            })
         });
     let native_static = !calls.runtime_calls.is_empty()
         && !calls.calls.is_empty()
@@ -3344,6 +3495,166 @@ mod import_mock_unmock_tests {
             }
             assert_eq!(plan.retained_single_native_unmock(), None, "{change}");
             assert_eq!(plan.cancelled_single_native_unmock(), None, "{change}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod native_multi_target_cut_tests {
+    use std::collections::HashMap;
+
+    use super::{
+        NativeUnmockTarget, extract_static_mocks, extract_test_mocks,
+        native_unmock_original_is_available,
+    };
+
+    #[test]
+    fn retains_each_genuine_literal_group_without_promoting_static_only_extraction() {
+        for (source, a_retained, a_count, b_retained, b_count) in [
+            (
+                include_str!("../tests/fixtures/native-multi-target/both-survive-interleaved.mjs"),
+                true,
+                2,
+                true,
+                1,
+            ),
+            (
+                include_str!("../tests/fixtures/native-multi-target/a-cancelled-b-survives.mjs"),
+                false,
+                0,
+                true,
+                1,
+            ),
+            (
+                include_str!("../tests/fixtures/native-multi-target/a-survives-b-cancelled.mjs"),
+                true,
+                2,
+                false,
+                0,
+            ),
+            (
+                include_str!(
+                    "../tests/fixtures/native-multi-target/both-cancelled-interleaved.mjs"
+                ),
+                false,
+                0,
+                false,
+                0,
+            ),
+            (
+                include_str!("../tests/fixtures/native-multi-target/mirror-before-between.mjs"),
+                true,
+                1,
+                true,
+                2,
+            ),
+        ] {
+            let plan = extract_test_mocks(source, "entry.mjs").unwrap();
+            let targets = plan.native_unmock_targets().unwrap();
+            assert_eq!(targets.len(), 2);
+            for (request, retained, count) in [
+                ("next-test-native-cuts-a", a_retained, a_count),
+                ("next-test-native-cuts-b", b_retained, b_count),
+            ] {
+                let target = targets
+                    .iter()
+                    .find(|target| target.request == request)
+                    .unwrap();
+                assert_eq!(target.retained, retained, "{request}");
+                assert_eq!(target.surviving_factories, count, "{request}");
+            }
+            assert!(plan.retained_single_native_unmock().is_none());
+            assert!(plan.cancelled_single_native_unmock().is_none());
+            assert!(extract_static_mocks(source, "entry.mjs").is_err());
+            assert!(!plan.source.contains("vi.mock("));
+            assert!(!plan.source.contains("vi.unmock("));
+        }
+    }
+
+    #[test]
+    fn every_group_keeps_its_factory_cut_runtime_and_actual_owner() {
+        let source =
+            include_str!("../tests/fixtures/native-multi-target/both-survive-interleaved.mjs");
+        for change in 0..16 {
+            let mut plan = extract_test_mocks(source, "entry.mjs").unwrap();
+            match change {
+                0 => plan
+                    .unmocks
+                    .retain(|cut| cut.request != "next-test-native-cuts-b"),
+                1 => plan
+                    .runtime_requests
+                    .retain(|request| request != "next-test-native-cuts-b"),
+                2 => plan
+                    .actual_imports
+                    .retain(|actual| actual.request != "next-test-native-cuts-b"),
+                3 => plan.declarations[0].request = "other".into(),
+                4 => plan.declarations[1].factory_start = plan.declarations[0].factory_start,
+                5 => plan.unmocks[0].end = plan.unmocks[0].start,
+                6 => plan.unmocks[0].end = plan.declarations[0].factory_start + 1,
+                7 => plan.reset_modules = false,
+                8 => plan.declarations[0].automatic = true,
+                9 => plan.declarations[0].spy = true,
+                10 => plan.runtime_requests.push(plan.runtime_requests[0].clone()),
+                11 => plan.actual_imports[0].request = "other".into(),
+                12 => plan.unmocks.swap(0, 1),
+                13 => plan.declarations[0].original_factory_source.clear(),
+                14 => plan.declarations.swap(0, 1),
+                15 => plan.declarations[0].factory_start = usize::MAX,
+                _ => unreachable!(),
+            }
+            assert!(plan.native_unmock_targets().is_none(), "{change}");
+        }
+    }
+
+    #[test]
+    fn rejects_unpaired_or_nondirect_second_target_before_assembly() {
+        let source =
+            include_str!("../tests/fixtures/native-multi-target/both-survive-interleaved.mjs");
+        for altered in [
+            source.replace(
+                "vi.importActual('next-test-native-cuts-b')",
+                "vi.importActual('next-test-native-cuts-a')",
+            ),
+            source.replace(
+                "vi.unmock('next-test-native-cuts-b')",
+                "consume(() => vi.unmock('next-test-native-cuts-b'))",
+            ),
+            source.replace("vi.unmock('next-test-native-cuts-b')", "vi.unmock('other')"),
+            source.replace("vi.doMock('next-test-native-cuts-b'", "vi.doMock('other'"),
+        ] {
+            assert!(extract_test_mocks(&altered, "entry.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn canonical_ownership_rejects_alias_collisions_and_unstable_request_resolution() {
+        let mut known = HashMap::new();
+        let target = |request: &str| NativeUnmockTarget {
+            request: request.into(),
+            retained: true,
+            surviving_factories: 1,
+        };
+        assert!(native_unmock_original_is_available(&known, &1, "a"));
+        known.insert(1, target("a"));
+        assert!(native_unmock_original_is_available(&known, &1, "a"));
+        assert!(native_unmock_original_is_available(&known, &2, "b"));
+        assert!(!native_unmock_original_is_available(&known, &1, "b"));
+        assert!(!native_unmock_original_is_available(&known, &2, "a"));
+        known.insert(2, target("b"));
+        assert!(native_unmock_original_is_available(&known, &2, "b"));
+        assert!(!native_unmock_original_is_available(&known, &2, "a"));
+        assert_eq!(known.len(), 2);
+    }
+    #[test]
+    fn multi_target_subpaths_stay_outside_the_qualified_root_scope() {
+        let source =
+            include_str!("../tests/fixtures/native-multi-target/both-survive-interleaved.mjs");
+        let altered = source.replace(
+            "'next-test-native-cuts-b'",
+            "'next-test-native-cuts-b/subpath'",
+        );
+        if let Ok(plan) = extract_test_mocks(&altered, "entry.mjs") {
+            assert!(plan.native_unmock_targets().is_none());
         }
     }
 }

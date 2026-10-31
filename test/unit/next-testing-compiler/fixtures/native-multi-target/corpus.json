@@ -1,0 +1,295 @@
+{
+  "version": 1,
+  "referenceVersion": "5.0.4",
+  "authoritySHA256": "75c15ead7ba90100bf3a787f4ab038e1c48a82f2e7c2911f530a557e92e46303",
+  "sourcePinsSHA256": "b24a75d6ed0ed9f3b50802b16423f080dc69b01bf4fd372c050f2f6e6f87291a",
+  "groups": {
+    "both-survive-interleaved": {
+      "body": "crates/next-api/tests/fixtures/native-multi-target/both-survive-interleaved.mjs",
+      "bodySHA256": "b49cc47b8f2f1bf254021365175f7b48e0e87a061bce27e49c07a19c63194a78",
+      "packages": ["next-test-native-cuts-a", "next-test-native-cuts-b"],
+      "sourceOrderedOperations": ["cut-a", "a1", "b1", "cut-b", "a2", "b2"]
+    },
+    "a-cancelled-b-survives": {
+      "body": "crates/next-api/tests/fixtures/native-multi-target/a-cancelled-b-survives.mjs",
+      "bodySHA256": "0534e0f7e0e71026c8b6999d2138b5535c55829d6f95fa27bcff86e5d94268f0",
+      "packages": ["next-test-native-cuts-a", "next-test-native-cuts-b"],
+      "sourceOrderedOperations": ["a1", "b1", "a2", "cut-a", "cut-b", "b2"]
+    },
+    "a-survives-b-cancelled": {
+      "body": "crates/next-api/tests/fixtures/native-multi-target/a-survives-b-cancelled.mjs",
+      "bodySHA256": "4e28209316301dce163f1fabac256b9ac0518ea0b0a99176c04c428b4d00a6e2",
+      "packages": ["next-test-native-cuts-a", "next-test-native-cuts-b"],
+      "sourceOrderedOperations": ["b1", "cut-a", "a1", "b2", "a2", "cut-b"]
+    },
+    "both-cancelled-interleaved": {
+      "body": "crates/next-api/tests/fixtures/native-multi-target/both-cancelled-interleaved.mjs",
+      "bodySHA256": "f17ed0d4c02a56a7d04bb083e7343546d0d9dcf75c176822206d170ce5f453e0",
+      "packages": ["next-test-native-cuts-a", "next-test-native-cuts-b"],
+      "sourceOrderedOperations": [
+        "a1",
+        "b1",
+        "cut-a",
+        "a2",
+        "b2",
+        "cut-b",
+        "cut-a"
+      ]
+    },
+    "mirror-before-between": {
+      "body": "crates/next-api/tests/fixtures/native-multi-target/mirror-before-between.mjs",
+      "bodySHA256": "7dc8e7185c96f75eeda07ae48faca3ee71dcde90b9cb50833262b4ecc2b35c1a",
+      "packages": ["next-test-native-cuts-a", "next-test-native-cuts-b"],
+      "sourceOrderedOperations": ["cut-b", "b1", "a1", "cut-a", "b2", "a2"]
+    }
+  },
+  "commonFiles": {
+    "node_modules/next-test-native-cuts-a/dependency.cjs": {
+      "stored": "packages/next-test-native-cuts-a/dependency.cjs.txt",
+      "sha256": "cd12adcd2f03c512ed90c4e5775183b4ade4ca9abdef9f387c93a2ea1857e05d"
+    },
+    "node_modules/next-test-native-cuts-a/index.cjs": {
+      "stored": "packages/next-test-native-cuts-a/index.cjs.txt",
+      "sha256": "4b583bd9ef35bc7160cbb8065e6df7ee5e5148e219a5a656607eaeff5bb2d394"
+    },
+    "node_modules/next-test-native-cuts-a/package.json": {
+      "stored": "packages/next-test-native-cuts-a/package.json.txt",
+      "sha256": "9a6b5e40def323327c2e71d209b83b63a79173a49cee6e2d6b746f304e3a5dc8"
+    },
+    "node_modules/next-test-native-cuts-b/dependency.cjs": {
+      "stored": "packages/next-test-native-cuts-b/dependency.cjs.txt",
+      "sha256": "c245289afcb95ee797306562fc2c360b35e6a90d718e28fadb02df2c9cdb7329"
+    },
+    "node_modules/next-test-native-cuts-b/index.cjs": {
+      "stored": "packages/next-test-native-cuts-b/index.cjs.txt",
+      "sha256": "f8bc0ad6676421ff4aff512a1407a3570c0b637934138f0689712e98251bbc44"
+    },
+    "node_modules/next-test-native-cuts-b/package.json": {
+      "stored": "packages/next-test-native-cuts-b/package.json.txt",
+      "sha256": "3094b1e214536e9f81f4eccf5bff60665c0471aa41fb4e455b8bd089c9f53d41"
+    }
+  },
+  "engines": {
+    "20": {
+      "referenceNodeVersion": "v20.20.0",
+      "profiles": {
+        "both-survive-interleaved": {
+          "development": {
+            "stored": "genuine/node20/development/both-survive-interleaved.json.txt",
+            "sha256": "b37e6978d55aff6d98525f9f96a1cad794b26bef4f7aaf574a1a3e20a199224f"
+          },
+          "production": {
+            "stored": "genuine/node20/production/both-survive-interleaved.json.txt",
+            "sha256": "b37e6978d55aff6d98525f9f96a1cad794b26bef4f7aaf574a1a3e20a199224f"
+          }
+        },
+        "a-cancelled-b-survives": {
+          "development": {
+            "stored": "genuine/node20/development/a-cancelled-b-survives.json.txt",
+            "sha256": "082e6808b70678fbda9228cf49ec2a202e7d1400ab2914ba50fdcfdb24747bdd"
+          },
+          "production": {
+            "stored": "genuine/node20/production/a-cancelled-b-survives.json.txt",
+            "sha256": "082e6808b70678fbda9228cf49ec2a202e7d1400ab2914ba50fdcfdb24747bdd"
+          }
+        },
+        "a-survives-b-cancelled": {
+          "development": {
+            "stored": "genuine/node20/development/a-survives-b-cancelled.json.txt",
+            "sha256": "7b7a9840e08a60f5a0b8dbadcc961fe42434f56777de1fc5c689234033889b83"
+          },
+          "production": {
+            "stored": "genuine/node20/production/a-survives-b-cancelled.json.txt",
+            "sha256": "7b7a9840e08a60f5a0b8dbadcc961fe42434f56777de1fc5c689234033889b83"
+          }
+        },
+        "both-cancelled-interleaved": {
+          "development": {
+            "stored": "genuine/node20/development/both-cancelled-interleaved.json.txt",
+            "sha256": "fef8b861a3d8d21afd3e985fe44b72c8aa9352d0fc158af48ade6c9903556577"
+          },
+          "production": {
+            "stored": "genuine/node20/production/both-cancelled-interleaved.json.txt",
+            "sha256": "fef8b861a3d8d21afd3e985fe44b72c8aa9352d0fc158af48ade6c9903556577"
+          }
+        },
+        "mirror-before-between": {
+          "development": {
+            "stored": "genuine/node20/development/mirror-before-between.json.txt",
+            "sha256": "755d682eabc917ae256eecc256398fba6a24af070ff272e085882c885addf278"
+          },
+          "production": {
+            "stored": "genuine/node20/production/mirror-before-between.json.txt",
+            "sha256": "755d682eabc917ae256eecc256398fba6a24af070ff272e085882c885addf278"
+          }
+        }
+      }
+    },
+    "22": {
+      "referenceNodeVersion": "v22.12.0",
+      "profiles": {
+        "both-survive-interleaved": {
+          "development": {
+            "stored": "genuine/node22/development/both-survive-interleaved.json.txt",
+            "sha256": "b37e6978d55aff6d98525f9f96a1cad794b26bef4f7aaf574a1a3e20a199224f"
+          },
+          "production": {
+            "stored": "genuine/node22/production/both-survive-interleaved.json.txt",
+            "sha256": "b37e6978d55aff6d98525f9f96a1cad794b26bef4f7aaf574a1a3e20a199224f"
+          }
+        },
+        "a-cancelled-b-survives": {
+          "development": {
+            "stored": "genuine/node22/development/a-cancelled-b-survives.json.txt",
+            "sha256": "082e6808b70678fbda9228cf49ec2a202e7d1400ab2914ba50fdcfdb24747bdd"
+          },
+          "production": {
+            "stored": "genuine/node22/production/a-cancelled-b-survives.json.txt",
+            "sha256": "082e6808b70678fbda9228cf49ec2a202e7d1400ab2914ba50fdcfdb24747bdd"
+          }
+        },
+        "a-survives-b-cancelled": {
+          "development": {
+            "stored": "genuine/node22/development/a-survives-b-cancelled.json.txt",
+            "sha256": "7b7a9840e08a60f5a0b8dbadcc961fe42434f56777de1fc5c689234033889b83"
+          },
+          "production": {
+            "stored": "genuine/node22/production/a-survives-b-cancelled.json.txt",
+            "sha256": "7b7a9840e08a60f5a0b8dbadcc961fe42434f56777de1fc5c689234033889b83"
+          }
+        },
+        "both-cancelled-interleaved": {
+          "development": {
+            "stored": "genuine/node22/development/both-cancelled-interleaved.json.txt",
+            "sha256": "fef8b861a3d8d21afd3e985fe44b72c8aa9352d0fc158af48ade6c9903556577"
+          },
+          "production": {
+            "stored": "genuine/node22/production/both-cancelled-interleaved.json.txt",
+            "sha256": "fef8b861a3d8d21afd3e985fe44b72c8aa9352d0fc158af48ade6c9903556577"
+          }
+        },
+        "mirror-before-between": {
+          "development": {
+            "stored": "genuine/node22/development/mirror-before-between.json.txt",
+            "sha256": "755d682eabc917ae256eecc256398fba6a24af070ff272e085882c885addf278"
+          },
+          "production": {
+            "stored": "genuine/node22/production/mirror-before-between.json.txt",
+            "sha256": "755d682eabc917ae256eecc256398fba6a24af070ff272e085882c885addf278"
+          }
+        }
+      }
+    },
+    "24": {
+      "referenceNodeVersion": "v24.0.0",
+      "profiles": {
+        "both-survive-interleaved": {
+          "development": {
+            "stored": "genuine/node24/development/both-survive-interleaved.json.txt",
+            "sha256": "8189d19dd963941921134c3400667d5d11388427b0531d478bd45d9df1c23e4a"
+          },
+          "production": {
+            "stored": "genuine/node24/production/both-survive-interleaved.json.txt",
+            "sha256": "8189d19dd963941921134c3400667d5d11388427b0531d478bd45d9df1c23e4a"
+          }
+        },
+        "a-cancelled-b-survives": {
+          "development": {
+            "stored": "genuine/node24/development/a-cancelled-b-survives.json.txt",
+            "sha256": "0b35d57ee3dcf1bcf6193f90bedbed9a636d83a83ce32b7b0d0c8978489330d7"
+          },
+          "production": {
+            "stored": "genuine/node24/production/a-cancelled-b-survives.json.txt",
+            "sha256": "0b35d57ee3dcf1bcf6193f90bedbed9a636d83a83ce32b7b0d0c8978489330d7"
+          }
+        },
+        "a-survives-b-cancelled": {
+          "development": {
+            "stored": "genuine/node24/development/a-survives-b-cancelled.json.txt",
+            "sha256": "3cd281031df5dcec21c9baa8f17335ca9906a7a37db4f92ef27de6e37d2467a9"
+          },
+          "production": {
+            "stored": "genuine/node24/production/a-survives-b-cancelled.json.txt",
+            "sha256": "3cd281031df5dcec21c9baa8f17335ca9906a7a37db4f92ef27de6e37d2467a9"
+          }
+        },
+        "both-cancelled-interleaved": {
+          "development": {
+            "stored": "genuine/node24/development/both-cancelled-interleaved.json.txt",
+            "sha256": "fcff72ab286f2d68626aea2537f54b00d0d033416d9b83fd0e6f3087e3f53cee"
+          },
+          "production": {
+            "stored": "genuine/node24/production/both-cancelled-interleaved.json.txt",
+            "sha256": "fcff72ab286f2d68626aea2537f54b00d0d033416d9b83fd0e6f3087e3f53cee"
+          }
+        },
+        "mirror-before-between": {
+          "development": {
+            "stored": "genuine/node24/development/mirror-before-between.json.txt",
+            "sha256": "e68fbdba557afeef76d6de71277fa3d5495b685c32ec83da598cec1771fbb158"
+          },
+          "production": {
+            "stored": "genuine/node24/production/mirror-before-between.json.txt",
+            "sha256": "e68fbdba557afeef76d6de71277fa3d5495b685c32ec83da598cec1771fbb158"
+          }
+        }
+      }
+    },
+    "26": {
+      "referenceNodeVersion": "v26.12.1",
+      "profiles": {
+        "both-survive-interleaved": {
+          "development": {
+            "stored": "genuine/node26/development/both-survive-interleaved.json.txt",
+            "sha256": "8189d19dd963941921134c3400667d5d11388427b0531d478bd45d9df1c23e4a"
+          },
+          "production": {
+            "stored": "genuine/node26/production/both-survive-interleaved.json.txt",
+            "sha256": "8189d19dd963941921134c3400667d5d11388427b0531d478bd45d9df1c23e4a"
+          }
+        },
+        "a-cancelled-b-survives": {
+          "development": {
+            "stored": "genuine/node26/development/a-cancelled-b-survives.json.txt",
+            "sha256": "0b35d57ee3dcf1bcf6193f90bedbed9a636d83a83ce32b7b0d0c8978489330d7"
+          },
+          "production": {
+            "stored": "genuine/node26/production/a-cancelled-b-survives.json.txt",
+            "sha256": "0b35d57ee3dcf1bcf6193f90bedbed9a636d83a83ce32b7b0d0c8978489330d7"
+          }
+        },
+        "a-survives-b-cancelled": {
+          "development": {
+            "stored": "genuine/node26/development/a-survives-b-cancelled.json.txt",
+            "sha256": "3cd281031df5dcec21c9baa8f17335ca9906a7a37db4f92ef27de6e37d2467a9"
+          },
+          "production": {
+            "stored": "genuine/node26/production/a-survives-b-cancelled.json.txt",
+            "sha256": "3cd281031df5dcec21c9baa8f17335ca9906a7a37db4f92ef27de6e37d2467a9"
+          }
+        },
+        "both-cancelled-interleaved": {
+          "development": {
+            "stored": "genuine/node26/development/both-cancelled-interleaved.json.txt",
+            "sha256": "fcff72ab286f2d68626aea2537f54b00d0d033416d9b83fd0e6f3087e3f53cee"
+          },
+          "production": {
+            "stored": "genuine/node26/production/both-cancelled-interleaved.json.txt",
+            "sha256": "fcff72ab286f2d68626aea2537f54b00d0d033416d9b83fd0e6f3087e3f53cee"
+          }
+        },
+        "mirror-before-between": {
+          "development": {
+            "stored": "genuine/node26/development/mirror-before-between.json.txt",
+            "sha256": "e68fbdba557afeef76d6de71277fa3d5495b685c32ec83da598cec1771fbb158"
+          },
+          "production": {
+            "stored": "genuine/node26/production/mirror-before-between.json.txt",
+            "sha256": "e68fbdba557afeef76d6de71277fa3d5495b685c32ec83da598cec1771fbb158"
+          }
+        }
+      }
+    }
+  },
+  "scope": "Five unchanged authored cut layouts, two real cyclic external CommonJS packages, complete same-engine/mode models; alias/subpath and other feature combinations remain unqualified."
+}

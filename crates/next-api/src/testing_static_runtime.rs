@@ -1,5 +1,5 @@
 //! Exact static namespace/native-provider pairs for isolated Node runtime mocks.
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use next_core::get_next_package;
@@ -29,6 +29,7 @@ use crate::{
     testing_external_modules::{
         NativeExternalCertificate, resolved_module_bridge, runtime_native_external_context,
     },
+    testing_mock_source::native_unmock_original_is_available,
 };
 
 /// Both manifests consume the same actual compiler identities. No runtime key
@@ -210,9 +211,8 @@ pub(crate) async fn prepare(
     paired_native_actuals: bool,
 ) -> Result<StaticRuntimePreparation> {
     let plan = static_mock_plan(path).await?;
-    let retained_before_unmock = plan.retained_single_native_unmock().is_some();
-    let cancelled_after_unmock = plan.cancelled_single_native_unmock().is_some();
-    let native_unmock = retained_before_unmock || cancelled_after_unmock;
+    let native_unmock_targets = plan.native_unmock_targets();
+    let native_unmock = native_unmock_targets.is_some();
     if plan.declarations.is_empty()
         || !plan.hoisted.is_empty()
         || (!plan.actual_imports.is_empty() && !paired_native_actuals)
@@ -246,31 +246,59 @@ pub(crate) async fn prepare(
         .to_resolved()
         .await?;
     let original_origin = runtime_resolve_origin(original_module, path).await?;
-    let retained_unmock_original = if native_unmock {
-        // The certificate's actual original must also be the earlier cut's
-        // static-import original, not merely a matching request spelling.
-        let unmock_request = Request::parse(RcStr::from(plan.unmocks[0].request.clone()).into())
-            .to_resolved()
+    let mut native_unmock_originals = HashMap::new();
+    let mut native_unmock_runtime_targets = HashMap::new();
+    let mut cut_originals = HashMap::new();
+    if let Some(targets) = &native_unmock_targets {
+        for target in targets {
+            // Resolve each literal through the actual static-import origin. A
+            // sibling's spelling/provider never supplies another group's proof.
+            let parsed = Request::parse(RcStr::from(target.request.clone()).into())
+                .to_resolved()
+                .await?;
+            let resolved = esm_resolve(
+                *original_origin,
+                *parsed,
+                EcmaScriptModulesReferenceSubType::Import,
+                ResolveErrorMode::Error,
+                None,
+            )
             .await?;
-        let resolved = esm_resolve(
-            *original_origin,
-            *unmock_request,
-            EcmaScriptModulesReferenceSubType::Import,
-            ResolveErrorMode::Error,
-            None,
-        )
-        .await?;
-        let originals = resolved.await?.primary_modules().await?;
-        if originals.len() != 1 {
-            return Err(test_input_error(
-                path.clone(),
-                "Retained native unmock requires one actual static-import original",
-            ));
+            let originals = resolved.await?.primary_modules().await?;
+            if originals.len() != 1 {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Retained native unmock requires one actual static-import original",
+                ));
+            }
+            let original = originals[0];
+            let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
+            else {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Retained native unmock must resolve to the actual external original",
+                ));
+            };
+            let native_request = external.await?.request().into_owned();
+            if !native_unmock_original_is_available(
+                &native_unmock_originals,
+                &original,
+                &target.request,
+            ) || !native_unmock_original_is_available(
+                &native_unmock_runtime_targets,
+                &native_request,
+                &target.request,
+            ) {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Native cut targets require distinct stable canonical originals",
+                ));
+            }
+            native_unmock_originals.insert(original, target.clone());
+            native_unmock_runtime_targets.insert(native_request, target.clone());
+            cut_originals.insert(target.request.clone(), original);
         }
-        Some(originals[0])
-    } else {
-        None
-    };
+    }
     let initial_module = context
         .process(
             *source,
@@ -312,9 +340,13 @@ pub(crate) async fn prepare(
                 "Static/runtime mixtures require actual certified native targets",
             ));
         };
+        let cut_target = native_unmock_originals.get(&certificate.original);
         if native_unmock
-            && (requests.len() != 1
-                || retained_unmock_original != Some(certificate.original)
+            && (native_unmock_targets
+                .as_ref()
+                .is_none_or(|targets| requests.len() != targets.len())
+                || cut_originals.get(request) != Some(&certificate.original)
+                || cut_target.is_none_or(|target| target.request != *request)
                 || certificate.builtin.is_some()
                 || certificate.kind
                     != crate::testing_external_modules::NativeOriginalKind::CommonJs)
@@ -324,8 +356,19 @@ pub(crate) async fn prepare(
                 "Retained unmock pairs require one actual native CommonJS certificate",
             ));
         }
+        if native_unmock
+            && (pairs.iter().any(|pair| pair.provider == certificate.module)
+                || original_initials
+                    .iter()
+                    .any(|initial: &NativeOriginalInitial| initial.provider == certificate.module))
+        {
+            return Err(test_input_error(
+                path.clone(),
+                "Native cut target providers must be distinct",
+            ));
+        }
         let initial;
-        if cancelled_after_unmock {
+        if cut_target.is_some_and(|target| !target.retained) {
             // Both actual entry references resolve to this very provider module.
             // Its cache record remains resettable; only the real helper closure
             // is retained across resets.

@@ -85,7 +85,9 @@ use crate::{
         mock_registration_source_with_paired_native_helpers, mock_spec_source_with_imports,
         mock_wrapper_source_with_original_cycle, virtual_mock_wrapper_source,
     },
-    testing_mock_source::{StaticMockPlan, extract_test_mocks},
+    testing_mock_source::{
+        NativeUnmockTarget, StaticMockPlan, extract_test_mocks, native_unmock_original_is_available,
+    },
 };
 
 /// An unsupported test input is a compilation issue, not an engine failure.
@@ -509,8 +511,7 @@ pub(crate) async fn test_endpoint(
         && !(&*environment == "node"
             && project.next_mode().await?.is_production()
             && route.is_none()
-            && (production_plan.retained_single_native_unmock().is_some()
-                || production_plan.cancelled_single_native_unmock().is_some())
+            && production_plan.native_unmock_targets().is_some()
             && production_paired_native_actual_plan(&production_plan))
     {
         return Err(test_input_error(
@@ -644,6 +645,24 @@ pub(crate) fn production_browser_mock_plan(plan: &StaticMockPlan) -> bool {
     production_static_mock_plan(plan, true)
 }
 
+fn native_unmock_group_matches(
+    target: &NativeUnmockTarget,
+    registrations: usize,
+    external: bool,
+    actuals: usize,
+    expected_actuals: usize,
+) -> bool {
+    registrations == target.surviving_factories
+        && external == target.retained
+        && if target.retained {
+            registrations > 0
+        } else {
+            registrations == 0
+        }
+        && expected_actuals > 0
+        && actuals == expected_actuals
+}
+
 // This is only a syntax candidate. Assembly still requires the same resolved
 // external originals, actual native certificates and static namespace pairs.
 fn production_paired_native_actual_plan(plan: &StaticMockPlan) -> bool {
@@ -652,9 +671,7 @@ fn production_paired_native_actual_plan(plan: &StaticMockPlan) -> bool {
         && !plan.actual_imports.is_empty()
         && plan.hoisted.is_empty()
         && plan.mock_imports.is_empty()
-        && (plan.unmocks.is_empty()
-            || plan.retained_single_native_unmock().is_some()
-            || plan.cancelled_single_native_unmock().is_some())
+        && (plan.unmocks.is_empty() || plan.native_unmock_targets().is_some())
         && plan.declarations.iter().all(|declaration| {
             !declaration.automatic
                 && !declaration.spy
@@ -2298,10 +2315,11 @@ async fn prepare_test_module_with_loading(
     let mut unmock_cuts = FxIndexMap::default();
     let mut target_indexes = FxIndexMap::default();
     let mut native_unmock_cuts = HashMap::new();
-    let retained_before_unmock = plan.retained_single_native_unmock().is_some();
-    let cancelled_after_unmock = plan.cancelled_single_native_unmock().is_some();
-    let native_unmock = retained_before_unmock || cancelled_after_unmock;
-    let mut retained_unmock_original = None;
+    let native_unmock_targets = plan.native_unmock_targets();
+    let native_unmock = native_unmock_targets.is_some();
+    let mut native_unmock_originals: HashMap<ResolvedVc<Box<dyn Module>>, NativeUnmockTarget> =
+        HashMap::new();
+    let mut native_unmock_runtime_targets = HashMap::new();
     let mut builtin_unmock_cuts = HashMap::new();
     let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
     let paired_native_actual_candidate = static_runtime && !plan.actual_imports.is_empty();
@@ -2374,7 +2392,33 @@ async fn prepare_test_module_with_loading(
                             "Retained native unmock pairs do not include builtin targets",
                         ));
                     }
-                    retained_unmock_original = Some(original);
+                    let Some(target) = native_unmock_targets.as_ref().and_then(|targets| {
+                        targets
+                            .iter()
+                            .find(|target| target.request == unmock.request)
+                    }) else {
+                        return Err(test_input_error(
+                            path.clone(),
+                            "Native cut has no paired syntax owner",
+                        ));
+                    };
+                    let native_request = external.await?.request().into_owned();
+                    if !native_unmock_original_is_available(
+                        &native_unmock_originals,
+                        &original,
+                        &target.request,
+                    ) || !native_unmock_original_is_available(
+                        &native_unmock_runtime_targets,
+                        &native_request,
+                        &target.request,
+                    ) {
+                        return Err(test_input_error(
+                            path.clone(),
+                            "Native cut targets require distinct stable canonical originals",
+                        ));
+                    }
+                    native_unmock_originals.insert(original, target.clone());
+                    native_unmock_runtime_targets.insert(native_request, target.clone());
                 }
                 if let Some(external) =
                     ResolvedVc::try_downcast_type::<CachedExternalModule>(original)
@@ -2442,7 +2486,9 @@ async fn prepare_test_module_with_loading(
             // factory still passes the strict preceding-cut check below.
             if native_unmock
                 && modules.len() == 1
-                && retained_unmock_original == Some(modules[0])
+                && native_unmock_originals
+                    .get(&modules[0])
+                    .is_some_and(|target| target.request == request)
                 && native_unmock_cuts
                     .get(&modules[0])
                     .is_some_and(|cut| cut.0 == input_index && cut.1 > declaration.factory_start)
@@ -2451,14 +2497,11 @@ async fn prepare_test_module_with_loading(
             }
             if native_unmock {
                 let corresponding = modules.len() == 1
-                    && retained_unmock_original == Some(modules[0])
+                    && native_unmock_originals
+                        .get(&modules[0])
+                        .is_some_and(|target| target.request == request && target.retained)
                     && native_unmock_cuts.get(&modules[0]).is_some_and(|cut| {
-                        cut.0 == input_index
-                            && if retained_before_unmock {
-                                cut.1 < declaration.factory_start
-                            } else {
-                                cut.1 > declaration.factory_start
-                            }
+                        cut.0 == input_index && cut.1 < declaration.factory_start
                     });
                 if !corresponding {
                     return Err(test_input_error(
@@ -2840,6 +2883,8 @@ async fn prepare_test_module_with_loading(
     }
     let mut actual_loaders = Vec::new();
     let mut paired_native_actual_count = 0usize;
+    let mut native_unmock_actual_links: HashMap<ResolvedVc<Box<dyn Module>>, usize> =
+        HashMap::new();
     let mut callable_originals = Vec::new();
     let mut actual_requests: HashMap<ResolvedVc<Box<dyn Module>>, String> = HashMap::new();
     for (index, import) in plan.actual_imports.iter().enumerate() {
@@ -2894,9 +2939,16 @@ async fn prepare_test_module_with_loading(
                 format!("The spec module cannot be its own vi.importActual target: {request}"),
             ));
         }
+        let native_cut_target = native_unmock_originals.get(&original);
+        if native_unmock && native_cut_target.is_none_or(|target| target.request != request) {
+            return Err(test_input_error(
+                path.clone(),
+                "Native cut actual helpers require their same canonical request owner",
+            ));
+        }
+        let cancelled_original = native_cut_target.is_some_and(|target| !target.retained);
         if paired_native_actual_candidate
-            && !(external_modules.contains_key(&original)
-                || (cancelled_after_unmock && retained_unmock_original == Some(original)))
+            && !(external_modules.contains_key(&original) || cancelled_original)
         {
             return Err(test_input_error(
                 path.clone(),
@@ -2914,7 +2966,10 @@ async fn prepare_test_module_with_loading(
                         && matches!(&*parsed_request.await?, Request::Uri {query, fragment, ..}
                             if query.is_empty() && fragment.is_empty())))
             {
-                if cancelled_after_unmock && retained_unmock_original == Some(original) {
+                if native_unmock {
+                    *native_unmock_actual_links.entry(original).or_insert(0) += 1;
+                }
+                if cancelled_original {
                     paired_native_actual_count += 1;
                 }
                 let original_request = if let Some((_, request)) = external_modules.get(&original) {
@@ -3420,39 +3475,50 @@ async fn prepare_test_module_with_loading(
     )
     .await?;
     let registration_request = format!("next-test-registration:{id}");
-    // Count the surviving source-ordered declarations at the actual resolved cut.
-    // Every declaration above has already proved the same canonical original.
-    let retained_native_registrations = retained_unmock_original
-        .and_then(|original| native_unmock_cuts.get(&original))
-        .map(|cut| {
-            plan.declarations
-                .iter()
-                .filter(|declaration| *cut < (0, declaration.factory_start))
-                .count()
-        });
-    if retained_before_unmock
-        && (retained_native_registrations != Some(registrations.len())
-            || registrations.is_empty()
-            || external_modules.len() != 1
-            || !retained_unmock_original
-                .is_some_and(|original| external_modules.contains_key(&original))
-            || paired_native_actual_count != plan.actual_imports.len())
-    {
-        return Err(test_input_error(
-            path.clone(),
-            "Retained native unmock requires its actual registration and original-import links",
-        ));
-    }
-    if cancelled_after_unmock
-        && (!registrations.is_empty()
-            || !external_modules.is_empty()
-            || retained_unmock_original.is_none()
-            || paired_native_actual_count != plan.actual_imports.len())
-    {
-        return Err(test_input_error(
-            path.clone(),
-            "Cancelled native factories require only their actual original-import links",
-        ));
+    // Each resolved original owns its own cut, surviving registrations and
+    // actual-helper links. A cut for one target cannot cancel a sibling target.
+    if let Some(targets) = &native_unmock_targets {
+        if native_unmock_originals.len() != targets.len()
+            || native_unmock_runtime_targets.len() != targets.len()
+            || external_modules.len() != targets.iter().filter(|target| target.retained).count()
+            || registrations.len()
+                != targets
+                    .iter()
+                    .map(|target| target.surviving_factories)
+                    .sum::<usize>()
+            || paired_native_actual_count != plan.actual_imports.len()
+            || native_unmock_originals.iter().any(|(original, target)| {
+                let key = external_modules.get(original).map(|(key, _)| key);
+                let registered = key.map_or(0, |key| {
+                    registrations
+                        .iter()
+                        .filter(|registration| &registration.0 == key)
+                        .count()
+                });
+                let expected_actuals = plan
+                    .actual_imports
+                    .iter()
+                    .filter(|actual| actual.request == target.request)
+                    .count();
+                !native_unmock_group_matches(
+                    target,
+                    registered,
+                    key.is_some(),
+                    *native_unmock_actual_links.get(original).unwrap_or(&0),
+                    expected_actuals,
+                )
+            })
+        {
+            return Err(test_input_error(
+                path.clone(),
+                if targets.iter().any(|target| target.retained) {
+                    "Retained native unmock requires its actual registration and original-import \
+                     links"
+                } else {
+                    "Cancelled native factories require only their actual original-import links"
+                },
+            ));
+        }
     }
     let registration_source = test_source(
         path.clone(),
@@ -4490,7 +4556,9 @@ impl NodeTestEndpoint {
                                     &this.id,
                                     prepared.paired_native_actuals,
                                 ).await?;
-                                if !paired.pairs.is_empty() && paired.original_initials.is_empty() {
+                                // A mixed target set still has actual static pairs. Cancelled
+                                // targets retain their own original-initial manifest entries.
+                                if !paired.pairs.is_empty() {
                                     "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"staticMocks\":1},\"moduleMocking\":{\"version\":1}}".to_string()
                                 } else if paired.pairs.is_empty() && !paired.original_initials.is_empty() {
                                     "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"nativeOriginalInitial\":1},\"moduleMocking\":{\"version\":1}}".to_string()
@@ -5643,6 +5711,55 @@ mod injected_commonjs_producer_tests {
             assert!(
                 !crate::testing::production_paired_native_actual_plan(&plan),
                 "{change}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod native_multi_target_assembly_tests {
+    use super::{
+        NativeUnmockTarget, native_unmock_group_matches, production_paired_native_actual_plan,
+    };
+    use crate::testing_mock_source::extract_test_mocks;
+
+    #[test]
+    fn each_genuine_layout_keeps_the_production_paired_actual_candidate() {
+        for source in [
+            include_str!("../tests/fixtures/native-multi-target/both-survive-interleaved.mjs"),
+            include_str!("../tests/fixtures/native-multi-target/a-cancelled-b-survives.mjs"),
+            include_str!("../tests/fixtures/native-multi-target/a-survives-b-cancelled.mjs"),
+            include_str!("../tests/fixtures/native-multi-target/both-cancelled-interleaved.mjs"),
+            include_str!("../tests/fixtures/native-multi-target/mirror-before-between.mjs"),
+        ] {
+            let plan = extract_test_mocks(source, "entry.mjs").unwrap();
+            assert!(production_paired_native_actual_plan(&plan));
+        }
+    }
+
+    #[test]
+    fn checks_registration_and_actual_link_totals_per_original() {
+        for (retained, expected, registered, external, actual, expected_actual, valid) in [
+            (true, 2, 2, true, 2, 2, true),
+            (false, 0, 0, false, 2, 2, true),
+            (true, 2, 1, true, 2, 2, false),
+            (true, 2, 3, true, 2, 2, false),
+            (true, 2, 2, false, 2, 2, false),
+            (false, 0, 0, true, 2, 2, false),
+            (false, 0, 1, false, 2, 2, false),
+            (true, 0, 0, true, 2, 2, false),
+            (true, 2, 2, true, 1, 2, false),
+            (true, 2, 2, true, 0, 0, false),
+            (false, 0, 0, false, 0, 0, false),
+        ] {
+            let target = NativeUnmockTarget {
+                request: "package".into(),
+                retained,
+                surviving_factories: expected,
+            };
+            assert_eq!(
+                native_unmock_group_matches(&target, registered, external, actual, expected_actual),
+                valid
             );
         }
     }

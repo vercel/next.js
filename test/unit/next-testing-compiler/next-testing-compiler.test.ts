@@ -9883,3 +9883,76 @@ if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
     130000
   )
 }
+
+it('pins all forty complete multi-target native cut reference models and shared bodies', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'native-multi-target.mjs'), '--check-corpus'],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    referenceVersion: '5.0.4',
+    models: 40,
+    bodies: 5,
+    commonFiles: 6,
+    engines: ['20', '22', '24', '26'],
+    rawModelsByteExact: true,
+    sharedBodiesByteExact: true,
+  })
+})
+
+if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
+  it.each(
+    ['development', 'production'].flatMap((mode) =>
+      [
+        'both-survive-interleaved',
+        'a-cancelled-b-survives',
+        'a-survives-b-cancelled',
+        'both-cancelled-interleaved',
+        'mirror-before-between',
+      ].map((group) => [mode, group] as const)
+    )
+  )(
+    'retains independent native targets through ordered cuts in %s %s',
+    (mode, group) => {
+      const { execFileSync } = require('node:child_process')
+      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+      const parent = mkdtempSync(join(tmpdir(), 'next-native-multi-target-'))
+      const output = join(parent, 'run')
+      let complete = false
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'native-multi-target.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+            'source',
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+        )
+        expect(
+          JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
+        ).toEqual({
+          kind: 'source',
+          mode,
+          group,
+          engine: process.versions.node.split('.')[0],
+          actualNodeVersion: process.version,
+          completeModelEqual: true,
+          cases: 1,
+          wholeRows: 1,
+          allAuthoredBytesHeld: true,
+          allOwnersJoined: true,
+        })
+        complete = true
+      } finally {
+        if (complete) rmSync(parent, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+}
