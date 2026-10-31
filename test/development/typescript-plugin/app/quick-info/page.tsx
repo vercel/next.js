@@ -1,6 +1,6 @@
 export const dynamic = 'force-static'
 
-export const dynamicParams = true
+export const dynamicParams = false
 
 export const runtime = 'invalid-runtime'
 
