@@ -1,5 +1,66 @@
 import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
-import { trackPromiseUsed } from './dynamic-rendering-utils'
+import {
+  ClientHookDynamicError,
+  makeClientHookHangingPromise,
+  makeUntrackedHangingPromise,
+  trackPromiseUsed,
+} from './dynamic-rendering-utils'
+
+describe('hanging promises', () => {
+  // Under runtimes where the `unhandledRejection` listener doesn't run in the
+  // async context of the prerender (e.g. Bun), Next.js can't tell that a
+  // rejection stems from an aborted prerender, so the promises must never
+  // produce one in the first place.
+  let unhandledRejections: unknown[]
+  const onUnhandledRejection = (reason: unknown) => {
+    unhandledRejections.push(reason)
+  }
+
+  beforeEach(() => {
+    unhandledRejections = []
+    process.on('unhandledRejection', onUnhandledRejection)
+  })
+
+  afterEach(() => {
+    process.off('unhandledRejection', onUnhandledRejection)
+  })
+
+  const flushUnhandledRejections = () =>
+    new Promise<void>((resolve) => setTimeout(resolve, 10))
+
+  it('does not report an unhandled rejection when the signal is already aborted', async () => {
+    const controller = new AbortController()
+    controller.abort()
+
+    makeUntrackedHangingPromise(controller.signal, '/route', 'cookies()')
+    makeClientHookHangingPromise(
+      controller.signal,
+      new ClientHookDynamicError('/route', 'usePathname()')
+    )
+
+    await flushUnhandledRejections()
+    expect(unhandledRejections).toEqual([])
+  })
+
+  it('does not report an unhandled rejection when the signal aborts later', async () => {
+    const controller = new AbortController()
+
+    makeUntrackedHangingPromise(controller.signal, '/route', 'cookies()')
+    controller.abort()
+
+    await flushUnhandledRejections()
+    expect(unhandledRejections).toEqual([])
+  })
+
+  it('still rejects consumers that handle the promise', async () => {
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(
+      makeUntrackedHangingPromise(controller.signal, '/route', 'cookies()')
+    ).rejects.toMatchObject({ digest: 'HANGING_PROMISE_REJECTION' })
+  })
+})
 
 describe('trackPromiseUsed', () => {
   it('`then` is tracked and forwards the value', async () => {
