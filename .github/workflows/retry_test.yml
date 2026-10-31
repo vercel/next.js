@@ -149,7 +149,7 @@ jobs:
 
             return await rerunIfRequiredNotSuccessful()
       - name: send webhook
-        if: ${{ github.event.workflow_run.event == 'schedule' || steps.required_job_conclusion.outputs.result != '"success"' }}
+        if: ${{ github.event.workflow_run.event == 'schedule' }}
         uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
         with:
           # These urls are intentionally missing the protocol,
@@ -163,4 +163,4 @@ jobs:
               "workflow_branch": ${{ toJSON(github.event.workflow_run.head_branch) }}
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets[github.event.workflow_run.event == 'schedule' && 'FUTURE_COMPAT_SLACK_WEBHOOK_URL' || 'BROKEN_CANARY_SLACK_WEBHOOK_URL'] }}
+          SLACK_WEBHOOK_URL: ${{ github.event.workflow_run.event == 'schedule' && secrets.FUTURE_COMPAT_SLACK_WEBHOOK_URL || '' }}
