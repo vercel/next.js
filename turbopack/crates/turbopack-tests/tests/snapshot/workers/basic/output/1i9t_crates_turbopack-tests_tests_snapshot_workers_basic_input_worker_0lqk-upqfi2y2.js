@@ -755,7 +755,7 @@ function wrapDeps(deps) {
 }
 function asyncModule(body, hasAwait) {
     const module = this.m;
-    const queue = hasAwait ? Object.assign([], {
+    let queue = hasAwait ? Object.assign([], {
         status: -1
     }) : undefined;
     const depQueues = new Set();
@@ -788,7 +788,14 @@ function asyncModule(body, hasAwait) {
                 return d[turbopackExports];
             });
         const { promise, resolve } = createPromise();
-        const fn = Object.assign(()=>resolve(getResult), {
+        const fn = Object.assign(()=>{
+            if (!queue) {
+                queue = Object.assign([], {
+                    status: 0
+                });
+            }
+            resolve(getResult);
+        }, {
             queueCount: 0
         });
         function fnQueue(q) {
@@ -810,6 +817,9 @@ function asyncModule(body, hasAwait) {
             resolve(promise[turbopackExports]);
         }
         resolveQueue(queue);
+        if (!hasAwait) {
+            queue = undefined;
+        }
     }
     body(handleAsyncDependencies, asyncResult);
     if (queue && queue.status === -1) {
