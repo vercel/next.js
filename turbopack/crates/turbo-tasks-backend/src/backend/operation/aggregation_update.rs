@@ -15,7 +15,8 @@
 //! An edge between an upper task `U` and a task `F` is stored either as an inner edge
 //! (`F.upper[U]`, unsigned) or as a follower edge (`U.followers[F]`, signed). Updates only lock one
 //! or two tasks at a time and propagate through the graph as queued jobs, so the removal of an edge
-//! can be processed before its addition (the addition may even be queued in the same queue).
+//! can be processed before its addition. Within one queue removals wait for the queued additions
+//! (see [`AggregationUpdateQueue`]), but the addition may be in another queue or generated later.
 //!
 //! Such a removal doesn't wait for the addition. It records *debt*: a negative follower count. Only
 //! `U.followers` can be negative, `F.upper` never is. Only counts `> 0` are real edges: readers of
@@ -443,6 +444,17 @@ pub enum AggregationUpdateJob {
 }
 
 impl AggregationUpdateJob {
+    /// Whether this job removes aggregation edges. These jobs are deferred to the removal queue
+    /// of [`AggregationUpdateQueue`] (see its docs).
+    fn is_edge_removal(&self) -> bool {
+        matches!(
+            self,
+            AggregationUpdateJob::InnerOfUppersLostFollower { .. }
+                | AggregationUpdateJob::InnerOfUppersLostFollowers(_)
+                | AggregationUpdateJob::InnerOfUpperLostFollowers { .. }
+        )
+    }
+
     pub fn data_update(
         task: &mut TaskGuard<'_>,
         update: AggregatedDataUpdate,
@@ -999,6 +1011,7 @@ pub struct AggregationUpdateQueueStats {
     update_aggregation_number_batches: usize,
     optimize_task: usize,
     aggregated_data_update: usize,
+    invalidate_due_to_collectibles_change: usize,
     find_and_schedule_dirty_batches: usize,
     find_and_schedule_dirty: usize,
     schedule_task: usize,
@@ -1008,9 +1021,26 @@ pub struct AggregationUpdateQueueStats {
 type TestHook = Box<dyn FnOnce(&mut ExecuteContext<'_>) + Send>;
 
 /// A queue for aggregation update jobs.
+///
+/// Jobs are processed by priority: `jobs`, aggregation number updates, balancing, edge removals,
+/// optimizations, finding dirty tasks and scheduling them. Work that a job generates is again
+/// processed by this priority, so e.g. the data update of a removal runs before the next removal.
+///
+/// Edge removals (`InnerOf{Upper,Uppers}LostFollower(s)`) wait in `removal_jobs` until all
+/// additions and balancing in the queue are done. When the same edge, or a task reachable through
+/// another edge, is removed and added in the same queue, its aggregated data then goes `1 -> 2 ->
+/// 1` instead of `1 -> 0 -> 1`. This avoids removing and re-adding the data, the invalidations of
+/// collectibles dependents that this causes, and readers temporarily missing collectibles. It
+/// doesn't help when the removal and the addition are in different queues.
+///
+/// Processing a removal after the addition of the same edge is the ordinary case. A removal that
+/// is still processed before its addition (from another queue) records follower debt (see module
+/// docs), so the deferral doesn't change correctness.
 #[derive(Default)]
 pub struct AggregationUpdateQueue {
     jobs: VecDeque<AggregationUpdateJobItem>,
+    /// Edge removal jobs, processed after `jobs`, aggregation number updates and balancing.
+    removal_jobs: VecDeque<AggregationUpdateJobItem>,
     aggregation_number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_aggregation_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
@@ -1024,6 +1054,10 @@ pub struct AggregationUpdateQueue {
     /// write. Per-queue (not global), and absent from production builds.
     #[cfg(test)]
     before_inner_write: Option<TestHook>,
+    /// One-shot interleaving at the unlocked boundary after a removal recorded debt and before it
+    /// rechecks the inner edge. Per-queue (not global), and absent from production builds.
+    #[cfg(test)]
+    before_debt_recheck: Option<TestHook>,
     #[cfg(feature = "trace_aggregation_update_stats")]
     pub stats: AggregationUpdateQueueStats,
 }
@@ -1033,6 +1067,7 @@ impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(0),
+            removal_jobs: VecDeque::with_capacity(0),
             aggregation_number_updates: FxIndexMap::default(),
             done_aggregation_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
@@ -1042,6 +1077,8 @@ impl AggregationUpdateQueue {
             scheduled_tasks: FxHashMap::default(),
             #[cfg(test)]
             before_inner_write: None,
+            #[cfg(test)]
+            before_debt_recheck: None,
             #[cfg(feature = "trace_aggregation_update_stats")]
             stats: AggregationUpdateQueueStats::default(),
         }
@@ -1051,6 +1088,14 @@ impl AggregationUpdateQueue {
     #[cfg(test)]
     fn before_inner_write_for_testing(&mut self, ctx: &mut ExecuteContext<'_>) {
         if let Some(hook) = self.before_inner_write.take() {
+            hook(ctx);
+        }
+    }
+
+    /// Runs the test's simulated concurrent operation without holding either task lock.
+    #[cfg(test)]
+    fn before_debt_recheck_for_testing(&mut self, ctx: &mut ExecuteContext<'_>) {
+        if let Some(hook) = self.before_debt_recheck.take() {
             hook(ctx);
         }
     }
@@ -1069,6 +1114,7 @@ impl AggregationUpdateQueue {
     pub fn is_empty(&self) -> bool {
         let Self {
             jobs,
+            removal_jobs,
             aggregation_number_updates,
             find_and_schedule,
             balance_queue,
@@ -1078,10 +1124,13 @@ impl AggregationUpdateQueue {
             scheduled_tasks,
             #[cfg(test)]
                 before_inner_write: _,
+            #[cfg(test)]
+                before_debt_recheck: _,
             #[cfg(feature = "trace_aggregation_update_stats")]
                 stats: _,
         } = self;
         jobs.is_empty()
+            && removal_jobs.is_empty()
             && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
@@ -1141,6 +1190,10 @@ impl AggregationUpdateQueue {
             AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
                 self.balance_queue
                     .push_back(BalanceJob::new(upper_id, task_id));
+            }
+            _ if job.is_edge_removal() => {
+                self.removal_jobs
+                    .push_back(AggregationUpdateJobItem::new(job));
             }
             _ => {
                 self.jobs.push_back(AggregationUpdateJobItem::new(job));
@@ -1255,6 +1308,10 @@ impl AggregationUpdateQueue {
     /// Runs everything up to the rebalance work (`balance_edge` / `optimize`), then takes the
     /// pending balance edges out of the queue and returns them instead of running them.
     ///
+    /// Edge removals normally wait for balancing. Here balancing is deferred, so removals run
+    /// while balance edges are pending: each step moves the balance edges out of the queue before
+    /// the next one.
+    ///
     /// GC uses this to stop once edge removal is done and defer the rebalance until the parallel
     /// collect is quiescent; see [`super::cleanup_old_edges_deletions_only`], which is the only
     /// caller. The queue must be built with [`Self::new_without_optimizations`].
@@ -1262,10 +1319,16 @@ impl AggregationUpdateQueue {
         &mut self,
         ctx: &mut ExecuteContext<'_>,
     ) -> Vec<(TaskId, TaskId)> {
-        // `process` runs `jobs` and `aggregation_number_updates` before every other queue, so
-        // nothing below them has run yet when both are empty.
-        while !(self.jobs.is_empty() && self.aggregation_number_updates.is_empty()) {
+        let mut balance_queue = take(&mut self.balance_queue);
+        // With `balance_queue` empty, `process` runs `jobs`, `aggregation_number_updates` and
+        // `removal_jobs` before every other queue, so nothing below them has run yet when all three
+        // are empty.
+        while !(self.jobs.is_empty()
+            && self.aggregation_number_updates.is_empty()
+            && self.removal_jobs.is_empty())
+        {
             self.process(ctx);
+            balance_queue.extend(take(&mut self.balance_queue));
         }
         assert!(
             self.find_and_schedule.is_empty() && self.scheduled_tasks.is_empty(),
@@ -1278,7 +1341,7 @@ impl AggregationUpdateQueue {
             self.optimize_queue.is_empty(),
             "a queue built with `new_without_optimizations` must never hold optimize jobs"
         );
-        take(&mut self.balance_queue)
+        balance_queue
             .into_iter()
             .map(|job| (job.upper_id, job.task_id))
             .collect()
@@ -1304,9 +1367,21 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// Takes the next job of `jobs`, or the next edge removal when nothing else of higher priority
+    /// (`jobs`, aggregation number updates, balancing) is pending. See the type docs.
+    fn pop_job(&mut self) -> Option<AggregationUpdateJobItem> {
+        if let Some(job) = self.jobs.pop_front() {
+            return Some(job);
+        }
+        if self.aggregation_number_updates.is_empty() && self.balance_queue.is_empty() {
+            return self.removal_jobs.pop_front();
+        }
+        None
+    }
+
     /// Executes a single step of the queue. Returns true, when the queue is empty.
     fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
-        if let Some(job) = self.jobs.pop_front() {
+        if let Some(job) = self.pop_job() {
             let job: AggregationUpdateJobGuard = job.entered();
             match job.job {
                 AggregationUpdateJob::UpdateAggregationNumber { .. }
@@ -1544,6 +1619,10 @@ impl AggregationUpdateQueue {
                     collectibles_task,
                     collectible_type,
                 } => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.invalidate_due_to_collectibles_change += 1;
+                    }
                     let target = CollectiblesRef {
                         task: collectibles_task,
                         collectible_type,
@@ -2279,6 +2358,10 @@ impl AggregationUpdateQueue {
         }
 
         // STEP 3
+        #[cfg(test)]
+        if !followers_with_debt.is_empty() {
+            self.before_debt_recheck_for_testing(ctx);
+        }
         for follower_id in followers_with_debt {
             self.balance_if_inner_edge(ctx, upper_id, follower_id);
         }
@@ -3925,7 +4008,7 @@ mod follower_debt_tests {
         TaskId::new(id).unwrap()
     }
 
-    fn collectible() -> CollectibleRef {
+    pub(super) fn collectible() -> CollectibleRef {
         CollectibleRef {
             collectible_type: TraitTypeId::new(1).unwrap(),
             cell: CellRef {
@@ -3942,7 +4025,10 @@ mod follower_debt_tests {
         setup_with_data(tasks, true)
     }
 
-    fn setup_with_data(tasks: &[(u32, u32)], emit: bool) -> Arc<TurboTasks<TurboTasksBackend>> {
+    pub(super) fn setup_with_data(
+        tasks: &[(u32, u32)],
+        emit: bool,
+    ) -> Arc<TurboTasks<TurboTasksBackend>> {
         setup_with_storage(tasks, emit, StorageMode::ReadOnly)
     }
 
@@ -4011,7 +4097,7 @@ mod follower_debt_tests {
     }
 
     /// The aggregated collectible count of `upper`, i.e. how many inner tasks it aggregates.
-    fn aggregated(tt: &TurboTasks<TurboTasksBackend>, upper: u32) -> i32 {
+    pub(super) fn aggregated(tt: &TurboTasks<TurboTasksBackend>, upper: u32) -> i32 {
         let mut ctx = ExecuteContext::new(tt.backend(), tt);
         let task = ctx.task(id(upper), TaskDataCategory::Meta);
         task.get_aggregated_collectibles(&collectible())
@@ -4040,7 +4126,7 @@ mod follower_debt_tests {
         }
     }
 
-    fn balance(upper: u32, follower: u32) -> AggregationUpdateJob {
+    pub(super) fn balance(upper: u32, follower: u32) -> AggregationUpdateJob {
         AggregationUpdateJob::BalanceEdge {
             upper_id: id(upper),
             task_id: id(follower),
@@ -4165,7 +4251,7 @@ mod follower_debt_tests {
     /// Only disappearance notifications, excluding the independent data-update jobs.
     fn queued_lost_ids(queue: &AggregationUpdateQueue) -> Vec<TaskId> {
         queue
-            .jobs
+            .removal_jobs
             .iter()
             .flat_map(|item| match &item.job {
                 AggregationUpdateJob::InnerOfUppersLostFollowers(job) => {
@@ -4209,7 +4295,7 @@ mod follower_debt_tests {
                     .chain((4..3 + count).rev().map(id))
                     .collect();
                 assert_eq!(queued_lost_ids(&queue), expected, "{count} followers");
-                assert_eq!(queue.jobs.len(), 1);
+                assert_eq!(queue.removal_jobs.len(), 1);
                 queue.execute(&mut ctx);
             }
             assert!(followers(&tt, 1).is_empty());
@@ -4566,8 +4652,11 @@ mod follower_debt_tests {
         assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
         assert_eq!(followers(&tt, 1), vec![]);
         tt.backend().verify_aggregation_edges();
-        // Debt of a root edge is paid as well.
-        run(&tt, [remove(1, 2), remove(1, 2), add(1, 2)]);
+        // Debt of a root edge is paid as well. Separate queues, so the removals really overtake
+        // the addition (in one queue, removals wait for additions).
+        run(&tt, [remove(1, 2), remove(1, 2)]);
+        assert_eq!(followers(&tt, 1), vec![(id(2), -1)]);
+        run(&tt, [add(1, 2)]);
         assert_eq!(aggregated(&tt, 1), 0);
         assert_no_edges(&tt, &[1, 2]);
     }
@@ -4882,7 +4971,254 @@ mod follower_debt_tests {
     }
 }
 
-/// Microbenchmark of the aggregation update queue for removals that overtake their additions.
+/// Deterministic tests of the deferred removal queue: within one queue, edge removals are
+/// processed after additions and balancing.
+#[cfg(test)]
+mod deferred_removal_tests {
+    use turbo_tasks::{TaskId, TurboTasks};
+
+    use super::{
+        AggregationUpdateJob, AggregationUpdateQueue,
+        follower_debt_tests::{
+            FOLLOWER, INNER, UPPER, add, aggregated, balance, collectible, followers, id, remove,
+            run, setup_with_data, uppers,
+        },
+    };
+    use crate::backend::{
+        TaskDataCategory, TurboTasksBackend, operation::ExecuteContext,
+        storage_schema::TaskStorageAccessors,
+    };
+
+    /// A task that read the collectibles of an upper, so it is invalidated when they change.
+    const READER: u32 = 999;
+    /// A leaf below `INNER` tasks.
+    const LEAF: u32 = 1;
+
+    /// Lets `task` emit the test collectible.
+    fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(task), TaskDataCategory::All);
+        let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+    }
+
+    /// Registers `READER` as a dependent of the collectibles of `upper`.
+    fn add_reader(tt: &TurboTasks<TurboTasksBackend>, upper: u32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(upper), TaskDataCategory::All);
+        let _ = task.add_collectibles_dependents((collectible().collectible_type, id(READER)));
+    }
+
+    /// Whether `READER` was invalidated.
+    fn reader_is_dirty(tt: &TurboTasks<TurboTasksBackend>) -> bool {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(READER), TaskDataCategory::All);
+        task.get_dirty().is_some()
+    }
+
+    /// Runs `jobs` in one queue, calling `check` after every step.
+    fn run_stepwise(
+        tt: &TurboTasks<TurboTasksBackend>,
+        jobs: impl IntoIterator<Item = AggregationUpdateJob>,
+        mut check: impl FnMut(&AggregationUpdateQueue),
+    ) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend(jobs);
+        while !queue.process(&mut ctx) {
+            check(&queue);
+        }
+        assert!(queue.is_empty());
+    }
+
+    fn is_removal_of(job: &AggregationUpdateJob, upper: u32, follower: u32) -> bool {
+        matches!(
+            job,
+            AggregationUpdateJob::InnerOfUpperLostFollowers { upper_id, lost_follower_ids }
+                if *upper_id == id(upper) && lost_follower_ids[..] == [id(follower)]
+        )
+    }
+
+    /// Removing and re-adding an edge in one queue keeps the data in the upper the whole time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn same_edge_replacement_keeps_data() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (READER, 0)], false);
+        emit(&tt, 2);
+        run(&tt, [add(1, 2)]);
+        add_reader(&tt, 1);
+        assert_eq!(aggregated(&tt, 1), 1);
+
+        run_stepwise(&tt, [remove(1, 2), add(1, 2)], |_| {
+            assert_eq!(aggregated(&tt, 1), 1, "the data must never be removed");
+        });
+
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert!(!reader_is_dirty(&tt), "the reader must not be invalidated");
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Moving a task from one inner task of an upper to another in one queue keeps its collectible
+    /// in the upper the whole time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn moved_shared_descendant_keeps_collectible() {
+        // Tasks 2 and 3 are aggregating inner tasks of task 1, task 4 is a leaf.
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, 50), (3, 50), (4, LEAF), (READER, 0)],
+            false,
+        );
+        emit(&tt, 4);
+        run(&tt, [add(1, 2), add(1, 3), add(2, 4)]);
+        add_reader(&tt, 1);
+        assert_eq!(aggregated(&tt, 1), 1);
+
+        run_stepwise(&tt, [remove(2, 4), add(3, 4)], |_| {
+            assert!(
+                aggregated(&tt, 1) > 0,
+                "the collectible must never be missing"
+            );
+        });
+
+        assert_eq!(uppers(&tt, 4), vec![(id(3), 1)]);
+        assert_eq!(aggregated(&tt, 2), 0);
+        assert_eq!(aggregated(&tt, 3), 1);
+        assert_eq!(aggregated(&tt, 1), 1);
+        assert!(!reader_is_dirty(&tt), "the reader must not be invalidated");
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// A removal without a matching addition still removes the data and invalidates the reader.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn genuine_loss_still_removes_and_invalidates() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (READER, 0)], false);
+        emit(&tt, 2);
+        run(&tt, [add(1, 2)]);
+        add_reader(&tt, 1);
+
+        run_stepwise(&tt, [remove(1, 2)], |_| {});
+
+        assert_eq!(aggregated(&tt, 1), 0);
+        assert!(reader_is_dirty(&tt), "the reader must be invalidated");
+        assert_eq!(uppers(&tt, 2), vec![]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// A removal is only processed when no job, aggregation number update or balancing is pending.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn removal_waits_for_jobs_and_balance() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER)], true);
+        run(&tt, [add(1, 2)]);
+
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend([remove(1, 2), add(1, 3), balance(1, 3)]);
+        queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+            task_id: id(3),
+            base_aggregation_number: INNER,
+            distance: None,
+        });
+        assert_eq!(queue.removal_jobs.len(), 1);
+        assert_eq!(queue.jobs.len(), 1);
+        loop {
+            let others_pending = !queue.jobs.is_empty()
+                || !queue.aggregation_number_updates.is_empty()
+                || !queue.balance_queue.is_empty();
+            let removals = queue.removal_jobs.len();
+            if queue.process(&mut ctx) {
+                break;
+            }
+            if queue.removal_jobs.len() < removals {
+                assert!(
+                    !others_pending,
+                    "removal processed while other work was pending"
+                );
+            }
+        }
+        drop(ctx);
+
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Work generated by a removal runs with its normal priority before the next removal, and
+    /// removals generated by it are queued after the pending ones.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn removal_generated_work_runs_before_next_removal() {
+        // Task 5 is a root above task 1. Task 3 is a follower of the aggregating task 2, so
+        // removing the inner edge 1 -> 2 also removes 3 from 1. Only task 2 emits, so removing it
+        // changes the data of task 1 and that change propagates to task 5.
+        let tt = setup_with_data(
+            &[(5, u32::MAX), (1, UPPER), (2, 50), (3, 60), (4, INNER)],
+            false,
+        );
+        emit(&tt, 2);
+        run(&tt, [add(5, 1), add(1, 2), add(2, 3), add(1, 4)]);
+        assert_eq!(followers(&tt, 2), vec![(id(3), 1)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend([remove(1, 2), remove(1, 4)]);
+        assert!(!queue.process(&mut ctx));
+        // The data update for task 5 is a normal job, processed next.
+        assert!(matches!(
+            queue.jobs.front().map(|item| &item.job),
+            Some(AggregationUpdateJob::AggregatedDataUpdate(_))
+        ));
+        // The removal of the follower of task 2 is queued after the pending removal.
+        assert_eq!(queue.removal_jobs.len(), 2);
+        assert!(is_removal_of(&queue.removal_jobs[0].job, 1, 4));
+        assert!(is_removal_of(&queue.removal_jobs[1].job, 1, 3));
+        assert!(!queue.process(&mut ctx));
+        assert_eq!(queue.removal_jobs.len(), 2, "the data update runs first");
+        queue.execute(&mut ctx);
+        drop(ctx);
+
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(uppers(&tt, 3), vec![]);
+        assert_eq!(followers(&tt, 2), vec![(id(3), 1)]);
+        assert_eq!(uppers(&tt, 4), vec![]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// GC runs removals while balancing is deferred: all removals are processed, but no balance
+    /// edge, neither a pending one nor one pushed by a removal.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn execute_until_rebalance_drains_removals_but_not_balancing() {
+        // No data, as the simulated inner edge below has no data either.
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, FOLLOWER)], false);
+        run(&tt, [add(1, 2)]);
+
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        // As if a concurrent addition added the inner edge after the removal recorded debt.
+        queue.before_debt_recheck = Some(Box::new(|ctx| {
+            let mut task = ctx.task(id(3), TaskDataCategory::All);
+            task.update_upper(id(1), |_| Some(1));
+        }));
+        queue.extend([balance(1, 2), remove(1, 3)]);
+        let mut balance_edges = queue.execute_until_rebalance(&mut ctx);
+        assert!(queue.is_empty());
+        drop(ctx);
+
+        balance_edges.sort();
+        let expected: Vec<(TaskId, TaskId)> = vec![(id(1), id(2)), (id(1), id(3))];
+        assert_eq!(balance_edges, expected);
+        // The split edge is not netted yet: no balancing ran.
+        assert_eq!(followers(&tt, 1), vec![(id(3), -1)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend_balance_edges(balance_edges, &mut ctx);
+        queue.execute(&mut ctx);
+        drop(ctx);
+        assert_eq!(followers(&tt, 1), vec![]);
+        assert_eq!(uppers(&tt, 3), vec![]);
+        tt.backend().verify_aggregation_edges();
+    }
+}
+
+/// Microbenchmark of the aggregation update queue for removals and additions of the same edges.
 /// Uses criterion, but runs as an ignored test because it needs crate internals:
 ///
 /// ```bash
@@ -4961,11 +5297,74 @@ mod overtake_benchmark {
             })
         });
         assert_empty();
-        // Removals that are processed before their additions
+        // Removals that are processed before their additions. They are in separate queues, as
+        // removals in one queue wait for the additions.
         group.bench_function(BenchmarkId::new("overtake", EDGES), |b| {
-            b.iter(|| run(&tt, removes().chain(adds())))
+            b.iter(|| {
+                run(&tt, removes());
+                run(&tt, adds());
+            })
         });
         assert_empty();
+        // Existing edges that are removed and added again in one queue
+        run(&tt, adds());
+        group.bench_function(BenchmarkId::new("replace", EDGES), |b| {
+            b.iter(|| run(&tt, removes().chain(adds())))
+        });
+        run(&tt, removes());
+        assert_empty();
         group.finish();
+    }
+
+    /// Prints the work done by the queue for existing edges that are removed and added again in
+    /// one queue, with a reader of the collectibles of the upper. Only the followers emit the
+    /// collectible, so it disappears from the upper when all edges are gone. Run with:
+    ///
+    /// ```bash
+    /// cargo test -p turbo-tasks-backend --lib --features trace_aggregation_update_stats -- \
+    ///   --ignored --nocapture aggregation_update::overtake_benchmark::replace_work
+    /// ```
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "prints work counts"]
+    async fn replace_work() {
+        use crate::backend::{
+            TaskDataCategory,
+            operation::{AggregationUpdateQueue, ExecuteContext},
+            storage_schema::TaskStorageAccessors,
+        };
+        const EDGES: u32 = 32;
+        const READER: u32 = 999;
+        let tasks: Vec<(u32, u32)> = std::iter::once((1, UPPER))
+            .chain((0..EDGES).map(|i| (i + 2, if i % 2 == 0 { INNER } else { FOLLOWER })))
+            .chain(std::iter::once((READER, 0)))
+            .collect();
+        let tt = super::follower_debt_tests::setup_with_data(&tasks, false);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            for i in 0..EDGES {
+                let mut task =
+                    ctx.task(super::follower_debt_tests::id(i + 2), TaskDataCategory::All);
+                let _ = task.update_collectibles_positive_crossing(
+                    super::follower_debt_tests::collectible(),
+                    1,
+                );
+            }
+        }
+        run(&tt, (0..EDGES).map(|i| add(1, i + 2)));
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut task = ctx.task(super::follower_debt_tests::id(1), TaskDataCategory::All);
+            let _ = task.add_collectibles_dependents((
+                super::follower_debt_tests::collectible().collectible_type,
+                super::follower_debt_tests::id(READER),
+            ));
+        }
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend((0..EDGES).map(|i| remove(1, i + 2)));
+        queue.extend((0..EDGES).map(|i| add(1, i + 2)));
+        queue.execute(&mut ctx);
+        eprintln!("replace_work {:#?}", queue.stats);
     }
 }
