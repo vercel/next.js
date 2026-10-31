@@ -194,6 +194,9 @@ pub enum TurboTasksBackendJob {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SnapshotReason {
     Test,
+    /// An explicit [`TurboTasksBackend::snapshot_and_evict`] call, e.g. at a phase boundary of a
+    /// short session.
+    SnapshotAndEvict,
     Stop,
     InitialSnapshotTimeout,
     RegularSnapshotInterval,
@@ -204,6 +207,7 @@ impl SnapshotReason {
     fn as_str(self) -> &'static str {
         match self {
             SnapshotReason::Test => "test",
+            SnapshotReason::SnapshotAndEvict => "snapshot and evict",
             SnapshotReason::Stop => "stop",
             SnapshotReason::InitialSnapshotTimeout => "initial snapshot timeout",
             SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
@@ -258,8 +262,11 @@ pub struct TurboTasksBackend {
     snapshot_coord: SnapshotCoordinator,
     /// Serializes calls to `snapshot_and_persist` (and `gc_for_testing`). The coordinator's
     /// `begin_exclusion` asserts that exclusive phases don't overlap; this mutex
-    /// enforces that contract for our callers (background loop and
-    /// `stop_and_wait`).
+    /// enforces that contract for our callers (background loop, `stop_and_wait` and
+    /// `snapshot_and_evict`).
+    ///
+    /// Eviction sweeps (`Storage::evict_after_snapshot`) also hold it, so that they never run
+    /// while another caller's snapshot is in snapshot mode.
     ///
     /// Also holds the [`LastPersistenceStatus`], which disables persisting after a failure.
     snapshot_in_progress: Mutex<LastPersistenceStatus>,
@@ -440,10 +447,66 @@ impl TurboTasksBackend {
         )
     }
 
+    /// Persists a snapshot of all modified tasks and then evicts every evictable task from memory,
+    /// so that it is restored from the backing storage on demand. This lets short sessions (which
+    /// use [`StorageMode::ReadWriteOnShutdown`] and never run the background snapshot loop)
+    /// reclaim memory at a point of their choosing, e.g. after an expensive phase whose results
+    /// are mostly no longer needed in memory.
+    ///
+    /// The snapshot waits for all in-flight backend operations to settle before capturing the
+    /// task graph, using the same commit protocol as every other snapshot. Task execution may
+    /// continue concurrently; only backend operations are excluded during the capture. Tasks that
+    /// are executing (or otherwise not evictable) stay in memory. After evicting, the allocator is
+    /// asked to return freed memory to the OS.
+    ///
+    /// Returns:
+    /// - `Ok(Some(counts))` when the snapshot succeeded and the eviction sweep ran (the counts may
+    ///   be zero).
+    /// - `Ok(None)` when nothing was attempted: persistence is disabled or read-only, or an earlier
+    ///   persist failed (which disables persisting for the rest of the session).
+    /// - `Err(..)` when persisting failed during this call. Nothing is evicted, and persisting is
+    ///   disabled for the rest of the session.
+    ///
+    /// This blocks the calling thread. Call it from outside task execution and backend operations
+    /// (e.g. between top-level `TurboTasks::run` calls), and not after the backend started
+    /// stopping. Calling it from within a backend operation would wait for that operation.
+    pub fn snapshot_and_evict(
+        &self,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Result<Option<EvictionCounts>> {
+        if !self.should_persist() {
+            return Ok(None);
+        }
+        let span = tracing::info_span!("snapshot and evict");
+        // Hold the snapshot lock across the eviction sweep too, so that no other snapshot can
+        // enter snapshot mode between this snapshot and its sweep.
+        let mut status = self.snapshot_in_progress.lock();
+        if *status == LastPersistenceStatus::Failed {
+            return Ok(None);
+        }
+        // Same failure handling as `snapshot_and_persist`: mark the cycle failed up front and only
+        // reset it on success, as encoding failures panic.
+        *status = LastPersistenceStatus::Failed;
+        let Some(_) = self.snapshot_and_persist_locked(
+            span.id(),
+            SnapshotReason::SnapshotAndEvict,
+            turbo_tasks,
+        )?
+        else {
+            unreachable!("snapshot and evict waits for operations, so it is never skipped");
+        };
+        *status = LastPersistenceStatus::Ok;
+        let eviction_counts = self.storage.evict_after_snapshot(span.id());
+        drop(status);
+        TurboMalloc::collect(true);
+        Ok(Some(eviction_counts))
+    }
+
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
     /// This is exposed for integration tests that need to verify the snapshot → evict → restore
-    /// cycle works correctly.
+    /// cycle works correctly. Unlike [`Self::snapshot_and_evict`], GC passes run by this snapshot
+    /// are interruptible and the outcome includes test-only details.
     #[doc(hidden)]
     pub fn snapshot_and_evict_for_testing(
         &self,
@@ -465,7 +528,11 @@ impl TurboTasksBackend {
                 return TestSnapshotOutcome::default();
             }
         };
-        let eviction_counts = self.storage.evict_after_snapshot(None);
+        let eviction_counts = {
+            // Don't race with another caller's snapshot, see `snapshot_in_progress`.
+            let _guard = self.snapshot_in_progress.lock();
+            self.storage.evict_after_snapshot(None)
+        };
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
@@ -3262,6 +3329,9 @@ impl TurboTasksBackend {
                                     // when enabled we should expect it to reclaim substantial
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
+                                    // Don't race with another caller's snapshot, see
+                                    // `snapshot_in_progress`.
+                                    let _guard = self.snapshot_in_progress.lock();
                                     self.storage.evict_after_snapshot(background_span.id());
                                     true
                                 } else {
@@ -4148,5 +4218,52 @@ mod persist_failure_tests {
             "the second snapshot must not start"
         );
         assert!(!task.flags.any_snapshot_pending());
+    }
+
+    /// `snapshot_and_evict` must wait for in-flight operations (never skip or capture a partial
+    /// graph), run GC to completion and must not drain the map.
+    #[test]
+    fn snapshot_and_evict_reason_waits_for_operations() {
+        let reason = SnapshotReason::SnapshotAndEvict;
+        assert!(reason.waits_for_operations());
+        assert!(!reason.gc_is_interruptible());
+        assert!(!reason.drain_entries());
+    }
+
+    /// A failed persist during `snapshot_and_evict` is reported as an error and skips eviction;
+    /// later calls are not attempted.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_and_evict_reports_persist_failure() {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadWrite),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        let backend = tt.backend();
+        let task_id = TaskId::new(1).unwrap();
+        {
+            let mut task = backend.storage.access_mut(task_id);
+            let _ = task.track_modification(SpecificTaskDataCategory::Data, "test");
+        }
+
+        assert!(backend.snapshot_and_evict(&tt).is_err());
+        assert_eq!(
+            *backend.snapshot_in_progress.lock(),
+            LastPersistenceStatus::Failed
+        );
+        assert!(
+            backend.storage.with_task(task_id, |_| ()).is_some(),
+            "a failed snapshot must not evict"
+        );
+        assert!(
+            backend
+                .snapshot_and_evict(&tt)
+                .expect("a disabled persist is skipped, not an error")
+                .is_none()
+        );
     }
 }

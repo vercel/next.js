@@ -53,9 +53,9 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
-    Vc, mark_top_level_task,
+    Completion, Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError,
+    ReadRef, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
+    UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity, TraceEvent},
     read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
@@ -1495,6 +1495,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         EntrypointsWritePhase::All
     };
 
+    let graph_gc_root = snapshot_and_evict_before_output_phase(ctx, container, first_phase).await;
     let (mut entrypoints, mut issues) = tt
         .run(async move {
             let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
@@ -1521,6 +1522,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
+    drop(graph_gc_root);
 
     if has_deferred_entrypoints {
         ctx.on_before_deferred_entries().await?;
@@ -1559,6 +1561,9 @@ pub async fn project_write_all_entrypoints_to_disk(
             .await?;
         }
 
+        let graph_gc_root =
+            snapshot_and_evict_before_output_phase(ctx, container, EntrypointsWritePhase::Deferred)
+                .await;
         let (deferred_entrypoints, deferred_issues) = tt
             .run(async move {
                 let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
@@ -1585,6 +1590,7 @@ pub async fn project_write_all_entrypoints_to_disk(
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
             .await?;
+        drop(graph_gc_root);
 
         if deferred_entrypoints.is_some() {
             entrypoints = deferred_entrypoints;
@@ -1618,6 +1624,116 @@ pub async fn project_write_all_entrypoints_to_disk(
         },
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
     })
+}
+
+/// Whether `next build` should persist a snapshot and evict persisted tasks from memory once the
+/// module graph is final, before chunking and code generation start. This trades build time for a
+/// lower peak memory usage. Prototype: only enabled via
+/// `NEXT_TURBOPACK_BUILD_SNAPSHOT_AND_EVICT=1`.
+fn is_build_snapshot_and_evict_enabled() -> bool {
+    static ENABLED: LazyLock<bool> = LazyLock::new(|| {
+        std::env::var("NEXT_TURBOPACK_BUILD_SNAPSHOT_AND_EVICT").is_ok_and(|v| v == "1")
+    });
+    *ENABLED
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn whole_app_module_graphs_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<Completion>> {
+    container
+        .project()
+        .whole_app_module_graphs()
+        .as_side_effect()
+        .await?;
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn whole_app_module_graphs_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let filter = container.project().issue_filter().await?;
+    let (_, issues, effects) = strongly_consistent_catch_collectables(
+        whole_app_module_graphs_operation(container),
+        &filter,
+    )
+    .await?;
+    Ok(OperationResult { issues, effects }.cell())
+}
+
+/// If enabled (see [`is_build_snapshot_and_evict_enabled`]), computes the whole app module graph
+/// for the given write phase, applies its effects, then persists a snapshot and evicts persisted
+/// tasks from memory before the output phase starts chunking and code generation.
+///
+/// The module graph's issues are collected here, but not returned: the following output phase
+/// reads the same tasks and reports them, so returning them here would report them twice. If
+/// computing the graph or applying its effects fails, the snapshot is skipped and the output phase
+/// reports the failure. Failing to persist is reported as a warning and never fails the build.
+///
+/// Returns a [`GcRoot`] that keeps the module graph from being garbage collected. Hold it until
+/// the output phase has completed.
+async fn snapshot_and_evict_before_output_phase(
+    ctx: &NextTurbopackContext,
+    container: ResolvedVc<ProjectContainer>,
+    write_phase: EntrypointsWritePhase,
+) -> Option<GcRoot<OperationResult>> {
+    if !is_build_snapshot_and_evict_enabled() {
+        return None;
+    }
+    let tt = ctx.turbo_tasks().clone();
+    let start = Instant::now();
+    let module_graphs_op = match tt
+        .run(async move {
+            let op = whole_app_module_graphs_with_issues_operation(container);
+            read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
+            Ok(op)
+        })
+        .await
+    {
+        Ok(op) => op,
+        Err(err) => {
+            eprintln!(
+                "Turbopack snapshot and evict ({write_phase:?}): skipped, computing the module \
+                 graph failed: {err}"
+            );
+            return None;
+        }
+    };
+    let gc_root = GcRoot::pin(tt.clone(), module_graphs_op);
+    let graph_duration = start.elapsed();
+
+    let start = Instant::now();
+    let result = {
+        let tt = tt.clone();
+        tokio::task::spawn_blocking(move || tt.backend().snapshot_and_evict(&tt)).await
+    };
+    let duration = start.elapsed();
+    match result {
+        Ok(Ok(Some(counts))) => eprintln!(
+            "Turbopack snapshot and evict ({write_phase:?}): evicted {} tasks fully, {} data and \
+             meta, {} data only, {} meta only, {} task cache keys in {duration:.2?} (module graph \
+             {graph_duration:.2?})",
+            counts.full,
+            counts.data_and_meta,
+            counts.data_only,
+            counts.meta_only,
+            counts.key_evictions,
+        ),
+        Ok(Ok(None)) => eprintln!(
+            "Turbopack snapshot and evict ({write_phase:?}): not attempted, persistence is \
+             disabled"
+        ),
+        Ok(Err(err)) => eprintln!(
+            "WARNING: Turbopack snapshot and evict ({write_phase:?}) failed, continuing without \
+             it: {err:#}"
+        ),
+        Err(err) => eprintln!(
+            "WARNING: Turbopack snapshot and evict ({write_phase:?}) panicked, continuing without \
+             it: {err}"
+        ),
+    }
+    Some(gc_root)
 }
 
 #[turbo_tasks::function(operation, root)]
