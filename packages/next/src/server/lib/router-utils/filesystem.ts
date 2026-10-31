@@ -36,6 +36,7 @@ import {
   getRouteRegex,
 } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
+import { decodeNonAsciiPathname } from '../../../shared/lib/router/utils/decode-non-ascii-pathname'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
@@ -284,7 +285,9 @@ export async function setupFsCheck(opts: {
     itemPath: string,
     locale: string | undefined
   ) => {
-    const definitions = routeDefinitions[type].get(itemPath)
+    const definitions =
+      routeDefinitions[type].get(itemPath) ??
+      routeDefinitions[type].get(decodeNonAsciiPathname(itemPath))
     if (!definitions?.length) return undefined
 
     if (type === 'pageFile') {
@@ -872,6 +875,10 @@ export async function setupFsCheck(opts: {
         const route = isPageOrAppFile
           ? getRouteDefinition(type, curItemPath, locale)
           : undefined
+
+        if (route && !isDynamicRoute(route.pathname)) {
+          curItemPath = route.pathname
+        }
 
         let matchedItem = items.has(curItemPath)
 
