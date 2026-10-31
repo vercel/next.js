@@ -1036,7 +1036,10 @@ impl AssetContext for ModuleAssetContext {
                                     ModuleResolveResultItem::Module(*module)
                                 }
                                 ProcessResult::Unknown(source) => {
-                                    ModuleResolveResultItem::Unknown(*source)
+                                    ModuleResolveResultItem::Unknown {
+                                        source: *source,
+                                        import: None,
+                                    }
                                 }
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
