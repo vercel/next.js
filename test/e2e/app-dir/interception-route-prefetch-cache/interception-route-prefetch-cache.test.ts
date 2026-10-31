@@ -57,13 +57,10 @@ describe('interception-route-prefetch-cache', () => {
     })
   }
 
-  describe('runtime = nodejs', () => {
-    const setup = nextTestSetup({
-      files: __dirname,
-    })
-    const { next, isNextDev } = setup
-    runTests(setup)
-
+  function runPayloadTests(
+    { next, isNextDev }: ReturnType<typeof nextTestSetup>,
+    { reportsInterception }: { reportsInterception: boolean }
+  ) {
     it.each([
       { pathname: '/post/1', interceptable: true },
       { pathname: '/foo', interceptable: false },
@@ -74,7 +71,7 @@ describe('interception-route-prefetch-cache', () => {
         expect(res.status).toBe(200)
         expect(res.headers.get('content-type')).toContain('text/x-component')
         expect(readRootPayload(await res.text()).i).toBe(
-          isNextDev || interceptable
+          isNextDev || (reportsInterception && interceptable)
         )
       }
     )
@@ -90,18 +87,28 @@ describe('interception-route-prefetch-cache', () => {
           if (chunk[0] === 1) flight += chunk[1]
         }
       }
-      expect(readRootPayload(flight).i).toBe(true)
+      expect(readRootPayload(flight).i).toBe(isNextDev || reportsInterception)
     })
+  }
+
+  describe('runtime = nodejs', () => {
+    const setup = nextTestSetup({
+      files: __dirname,
+    })
+    runTests(setup)
+    runPayloadTests(setup, { reportsInterception: true })
   })
 
   describe('runtime = edge', () => {
-    runTests(
-      nextTestSetup({
-        files: {
-          app: new FileRef(join(__dirname, 'app')),
-          'app/layout.tsx': new FileRef(join(__dirname, 'app/layout-edge.tsx')),
-        },
-      })
-    )
+    const setup = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'app')),
+        'app/layout.tsx': new FileRef(join(__dirname, 'app/layout-edge.tsx')),
+      },
+    })
+    runTests(setup)
+    // TODO: Edge renders don't report interception capability yet, even though
+    // the response's Vary header includes Next-URL.
+    runPayloadTests(setup, { reportsInterception: false })
   })
 })

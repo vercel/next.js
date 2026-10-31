@@ -176,7 +176,7 @@ async function exportPageImpl(
     params = getParams(normalizedPage, updatedPath)
   }
 
-  const { req, res } = createRequestResponseMocks({ url: updatedPath })
+  let initialStatusCode = 200
 
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
@@ -187,27 +187,36 @@ async function exportPageImpl(
         `/${statusCode}/index.html`,
       ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
-      res.statusCode = statusCode
+      initialStatusCode = statusCode
     }
   }
 
   // Ensure that the URL has a trailing slash if it's configured.
-  if (trailingSlash && !req.url?.endsWith('/')) {
-    req.url += '/'
-  }
+  const requestUrl =
+    trailingSlash && !updatedPath.endsWith('/')
+      ? updatedPath + '/'
+      : updatedPath
 
   // Resolve the pathname without a trailing slash for app page rendering.
   const resolvedPathname = removeTrailingSlash(updatedPath)
 
-  if (
-    locale &&
-    buildExport &&
-    commonRenderOpts.domainLocales &&
-    commonRenderOpts.domainLocales.some(
-      (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
-    )
-  ) {
-    addRequestMeta(req, 'isLocaleDomain', true)
+  // Pages and Route Handlers retain their HTTP adapters. App Page prerenders
+  // consume parsed inputs and output metadata without constructing transport.
+  const createTransportMocks = () => {
+    const { req, res } = createRequestResponseMocks({ url: requestUrl })
+    res.statusCode = initialStatusCode
+    if (
+      locale &&
+      buildExport &&
+      commonRenderOpts.domainLocales &&
+      commonRenderOpts.domainLocales.some(
+        (dl) =>
+          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+      )
+    ) {
+      addRequestMeta(req, 'isLocaleDomain', true)
+    }
+    return { req, res }
   }
 
   const getHtmlFilename = (p: string) =>
@@ -274,6 +283,7 @@ async function exportPageImpl(
 
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
+    const { req, res } = createTransportMocks()
     return exportAppRoute(
       req,
       res,
@@ -331,9 +341,8 @@ async function exportPageImpl(
     }
 
     return exportAppPage(
-      req,
-      res,
-      req.url,
+      initialStatusCode,
+      requestUrl,
       page,
       path,
       pathname,
@@ -362,6 +371,7 @@ async function exportPageImpl(
       developmentNotFoundSourcePage: undefined,
     }
 
+    const { req, res } = createTransportMocks()
     return exportPagesPage(
       req,
       res,
