@@ -489,174 +489,40 @@ fn rejects_outputs_matching_embed_patterns() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
-fn rejects_symlinked_output_paths_without_changing_destinations() {
-    use std::os::unix::fs::symlink;
-
+fn builds_into_a_linked_output_directory() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path().join("project");
     std::fs::create_dir(&project).unwrap();
-    source(&project, "package main\nfunc main() {}\n");
-    let output_name = format!("main{}", std::env::consts::EXE_SUFFIX);
-    let inside = project.join("redirected");
-    let outside = temp.path().join("outside");
-    let missing = temp.path().join("missing/nested");
-    let with_trailing_slash = |path: &Path| {
-        let mut raw = path.as_os_str().to_os_string();
-        raw.push("/");
-        PathBuf::from(raw)
-    };
-    let inside_with_slash = with_trailing_slash(&inside);
-    let outside_with_slash = with_trailing_slash(&outside);
-    for destination in [&inside, &outside] {
-        std::fs::create_dir(destination).unwrap();
-        std::fs::write(destination.join(&output_name), "builder-owned command").unwrap();
-    }
-    for destination in [
-        &inside,
-        &outside,
-        &inside_with_slash,
-        &outside_with_slash,
-        &missing,
-    ] {
-        symlink(destination, project.join("dist")).unwrap();
-        rejection(&project, &["build", "main.go"], "symlink");
-        assert_eq!(
-            std::fs::read_link(project.join("dist"))
-                .unwrap()
-                .as_os_str(),
-            destination.as_os_str()
-        );
-        for protected in [&inside, &outside] {
-            assert_eq!(
-                std::fs::read(protected.join(&output_name)).unwrap(),
-                b"builder-owned command"
-            );
-            assert_eq!(std::fs::read_dir(protected).unwrap().count(), 1);
-        }
-        assert!(
-            !temp.path().join("missing").exists(),
-            "publication created directories through a dangling output symlink"
-        );
-        std::fs::remove_file(project.join("dist")).unwrap();
-    }
-
-    std::fs::create_dir(project.join("dist")).unwrap();
-    let victim = outside.join(&output_name);
-    let missing_victim = outside.join("missing-command");
-    for destination in [&victim, &missing_victim] {
-        symlink(destination, executable(&project)).unwrap();
-        rejection(&project, &["build", "main.go"], "symlink");
-        assert_eq!(
-            std::fs::read_link(executable(&project)).unwrap(),
-            *destination
-        );
-        assert_eq!(std::fs::read(&victim).unwrap(), b"builder-owned command");
-        assert!(!missing_victim.exists());
-        std::fs::remove_file(executable(&project)).unwrap();
-    }
-}
-
-#[cfg(windows)]
-#[test]
-fn rejects_junction_output_directories_without_changing_destinations() {
-    let temp = tempfile::tempdir().unwrap();
-    let project = temp.path().join("project");
-    std::fs::create_dir(&project).unwrap();
-    source(&project, "package main\nfunc main() {}\n");
-    let inside = project.join("redirected");
-    let outside = temp.path().join("outside");
-    let output_name = format!("main{}", std::env::consts::EXE_SUFFIX);
-    for destination in [&inside, &outside] {
-        std::fs::create_dir(destination).unwrap();
-        std::fs::write(destination.join(&output_name), "builder-owned command").unwrap();
-        std::os::windows::fs::junction_point(destination, project.join("dist")).unwrap();
-        rejection(&project, &["build", "main.go"], "symlink");
-        assert_eq!(
-            std::fs::canonicalize(project.join("dist")).unwrap(),
-            std::fs::canonicalize(destination).unwrap()
-        );
-        assert_eq!(
-            std::fs::read(destination.join(&output_name)).unwrap(),
-            b"builder-owned command"
-        );
-        assert_eq!(std::fs::read_dir(destination).unwrap().count(), 1);
-        std::fs::remove_dir(project.join("dist")).unwrap();
-        assert!(destination.is_dir());
-    }
-}
-
-#[cfg(unix)]
-#[test]
-fn watch_rejects_output_directory_redirection_and_recovers() {
-    use std::os::unix::fs::symlink;
-
-    let temp = tempfile::tempdir().unwrap();
-    let project = temp.path().join("project");
-    std::fs::create_dir(&project).unwrap();
-    source(
-        &project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"first\") }\n",
-    );
     let outside = temp.path().join("outside");
     std::fs::create_dir(&outside).unwrap();
-    let external_command = outside.join(format!("main{}", std::env::consts::EXE_SUFFIX));
-    std::fs::write(&external_command, "builder-owned command").unwrap();
-    let log = tempfile::NamedTempFile::new().unwrap();
-    let mut process = Process(
-        cli(&project)
-            .args(["build", "main.go", "--watch", "--go", &tool()])
-            .stdout(log.as_file().try_clone().unwrap())
-            .stderr(log.as_file().try_clone().unwrap())
-            .spawn()
-            .unwrap(),
-    );
-    let target = executable(&project);
-    wait_for_log(
-        "initial build before output redirection",
-        log.path(),
-        || {
-            assert!(process.0.try_wait().unwrap().is_none());
-            run(&target).as_deref() == Some("first")
-        },
-    );
-    let original = std::fs::read(&target).unwrap();
-    let retained_directory = project.join("dist-original");
-    std::fs::rename(project.join("dist"), &retained_directory).unwrap();
-    symlink(&outside, project.join("dist")).unwrap();
-    source(
-        &project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"redirected\") }\n",
-    );
-    wait_for_log("rejected output redirection", log.path(), || {
-        assert!(process.0.try_wait().unwrap().is_none());
-        std::fs::read_to_string(log.path())
-            .unwrap()
-            .contains("symlink")
-    });
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, project.join("dist")).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::junction_point(&outside, project.join("dist")).unwrap();
+    for message in ["first", "rebuilt"] {
+        source(
+            &project,
+            &format!(
+                "package main\nimport \"fmt\"\nfunc main() {{ fmt.Println(\"{message}\") }}\n"
+            ),
+        );
+        let output = cli(&project)
+            .args(["build", "main.go", "--go", &tool()])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(run(&executable(&project)).as_deref(), Some(message));
+    }
     assert_eq!(
-        std::fs::read(&external_command).unwrap(),
-        b"builder-owned command"
-    );
-    assert_eq!(std::fs::read_dir(&outside).unwrap().count(), 1);
-    let retained_output = retained_directory.join(target.file_name().unwrap());
-    assert_eq!(std::fs::read(&retained_output).unwrap(), original);
-    assert_eq!(run(&retained_output).as_deref(), Some("first"));
-
-    std::fs::remove_file(project.join("dist")).unwrap();
-    std::fs::rename(&retained_directory, project.join("dist")).unwrap();
-    source(
-        &project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"repaired\") }\n",
-    );
-    wait_for_log("watch recovery after output repair", log.path(), || {
-        assert!(process.0.try_wait().unwrap().is_none());
-        run(&target).as_deref() == Some("repaired")
-    });
-    assert_eq!(
-        std::fs::read(&external_command).unwrap(),
-        b"builder-owned command"
+        std::fs::canonicalize(project.join("dist")).unwrap(),
+        std::fs::canonicalize(&outside).unwrap()
     );
     assert_eq!(std::fs::read_dir(&outside).unwrap().count(), 1);
 }

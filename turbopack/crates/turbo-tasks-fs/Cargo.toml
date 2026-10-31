@@ -61,8 +61,6 @@ turbo-unix-path = { workspace = true }
 url = { workspace = true }
 
 [target.'cfg(any(unix, windows))'.dependencies]
-cap-fs-ext = { workspace = true }
-cap-std = { workspace = true }
 tempfile = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]

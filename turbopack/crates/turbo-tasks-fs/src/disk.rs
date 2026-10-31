@@ -1267,12 +1267,7 @@ impl FileSystem for DiskFileSystem {
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
         let content = content.persist().to_resolved().await?;
-        let file_content = content.await?;
-        let content_hash = hash_xxh3_hash128(&*file_content);
-        // Keep the shared FileContent write API: executable metadata selects atomic, guarded
-        // publication inside the effect rather than requiring a separate writer from callers.
-        let executable = matches!(&*file_content, PersistedFileContent::Content(file)
-            if file.meta.permissions == crate::Permissions::Executable);
+        let content_hash = hash_xxh3_hash128(&*content.await?);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteEffect {
@@ -1280,7 +1275,6 @@ impl FileSystem for DiskFileSystem {
             fs: ResolvedVc<DiskFileSystem>,
             content: ResolvedVc<PersistedFileContent>,
             content_hash: u128,
-            executable: bool,
         }
 
         #[async_trait]
@@ -1314,7 +1308,6 @@ impl FileSystem for DiskFileSystem {
                     inner,
                     content,
                     content_hash: self.content_hash,
-                    executable: self.executable,
                 }) as Box<dyn CapturedEffect>)
             }
         }
@@ -1325,7 +1318,6 @@ impl FileSystem for DiskFileSystem {
             inner: Arc<DiskFileSystemInner>,
             content: Option<ReadRef<PersistedFileContent>>,
             content_hash: u128,
-            executable: bool,
         }
 
         #[async_trait]
@@ -1339,29 +1331,6 @@ impl FileSystem for DiskFileSystem {
             }
 
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
-                // Inspect current output state while applying the effect, without adding
-                // output paths as dependencies of the task that produces them. Validate even
-                // when the effect hash was already applied: an output directory may have been
-                // replaced since the previous build. The actual write opens its own guarded
-                // destination so it remains safe if directories change after this check.
-                if self.executable {
-                    #[cfg(any(unix, windows))]
-                    let validation = crate::executable_output::ExecutableOutput::open(
-                        self.inner.root_path(),
-                        &self.full_path,
-                    )
-                    .map(drop);
-                    #[cfg(not(any(unix, windows)))]
-                    let validation: io::Result<()> = Err(io::Error::new(
-                        ErrorKind::Unsupported,
-                        "secure executable publication is unsupported on this platform",
-                    ));
-                    validation.map_err(|error| {
-                        turbo_tasks::ApplyError::Failed(Arc::new(AnyhowWrapper::from(
-                            anyhow::Error::from(error),
-                        )))
-                    })?;
-                }
                 let body = self.content.as_ref().map(|content| {
                     async || self.apply_inner(content).await.map_err(AnyhowWrapper::from)
                 });
@@ -1386,69 +1355,62 @@ impl FileSystem for DiskFileSystem {
                 // be freed immediately. Given this is an output file, it's unlikely any Turbo
                 // code will need to read the file from disk into a Vc<FileContent>, so we're
                 // not wasting cycles.
-                // Executable paths are validated and written through directory handles.
-                // An ambient comparison would follow an output-directory symlink first.
-                if !self.executable {
-                    let compare = content
-                        .streaming_compare(full_path)
-                        .instrument(tracing::info_span!(
-                            "read file before write",
-                            name = ?full_path,
-                        ))
-                        .concurrency_limited(&self.inner.read_semaphore)
-                        .await?;
-                    if compare == FileComparison::Equal {
-                        return Ok(());
-                    }
+                let compare = content
+                    .streaming_compare(full_path)
+                    .instrument(tracing::info_span!(
+                        "read file before write",
+                        name = ?full_path,
+                    ))
+                    .concurrency_limited(&self.inner.read_semaphore)
+                    .await?;
+                if compare == FileComparison::Equal {
+                    return Ok(());
                 }
 
                 match &**content {
                     PersistedFileContent::Content(..) => {
                         let content = content.clone();
 
-                        fn write_file(root: &Path, path: &Path, file: &File) -> io::Result<()> {
-                            #[cfg(not(any(unix, windows)))]
-                            let _ = root;
+                        fn write_file(path: &Path, file: &File) -> io::Result<()> {
+                            let write = |output: &mut std::fs::File| {
+                                std::io::copy(&mut file.read(), output)?;
+                                #[cfg(unix)]
+                                output.set_permissions(file.meta.permissions.into())?;
+                                output.flush()
+                            };
+
+                            #[cfg(any(unix, windows))]
                             if file.meta.permissions == crate::Permissions::Executable {
-                                #[cfg(any(unix, windows))]
-                                return crate::executable_output::ExecutableOutput::open(
-                                    root, path,
-                                )?
-                                .write(file);
-                                #[cfg(not(any(unix, windows)))]
-                                return Err(io::Error::new(
-                                    ErrorKind::Unsupported,
-                                    "secure executable publication is unsupported on this platform",
-                                ));
+                                // Replace the executable instead of truncating it, so a running
+                                // Unix binary can keep using the previous file.
+                                let mut temporary = tempfile::NamedTempFile::new_in(
+                                    path.parent().ok_or(ErrorKind::InvalidInput)?,
+                                )?;
+                                write(temporary.as_file_mut())?;
+                                return temporary
+                                    .into_temp_path()
+                                    .persist(path)
+                                    .map_err(|error| error.error);
                             }
 
-                            let mut f = std::fs::File::create(path)?;
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()
+                            write(&mut std::fs::File::create(path)?)
                         }
 
                         let mut missing_parent_dir = false;
                         let do_write = || {
-                            if !self.executable
-                                && missing_parent_dir
-                                && let Some(parent) = full_path.parent()
-                            {
+                            if missing_parent_dir && let Some(parent) = full_path.parent() {
                                 std::fs::create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
                             let PersistedFileContent::Content(file) = &*content else {
                                 unreachable!()
                             };
-                            write_file(self.inner.root_path(), full_path, file).inspect_err(
-                                |err| {
-                                    if !self.executable && err.kind() == ErrorKind::NotFound {
-                                        // create the parent dirs in the next attempt
-                                        missing_parent_dir = true;
-                                    }
-                                },
-                            )?;
+                            write_file(full_path, file).inspect_err(|err| {
+                                if err.kind() == ErrorKind::NotFound {
+                                    // create the parent dirs in the next attempt
+                                    missing_parent_dir = true;
+                                }
+                            })?;
 
                             static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
                                 std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
@@ -1465,7 +1427,7 @@ impl FileSystem for DiskFileSystem {
                                 }
                                 full_path.set_extension(ext);
                                 validate_path_length(&full_path)?;
-                                write_file(self.inner.root_path(), &full_path, file)?;
+                                write_file(&full_path, file)?;
                             }
                             Ok::<(), io::Error>(())
                         };
@@ -1506,7 +1468,6 @@ impl FileSystem for DiskFileSystem {
             fs: self,
             content,
             content_hash,
-            executable,
         }
         .resolved_cell()
         .emit();
