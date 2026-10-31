@@ -1,8 +1,8 @@
 import { connection } from 'next/server'
-import { getRenderSpans } from '../../trace-recorder'
+import { getActiveTraceId } from '../../trace-recorder'
 
 export async function GET() {
-  // Run at request time so the reported spans belong to the request.
+  // Run at request time so the reported trace is the request's.
   await connection()
-  return Response.json({ spans: getRenderSpans() })
+  return Response.json({ traceId: getActiveTraceId() })
 }

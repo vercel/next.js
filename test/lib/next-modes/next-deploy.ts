@@ -15,6 +15,7 @@ import {
   getPnpmSecuritySettings,
   mergeSettingsIntoYaml,
 } from '../pnpm-security-settings'
+import { readVercelRuntimeLogs } from '../vercel-runtime-logs'
 
 // Build-log polling bounds. See `fetchBuildLogsUntilComplete`.
 const BUILD_LOGS_INITIAL_RETRY_DELAY_MS = 2_000
@@ -120,6 +121,11 @@ export class NextDeployInstance extends NextInstance {
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
   private _npmrcAuthFile: string | undefined
+  // How `vercel` CLI commands for this deployment are run (see
+  // `getRuntimeLogs`). Undefined for deployments made by a custom script.
+  private _vercelCli:
+    | { env: NodeJS.ProcessEnv; flags: string[]; cwd: string | undefined }
+    | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -525,6 +531,7 @@ export class NextDeployInstance extends NextInstance {
       if (customLogsScriptPath) {
         this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
       } else {
+        this._vercelCli = { env: process.env, flags: [], cwd: undefined }
         // Use vercel inspect to get logs for existing deployment
         const buildLogs = await execa(
           'vercel',
@@ -659,6 +666,7 @@ export class NextDeployInstance extends NextInstance {
         `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
       )
     }
+    this._vercelCli = { env: vercelEnv, flags: vercelFlags, cwd: this.testDir }
     require('console').log(`Deploying project at ${this.testDir}`)
 
     const additionalEnv: string[] = []
@@ -1230,6 +1238,48 @@ export class NextDeployInstance extends NextInstance {
 
   public get cliOutput() {
     return this._cliOutput || ''
+  }
+
+  /**
+   * The messages of the deployment's runtime logs since `since` (of all its
+   * functions, including middleware), one per line, read with
+   * `vercel logs --json` before `deadline` (see `readVercelRuntimeLogs`).
+   * `query` filters the messages by bare words (e.g. a trace ID). Runtime
+   * logs become available with a delay, so callers poll.
+   */
+  public async getRuntimeLogs({
+    since,
+    query,
+    deadline,
+  }: {
+    since: Date
+    query?: string
+    deadline: number
+  }): Promise<string> {
+    if (!this._vercelCli) {
+      throw new Error(
+        'Runtime logs are only available for deployments made or inspected with the Vercel CLI (not with NEXT_TEST_DEPLOY_SCRIPT_PATH).'
+      )
+    }
+    const { env, flags, cwd } = this._vercelCli
+    const messages = await readVercelRuntimeLogs(
+      (args, timeoutMs) =>
+        execa('vercel', args, { cwd, env, reject: false, timeout: timeoutMs }),
+      {
+        deployment: this._url,
+        since,
+        query,
+        flags,
+        deadline,
+        // A call can hang (e.g. while the logs backend is slow): give up on it
+        // and let the caller retry, instead of using up the whole deadline.
+        callTimeoutMs: 60_000,
+        // Every call is logged, so the test output shows how the logs were
+        // read (the token is in the environment, and redacted if in `flags`).
+        log: (message) => require('console').log(`[vercel-logs] ${message}`),
+      }
+    )
+    return messages.join('\n')
   }
 
   public async start() {
