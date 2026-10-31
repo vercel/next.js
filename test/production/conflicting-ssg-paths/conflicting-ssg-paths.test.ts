@@ -11,6 +11,7 @@ describe('Conflicting SSG paths', () => {
 
     afterEach(async () => {
       await next.deleteFile('pages')
+      await next.deleteFile('app')
     })
 
     it('should show proper error when two dynamic SSG routes have conflicting paths', async () => {
@@ -173,6 +174,82 @@ describe('Conflicting SSG paths', () => {
       expect(next.cliOutput).toContain(
         `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
       )
+    })
+
+    it('should show proper error when App Router dynamic SSG route conflicts with normal route', async () => {
+      await next.patchFile(
+        'app/blog/page.js',
+        `
+        export default function Page() {
+          return 'Static /blog'
+        }
+      `
+      )
+
+      await next.patchFile(
+        'app/[[...path]]/page.js',
+        `
+        export async function generateStaticParams() {
+          return [{ path: ['blog'] }]
+        }
+
+        export default function Page() {
+          return 'Catch-all'
+        }
+      `
+      )
+
+      await next.build()
+      expect(next.cliOutput).toContain(
+        'Conflicting paths returned from generateStaticParams, paths must be unique per page'
+      )
+      expect(next.cliOutput).toContain(
+        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+      )
+      expect(next.cliOutput).toContain(
+        'path: "/blog" from page: "/[[...path]]" conflicts with path: "/blog"'
+      )
+    })
+
+    it('should show proper error when two App Router dynamic SSG routes have conflicting paths', async () => {
+      await next.patchFile(
+        'app/blog/[slug]/page.js',
+        `
+        export async function generateStaticParams() {
+          return [{ slug: 'conflicting' }, { slug: 'first' }]
+        }
+
+        export default function Page() {
+          return 'Blog'
+        }
+      `
+      )
+
+      await next.patchFile(
+        'app/[...catchAll]/page.js',
+        `
+        export async function generateStaticParams() {
+          return [
+            { catchAll: ['blog', 'conflicting'] },
+            { catchAll: ['hello', 'world'] },
+          ]
+        }
+
+        export default function Page() {
+          return 'CatchAll'
+        }
+      `
+      )
+
+      await next.build()
+      expect(next.cliOutput).toContain(
+        'Conflicting paths returned from generateStaticParams, paths must be unique per page'
+      )
+      expect(next.cliOutput).toContain(
+        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+      )
+      expect(next.cliOutput).toContain('path: "/blog/conflicting"')
+      expect(next.cliOutput).toContain('conflicts with')
     })
   })
 })
