@@ -1161,10 +1161,18 @@ function createRenderTreeForSegment(
         // a waterfall.
         //
         // The exception is a request we expect to return the segment fully
-        // complete, like a legacy prefetch. If so, we can assume the response
-        // will have nothing left to request.
+        // complete, like a legacy full prefetch (prefetch={true}). If so, we
+        // can assume the response will have nothing left to request.
+        //
+        // A prefetch up to the loading boundary also returns the segments
+        // above the boundary complete, but we don't wait for it: those
+        // segments and the head render outside any loading boundary, so a
+        // prefetch that's slow to land (a busy prefetch queue) would hold the
+        // whole navigation. Request them again, and render the prefetched
+        // data only if it lands first (`prefetchRsc`).
         isCachedRscPartial =
-          segmentEntry.completeness !== Completeness.FullyComplete
+          segmentEntry.completeness !== Completeness.FullyComplete ||
+          segmentEntry.isLoadingBoundaryPrefetch
         break
       }
       case EntryStatus.Empty:
