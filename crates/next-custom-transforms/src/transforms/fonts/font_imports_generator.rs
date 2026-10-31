@@ -261,6 +261,20 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
 
             elements.map(Value::Array)
         }
+        // A template literal without substitutions is a static string
+        // (TypeScript's NoSubstitutionTemplateLiteral), so accept it like a
+        // quoted literal. Templates with substitutions still fall through.
+        Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.is_empty() => Ok(Value::String(
+            quasis
+                .first()
+                .map(|q| {
+                    q.cooked
+                        .as_ref()
+                        .map(|v| v.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| q.raw.to_string_lossy().into_owned())
+                })
+                .unwrap_or_default(),
+        )),
         lit => HANDLER.with(|handler| {
             handler
                 .struct_span_err(
