@@ -411,7 +411,28 @@ async function startWatcher(
       })
     )
   ).flat()
-  const initialPageFiles = initialFiles.filter(validFileMatcher.isPageFile)
+  const initialPageFiles = (
+    await Promise.all(
+      initialFiles.filter(validFileMatcher.isPageFile).map(async (file) => {
+        try {
+          const realFile = await fs.promises.realpath(file)
+          const realDir = await fs.promises.realpath(dir)
+          const relFromReal = path.relative(realDir, realFile)
+          const relFromDir = path.relative(dir, file)
+          // If the file's canonical realpath differs from its path (e.g. it is located
+          // within a symlinked directory), Watchpack's directory walker will not report it
+          // under this path. Exclude it so it does not stall initial route discovery.
+          const isSame =
+            process.platform === 'win32'
+              ? relFromReal.toLowerCase() === relFromDir.toLowerCase()
+              : relFromReal === relFromDir
+          return isSame ? file : null
+        } catch {
+          return null
+        }
+      })
+    )
+  ).filter((file): file is string => file !== null)
 
   await new Promise<void>(async (resolve, reject) => {
     if (initialFiles.length === 0) {
@@ -476,7 +497,9 @@ async function startWatcher(
     // Startup only waits this long for Watchpack to observe the files found by
     // the snapshot above, so a file it never reports cannot stall the server.
     const initialScanDeadline = initialWatchTime + 30_000
-    wp.on('aggregated', async () => {
+    let initialScanTimeout: NodeJS.Timeout | undefined
+
+    const onAggregated = async () => {
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
@@ -495,7 +518,22 @@ async function startWatcher(
           (file) => fs.existsSync(file) && !knownFiles.has(file)
         )
       ) {
+        if (!initialScanTimeout) {
+          const delay = Math.max(
+            0,
+            initialScanDeadline - (performance.now() + performance.timeOrigin)
+          )
+          initialScanTimeout = setTimeout(() => {
+            if (!resolved) {
+              onAggregated()
+            }
+          }, delay)
+        }
         return
+      }
+      if (initialScanTimeout) {
+        clearTimeout(initialScanTimeout)
+        initialScanTimeout = undefined
       }
       hadInitialScan = true
 
@@ -1486,18 +1524,28 @@ async function startWatcher(
         }
 
         if (!resolved) {
+          if (initialScanTimeout) {
+            clearTimeout(initialScanTimeout)
+            initialScanTimeout = undefined
+          }
           resolve()
           resolved = true
         }
       } catch (e) {
         if (!resolved) {
+          if (initialScanTimeout) {
+            clearTimeout(initialScanTimeout)
+            initialScanTimeout = undefined
+          }
           reject(e)
           resolved = true
         } else {
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
-    })
+    }
+
+    wp.on('aggregated', onAggregated)
 
     wp.watch({ directories: [dir], startTime: 0 })
   })
