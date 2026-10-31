@@ -1,0 +1,224 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "playwright": "1.64.0",
+    "host": "Node26.12.1",
+    "profiles": [
+      "chromium-development",
+      "chromium-production",
+      "firefox-development",
+      "firefox-production"
+    ],
+    "actualBrowserDOMRealm": true,
+    "unsupportedDateValuedProjectConfigurationExcluded": true
+  },
+  "bodySHA256": "66becfd8501b355d8797089c8c253229054e964c5f85963ceb2e9ed6156352b4",
+  "model": {
+    "cases": [
+      {
+        "name": "executes in the actual browser DOM realm",
+        "state": "passed"
+      },
+      {
+        "name": "configured browser time installs and advances selected timers",
+        "state": "passed"
+      },
+      {
+        "name": "browser-created Date overrides retain selection and reset to project time",
+        "state": "passed"
+      },
+      {
+        "name": "Date-only call selection retains configured project time",
+        "state": "passed"
+      },
+      {
+        "name": "runtime Date-only mocking transitions back to numeric project configuration",
+        "state": "passed"
+      },
+      {
+        "name": "explicit fake microtasks retain timer counts and nested execution order",
+        "state": "passed"
+      },
+      {
+        "name": "fake animation frames and nested microtasks advance together",
+        "state": "passed"
+      }
+    ],
+    "rows": [
+      {
+        "label": "browser-realm",
+        "value": {
+          "window": true,
+          "tag": "DIV",
+          "ownerDocument": true
+        }
+      },
+      {
+        "label": "project-date",
+        "value": {
+          "value": {
+            "fluent": true,
+            "installed": 946684800000,
+            "calls": [946684800010],
+            "now": 946684800010,
+            "mocked": 946684800010,
+            "before": 1,
+            "after": 0,
+            "timeoutFaked": true,
+            "intervalUnchanged": true
+          },
+          "restored": {
+            "date": true,
+            "timeout": true,
+            "clear": true,
+            "interval": true,
+            "microtask": true,
+            "fake": false,
+            "mockedTime": null
+          }
+        }
+      },
+      {
+        "label": "override-reset",
+        "value": {
+          "value": {
+            "fluent": true,
+            "override": {
+              "now": 2350,
+              "calls": [2350],
+              "pending": 0
+            },
+            "reset": 946684800000,
+            "mocked": 946684800000,
+            "pending": 0,
+            "intervalUnchanged": true
+          },
+          "restored": {
+            "date": true,
+            "timeout": true,
+            "clear": true,
+            "interval": true,
+            "microtask": true,
+            "fake": false,
+            "mockedTime": null
+          }
+        }
+      },
+      {
+        "label": "date-selection",
+        "value": {
+          "value": {
+            "fluent": true,
+            "now": 946684800000,
+            "mocked": 946684800000,
+            "pending": 0,
+            "timeoutUnchanged": true,
+            "intervalUnchanged": true
+          },
+          "restored": {
+            "date": true,
+            "timeout": true,
+            "clear": true,
+            "interval": true,
+            "microtask": true,
+            "fake": false,
+            "mockedTime": null
+          }
+        }
+      },
+      {
+        "label": "date-only-transition",
+        "value": {
+          "value": {
+            "dateOnly": {
+              "now": 946684800123,
+              "mocked": 946684800123,
+              "fake": false,
+              "timeoutUnchanged": true
+            },
+            "project": 946684800000,
+            "mocked": 946684800000,
+            "fake": true,
+            "pending": 0
+          },
+          "restored": {
+            "date": true,
+            "timeout": true,
+            "clear": true,
+            "interval": true,
+            "microtask": true,
+            "fake": false,
+            "mockedTime": null
+          }
+        }
+      },
+      {
+        "label": "microtask-order",
+        "value": {
+          "value": {
+            "fluent": true,
+            "ticksFluent": true,
+            "before": 2,
+            "afterTicks": 1,
+            "after": 0,
+            "calls": [
+              ["micro", 946684800500],
+              ["timer", 946684800505],
+              ["nested", 946684800505]
+            ],
+            "now": 946684800505
+          },
+          "restored": {
+            "date": true,
+            "timeout": true,
+            "clear": true,
+            "interval": true,
+            "microtask": true,
+            "fake": false,
+            "mockedTime": null
+          }
+        }
+      },
+      {
+        "label": "frame-microtask",
+        "value": {
+          "value": {
+            "fluent": true,
+            "frameFluent": true,
+            "before": 2,
+            "after": 0,
+            "calls": [
+              ["micro", 946684801000],
+              ["frame", 16, 946684801016],
+              ["nested", 946684801016]
+            ],
+            "now": 946684801016,
+            "elapsed": 16,
+            "performance": 16
+          },
+          "restored": {
+            "date": true,
+            "timeout": true,
+            "clear": true,
+            "interval": true,
+            "microtask": true,
+            "fake": false,
+            "mockedTime": null
+          }
+        }
+      }
+    ],
+    "summary": {
+      "numTotalTestSuites": 1,
+      "numPassedTestSuites": 1,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 7,
+      "numPassedTests": 7,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "success": true
+    }
+  }
+}

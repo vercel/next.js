@@ -1,0 +1,101 @@
+import { expect, test, vi } from 'vitest'
+const epoch = 946684800000
+const originalDate = globalThis.Date
+const originalTimeout = globalThis.setTimeout
+const originalClear = globalThis.clearTimeout
+const originalInterval = globalThis.setInterval
+const originalMicrotask = globalThis.queueMicrotask
+const emit = (label, value) => console.log('CLOCK_DATE_ROW ' + JSON.stringify({ label, value }))
+const restored = () => ({ date: globalThis.Date === originalDate, timeout: globalThis.setTimeout === originalTimeout, clear: globalThis.clearTimeout === originalClear, interval: globalThis.setInterval === originalInterval, microtask: globalThis.queueMicrotask === originalMicrotask, fake: vi.isFakeTimers(), mockedTime: vi.getMockedSystemTime() })
+
+test('executes in the actual browser DOM realm', () => {
+  const element = document.createElement('div')
+  expect(globalThis.window).toBe(globalThis)
+  expect(element.ownerDocument).toBe(document)
+  emit('browser-realm', { window: globalThis.window === globalThis, tag: element.tagName, ownerDocument: element.ownerDocument === document })
+})
+
+test('configured browser time installs and advances selected timers', () => {
+  let value
+  try {
+    const fluent = vi.useFakeTimers() === vi
+    const installed = Date.now()
+    const calls = []
+    setTimeout(() => calls.push(Date.now()), 10)
+    const before = vi.getTimerCount()
+    vi.advanceTimersByTime(10)
+    value = { fluent, installed, calls, now: Date.now(), mocked: vi.getMockedSystemTime().getTime(), before, after: vi.getTimerCount(), timeoutFaked: globalThis.setTimeout !== originalTimeout, intervalUnchanged: globalThis.setInterval === originalInterval }
+    expect(value).toEqual({ fluent: true, installed: epoch, calls: [epoch + 10], now: epoch + 10, mocked: epoch + 10, before: 1, after: 0, timeoutFaked: true, intervalUnchanged: true })
+  } finally { vi.useRealTimers(); emit('project-date', { value, restored: restored() }) }
+})
+
+test('browser-created Date overrides retain selection and reset to project time', async () => {
+  let value
+  try {
+    const fluent = vi.useFakeTimers({ now: new originalDate(2345) }) === vi
+    const calls = []
+    setTimeout(() => calls.push(Date.now()), 5)
+    await vi.advanceTimersByTimeAsync(5)
+    const override = { now: Date.now(), calls, pending: vi.getTimerCount() }
+    vi.useFakeTimers()
+    value = { fluent, override, reset: Date.now(), mocked: vi.getMockedSystemTime().getTime(), pending: vi.getTimerCount(), intervalUnchanged: globalThis.setInterval === originalInterval }
+    expect(value).toEqual({ fluent: true, override: { now: 2350, calls: [2350], pending: 0 }, reset: epoch, mocked: epoch, pending: 0, intervalUnchanged: true })
+  } finally { vi.useRealTimers(); emit('override-reset', { value, restored: restored() }) }
+})
+
+test('Date-only call selection retains configured project time', () => {
+  let value
+  try {
+    const fluent = vi.useFakeTimers({ toFake: ['Date'] }) === vi
+    value = { fluent, now: Date.now(), mocked: vi.getMockedSystemTime().getTime(), pending: vi.getTimerCount(), timeoutUnchanged: globalThis.setTimeout === originalTimeout, intervalUnchanged: globalThis.setInterval === originalInterval }
+    expect(value).toEqual({ fluent: true, now: epoch, mocked: epoch, pending: 0, timeoutUnchanged: true, intervalUnchanged: true })
+  } finally { vi.useRealTimers(); emit('date-selection', { value, restored: restored() }) }
+})
+
+test('runtime Date-only mocking transitions back to numeric project configuration', () => {
+  let value
+  try {
+    vi.setSystemTime(new originalDate(epoch + 123))
+    const dateOnly = { now: Date.now(), mocked: vi.getMockedSystemTime().getTime(), fake: vi.isFakeTimers(), timeoutUnchanged: globalThis.setTimeout === originalTimeout }
+    vi.useFakeTimers()
+    value = { dateOnly, project: Date.now(), mocked: vi.getMockedSystemTime().getTime(), fake: vi.isFakeTimers(), pending: vi.getTimerCount() }
+    expect(value).toEqual({ dateOnly: { now: epoch + 123, mocked: epoch + 123, fake: false, timeoutUnchanged: true }, project: epoch, mocked: epoch, fake: true, pending: 0 })
+  } finally { vi.useRealTimers(); emit('date-only-transition', { value, restored: restored() }) }
+})
+
+
+test('explicit fake microtasks retain timer counts and nested execution order', () => {
+  let value
+  try {
+    const fluent = vi.useFakeTimers({ now: new originalDate(epoch + 500), toFake: ['Date', 'setTimeout', 'clearTimeout', 'queueMicrotask'] }) === vi
+    const calls = []
+    queueMicrotask(() => calls.push(['micro', Date.now()]))
+    setTimeout(() => { calls.push(['timer', Date.now()]); queueMicrotask(() => calls.push(['nested', Date.now()])) }, 5)
+    const before = vi.getTimerCount()
+    const ticksFluent = vi.runAllTicks() === vi
+    const afterTicks = vi.getTimerCount()
+    vi.advanceTimersByTime(5)
+    value = { fluent, ticksFluent, before, afterTicks, after: vi.getTimerCount(), calls, now: Date.now() }
+    expect(value).toEqual({ fluent: true, ticksFluent: true, before: 2, afterTicks: 1, after: 0, calls: [['micro', epoch + 500], ['timer', epoch + 505], ['nested', epoch + 505]], now: epoch + 505 })
+  } finally { vi.useRealTimers(); emit('microtask-order', { value, restored: restored() }) }
+})
+
+test('fake animation frames and nested microtasks advance together', () => {
+  let value
+  try {
+    const fluent = vi.useFakeTimers({ now: new originalDate(epoch + 1000), toFake: ['Date', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'queueMicrotask'] }) === vi
+    const start = Date.now()
+    const calls = []
+    queueMicrotask(() => calls.push(['micro', Date.now()]))
+    requestAnimationFrame(time => { calls.push(['frame', time, Date.now()]); queueMicrotask(() => calls.push(['nested', Date.now()])) })
+    const before = vi.getTimerCount()
+    const frameFluent = vi.advanceTimersToNextFrame() === vi
+    value = { fluent, frameFluent, before, after: vi.getTimerCount(), calls, now: Date.now(), elapsed: Date.now() - start, performance: performance.now() }
+    expect(value.fluent && value.frameFluent).toBe(true)
+    expect(value.calls.map(row => row[0])).toEqual(['micro', 'frame', 'nested'])
+    expect(value.calls[1][1]).toBe(value.performance)
+    expect(value.elapsed).toBe(value.performance)
+    expect(value.elapsed).toBeGreaterThan(0)
+    expect(value.after).toBe(0)
+  } finally { vi.useRealTimers(); emit('frame-microtask', { value, restored: restored() }) }
+})
