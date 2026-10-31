@@ -125,8 +125,8 @@ Generating source maps consumes extra memory during the build process.
 
 You can disable source map generation by adding `productionBrowserSourceMaps: false` and `experimental.serverSourceMaps: false` to your Next.js configuration.
 
-Next.js will use source maps by default during the prerender phase of `next build`.
-If you consistently encounter memory issues during that phase (after "Generating static pages"),
+Next.js will use source maps by default for errors during the prerender phase of `next build`, loading them when an error is first logged.
+If you consistently encounter memory issues during that phase (after "Generating static pages") while many errors are logged,
 you can try disabling source maps in that phase by adding `enablePrerenderSourceMaps: false` to your Next.js configuration.
 
 > **Good to know**: Some plugins may turn on source maps and may require custom configuration to disable.
