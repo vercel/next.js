@@ -14,7 +14,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{CodeBuilder, PersistedCode},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -125,6 +125,12 @@ impl EcmascriptChunkItemContent {
 
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
+        Ok(self.module_factory_code().await?.cell_persisted())
+    }
+
+    /// Builds the module factory without storing it in a cell, so a caller that only needs a
+    /// derived form (e.g. the minified factory) doesn't persist a second copy of it.
+    pub(crate) async fn module_factory_code(&self) -> Result<Code> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -194,7 +200,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().cell_persisted())
+        Ok(code.build())
     }
 }
 

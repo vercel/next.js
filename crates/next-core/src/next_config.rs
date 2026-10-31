@@ -928,6 +928,9 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
+///
+/// The default sizes and request cost are scaled down when chunk items are minified before
+/// chunking, see [`crate::chunk_size_defaults::ChunkSizeDefaults`].
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]

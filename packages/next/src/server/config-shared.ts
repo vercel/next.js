@@ -894,6 +894,7 @@ export interface ExperimentalConfig {
   /**
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
+   * Chunking then sizes modules by their minified code, see `turbopackChunking`.
    * Defaults to false. Only applies to production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
@@ -908,6 +909,10 @@ export interface ExperimentalConfig {
   /**
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when
    * making chunk merging decisions and the raw size thresholds it uses.
+   *
+   * Sizes are measured on unminified code, or on minified code when
+   * `turbopackMinifyBeforeChunking` applies. In that case the default sizes and request cost
+   * below are scaled down to match; values set here are used as-is.
    */
   turbopackChunking?: {
     /**
