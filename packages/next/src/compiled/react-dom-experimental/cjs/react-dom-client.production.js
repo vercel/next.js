@@ -13510,7 +13510,9 @@ function resetWorkInProgressStack() {
 function prepareFreshStack(root, lanes) {
   var timeoutHandle = root.timeoutHandle;
   -1 !== timeoutHandle &&
-    ((root.timeoutHandle = -1), cancelTimeout(timeoutHandle));
+    ((root.timeoutHandle = -1),
+    cancelTimeout(timeoutHandle),
+    markRootPinged$1(root, pendingEffectsLanes));
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
@@ -14805,7 +14807,9 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
       retryCache = boundaryFiber.stateNode;
       break;
     case 22:
-      retryCache = boundaryFiber.stateNode._retryCache;
+      retryCache = boundaryFiber.stateNode;
+      if (null === retryCache) return;
+      retryCache = retryCache._retryCache;
       break;
     default:
       throw Error(formatProdErrorMessage(314));
@@ -15181,20 +15185,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1796 = 0;
-  i$jscomp$inline_1796 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1796++
+  var i$jscomp$inline_1799 = 0;
+  i$jscomp$inline_1799 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1799++
 ) {
-  var eventName$jscomp$inline_1797 =
-      simpleEventPluginEvents[i$jscomp$inline_1796],
-    domEventName$jscomp$inline_1798 =
-      eventName$jscomp$inline_1797.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1799 =
-      eventName$jscomp$inline_1797[0].toUpperCase() +
-      eventName$jscomp$inline_1797.slice(1);
+  var eventName$jscomp$inline_1800 =
+      simpleEventPluginEvents[i$jscomp$inline_1799],
+    domEventName$jscomp$inline_1801 =
+      eventName$jscomp$inline_1800.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1802 =
+      eventName$jscomp$inline_1800[0].toUpperCase() +
+      eventName$jscomp$inline_1800.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1798,
-    "on" + capitalizedEvent$jscomp$inline_1799
+    domEventName$jscomp$inline_1801,
+    "on" + capitalizedEvent$jscomp$inline_1802
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -20480,16 +20484,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2244 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2247 = React.version;
 if (
-  "19.3.0-experimental-a703ca64-20261030" !==
-  isomorphicReactPackageVersion$jscomp$inline_2244
+  "19.3.0-experimental-e84e1492-20261031" !==
+  isomorphicReactPackageVersion$jscomp$inline_2247
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2244,
-      "19.3.0-experimental-a703ca64-20261030"
+      isomorphicReactPackageVersion$jscomp$inline_2247,
+      "19.3.0-experimental-e84e1492-20261031"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20509,24 +20513,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2905 = {
+var internals$jscomp$inline_2908 = {
   bundleType: 0,
-  version: "19.3.0-experimental-a703ca64-20261030",
+  version: "19.3.0-experimental-e84e1492-20261031",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-a703ca64-20261030"
+  reconcilerVersion: "19.3.0-experimental-e84e1492-20261031"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2906 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2909 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2906.isDisabled &&
-    hook$jscomp$inline_2906.supportsFiber
+    !hook$jscomp$inline_2909.isDisabled &&
+    hook$jscomp$inline_2909.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2906.inject(
-        internals$jscomp$inline_2905
+      (rendererID = hook$jscomp$inline_2909.inject(
+        internals$jscomp$inline_2908
       )),
-        (injectedHook = hook$jscomp$inline_2906);
+        (injectedHook = hook$jscomp$inline_2909);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -20621,4 +20625,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-a703ca64-20261030";
+exports.version = "19.3.0-experimental-e84e1492-20261031";

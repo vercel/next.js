@@ -290,6 +290,7 @@ function createRenderState(
         pushScriptImpl(externalRuntimeScript.chunks, {
           src: externalRuntimeConfig,
           async: !0,
+          crossOrigin: void 0,
           integrity: void 0,
           nonce: nonceScript
         }))
@@ -300,6 +301,7 @@ function createRenderState(
         pushScriptImpl(externalRuntimeScript.chunks, {
           src: externalRuntimeConfig.src,
           async: !0,
+          crossOrigin: externalRuntimeConfig.crossOrigin,
           integrity: externalRuntimeConfig.integrity,
           nonce: nonceScript
         })));
@@ -479,6 +481,16 @@ function createRenderState(
         bootstrapChunks.push(' async="">\x3c/script>');
   return onHeaders;
 }
+function resumeRenderState(resumableState, nonce) {
+  return createRenderState(
+    resumableState,
+    nonce,
+    resumableState.externalRuntimeConfig,
+    void 0,
+    void 0,
+    void 0
+  );
+}
 function createResumableState(
   identifierPrefix,
   externalRuntimeConfig,
@@ -492,6 +504,7 @@ function createResumableState(
     idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
     nextFormID: 0,
     streamingFormat: streamingFormat,
+    externalRuntimeConfig: externalRuntimeConfig,
     bootstrapScriptContent: bootstrapScriptContent,
     bootstrapScripts: bootstrapScripts,
     bootstrapModules: bootstrapModules,
@@ -7735,11 +7748,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-a703ca64-20261030" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-e84e1492-20261031" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-a703ca64-20261030\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-e84e1492-20261031\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7808,13 +7821,9 @@ function resumeRequestImpl(children, postponedState, options) {
   return resumeRequest(
     children,
     postponedState,
-    createRenderState(
+    resumeRenderState(
       postponedState.resumableState,
-      options ? options.nonce : void 0,
-      void 0,
-      void 0,
-      void 0,
-      void 0
+      options ? options.nonce : void 0
     ),
     options ? options.onError : void 0,
     options ? options.onBrowserBailout : void 0,
@@ -8075,13 +8084,9 @@ exports.resume = function (children, postponedState, options) {
       request = resumeRequest(
         children,
         postponedState,
-        createRenderState(
+        resumeRenderState(
           postponedState.resumableState,
-          options ? options.nonce : void 0,
-          void 0,
-          void 0,
-          void 0,
-          void 0
+          options ? options.nonce : void 0
         ),
         options ? options.onError : void 0,
         options ? options.onBrowserBailout : void 0,
@@ -8125,14 +8130,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8174,14 +8172,7 @@ exports.resumeAndPrerenderToNodeStream = function (
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8233,4 +8224,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-a703ca64-20261030";
+exports.version = "19.3.0-experimental-e84e1492-20261031";

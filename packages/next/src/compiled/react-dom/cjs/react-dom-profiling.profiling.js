@@ -14043,7 +14043,11 @@ function prepareFreshStack(root, lanes) {
     logAnimatingPhase(idleClampTime, renderStartTime));
   previousRenderStartTime = root.timeoutHandle;
   -1 !== previousRenderStartTime &&
-    ((root.timeoutHandle = -1), cancelTimeout(previousRenderStartTime));
+    ((root.timeoutHandle = -1),
+    cancelTimeout(previousRenderStartTime),
+    (previousRenderStartTime = pendingEffectsLanes),
+    (root.pingedLanes |= root.suspendedLanes & previousRenderStartTime),
+    (root.warmLanes &= ~previousRenderStartTime));
   previousRenderStartTime = root.cancelPendingCommit;
   null !== previousRenderStartTime &&
     ((root.cancelPendingCommit = null), previousRenderStartTime());
@@ -15256,7 +15260,9 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
       retryCache = boundaryFiber.stateNode;
       break;
     case 22:
-      retryCache = boundaryFiber.stateNode._retryCache;
+      retryCache = boundaryFiber.stateNode;
+      if (null === retryCache) return;
+      retryCache = retryCache._retryCache;
       break;
     default:
       throw Error(formatProdErrorMessage(314));
@@ -15568,20 +15574,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1976 = 0;
-  i$jscomp$inline_1976 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1976++
+  var i$jscomp$inline_1979 = 0;
+  i$jscomp$inline_1979 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1979++
 ) {
-  var eventName$jscomp$inline_1977 =
-      simpleEventPluginEvents[i$jscomp$inline_1976],
-    domEventName$jscomp$inline_1978 =
-      eventName$jscomp$inline_1977.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1979 =
-      eventName$jscomp$inline_1977[0].toUpperCase() +
-      eventName$jscomp$inline_1977.slice(1);
+  var eventName$jscomp$inline_1980 =
+      simpleEventPluginEvents[i$jscomp$inline_1979],
+    domEventName$jscomp$inline_1981 =
+      eventName$jscomp$inline_1980.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1982 =
+      eventName$jscomp$inline_1980[0].toUpperCase() +
+      eventName$jscomp$inline_1980.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1978,
-    "on" + capitalizedEvent$jscomp$inline_1979
+    domEventName$jscomp$inline_1981,
+    "on" + capitalizedEvent$jscomp$inline_1982
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -20484,16 +20490,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2355 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2358 = React.version;
 if (
-  "19.3.0-canary-a703ca64-20261030" !==
-  isomorphicReactPackageVersion$jscomp$inline_2355
+  "19.3.0-canary-e84e1492-20261031" !==
+  isomorphicReactPackageVersion$jscomp$inline_2358
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2355,
-      "19.3.0-canary-a703ca64-20261030"
+      isomorphicReactPackageVersion$jscomp$inline_2358,
+      "19.3.0-canary-e84e1492-20261031"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20513,24 +20519,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2916 = {
+var internals$jscomp$inline_2922 = {
   bundleType: 0,
-  version: "19.3.0-canary-a703ca64-20261030",
+  version: "19.3.0-canary-e84e1492-20261031",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-a703ca64-20261030"
+  reconcilerVersion: "19.3.0-canary-e84e1492-20261031"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2917 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2923 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2917.isDisabled &&
-    hook$jscomp$inline_2917.supportsFiber
+    !hook$jscomp$inline_2923.isDisabled &&
+    hook$jscomp$inline_2923.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2917.inject(
-        internals$jscomp$inline_2916
+      (rendererID = hook$jscomp$inline_2923.inject(
+        internals$jscomp$inline_2922
       )),
-        (injectedHook = hook$jscomp$inline_2917);
+        (injectedHook = hook$jscomp$inline_2923);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20789,7 +20795,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-a703ca64-20261030";
+exports.version = "19.3.0-canary-e84e1492-20261031";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

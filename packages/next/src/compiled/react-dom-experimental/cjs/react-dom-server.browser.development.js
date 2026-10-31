@@ -874,6 +874,7 @@
             pushScriptImpl(externalRuntimeScript.chunks, {
               src: externalRuntimeConfig,
               async: !0,
+              crossOrigin: void 0,
               integrity: void 0,
               nonce: nonceScript
             }))
@@ -884,6 +885,7 @@
             pushScriptImpl(externalRuntimeScript.chunks, {
               src: externalRuntimeConfig.src,
               async: !0,
+              crossOrigin: externalRuntimeConfig.crossOrigin,
               integrity: externalRuntimeConfig.integrity,
               nonce: nonceScript
             })));
@@ -1075,6 +1077,16 @@
             bootstrapChunks.push(endAsyncScript);
       return onHeaders;
     }
+    function resumeRenderState(resumableState, nonce) {
+      return createRenderState(
+        resumableState,
+        nonce,
+        resumableState.externalRuntimeConfig,
+        void 0,
+        void 0,
+        void 0
+      );
+    }
     function createResumableState(
       identifierPrefix,
       externalRuntimeConfig,
@@ -1088,6 +1100,7 @@
         idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
         nextFormID: 0,
         streamingFormat: streamingFormat,
+        externalRuntimeConfig: externalRuntimeConfig,
         bootstrapScriptContent: bootstrapScriptContent,
         bootstrapScripts: bootstrapScripts,
         bootstrapModules: bootstrapModules,
@@ -9926,11 +9939,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-a703ca64-20261030" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-e84e1492-20261031" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-a703ca64-20261030\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-e84e1492-20261031\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11654,13 +11667,9 @@
           request = resumeRequest(
             children,
             postponedState,
-            createRenderState(
+            resumeRenderState(
               postponedState.resumableState,
-              options ? options.nonce : void 0,
-              void 0,
-              void 0,
-              void 0,
-              void 0
+              options ? options.nonce : void 0
             ),
             options ? options.onError : void 0,
             options ? options.onBrowserBailout : void 0,
@@ -11697,14 +11706,7 @@
         var request = resumeAndPrerenderRequest(
           children,
           postponedState,
-          createRenderState(
-            postponedState.resumableState,
-            void 0,
-            void 0,
-            void 0,
-            void 0,
-            void 0
-          ),
+          resumeRenderState(postponedState.resumableState, void 0),
           options ? options.onError : void 0,
           options ? options.onBrowserBailout : void 0,
           function () {
@@ -11732,5 +11734,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-experimental-a703ca64-20261030";
+    exports.version = "19.3.0-experimental-e84e1492-20261031";
   })();
