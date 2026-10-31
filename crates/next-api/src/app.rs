@@ -11,7 +11,7 @@ use next_core::{
         AppEntry, AppPage, AppPath, get_app_client_references_chunks,
         get_app_client_shared_chunk_group, get_app_page_entry, get_app_route_entry,
         get_client_references_chunks_for_hmr,
-        metadata::route::{get_app_metadata_route_entry, metadata_route_info},
+        metadata::route::{get_app_metadata_route_entry, metadata_route_info_for_discovery},
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -1125,7 +1125,7 @@ pub async fn app_entry_point_to_route(
                 MetadataItem::Static { path } => Some(path.clone()),
                 MetadataItem::Dynamic { .. } => None,
             };
-            let info = metadata_route_info(page.clone(), metadata.clone()).await?;
+            let info = metadata_route_info_for_discovery(page.clone(), metadata.clone()).await?;
             Route::AppRoute {
                 original_name: page.to_string().into(),
                 runtime_page: info.page.to_string().into(),

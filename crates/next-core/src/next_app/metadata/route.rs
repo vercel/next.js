@@ -94,10 +94,12 @@ pub async fn metadata_route_info(
     .cell())
 }
 
-/// Authored candidates include files shadowed by another extension. Their parse diagnostics
-/// belong to the selected compiler endpoint, not to the entire development route inventory.
+/// Route discovery names metadata routes without reporting their parse diagnostics. Those belong
+/// to the endpoint that compiles the file, not to the whole route inventory: otherwise a syntax
+/// error in `sitemap.ts` would fail every page, and a candidate shadowed by another extension
+/// would report errors for a file that is never compiled.
 #[turbo_tasks::function(root)]
-pub async fn metadata_route_info_for_tooling(
+pub async fn metadata_route_info_for_discovery(
     page: AppPage,
     metadata: MetadataItem,
 ) -> Result<Vc<MetadataRouteInfo>> {

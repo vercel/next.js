@@ -21,7 +21,7 @@ use crate::{
         metadata::{
             GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
             match_local_metadata_file, normalize_metadata_route,
-            route::metadata_route_info_for_tooling,
+            route::metadata_route_info_for_discovery,
         },
     },
     next_import_map::get_next_package,
@@ -371,7 +371,7 @@ pub async fn development_discovery(
                         .clone_push_str(&name)
                         .and_then(normalize_metadata_route)
                     {
-                        let info = metadata_route_info_for_tooling(page, metadata).await?;
+                        let info = metadata_route_info_for_discovery(page, metadata).await?;
                         candidate.runtime_pathname =
                             Some(AppPath::from(info.page.clone()).to_string().into());
                     }

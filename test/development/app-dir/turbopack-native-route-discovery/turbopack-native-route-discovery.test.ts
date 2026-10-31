@@ -130,6 +130,29 @@ describe('native route discovery', () => {
     }
   })
 
+  it('keeps other routes working while a dynamic metadata file does not parse', async () => {
+    await expectPage('/', 'hello world')
+    try {
+      // Discovery parses the sitemap to name its route. Serving the page added
+      // after it shows that discovery has processed both files. Requesting the
+      // sitemap itself would make every page without errors of its own show
+      // that route's error, so this test never does.
+      await next.patchFile(
+        'app/broken-metadata/sitemap.ts',
+        'export default function sitemap( {\n'
+      )
+      await next.patchFile(
+        'app/broken-metadata/page.tsx',
+        'export default function Page() { return <p>Next to a broken sitemap</p> }'
+      )
+      await expectPage('/broken-metadata', 'Next to a broken sitemap')
+      await expectPage('/', 'hello world')
+      await expectPage('/pages-route', 'Pages route')
+    } finally {
+      await next.deleteFile('app/broken-metadata')
+    }
+  })
+
   it('updates proxy presence and matchers without the route watcher', async () => {
     const proxy = (matcher: string) => `
       import { NextResponse } from 'next/server'
