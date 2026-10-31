@@ -17,3 +17,10 @@ These rules apply throughout this directory tree when developing with turbo_task
 - Put maps containing information for a large part of the build (for example, a map from modules to analysis results) into separate cells. Use `cell = "keyed"` on their value types, for example `#[turbo_tasks::value(transparent, cell = "keyed")]` for a map wrapper.
 - Read keyed cells through keyed access, such as `map.get(&key).await?`, so invalidation depends only on the entries actually read. Awaiting the entire map and then looking up a key creates a dependency on the whole map instead.
 - When changing task boundaries, check the intended invalidation behavior. An unrelated module change should not invalidate consumers of unchanged keyed entries; correct output alone does not demonstrate good cache granularity.
+
+### Eventual consistency and cell equality
+
+- Reads of separate cells can observe different executions during recomputation, even when the cells are produced by the same task or referenced through `ResolvedVc`. Do not assume a parent cell and its child/index cells form an atomic snapshot.
+- For cross-cell indices and lookups, handle transient mismatches with fallible access and a contextual `Result` error, not panicking indexing, `unwrap`/`expect`, assertions, or empty/partial-success fallbacks. Preserve tracked reads of all relevant cells so invalidation can recompute the reader.
+- Bounds checks prevent panics, not torn reads: an in-range index can still select the wrong value from another execution. Where matching generations are required, use coherent publication or carry and validate snapshot identity across the related cells; a lookup guard alone is not a snapshot fix.
+- Cell equality must include every observable distinction: comparison can retain the old value when the new value compares equal. In particular, `IndexSet` has deterministic iteration order but order-insensitive equality. Use `Vec` or an order-sensitive comparison when order is semantic or another cell stores positional indices into the collection; otherwise a reorder can leave old data paired with new indices even after recomputation settles.
