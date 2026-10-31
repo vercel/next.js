@@ -27,13 +27,19 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
 use shrink_to_fit::ShrinkToFit;
 
-/// A [`serde_json::Value`] whose equality and hash include the order of object keys. See the
-/// [module documentation](self).
+/// A [`serde_json::Value`] whose equality and hash include the order of object keys.
+///
+/// `serde_json` compares objects ignoring key order, so a cell holding JSON keeps its old content
+/// when only the key order changes. Use this type where a consumer reads the order, such as
+/// `package.json` `exports` conditions or options passed to JavaScript. It relies on `serde_json`'s
+/// `preserve_order` feature: without it, objects are sorted by key.
+///
+/// This is the JSON counterpart of [`crate::OrderedIndexMap`].
 #[derive(Clone, Default)]
 pub struct OrderedJsonValue(Value);
 
-/// A [`serde_json::Map`] whose equality and hash include the order of its keys. See the
-/// [module documentation](self).
+/// A [`serde_json::Map`] whose equality and hash include the order of its keys. See
+/// [`OrderedJsonValue`].
 #[derive(Clone, Default)]
 pub struct OrderedJsonMap(Map<String, Value>);
 
