@@ -1,12 +1,17 @@
-import { globSync } from 'fast-glob'
+/// <reference types="node" />
+
+import { globSync } from 'glob'
 import type { Rule } from 'eslint'
 
 /**
  * Process a Next.js root directory glob.
  */
 const processRootDir = (rootDir: string): string[] => {
-  return globSync(rootDir.replace(/\\/g, '/'), {
-    onlyDirectories: true,
+  // A trailing slash restricts matches to directories, including symlink roots.
+  return globSync(`${rootDir}/`, {
+    follow: true, // force glob to traverse symlinks with **
+    nocase: false, // use case-sensitive match
+    windowsPathsNoEscape: true, // automatically coerce all \ characters to / in pattern strings
   })
 }
 

@@ -1,8 +1,12 @@
 /* eslint-env jest */
 import { Linter } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
+import { getRootDirs } from '@next/eslint-plugin-next/dist/utils/get-root-dirs'
 import assert from 'assert'
 import path from 'path'
+import fs from 'fs'
+import os from 'os'
+import type { Rule } from 'eslint'
 
 const NextESLintRule = rules['no-html-link-for-pages']
 
@@ -10,6 +14,95 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+
+describe('getRootDirs', () => {
+  const root = path.join(withNestedPagesDir, 'demos/with-nextjs')
+  const normalize = (value: string) => path.resolve(value).replace(/\\/g, '/')
+
+  it.each([
+    root,
+    `${root}/`,
+    path.join(withNestedPagesDir, 'demos/*'),
+    path.join(withNestedPagesDir, 'demos/{with-nextjs,missing}'),
+    normalize(root).replace(/\//g, '\\'),
+  ])('resolves rootDir %j without expanding subdirectories', (rootDir) => {
+    const context = {
+      cwd: withNestedPagesDir,
+      settings: { next: { rootDir } },
+    } as unknown as Rule.RuleContext
+
+    expect(getRootDirs(context).map(normalize)).toEqual([normalize(root)])
+  })
+
+  it('resolves an array of root directories', () => {
+    const context = {
+      cwd: withNestedPagesDir,
+      settings: {
+        next: { rootDir: [path.join(withNestedPagesDir, 'missing'), root] },
+      },
+    } as unknown as Rule.RuleContext
+
+    expect(getRootDirs(context).map(normalize)).toEqual([normalize(root)])
+  })
+
+  it.each([
+    path.join(withNestedPagesDir, 'missing'),
+    path.join(root, 'pages/index.jsx'),
+  ])('does not return files or missing directories for %j', (rootDir) => {
+    const context = {
+      cwd: withNestedPagesDir,
+      settings: { next: { rootDir } },
+    } as unknown as Rule.RuleContext
+
+    expect(getRootDirs(context)).toEqual([])
+  })
+
+  describe('symlinks and numeric ranges', () => {
+    let directory: string
+
+    beforeAll(() => {
+      directory = fs.mkdtempSync(path.join(os.tmpdir(), 'next-eslint-roots-'))
+      for (const name of ['app', 'range1', 'range2', 'range3']) {
+        fs.mkdirSync(path.join(directory, name))
+      }
+      fs.symlinkSync(
+        path.join(directory, 'app'),
+        path.join(directory, 'linked-app'),
+        'junction'
+      )
+    })
+
+    afterAll(() => {
+      fs.rmSync(directory, { recursive: true, force: true })
+    })
+
+    it.each(['linked-app', 'linked-*'])(
+      'includes symlink roots matching %s',
+      (pattern) => {
+        const context = {
+          settings: { next: { rootDir: path.join(directory, pattern) } },
+        } as unknown as Rule.RuleContext
+
+        expect(getRootDirs(context).map(normalize)).toEqual([
+          normalize(path.join(directory, 'linked-app')),
+        ])
+      }
+    )
+
+    it('respects the step in numeric ranges', () => {
+      const context = {
+        settings: {
+          next: { rootDir: path.join(directory, 'range{1..3..2}') },
+        },
+      } as unknown as Rule.RuleContext
+
+      expect(getRootDirs(context).map(normalize).sort()).toEqual([
+        normalize(path.join(directory, 'range1')),
+        normalize(path.join(directory, 'range3')),
+      ])
+    })
+  })
+})
 
 const linters = {
   withoutPages: new Linter({
