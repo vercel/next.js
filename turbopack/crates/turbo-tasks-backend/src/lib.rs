@@ -113,6 +113,8 @@ pub mod private {
     pub use turbo_persistence::ArcBytes;
     use turbo_tasks::TaskId;
 
+    #[cfg(not(target_family = "wasm"))]
+    pub use crate::backend::aggregation_queue;
     use crate::kv_backing_storage::TurboBackingStorage;
     pub use crate::{
         backend::{SpecificTaskDataCategory, storage_schema::TaskStorage},
