@@ -44,6 +44,7 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     app_structure::CollectedRootParams,
+    chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::NextConfig,
@@ -1131,15 +1132,17 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapSourceType::RelativeUri
     });
     if next_mode.is_production() {
+        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
                     max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
-                    request_cost: Some(10_000),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size
+                        .unwrap_or_else(|| defaults.size(100_000)),
+                    request_cost: Some(defaults.request_cost(10_000)),
                     ..Default::default()
                 },
             )
