@@ -129,6 +129,8 @@ it('should include dotfile directories with wildcard patterns', () => {
     './linked/bar.js',
     './linked/foo.js',
     './other/baz.js',
+    './other/deep/qux.js',
+    './other/deep/skip.js',
   ])
 })
 
@@ -193,4 +195,20 @@ it('should apply case-insensitive matching to negative patterns', () => {
   expect(Object.keys(caseInsensitiveNegative)).toEqual([
     './CaseDir/module-lower.js',
   ])
+})
+
+// A recursive pattern matches files directly in the directory it scans as well as
+// nested ones, and a negative pattern applies to both.
+const recursiveModules = import.meta.glob(
+  ['./other/**/*.js', '!./other/deep/skip.js'],
+  { eager: true }
+)
+
+it('should match files at the top of and below the scanned directory', () => {
+  expect(Object.keys(recursiveModules)).toEqual([
+    './other/baz.js',
+    './other/deep/qux.js',
+  ])
+  expect(recursiveModules['./other/baz.js'].default).toBe('baz')
+  expect(recursiveModules['./other/deep/qux.js'].default).toBe('qux')
 })

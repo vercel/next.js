@@ -140,7 +140,7 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
-        import_meta_glob::{ImportMetaGlobAssetReference, parse_import_meta_glob},
+        import_meta_glob::{import_meta_glob_reference, parse_import_meta_glob},
         member::MemberReplacement,
         node::PackageJsonReference,
         raw::{DirAssetReference, FileSourceReference},
@@ -225,7 +225,9 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     esm_local_references: FxHashSet<usize>,
     esm_reexport_references: FxHashSet<usize>,
 
-    esm_references_free_var: FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
+    // Import references that aren't written as an import statement, e.g. for free variables
+    // provided by a module or `import.meta.glob()` calls, keyed so that repeated uses share one.
+    esm_references_synthetic: FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
     // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
@@ -259,7 +261,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_local_references: Default::default(),
             esm_reexport_references: Default::default(),
             esm_references_rewritten: Default::default(),
-            esm_references_free_var: Default::default(),
+            esm_references_synthetic: Default::default(),
             esm_bindings: Default::default(),
             code_gens: Default::default(),
             ast_paths: Default::default(),
@@ -403,12 +405,12 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .or_insert_with(on_insert)
     }
 
-    pub async fn add_esm_reference_free_var(
+    pub async fn add_esm_reference_synthetic(
         &mut self,
-        request: RcStr,
+        key: RcStr,
         on_insert: impl AsyncFnOnce() -> Result<ResolvedVc<EsmAssetReference>>,
     ) -> Result<ResolvedVc<EsmAssetReference>> {
-        Ok(match self.esm_references_free_var.entry(request) {
+        Ok(match self.esm_references_synthetic.entry(key) {
             Entry::Occupied(e) => *e.get(),
             Entry::Vacant(e) => *e.insert(on_insert().await?),
         })
@@ -420,22 +422,22 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         import_references: &[ResolvedVc<EsmAssetReference>],
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        // esm_references_rewritten (and esm_references_free_var) needs to be spliced in at the
+        // esm_references_rewritten (and esm_references_synthetic) needs to be spliced in at the
         // correct index into esm_references and esm_local_references
         let mut esm_references = Vec::with_capacity(
             self.esm_references.len()
-                + self.esm_references_free_var.len()
+                + self.esm_references_synthetic.len()
                 + self.esm_references_rewritten.len(),
         );
-        esm_references.extend(self.esm_references_free_var.values());
+        esm_references.extend(self.esm_references_synthetic.values());
 
         let mut esm_local_references = track_reexport_references.then(|| {
             let mut esm_local_references = Vec::with_capacity(
                 self.esm_local_references.len()
-                    + self.esm_references_free_var.len()
+                    + self.esm_references_synthetic.len()
                     + self.esm_references_rewritten.len(),
             );
-            esm_local_references.extend(self.esm_references_free_var.values());
+            esm_local_references.extend(self.esm_references_synthetic.values());
             esm_local_references
         });
         let mut esm_reexport_references = track_reexport_references
@@ -2519,22 +2521,29 @@ where
                 return Ok(());
             };
 
-            analysis.add_reference_code_gen(
-                ImportMetaGlobAssetReference::new(
-                    origin,
-                    options.patterns,
-                    options.eager,
-                    state.lazy_compilation,
-                    options.import,
-                    options.query,
-                    options.base,
-                    options.case_sensitive,
-                    Some(issue_source(source, span)),
-                    error_mode,
-                ),
-                analysis.intern_path(ast_path),
-                link_context,
-            );
+            // The `import.meta.glob()` call reads the default export of its synthetic
+            // module, through a hoisted import like a static import's binding.
+            let reference = analysis
+                .add_esm_reference_synthetic(options.key(), async move || {
+                    Ok(import_meta_glob_reference(
+                        state.module,
+                        origin,
+                        options,
+                        issue_source(source, span),
+                        state.import_externals,
+                        state.module_fragments_enabled,
+                    )
+                    .await?
+                    .resolved_cell())
+                })
+                .await?;
+            if matches!(link_context, ValueLinkContext::Default) {
+                analysis.esm_bindings.add(
+                    reference,
+                    Some(rcstr!("default")),
+                    analysis.intern_path(ast_path),
+                );
+            }
         }
 
         WellKnownFunctionKind::RequireContext => {
@@ -3864,7 +3873,7 @@ async fn handle_free_var_reference(
             export,
         } => {
             let esm_reference = analysis
-                .add_esm_reference_free_var(request.clone(), async || {
+                .add_esm_reference_synthetic(request.clone(), async || {
                     // There would be no import in the first place if you don't reference the given
                     // free var (e.g. `process`). This means that it's also fine to remove the
                     // import again if the variable reference turns out be dead code in some later
