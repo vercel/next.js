@@ -27,7 +27,7 @@ export function withIstanbulInstrumentation(
   if (profile.mode === 'production')
     for (const source of descriptor.metadata.sources) {
       assertIstanbulSourceExtension(profile, source.file)
-      if (source.typeScriptSource)
+      if (source.typeScriptSource && !/\.[jt]sx$/.test(source.file))
         throw new Error(
           'Production typed Istanbul metadata is not implemented.'
         )
@@ -71,17 +71,17 @@ export function withIstanbulTypeScriptInstrumentation(
   profile: TestProfile,
   descriptor: IstanbulInstrumentationDescriptor
 ): NextConfigComplete {
-  if (profile.mode !== 'development')
-    throw new Error(
-      'Typed Istanbul requires its qualified development profile.'
-    )
   const actual = withIstanbulInstrumentation(config, dir, profile, descriptor)
   const rules = actual.turbopack!.rules!
   return {
     ...actual,
     turbopack: {
       ...actual.turbopack,
-      rules: { ...rules, '*.{ts,mts,tsx,jsx}': rules['*.{js,mjs,cjs}'] },
+      rules: {
+        ...rules,
+        [profile.mode === 'production' ? '*.{tsx,jsx}' : '*.{ts,mts,tsx,jsx}']:
+          rules['*.{js,mjs,cjs}'],
+      },
     },
   }
 }

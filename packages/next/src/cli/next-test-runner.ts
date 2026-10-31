@@ -690,7 +690,6 @@ export async function nextTestRunner(
     standardCoverageSignalExit =
       options.coverage === true &&
       standardCoverageOptions !== undefined &&
-      standardCoverageOptions.provider !== 'istanbul' &&
       !options.watch &&
       !options.list &&
       !inspect &&
@@ -698,7 +697,9 @@ export async function nextTestRunner(
       !reporters.some(isCustomResultReporter) &&
       projects.length === 1 &&
       projects[0].isolate !== false &&
-      projects[0].profile.mode === 'development' &&
+      (standardCoverageOptions.provider === 'istanbul'
+        ? projects[0].profile.mode === 'production'
+        : projects[0].profile.mode === 'development') &&
       projects[0].profile.environment === 'node' &&
       projects[0].profile.route === undefined &&
       projects[0].profile.browserClient === undefined &&

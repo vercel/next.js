@@ -87,12 +87,23 @@ export async function createIstanbulSourcePlan(options: {
         continue
       if (!item.isFile() || (await realpath(file)) !== file)
         throw new Error('Istanbul source must be a canonical regular file.')
-      if (
-        options.profile.mode === 'production' &&
-        !/\.(?:js|mjs)$/.test(file)
-      ) {
-        if (importedOnly) continue
-        assertIstanbulSourceExtension(options.profile, file)
+      const bytes = await readFile(file)
+      if (options.profile.mode === 'production') {
+        if (!/\.(?:js|mjs|[jt]sx)$/.test(file)) {
+          if (importedOnly) continue
+          assertIstanbulSourceExtension(options.profile, file)
+        }
+        if (
+          /\.[jt]sx$/.test(file) &&
+          !(
+            await import('./istanbul-typescript-artifact.js')
+          ).isIstanbulTypeScriptSource(file, bytes.toString('utf8'))
+        ) {
+          if (importedOnly) continue
+          throw new Error(
+            'Production Istanbul requires ordinary Node JS/MJS sources or qualified intrinsic JSX sources.'
+          )
+        }
       }
       const typed =
         /\.(?:ts|mts|[jt]sx)$/.test(file) && !/\.d\.(?:ts|mts|tsx)$/.test(file)
@@ -102,7 +113,6 @@ export async function createIstanbulSourcePlan(options: {
           'Private Istanbul selection supports only JS, MJS and CJS.'
         )
       }
-      const bytes = await readFile(file)
       if (
         typed &&
         !importedOnly &&
@@ -391,6 +401,13 @@ export async function openIstanbulInstrumentation(options: {
             for (const file of [...new Set(sourceFiles)].sort()) {
               if (!options.selectSource!(file)) continue
               assertIstanbulSourceExtension(options.plan.profile, file)
+              if (
+                options.plan.profile.mode === 'production' &&
+                !selected.has(file)
+              )
+                throw new Error(
+                  'Production Istanbul requires ordinary Node JS/MJS sources or qualified intrinsic JSX sources.'
+                )
               if (!/\.(?:js|mjs|cjs)$/.test(file))
                 throw new Error(
                   'Loaded Istanbul TypeScript and JSX imports are not implemented.'

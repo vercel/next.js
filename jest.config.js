@@ -56,7 +56,7 @@ const customJestConfig = {
   // Transform emitted orchestration entry points so Jest can load dynamic imports
   // through its mocked module registry without requiring VM module support.
   transformIgnorePatterns: [
-    '[/\\\\]next[/\\\\]dist[/\\\\](?!experimental[/\\\\]testing[/\\\\](?:orchestrator|execution[/\\\\](?:broker|execute))\\.js$)',
+    '[/\\\\]next[/\\\\]dist[/\\\\](?!(?:cli[/\\\\]next-test-runner|experimental[/\\\\]testing[/\\\\](?:orchestrator|coverage[/\\\\]istanbul-instrumentation|execution[/\\\\](?:broker|execute)))\\.js$)',
     '/\\.next/',
   ],
   moduleNameMapper: {

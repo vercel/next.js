@@ -8,6 +8,7 @@ import { assertConfigurationImportFiles } from './config-import-facts'
 import { lookupOriginalConfigurationObservation } from './original-config-observation'
 import type { loadTestCompilerConfig } from './watch-options'
 import type { IstanbulTypeScriptOptionsGetter } from '../coverage/istanbul-types'
+import type { TestProfile } from '../contracts'
 
 type Loaded = Awaited<ReturnType<typeof loadTestCompilerConfig>>
 
@@ -15,8 +16,11 @@ type Loaded = Awaited<ReturnType<typeof loadTestCompilerConfig>>
 export function createIstanbulTypeScriptOptionsGetter(
   loaded: Loaded,
   distDir: string,
-  encryptionKey: string
+  encryptionKey: string,
+  mode: TestProfile['mode']
 ): { getOptions: IstanbulTypeScriptOptionsGetter; close(): void } {
+  if (!['development', 'production'].includes(mode))
+    throw new Error('Typed Istanbul requires its actual Session mode.')
   if (!lookupOriginalConfigurationObservation(loaded))
     throw new Error(
       'Typed Istanbul requires the actual loaded Next configuration.'
@@ -83,7 +87,7 @@ export function createIstanbulTypeScriptOptionsGetter(
             )
           const swcOptions = getLoaderSWCOptions({
             filename: source.file,
-            development: true,
+            development: mode === 'development',
             isServer: true,
             isPageFile: false,
             hasReactRefresh: false,
@@ -117,7 +121,8 @@ export function createIstanbulTypeScriptOptionsGetter(
             programmatic.jsc?.transform?.react &&
             !Object.hasOwn(programmatic.jsc.transform.react, 'development')
           )
-            programmatic.jsc.transform.react.development = true
+            programmatic.jsc.transform.react.development =
+              mode === 'development'
           await assertInputs(signal)
           if (coverageHash(await readFile(source.file)) !== source.sha256)
             throw new Error(

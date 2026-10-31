@@ -9,6 +9,7 @@ import {
 import { coverageHash, readArtifactFile, within } from './artifact'
 import { assertIstanbulProfile } from './istanbul-profile'
 import { sourceAnalysisEntryId } from './source-authorization'
+import { verifySourceCoverageArtifact } from './source-profile'
 import { readIstanbulJsxImportProjection } from './istanbul-jsx-imports'
 import { bindIstanbulTypeScriptBodyMappings } from './istanbul-typescript-body-map'
 import type { CompiledTestArtifact, TestProfile } from '../contracts'
@@ -298,7 +299,7 @@ export async function readIstanbulTypeScriptDeclarations({
   }
   lease()
   assertIstanbulProfile(profile)
-  if (profile.mode !== 'development')
+  if (profile.mode !== 'development' && !/\.[jt]sx$/.test(source.file))
     throw new Error(
       'Typed Istanbul requires its qualified development profile.'
     )
@@ -317,7 +318,7 @@ export async function readIstanbulTypeScriptDeclarations({
     artifact.moduleCache ||
     artifact.dynamicModuleMocking ||
     artifact.cohort ||
-    artifact.coverage.sourcePreservation ||
+    (profile.mode === 'development' && artifact.coverage.sourcePreservation) ||
     (artifact.coverage.importRoles !== undefined &&
       !artifact.coverage.istanbul!.sources.some((candidate) =>
         /\.[jt]sx$/.test(candidate.file)
@@ -338,6 +339,11 @@ export async function readIstanbulTypeScriptDeclarations({
     throw new Error(
       'Typed Istanbul declarations lack their actual artifact owner.'
     )
+  if (profile.mode === 'production') {
+    lease()
+    await verifySourceCoverageArtifact(artifact)
+    lease()
+  }
   const rebuilt = await regenerateIstanbulTypeScriptSource(
     source,
     projectDir,

@@ -1083,15 +1083,17 @@ export async function createTestCompilerSession(
             return result.project
           })()
         : await (async () => {
+            const encryptionKey = await generateEncryptionKeyBase64({
+              isBuild: true,
+              distDir,
+            })
+            if (preparingIstanbulTypeScript) typedEncryptionKey = encryptionKey
             const projectOptions = createProductionProjectOptions({
               dir,
               distDir,
               config,
               buildId,
-              encryptionKey: await generateEncryptionKeyBase64({
-                isBuild: true,
-                distDir,
-              }),
+              encryptionKey,
               previewProps: fsChecker.previewProps,
               rewrites: fsChecker.rewrites,
               clientRouterFilters: undefined,
@@ -1134,7 +1136,8 @@ export async function createTestCompilerSession(
           const actualOptions = createIstanbulTypeScriptOptionsGetter(
             loaded,
             distDir,
-            typedEncryptionKey!
+            typedEncryptionKey!,
+            profile.mode
           )
           closeIstanbulTypeScriptOptions = actualOptions.close
           const metadata = await prepareIstanbulTypeScript(
@@ -1479,7 +1482,12 @@ export async function createTestCompilerSession(
     if (
       istanbulInstrumentation &&
       profile.mode === 'production' &&
-      !/\.(?:js|mjs)$/.test(entry.file)
+      !/\.(?:js|mjs)$/.test(entry.file) &&
+      !(
+        sourceAnalysis &&
+        preparingIstanbulTypeScript &&
+        /\.[jt]sx$/.test(entry.file)
+      )
     )
       throw new Error(
         'Production Istanbul requires ordinary Node JS/MJS test entries.'

@@ -212,6 +212,121 @@ describe('Next-owned test discovery and configuration', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
+  it.each([
+    ['v8', 'development', 'SIGINT', 'owned', true],
+    ['v8', 'production', 'SIGINT', 'owned', false],
+    ['istanbul', 'production', 'SIGINT', 'owned', true],
+    ['istanbul', 'development', 'SIGINT', 'owned', false],
+    ['istanbul', 'production', 'SIGINT', 'same-message', false],
+    ['istanbul', 'production', 'SIGINT', 'cleanup', false],
+    ['istanbul', 'production', 'SIGINT', 'aggregate', false],
+    ['istanbul', 'production', 'SIGTERM', 'owned', false],
+  ] as const)(
+    'keeps %s %s coverage interruption owned by %s and the exact %s error',
+    async (provider, mode, event, errorKind, interrupted) => {
+      await writeFile(path.join(directory, 'signal.test.mjs'), '')
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [{ name: 'signal', mode, include: ['signal.test.mjs'] }],
+        })
+      )
+      const owners = [...new Set([process, jest.requireActual('node:process')])]
+      const previous = owners.map((owner) => ({
+        owner,
+        exitCode: owner.exitCode,
+        interrupts: owner.listeners('SIGINT'),
+        terms: owner.listeners('SIGTERM'),
+      }))
+      let signalOwner: typeof process | undefined
+      let reason: unknown
+      let thrown: unknown
+      const preparation = jest.fn(
+        async (_directory: string, _options: unknown, signal: AbortSignal) => {
+          const registrations = previous.flatMap((prior) =>
+            prior.owner
+              .listeners(event)
+              .filter(
+                (listener: (...args: any[]) => void) =>
+                  !(
+                    event === 'SIGINT' ? prior.interrupts : prior.terms
+                  ).includes(listener)
+              )
+              .map((listener: (...args: any[]) => void) => ({
+                owner: prior.owner,
+                listener,
+              }))
+          )
+          expect(registrations).toHaveLength(1)
+          signalOwner = registrations[0].owner
+          registrations[0].listener()
+          reason = signal.reason
+          expect(signal.aborted).toBe(true)
+          expect(reason).toBeInstanceOf(Error)
+          thrown =
+            errorKind === 'same-message'
+              ? new Error('Test run interrupted.')
+              : errorKind === 'cleanup'
+                ? new Error('Actual coverage cleanup failed')
+                : errorKind === 'aggregate'
+                  ? new AggregateError(
+                      [reason, new Error('Actual coverage cleanup failed')],
+                      'Coverage preparation and cleanup failed.'
+                    )
+                  : reason
+          throw thrown
+        }
+      )
+      jest.doMock(
+        'next/dist/experimental/testing/coverage/report-standard',
+        () => ({
+          ...jest.requireActual(
+            'next/dist/experimental/testing/coverage/report-standard'
+          ),
+          prepareStandardCoverageDirectory: preparation,
+        })
+      )
+      try {
+        for (const owner of owners) owner.exitCode = undefined
+        await jest.isolateModulesAsync(async () => {
+          const { nextTestRunner: isolatedRunner } = await import(
+            'next/dist/cli/next-test-runner'
+          )
+          const run = isolatedRunner(directory, {
+            run: true,
+            coverage: true,
+            'coverage.provider': provider,
+            'coverage.reporter': ['json'],
+          })
+          if (interrupted) {
+            await expect(run).resolves.toBeUndefined()
+            expect(signalOwner?.exitCode).toBe(130)
+            expect(thrown).toBe(reason)
+          } else {
+            await run.then(
+              () => {
+                throw new Error('Expected the original preparation failure')
+              },
+              (error) => expect(error).toBe(thrown)
+            )
+            expect(signalOwner?.exitCode).toBeUndefined()
+            if (errorKind !== 'owned') expect(thrown).not.toBe(reason)
+            if (errorKind === 'aggregate')
+              expect((thrown as AggregateError).errors[0]).toBe(reason)
+          }
+          expect(preparation).toHaveBeenCalledTimes(1)
+        })
+        for (const prior of previous) {
+          expect(prior.owner.listeners('SIGINT')).toEqual(prior.interrupts)
+          expect(prior.owner.listeners('SIGTERM')).toEqual(prior.terms)
+        }
+      } finally {
+        jest.dontMock('next/dist/experimental/testing/coverage/report-standard')
+        for (const prior of previous) prior.owner.exitCode = prior.exitCode
+      }
+    }
+  )
+
   it('preserves explicit zero and false CLI overrides above executable project defaults', () => {
     const original = normalizeTestConfig({
       test: {

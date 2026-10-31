@@ -20,8 +20,8 @@ export function assertIstanbulSourceExtension(
   profile: TestProfile,
   file: string
 ) {
-  if (profile.mode === 'production' && !/\.(?:js|mjs)$/.test(file))
+  if (profile.mode === 'production' && !/\.(?:js|mjs|[jt]sx)$/.test(file))
     throw new Error(
-      'Production Istanbul requires ordinary Node JS/MJS sources.'
+      'Production Istanbul requires ordinary Node JS/MJS sources or qualified intrinsic JSX sources.'
     )
 }
