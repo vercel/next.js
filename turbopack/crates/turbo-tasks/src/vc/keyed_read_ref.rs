@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// The result of [`Vc::keyed`](crate::Vc::keyed): a read of a keyed cell (a
-/// [`cell = "keyed"`](crate::value) map or set) that only allows synchronous keyed access via
+/// [`cell = "keyed"`](macro@crate::value) map or set) that only allows synchronous keyed access via
 /// [`KeyedReadRef::get`] and [`KeyedReadRef::contains_key`].
 ///
 /// This is an efficient alternative to many [`Vc::get`](crate::Vc::get) /
