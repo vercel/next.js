@@ -2948,9 +2948,19 @@ export async function cache(
             // already handled by the early return above. We return a hanging
             // promise so this becomes a dynamic hole rather than generating a
             // broken cache entry that gets aborted.
-            console.warn(new UnexpectedCacheMissError(workStore.route))
+            //
+            // Draft Mode is the exception: it deliberately skips writing the
+            // entry, including into the Resume Data Cache, so unpublished
+            // content is never stored. The miss is expected, and reporting it
+            // as a non-deterministic cache key is a false positive. Still omit
+            // the entry from this prerender — bypassing the cache is the
+            // intended Draft Mode behavior.
+            if (!workStore.isDraftMode) {
+              console.warn(new UnexpectedCacheMissError(workStore.route))
+            }
             // This is an anomaly (non-deterministic cache key), so we can't
-            // know whether a runtime prerender would resolve it.
+            // know whether a runtime prerender would resolve it. Draft Mode
+            // takes the same path on purpose.
             return makeUnknownRuntimeDataHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
