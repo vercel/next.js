@@ -329,21 +329,6 @@ export async function collectBuildTraces({
               throw e
             }
           },
-          async readlink(p) {
-            try {
-              return await fs.readlink(p)
-            } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
-                return null
-              }
-              throw e
-            }
-          },
           async stat(p) {
             try {
               return await fs.stat(p)

@@ -91,4 +91,50 @@ describe('@next/third-parties basic usage', () => {
       })
     )
   })
+
+  // https://github.com/vercel/next.js/issues/100938
+  // Enhanced measurement skips prevented submits, so client-side form
+  // submissions (next/form navigation, server actions) must be forwarded to
+  // the dataLayer as form_submit exactly once.
+  it('forwards next/form navigation submits as form_submit', async () => {
+    const browser = await next.browser('/ga-form')
+
+    await browser.elementByCss('#nav-submit').click()
+    await browser.waitForElementByCss('#ga-form-dest')
+
+    await retry(async () => {
+      const dataLayer = await browser.eval('window.dataLayer')
+      const formSubmits = dataLayer.filter(
+        (entry: any) => entry?.[1] === 'form_submit'
+      )
+      expect(formSubmits).toHaveLength(1)
+      expect(formSubmits[0][2]).toEqual(
+        expect.objectContaining({
+          form_id: 'nav-form',
+          form_destination: expect.stringContaining('/ga-form-dest'),
+        })
+      )
+    })
+
+    await browser.close()
+  })
+
+  it('forwards server action submits as form_submit', async () => {
+    const browser = await next.browser('/ga-form')
+
+    await browser.elementByCss('#action-submit').click()
+
+    await retry(async () => {
+      const dataLayer = await browser.eval('window.dataLayer')
+      const formSubmits = dataLayer.filter(
+        (entry: any) => entry?.[1] === 'form_submit'
+      )
+      expect(formSubmits).toHaveLength(1)
+      expect(formSubmits[0][2]).toEqual(
+        expect.objectContaining({ form_id: 'action-form' })
+      )
+    })
+
+    await browser.close()
+  })
 })

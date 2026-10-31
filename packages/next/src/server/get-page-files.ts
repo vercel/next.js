@@ -46,6 +46,20 @@ export function getTurbopackChunkGroupBootstrap(
   return statements.length > 0 ? statements.join('\n') : undefined
 }
 
+/**
+ * Returns the raw Turbopack chunk-group bootstrap params for the given pages.
+ * The Pages Router embeds these as non-executable JSON (`getBootstrapJsonScripts`)
+ * so that strict `script-src` CSPs keep working; the shared runtime picks them
+ * up from the DOM. Returns an empty array when none of the given pages have
+ * inlined params.
+ */
+export function getTurbopackChunkGroupBootstrapParams(
+  paramsByPage: { [page: string]: object },
+  pages: readonly string[]
+): object[] {
+  return pages.map((page) => paramsByPage[page]).filter(Boolean)
+}
+
 export function getPageFiles(
   buildManifest: BuildManifest,
   page: string
