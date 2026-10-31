@@ -1,11 +1,9 @@
 import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
+import { isInAppDir } from '../utils/get-root-dirs'
 
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
-
-const convertToCorrectSeparator = (str: string) =>
-  str.replace(/[\\/]/g, path.sep)
 
 export default defineRule({
   meta: {
@@ -28,15 +26,6 @@ export default defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        const pathname = convertToCorrectSeparator(context.filename)
-
-        const isInAppDir = pathname.includes(`${path.sep}app${path.sep}`)
-
-        // This rule shouldn't fire in `app/`
-        if (isInAppDir) {
-          return
-        }
-
         if (!scriptImportName) {
           return
         }
@@ -54,6 +43,11 @@ export default defineRule({
           !strategy.value ||
           strategy.value.value !== 'beforeInteractive'
         ) {
+          return
+        }
+
+        // This rule shouldn't fire in `app/`
+        if (isInAppDir(context)) {
           return
         }
 

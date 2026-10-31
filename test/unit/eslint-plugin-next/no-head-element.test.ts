@@ -57,6 +57,41 @@ const tests = {
     `,
       filename: './app/layout.js',
     },
+    {
+      code: `
+      export default function Page() {
+        return (
+          <html>
+            <head>
+              <title>pages route in app</title>
+            </head>
+            <body>Content</body>
+          </html>
+        );
+      }
+    `,
+      filename: 'app/pages/page.js',
+    },
+    {
+      code: `
+      export default function Layout({ children }) {
+        return (
+          <html>
+            <head>
+              <title>layout</title>
+            </head>
+            <body>{children}</body>
+          </html>
+        );
+      }
+    `,
+      filename: '/checkout/pages/my-app/app/layout.js',
+      settings: {
+        next: {
+          rootDir: '/checkout/pages/my-app',
+        },
+      },
+    },
   ],
   invalid: [
     {
@@ -98,6 +133,44 @@ const tests = {
         }
       }`,
       filename: 'pages/index.ts',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <div>
+            <head>
+              <title>Home</title>
+            </head>
+          </div>
+        );
+      }`,
+      filename: '/projects/my-app/pages/index.jsx',
+      errors: [
+        {
+          message,
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      export default function Home() {
+        return (
+          <div>
+            <head>
+              <title>Home</title>
+            </head>
+          </div>
+        );
+      }`,
+      filename: '/tmp/repro/srv/app/web/pages/index.jsx',
       errors: [
         {
           message,
