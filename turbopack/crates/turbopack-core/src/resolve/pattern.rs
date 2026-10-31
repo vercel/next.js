@@ -269,18 +269,18 @@ impl Pattern {
         longest_common_suffix(&strings)
     }
 
-    pub fn strip_prefix(&self, prefix: &str) -> Result<Option<Self>> {
+    pub fn strip_constant_prefix(&self, prefix: &str) -> Result<Option<Self>> {
         if self.must_match(prefix) {
             let mut pat = self.clone();
-            pat.strip_prefix_len(prefix.len())?;
+            pat.strip_constant_prefix_len(prefix.len())?;
             Ok(Some(pat))
         } else {
             Ok(None)
         }
     }
 
-    pub fn strip_prefix_len(&mut self, len: usize) -> Result<()> {
-        fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) -> Result<()> {
+    pub fn strip_constant_prefix_len(&mut self, len: usize) -> Result<()> {
+        fn strip_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) -> Result<()> {
             match pattern {
                 Pattern::Constant(c) => {
                     let c_len = c.len();
@@ -294,15 +294,15 @@ impl Pattern {
                 Pattern::Concatenation(list) => {
                     for c in list {
                         if *chars_to_strip > 0 {
-                            strip_prefix_internal(c, chars_to_strip)?;
+                            strip_internal(c, chars_to_strip)?;
                         }
                     }
                 }
                 Pattern::Alternatives(_) => {
-                    bail!("strip_prefix pattern must be normalized");
+                    bail!("strip_constant_prefix_len pattern must be normalized");
                 }
                 Pattern::Dynamic | Pattern::DynamicNoSlash => {
-                    bail!("strip_prefix prefix is too long");
+                    bail!("strip_constant_prefix_len prefix is too long");
                 }
             }
             Ok(())
@@ -311,21 +311,17 @@ impl Pattern {
         match &mut *self {
             c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
                 let mut len_local = len;
-                strip_prefix_internal(c, &mut len_local)?;
+                strip_internal(c, &mut len_local)?;
             }
             Pattern::Alternatives(list) => {
                 for c in list {
                     let mut len_local = len;
-                    strip_prefix_internal(c, &mut len_local)?;
+                    strip_internal(c, &mut len_local)?;
                 }
             }
             Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 if len > 0 {
-                    bail!(
-                        "strip_prefix prefix ({}) is too long: {}",
-                        len,
-                        self.describe_as_string()
-                    );
+                    bail!("strip_constant_prefix_len prefix is too long",);
                 }
             }
         };
@@ -335,8 +331,8 @@ impl Pattern {
         Ok(())
     }
 
-    pub fn strip_suffix_len(&mut self, len: usize) {
-        fn strip_suffix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
+    pub fn strip_constant_suffix_len(&mut self, len: usize) {
+        fn strip_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
                     let c_len = c.len();
@@ -350,7 +346,7 @@ impl Pattern {
                 Pattern::Concatenation(list) => {
                     for c in list.iter_mut().rev() {
                         if *chars_to_strip > 0 {
-                            strip_suffix_internal(c, chars_to_strip);
+                            strip_internal(c, chars_to_strip);
                         }
                     }
                 }
@@ -366,12 +362,12 @@ impl Pattern {
         match &mut *self {
             c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
                 let mut len_local = len;
-                strip_suffix_internal(c, &mut len_local);
+                strip_internal(c, &mut len_local);
             }
             Pattern::Alternatives(list) => {
                 for c in list {
                     let mut len_local = len;
-                    strip_suffix_internal(c, &mut len_local);
+                    strip_internal(c, &mut len_local);
                 }
             }
             Pattern::Dynamic | Pattern::DynamicNoSlash => {
@@ -2307,9 +2303,9 @@ mod tests {
     }
 
     #[test]
-    fn strip_prefix() {
+    fn strip_constant_prefix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_prefix_len(n).unwrap();
+            pat.strip_constant_prefix_len(n).unwrap();
             pat
         }
 
@@ -2350,7 +2346,7 @@ mod tests {
     #[test]
     fn strip_suffix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_suffix_len(n);
+            pat.strip_constant_suffix_len(n);
             pat
         }
 
