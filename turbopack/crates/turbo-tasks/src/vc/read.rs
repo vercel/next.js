@@ -17,6 +17,8 @@ use crate::{
     MappedReadRef, ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast,
     VcValueTypeCast,
     keyed::{KeyedAccess, KeyedEq},
+    manager::KeyedReadDependency,
+    vc::keyed_read_ref::KeyedReadRef,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -223,6 +225,16 @@ where
         self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
         ReadContainsKeyedVcFuture { future: self, key }
     }
+
+    /// Read the value once for many synchronous keyed accesses via the returned
+    /// [`KeyedReadRef`]. Once that is dropped, the task only depends on the accessed keys instead
+    /// of the full value. See [`KeyedReadRef`] for details.
+    pub fn keyed(self) -> ReadKeyedRefVcFuture<T> {
+        ReadKeyedRefVcFuture {
+            future: self,
+            dependency: KeyedDependencyState::NotStarted,
+        }
+    }
 }
 
 impl<T> From<ReadRawVcFuture> for ReadVcFuture<T, VcValueTypeCast<T>>
@@ -329,6 +341,88 @@ where
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+/// The [`KeyedReadDependency`] of a [`ReadKeyedRefVcFuture`]. It's allocated when the future is
+/// first polled, as that's the task execution that reads the cell (not necessarily the one that
+/// created the future).
+enum KeyedDependencyState {
+    NotStarted,
+    /// `None` if the read isn't a [`TrackKey::Keyed`](crate::TrackKey::Keyed) read (no current
+    /// task, or the dependency was already handed to the [`KeyedReadRef`]).
+    Started(Option<KeyedReadDependency>),
+}
+
+pin_project! {
+    /// A future returned by [`Vc::keyed`](crate::Vc::keyed).
+    #[must_use]
+    pub struct ReadKeyedRefVcFuture<T>
+    where
+        T: VcValueType,
+        VcReadTarget<T>: KeyedEq,
+    {
+        #[pin]
+        future: ReadVcFuture<T, VcValueTypeCast<T>>,
+        dependency: KeyedDependencyState,
+    }
+}
+
+impl<T> Future for ReadKeyedRefVcFuture<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: KeyedEq,
+{
+    type Output = Result<KeyedReadRef<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
+        match this.dependency {
+            KeyedDependencyState::NotStarted => {
+                let dependency = KeyedReadDependency::new_for_current_task();
+                if let Some(dependency) = &dependency {
+                    // Safety: Only a field is mutated, nothing is moved.
+                    unsafe { this.future.as_mut().get_unchecked_mut() }
+                        .raw
+                        .set_track_keyed(dependency.id);
+                }
+                *this.dependency = KeyedDependencyState::Started(dependency);
+            }
+            KeyedDependencyState::Started(dependency) => {
+                if dependency
+                    .as_ref()
+                    .is_some_and(|dependency| !dependency.is_current_execution())
+                {
+                    // The future moved to a different task execution while pending. The id
+                    // belongs to the other execution and could collide with an id of this one, so
+                    // fall back to a normal full dependency and never narrow it.
+                    // Safety: Only a field is mutated, nothing is moved.
+                    unsafe { this.future.as_mut().get_unchecked_mut() }
+                        .raw
+                        .set_track_full();
+                    *dependency = None;
+                }
+            }
+        }
+        let result = std::task::ready!(this.future.as_mut().poll(cx));
+        Poll::Ready(result.map(|read_ref| {
+            let KeyedDependencyState::Started(dependency) = this.dependency else {
+                unreachable!("the dependency state is initialized above")
+            };
+            // Only narrow the dependency later when the read was completed in the execution that
+            // registered it. Otherwise the `KeyedReadRef` keeps the conservative dependency.
+            let dependency = dependency
+                .take()
+                .filter(|dependency| dependency.is_current_execution())
+                .map(|dependency| {
+                    let Some((task, index)) = this.future.as_ref().get_ref().raw.resolved_cell()
+                    else {
+                        unreachable!("a successful read is always resolved to a cell")
+                    };
+                    (task, index, dependency)
+                });
+            KeyedReadRef::new(read_ref, dependency)
+        }))
     }
 }
 

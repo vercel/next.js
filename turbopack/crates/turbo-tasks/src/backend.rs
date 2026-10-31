@@ -667,6 +667,23 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<TypedCellContent>>;
 
+    /// Replaces the [`TrackKey::Keyed(id)`][crate::TrackKey::Keyed] dependency of `reader` on the
+    /// cell `index` of `task`, which was created by a [`Vc::keyed`][crate::Vc::keyed] read, with
+    /// [`TrackKey::Key`][crate::TrackKey::Key] dependencies on each of the `key_hashes`, in a
+    /// single operation.
+    ///
+    /// Must only be called from within the same execution of `reader` that created the
+    /// dependency.
+    fn convert_keyed_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<Self>,
+    );
+
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
     fn try_read_own_task_cell(

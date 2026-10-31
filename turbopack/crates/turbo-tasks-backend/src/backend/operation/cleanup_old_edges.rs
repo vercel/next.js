@@ -34,6 +34,12 @@ pub enum OutdatedEdge {
         cell: CellRef,
         key: u64,
     },
+    /// A `Vc::keyed()` read dependency (`TrackKey::Keyed(id)`).
+    KeyedCellDependency {
+        dependent: TaskId,
+        cell: CellRef,
+        id: u32,
+    },
     /// `dependent` reads the output of `output_task`.
     OutputDependency {
         dependent: TaskId,
@@ -67,6 +73,13 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
             key,
         }
     }));
+    old_edges.extend(task.iter_cell_dependencies_keyed().map(|(cell, id)| {
+        OutdatedEdge::KeyedCellDependency {
+            dependent: task_id,
+            cell,
+            id,
+        }
+    }));
     old_edges.extend(
         task.iter_collectibles_dependencies()
             .map(OutdatedEdge::CollectiblesDependency),
@@ -91,6 +104,16 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 cell: entry.cell,
             },
             key,
+        }
+    }));
+    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, id)| {
+        OutdatedEdge::KeyedCellDependency {
+            dependent: entry.task,
+            cell: CellRef {
+                task: task_id,
+                cell: entry.cell,
+            },
+            id,
         }
     }));
     old_edges.extend(task.iter_output_dependent().map(|dependent| {
@@ -294,6 +317,28 @@ fn cleanup_old_edges_inner(
                     let mut task = ctx.task(dependent, TaskDataCategory::Data);
                     task.remove_cell_dependencies_hashed(&(cell, key));
                     task.remove_outdated_cell_dependencies_hashed(&(cell, key));
+                }
+            }
+            OutdatedEdge::KeyedCellDependency {
+                dependent,
+                cell,
+                id,
+            } => {
+                // Same as above but in the `_keyed` sets.
+                {
+                    let mut task = ctx.task(cell.task, TaskDataCategory::Data);
+                    task.remove_cell_dependents_keyed(&(
+                        CellRef {
+                            task: dependent,
+                            cell: cell.cell,
+                        },
+                        id,
+                    ));
+                }
+                {
+                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
+                    task.remove_cell_dependencies_keyed(&(cell, id));
+                    task.remove_outdated_cell_dependencies_keyed(&(cell, id));
                 }
             }
             OutdatedEdge::OutputDependency {

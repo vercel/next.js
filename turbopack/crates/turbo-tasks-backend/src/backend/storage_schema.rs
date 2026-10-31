@@ -289,6 +289,19 @@ struct TaskStorageSchema {
     )]
     cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
+    /// Cells this task depends on via a `Vc::keyed()` read that hasn't been converted to hashed
+    /// dependencies (`TrackKey::Keyed`), identified by the `keyed()` call counter of the
+    /// execution. Invalidated like `cell_dependencies`. Rare and usually short-lived: the
+    /// `KeyedReadRef` converts it to `cell_dependencies_hashed` when dropped.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependencies_keyed: AutoSet<(CellRef, u32), 1>,
+
     /// Collectibles this task depends on.
     #[field(
         storage = "auto_set",
@@ -310,6 +323,10 @@ struct TaskStorageSchema {
     /// Outdated hashed cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
+
+    /// Outdated keyed-read cell dependencies to be cleaned up (transient).
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
+    outdated_cell_dependencies_keyed: AutoSet<(CellRef, u32), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
@@ -338,6 +355,16 @@ struct TaskStorageSchema {
         drop_on_completion_if_immutable
     )]
     cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
+
+    /// Tasks that depend on this task's cells via a `Vc::keyed()` read. Reverse of
+    /// `cell_dependencies_keyed`. Invalidated like `cell_dependents`.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependents_keyed: AutoSet<(CellRef, u32), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
@@ -979,6 +1006,11 @@ impl IsTransient for CellRef {
     }
 }
 impl IsTransient for (CellRef, u64) {
+    fn is_transient(&self) -> bool {
+        self.0.is_transient()
+    }
+}
+impl IsTransient for (CellRef, u32) {
     fn is_transient(&self) -> bool {
         self.0.is_transient()
     }

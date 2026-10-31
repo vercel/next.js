@@ -36,8 +36,8 @@ use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
     ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
-    TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
-    TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
+    TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TrackKey,
+    TraitTypeId, TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
         TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
@@ -1052,15 +1052,21 @@ impl TurboTasksBackend {
             reader: Option<TaskId>,
             reader_task: Option<TaskGuard<'_>>,
             cell: CellId,
-            key: Option<u64>,
+            key: TrackKey,
         ) {
             if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
-                if let Some(k) = key {
-                    let _ = task.add_cell_dependents_hashed((reverse, k));
-                } else {
-                    let _ = task.add_cell_dependents(reverse);
+                match key {
+                    TrackKey::None => {
+                        let _ = task.add_cell_dependents(reverse);
+                    }
+                    TrackKey::Key(k) => {
+                        let _ = task.add_cell_dependents_hashed((reverse, k));
+                    }
+                    TrackKey::Keyed(id) => {
+                        let _ = task.add_cell_dependents_keyed((reverse, id));
+                    }
                 }
                 drop(task);
 
@@ -1073,12 +1079,22 @@ impl TurboTasksBackend {
                     task: task_id,
                     cell,
                 };
-                if let Some(k) = key {
-                    if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
-                        let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                match key {
+                    TrackKey::None => {
+                        if !reader_task.remove_outdated_cell_dependencies(&target) {
+                            let _ = reader_task.add_cell_dependencies(target);
+                        }
                     }
-                } else if !reader_task.remove_outdated_cell_dependencies(&target) {
-                    let _ = reader_task.add_cell_dependencies(target);
+                    TrackKey::Key(k) => {
+                        if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
+                            let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                        }
+                    }
+                    TrackKey::Keyed(id) => {
+                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, id)) {
+                            let _ = reader_task.add_cell_dependencies_keyed((target, id));
+                        }
+                    }
                 }
                 drop(reader_task);
             }
@@ -1200,6 +1216,52 @@ impl TurboTasksBackend {
         // Only drop the content, if it's there. A later read recomputes the task, exactly like
         // after a `final_read_hint` read.
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
+    }
+
+    /// Replaces the [`TrackKey::Keyed`] dependency of `reader` on `cell` of `task_id` (created by a
+    /// `Vc::keyed()` read) with [`TrackKey::Key`] dependencies on `key_hashes`.
+    ///
+    /// When the cell content is currently missing, the [`TrackKey::Keyed`] dependency is kept
+    /// (conservatively depending on the whole cell). That covers a concurrent `update_cell`
+    /// invalidation: it removes the cell content before it invalidates the dependents it collected
+    /// earlier, and it would skip a [`TrackKey::Keyed`] dependency that was removed in between,
+    /// without seeing the hashed dependencies that replaced it.
+    fn convert_keyed_cell_dependency(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        if !self.should_track_dependencies() || reader == task_id {
+            return;
+        }
+        let mut ctx = self.execute_context(turbo_tasks);
+        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if !immutable && !task.cell_data_contains(&cell) {
+            return;
+        }
+        let reverse = CellRef { task: reader, cell };
+        let target = CellRef {
+            task: task_id,
+            cell,
+        };
+        task.remove_cell_dependents_keyed(&(reverse, id));
+        reader_task.remove_cell_dependencies_keyed(&(target, id));
+        reader_task.remove_outdated_cell_dependencies_keyed(&(target, id));
+        // Immutable tasks never need dependency edges and can never be invalidated.
+        if immutable {
+            return;
+        }
+        for k in key_hashes {
+            let _ = task.add_cell_dependents_hashed((reverse, k));
+            if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
+                let _ = reader_task.add_cell_dependencies_hashed((target, k));
+            }
+        }
     }
 
     fn listen_to_cell(
@@ -2161,6 +2223,8 @@ impl TurboTasksBackend {
                 task.set_outdated_cell_dependencies(cell_dependencies);
                 let cell_dependencies_hashed = task.iter_cell_dependencies_hashed().collect();
                 task.set_outdated_cell_dependencies_hashed(cell_dependencies_hashed);
+                let cell_dependencies_keyed = task.iter_cell_dependencies_keyed().collect();
+                task.set_outdated_cell_dependencies_keyed(cell_dependencies_keyed);
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
@@ -2497,6 +2561,7 @@ impl TurboTasksBackend {
                 task.iter_output_dependencies()
                     .chain(task.iter_cell_dependencies().map(|r| r.task))
                     .chain(task.iter_cell_dependencies_hashed().map(|(r, _)| r.task))
+                    .chain(task.iter_cell_dependencies_keyed().map(|(r, _)| r.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2545,6 +2610,14 @@ impl TurboTasksBackend {
                         dependent: task_id,
                         cell,
                         key,
+                    }),
+            );
+            old_edges.extend(
+                task.iter_outdated_cell_dependencies_keyed()
+                    .map(|(cell, id)| OutdatedEdge::KeyedCellDependency {
+                        dependent: task_id,
+                        cell,
+                        id,
                     }),
             );
             old_edges.extend(task.iter_outdated_output_dependencies().map(|output_task| {
@@ -3959,6 +4032,18 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<TypedCellContent>> {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
+    }
+
+    fn convert_keyed_cell_dependency(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.convert_keyed_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
     }
 
     fn try_read_own_task_cell(

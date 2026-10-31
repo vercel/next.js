@@ -1,6 +1,7 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+mod keyed_read_ref;
 mod local;
 pub(crate) mod operation;
 mod ord;
@@ -34,11 +35,15 @@ pub use crate::vc::{
         VcCellNewMode,
     },
     default::ValueDefault,
+    keyed_read_ref::KeyedReadRef,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     ord::OrdResolvedVc,
     raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
-    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    read::{
+        ReadKeyedRefVcFuture, ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead,
+        VcTransparentRead,
+    },
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
@@ -586,6 +591,17 @@ where
     {
         let future: ReadVcFuture<T> = self.node.into_read().into();
         future.contains_key(key)
+    }
+
+    /// Read the value once for many synchronous keyed accesses via the returned
+    /// [`KeyedReadRef`] (`vc.keyed().await?.get(key)`). This is more efficient than many
+    /// [`Vc::get`] / [`Vc::contains_key`] reads of the same cell within a single task.
+    ///
+    /// Once the [`KeyedReadRef`] is dropped (within the same task execution), the task only
+    /// depends on the accessed keys instead of the full value. See [`KeyedReadRef`] for details.
+    pub fn keyed(self) -> ReadKeyedRefVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.keyed()
     }
 }
 

@@ -12,7 +12,7 @@ use std::{
     process::abort,
     sync::{
         Arc, Mutex, RwLock, Weak,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
@@ -149,6 +149,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<ReadOutcome<TypedCellContent>>;
+
+    /// Replaces the [`TrackKey::Keyed(id)`][TrackKey::Keyed] dependency of the current task
+    /// (`reader`) on the cell `index` of `task` with [`TrackKey::Key`] dependencies on each of the
+    /// `key_hashes`. See [`Backend::convert_keyed_cell_dependency`].
+    fn convert_keyed_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+    );
 
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
     /// completed, returns the [`RawVc`] the local task points to.
@@ -342,12 +354,30 @@ pub enum ReadConsistency {
     Strong,
 }
 
+/// Identifies which part of a cell a tracked cell read depends on.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Default)]
+pub enum TrackKey {
+    /// The read depends on the whole cell content.
+    #[default]
+    None,
+    /// The read only depends on the sub-value identified by this key hash (see
+    /// [`KeyedEq`]). The dependency is only invalidated when the value of this key changes.
+    Key(u64),
+    /// The read is a [`Vc::keyed`](crate::Vc::keyed) read. For invalidation it behaves like
+    /// [`TrackKey::None`] (invalidated by any change of the cell), but it is a separate dependency
+    /// that is uniquely identified by this counter of `keyed()` calls within the current task
+    /// execution. This allows the [`KeyedReadRef`](crate::KeyedReadRef) to replace it with
+    /// [`TrackKey::Key`] dependencies of the accessed keys once it's dropped, without affecting
+    /// other (full) dependencies on the same cell.
+    Keyed(u32),
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReadCellTracking {
     /// Reads are tracked as dependencies of the current task.
     Tracked {
         /// The key used for the dependency
-        key: Option<u64>,
+        key: TrackKey,
     },
     /// The read is only tracked when there is an error, otherwise it is untracked.
     ///
@@ -370,26 +400,35 @@ impl ReadCellTracking {
         }
     }
 
-    pub fn key(&self) -> Option<u64> {
+    pub fn key(&self) -> TrackKey {
         match self {
             ReadCellTracking::Tracked { key } => *key,
-            ReadCellTracking::TrackOnlyError => None,
-            ReadCellTracking::Untracked => None,
+            ReadCellTracking::TrackOnlyError => TrackKey::None,
+            ReadCellTracking::Untracked => TrackKey::None,
         }
     }
 }
 
 impl Default for ReadCellTracking {
     fn default() -> Self {
-        ReadCellTracking::Tracked { key: None }
+        ReadCellTracking::Tracked {
+            key: TrackKey::None,
+        }
     }
 }
 
 impl Display for ReadCellTracking {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReadCellTracking::Tracked { key: None } => write!(f, "tracked"),
-            ReadCellTracking::Tracked { key: Some(key) } => write!(f, "tracked with key {key}"),
+            ReadCellTracking::Tracked {
+                key: TrackKey::None,
+            } => write!(f, "tracked"),
+            ReadCellTracking::Tracked {
+                key: TrackKey::Key(key),
+            } => write!(f, "tracked with key {key}"),
+            ReadCellTracking::Tracked {
+                key: TrackKey::Keyed(id),
+            } => write!(f, "tracked as keyed read {id}"),
             ReadCellTracking::TrackOnlyError => write!(f, "track only error"),
             ReadCellTracking::Untracked => write!(f, "untracked"),
         }
@@ -827,6 +866,9 @@ struct CurrentTaskStateHandle {
 
 struct CurrentTaskStateInner {
     current_task_id: Option<TaskId>,
+    /// Counter of [`Vc::keyed`](crate::Vc::keyed) reads in this execution, used to give every
+    /// [`TrackKey::Keyed`] dependency a unique id.
+    keyed_read_counter: AtomicU32,
     state: RwLock<CurrentTaskState>,
 }
 
@@ -835,6 +877,7 @@ impl CurrentTaskStateHandle {
         Self {
             inner: Arc::new(CurrentTaskStateInner {
                 current_task_id: state.task_id,
+                keyed_read_counter: AtomicU32::new(0),
                 state: RwLock::new(state),
             }),
         }
@@ -842,6 +885,52 @@ impl CurrentTaskStateHandle {
 
     fn current_task_id(&self) -> Option<TaskId> {
         self.inner.current_task_id
+    }
+}
+
+/// Identifies the [`TrackKey::Keyed`] dependency of a [`Vc::keyed`](crate::Vc::keyed) read and the
+/// task execution that created it.
+pub(crate) struct KeyedReadDependency {
+    /// The execution state of the reading task. Only used for identity (a `Weak` keeps the
+    /// allocation alive, so the pointer can't be reused by another execution).
+    execution: Weak<CurrentTaskStateInner>,
+    pub(crate) reader: TaskId,
+    pub(crate) id: u32,
+}
+
+impl KeyedReadDependency {
+    /// Allocates a new [`TrackKey::Keyed`] dependency id for the current task execution. Returns
+    /// `None` when not called from within a task execution (e.g. a top-level `run`), where reads
+    /// are not tracked anyway, or when the ids of this execution are exhausted. In that case the
+    /// read is tracked as a normal (full) dependency.
+    pub(crate) fn new_for_current_task() -> Option<Self> {
+        CURRENT_TASK_STATE
+            .try_with(|ts| {
+                let reader = ts.current_task_id()?;
+                let id = ts
+                    .inner
+                    .keyed_read_counter
+                    .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+                    .ok()?;
+                Some(Self {
+                    execution: Arc::downgrade(&ts.inner),
+                    reader,
+                    id,
+                })
+            })
+            .ok()
+            .flatten()
+    }
+
+    /// Whether this is called within the task execution that created the dependency and that
+    /// execution is still running (it hasn't reported completion to the backend yet).
+    pub(crate) fn is_current_execution(&self) -> bool {
+        CURRENT_TASK_STATE
+            .try_with(|ts| {
+                std::ptr::eq(self.execution.as_ptr(), Arc::as_ptr(&ts.inner))
+                    && ts.read().unwrap().cell_counters.is_some()
+            })
+            .unwrap_or(false)
     }
 }
 
@@ -1943,6 +2032,18 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         let reader = current_task_if_available("reading Vcs");
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
+    }
+
+    fn convert_keyed_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+    ) {
+        self.backend
+            .convert_keyed_cell_dependency(task, index, reader, id, key_hashes, self)
     }
 
     fn try_read_own_task_cell(

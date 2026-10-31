@@ -1780,6 +1780,10 @@ impl<'a> TaskGuard<'a> {
                     .map(|(r, _)| (r.task, TaskDataCategory::All)),
             )
             .chain(
+                self.iter_cell_dependencies_keyed()
+                    .map(|(r, _)| (r.task, TaskDataCategory::All)),
+            )
+            .chain(
                 self.iter_collectibles_dependencies()
                     .map(|target| (target.task, TaskDataCategory::All)),
             )
