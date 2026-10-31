@@ -1,0 +1,151 @@
+{
+  "numTotalTestSuites": 6,
+  "numPassedTestSuites": 6,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 6,
+  "numPassedTests": 6,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1793453351580,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "a selected project",
+          "status": "passed",
+          "title": "a selected project",
+          "duration": 1.0324170000000024,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1793453337483,
+      "endTime": 1793453337484.0325,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/project-selection347/node26-valid/fixture-production/a.case.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "b selected project",
+          "status": "passed",
+          "title": "b selected project",
+          "duration": 0.9983330000000024,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1793453337556,
+      "endTime": 1793453337556.9983,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/project-selection347/node26-valid/fixture-production/b.case.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "a selected project",
+          "status": "passed",
+          "title": "a selected project",
+          "duration": 1.0836669999999984,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1793453337630,
+      "endTime": 1793453337631.0837,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/project-selection347/node26-valid/fixture-production/a.case.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "c selected project",
+          "status": "passed",
+          "title": "c selected project",
+          "duration": 1.2127499999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1793453338314,
+      "endTime": 1793453338315.2126,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/project-selection347/node26-valid/fixture-production/c.case.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "c selected project",
+          "status": "passed",
+          "title": "c selected project",
+          "duration": 1.1394999999999982,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1793453338389,
+      "endTime": 1793453338390.1394,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/project-selection347/node26-valid/fixture-production/c.case.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "b selected project",
+          "status": "passed",
+          "title": "b selected project",
+          "duration": 1.102415999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1793453338467,
+      "endTime": 1793453338468.1023,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/project-selection347/node26-valid/fixture-production/b.case.mjs"
+    }
+  ]
+}

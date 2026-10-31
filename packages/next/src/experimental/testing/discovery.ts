@@ -21,14 +21,31 @@ export async function discoverTests(
   selection: { project?: string; files?: string[] } = {}
 ): Promise<DiscoveredTestProject[]> {
   const root = await realpath(directory)
-  const projects = config.projects.filter(
-    (project) =>
-      selection.project === undefined ||
-      (project.browserInstance
-        ? project.displayName === selection.project ||
-          project.browserInstance.parentName === selection.project
-        : project.profile.id === selection.project)
-  )
+  const exclusion = selection.project?.startsWith('!') ?? false
+  // The pinned CLI treats only * as a wildcard; other regex/glob syntax stays
+  // literal. One filter can select several projects before file/shard selection.
+  const projectPattern =
+    selection.project === undefined
+      ? undefined
+      : new RegExp(
+          '^' +
+            (exclusion ? selection.project.slice(1) : selection.project)
+              .split('*')
+              .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+              .join('.*') +
+            '$',
+          'i'
+        )
+  const projects = config.projects.filter((project) => {
+    if (!projectPattern) return true
+    const names = project.browserInstance
+      ? [project.displayName, project.browserInstance.parentName]
+      : [project.profile.id]
+    const matches = names.some(
+      (name) => name !== undefined && projectPattern.test(name)
+    )
+    return exclusion ? !matches : matches
+  })
   if (!projects.length) {
     throw new Error(`Unknown test project "${selection.project}".`)
   }

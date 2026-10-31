@@ -12807,3 +12807,190 @@ it('preserves OS interruption exit precedence over an earlier settled failure', 
     await rm(directory, { recursive: true, force: true })
   }
 }, 150000)
+
+describe('project filter patterns before shard assignment', () => {
+  const corpus = path.join(__dirname, 'fixtures/project-pattern-selection')
+  const pristine = require('./fixtures/project-pattern-selection/pristine.json')
+  async function fixture<T>(run: (root: string) => Promise<T>) {
+    const root = await realpath(
+      await mkdtemp(path.join(os.tmpdir(), 'next-project-pattern-'))
+    )
+    try {
+      for (const [name, pin] of Object.entries(pristine.sourceSHA256)) {
+        const bytes = await readFile(path.join(corpus, name + '.txt'))
+        expect(createHash('sha256').update(bytes).digest('hex')).toBe(pin)
+        await writeFile(path.join(root, name), bytes)
+      }
+      return await run(root)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+  it.each(pristine.profiles)(
+    'matches genuine $mode $label selected project/file identities',
+    async (expected: any) => {
+      await fixture(async (root) => {
+        const config = parseTestConfig({
+          projects: pristine.projects.map((name: string) => ({
+            name,
+            mode: expected.mode,
+            include: ['*.case.mjs'],
+            provide: { project: name },
+          })),
+        })
+        const input = JSON.stringify(config)
+        const discovered = await discoverTests(root, config, {
+          project: expected.selection,
+        })
+        const projects = expected.shard
+          ? await shardTestProjects(
+              discovered,
+              parseTestShard(expected.shard),
+              root,
+              { sortFiles: false }
+            )
+          : discovered
+        const actual = projects.flatMap((project) =>
+          project.entries.map((entry) => ({
+            project: project.displayName,
+            file: path.basename(entry.file),
+          }))
+        )
+        const sorted = (values: any[]) =>
+          [...values].sort((a, b) =>
+            JSON.stringify(a).localeCompare(JSON.stringify(b))
+          )
+        expect(sorted(actual)).toEqual(
+          sorted(
+            expected.modules.map(({ project, file }: any) => ({
+              project,
+              file,
+            }))
+          )
+        )
+        expect(actual).toHaveLength(expected.rows.length)
+        expect(JSON.stringify(config)).toBe(input)
+        expect(
+          new Set(projects.map((project) => project.profile.mode))
+        ).toEqual(new Set([expected.mode]))
+      })
+    }
+  )
+  it('keeps file selection inside the project pattern and partitions each selected identity once', async () => {
+    await fixture(async (root) => {
+      const config = parseTestConfig({
+        projects: pristine.projects.map((name: string) => ({
+          name,
+          include: ['*.case.mjs'],
+        })),
+      })
+      const selected = await discoverTests(root, config, {
+        project: 'WEB-*',
+        files: ['b.case.mjs'],
+      })
+      expect(selected.map((project) => project.profile.id)).toEqual([
+        'web-A',
+        'web-b',
+      ])
+      const shards = await Promise.all(
+        [1, 2].map((index) =>
+          shardTestProjects(selected, { index, count: 2 }, root)
+        )
+      )
+      const ids = shards.flatMap((projects) =>
+        projects.flatMap((project) => project.entries.map((entry) => entry.id))
+      )
+      expect(ids.sort()).toEqual(['web-A:b.case.mjs', 'web-b:b.case.mjs'])
+      expect(new Set(ids).size).toBe(ids.length)
+    })
+  })
+  it.each(['web-?', 'unit[1]', '[web-*]', 'missing', '!*'])(
+    'keeps a missing selection visible for %s',
+    async (project) => {
+      await fixture(async (root) => {
+        const config = parseTestConfig({
+          projects: pristine.projects.map((name: string) => ({
+            name,
+            include: ['*.case.mjs'],
+          })),
+        })
+        await expect(discoverTests(root, config, { project })).rejects.toThrow(
+          'Unknown test project'
+        )
+      })
+    }
+  )
+  it('uses browser public instance and parent names while preserving private profile IDs', async () => {
+    await fixture(async (root) => {
+      const config = parseTestConfig({
+        projects: [
+          {
+            name: 'browser-parent',
+            environment: 'browser',
+            include: ['*.case.mjs'],
+            browser: {
+              enabled: true,
+              instances: [
+                { browser: 'chromium', name: 'Web-A' },
+                { browser: 'firefox', name: 'Web-B' },
+              ],
+            },
+          },
+        ],
+      })
+      const all = await discoverTests(root, config, { project: 'BROWSER-*' })
+      expect(all.map((project) => project.displayName)).toEqual([
+        'Web-A',
+        'Web-B',
+      ])
+      const one = await discoverTests(root, config, { project: 'web-a' })
+      expect(one.map((project) => project.displayName)).toEqual(['Web-A'])
+      expect(one[0].profile.id).toBe(all[0].profile.id)
+      const remaining = await discoverTests(root, config, { project: '!WEB-A' })
+      expect(remaining.map((project) => project.displayName)).toEqual(['Web-B'])
+      await expect(
+        discoverTests(root, config, { project: '!browser-*' })
+      ).rejects.toThrow('Unknown test project')
+    })
+  })
+  it.each(['development', 'production'])(
+    'preserves complete genuine %s file reports when merging the selected shards',
+    async (mode) => {
+      const { mergeResultReports } = await import(
+        'next/dist/experimental/testing/reporting/machine'
+      )
+      await fixture(async (root) => {
+        const blobs = path.join(root, 'blobs')
+        await mkdir(blobs)
+        for (const index of [1, 2])
+          await cp(
+            path.join(corpus, `${mode}-shard-${index}.blob`),
+            path.join(blobs, `shard-${index}.blob`)
+          )
+        const status = await mergeResultReports(blobs, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile: 'merged.json',
+        })
+        expect(status).toBe('passed')
+        const actual = JSON.parse(
+          await readFile(path.join(root, 'merged.json'), 'utf8')
+        )
+        const expected = JSON.parse(
+          await readFile(path.join(corpus, `${mode}-merged.json`), 'utf8')
+        )
+        // The merger's new wall-clock start and explicit imported-evidence
+        // annotation are separate. Every retained file/case byte stays exact.
+        const { startTime: _expectedStart, ...expectedReport } = expected
+        const {
+          startTime: _actualStart,
+          vitest: evidence,
+          ...actualReport
+        } = actual
+        expect(actualReport).toEqual(expectedReport)
+        expect(evidence.version).toBe('5.0.4')
+        expect(evidence.blobs).toHaveLength(2)
+      })
+    }
+  )
+})
