@@ -1,5 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
+import zlib from 'zlib'
+import type { Transform } from 'stream'
 
 const UPLOAD_TRACE_URL = 'https://nextjs.org/api/upload-trace'
 
@@ -10,6 +12,20 @@ const CPUPROFILE_HEADER = Buffer.from('{"nodes":')
 // version (written by trace_writer.rs, `TRACE_HEADER` in turbopack-trace-utils)
 const TURBOPACK_TRACE_HEADER = Buffer.from('TRACEv1')
 const TURBOPACK_TRACE_HEADER_PREFIX = Buffer.from('TRACEv')
+
+// Turbopack traces can be compressed with gzip or zstd (`NEXT_TURBOPACK_TRACING=1,gz` or
+// `NEXT_TURBOPACK_TRACING=1,zstd`). They are uploaded as they are, but the trace header is
+// checked after decompressing the start of the file.
+const GZIP_MAGIC = Buffer.from([0x1f, 0x8b])
+const ZSTD_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd])
+
+/**
+ * How much of a Turbopack trace is read to check its header. For compressed traces this needs to
+ * cover the first compressed block (up to 128 KB of uncompressed data for zstd).
+ */
+const TRACE_HEADER_CHECK_READ_SIZE = 512 * 1024
+/** How much of a CPU profile is read to check its header. */
+const CPUPROFILE_HEADER_CHECK_READ_SIZE = 16
 
 const PROGRESS_CHUNK_SIZE = 64 * 1024 // 64 KB
 
@@ -67,25 +83,129 @@ function validateCpuProfile(header: Buffer, file: string): void {
   }
 }
 
-function validateTurbopackTrace(header: Buffer, file: string): void {
+/** Creates a zstd decompression stream. */
+export type CreateZstdDecompress = () => Transform
+
+/**
+ * Returns Node.js's zstd decompression, or `null` when this Node.js version doesn't support zstd
+ * (it was added in Node.js 22.15 and 23.8).
+ */
+function getCreateZstdDecompress(): CreateZstdDecompress | null {
+  const { createZstdDecompress } = zlib as {
+    createZstdDecompress?: CreateZstdDecompress
+  }
+  return typeof createZstdDecompress === 'function'
+    ? () => createZstdDecompress()
+    : null
+}
+
+/**
+ * Decompresses `data` with `decompress` until at least `length` bytes are available and returns
+ * them. Returns fewer bytes when the data ends or is invalid before that. Only as much is
+ * decompressed as needed, so a small, highly compressed input doesn't use a lot of memory.
+ */
+function decompressStart(
+  decompress: Transform,
+  data: Buffer,
+  length: number
+): Promise<Buffer> {
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = []
+    let size = 0
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      decompress.destroy()
+      resolve(Buffer.concat(chunks).subarray(0, length))
+    }
+    decompress.on('data', (chunk: Buffer) => {
+      chunks.push(chunk)
+      size += chunk.length
+      if (size >= length) finish()
+    })
+    // `data` is usually only the start of the file, so the stream ends with an error
+    decompress.on('error', finish)
+    decompress.on('end', finish)
+    decompress.end(data)
+  })
+}
+
+export type TurbopackTraceCheck =
+  | { valid: true; warning?: string }
+  | { valid: false; error: string }
+
+/**
+ * Checks that a Turbopack trace file has the supported `TRACEv1` header. `start` is the start
+ * of the file (`TRACE_HEADER_CHECK_READ_SIZE` bytes, or the whole file if it is smaller). gzip
+ * and zstd compressed traces are decompressed to check the header. When Node.js doesn't support
+ * zstd (`createZstdDecompress` is `null`), zstd compressed files are accepted without checking
+ * the header.
+ */
+export async function checkTurbopackTrace(
+  start: Buffer,
+  file: string,
+  createZstdDecompress: CreateZstdDecompress | null = getCreateZstdDecompress()
+): Promise<TurbopackTraceCheck> {
+  let header = start
+  if (startsWith(start, GZIP_MAGIC)) {
+    header = await decompressStart(
+      zlib.createGunzip(),
+      start,
+      TURBOPACK_TRACE_HEADER.length
+    )
+  } else if (startsWith(start, ZSTD_MAGIC)) {
+    if (!createZstdDecompress) {
+      return {
+        valid: true,
+        warning: `Warning: Can't check the trace version of ${file}, since this version of Node.js doesn't support zstd.`,
+      }
+    }
+    header = await decompressStart(
+      createZstdDecompress(),
+      start,
+      TURBOPACK_TRACE_HEADER.length
+    )
+  }
+
   const actual = header.subarray(0, TURBOPACK_TRACE_HEADER.length)
   if (actual.equals(TURBOPACK_TRACE_HEADER)) {
-    return
+    return { valid: true }
   }
   if (
-    actual
-      .subarray(0, TURBOPACK_TRACE_HEADER_PREFIX.length)
-      .equals(TURBOPACK_TRACE_HEADER_PREFIX)
+    actual.length === TURBOPACK_TRACE_HEADER.length &&
+    startsWith(actual, TURBOPACK_TRACE_HEADER_PREFIX)
   ) {
-    console.error(
-      `Error: ${file} has an unsupported Turbopack trace version (expected ${TURBOPACK_TRACE_HEADER}, found ${actual}). Capture the trace again with this version of Next.js.`
-    )
-  } else {
-    console.error(
-      `Error: ${file} does not appear to be a valid Turbopack trace (missing ${TURBOPACK_TRACE_HEADER} header).`
-    )
+    return {
+      valid: false,
+      error: `Error: ${file} has an unsupported Turbopack trace version (expected ${TURBOPACK_TRACE_HEADER}, found ${actual}). Capture the trace again with this version of Next.js.`,
+    }
   }
-  process.exit(1)
+  return {
+    valid: false,
+    error: `Error: ${file} does not appear to be a valid Turbopack trace (missing ${TURBOPACK_TRACE_HEADER} header).`,
+  }
+}
+
+function startsWith(data: Buffer, prefix: Buffer): boolean {
+  return (
+    data.length >= prefix.length &&
+    data.subarray(0, prefix.length).equals(prefix)
+  )
+}
+
+async function validateTurbopackTrace(
+  start: Buffer,
+  file: string
+): Promise<void> {
+  const result = await checkTurbopackTrace(start, file)
+  if (!result.valid) {
+    console.error(result.error)
+    process.exit(1)
+  }
+  if (result.warning) {
+    console.warn(result.warning)
+  }
 }
 
 export async function uploadTraceToBlob(
@@ -138,14 +258,21 @@ export async function uploadTraceToBlob(
     }
 
     const fd = await fs.open(filePath, 'r')
-    const headerBuf = Buffer.alloc(16)
-    await fd.read(headerBuf, 0, 16, 0)
-    await fd.close()
+    const readSize = file.endsWith('.cpuprofile')
+      ? CPUPROFILE_HEADER_CHECK_READ_SIZE
+      : TRACE_HEADER_CHECK_READ_SIZE
+    let headerBuf = Buffer.alloc(Math.min(stat.size, readSize))
+    try {
+      const { bytesRead } = await fd.read(headerBuf, 0, headerBuf.length, 0)
+      headerBuf = headerBuf.subarray(0, bytesRead)
+    } finally {
+      await fd.close()
+    }
 
     if (file.endsWith('.cpuprofile')) {
       validateCpuProfile(headerBuf, file)
     } else if (file.endsWith('trace-turbopack.bin')) {
-      validateTurbopackTrace(headerBuf, file)
+      await validateTurbopackTrace(headerBuf, file)
     }
 
     const content = await fs.readFile(filePath)
