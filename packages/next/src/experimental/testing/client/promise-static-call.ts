@@ -1,3 +1,4 @@
+import { getClientNativePromiseIntrinsics } from './native-promise-intrinsics'
 import { createClientNativePromise } from './native-promise-allocation'
 import {
   NativePromise,
@@ -74,5 +75,45 @@ export function bindNativePromiseStaticCall(
       return Reflect.apply(callee, constructor, args)
     }
     return Reflect.apply(callee, receiver, args)
+  }
+}
+
+const producerIntrinsics = getClientNativePromiseIntrinsics()
+const argumentIterator: typeof Symbol.iterator = Symbol.iterator
+
+// Rest values are private own data. Forwarding must not run an authored Array
+// iterator, including when the actual constructor or callable is a fallback.
+function forwardProducerArguments(values: unknown[]) {
+  let index = 0
+  return {
+    [argumentIterator]() {
+      return {
+        next() {
+          return index < values.length
+            ? { value: values[index++], done: false }
+            : { done: true }
+        },
+      }
+    },
+  }
+}
+
+/** The compiler evaluates this selected constructor before original arguments. */
+export function bindNativePromiseConstructor(Promise: any) {
+  const construct = producerIntrinsics?.constructPromise
+  return function (...args: unknown[]): unknown {
+    if (construct) return construct(Promise, args)
+    // Synthetic/older bridges retain an actual ordinary construction, including
+    // its real new.target, argument list and native nonconstructor exception.
+    return new Promise(...forwardProducerArguments(args))
+  }
+}
+
+/** Bare selected calls retain their original undefined strict-call receiver. */
+export function bindNativeFetchCall(fetch: any) {
+  const call = producerIntrinsics?.callFetch
+  return function (...args: unknown[]): unknown {
+    if (call) return call(fetch, args)
+    return fetch(...forwardProducerArguments(args))
   }
 }

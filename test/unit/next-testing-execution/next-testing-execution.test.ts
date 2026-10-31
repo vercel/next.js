@@ -7415,6 +7415,44 @@ describe('actual client native Promise producer receipts', () => {
   )
 })
 
+describe('actual authored native producer runtime', () => {
+  it.each([
+    'actual',
+    'missing',
+    'carrier-accessor',
+    'identity-mismatch',
+    'factory-accessor',
+    'proxy-classifier',
+    'older-carrier',
+  ])(
+    'preserves selected values and actual producer/fallback effects for %s',
+    (profile) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'browser-authored-producer-runtime.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          profile,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        mode: profile,
+        cases: 16,
+        actualInitializerSourceCaptured: true,
+        nativeCustomProxyBoundSubclassAndForeignValuesPreserved: true,
+        naturalErrorsAndNewTargetPreserved: true,
+        argumentIteratorAndReflectEffects: 0,
+        lateAwaiterRetained: true,
+        arbitraryValuesUnmarked: true,
+        accessorReads: 0,
+        descriptorReads: 0,
+        actualBrowserAuthenticationNotClaimedByComponent: true,
+      })
+    }
+  )
+})
+
 it('forwards the pinned keyboard grammar and distinct native release roles', () => {
   const stdout = execFileSync(
     process.execPath,

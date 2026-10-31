@@ -15,8 +15,8 @@ pub const CREATOR_BRIDGE: &str = "private-next-test-creator-scope";
 
 pub const PROMISE_STATIC_BRIDGE: &str = "private-next-test-promise-static-call";
 
-/// Bind the actual native static member before evaluating its original arguments.
-/// Local Promise bindings, optional/computed calls and aliases retain their AST.
+/// Bind selected global Promise/fetch producers before original arguments.
+/// Shadowed identifiers, optional/member/alias calls retain their original AST.
 pub fn browser_promise_static_calls(
     program: &mut Program,
     unresolved_ctxt: SyntaxContext,
@@ -24,14 +24,63 @@ pub fn browser_promise_static_calls(
     struct PromiseStaticCalls {
         unresolved_ctxt: SyntaxContext,
         bind: Ident,
+        construct: Ident,
+        fetch: Ident,
+        used: [bool; 3],
         count: usize,
     }
     impl VisitMut for PromiseStaticCalls {
-        fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
-            call.visit_mut_children_with(self);
+        fn visit_mut_expr(&mut self, expression: &mut Expr) {
+            expression.visit_mut_children_with(self);
+            if let Expr::New(construction) = expression {
+                if !matches!(&*construction.callee, Expr::Ident(value)
+                    if value.sym == *"Promise" && value.ctxt == self.unresolved_ctxt)
+                {
+                    return;
+                }
+                let original = construction.take();
+                let mut bound = quote!(
+                    "$bind($constructor)" as Expr,
+                    bind = self.construct.clone(),
+                    constructor: Expr = *original.callee,
+                );
+                if let Expr::Call(bound) = &mut bound {
+                    bound.span = original.span;
+                }
+                *expression = Expr::Call(CallExpr {
+                    span: original.span,
+                    ctxt: original.ctxt,
+                    callee: Callee::Expr(Box::new(bound)),
+                    args: original.args.unwrap_or_default(),
+                    type_args: original.type_args,
+                });
+                self.used[1] = true;
+                self.count += 1;
+                return;
+            }
+            let Expr::Call(call) = expression else {
+                return;
+            };
             let Callee::Expr(callee) = &mut call.callee else {
                 return;
             };
+            if matches!(&**callee, Expr::Ident(value)
+                if value.sym == *"fetch" && value.ctxt == self.unresolved_ctxt)
+            {
+                let selected = *callee.take();
+                let mut bound = quote!(
+                    "$bind($selected)" as Expr,
+                    bind = self.fetch.clone(),
+                    selected: Expr = selected,
+                );
+                if let Expr::Call(bound) = &mut bound {
+                    bound.span = call.span;
+                }
+                *callee = Box::new(bound);
+                self.used[2] = true;
+                self.count += 1;
+                return;
+            }
             let Expr::Member(member) = &mut **callee else {
                 return;
             };
@@ -59,24 +108,37 @@ pub fn browser_promise_static_calls(
                 bound.span = member.span;
             }
             *callee = Box::new(bound);
+            self.used[0] = true;
             self.count += 1;
         }
     }
     let mut pass = PromiseStaticCalls {
         unresolved_ctxt,
         bind: private_ident!("__next_promise_static_call"),
+        construct: private_ident!("__next_promise_construct"),
+        fetch: private_ident!("__next_promise_fetch"),
+        used: [false; 3],
         count: 0,
     };
     program.visit_mut_with(&mut pass);
     if pass.count != 0 {
         let mut import = quote!(
-            "import { bindNativePromiseStaticCall as $bind } from \
+            "import { bindNativePromiseStaticCall as $bind, bindNativePromiseConstructor as \
+             $construct, bindNativeFetchCall as $fetch } from \
              'private-next-test-promise-static-call';" as ModuleItem,
             bind = pass.bind,
+            construct = pass.construct,
+            fetch = pass.fetch,
         );
         if let ModuleItem::ModuleDecl(ModuleDecl::Import(decl)) = &mut import {
             decl.span = DUMMY_SP;
             decl.src.span = DUMMY_SP;
+            let mut index = 0;
+            decl.specifiers.retain(|_| {
+                let used = pass.used[index];
+                index += 1;
+                used
+            });
         }
         if let Program::Module(module) = program {
             module.body.insert(0, import);
@@ -85,7 +147,7 @@ pub fn browser_promise_static_calls(
     pass.count
 }
 
-/// The one exact private import is produced above; authored AST cannot issue it.
+/// Only this exact generated private import can carry these issued bindings.
 pub fn validate_promise_static_import(program: &Program) -> Result<bool> {
     let Program::Module(module) = program else {
         return Ok(false);
@@ -101,22 +163,36 @@ pub fn validate_promise_static_import(program: &Program) -> Result<bool> {
         if found
             || import.span != DUMMY_SP
             || import.src.span != DUMMY_SP
-            || import.specifiers.len() != 1
+            || import.specifiers.is_empty()
+            || import.specifiers.len() > 3
         {
-            bail!("Browser Promise static calls require the actual compiler import");
+            bail!("Browser Promise calls require the actual compiler import");
         }
-        let ImportSpecifier::Named(named) = &import.specifiers[0] else {
-            bail!("Browser Promise static calls require the exact compiler binding");
-        };
-        let Some(ModuleExportName::Ident(imported)) = &named.imported else {
-            bail!("Browser Promise static calls require the named compiler binding");
-        };
-        if imported.sym != *"bindNativePromiseStaticCall"
-            || named.is_type_only
-            || named.local.ctxt == Default::default()
-            || !named.local.sym.starts_with("__next_promise_")
-        {
-            bail!("Browser Promise static calls require the issued binding identity");
+        let mut names = Vec::new();
+        let mut locals = Vec::new();
+        for specifier in &import.specifiers {
+            let ImportSpecifier::Named(named) = specifier else {
+                bail!("Browser Promise calls require exact compiler bindings");
+            };
+            let Some(ModuleExportName::Ident(imported)) = &named.imported else {
+                bail!("Browser Promise calls require named compiler bindings");
+            };
+            let prefix = match imported.sym.as_ref() {
+                "bindNativePromiseStaticCall" => "__next_promise_static_call",
+                "bindNativePromiseConstructor" => "__next_promise_construct",
+                "bindNativeFetchCall" => "__next_promise_fetch",
+                _ => bail!("Browser Promise calls require exact compiler bindings"),
+            };
+            if named.is_type_only
+                || named.local.ctxt == Default::default()
+                || !named.local.sym.starts_with(prefix)
+                || names.contains(&imported.sym)
+                || locals.contains(&named.local.to_id())
+            {
+                bail!("Browser Promise calls require issued binding identities");
+            }
+            names.push(imported.sym.clone());
+            locals.push(named.local.to_id());
         }
         found = true;
     }
@@ -1351,6 +1427,201 @@ console.log(JSON.stringify({
             };
             module.body.insert(0, module.body[0].clone());
             assert!(validate_promise_static_import(&program).is_err());
+        });
+    }
+    #[test]
+    fn promise_producer_bindings_preserve_selected_values_and_arguments() {
+        GLOBALS.set(&Default::default(), || {
+            let (program, count) = promise_calls(
+                "export async function run(values) { return Promise.all([new Promise(executor, \
+                 await second(), ...values), fetch(url(), options(), ...values)]) }",
+            );
+            assert_eq!(count, 3);
+            assert!(validate_promise_static_import(&program).unwrap());
+            let output = to_code(&program);
+            assert!(
+                output.contains(
+                    "__next_promise_construct(Promise)(executor, await second(), ...values)"
+                ),
+                "{output}"
+            );
+            assert!(
+                output.contains("__next_promise_fetch(fetch)(url(), options(), ...values)"),
+                "{output}"
+            );
+            assert_eq!(output.matches(PROMISE_STATIC_BRIDGE).count(), 1);
+            for binding in [
+                "bindNativePromiseStaticCall",
+                "bindNativePromiseConstructor",
+                "bindNativeFetchCall",
+            ] {
+                assert_eq!(output.matches(binding).count(), 1, "{output}");
+            }
+        });
+    }
+
+    #[test]
+    fn promise_producers_leave_shadowed_member_optional_and_alias_forms() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "export function run(Promise, fetch) { return [new Promise(executor), fetch(url)] \
+                 }",
+                "const Promise = custom; const fetch = customFetch; export const run = () => [new \
+                 Promise(executor), fetch(url)]",
+                "export const run = () => fetch?.(url)",
+                "export const run = () => globalThis.fetch(url)",
+                "export const run = () => new globalThis.Promise(executor)",
+                "const P = Promise, f = fetch; export const run = () => [new P(executor), f(url)]",
+                "export const run = () => Reflect.construct(Promise, [executor])",
+            ] {
+                let (program, count) = promise_calls(source);
+                assert_eq!(count, 0, "{source}");
+                assert!(!validate_promise_static_import(&program).unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn promise_producers_import_only_the_exact_used_named_bindings() {
+        GLOBALS.set(&Default::default(), || {
+            for (source, expected) in [
+                (
+                    "export const run = () => new Promise(executor)",
+                    "bindNativePromiseConstructor",
+                ),
+                ("export const run = () => fetch(url)", "bindNativeFetchCall"),
+            ] {
+                let (program, count) = promise_calls(source);
+                assert_eq!(count, 1);
+                assert!(validate_promise_static_import(&program).unwrap());
+                let Program::Module(module) = &program else {
+                    unreachable!()
+                };
+                let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = &module.body[0] else {
+                    unreachable!()
+                };
+                assert_eq!(import.specifiers.len(), 1);
+                assert!(to_code(&program).contains(expected));
+            }
+        });
+    }
+
+    #[test]
+    fn binding_global_constructor_and_fetch_preserves_original_argument_ast() {
+        GLOBALS.set(&Default::default(), || {
+            let (program, count) = promise_calls(
+                "export async function run() { const first = new Promise(...await args()); return \
+                 fetch(await url(), ...options()) }",
+            );
+            assert_eq!(count, 2);
+            assert!(validate_promise_static_import(&program).unwrap());
+            let output = to_code(&program);
+            assert!(
+                output.contains("__next_promise_construct(Promise)(...await args())"),
+                "{output}"
+            );
+            assert!(
+                output.contains("__next_promise_fetch(fetch)(await url(), ...options())"),
+                "{output}"
+            );
+            assert_eq!(output.matches(PROMISE_STATIC_BRIDGE).count(), 1);
+            let Program::Module(module) = program else {
+                unreachable!()
+            };
+            let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = &module.body[0] else {
+                unreachable!()
+            };
+            let names = import
+                .specifiers
+                .iter()
+                .map(|value| {
+                    let ImportSpecifier::Named(value) = value else {
+                        unreachable!()
+                    };
+                    let Some(ModuleExportName::Ident(name)) = &value.imported else {
+                        unreachable!()
+                    };
+                    name.sym.as_ref()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                names,
+                ["bindNativePromiseConstructor", "bindNativeFetchCall"]
+            );
+        });
+    }
+
+    #[test]
+    fn constructor_and_fetch_leave_local_member_alias_and_optional_routes_unchanged() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "export function run(Promise, fetch) { return [new Promise(value), fetch(value)] }",
+                "const Promise = custom; const fetch = other; export const run = () => [new \
+                 Promise(value), fetch(value)]",
+                "export const run = () => new globalThis.Promise(value)",
+                "export const run = () => globalThis.fetch(value)",
+                "const Native = Promise; const request = fetch; export const run = () => [new \
+                 Native(value), request(value)]",
+                "export const run = () => fetch?.(value)",
+                "export const run = () => Reflect.construct(Promise, values)",
+            ] {
+                let original = to_code(&parse(source));
+                let (program, count) = promise_calls(source);
+                assert_eq!(count, 0, "{source}");
+                assert_eq!(to_code(&program), original, "{source}");
+                assert!(!validate_promise_static_import(&program).unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn issued_producer_import_is_unique_minimal_and_idempotent() {
+        use swc_core::{common::Mark, ecma::transforms::base::resolver};
+        GLOBALS.set(&Default::default(), || {
+            let unresolved = Mark::new();
+            let mut program = parse("Promise.resolve(new Promise(value)); fetch(url);");
+            program.visit_mut_with(&mut resolver(unresolved, Mark::new(), false));
+            let context = SyntaxContext::empty().apply_mark(unresolved);
+            assert_eq!(browser_promise_static_calls(&mut program, context), 3);
+            let output = to_code(&program);
+            assert_eq!(browser_promise_static_calls(&mut program, context), 0);
+            assert_eq!(to_code(&program), output);
+            assert!(validate_promise_static_import(&program).unwrap());
+            for change in 0..4 {
+                let mut changed = program.clone();
+                let Program::Module(module) = &mut changed else {
+                    unreachable!()
+                };
+                let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = &mut module.body[0] else {
+                    unreachable!()
+                };
+                if change == 0 {
+                    import.specifiers[1] = import.specifiers[0].clone();
+                } else {
+                    let first = match &import.specifiers[0] {
+                        ImportSpecifier::Named(value) => value.local.clone(),
+                        _ => unreachable!(),
+                    };
+                    let ImportSpecifier::Named(value) = &mut import.specifiers[1] else {
+                        unreachable!()
+                    };
+                    match change {
+                        1 => {
+                            value.imported = Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                                "other".into(),
+                                DUMMY_SP,
+                            )))
+                        }
+                        2 => value.local = first,
+                        3 => value.local.ctxt = SyntaxContext::empty(),
+                        _ => unreachable!(),
+                    }
+                }
+                assert!(
+                    validate_promise_static_import(&changed).is_err(),
+                    "{change}"
+                );
+            }
         });
     }
 }

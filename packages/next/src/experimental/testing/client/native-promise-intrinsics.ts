@@ -17,6 +17,8 @@ export type ClientNativePromiseIntrinsics = Readonly<{
   constructorDescriptor?: PropertyDescriptor
   speciesDescriptor?: PropertyDescriptor
   species?: symbol
+  constructPromise?: (constructor: unknown, args: unknown[]) => unknown
+  callFetch?: (callee: unknown, args: unknown[]) => unknown
 }>
 
 const own = Object.getOwnPropertyDescriptor
@@ -57,10 +59,14 @@ const captured = (() => {
     const constructorDescriptor = own(record, 'constructorDescriptor')?.value
     const speciesDescriptor = own(record, 'speciesDescriptor')?.value
     const species = own(record, 'species')?.value
+    const constructPromise = own(record, 'constructPromise')?.value
+    const callFetch = own(record, 'callFetch')?.value
     return Object.freeze({
       constructor,
       resolve,
       prototype,
+      ...(typeof constructPromise === 'function' ? { constructPromise } : {}),
+      ...(typeof callFetch === 'function' ? { callFetch } : {}),
       ...(typeof fetch === 'function' && typeof fetchRpc === 'function'
         ? { fetch, fetchRpc }
         : {}),
