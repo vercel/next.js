@@ -7,33 +7,58 @@
  * on unrelated navigation.
  */
 
+import { chromium, expect as playwrightExpect } from '@playwright/test'
 import { expect, test } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { environment } from '@vercel/agent-eval/eval'
+import { startNextServer } from './__agent_eval__/next-test-utils.mjs'
 
-const form = readFileSync(
-  join(process.cwd(), 'app/contact/contact-form.tsx'),
-  'utf-8'
-)
 const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
 
 test('keeps Cache Components enabled', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
 })
 
-test('resets from the Done navigation', () => {
-  expect(form).toMatch(/<Link\b/)
-  expect(form).toMatch(/href\s*=\s*['"]\/inbox['"]/)
-  expect(form).toMatch(/onNavigate\s*=/)
-})
+test('preserves unrelated state and resets only when the flow completes', async () => {
+  process.env.__NEXT_TEST_MODE = '1'
+  const server = await startNextServer({ mode: 'dev' })
+  const browser = await chromium.launch({ headless: true })
 
-test('does not use Effect cleanup as a navigation signal', () => {
-  expect(form).not.toMatch(/\buse(?:Layout)?Effect\s*\(/)
-})
+  try {
+    const page = await browser.newPage()
+    await page.goto(`${server.url}/contact`)
+    await page.waitForFunction(
+      () =>
+        (globalThis as { __NEXT_HYDRATED?: boolean }).__NEXT_HYDRATED === true
+    )
 
-test('preserves drafts and clears only the completed flow', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The contact form keeps an unfinished message when the user leaves through unrelated navigation. After a successful submission, the Done Link to /inbox owns the reset through onNavigate (or a handler that onNavigate invokes): it clears the success status and the submitted field before navigation. The solution does not reset from useEffect/useLayoutEffect setup or cleanup, does not attach the reset to every navigation link, and keeps cacheComponents: true. Accept either controlled-field state reset or form.reset() for the submitted field.`
-  )
-})
+    const message = 'Keep this message until the flow is complete'
+    await page.getByLabel('Message').fill(message)
+    await page.getByRole('link', { name: 'About' }).click()
+    await page.waitForURL('**/about')
+    await page.goBack({ waitUntil: 'commit' })
+    await page.waitForURL('**/contact')
+    await playwrightExpect(page.getByLabel('Message')).toHaveValue(message)
+
+    await page.getByRole('button', { name: 'Send' }).click()
+    await playwrightExpect(page.getByText('Message sent!')).toBeVisible()
+
+    await page.getByRole('link', { name: 'About' }).click()
+    await page.waitForURL('**/about')
+    await page.goBack({ waitUntil: 'commit' })
+    await page.waitForURL('**/contact')
+    await playwrightExpect(page.getByLabel('Message')).toHaveValue(message)
+    await playwrightExpect(page.getByText('Message sent!')).toBeVisible()
+
+    await page.getByRole('link', { name: 'Done' }).click()
+    await page.waitForURL('**/inbox')
+    await page.goBack({ waitUntil: 'commit' })
+    await page.waitForURL('**/contact')
+    await playwrightExpect(page.getByLabel('Message')).toHaveValue('')
+    await playwrightExpect(page.getByText('Message sent!')).toHaveCount(0)
+  } finally {
+    await browser.close()
+    await server.stop()
+    delete process.env.__NEXT_TEST_MODE
+  }
+}, 180_000)

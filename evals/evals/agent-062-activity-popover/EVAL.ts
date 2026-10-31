@@ -7,37 +7,67 @@
  * preservation or replacing the native interaction.
  */
 
+import { chromium, expect as playwrightExpect } from '@playwright/test'
 import { expect, test } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { environment } from '@vercel/agent-eval/eval'
+import {
+  buildNextApp,
+  startNextServer,
+} from './__agent_eval__/next-test-utils.mjs'
 
-const component = readFileSync(
-  join(process.cwd(), 'app/options-popover.tsx'),
-  'utf-8'
-)
 const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
 
-test('keeps Cache Components and the native popover enabled', () => {
+test('keeps Cache Components enabled', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
-  expect(component).toMatch(/popoverTarget/)
-  expect(component).toMatch(/popover\s*=\s*['"]auto['"]/)
 })
 
-test('generates a unique popover id for every preserved instance', () => {
-  expect(component).toMatch(/\buseId\s*\(/)
-  expect(component).not.toMatch(
-    /(?:id|popoverTarget)\s*=\s*['"]options-menu['"]/
-  )
-})
+test('keeps native popovers unique and closed across preserved routes', async () => {
+  await buildNextApp()
+  const server = await startNextServer()
+  const browser = await chromium.launch({ headless: true })
 
-test('closes the browser-managed popover when Activity hides the route', () => {
-  expect(component).toMatch(/\buseLayoutEffect\s*\(/)
-  expect(component).toMatch(/return\s*\(\s*\)\s*=>[\s\S]*?\.hidePopover\s*\(/)
-})
+  try {
+    const page = await browser.newPage()
+    await page.goto(`${server.url}/settings`)
 
-test('keeps the trigger and popover connected to the same unique id', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The shared OptionsPopover uses one React useId() value for both the trigger's popoverTarget and the popover element's id. A ref points at that popover element, and a useLayoutEffect cleanup calls hidePopover() on it when Activity hides the route. The solution keeps the native popover API and cacheComponents: true. Reject route-specific hard-coded IDs, React-only replacement menus, or disabling Cache Components.`
-  )
-})
+    const settingsTrigger = page.getByRole('button', {
+      name: 'Settings options',
+    })
+    await settingsTrigger.click()
+    await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
+      1
+    )
+
+    await page.getByRole('link', { name: 'Switch section' }).click()
+    await page.waitForURL('**/profile')
+
+    const popovers = page.locator('[popover]')
+    await playwrightExpect(popovers).toHaveCount(2)
+
+    const ids = await popovers.evaluateAll((elements) =>
+      elements.map((element) => element.id)
+    )
+    const targets = await page
+      .locator('[popovertarget]')
+      .evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute('popovertarget'))
+      )
+
+    expect(ids.every(Boolean)).toBe(true)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(new Set(targets)).toEqual(new Set(ids))
+    await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
+      0
+    )
+
+    await page.goBack({ waitUntil: 'commit' })
+    await page.waitForURL('**/settings')
+    await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
+      0
+    )
+  } finally {
+    await browser.close()
+    await server.stop()
+  }
+}, 240_000)

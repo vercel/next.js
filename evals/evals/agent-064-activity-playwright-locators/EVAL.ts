@@ -8,9 +8,10 @@
  */
 
 import { expect, test } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { environment, transcript } from '@vercel/agent-eval/eval'
+import { environment } from '@vercel/agent-eval/eval'
 
 const testSource = readFileSync(
   join(process.cwd(), 'tests/account.spec.ts'),
@@ -22,24 +23,37 @@ test('keeps Cache Components enabled', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
 })
 
+test('does not change the application to avoid the regression', () => {
+  const appChanges = execFileSync(
+    'git',
+    ['status', '--short', '--', 'app', 'next.config.ts'],
+    { encoding: 'utf8' }
+  )
+  expect(appChanges).toBe('')
+})
+
 test('does not pick an arbitrary DOM match', () => {
   expect(testSource).not.toMatch(/\.(?:first|last|nth)\s*\(/)
 })
 
 test('keeps the cross-route regression scenario', () => {
-  expect(testSource).toMatch(/page\.goto\s*\(\s*['"]\/billing['"]\s*\)/)
-  expect(testSource).toMatch(/getByRole\s*\(\s*['"]link['"][\s\S]*?Profile/)
-  expect(testSource).toMatch(/\.click\s*\(/)
+  expect(testSource).toMatch(/\/billing/)
+  expect(testSource).toMatch(/Profile/)
+  expect(testSource).toMatch(/Email/)
+  expect(testSource).toMatch(/Profile ready/)
 })
 
-test('uses locators that exclude the hidden route', async () => {
+test('keeps a visibility-safe cross-route assertion', async () => {
   await expect(environment).toSatisfyCriterion(
-    `Only the Playwright regression test and test configuration may change; the application and cacheComponents: true stay intact. After navigating from /billing to /profile, the test selects the visible Email field and visible status. Accept getByRole() locators whose default accessibility behavior excludes hidden Activity content, or getByLabel/getByTestId/locator calls filtered with { visible: true } before interaction or assertion. Reject first(), last(), nth(), selector changes that merely depend on DOM order, or application changes that remove or rename the duplicate controls.`
+    `The Playwright regression still visits Billing, enters a Billing value, client-navigates to Profile, interacts with the visible Email field, and asserts on the visible Profile status. Accept any locator strategy based on accessibility, visibility, or a visible route container. Reject first(), last(), nth(), a trivial replacement test, or a strategy that depends on DOM order.`
   )
 })
 
-test('runs the repaired browser regression', async () => {
-  await expect(transcript).toSatisfyCriterion(
-    `The agent ran the existing npm run test:e2e command, or its exact build-plus-Playwright equivalent, after editing the test and observed it pass. Merely inspecting source, running a type check, or suggesting that the user run the test does not satisfy this criterion.`
-  )
-})
+test('passes the repaired browser regression', () => {
+  execFileSync('npm', ['run', 'test:e2e'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    stdio: 'pipe',
+    timeout: 240_000,
+  })
+}, 300_000)

@@ -32,7 +32,37 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to reset it:** A dropdown menu or popover triggered by a button click. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
 
-For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close it in a layout Effect cleanup:
+For a dropdown controlled by React state, close it in a layout Effect cleanup:
+
+```tsx highlight={8-10}
+'use client'
+
+import { useLayoutEffect, useState } from 'react'
+
+function SettingsDropdown() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  useLayoutEffect(() => {
+    return () => setIsOpen(false)
+  }, [])
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen((open) => !open)}>Options</button>
+      {isOpen && (
+        <div>
+          <button>Edit Profile</button>
+          <button>Change Password</button>
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+Setting `isOpen` to `false` repeatedly is safe, including when React runs an extra setup and cleanup cycle in development.
+
+For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close the element with the same cleanup pattern. Because Activity can keep multiple route instances in the DOM, generate relationship IDs per component instance instead of reusing a fixed ID:
 
 ```tsx highlight={9-11}
 'use client'
@@ -59,9 +89,9 @@ function SettingsDropdown() {
 }
 ```
 
-When Activity hides this component, the cleanup closes the popover before the route is hidden. Calling `hidePopover()` repeatedly is safe, including when React runs an extra setup and cleanup cycle in development.
+When Activity hides this component, the cleanup closes the popover before the route is hidden. Calling `hidePopover()` repeatedly is safe.
 
-For popovers controlled by React state, reset the state from the event that completes the interaction. For example, use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback when a link inside the popover navigates.
+If a navigation link inside a React-controlled popover completes the interaction, you can close it directly from that event. For example, use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback.
 
 ### Dialog and initialization logic
 

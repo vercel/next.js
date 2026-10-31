@@ -145,7 +145,7 @@ If you're using Cache Components, the `instant()` helper from `@next/playwright`
 
 When [Cache Components](/docs/app/getting-started/caching) is enabled, Next.js can keep a previously visited route in the DOM with `display: none`. A locator may match elements from both the visible page and a hidden route. Actions on a locator that matches both routes fail with a strict mode violation. Assertions can also match hidden content.
 
-Prefer `getByRole`, which excludes hidden elements by default. Other locators, including `getByLabel`, `getByPlaceholder`, and `locator()`, can match hidden elements. Filter them by visibility before interacting or asserting:
+Choose locators that resolve only against the visible route. You can query the accessibility tree, filter by visibility, or scope a locator to a visible route container. `getByRole` excludes hidden elements by default. Other locators, including `getByLabel`, `getByPlaceholder`, and `locator()`, can match hidden elements:
 
 ```ts filename="tests/example.spec.ts"
 await page.getByRole('button', { name: 'Submit' }).click()
