@@ -9590,6 +9590,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "auto-hash-map",
  "bincode",
  "either",
  "indoc",
@@ -9786,6 +9787,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "turbo-bincode",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -10044,6 +10046,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "bincode",
  "either",
  "fs-err",

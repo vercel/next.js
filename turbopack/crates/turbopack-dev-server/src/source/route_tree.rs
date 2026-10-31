@@ -2,8 +2,9 @@ use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use crate::source::{GetContentSourceContent, GetContentSourceContents};
 
@@ -100,8 +101,7 @@ impl RouteTrees {
 pub struct RouteTree {
     base: Vec<BaseSegment>,
     sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    static_segments: FxIndexMap<RcStr, ResolvedVc<RouteTree>>,
+    static_segments: FrozenMap<RcStr, ResolvedVc<RouteTree>>,
     dynamic_segments: Vec<ResolvedVc<RouteTree>>,
     catch_all_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
     fallback_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
@@ -140,7 +140,12 @@ impl RouteTree {
     }
 
     async fn flat_merge(&mut self, others: impl IntoIterator<Item = &Self> + '_) -> Result<()> {
-        let mut static_segments = FxIndexMap::default();
+        // The static segments of `self`, then of each of `others`.
+        let mut static_segments = self
+            .static_segments
+            .iter()
+            .map(|(key, tree)| (key.clone(), *tree))
+            .collect::<Vec<_>>();
         for other in others {
             debug_assert_eq!(self.base, other.base);
             self.sources.extend(other.sources.iter().copied());
@@ -150,34 +155,34 @@ impl RouteTree {
                 .extend(other.fallback_sources.iter().copied());
             self.not_found_sources
                 .extend(other.not_found_sources.iter().copied());
-            for (key, value) in other.static_segments.iter() {
-                if let Some((key, self_value)) = self.static_segments.swap_remove_entry(key) {
-                    static_segments.insert(key, vec![self_value, *value]);
-                } else if let Some(list) = static_segments.get_mut(key) {
-                    list.push(*value);
-                } else {
-                    static_segments.insert(key.clone(), vec![*value]);
-                }
-            }
+            static_segments.extend(
+                other
+                    .static_segments
+                    .iter()
+                    .map(|(key, tree)| (key.clone(), *tree)),
+            );
             self.dynamic_segments
                 .extend(other.dynamic_segments.iter().copied());
         }
-        self.static_segments.extend(
-            static_segments
-                .into_iter()
-                .map(async |(key, value)| {
-                    Ok((
-                        key,
-                        if value.len() == 1 {
-                            value.into_iter().next().unwrap()
-                        } else {
-                            Vc::<RouteTrees>::cell(value).merge().to_resolved().await?
-                        },
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
+        // The sort is stable, so the trees for a key keep that order when they are merged.
+        static_segments.sort_by(|(a, _), (b, _)| a.cmp(b));
+        let static_segments = static_segments
+            .chunk_by(|(a, _), (b, _)| a == b)
+            .map(async |trees| {
+                let key = trees[0].0.clone();
+                let tree = if let [(_, tree)] = trees {
+                    *tree
+                } else {
+                    Vc::<RouteTrees>::cell(trees.iter().map(|(_, tree)| *tree).collect())
+                        .merge()
+                        .to_resolved()
+                        .await?
+                };
+                Ok((key, tree))
+            })
+            .try_join()
+            .await?;
+        self.static_segments = FrozenMap::from_unique_sorted_box(static_segments.into());
         Ok(())
     }
 
@@ -334,7 +339,7 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: fxindexmap! { value => inner.resolved_cell() },
+                    static_segments: FrozenMap::from([(value, inner.resolved_cell())]),
                     ..Default::default()
                 }
                 .cell()),
@@ -380,9 +385,13 @@ impl RouteTree {
         for s in not_found_sources.iter_mut() {
             *s = mapper.map_get_content(**s).to_resolved().await?;
         }
-        for r in static_segments.values_mut() {
-            *r = r.map_routes(mapper).to_resolved().await?;
+        let mut mapped_static_segments = Vec::with_capacity(static_segments.len());
+        for (key, tree) in static_segments.iter() {
+            mapped_static_segments
+                .push((key.clone(), tree.map_routes(mapper).to_resolved().await?));
         }
+        // Same keys, so still sorted and unique.
+        *static_segments = FrozenMap::from_unique_sorted_box(mapped_static_segments.into());
         for r in dynamic_segments.iter_mut() {
             *r = r.map_routes(mapper).to_resolved().await?;
         }

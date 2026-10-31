@@ -1,10 +1,9 @@
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoMap;
 use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
-};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
@@ -199,23 +198,19 @@ pub struct NodeJsChunkingContext {
     /// This path is used to compute the url to request chunks or assets from
     client_root: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
-    #[bincode(with = "turbo_bincode::indexmap")]
-    client_roots: FxIndexMap<RcStr, FileSystemPath>,
+    client_roots: AutoMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
+    asset_root_paths: AutoMap<RcStr, FileSystemPath>,
     /// Static assets requested from this url base
     asset_prefix: Option<RcStr>,
     /// Static assets requested from this url base
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_prefixes: FxIndexMap<RcStr, RcStr>,
+    asset_prefixes: AutoMap<RcStr, RcStr>,
     /// URL behavior overrides for different tags.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
+    url_behaviors: AutoMap<RcStr, UrlBehavior>,
     /// Default URL behavior when no tag-specific override is found.
     default_url_behavior: Option<UrlBehavior>,
     /// The environment chunks will be evaluated in.

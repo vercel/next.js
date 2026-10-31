@@ -3,9 +3,10 @@ use std::sync::LazyLock;
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -36,9 +37,7 @@ pub(super) struct FontMetricsMapEntry {
 
 #[derive(Debug, Deserialize)]
 #[turbo_tasks::value]
-pub(super) struct FontMetricsMap(
-    #[bincode(with = "turbo_bincode::indexmap")] pub FxIndexMap<RcStr, FontMetricsMapEntry>,
-);
+pub(super) struct FontMetricsMap(pub FxHashMap<RcStr, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Deserialize, NonLocalValue)]
 struct Fallback {

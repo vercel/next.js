@@ -267,7 +267,7 @@ pub async fn compute_style_groups(
         .map(|m| (m, false))
         .collect::<FxIndexMap<_, _>>();
 
-    let mut shared_chunk_items = FxIndexMap::default();
+    let mut shared_chunk_items = FxHashMap::default();
     for i in 0..ordered_modules_with_state.len() {
         let (&module, processed) = ordered_modules_with_state.get_index_mut(i).unwrap();
         if *processed {

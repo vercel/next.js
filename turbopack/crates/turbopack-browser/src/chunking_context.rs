@@ -1,10 +1,11 @@
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
+use auto_hash_map::AutoMap;
 use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
+    FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
@@ -313,15 +314,13 @@ pub struct BrowserChunkingContext {
     /// This path is used to compute the url to request assets from
     client_root: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
-    #[bincode(with = "turbo_bincode::indexmap")]
-    client_roots: FxIndexMap<RcStr, FileSystemPath>,
+    client_roots: AutoMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
+    asset_root_paths: AutoMap<RcStr, FileSystemPath>,
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: Option<RcStr>,
@@ -341,14 +340,12 @@ pub struct BrowserChunkingContext {
     asset_base_path: Option<RcStr>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_base_paths: FxIndexMap<RcStr, RcStr>,
+    asset_base_paths: AutoMap<RcStr, RcStr>,
     /// This is the base path used to generate the service worker scope, it is
     /// not used for output subdirectory logic
     service_worker_scope_base_path: Option<RcStr>,
     /// URL behavior overrides for different tags.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
+    url_behaviors: AutoMap<RcStr, UrlBehavior>,
     /// Default URL behavior when no tag-specific override is found.
     default_url_behavior: Option<UrlBehavior>,
     /// Enable HMR for this chunking
