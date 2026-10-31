@@ -920,6 +920,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     turbopack: zTurbopackConfig.optional(),
     typescript: z
       .strictObject({
+        compilerPackage: z.string().min(1).optional(),
         ignoreBuildErrors: z.boolean().optional(),
         tsconfigPath: z.string().min(1).optional(),
       })

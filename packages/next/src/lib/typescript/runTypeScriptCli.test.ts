@@ -1,6 +1,12 @@
 import type { ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -12,18 +18,22 @@ jest.mock('next/dist/compiled/cross-spawn', () => ({
   default: (...args: unknown[]) => mockSpawn(...args),
 }))
 
-const { getTypeScriptPackageInfo, runTypeScriptCli } =
+const { getTypeScriptPackageInfo, getTypeScriptCliVersion, runTypeScriptCli } =
   require('./runTypeScriptCli') as typeof import('./runTypeScriptCli')
 
 function createTypeScriptFixture({
   packageJson,
   files,
+  compilerPackage = 'typescript',
 }: {
+  compilerPackage?: string
   packageJson: Record<string, unknown>
   files: string[]
 }) {
-  const baseDir = mkdtempSync(path.join(tmpdir(), 'next-typescript-'))
-  const packageDir = path.join(baseDir, 'node_modules', 'typescript')
+  const baseDir = realpathSync(
+    mkdtempSync(path.join(tmpdir(), 'next-typescript-'))
+  )
+  const packageDir = path.join(baseDir, 'node_modules', compilerPackage)
 
   mkdirSync(packageDir, { recursive: true })
   writeFileSync(
@@ -45,6 +55,53 @@ function removeTypeScriptFixture(baseDir: string) {
 }
 
 describe('getTypeScriptPackageInfo', () => {
+  it('resolves an explicitly selected package with a differently named bin', () => {
+    const { baseDir, packageDir } = createTypeScriptFixture({
+      compilerPackage: '@fixture/compiler',
+      packageJson: { version: '0.7.0', bin: { check: './bin/check' } },
+      files: ['bin/check'],
+    })
+    try {
+      expect(
+        getTypeScriptPackageInfo(baseDir, '@fixture/compiler')
+      ).toMatchObject({
+        tscPath: path.join(packageDir, 'bin/check'),
+        version: '0.7.0',
+      })
+      expect(getTypeScriptPackageInfo(baseDir)).toBeNull()
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+
+  it('does not fall back to TypeScript when the selected package is missing', () => {
+    const { baseDir } = createTypeScriptFixture({
+      packageJson: { version: '6.0.1', bin: { tsc: './bin/tsc' } },
+      files: ['bin/tsc'],
+    })
+    try {
+      expect(getTypeScriptPackageInfo(baseDir)).not.toBeNull()
+      expect(getTypeScriptPackageInfo(baseDir, 'missing-compiler')).toBeNull()
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+
+  it('does not guess between multiple non-tsc binaries', () => {
+    const { baseDir } = createTypeScriptFixture({
+      packageJson: {
+        version: '0.1.0',
+        bin: { check: './check.js', server: './server.js' },
+      },
+      files: ['check.js', 'server.js'],
+    })
+    try {
+      expect(getTypeScriptPackageInfo(baseDir)?.tscPath).toBeUndefined()
+    } finally {
+      removeTypeScriptFixture(baseDir)
+    }
+  })
+
   it('resolves a standard tsc bin', () => {
     const { baseDir, packageDir } = createTypeScriptFixture({
       packageJson: {
@@ -178,6 +235,32 @@ describe('runTypeScriptCli', () => {
       expect(getProcessListeners(event)).toEqual(originalListeners.get(event))
     }
   }
+
+  it('reads the compatible TypeScript version instead of the package version', async () => {
+    const pending = getTypeScriptCliVersion('/project', '/compiler/lib/tsc.js')
+    child.stdout.write('Version 7.1.0-dev\n')
+    child.emit('close', 0, null)
+    await expect(pending).resolves.toBe('7.1.0-dev')
+    expectListenersRestored()
+  })
+
+  it.each([
+    ['unknown', 0],
+    ['Version 7.1.0-dev', 1],
+    ['Version invalid', 0],
+  ])(
+    'rejects incompatible version output %s (exit %s)',
+    async (stdout, code) => {
+      const pending = getTypeScriptCliVersion(
+        '/project',
+        '/compiler/lib/tsc.js'
+      )
+      child.stdout.write(stdout)
+      child.emit('close', code, null)
+      await expect(pending).rejects.toThrow('must support --version')
+      expectListenersRestored()
+    }
+  )
 
   it('spawns tsc detached with piped stdio and resolves with the exit code', async () => {
     const resultPromise = runTypeScriptCli({
