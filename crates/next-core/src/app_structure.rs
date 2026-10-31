@@ -8,8 +8,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedIndexSet, ResolvedVc, TryJoinIterExt,
+    ValueDefault, ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
@@ -957,7 +957,7 @@ pub fn get_entrypoints(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CollectedRootParams(#[bincode(with = "turbo_bincode::indexset")] FxIndexSet<RcStr>);
+pub struct CollectedRootParams(OrderedIndexSet<RcStr>);
 
 #[turbo_tasks::function]
 pub async fn collect_root_params(
@@ -969,7 +969,7 @@ pub async fn collect_root_params(
             collected_root_params.extend(root_params.iter().cloned());
         }
     }
-    Ok(Vc::cell(collected_root_params))
+    Ok(Vc::cell(collected_root_params.into()))
 }
 
 #[turbo_tasks::function]

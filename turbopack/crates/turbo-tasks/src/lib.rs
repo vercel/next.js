@@ -39,6 +39,7 @@ mod marker_trait;
 pub mod message_queue;
 mod native_function;
 mod once_map;
+mod ordered_index;
 mod output;
 pub mod panic_hooks;
 pub mod parallel;
@@ -134,6 +135,7 @@ pub use crate::{
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+pub use crate::ordered_index::{OrderedIndexMap, OrderedIndexSet};
 pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 // Copied from indexmap! and indexset!

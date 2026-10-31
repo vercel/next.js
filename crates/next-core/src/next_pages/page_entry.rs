@@ -292,7 +292,7 @@ pub async fn create_page_ssr_entry_module(
     let mut ssr_module = ssr_module_context
         .process(
             source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets.into())),
         )
         .module();
 
