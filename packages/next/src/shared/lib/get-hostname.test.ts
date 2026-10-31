@@ -34,6 +34,22 @@ describe('getHostname', () => {
     })
   })
 
+  describe('from headers', () => {
+    it.each([
+      // An IPv6 literal keeps the colons inside its brackets; splitting at the first ':' would
+      // return '[' for '[::1]:3000' and '[2001' for '[2001:db8::1]:8080'.
+      { host: '[::1]', expected: '[::1]' },
+      { host: '[::1]:3000', expected: '[::1]' },
+      { host: '[2001:db8::1]:8080', expected: '[2001:db8::1]' },
+      // Unterminated bracket: no ']' is found, so it falls back to the split behaviour.
+      { host: '[::1', expected: '[' },
+      { host: 'example.com:3000', expected: 'example.com' },
+      { host: 'example.com', expected: 'example.com' },
+    ])('should return $expected for host $host', ({ host, expected }) => {
+      expect(getHostname({}, { host })).toBe(expected)
+    })
+  })
+
   it('should return undefined for empty input', () => {
     expect(getHostname({})).toBe(undefined)
     // @ts-expect-error passing an array of strings is not allowed
