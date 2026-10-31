@@ -1,8 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { gate } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 describe('future-compat', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -13,15 +14,45 @@ describe('future-compat', () => {
   })
 
   it('throws on deprecated Node.js APIs only in future compatibility mode', async () => {
+    const futureCompat = await gate((conditions) => conditions.futureCompat)
+    const outputIndex = next.cliOutput.length
     const response = await next.fetch('/deprecated')
-    if (await gate((conditions) => conditions.futureCompat)) {
-      expect(response.status).toBe(500)
-      const error = await response.text()
-      expect(error).toContain('DEP0005')
-      expect(error).toContain('Buffer() is deprecated')
-    } else {
-      expect(response.status).toBe(200)
-      expect(await response.text()).toBe('future-compat')
+    // Node throws deprecations asynchronously, outside the route handler's promise.
+    // Next.js logs the uncaught exception without changing the successful response.
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      value: 'future-compat',
+      throwDeprecation: futureCompat,
+    })
+
+    // The deploy harness exposes build logs, not runtime logs.
+    if (!isNextDeploy) {
+      const warning =
+        'DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.'
+      const stack =
+        futureCompat && isNextDev
+          ? '\n    at GET (app/deprecated/route.ts:<line>:<col>)'
+          : '\n    at showFlaggedDeprecation (node:buffer:<line>:<col>)' +
+            '\n    at new Buffer (node:buffer:<line>:<col>)' +
+            '\n    at <bundled frame>'
+
+      await retry(() => {
+        const output = stripAnsi(next.cliOutput.slice(outputIndex))
+          .replaceAll('\\', '/')
+          .replace(/uncaughtException: +/g, 'uncaughtException: ')
+          .replace(/( at .*):\d+:\d+/g, '$1:<line>:<col>')
+          // Raw warnings and next-start errors do not have sourcemapped frames.
+          .replace(
+            /\n {4}at [^\n]*(?:\.next\/(?:dev\/)?server\/|webpack-internal:)[^\n]*/g,
+            '\n    at <bundled frame>'
+          )
+        expect(output).toContain(
+          `${futureCompat ? 'uncaughtException: ' : '[DEP0005] '}${warning}${stack}`
+        )
+        if (!futureCompat) {
+          expect(output).not.toContain(`uncaughtException: ${warning}`)
+        }
+      })
     }
   })
 })
