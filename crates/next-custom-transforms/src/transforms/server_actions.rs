@@ -28,7 +28,10 @@ use swc_core::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
         utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
+        },
     },
     quote,
 };
@@ -48,8 +51,44 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub is_development: bool,
     pub use_cache_enabled: bool,
-    pub hash_salt: String,
+    /// The salt mixed into every generated server reference ID.
+    ///
+    /// This may only be `None` when the program contains no server reference directives (see
+    /// [`may_contain_server_reference_directives`]). This lets Turbopack avoid reading the salt
+    /// (the server actions encryption key) for modules that don't need it. Generating a server
+    /// reference ID without a salt panics.
+    pub hash_salt: Option<String>,
     pub cache_kinds: FxHashSet<RcStr>,
+}
+
+/// Returns `true` if the program may contain a `"use server"` or `"use cache"` directive, i.e.
+/// if the server actions transform may need to generate server reference IDs (and therefore
+/// [`Config::hash_salt`]) for it.
+///
+/// This is a conservative check: it returns `true` for any string literal anywhere in the program
+/// that starts with `"use server"` or `"use cache"`, regardless of its position. False positives
+/// are fine, false negatives are not.
+pub fn may_contain_server_reference_directives(program: &Program) -> bool {
+    struct DirectiveFinder {
+        found: bool,
+    }
+
+    impl Visit for DirectiveFinder {
+        noop_visit_type!();
+
+        fn visit_str(&mut self, s: &Str) {
+            if self.found {
+                return;
+            }
+            if s.value.starts_with("use server") || s.value.starts_with("use cache") {
+                self.found = true;
+            }
+        }
+    }
+
+    let mut finder = DirectiveFinder { found: false };
+    program.visit_with(&mut finder);
+    finder.found
 }
 
 #[derive(Clone, Debug)]
@@ -295,8 +334,12 @@ impl<C: Comments> ServerActions<C> {
         // $$id = special_byte + sha1('hash_salt' + 'file_name' + ':' + 'export_name');
         // Currently encoded as hex.
 
+        let hash_salt = self.config.hash_salt.as_deref().expect(
+            "generating a server reference ID requires a hash salt, but none was provided. Was \
+             `may_contain_server_reference_directives` used to decide whether a salt is needed?",
+        );
         let mut hasher = Sha1::new();
-        hasher.update(self.config.hash_salt.as_bytes());
+        hasher.update(hash_salt.as_bytes());
         hasher.update(self.file_name.as_bytes());
         hasher.update(b":");
 
@@ -4039,4 +4082,95 @@ fn program_to_data_url(
         );
     }
     format!("data:text/javascript,{}", urlencoding::encode(&output))
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        common::{FileName, Mark, SourceMap, comments::SingleThreadedComments, sync::Lrc},
+        ecma::{
+            ast::{EsVersion, Program},
+            parser::{Syntax, parse_file_as_program},
+        },
+    };
+
+    use super::{
+        Config, ServerActionsMode, may_contain_server_reference_directives, server_actions,
+    };
+
+    fn parse(cm: &Lrc<SourceMap>, src: &str) -> Program {
+        let fm = cm.new_source_file(FileName::Anon.into(), src.to_string());
+        parse_file_as_program(
+            &fm,
+            Syntax::Es(Default::default()),
+            EsVersion::latest(),
+            None,
+            &mut vec![],
+        )
+        .unwrap()
+    }
+
+    fn check(src: &str) -> bool {
+        let cm: Lrc<SourceMap> = Default::default();
+        may_contain_server_reference_directives(&parse(&cm, src))
+    }
+
+    #[test]
+    #[should_panic(expected = "requires a hash salt")]
+    fn missing_hash_salt_panics() {
+        let _ = testing::run_test(false, |cm, _handler| {
+            let program = parse(&cm, "'use server'; export async function action() {}");
+            program.apply(server_actions(
+                &FileName::Real("/app/actions.js".into()),
+                None,
+                Config {
+                    is_react_server_layer: true,
+                    is_development: false,
+                    use_cache_enabled: false,
+                    hash_salt: None,
+                    cache_kinds: Default::default(),
+                },
+                SingleThreadedComments::default(),
+                Mark::new(),
+                cm.clone(),
+                Default::default(),
+                ServerActionsMode::Turbopack,
+            ));
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn no_directive() {
+        assert!(!check(
+            "import a from './a'; 'use strict'; export default function f() { return 'server'; }"
+        ));
+    }
+
+    #[test]
+    fn module_use_server() {
+        assert!(check("'use server'; export async function action() {}"));
+    }
+
+    #[test]
+    fn inline_use_server() {
+        assert!(check(
+            "export default function Page() { async function action() { 'use server'; } return \
+             action; }"
+        ));
+    }
+
+    #[test]
+    fn use_cache() {
+        assert!(check(
+            "export async function cached() { 'use cache'; return 1; }"
+        ));
+    }
+
+    #[test]
+    fn use_cache_with_kind() {
+        assert!(check(
+            "'use cache: custom'; export async function cached() { return 1; }"
+        ));
+    }
 }
