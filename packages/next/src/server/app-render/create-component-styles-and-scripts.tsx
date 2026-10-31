@@ -36,6 +36,7 @@ export async function createComponentStylesAndScripts({
       createElement('script', {
         src: `${ctx.assetPrefix}/_next/${encodeURIPath(href)}${getAssetQueryString(ctx, true)}`,
         async: true,
+        crossOrigin: ctx.renderOpts.crossOrigin,
         key: `script-${scriptIndex}`,
         nonce: ctx.nonce,
       })
