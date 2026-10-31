@@ -21,7 +21,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::{
-        structured::StructuredSourceMap,
+        structured::SplitSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
@@ -49,7 +49,9 @@ pub enum RewriteSourcePath {
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<StructuredSourceMap>,
+    /// The module's source map. The factory rewrites its `sources` and references the rest of
+    /// it, see [`SplitSourceMap`].
+    pub source_map: Option<SplitSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -171,14 +173,23 @@ impl EcmascriptChunkItemContent {
             code += " try {\n";
         }
 
-        let source_map = match (&self.rewrite_source_path, &self.source_map) {
-            (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
-                Some(absolute_fileify_source_map(map, path.clone()).await?)
+        let source_map = match &self.source_map {
+            Some(map) => {
+                // Only the head holds `sources`; the rest of the map is shared with every other
+                // factory of the module.
+                let head = match &self.rewrite_source_path {
+                    RewriteSourcePath::AbsoluteFilePath(path) => {
+                        absolute_fileify_source_map(map.head(), path.clone()).await?
+                    }
+                    RewriteSourcePath::RelativeFilePath(path, relative_path) => {
+                        relative_fileify_source_map(map.head(), path.clone(), relative_path.clone())
+                            .await?
+                    }
+                    RewriteSourcePath::None => map.head().clone(),
+                };
+                Some(map.to_section_map(head).await?)
             }
-            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
-                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
-            }
-            (_, map) => map.clone(),
+            None => None,
         };
 
         code.push_source(&self.inner_code, source_map);
