@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
+    CellId, CellKey, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
     registry,
 };
@@ -109,7 +109,7 @@ pub fn update_cell(
         // Collect dependent tasks only when not skipping invalidation.
         // The iterators borrow from `task`, so they must be scoped to drop before
         // we mutably borrow `task` again in the fast path.
-        let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
+        let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<CellKey>; 2]>> =
             FxIndexMap::default();
         if !skip_invalidation {
             // Keyless dependents: always invalidate when the cell matches.
@@ -125,24 +125,32 @@ pub fn update_cell(
                         .push(None);
                 }
             }
-            // Keyed dependents: invalidate only when the changed sub-value (key) matches.
             for (
                 CellRef {
                     task: dependent_task,
                     cell: dependent_cell,
                 },
-                key_hash,
-            ) in task.iter_cell_dependents_hashed()
+                key,
+            ) in task.iter_cell_dependents_keyed()
             {
-                if dependent_cell == cell
-                    && updated_key_hashes_set
+                if dependent_cell != cell {
+                    continue;
+                }
+                let affected = match key {
+                    // Hashed dependents: invalidate only when the changed sub-value (key)
+                    // matches.
+                    CellKey::Hash(key_hash) => updated_key_hashes_set
                         .as_ref()
-                        .is_none_or(|set| set.contains(&key_hash))
-                {
+                        .is_none_or(|set| set.contains(&key_hash)),
+                    // `keyed_reader()` read dependents: always invalidate, like keyless
+                    // dependents.
+                    CellKey::Keyed(_) => true,
+                };
+                if affected {
                     dependent_tasks
                         .entry(dependent_task)
                         .or_default()
-                        .push(Some(key_hash));
+                        .push(Some(key));
                 }
             }
         }
@@ -160,6 +168,10 @@ pub fn update_cell(
             // yet). So to avoid that we first remove the cell content, invalidate all dependent
             // tasks and after that set the new cell content. When the cell content is unset,
             // readers will wait for it to be set via InProgressCell.
+            //
+            // `CellKey::Keyed` dependents collected here are always invalidated by
+            // `invalidate_cell_dependents`, even when the dependency was converted (to a full or
+            // `CellKey::Hash` dependencies) in the meantime.
 
             let old_content = task.remove_cell_data(&cell, &value_type.persistence);
 
@@ -233,7 +245,7 @@ fn update_cell_data_hash(task: &mut TaskGuard<'_>, cell: &CellId, content_hash: 
 
 fn invalidate_cell_dependents(
     cell_ref: CellRef,
-    mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
+    mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<CellKey>; 2]>>,
     #[cfg(feature = "task_dirty_cause")] has_updated_key_hashes: bool,
     content: Option<TypedSharedReference>,
     ctx: &mut ExecuteContext<'_>,
@@ -249,16 +261,27 @@ fn invalidate_cell_dependents(
         let mut make_stale = false;
         let mut dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
         for key in keys.iter().copied() {
-            let (in_outdated, in_current) = if let Some(k) = key {
-                let in_outdated =
-                    dependent.outdated_cell_dependencies_hashed_contains(&(cell_ref, k));
-                let in_current =
-                    !in_outdated && dependent.cell_dependencies_hashed_contains(&(cell_ref, k));
-                (in_outdated, in_current)
-            } else {
-                let in_outdated = dependent.outdated_cell_dependencies_contains(&cell_ref);
-                let in_current = !in_outdated && dependent.cell_dependencies_contains(&cell_ref);
-                (in_outdated, in_current)
+            let (in_outdated, in_current) = match key {
+                Some(key @ CellKey::Hash(_)) => {
+                    let in_outdated =
+                        dependent.outdated_cell_dependencies_keyed_contains(&(cell_ref, key));
+                    let in_current = !in_outdated
+                        && dependent.cell_dependencies_keyed_contains(&(cell_ref, key));
+                    (in_outdated, in_current)
+                }
+                Some(CellKey::Keyed(_)) => {
+                    // The `Keyed` dependency might have been converted in the meantime (to a
+                    // full dependency when the execution of the dependent completed, or to
+                    // `CellKey::Hash` dependencies when its `KeyedReadRef` was dropped). Assume
+                    // the worst case and always invalidate.
+                    (false, true)
+                }
+                None => {
+                    let in_outdated = dependent.outdated_cell_dependencies_contains(&cell_ref);
+                    let in_current =
+                        !in_outdated && dependent.cell_dependencies_contains(&cell_ref);
+                    (in_outdated, in_current)
+                }
             };
             if in_outdated {
                 // cell dependency is outdated, so it hasn't read the cell yet
@@ -286,7 +309,12 @@ fn invalidate_cell_dependents(
             TaskDirtyCause::CellChange {
                 value_type: cell_ref.cell.type_id(),
                 keys: if has_updated_key_hashes {
-                    keys
+                    keys.iter()
+                        .map(|key| match key {
+                            Some(CellKey::Hash(k)) => Some(*k),
+                            None | Some(CellKey::Keyed(_)) => None,
+                        })
+                        .collect()
                 } else {
                     Default::default()
                 },
@@ -330,7 +358,7 @@ mod invalidate_cell_dependents_tests {
     use std::sync::Arc;
 
     use smallvec::{SmallVec, smallvec};
-    use turbo_tasks::{CellId, FxIndexMap, TaskId, TurboTasks, ValueTypeId, event::Event};
+    use turbo_tasks::{CellId, CellKey, FxIndexMap, TaskId, TurboTasks, ValueTypeId, event::Event};
 
     use super::invalidate_cell_dependents;
     use crate::{
@@ -356,6 +384,22 @@ mod invalidate_cell_dependents_tests {
             // SAFETY: the id is only used as an opaque key; the registry is never consulted
             // because no new content is written.
             cell: CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 0),
+        }
+    }
+
+    fn hash(k: u64) -> Option<CellKey> {
+        Some(CellKey::Hash(k))
+    }
+
+    fn keyed(id: u32) -> Option<CellKey> {
+        Some(CellKey::Keyed(id))
+    }
+
+    /// The `cell_dependents` entry of [`DEPENDENT`] for [`cell_ref`].
+    fn reverse_ref() -> CellRef {
+        CellRef {
+            task: task(DEPENDENT),
+            cell: cell_ref().cell,
         }
     }
 
@@ -385,11 +429,12 @@ mod invalidate_cell_dependents_tests {
         current_keys: Vec<u64>,
         outdated_keys: Vec<u64>,
         current_unkeyed: bool,
+        current_keyed: Vec<u32>,
     }
 
     /// Marks the dependent as in progress (so it is never scheduled for real), applies `setup`,
     /// invalidates the cell for `keys` and returns `(dirty, stale)` of the dependent.
-    fn run(setup: Setup, keys: SmallVec<[Option<u64>; 2]>) -> (bool, bool) {
+    fn run(setup: Setup, keys: SmallVec<[Option<CellKey>; 2]>) -> (bool, bool) {
         let tt = backend();
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
         {
@@ -404,13 +449,17 @@ mod invalidate_cell_dependents_tests {
                 },
             )));
             for k in setup.current_keys {
-                let _ = dependent.add_cell_dependencies_hashed((cell_ref(), k));
+                let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::Hash(k)));
             }
             for k in setup.outdated_keys {
-                let _ = dependent.add_outdated_cell_dependencies_hashed((cell_ref(), k));
+                let _ =
+                    dependent.add_outdated_cell_dependencies_keyed((cell_ref(), CellKey::Hash(k)));
             }
             if setup.current_unkeyed {
                 let _ = dependent.add_cell_dependencies(cell_ref());
+            }
+            for id in setup.current_keyed {
+                let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::Keyed(id)));
             }
         }
 
@@ -441,7 +490,7 @@ mod invalidate_cell_dependents_tests {
             current_keys: vec![99],
             ..Default::default()
         };
-        assert_eq!(run(setup, smallvec![Some(1), Some(2)]), (false, false));
+        assert_eq!(run(setup, smallvec![hash(1), hash(2)]), (false, false));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -455,7 +504,7 @@ mod invalidate_cell_dependents_tests {
             current_keys: vec![2],
             ..Default::default()
         };
-        assert_eq!(run(setup, smallvec![Some(1), Some(2)]), (true, true));
+        assert_eq!(run(setup, smallvec![hash(1), hash(2)]), (true, true));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -468,11 +517,119 @@ mod invalidate_cell_dependents_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn current_keyed_read_dependency_dirty_and_stale() {
+        let setup = Setup {
+            current_keyed: vec![0],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![keyed(0)]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn removed_keyed_read_dependency_dirty_and_stale() {
+        // Only a different `keyed_reader()` read dependency is still tracked. The collected `Keyed`
+        // dependent is invalidated anyway (worst case assumed).
+        let setup = Setup {
+            current_keyed: vec![1],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![keyed(0)]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hash_converted_keyed_read_dependency_dirty_and_stale() {
+        // The `Keyed` dependent was collected, but its `KeyedReadRef` was dropped in the meantime
+        // and converted it to `CellKey::Hash` dependencies on keys that didn't change. The
+        // invalidation must not be lost.
+        let setup = Setup {
+            current_keys: vec![7],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![keyed(0)]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn converted_keyed_read_dependency_dirty_and_stale() {
+        // The `Keyed` dependent was collected, but the execution of the dependent completed in the
+        // meantime and converted it to a full dependency. The invalidation must not be lost.
+        let setup = Setup {
+            current_unkeyed: true,
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![keyed(0)]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn remaining_keyed_dependencies_converted_on_completion() {
+        let tt = backend();
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        {
+            let (mut cell_task, mut dependent) =
+                ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
+            // Two `keyed_reader()` reads of the same cell, and a hashed read.
+            for key in [CellKey::Keyed(0), CellKey::Keyed(1), CellKey::Hash(5)] {
+                let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), key));
+                let _ = dependent.add_cell_dependencies_keyed((cell_ref(), key));
+            }
+            // A full dependency from the previous execution that wasn't re-read as such. The
+            // conversion re-reads it, so it must no longer be outdated (and not be cleaned up).
+            let _ = cell_task.add_cell_dependents(reverse_ref());
+            let _ = dependent.add_cell_dependencies(cell_ref());
+            let _ = dependent.add_outdated_cell_dependencies(cell_ref());
+        }
+
+        tt.backend()
+            .convert_remaining_keyed_cell_dependencies(&mut ctx, task(DEPENDENT));
+
+        let (cell_task, dependent) =
+            ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
+        // The `Keyed` dependencies became a full dependency, on both sides of the edge.
+        for key in [CellKey::Keyed(0), CellKey::Keyed(1)] {
+            assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), key)));
+            assert!(!cell_task.cell_dependents_keyed_contains(&(reverse_ref(), key)));
+        }
+        assert!(dependent.cell_dependencies_contains(&cell_ref()));
+        assert!(!dependent.outdated_cell_dependencies_contains(&cell_ref()));
+        assert!(cell_task.cell_dependents_contains(&reverse_ref()));
+        // Hashed dependencies are untouched.
+        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::Hash(5))));
+        assert!(cell_task.cell_dependents_keyed_contains(&(reverse_ref(), CellKey::Hash(5))));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn keyed_conversion_waits_for_cell_content() {
+        // While `update_cell` invalidates dependents, the cell content is removed. Converting the
+        // `Keyed` dependency in that window conservatively keeps it (depending on the whole cell).
+        let tt = backend();
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let (mut cell_task, mut dependent) =
+                ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
+            let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), CellKey::Keyed(0)));
+            let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::Keyed(0)));
+        }
+
+        tt.backend().convert_keyed_cell_dependency(
+            task(CELL_TASK),
+            cell_ref().cell,
+            task(DEPENDENT),
+            0,
+            &mut [1u64].into_iter(),
+            &tt,
+        );
+
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
+        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::Keyed(0))));
+        assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::Hash(1))));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn outdated_dependency_dirty_not_stale() {
         let setup = Setup {
             outdated_keys: vec![1],
             ..Default::default()
         };
-        assert_eq!(run(setup, smallvec![Some(1), Some(2)]), (true, false));
+        assert_eq!(run(setup, smallvec![hash(1), hash(2)]), (true, false));
     }
 }
