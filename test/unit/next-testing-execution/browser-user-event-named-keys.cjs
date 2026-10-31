@@ -17,7 +17,7 @@ async function main() {
   if (scenario === 'preflight') {
     const held = Object.freeze(['ContextMenu'])
     for (const descriptor of [
-      '{/ContextMenu}[PageUp][UnknownPhysicalCode]',
+      '{/ContextMenu}[PageUp][UnknownPhysicalCode-]',
       '{/ContextMenu}{CapsLock>9007199254740992/}',
       '{/ContextMenu}[PageDown',
     ]) {

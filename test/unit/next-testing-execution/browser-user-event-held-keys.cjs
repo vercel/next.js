@@ -122,10 +122,13 @@ async function main() {
       ['up', 'ArrowLeft'],
     ])
     const before = actions.length
-    await assert.rejects(
-      userEvent.keyboard('a{not-a-key>}'),
-      /Unsupported keyboard/
-    )
+    await assert.rejects(userEvent.keyboard('a{not-a-key>}'), {
+      name: 'Error',
+      message:
+        'Expected repeat modifier or release modifier or "}" but found "-" in "{not-a-key>}"\n' +
+        '    See https://testing-library.com/docs/user-event/keyboard\n' +
+        '    for more information about how userEvent parses your input.',
+    })
     assert.equal(actions.length, before)
     await userEvent.keyboard('z')
     await userEvent.keyboard('{Shift>}')

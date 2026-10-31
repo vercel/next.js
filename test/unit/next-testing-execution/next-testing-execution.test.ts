@@ -7414,3 +7414,18 @@ describe('actual client native Promise producer receipts', () => {
     }
   )
 })
+
+it('forwards the pinned keyboard grammar and distinct native release roles', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [path.join(__dirname, 'browser-keyboard-runtime.cjs')],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    runtimeCases: 548,
+    completePreflightAndFrozenStates: true,
+    distinctFileAndTypeRelease: true,
+    exactPinnedNativeCallContract: true,
+    existingLargeRepeatGuardRetained: true,
+  })
+})

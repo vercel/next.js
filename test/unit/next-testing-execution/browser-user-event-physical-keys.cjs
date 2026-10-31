@@ -18,7 +18,7 @@ async function main() {
   if (scenario === 'preflight') {
     const held = Object.freeze(['Shift'])
     for (const text of [
-      '[/ShiftRight]a[UnknownPhysicalCode]',
+      '[/ShiftRight]a[UnknownPhysicalCode-]',
       '[/ShiftRight]a[KeyA>9007199254740992/]',
       '[/ShiftRight]a[KeyA',
     ]) {
