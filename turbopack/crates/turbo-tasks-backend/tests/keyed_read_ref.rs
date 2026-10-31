@@ -5,11 +5,11 @@
 //! Tests for `Vc::keyed()` / `KeyedReadRef`: a single read of a keyed cell that afterwards only
 //! depends on the keys that were actually accessed.
 
-use std::sync::Mutex;
+use std::{pin::Pin, sync::Mutex};
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
-use turbo_tasks::{OperationVc, ReadKeyedRefVcFuture, ResolvedVc, State, TransientInstance, Vc};
+use turbo_tasks::{KeyedReadRef, OperationVc, ResolvedVc, State, TransientInstance, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -70,9 +70,9 @@ enum Mode {
     FullWhileAlive,
     /// Two `KeyedReadRef`s alive at the same time, accessing different keys.
     TwoRefs,
-    /// The `KeyedReadRef` is returned out of a spawned (non-local) task scope, i.e. it is dropped
-    /// outside of the creating task execution: keep the conservative dependency.
-    Leaked,
+    /// The `KeyedReadRef` is dropped in a detached future that shares the task execution's state
+    /// (like a local task), which the execution waits for. That's still within the execution.
+    DroppedInDetached,
 }
 
 const MODES: [Mode; 5] = [
@@ -80,7 +80,7 @@ const MODES: [Mode; 5] = [
     Mode::FullBefore,
     Mode::FullWhileAlive,
     Mode::TwoRefs,
-    Mode::Leaked,
+    Mode::DroppedInDetached,
 ];
 
 /// `mode` is an index into [`MODES`].
@@ -127,15 +127,13 @@ async fn read_keys(map: OperationVc<Map>, keys: Vec<String>, mode: u8) -> Result
             drop(keyed1);
             drop(keyed2);
         }
-        Mode::Leaked => {
+        Mode::DroppedInDetached => {
             let keyed = map.keyed().await?;
             for key in &keys {
                 values.push(keyed.get(key).copied());
                 contains.push(keyed.contains_key(key));
             }
-            // Drop it on a different (non-turbo-tasks) thread, i.e. outside of this task
-            // execution.
-            std::thread::spawn(move || drop(keyed)).join().unwrap();
+            turbo_tasks::macro_helpers::spawn_detached_for_testing(async move { drop(keyed) });
         }
     }
     let random = rand::random::<u32>();
@@ -233,10 +231,12 @@ async fn keyed_read_ref_two_refs() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn keyed_read_ref_dropped_outside_task_keeps_dependency() {
-    run(&REGISTRATION, async || check_mode(Mode::Leaked, true).await)
-        .await
-        .unwrap()
+async fn keyed_read_ref_dropped_in_detached_future() {
+    run(&REGISTRATION, async || {
+        check_mode(Mode::DroppedInDetached, false).await
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -316,7 +316,9 @@ async fn keyed_read_ref_drops_keys_no_longer_accessed() {
 
 // --- The `keyed()` future is created outside of the task that polls it. ---
 
-struct PendingKeyedRead(Mutex<Option<ReadKeyedRefVcFuture<Map>>>);
+type PendingKeyedReadFuture = Pin<Box<dyn Future<Output = Result<KeyedReadRef<Map>>> + Send>>;
+
+struct PendingKeyedRead(Mutex<Option<PendingKeyedReadFuture>>);
 
 #[turbo_tasks::function(root)]
 async fn poll_pending_keyed_read(
@@ -349,7 +351,8 @@ async fn keyed_read_ref_future_created_outside_of_task() {
 
         // Created outside of any task, but polled within `poll_pending_keyed_read`, so that
         // task's dependency must be narrowed to `a`.
-        let pending = TransientInstance::new(PendingKeyedRead(Mutex::new(Some(map.keyed()))));
+        let pending =
+            TransientInstance::new(PendingKeyedRead(Mutex::new(Some(Box::pin(map.keyed())))));
         let read = poll_pending_keyed_read(pending);
         let r1 = read.strongly_consistent().await?;
         assert_eq!(r1.values, vec![Some(1)]);
@@ -372,6 +375,199 @@ struct Executions(State<u32>);
 #[turbo_tasks::function(operation, root)]
 fn create_executions_operation() -> Vc<Executions> {
     Executions(State::new(0)).cell()
+}
+
+// --- A `KeyedReadRef` that isn't dropped within its task execution fails the task. ---
+
+const LEAK_MESSAGE: &str = "`KeyedReadRef` was not dropped within the task execution";
+const ORIGINAL_ERROR: &str = "original task error";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Leak {
+    /// Moved to a different (non-turbo-tasks) thread and dropped there.
+    OtherThread,
+    /// Never dropped.
+    Forgotten,
+    /// Never dropped, and the task returns an error.
+    ForgottenThenError,
+    /// Not leaked: the task returns an error while the `KeyedReadRef` is alive, so it's dropped
+    /// when the error is returned (still within the execution).
+    ErrorWhileAlive,
+    /// Never dropped, and the task panics.
+    ForgottenThenPanic,
+    /// Not leaked: the task panics while the `KeyedReadRef` is alive, so it's dropped while
+    /// unwinding (still within the execution).
+    PanicWhileAlive,
+}
+
+const LEAKS: [Leak; 6] = [
+    Leak::OtherThread,
+    Leak::Forgotten,
+    Leak::ForgottenThenError,
+    Leak::ErrorWhileAlive,
+    Leak::ForgottenThenPanic,
+    Leak::PanicWhileAlive,
+];
+
+/// Only accesses `a`. `leak` is an index into [`LEAKS`].
+#[turbo_tasks::function(operation, root)]
+async fn leak_keyed(
+    map: OperationVc<Map>,
+    leak: u8,
+    executions: ResolvedVc<Executions>,
+) -> Result<Vc<ReadResult>> {
+    let leak = LEAKS[leak as usize];
+    // Count executions untracked so this doesn't create a dependency.
+    let executions = executions.untracked().await?;
+    // Don't hold the guard of `get_untracked` while setting the state.
+    let count = *executions.get_untracked() + 1;
+    executions.set(count);
+    let keyed = map.connect().keyed().await?;
+    let value = keyed.get("a").copied();
+    match leak {
+        Leak::OtherThread => std::thread::spawn(move || drop(keyed)).join().unwrap(),
+        Leak::Forgotten => std::mem::forget(keyed),
+        Leak::ForgottenThenError => {
+            std::mem::forget(keyed);
+            anyhow::bail!("{ORIGINAL_ERROR}");
+        }
+        Leak::ErrorWhileAlive => {
+            let _keyed = keyed;
+            anyhow::bail!("{ORIGINAL_ERROR}");
+        }
+        Leak::ForgottenThenPanic => {
+            std::mem::forget(keyed);
+            panic!("{ORIGINAL_ERROR}");
+        }
+        Leak::PanicWhileAlive => {
+            let _keyed = keyed;
+            panic!("{ORIGINAL_ERROR}");
+        }
+    }
+    Ok(ReadResult {
+        values: vec![value],
+        contains: vec![],
+        random: rand::random(),
+    }
+    .cell())
+}
+
+async fn check_leak(leak: Leak) -> Result<()> {
+    let state_op = create_state_operation();
+    let state_vc = state_op.resolve().strongly_consistent().await?;
+    let state = state_op.read_strongly_consistent().await?;
+    state.set(1);
+    let executions_op = create_executions_operation();
+    let executions_vc = executions_op.resolve().strongly_consistent().await?;
+    let executions = executions_op.read_strongly_consistent().await?;
+
+    let map = create_map(state_vc);
+    let op = leak_keyed(
+        map,
+        LEAKS.iter().position(|l| *l == leak).unwrap() as u8,
+        executions_vc,
+    );
+    let leaked = !matches!(leak, Leak::ErrorWhileAlive | Leak::PanicWhileAlive);
+    let check_error = |step: u32, err: anyhow::Error| {
+        let message = format!("{err:?}");
+        if leaked {
+            assert!(
+                message.contains(LEAK_MESSAGE),
+                "{leak:?} step {step}: expected the leak panic, got: {message}"
+            );
+            assert!(
+                !message.contains(ORIGINAL_ERROR),
+                "{leak:?} step {step}: the leak panic must replace the error, got: {message}"
+            );
+        } else {
+            assert!(
+                message.contains(ORIGINAL_ERROR) && !message.contains(LEAK_MESSAGE),
+                "{leak:?} step {step}: expected the original error, got: {message}"
+            );
+        }
+    };
+    check_error(
+        1,
+        op.read_strongly_consistent()
+            .await
+            .err()
+            .expect("expected an error"),
+    );
+    let count1 = *executions.get_untracked();
+
+    // Only `b` changes, which isn't accessed. A leaked ref's dependency was converted to a normal
+    // (full) dependency, so the failed task re-executes. Otherwise it only depends on `a`.
+    state.set(2);
+    check_error(
+        2,
+        op.read_strongly_consistent()
+            .await
+            .err()
+            .expect("expected an error"),
+    );
+    let count2 = *executions.get_untracked();
+    if leaked {
+        assert!(count2 > count1, "{leak:?}: expected re-execution");
+    } else {
+        assert_eq!(count2, count1, "{leak:?}: expected no re-execution");
+    }
+
+    // Other tasks keep working (the process didn't abort).
+    let ok = read_keys(map, vec!["a".to_string()], 0)
+        .read_strongly_consistent()
+        .await?;
+    assert_eq!(ok.values, vec![Some(1)]);
+    anyhow::Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn keyed_read_ref_dropped_on_other_thread_fails_task() {
+    run(&REGISTRATION, async || check_leak(Leak::OtherThread).await)
+        .await
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn keyed_read_ref_forgotten_fails_task() {
+    run(&REGISTRATION, async || check_leak(Leak::Forgotten).await)
+        .await
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn keyed_read_ref_leak_replaces_task_error() {
+    run(&REGISTRATION, async || {
+        check_leak(Leak::ForgottenThenError).await
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn keyed_read_ref_error_while_alive_keeps_error() {
+    run(&REGISTRATION, async || {
+        check_leak(Leak::ErrorWhileAlive).await
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn keyed_read_ref_leak_replaces_task_panic() {
+    run(&REGISTRATION, async || {
+        check_leak(Leak::ForgottenThenPanic).await
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn keyed_read_ref_panic_while_alive_keeps_panic() {
+    run(&REGISTRATION, async || {
+        check_leak(Leak::PanicWhileAlive).await
+    })
+    .await
+    .unwrap()
 }
 
 #[turbo_tasks::function(operation, root)]

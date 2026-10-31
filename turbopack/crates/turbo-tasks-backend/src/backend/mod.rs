@@ -1258,10 +1258,14 @@ impl TurboTasksBackend {
         }
     }
 
-    /// Converts all [`CellKey::Keyed`] dependencies of `reader` that are still present (their
-    /// `KeyedReadRef` wasn't dropped within the execution) into normal (full) cell dependencies.
-    /// Called when an execution of `reader` that made `Vc::keyed()` reads completes, as the ids are
-    /// only meaningful within that execution.
+    /// Converts all [`CellKey::Keyed`] dependencies of `reader` that are still present into normal
+    /// (full) cell dependencies. Called when an execution of `reader` that made `Vc::keyed()` reads
+    /// completes, as the ids are only meaningful within that execution.
+    ///
+    /// They remain when a `KeyedReadRef` wasn't dropped within the execution (the manager then also
+    /// fails the task with a panic error, but its dependencies must still be kept, so it's
+    /// re-executed on changes), or when its conversion was refused (see
+    /// `convert_keyed_cell_dependency`).
     ///
     /// A concurrent `update_cell` that collected the [`CellKey::Keyed`] dependent before the
     /// conversion still invalidates `reader`, as it also accepts a full dependency on the cell when

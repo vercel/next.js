@@ -40,10 +40,7 @@ pub use crate::vc::{
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     ord::OrdResolvedVc,
     raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
-    read::{
-        ReadKeyedRefVcFuture, ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead,
-        VcTransparentRead,
-    },
+    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
@@ -597,11 +594,12 @@ where
     /// [`KeyedReadRef`] (`vc.keyed().await?.get(key)`). This is more efficient than many
     /// [`Vc::get`] / [`Vc::contains_key`] reads of the same cell within a single task.
     ///
-    /// Once the [`KeyedReadRef`] is dropped (within the same task execution), the task only
-    /// depends on the accessed keys instead of the full value. See [`KeyedReadRef`] for details.
-    pub fn keyed(self) -> ReadKeyedRefVcFuture<T> {
+    /// Once the [`KeyedReadRef`] is dropped, the task only depends on the accessed keys instead of
+    /// the full value. It must be dropped within the same task execution, otherwise the task
+    /// fails. See [`KeyedReadRef`] for details.
+    pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
         let future: ReadVcFuture<T> = self.node.into_read().into();
-        future.keyed()
+        future.keyed().await
     }
 }
 

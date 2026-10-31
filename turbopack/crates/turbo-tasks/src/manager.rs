@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
@@ -36,9 +36,10 @@ use crate::{
     SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
-        TurboTasksExecutionError, TypedCellContent, VerificationMode,
+        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
+        VerificationMode,
     },
-    capture_future::CaptureFuture,
+    capture_future::{CaptureFuture, TurboTasksPanic},
     dyn_task_inputs::DynTaskInputsStorage,
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
@@ -368,7 +369,8 @@ pub enum CellKey {
     /// with [`CellKey::Hash`] dependencies of the accessed keys once it's dropped, without
     /// affecting other (full) dependencies on the same cell. `Keyed` dependencies that are still
     /// present when the execution completes are converted to normal (full) dependencies, so they
-    /// never outlive the execution that created them.
+    /// never outlive the execution that created them. (When that's because a `KeyedReadRef` wasn't
+    /// dropped within the execution, the task also fails.)
     Keyed(u32),
 }
 
@@ -865,8 +867,18 @@ struct CurrentTaskStateInner {
     /// Counter of [`Vc::keyed`](crate::Vc::keyed) reads in this execution, used to give every
     /// [`CellKey::Keyed`] dependency a unique id.
     keyed_read_counter: AtomicU32,
+    /// Number of tracked [`KeyedReadRef`](crate::KeyedReadRef)s of this execution that haven't
+    /// been dropped within this execution yet. When it isn't zero at the end of the execution, the
+    /// task fails (see [`KEYED_READ_REF_LEAKED`]).
+    alive_keyed_read_refs: AtomicU32,
     state: RwLock<CurrentTaskState>,
 }
+
+/// The panic message of a task execution that didn't drop all of its
+/// [`KeyedReadRef`](crate::KeyedReadRef)s.
+const KEYED_READ_REF_LEAKED: &str = "A `KeyedReadRef` was not dropped within the task execution \
+                                     that created it. It must be dropped before the task function \
+                                     returns, and must not be moved to other threads or tasks.";
 
 impl CurrentTaskStateHandle {
     fn new(state: CurrentTaskState) -> Self {
@@ -874,6 +886,7 @@ impl CurrentTaskStateHandle {
             inner: Arc::new(CurrentTaskStateInner {
                 current_task_id: state.task_id,
                 keyed_read_counter: AtomicU32::new(0),
+                alive_keyed_read_refs: AtomicU32::new(0),
                 state: RwLock::new(state),
             }),
         }
@@ -916,6 +929,28 @@ impl KeyedReadDependency {
             })
             .ok()
             .flatten()
+    }
+
+    /// Registers a [`KeyedReadRef`](crate::KeyedReadRef) holding this dependency as alive. It
+    /// must be released with [`KeyedReadDependency::release_alive_ref`] within the same task
+    /// execution, otherwise the task fails. Only called within the creating execution.
+    pub(crate) fn register_alive_ref(&self) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .alive_keyed_read_refs
+                .fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Releases a [`KeyedReadRef`](crate::KeyedReadRef) registered with
+    /// [`KeyedReadDependency::register_alive_ref`]. Only called when it is dropped within the
+    /// creating execution ([`KeyedReadDependency::is_current_execution`]).
+    pub(crate) fn release_alive_ref(&self) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .alive_keyed_read_refs
+                .fetch_sub(1, Ordering::Relaxed);
+        }
     }
 
     /// Whether this is called within the task execution that created the dependency and that
@@ -1744,8 +1779,10 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 };
 
                                 let finished_state = this.finish_current_task_state();
-                                let (cell_counters, has_keyed_reads) =
+                                let (cell_counters, has_keyed_reads, leaked_keyed_read_refs) =
                                     CURRENT_TASK_STATE.with(|ts| {
+                                        // Taking the cell counters ends the execution: later
+                                        // drops of its `KeyedReadRef`s are no longer counted.
                                         let cell_counters =
                                             ts.write().unwrap().cell_counters.take().unwrap();
                                         // All reads of this execution are done (local tasks
@@ -1754,8 +1791,30 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                         // `keyed()` was used.
                                         let has_keyed_reads =
                                             ts.inner.keyed_read_counter.load(Ordering::Relaxed) > 0;
-                                        (cell_counters, has_keyed_reads)
+                                        let leaked_keyed_read_refs = has_keyed_reads
+                                            && ts
+                                                .inner
+                                                .alive_keyed_read_refs
+                                                .load(Ordering::Relaxed)
+                                                > 0;
+                                        (cell_counters, has_keyed_reads, leaked_keyed_read_refs)
                                     });
+                                // A `KeyedReadRef` that outlives the execution is a bug in the
+                                // task function. Fail the task like a panic, also replacing an
+                                // error of the task, so the misuse is never hidden. The backend
+                                // still converts its dependency to a normal one.
+                                let result = if leaked_keyed_read_refs {
+                                    Err(TurboTasksExecutionError::Panic(Arc::new(
+                                        TurboTasksPanic {
+                                            message: TurboTasksExecutionErrorMessage::PIISafe(
+                                                Cow::Borrowed(KEYED_READ_REF_LEAKED),
+                                            ),
+                                            location: None,
+                                        },
+                                    )))
+                                } else {
+                                    result
+                                };
                                 this.backend.task_execution_completed(
                                     task_id,
                                     result,

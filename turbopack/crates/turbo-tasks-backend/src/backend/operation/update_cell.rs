@@ -167,6 +167,12 @@ pub fn update_cell(
             // yet). So to avoid that we first remove the cell content, invalidate all dependent
             // tasks and after that set the new cell content. When the cell content is unset,
             // readers will wait for it to be set via InProgressCell.
+            //
+            // `convert_keyed_cell_dependency` also relies on this: it refuses to narrow a
+            // `CellKey::Keyed` dependency while the content is missing. Removing the content under
+            // the same task lock as collecting the dependents above means a `Keyed` dependent
+            // collected here can't be replaced by `CellKey::Hash` dependencies before it is
+            // checked in `invalidate_cell_dependents`.
 
             let old_content = task.remove_cell_data(&cell, &value_type.persistence);
 

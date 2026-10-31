@@ -125,7 +125,7 @@ pub use crate::{
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
         CellId, Dynamic, KeyedReadRef, NonLocalValue, OperationValue, OperationVc, OptionVcExt,
-        OrdResolvedVc, RawVc, RawVcUnpacked, ReadKeyedRefVcFuture, ReadRawVcFuture, ReadVcFuture,
+        OrdResolvedVc, RawVc, RawVcUnpacked, ReadRawVcFuture, ReadVcFuture,
         ResolveOperationVcFuture, ResolveRawVcFuture, ResolveVcFuture, ResolvedVc,
         ToResolvedVcFuture, Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode,
         VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead,
