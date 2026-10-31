@@ -157,11 +157,3 @@ impl VersionedContent for EcmascriptBuildNodeChunkListContent {
         update_chunk_list(&this.chunks_contents, to_version, from_version).await
     }
 }
-
-#[turbo_tasks::function(operation, root)]
-pub fn compute_update_from_version_operation(
-    content: ResolvedVc<EcmascriptBuildNodeChunkListContent>,
-    from: TransientInstance<ReadRef<ChunkListVersion>>,
-) -> Vc<Update> {
-    content.compute_update_from_version(from)
-}
