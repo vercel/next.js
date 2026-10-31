@@ -89,7 +89,7 @@ There are two tiers:
   deploy run declared as Vercel with `NEXT_TEST_DEPLOY_TARGET_VERCEL=1`, as
   opposed to another host that deploys through `NEXT_TEST_DEPLOY_SCRIPT_PATH`
   to test its adapter), specialized CI variants
-  (`adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,
+  (`futureCompat`, `adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,
   `turbopackBuild`), plus `FIXME` / `TODO`, which are always false.
 
   Gate on `vercel` rather than `deploy` when the reason is specific to Vercel
