@@ -1,0 +1,577 @@
+{
+  "source": "runtime.test.ts.txt",
+  "bodySHA256": "f3968c366a2fafab51392d4e6b324ce179063c3d88ea92e04051c731b986bb39",
+  "status": 1,
+  "rows": [
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "kind": "expect-equal",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": true,
+      "kind": "expect-equal",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": true,
+      "kind": "expect-equal",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": true,
+      "kind": "expect-toBe",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": true,
+      "kind": "expect-toBe",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": true,
+      "kind": "expect-toBe",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "kind": "expect-equal",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": false,
+      "kind": "expect-equal",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": false,
+      "kind": "expect-equal",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": false,
+      "kind": "expect-toBe",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": false,
+      "kind": "expect-toBe",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": false,
+      "kind": "expect-toBe",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 2
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "operation": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "operation": "self",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "operation": "other",
+      "threw": false,
+      "returnKind": "object",
+      "sameOriginal": false,
+      "sameOther": false,
+      "error": null,
+      "assertionCalls": 0
+    }
+  ],
+  "cases": [
+    {
+      "name": "enabled raw detached",
+      "state": "failed"
+    },
+    {
+      "name": "enabled raw self",
+      "state": "passed"
+    },
+    {
+      "name": "enabled raw other",
+      "state": "passed"
+    },
+    {
+      "name": "enabled expect-equal detached",
+      "state": "failed"
+    },
+    {
+      "name": "enabled expect-equal self",
+      "state": "passed"
+    },
+    {
+      "name": "enabled expect-equal other",
+      "state": "passed"
+    },
+    {
+      "name": "enabled expect-toBe detached",
+      "state": "failed"
+    },
+    {
+      "name": "enabled expect-toBe self",
+      "state": "passed"
+    },
+    {
+      "name": "enabled expect-toBe other",
+      "state": "passed"
+    },
+    {
+      "name": "enabled constructor detached",
+      "state": "failed"
+    },
+    {
+      "name": "enabled constructor self",
+      "state": "passed"
+    },
+    {
+      "name": "enabled constructor other",
+      "state": "passed"
+    },
+    {
+      "name": "disabled raw detached",
+      "state": "failed"
+    },
+    {
+      "name": "disabled raw self",
+      "state": "passed"
+    },
+    {
+      "name": "disabled raw other",
+      "state": "passed"
+    },
+    {
+      "name": "disabled expect-equal detached",
+      "state": "failed"
+    },
+    {
+      "name": "disabled expect-equal self",
+      "state": "passed"
+    },
+    {
+      "name": "disabled expect-equal other",
+      "state": "passed"
+    },
+    {
+      "name": "disabled expect-toBe detached",
+      "state": "failed"
+    },
+    {
+      "name": "disabled expect-toBe self",
+      "state": "passed"
+    },
+    {
+      "name": "disabled expect-toBe other",
+      "state": "passed"
+    },
+    {
+      "name": "disabled constructor detached",
+      "state": "failed"
+    },
+    {
+      "name": "disabled constructor self",
+      "state": "passed"
+    },
+    {
+      "name": "disabled constructor other",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 24,
+    "numPassedTests": 16,
+    "numFailedTests": 8,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "enabled raw detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled raw self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled raw other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled expect-equal detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled expect-equal self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled expect-equal other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled expect-toBe detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled expect-toBe self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled expect-toBe other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled constructor detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled constructor self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled constructor other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled raw detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled raw self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled raw other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled expect-equal detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled expect-equal self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled expect-equal other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled expect-toBe detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled expect-toBe self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled expect-toBe other",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled constructor detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled constructor self",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled constructor other",
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "rawErrorCount": 0,
+  "undefinedErrorPayloads": []
+}

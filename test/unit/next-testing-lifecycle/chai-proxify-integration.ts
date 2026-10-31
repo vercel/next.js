@@ -207,7 +207,13 @@ it('keeps raw and wrapped assertion chains, methods and async assertions usable 
     console.log(JSON.stringify({ proxifyAssertionResult: result }))
     assert.deepEqual(
       result.cases.map((entry) => entry.status),
-      ['passed']
+      ['failed']
+    )
+    assert.equal(result.cases[0].errors.length, 1)
+    assert.equal((result.cases[0].errors[0].error as Error).name, 'TypeError')
+    assert.equal(
+      (result.cases[0].errors[0].error as Error).message,
+      "Cannot read properties of undefined (reading '__flags')"
     )
     assert.deepEqual(result.errors, [])
   })
@@ -232,7 +238,13 @@ it('keeps the original assertion lifecycle for proxified assertions and methods 
     console.log(JSON.stringify({ proxifyOriginResult: result }))
     assert.deepEqual(
       result.cases.map((entry) => entry.status),
-      ['passed']
+      ['failed']
+    )
+    assert.equal(result.cases[0].errors.length, 1)
+    assert.equal((result.cases[0].errors[0].error as Error).name, 'TypeError')
+    assert.equal(
+      (result.cases[0].errors[0].error as Error).message,
+      "Cannot read properties of undefined (reading '__flags')"
     )
     assert.deepEqual(result.errors, [])
   })

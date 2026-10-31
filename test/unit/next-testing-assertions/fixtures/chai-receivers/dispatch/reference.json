@@ -1,0 +1,619 @@
+{
+  "source": "runtime.test.ts.txt",
+  "bodySHA256": "2b472447889915270d13a0e1b25ef0ea6e7f23bf7b652adec3b0cb50791759a2",
+  "status": 1,
+  "rows": [
+    {
+      "useProxy": true,
+      "name": "direct",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "detached-reflect-undefined",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "detached-call-undefined",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "method-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "method-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "proxify-detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "proxify-reflect-undefined",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "proxify-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "proxify-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "prototype-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "prototype-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "proxify-prototype-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": true,
+      "name": "proxify-prototype-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "direct",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "detached-reflect-undefined",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "detached-call-undefined",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "method-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "method-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "proxify-detached",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "proxify-reflect-undefined",
+      "threw": true,
+      "returnKind": "undefined",
+      "sameResult": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading '__flags')"
+      },
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "proxify-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "proxify-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "prototype-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "prototype-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "proxify-prototype-reflect-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    },
+    {
+      "useProxy": false,
+      "name": "proxify-prototype-call-explicit",
+      "threw": false,
+      "returnKind": "object",
+      "sameResult": false,
+      "error": null,
+      "assertionCalls": 0
+    }
+  ],
+  "cases": [
+    {
+      "name": "enabled direct",
+      "state": "passed"
+    },
+    {
+      "name": "enabled detached",
+      "state": "failed"
+    },
+    {
+      "name": "enabled detached-reflect-undefined",
+      "state": "failed"
+    },
+    {
+      "name": "enabled detached-call-undefined",
+      "state": "failed"
+    },
+    {
+      "name": "enabled method-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled method-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled proxify-detached",
+      "state": "failed"
+    },
+    {
+      "name": "enabled proxify-reflect-undefined",
+      "state": "failed"
+    },
+    {
+      "name": "enabled proxify-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled proxify-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled prototype-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled prototype-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled proxify-prototype-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "enabled proxify-prototype-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled direct",
+      "state": "passed"
+    },
+    {
+      "name": "disabled detached",
+      "state": "failed"
+    },
+    {
+      "name": "disabled detached-reflect-undefined",
+      "state": "failed"
+    },
+    {
+      "name": "disabled detached-call-undefined",
+      "state": "failed"
+    },
+    {
+      "name": "disabled method-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled method-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled proxify-detached",
+      "state": "failed"
+    },
+    {
+      "name": "disabled proxify-reflect-undefined",
+      "state": "failed"
+    },
+    {
+      "name": "disabled proxify-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled proxify-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled prototype-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled prototype-call-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled proxify-prototype-reflect-explicit",
+      "state": "passed"
+    },
+    {
+      "name": "disabled proxify-prototype-call-explicit",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 28,
+    "numPassedTests": 18,
+    "numFailedTests": 10,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "enabled direct",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled detached-reflect-undefined",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled detached-call-undefined",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled method-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled method-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled proxify-detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled proxify-reflect-undefined",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "enabled proxify-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled proxify-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled prototype-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled prototype-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled proxify-prototype-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "enabled proxify-prototype-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled direct",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled detached-reflect-undefined",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled detached-call-undefined",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled method-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled method-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled proxify-detached",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled proxify-reflect-undefined",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading '__flags')",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "disabled proxify-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled proxify-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled prototype-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled prototype-call-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled proxify-prototype-reflect-explicit",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "disabled proxify-prototype-call-explicit",
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "rawErrorCount": 0,
+  "undefinedErrorPayloads": []
+}

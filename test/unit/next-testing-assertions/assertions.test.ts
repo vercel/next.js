@@ -1461,3 +1461,75 @@ it.each([
   },
   130000
 )
+
+it.each(['dispatch', 'classes', 'null'])(
+  'forwards actual Chai receivers through the file lifecycle in %s',
+  async (family) => {
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'chai-receivers.cjs'), process.cwd(), '', family],
+      { timeout: 20000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      family,
+      cases: family === 'dispatch' ? 28 : family === 'classes' ? 24 : 16,
+      completeGenuineRows:
+        family === 'dispatch' ? 28 : family === 'classes' ? 24 : 16,
+      exactGenuineRowsAndNativeErrors: true,
+      actualFileDisposalJoined: true,
+    })
+  },
+  25000
+)
+
+it.each(
+  ['dispatch', 'classes', 'null', 'unchanged'].flatMap((family) => [
+    ['development', family],
+    ['production', family],
+  ])
+)(
+  'matches genuine Chai receiver behavior in %s for %s',
+  async (mode, family) => {
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-chai-receivers-public-')
+    )
+    let completed = false
+    try {
+      const output = join(directory, 'observed')
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-receivers-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          'ts',
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        exactGenuineFailureProjection: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else console.error('Retained Chai receiver observations at ' + directory)
+    }
+  },
+  130000
+)

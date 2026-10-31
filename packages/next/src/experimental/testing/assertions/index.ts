@@ -654,7 +654,12 @@ export async function createAssertionRuntime(options: {
   const assertionOrigins = new WeakMap<object, AssertionScope>()
   const legacyAssertionRecords = new WeakMap<
     object,
-    { raw: object; scope: AssertionScope }
+    {
+      raw: object
+      scope: AssertionScope
+      proxy: object
+      prototype: object
+    }
   >()
   function recordAssertionOrigin(assertion: object, scope: AssertionScope) {
     const identity = chaiAssertionIdentity(assertion)
@@ -685,7 +690,11 @@ export async function createAssertionRuntime(options: {
     )
   }
 
-  function guardAssertion(assertion: object, scope: AssertionScope) {
+  function guardAssertion(
+    assertion: object,
+    scope: AssertionScope,
+    publicAssertion?: object
+  ) {
     recordAssertionOrigin(assertion, scope)
     const proxies = new WeakMap<object, object>()
     function check() {
@@ -701,12 +710,20 @@ export async function createAssertionRuntime(options: {
       }
     }
     function wrapProducedAssertion(value: object): object {
+      if (
+        strictAssertionRecords.has(value) ||
+        legacyAssertionRecords.has(value) ||
+        taskAssertionRecords.has(value)
+      ) {
+        unwrapAssertionInvocationReceiver(value)
+        return value
+      }
       recordAssertionOrigin(value, scope)
       return wrap(value)
     }
     function wrap(
       value: object,
-      receiver?: object,
+      _receiver?: object,
       inlineSnapshot = false
     ): object {
       const cached = proxies.get(value)
@@ -788,7 +805,7 @@ export async function createAssertionRuntime(options: {
                 : undefined
             const result = Reflect.apply(
               target as (...args: unknown[]) => unknown,
-              receiver ?? thisArg,
+              unwrapAssertionInvocationReceiver(thisArg),
               args
             )
             // No Task is published for ordinary afterAll. Retain only the exact
@@ -830,8 +847,18 @@ export async function createAssertionRuntime(options: {
       if (
         chaiAssertionIdentity(value) &&
         assertionOrigins.get(chaiAssertionIdentity(value)!) === scope
-      )
-        legacyAssertionRecords.set(proxy, { raw: value, scope })
+      ) {
+        const record = {
+          raw: value,
+          scope,
+          proxy: value === assertion ? (publicAssertion ?? proxy) : proxy,
+          prototype: defaultChaiPrototype,
+        }
+        legacyAssertionRecords.set(proxy, record)
+        // Native async callbacks retain their actual public receiver through
+        // Promise adoption, using the existing raw assertion cache.
+        if (!strictRawRecords.has(value)) strictRawRecords.set(value, record)
+      }
       return proxy
     }
     return wrap(assertion)
@@ -893,6 +920,19 @@ export async function createAssertionRuntime(options: {
     assertStrictScope(record.scope)
     return record.raw
   }
+  function unwrapAssertionInvocationReceiver(value: unknown) {
+    if (value && (typeof value === 'object' || typeof value === 'function')) {
+      const record = taskAssertionRecords.get(value)
+      if (record) {
+        assertTaskExpectation(record.owner)
+        const identity = chaiAssertionIdentity(record.raw)
+        const scope = identity && assertionOrigins.get(identity)
+        if (scope) assertStrictScope(scope)
+        return record.raw
+      }
+    }
+    return strictUnwrap(value)
+  }
   function strictResult(
     value: unknown,
     scope: AssertionScope,
@@ -940,8 +980,11 @@ export async function createAssertionRuntime(options: {
         return invokeChaiPrototype(fn, this, args, prototype)
       const owner = invocationScope()
       assertStrictScope(owner)
-      let actualReceiver = receiver
-      if (actualReceiver === undefined) {
+      let actualReceiver: unknown =
+        receiver === undefined
+          ? undefined
+          : unwrapAssertionInvocationReceiver(this)
+      if (receiver === undefined) {
         if (isChaiPrototypeInvocationReceiver(this))
           return Reflect.apply(fn, this, args)
         const record =
@@ -1219,6 +1262,14 @@ export async function createAssertionRuntime(options: {
     prototype: object
   ) {
     assertChaiNamespaceAccess()
+    if (receiver == null) {
+      assertAssertionScope()
+      return strictResult(
+        Reflect.apply(fn, receiver, args),
+        current(),
+        prototype
+      )
+    }
     const record =
       receiver &&
       (typeof receiver === 'object' || typeof receiver === 'function')
@@ -1409,10 +1460,12 @@ export async function createAssertionRuntime(options: {
       const assertion =
         input && (typeof input === 'object' || typeof input === 'function')
           ? (strictAssertionRecords.get(input) ??
-            legacyAssertionRecords.get(input))
+            legacyAssertionRecords.get(input) ??
+            taskAssertionRecords.get(input))
           : undefined
       if (assertion) {
-        assertStrictScope(assertion.scope)
+        if ('owner' in assertion) unwrapAssertionInvocationReceiver(input)
+        else assertStrictScope(assertion.scope)
         const result = Reflect.apply(fn, chai.util, [
           assertion.raw,
           ...args.slice(1),
@@ -1421,6 +1474,13 @@ export async function createAssertionRuntime(options: {
         const identity = chaiAssertionIdentity(assertion.raw)
         if (identity)
           proxifiedAssertionIdentities.set(result as object, identity)
+        if ('owner' in assertion)
+          return guardTaskAssertion(
+            result as object,
+            assertion.owner,
+            assertion.requireScope,
+            assertion.originalScope
+          )
         return guardStrictChaiAssertion(
           result as object,
           assertion.scope,
@@ -1835,6 +1895,7 @@ export async function createAssertionRuntime(options: {
     {
       raw: object
       owner: TaskExpectationOwner
+      requireScope: () => AssertionScope
       originalScope?: AssertionScope
     }
   >()
@@ -1971,7 +2032,7 @@ export async function createAssertionRuntime(options: {
           // Unmeasured async/soft/snapshot/plugin paths use a real own scope.
           const scope = originalScope ?? requireScope()
           assertStrictScope(scope)
-          return Reflect.get(guardAssertion(target, scope), key)
+          return Reflect.get(guardAssertion(target, scope, proxy), key)
         },
         apply(target, thisArg, args) {
           check()
@@ -2028,6 +2089,7 @@ export async function createAssertionRuntime(options: {
         taskAssertionRecords.set(proxy, {
           raw: value,
           owner,
+          requireScope,
           originalScope,
         })
         const record: TaskMatcherAssertion = {
