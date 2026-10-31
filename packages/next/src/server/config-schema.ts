@@ -444,6 +444,7 @@ export const experimentalSchema = {
       maxChunkCountPerGroup: z.number().min(0).optional(),
       maxMergeChunkSize: z.number().min(0).optional(),
       maxChunkSize: z.number().min(0).optional(),
+      maxServerChunkSize: z.number().min(0).optional(),
       minComponentChunkSize: z.number().min(0).optional(),
       generateComponentChunks: z.boolean().optional(),
       minServerChunkSize: z.number().min(0).optional(),
