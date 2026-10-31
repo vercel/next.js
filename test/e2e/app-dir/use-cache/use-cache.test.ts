@@ -155,10 +155,17 @@ describe('use-cache', () => {
 
     // The cached data is passed to two client components, but should appear
     // only once in the RSC payload that's included in the HTML document.
-    expect(text).toIncludeRepeated(
-      '{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}',
-      1
-    )
+    if (await gate((c) => c.externalBrowserRuntime)) {
+      expect(text).toIncludeRepeated(
+        '{\\\\&quot;data\\\\&quot;:{\\\\&quot;hello\\\\&quot;:\\\\&quot;world\\\\&quot;}',
+        1
+      )
+    } else {
+      expect(text).toIncludeRepeated(
+        '{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}',
+        1
+      )
+    }
   })
 
   it('should cache results in route handlers', async () => {

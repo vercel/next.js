@@ -197,6 +197,10 @@ export const conditions: Record<string, Condition> = {
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
   ),
+  externalBrowserRuntime: lazyCondition(
+    'React instructions and Flight data use the external browser runtime',
+    (config) => config.experimental?.externalBrowserRuntime
+  ),
   strictRouteTypes: lazyCondition(
     'strict route type validation is enabled for the fixture',
     (config) => config.experimental?.strictRouteTypes
