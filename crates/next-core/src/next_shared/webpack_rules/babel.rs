@@ -340,8 +340,8 @@ async fn to_sys_path_str(path: FileSystemPath) -> Result<String> {
 /// webpack implementation, which resolves the Babel plugin from within `next`. The Babel plugin is
 /// an optional peer dependency of `next`.
 ///
-/// The returned path is relative to `project_path`. `project_path` should be the value given to
-/// `babel-loader` using the `cwd` option.
+/// The returned path is relative to `project_path` when possible to avoid cache portability
+/// problems. `project_path` should be the value given to `babel-loader` using the `cwd` option.
 pub async fn resolve_babel_plugin_react_compiler(
     next_config: Vc<NextConfig>,
     project_path: &FileSystemPath,
@@ -378,13 +378,20 @@ pub async fn resolve_babel_plugin_react_compiler(
         return Ok(None);
     };
 
-    // The relative path should only ever fail to resolve when the `fs` is different, which should
-    // only happen due to eventual consistency.
-    Ok(Some(
-        project_path
-            .get_relative_request_to(&source.ident().await?.path.parent())
-            .context("failed to resolve relative path for react compiler plugin")?,
-    ))
+    let babel_plugin_dir = source.ident().await?.path.parent();
+    if let Some(relative) = project_path.get_relative_request_to(&babel_plugin_dir) {
+        Ok(Some(relative))
+    } else {
+        // The plugin is in a different file system (e.g. an additional root such as pnpm's global
+        // virtual store), so there's no relative path to it. Fall back to an absolute path.
+        //
+        // This ends up in the loader options, which are stored in the turbo-tasks cache, so the
+        // cache can't be reused if the project or the store moves.
+        //
+        // This is acceptable because (1) this path should move infrequently and (2) we expect the
+        // Rust React Compiler to eventually replace this codepath.
+        Ok(Some(RcStr::from(to_sys_path_str(babel_plugin_dir).await?)))
+    }
 }
 
 #[turbo_tasks::value]
