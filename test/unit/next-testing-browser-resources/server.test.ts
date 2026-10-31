@@ -996,6 +996,39 @@ describe('Browser Mode immutable parent transport', () => {
     rootSuite(collector)
     expect(() => finish(collector)).toThrow(/omitted declared tasks/)
   })
+  it.each([false, true])(
+    'permits native data URL requests in actual test documents (framed: %s)',
+    async (testFrame) => {
+      server = await createClientServer({
+        artifact,
+        configuration,
+        ...(testFrame ? { testFrame: true } : {}),
+        onMessage() {},
+        onFailure() {},
+      })
+      for (const url of [
+        server.url,
+        ...(server.hostURL ? [server.hostURL] : []),
+      ]) {
+        const response = await fetch(url)
+        expect(response.status).toBe(200)
+        const connections = response.headers
+          .get('content-security-policy')!
+          .split(';')
+          .map((directive) => directive.trim())
+          .find((directive) => directive.startsWith('connect-src '))
+        expect(connections?.split(/\s+/)).toEqual([
+          'connect-src',
+          "'self'",
+          'http:',
+          'https:',
+          'data:',
+        ])
+        await response.text()
+      }
+      await server.verify()
+    }
+  )
   it('serves an inert owned host and preserves issued child assets and configuration', async () => {
     server = await createClientServer({
       artifact,

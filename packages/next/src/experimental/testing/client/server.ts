@@ -139,7 +139,7 @@ export async function createClientServer(options: {
     // loader evaluates the JavaScript assignments in saved external snapshots.
     response.setHeader(
       'Content-Security-Policy',
-      "default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self' http: https:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
+      "default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self' http: https: data:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
         (options.testFrame
           ? "frame-src 'self'; frame-ancestors 'self'"
           : "frame-ancestors 'none'")
