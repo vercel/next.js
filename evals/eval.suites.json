@@ -31,5 +31,10 @@
     "agent-051-prefetch-until-navigation",
     "agent-053-cache-components-url-shell",
     "agent-054-cache-components-empty-static-params"
+  ],
+  "audit": [
+    "agent-062-activity-popover",
+    "agent-063-activity-form-reset",
+    "agent-064-activity-playwright-locators"
   ]
 }
