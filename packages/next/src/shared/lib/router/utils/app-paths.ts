@@ -107,9 +107,9 @@ export function selectAppPageEntry(
  * Since this function is used on full urls it checks `?` for searchParams handling.
  */
 export function normalizeRscURL(url: string) {
-  return url.replace(
-    /\.rsc($|\?)/,
-    // $1 ensures `?` is preserved
-    '$1'
-  )
+  const queryIndex = url.indexOf('?')
+  if (queryIndex === -1) {
+    return url.replace(/\.rsc$/, '')
+  }
+  return url.slice(0, queryIndex).replace(/\.rsc$/, '') + url.slice(queryIndex)
 }
