@@ -1389,3 +1389,75 @@ it.each([
   },
   130000
 )
+
+it.each(['default', 'disabled', 'forwarding', 'forwarding-disabled'])(
+  'preserves callable data identity and alias ownership after File disposal in %s',
+  async (family) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'chai-callable-data.cjs'), process.cwd(), '', family],
+      { timeout: 20000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toMatchObject({
+      cases: family.startsWith('forwarding') ? 3 : 2,
+      completeGenuineRows: family.startsWith('forwarding') ? 5 : 4,
+      actualFileDisposalJoined: true,
+      retainedCallerFunctionsAfterDispose: true,
+      publicAliasOwnershipAfterDispose: true,
+      neverCalledMetadataGetters: true,
+    })
+  },
+  25000
+)
+
+it.each([
+  ['development', 'js', 'default'],
+  ['production', 'mjs', 'default'],
+  ['development', 'js', 'disabled'],
+  ['production', 'mjs', 'disabled'],
+  ['development', 'js', 'forwarding'],
+  ['production', 'mjs', 'forwarding'],
+  ['development', 'js', 'forwarding-disabled'],
+  ['production', 'mjs', 'forwarding-disabled'],
+])(
+  'matches genuine own callable data behavior in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(join(tmpdir(), 'next-chai-data-public-')),
+      output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-callable-data-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed callable data observations at ' + directory
+        )
+    }
+  },
+  130000
+)

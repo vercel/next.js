@@ -1007,8 +1007,18 @@ export async function createAssertionRuntime(options: {
               chaiUserResults.has(value))
           )
             return value
-          if (typeof value === 'function')
+          if (typeof value === 'function') {
+            if (prototypeCallable) {
+              const descriptor = Reflect.getOwnPropertyDescriptor(fn, key)
+              if (
+                descriptor &&
+                'value' in descriptor &&
+                descriptor.value === value
+              )
+                return value
+            }
             return strictFunction(value, owner, prototype, fn)
+          }
           return strictResult(value, owner, prototype)
         },
         construct(_target, args) {

@@ -1,0 +1,56 @@
+import { chai, expect, test, afterAll } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const marker = {}, callerError = new Error('actual caller data function error'), foreign = {}, retained = {}, aliasRetained = {}, trace = []
+const flags = [['fixed', false, false], ['configurable', false, true], ['writable', true, false], ['mutable', true, true]]
+let host, directAlias, originalInput, originalExpect, neverReads = 0, payloadReads = 0, label = ''
+const neverGetter = function () { neverReads++; throw new Error('never-called metadata getter') }
+function payload(value) { trace.push({ kind: 'payload', label, hostReceiver: this === host, foreignReceiver: this === foreign, undefinedReceiver: this === undefined, value }); if (value === 'throw') throw callerError; return marker }
+Object.defineProperty(payload, 'neverMetadata', { configurable: true, get() { payloadReads++; throw new Error('never-called payload metadata getter') } })
+chai.use((c, u) => {
+  u.addMethod(c.Assertion.prototype, 'dataHost', function () { return this })
+  u.addMethod(c.Assertion.prototype, 'dataAlias', function (value) { trace.push({ kind: 'alias', label, subject: u.flag(this, 'object'), task: u.flag(this, 'vitest-test')?.name ?? null, value }); return this })
+})
+const attempt = action => { try { return { ok: true, value: action() } } catch (error) { return { ok: false, name: error.name, message: error.message, sameCallerError: error === callerError } } }
+function payloadRead(key, retain) {
+  const read = attempt(() => host[key])
+  if (!read.ok) return { key, read }
+  if (retain) retained[key] = read.value
+  label = 'direct-' + key
+  const methodResult = attempt(() => host[key]('method'))
+  label = 'foreign-' + key
+  const foreignResult = attempt(() => Reflect.apply(read.value, foreign, ['foreign']))
+  label = 'undefined-' + key
+  const undefinedResult = attempt(() => Reflect.apply(read.value, undefined, ['undefined']))
+  label = 'throw-' + key
+  const thrown = attempt(() => Reflect.apply(read.value, foreign, ['throw']))
+  return { key, read: { ok: true, samePayload: read.value === payload, sameDescriptor: read.value === Object.getOwnPropertyDescriptor(host, key).value }, methodMarker: methodResult.ok && methodResult.value === marker, foreignMarker: foreignResult.ok && foreignResult.value === marker, undefinedMarker: undefinedResult.ok && undefinedResult.value === marker, thrown }
+}
+function aliasRead(key, input, retain) {
+  const read = attempt(() => host[key])
+  if (!read.ok) return { key, read }
+  if (retain) aliasRetained[key] = read.value
+  label = 'alias-' + key
+  const result = attempt(() => Reflect.apply(read.value, input, [key]))
+  return { key, read: { ok: true, sameAlias: read.value === directAlias, sameDescriptor: read.value === Object.getOwnPropertyDescriptor(host, key).value }, call: result.ok ? { ok: true, sameInput: result.value === input } : result }
+}
+test('own function data preserves descriptor identity, receivers and original errors', ({ expect: taskExpect }) => {
+  originalExpect = taskExpect
+  originalInput = taskExpect(17)
+  host = chai.Assertion.prototype.dataHost
+  directAlias = chai.Assertion.prototype.dataAlias
+  Object.defineProperty(host, 'neverField', { get: neverGetter, configurable: true, enumerable: true })
+  for (const [key, writable, configurable] of flags) {
+    Object.defineProperty(host, key, { value: payload, writable, configurable, enumerable: true })
+    Object.defineProperty(host, key + 'Alias', { value: directAlias, writable, configurable, enumerable: true })
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(host)
+  emit({ kind: 'descriptors', fields: flags.map(([key]) => ({ key, samePayload: descriptors[key].value === payload, sameAlias: descriptors[key + 'Alias'].value === directAlias, writable: descriptors[key].writable, configurable: descriptors[key].configurable })), sameNeverGetter: descriptors.neverField.get === neverGetter, neverReads, payloadReads })
+  emit({ kind: 'first', payloads: flags.map(([key]) => payloadRead(key, true)), aliases: flags.map(([key]) => aliasRead(key + 'Alias', originalInput, true)), trace: [...trace], originalCalls: originalExpect.getState().assertionCalls, neverReads, payloadReads })
+})
+test('retained data callbacks and public aliases preserve current and original receivers', ({ expect: taskExpect }) => {
+  const currentInput = taskExpect(33)
+  const payloads = Object.entries(retained).map(([key, fn]) => { label = 'retained-' + key; const result = attempt(() => Reflect.apply(fn, foreign, ['retained'])); return { key, samePayload: fn === payload, marker: result.ok && result.value === marker, thrown: attempt(() => Reflect.apply(fn, undefined, ['throw'])) } })
+  const aliases = Object.entries(aliasRetained).map(([key, fn]) => { label = 'retained-alias-original-' + key; const old = attempt(() => Reflect.apply(fn, originalInput, ['original'])); label = 'retained-alias-current-' + key; const current = attempt(() => Reflect.apply(fn, currentInput, ['current'])); return { key, sameAlias: fn === directAlias, original: old.ok ? { ok: true, sameInput: old.value === originalInput } : old, current: current.ok ? { ok: true, sameInput: current.value === currentInput } : current } })
+  emit({ kind: 'retained', payloads, aliases, trace: [...trace], originalCalls: originalExpect.getState().assertionCalls, currentCalls: taskExpect.getState().assertionCalls, neverReads, payloadReads })
+})
+afterAll(() => emit({ kind: 'afterAll', sameNeverGetter: Object.getOwnPropertyDescriptor(host, 'neverField').get === neverGetter, descriptorPointers: flags.map(([key]) => ({ key, payload: Object.getOwnPropertyDescriptor(host, key).value === payload, alias: Object.getOwnPropertyDescriptor(host, key + 'Alias').value === directAlias })), trace: [...trace], originalCalls: originalExpect.getState().assertionCalls, neverReads, payloadReads }))

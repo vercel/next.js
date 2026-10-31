@@ -1,0 +1,1047 @@
+{
+  "cases": [
+    {
+      "name": "own function data preserves descriptor identity, receivers and original errors",
+      "state": "passed"
+    },
+    {
+      "name": "retained data callbacks and public aliases preserve current and original receivers",
+      "state": "passed"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "descriptors",
+      "fields": [
+        {
+          "key": "fixed",
+          "samePayload": true,
+          "sameAlias": true,
+          "writable": false,
+          "configurable": false
+        },
+        {
+          "key": "configurable",
+          "samePayload": true,
+          "sameAlias": true,
+          "writable": false,
+          "configurable": true
+        },
+        {
+          "key": "writable",
+          "samePayload": true,
+          "sameAlias": true,
+          "writable": true,
+          "configurable": false
+        },
+        {
+          "key": "mutable",
+          "samePayload": true,
+          "sameAlias": true,
+          "writable": true,
+          "configurable": true
+        }
+      ],
+      "sameNeverGetter": true,
+      "neverReads": 0,
+      "payloadReads": 0
+    },
+    {
+      "kind": "first",
+      "payloads": [
+        {
+          "key": "fixed",
+          "read": {
+            "ok": true,
+            "samePayload": true,
+            "sameDescriptor": true
+          },
+          "methodMarker": true,
+          "foreignMarker": true,
+          "undefinedMarker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        },
+        {
+          "key": "configurable",
+          "read": {
+            "ok": true,
+            "samePayload": true,
+            "sameDescriptor": true
+          },
+          "methodMarker": true,
+          "foreignMarker": true,
+          "undefinedMarker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        },
+        {
+          "key": "writable",
+          "read": {
+            "ok": true,
+            "samePayload": true,
+            "sameDescriptor": true
+          },
+          "methodMarker": true,
+          "foreignMarker": true,
+          "undefinedMarker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        },
+        {
+          "key": "mutable",
+          "read": {
+            "ok": true,
+            "samePayload": true,
+            "sameDescriptor": true
+          },
+          "methodMarker": true,
+          "foreignMarker": true,
+          "undefinedMarker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        }
+      ],
+      "aliases": [
+        {
+          "key": "fixedAlias",
+          "read": {
+            "ok": true,
+            "sameAlias": true,
+            "sameDescriptor": true
+          },
+          "call": {
+            "ok": true,
+            "sameInput": true
+          }
+        },
+        {
+          "key": "configurableAlias",
+          "read": {
+            "ok": true,
+            "sameAlias": true,
+            "sameDescriptor": true
+          },
+          "call": {
+            "ok": true,
+            "sameInput": true
+          }
+        },
+        {
+          "key": "writableAlias",
+          "read": {
+            "ok": true,
+            "sameAlias": true,
+            "sameDescriptor": true
+          },
+          "call": {
+            "ok": true,
+            "sameInput": true
+          }
+        },
+        {
+          "key": "mutableAlias",
+          "read": {
+            "ok": true,
+            "sameAlias": true,
+            "sameDescriptor": true
+          },
+          "call": {
+            "ok": true,
+            "sameInput": true
+          }
+        }
+      ],
+      "trace": [
+        {
+          "kind": "payload",
+          "label": "direct-fixed",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-configurable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-writable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-writable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-mutable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-fixedAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "fixedAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-configurableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "configurableAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-writableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "writableAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-mutableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "mutableAlias"
+        }
+      ],
+      "originalCalls": 1,
+      "neverReads": 0,
+      "payloadReads": 0
+    },
+    {
+      "kind": "retained",
+      "payloads": [
+        {
+          "key": "fixed",
+          "samePayload": true,
+          "marker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        },
+        {
+          "key": "configurable",
+          "samePayload": true,
+          "marker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        },
+        {
+          "key": "writable",
+          "samePayload": true,
+          "marker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        },
+        {
+          "key": "mutable",
+          "samePayload": true,
+          "marker": true,
+          "thrown": {
+            "ok": false,
+            "name": "Error",
+            "message": "actual caller data function error",
+            "sameCallerError": true
+          }
+        }
+      ],
+      "aliases": [
+        {
+          "key": "fixedAlias",
+          "sameAlias": true,
+          "original": {
+            "ok": true,
+            "sameInput": true
+          },
+          "current": {
+            "ok": true,
+            "sameInput": true
+          }
+        },
+        {
+          "key": "configurableAlias",
+          "sameAlias": true,
+          "original": {
+            "ok": true,
+            "sameInput": true
+          },
+          "current": {
+            "ok": true,
+            "sameInput": true
+          }
+        },
+        {
+          "key": "writableAlias",
+          "sameAlias": true,
+          "original": {
+            "ok": true,
+            "sameInput": true
+          },
+          "current": {
+            "ok": true,
+            "sameInput": true
+          }
+        },
+        {
+          "key": "mutableAlias",
+          "sameAlias": true,
+          "original": {
+            "ok": true,
+            "sameInput": true
+          },
+          "current": {
+            "ok": true,
+            "sameInput": true
+          }
+        }
+      ],
+      "trace": [
+        {
+          "kind": "payload",
+          "label": "direct-fixed",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-configurable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-writable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-writable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-mutable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-fixedAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "fixedAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-configurableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "configurableAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-writableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "writableAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-mutableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "mutableAlias"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-writable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-fixedAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-fixedAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-configurableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-configurableAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-writableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-writableAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-mutableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-mutableAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        }
+      ],
+      "originalCalls": 1,
+      "currentCalls": 1,
+      "neverReads": 0,
+      "payloadReads": 0
+    },
+    {
+      "kind": "afterAll",
+      "sameNeverGetter": true,
+      "descriptorPointers": [
+        {
+          "key": "fixed",
+          "payload": true,
+          "alias": true
+        },
+        {
+          "key": "configurable",
+          "payload": true,
+          "alias": true
+        },
+        {
+          "key": "writable",
+          "payload": true,
+          "alias": true
+        },
+        {
+          "key": "mutable",
+          "payload": true,
+          "alias": true
+        }
+      ],
+      "trace": [
+        {
+          "kind": "payload",
+          "label": "direct-fixed",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-configurable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-writable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-writable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "direct-mutable",
+          "hostReceiver": true,
+          "foreignReceiver": false,
+          "undefinedReceiver": false,
+          "value": "method"
+        },
+        {
+          "kind": "payload",
+          "label": "foreign-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "foreign"
+        },
+        {
+          "kind": "payload",
+          "label": "undefined-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "undefined"
+        },
+        {
+          "kind": "payload",
+          "label": "throw-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "throw"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-fixedAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "fixedAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-configurableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "configurableAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-writableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "writableAlias"
+        },
+        {
+          "kind": "alias",
+          "label": "alias-mutableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "mutableAlias"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-fixed",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-configurable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-writable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-writable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": true,
+          "undefinedReceiver": false,
+          "value": "retained"
+        },
+        {
+          "kind": "payload",
+          "label": "retained-mutable",
+          "hostReceiver": false,
+          "foreignReceiver": false,
+          "undefinedReceiver": true,
+          "value": "throw"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-fixedAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-fixedAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-configurableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-configurableAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-writableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-writableAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-original-mutableAlias",
+          "subject": 17,
+          "task": "own function data preserves descriptor identity, receivers and original errors",
+          "value": "original"
+        },
+        {
+          "kind": "alias",
+          "label": "retained-alias-current-mutableAlias",
+          "subject": 33,
+          "task": "retained data callbacks and public aliases preserve current and original receivers",
+          "value": "current"
+        }
+      ],
+      "originalCalls": 1,
+      "neverReads": 0,
+      "payloadReads": 0
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "own function data preserves descriptor identity, receivers and original errors",
+      "state": "passed"
+    },
+    {
+      "name": "retained data callbacks and public aliases preserve current and original receivers",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "30fbbdf639f4da4a9b6f160eb205f1de46b50ea4fdc53a60bd4f014099d959c6",
+  "rawErrorCount": 0
+}
