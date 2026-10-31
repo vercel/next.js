@@ -775,9 +775,9 @@ impl ReadRawVcFuture {
         self.map_resolve(|r| r.track_with_key())
     }
 
-    /// Track the value as a [`CellKey::Keyed`] dependency of a [`Vc::keyed`](crate::Vc::keyed)
-    /// read. Like [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs
-    /// while resolving the [`RawVc`].
+    /// Track the value as a [`CellKey::Keyed`] dependency of a [`Vc::keyed`](crate::Vc::keyed) or
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read. Like [`ReadRawVcFuture::track_with_key`],
+    /// this also tracks the reads of task outputs while resolving the [`RawVc`].
     ///
     /// Must be called before the future is polled the first time or right at the start of the
     /// first poll, while it's still resolving the [`RawVc`].

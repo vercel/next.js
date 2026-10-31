@@ -142,7 +142,8 @@ pub fn update_cell(
                     CellKey::Hash(key_hash) => updated_key_hashes_set
                         .as_ref()
                         .is_none_or(|set| set.contains(&key_hash)),
-                    // `keyed()` read dependents: always invalidate, like keyless dependents.
+                    // `keyed()` / `lazy_reader()` read dependents: always invalidate, like keyless
+                    // dependents.
                     CellKey::Keyed(_) => true,
                 };
                 if affected {

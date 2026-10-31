@@ -2,6 +2,7 @@ pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
 mod keyed_read_ref;
+mod lazy_read_ref;
 mod local;
 pub(crate) mod operation;
 mod ord;
@@ -36,6 +37,7 @@ pub use crate::vc::{
     },
     default::ValueDefault,
     keyed_read_ref::KeyedReadRef,
+    lazy_read_ref::LazyReadRef,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     ord::OrdResolvedVc,
@@ -599,7 +601,24 @@ where
     /// fails. See [`KeyedReadRef`] for details.
     pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
         let future: ReadVcFuture<T> = self.node.into_read().into();
-        future.keyed().await
+        future.read_keyed().await
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+{
+    /// Read the value via the returned [`LazyReadRef`] (`vc.lazy_reader().await?.get()`) without
+    /// necessarily depending on it.
+    ///
+    /// While the [`LazyReadRef`] is alive, the task depends on the value. When it's dropped without
+    /// the value ever being accessed via [`LazyReadRef::get`], that dependency is removed again. It
+    /// must be dropped within the same task execution, otherwise the task fails. See
+    /// [`LazyReadRef`] for details.
+    pub async fn lazy_reader(self) -> Result<LazyReadRef<T>> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.read_lazy().await
     }
 }
 

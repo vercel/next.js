@@ -15,11 +15,14 @@ use rustc_hash::FxBuildHasher;
 
 use super::traits::VcValueType;
 use crate::{
-    MappedReadRef, ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast,
-    VcValueTypeCast,
+    CellId, MappedReadRef, ReadRawVcFuture, ReadRef, TaskId, VcCast, VcValueTrait,
+    VcValueTraitCast, VcValueTypeCast,
     keyed::{KeyedAccess, KeyedEq},
     manager::KeyedReadDependency,
-    vc::keyed_read_ref::KeyedReadRef,
+    vc::{
+        keyed_read_ref::KeyedReadRef,
+        lazy_read_ref::{LAZY_READ_CROSS_EXECUTION, LazyReadRef},
+    },
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -230,7 +233,43 @@ where
     /// Read the value once for many synchronous keyed accesses via the returned
     /// [`KeyedReadRef`]. Once that is dropped, the task only depends on the accessed keys instead
     /// of the full value. See [`KeyedReadRef`] for details.
-    pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
+    ///
+    /// Only exposed as [`Vc::keyed`](crate::Vc::keyed), so it can't be combined with builder
+    /// options like `untracked()` that would conflict with the dependency it registers.
+    pub(crate) async fn read_keyed(self) -> Result<KeyedReadRef<T>> {
+        let (read_ref, dependency) = self.read_with_keyed_dependency(false).await?;
+        Ok(KeyedReadRef::new(read_ref, dependency))
+    }
+}
+
+impl<T> ReadVcFuture<T, VcValueTypeCast<T>>
+where
+    T: VcValueType,
+{
+    /// Read the value via the returned [`LazyReadRef`]. When the value is never accessed via
+    /// [`LazyReadRef::get`], the dependency is removed again once it's dropped. See
+    /// [`LazyReadRef`] for details.
+    ///
+    /// Only exposed as [`Vc::lazy_reader`](crate::Vc::lazy_reader), so it can't be combined with
+    /// builder options like `untracked()`: an untracked read has no dependency to remove.
+    pub(crate) async fn read_lazy(self) -> Result<LazyReadRef<T>> {
+        let (read_ref, dependency) = self.read_with_keyed_dependency(true).await?;
+        Ok(LazyReadRef::new(read_ref, dependency))
+    }
+
+    /// Reads the cell with a separate [`CellKey::Keyed`](crate::CellKey::Keyed) dependency that
+    /// can later be converted or removed in the same task execution (for [`Vc::keyed`] and
+    /// [`Vc::lazy_reader`]). Returns `None` as dependency when there is nothing to convert: the
+    /// read is untracked, outside of a task, or continued in a different task execution. The
+    /// latter falls back to a normal full dependency, and panics in debug builds when
+    /// `panic_on_cross_execution` is set.
+    ///
+    /// [`Vc::keyed`]: crate::Vc::keyed
+    /// [`Vc::lazy_reader`]: crate::Vc::lazy_reader
+    async fn read_with_keyed_dependency(
+        self,
+        panic_on_cross_execution: bool,
+    ) -> Result<(ReadRef<T>, Option<(TaskId, CellId, KeyedReadDependency)>)> {
         let mut raw = self.raw;
         // Allocated when the future is first polled, as that's the task execution that reads the
         // cell (not necessarily the one that created the future).
@@ -243,9 +282,12 @@ where
                 .as_ref()
                 .is_some_and(|dependency| !dependency.is_current_execution())
             {
+                if cfg!(debug_assertions) && panic_on_cross_execution {
+                    panic!("{LAZY_READ_CROSS_EXECUTION}");
+                }
                 // The future moved to a different task execution while pending. The id belongs to
                 // the other execution and could collide with an id of this one, so fall back to a
-                // normal full dependency and never narrow it.
+                // normal full dependency and never narrow or remove it.
                 raw.set_track_full();
                 dependency = None;
             }
@@ -253,8 +295,8 @@ where
         })
         .await?;
         let read_ref = VcValueTypeCast::<T>::cast(content)?;
-        // Only narrow the dependency later when the read was completed in the execution that
-        // registered it. Otherwise the `KeyedReadRef` keeps the conservative dependency.
+        // Only convert the dependency later when the read was completed in the execution that
+        // registered it. Otherwise the conservative dependency is kept.
         let dependency = dependency
             .filter(|dependency| dependency.is_current_execution())
             .map(|dependency| {
@@ -263,7 +305,7 @@ where
                 };
                 (task, index, dependency)
             });
-        Ok(KeyedReadRef::new(read_ref, dependency))
+        Ok((read_ref, dependency))
     }
 }
 
