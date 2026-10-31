@@ -5,11 +5,21 @@ on:
     branches: ['canary', 'releases/**']
   pull_request:
     types: [opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      futureCompat:
+        description: 'Fail on Node.js deprecations'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 7 * * 0'
+
+run-name: ${{ (inputs.futureCompat || github.event_name == 'schedule') && format('Future compatibility - {0}', github.ref_name) || '' }}
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
   # but allow concurrent runs on push if they potentially use different source code
-  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}-${{ (inputs.futureCompat || github.event_name == 'schedule') && 'future-compat' || 'default' }}
   cancel-in-progress: true
 
 # NOTE: anything in `afterBuild` inherits environment variables defined in
@@ -20,6 +30,7 @@ env:
   COREPACK_VERSION: 0.34.7
   NODE_MAINTENANCE_VERSION: 20
   NODE_LTS_VERSION: 22
+  NEXT_TEST_FUTURE_COMPAT: ${{ (inputs.futureCompat || github.event_name == 'schedule') && '1' || '' }}
 
 jobs:
   optimize-ci:
@@ -42,6 +53,7 @@ jobs:
           persist-credentials: false
 
       - name: check for docs only change
+        if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
         id: docs-change
         run: |
           echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
@@ -49,6 +61,7 @@ jobs:
           echo 'EOF' >> $GITHUB_OUTPUT
 
       - name: check for turbopack only change
+        if: ${{ github.event_name == 'pull_request' }}
         id: turbopack-change
         run: |
           set -euo pipefail
@@ -70,7 +83,7 @@ jobs:
           fi
 
     outputs:
-      docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
+      docs-only: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
       # Pull requests only, so canary and release run all Webpack tests.
       turbopack-only: >-
@@ -80,6 +93,7 @@ jobs:
         }}
       rspack: >-
         ${{
+          inputs.futureCompat || github.event_name == 'schedule' ||
           steps.is-release.outputs.IS_RELEASE == 'true' || (
             github.event_name == 'pull_request' &&
             contains(github.event.pull_request.labels.*.name, 'Rspack')
@@ -139,6 +153,7 @@ jobs:
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       skipInstallBuild: 'yes'
       stepName: 'build-native'
       uploadNativeArtifact: true
@@ -153,6 +168,7 @@ jobs:
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
@@ -168,6 +184,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       stepName: 'build-next'
@@ -187,6 +204,8 @@ jobs:
           package-manager-cache: false
 
       - name: Setup pnpm
+        env:
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: |
           npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
@@ -213,6 +232,8 @@ jobs:
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - name: Install dependencies
+        env:
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: pnpm install
 
       - name: Fetch test timings
@@ -221,6 +242,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
 
       - name: Ensure test timings file exists
         run: |
@@ -246,6 +268,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
@@ -278,6 +301,8 @@ jobs:
           node-version: 20
           package-manager-cache: false
       - name: Setup corepack
+        env:
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
         run: |
           npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
@@ -285,6 +310,7 @@ jobs:
         run: node ./.github/actions/validate-docs-links/dist/index.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: ${{ env.NEXT_TEST_FUTURE_COMPAT == '1' && '--throw-deprecation' || '' }}
 
   check-types-precompiled:
     name: types and precompiled
@@ -295,6 +321,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       afterBuild: pnpm types-and-precompiled
       stepName: 'types-and-precompiled'
@@ -310,6 +337,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsRust: 'yes'
       needsNextest: 'yes'
       needsRustJsInstall: 'yes'
@@ -339,6 +367,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsRust: 'yes'
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
@@ -356,6 +385,8 @@ jobs:
       contents: read
       id-token: write
     uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
+    with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
     secrets: inherit
 
   rust-check:
@@ -368,6 +399,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
@@ -385,6 +417,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
@@ -409,26 +442,27 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && (github.event_name == 'push' || inputs.futureCompat || github.event_name == 'schedule') }}
 
     strategy:
       fail-fast: false
       matrix:
         mode:
-          - '-F turbopack=false'
-          - '-F turbopack=true'
+          - '--filter turbopack=false'
+          - '--filter turbopack=true'
         selector:
-          - '--scenario=heavy-npm-deps-dev -F page=homepage'
-          - '--scenario=heavy-npm-deps-build -F page=homepage'
-          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled -F page=homepage'
+          - '--scenario=heavy-npm-deps-dev --filter page=homepage'
+          - '--scenario=heavy-npm-deps-build --filter page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --filter page=homepage'
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
-          --datadog=ubuntu-latest-16-core-arm-oss \
+          ${{ !(inputs.futureCompat || github.event_name == 'schedule') && '--datadog=ubuntu-latest-16-core-arm-oss' || '' }} \
           ${{ matrix.mode }} \
           ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
@@ -443,6 +477,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       skipNativeBuild: 'yes'
       stepName: 'test-devlow'
       afterBuild: |
@@ -475,6 +510,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
@@ -519,6 +555,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
@@ -559,6 +596,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
@@ -608,6 +646,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
@@ -638,6 +677,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
@@ -671,6 +711,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsRust: 'yes'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
@@ -715,6 +756,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
@@ -741,11 +783,12 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
+        NEXT_TEST_MODE=dev NODE_OPTIONS="${NODE_OPTIONS:-} --experimental-transform-types" node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
 
     secrets: inherit
@@ -768,11 +811,12 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
+        NEXT_TEST_MODE=start NODE_OPTIONS="${NODE_OPTIONS:-} --experimental-transform-types" node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
 
     secrets: inherit
@@ -792,6 +836,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
@@ -803,7 +848,7 @@ jobs:
   test-new-tests-dev:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -815,6 +860,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
@@ -829,7 +875,7 @@ jobs:
   test-new-tests-start:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -841,6 +887,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
@@ -864,7 +911,7 @@ jobs:
     needs: ['optimize-ci', 'changes']
     # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
     # resolves its deploy target to `skipped` and never publishes a tarball.
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
     runs-on: ubuntu-latest
     # Outer bound only. The script gives up first, so a tarball that never
     # arrives is reported by it rather than by the runner killing the job.
@@ -897,7 +944,7 @@ jobs:
   test-new-tests-deploy:
     name: Test new and changed tests when deployed (${{ matrix.cache-components && 'cache components, ' || '' }}${{ matrix.builder }}, ${{ matrix.group }})
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -922,6 +969,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
         if [ "${{ matrix.cache-components }}" = "true" ]; then
@@ -971,6 +1019,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=dev
@@ -997,6 +1046,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export NEXT_TEST_MODE=dev
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -1023,6 +1073,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_TEST_MODE=start
@@ -1051,6 +1102,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         set -euo pipefail
         export NEXT_TEST_MODE=start
@@ -1102,6 +1154,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=start
@@ -1124,6 +1177,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       browser: 'firefox webkit'
       afterBuild: |
         # these all run without concurrency because they're heavier
@@ -1173,6 +1227,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
@@ -1212,6 +1267,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
