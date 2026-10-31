@@ -9787,6 +9787,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "turbo-bincode",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
