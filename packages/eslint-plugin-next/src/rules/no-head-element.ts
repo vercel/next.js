@@ -1,5 +1,6 @@
 import path from 'path'
 import { defineRule } from '../utils/define-rule'
+import { getRootDirs } from '../utils/get-root-dirs'
 
 const url = 'https://nextjs.org/docs/messages/no-head-element'
 
@@ -15,14 +16,27 @@ export default defineRule({
     schema: [],
   },
   create(context) {
+    const filename = path.resolve(context.filename)
+    let inAppDir: boolean | undefined
+
+    // Only lint the <head> element in pages directory. The check is relative to
+    // the project root, so unrelated `app` directories in the absolute path
+    // (e.g. `webapp/` or `/app/`) do not hide the violation.
+    const isInAppDir = () => {
+      if (inAppDir === undefined) {
+        inAppDir = getRootDirs(context).some((rootDir) =>
+          [path.join(rootDir, 'app'), path.join(rootDir, 'src', 'app')].some(
+            (appDir) =>
+              filename.startsWith(`${path.resolve(appDir)}${path.sep}`)
+          )
+        )
+      }
+
+      return inAppDir
+    }
+
     return {
       JSXOpeningElement(node) {
-        const paths = context.filename
-
-        const isInAppDir = () =>
-          paths.includes(`app${path.sep}`) ||
-          paths.includes(`app${path.posix.sep}`)
-        // Only lint the <head> element in pages directory
         if (node.name.name !== 'head' || isInAppDir()) {
           return
         }
