@@ -33,9 +33,13 @@ export function serveStatic(
 export const getContentType: (extWithoutDot: string) => string | null =
   'getType' in send.mime
     ? (extWithoutDot: string) => send.mime.getType(extWithoutDot)
-    : (extWithoutDot: string) => (send.mime as any).lookup(extWithoutDot)
+    : // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      (extWithoutDot: string) => (send.mime as any).lookup(extWithoutDot)
 
 export const getExtension: (contentType: string) => string | null =
   'getExtension' in send.mime
     ? (contentType: string) => send.mime.getExtension(contentType)
-    : (contentType: string) => (send.mime as any).extension(contentType)
+    : // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      (contentType: string) => (send.mime as any).extension(contentType)

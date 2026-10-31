@@ -1143,6 +1143,8 @@ export async function isPageStatic({
         }))
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
 
       let isStatic = false
@@ -1800,6 +1802,8 @@ export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
   )
 }
@@ -1808,6 +1812,8 @@ export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     layer && WEBPACK_LAYERS.GROUP.clientOnly.includes(layer as any)
   )
 }
@@ -1827,12 +1833,16 @@ export function isWebpackDefaultLayer(
 export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }
 
 export function isWebpackAppPagesLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 

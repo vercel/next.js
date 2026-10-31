@@ -141,6 +141,8 @@ export async function renderScriptError(
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if ((error as any).code === 'ENOENT') {
     return { finished: undefined }
   }

@@ -299,6 +299,8 @@ export const getCacheDirectories = process.env.NEXT_RSPACK
       return new Set(
         configs
           .map((cfg) => {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             const cache = cfg.cache as any
             if (typeof cache === 'object' && cache.type === 'persistent') {
               return cache.storage.directory
@@ -978,6 +980,8 @@ export default async function getBaseWebpackConfig(
           // If esmExternals is not same as default value, it represents customized usage
           ['esmExternals', config.experimental.esmExternals !== true],
           SWCBinaryTarget,
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         ].filter<[Feature, boolean]>(Boolean as any)
       )
     )
@@ -1603,6 +1607,8 @@ export default async function getBaseWebpackConfig(
                 resolve: {
                   fullySpecified: false,
                 },
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               } as any,
             ]
           : []),
@@ -2036,7 +2042,7 @@ export default async function getBaseWebpackConfig(
       dev &&
         isClient &&
         (isRspack
-          ? // eslint-disable-next-line
+          ? // eslint-disable-next-line @next/internal/typechecked-require
             new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
@@ -2239,6 +2245,8 @@ export default async function getBaseWebpackConfig(
           dir,
           defaultOverrides,
         }),
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     ].filter(Boolean as any as ExcludesFalse),
   }
 
@@ -2464,6 +2472,8 @@ export default async function getBaseWebpackConfig(
         directory: path.join(distDir, 'cache', 'rspack', rspackCacheKey),
       },
       version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}|${rspackCacheKey}`,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any
   }
 
@@ -2543,6 +2553,8 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
@@ -2624,6 +2636,8 @@ export default async function getBaseWebpackConfig(
       webpack5Config.experiments.lazyCompilation.entries = false
     }
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
@@ -2741,7 +2755,11 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if (typeof (config as any).webpackDevMiddleware === 'function') {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
@@ -2812,6 +2830,8 @@ export default async function getBaseWebpackConfig(
         if (!r || typeof r !== 'object') return
         if (Array.isArray(r.oneOf)) {
           r.oneOf = r.oneOf.filter(
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
           )
         }
@@ -2820,6 +2840,8 @@ export default async function getBaseWebpackConfig(
     if (webpackConfig.plugins?.length) {
       // Disable CSS Extraction Plugin
       webpackConfig.plugins = webpackConfig.plugins.filter(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (p) => (p as any).__next_css_remove !== true
       )
     }
@@ -2827,6 +2849,8 @@ export default async function getBaseWebpackConfig(
       // Disable CSS Minifier
       webpackConfig.optimization.minimizer =
         webpackConfig.optimization.minimizer.filter(
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (e) => (e as any).__next_css_remove !== true
         )
     }

@@ -444,6 +444,26 @@ export default defineConfig([
     },
   },
   {
+    // Test fixture apps are left out: their casts are often deliberate misuse
+    // of an API, and tests snapshot the fixture's source lines in error
+    // output, so a disable comment would shift them.
+    files: [
+      'packages/**/*.{ts,tsx,mts}',
+      'test/**/*.test.{ts,tsx}',
+      'test/lib/**/*.{ts,tsx}',
+    ],
+    plugins: {
+      '@next/internal': nextEslintPluginInternal,
+    },
+    rules: {
+      '@next/internal/no-as-any': 'error',
+      '@next/internal/require-disable-reason': [
+        'error',
+        { rules: ['@next/internal/no-as-any'] },
+      ],
+    },
+  },
+  {
     files: [
       'packages/next/src/server/**/*.js',
       'packages/next/src/server/**/*.jsx',

@@ -19,6 +19,8 @@ function readSsrError(): (Error & { digest?: string }) | null {
     const digest = ssrErrorTemplateTag.getAttribute('data-next-error-digest')
     const error = new Error(message)
     if (digest) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(error as any).digest = digest
     }
     // Skip Next.js SSR'd internal errors that which will be handled by the error boundaries.

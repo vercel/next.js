@@ -217,9 +217,10 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
               if (!feature) {
                 continue
               }
-              const connections = (
-                compilation as any
-              ).moduleGraph.getIncomingConnections(module)
+              const connections =
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
+                (compilation as any).moduleGraph.getIncomingConnections(module)
               const originModules = findUniqueOriginModulesInConnections(
                 connections,
                 module

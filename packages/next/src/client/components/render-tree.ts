@@ -2187,6 +2187,8 @@ function createDeferredRsc<
   pendingRsc.status = 'pending'
   pendingRsc.resolve = (value: T, responseDebugInfo: Array<any> | null) => {
     if (pendingRsc.status === 'pending') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const fulfilledRsc: FulfilledDeferredRsc<T> = pendingRsc as any
       fulfilledRsc.status = 'fulfilled'
       fulfilledRsc.value = value
@@ -2199,6 +2201,8 @@ function createDeferredRsc<
   }
   pendingRsc.reject = (error: any, responseDebugInfo: Array<any> | null) => {
     if (pendingRsc.status === 'pending') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const rejectedRsc: RejectedDeferredRsc<T> = pendingRsc as any
       rejectedRsc.status = 'rejected'
       rejectedRsc.reason = error

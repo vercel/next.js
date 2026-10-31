@@ -848,6 +848,8 @@ describe('local span recording', () => {
 
   it('groups local spans by existing async storage without adding extra attributes', () => {
     jest.isolateModules(() => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const previousAsyncLocalStorage = (globalThis as any).AsyncLocalStorage
       let setIsolatedSpanRecorderForTest:
         | typeof setSpanRecorderForTest
@@ -855,6 +857,8 @@ describe('local span recording', () => {
       try {
         const { AsyncLocalStorage } =
           require('node:async_hooks') as typeof import('node:async_hooks')
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
         const { workAsyncStorage } =
@@ -937,8 +941,12 @@ describe('local span recording', () => {
       } finally {
         setIsolatedSpanRecorderForTest?.(undefined)
         if (previousAsyncLocalStorage === undefined) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           delete (globalThis as any).AsyncLocalStorage
         } else {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(globalThis as any).AsyncLocalStorage = previousAsyncLocalStorage
         }
       }

@@ -16,7 +16,11 @@ export async function proxyRequest(
   proxyTimeout?: number | null
 ) {
   const { query } = parsedUrl
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (parsedUrl as any).query
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   parsedUrl.search = stringifyQuery(req as any, query)
 
   // Keep in mind that a WHATWG URL's hostname and the parsedUrl's hostname

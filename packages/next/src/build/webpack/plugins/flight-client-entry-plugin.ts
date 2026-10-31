@@ -1076,6 +1076,8 @@ export class FlightClientEntryPlugin {
       } else {
         const entry = compilation.entries.get(options.name!)!
         entry.includeDependencies.push(dependency)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         compilation.hooks.addEntry.call(entry as any, options)
         compilation.addModuleTree(
           {

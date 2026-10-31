@@ -34,6 +34,8 @@ class FakeAsyncLocalStorage<Store extends {}>
 }
 
 const maybeGlobalAsyncLocalStorage =
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
 
 export function createAsyncLocalStorage<

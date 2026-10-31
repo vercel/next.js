@@ -25,6 +25,8 @@ describe('server-hmr', () => {
           window.fetch = (input, init) => {
             const headers = new Headers(init?.headers)
             if (headers.get('next-hmr-refresh') === '1') {
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               ;(window as any).__didBlockHmrRequest = true
               return new Promise(() => {})
             }
@@ -44,6 +46,8 @@ describe('server-hmr', () => {
 
         await retry(async () => {
           expect(
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             await browser.eval(() => (window as any).__didBlockHmrRequest)
           ).toBe(true)
         })

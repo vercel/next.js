@@ -175,6 +175,8 @@ class CommandImpl {
       const report = await pidusage(pid)
       const memUsage = Object.values(report)
         .filter((x) => x)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         .map((x) => (x as any).memory)
         .reduce((a, b) => a + b, 0)
       await reportMeasurement(metricName, memUsage, 'bytes', options)

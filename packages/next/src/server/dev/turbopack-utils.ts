@@ -483,6 +483,8 @@ export async function handleRouteType({
       break
     }
     default: {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       throw new Error(`unknown route type ${(route as any).type} for ${page}`)
     }
   }
@@ -783,6 +785,8 @@ export async function handleEntrypoints({
 
       if (dev && middlewareConfig) {
         dev.serverFields.middleware = {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           match: null as any,
           page: '/',
           matchers: middlewareConfig.matchers,

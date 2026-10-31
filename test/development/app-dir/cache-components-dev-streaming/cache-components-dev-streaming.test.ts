@@ -507,6 +507,8 @@ function observeNodeAppearances(browser: Playwright, ids: string[]) {
     browser.eval((ids: string[]) => {
       const seen: SeenCounts = Object.fromEntries(ids.map((id) => [id, 0]))
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).__seenNodes = seen
       const check = (node: Node) => {
         if (!(node instanceof Element)) {
@@ -525,6 +527,8 @@ function observeNodeAppearances(browser: Playwright, ids: string[]) {
 
   const getResult = async (): Promise<SeenCounts> => {
     const seen: SeenCounts | undefined = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).__seenNodes
     )
     if (!seen) {

@@ -145,10 +145,16 @@ if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
 }
 
 if (testMode === 'dev') {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any).isNextDev = true
 } else if (testMode === 'deploy') {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any).isNextDeploy = true
 } else {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any).isNextStart = true
 }
 

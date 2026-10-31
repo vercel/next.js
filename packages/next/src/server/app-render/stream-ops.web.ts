@@ -99,6 +99,8 @@ export function continueFizzStream(
   opts: ContinueFizzStreamOptions
 ): Promise<AnyStream> {
   return webContinueFizzStream(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     renderStream as ReadableStream<Uint8Array> as any,
     {
       ...opts,

@@ -431,7 +431,9 @@ export default abstract class Server<
     | ServerComponentsHmrCache
     | undefined {
     return this.nextConfig.experimental.serverComponentsHmrCache
-      ? (globalThis as any).__serverComponentsHmrCache
+      ? // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
+        (globalThis as any).__serverComponentsHmrCache
       : undefined
   }
 
@@ -519,6 +521,8 @@ export default abstract class Server<
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
       this.nextConfig.supportsImmutableAssets || !this.deploymentId
         ? ''
@@ -1603,6 +1607,8 @@ export default abstract class Server<
       // be passed down for edge functions and the fetch disk
       // cache can be leveraged locally
       if (
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         !(this.serverOptions as any).webServerConfig &&
         !getRequestMeta(req, 'incrementalCache')
       ) {
@@ -1614,6 +1620,8 @@ export default abstract class Server<
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         // This is needed for pages router to leverage unstable_cache
         // TODO: re-work this handling to not use global and use a AsyncStore
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
@@ -1728,6 +1736,8 @@ export default abstract class Server<
         if (finished) return
 
         const err = new Error()
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(err as any).result = {
           response: new Response(null, {
             headers: {
@@ -1735,6 +1745,8 @@ export default abstract class Server<
             },
           }),
         }
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(err as any).bubble = true
         throw err
       }
@@ -2594,6 +2606,8 @@ export default abstract class Server<
       !!(
         getRequestMeta(req, 'isNextDataReq') ||
         (req.headers['x-nextjs-data'] &&
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (this.serverOptions as any).webServerConfig)
       ) &&
       (isSSG || hasServerProps)

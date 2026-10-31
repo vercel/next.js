@@ -97,7 +97,9 @@ export default class PageLoader {
     ) {
       const middlewareMatchers = process.env.__NEXT_MIDDLEWARE_MATCHERS
       window.__MIDDLEWARE_MATCHERS = middlewareMatchers
-        ? (middlewareMatchers as any as ProxyMatcher[])
+        ? // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
+          (middlewareMatchers as any as ProxyMatcher[])
         : undefined
       return window.__MIDDLEWARE_MATCHERS
       // Turbopack production

@@ -1245,6 +1245,8 @@ async function startWatcher(
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             match: null as any,
             page: '/',
             matchers: middlewareMatchers,

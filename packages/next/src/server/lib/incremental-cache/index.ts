@@ -97,21 +97,27 @@ function isBodyByteSequence(
 }
 
 function isBodyReadableStream(body: Body): body is ReadableStream {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return typeof (body as any).getReader === 'function'
 }
 
 function isBodyFormDataOrURLSearchParams(
   body: Body
 ): body is FormData | URLSearchParams {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return typeof (body as any).keys === 'function'
 }
 
 function isBodyBlob(body: Body): body is Blob {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return typeof (body as any).arrayBuffer === 'function'
 }
 
 export class CacheHandler {
-  // eslint-disable-next-line
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
   constructor(_ctx: CacheHandlerContext) {}
 
   public async get(
@@ -121,6 +127,8 @@ export class CacheHandler {
       | GetIncrementalResponseCacheHandlerContext
       | GetIncrementalImageCacheContext
   ): Promise<CacheHandlerValue | null> {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return {} as any
   }
 
@@ -394,6 +402,8 @@ export class IncrementalCache implements IncrementalCacheType {
     if (body) {
       if (isBodyByteSequence(body)) {
         bodyChunks.push(`bytes:${toHex(body)}`)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = body
       } else if (isBodyReadableStream(body)) {
         const readableBody = body
@@ -423,6 +433,8 @@ export class IncrementalCache implements IncrementalCacheType {
           }
 
           bodyChunks.push(`bytes:${toHex(arrayBuffer)}`)
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(init as any)._ogBody = arrayBuffer
         } catch (err) {
           console.error('Problem reading body', err)
@@ -434,6 +446,8 @@ export class IncrementalCache implements IncrementalCacheType {
               'multipart/form-data; boundary='
             : 'application/x-www-form-urlencoded;charset=UTF-8'
         const iterable = body
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = body
         // Separate, tagged chunks so `["a","b"]` can't collide with `["a,b"]`.
         for (const [key, val] of iterable.entries()) {
@@ -454,10 +468,14 @@ export class IncrementalCache implements IncrementalCacheType {
         const blob = body
         const arrayBuffer = await blob.arrayBuffer()
         bodyChunks.push('blob', blob.type, `bytes:${toHex(arrayBuffer)}`)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
         bodyType = blob.type
       } else if (typeof body === 'string') {
         bodyChunks.push(`str:${body}`)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = body
         bodyType = 'text/plain;charset=UTF-8'
       } else {

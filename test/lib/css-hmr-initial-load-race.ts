@@ -39,6 +39,8 @@ export async function assertCssHmrStartupRecovery(
     const browser = await next.browser(pathname, {
       async beforePageLoad(page: Page) {
         await page.addInitScript(() => {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(window as any).__cssRaceDocumentId = crypto.randomUUID()
         })
         page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -107,7 +109,11 @@ export async function assertCssHmrStartupRecovery(
               await response.finished()
               initialCss = await response.text()
               const snapshot = await page.evaluate(() => ({
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
                 documentId: (window as any).__cssRaceDocumentId,
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
                 version: (window as any).__nextHmrInitialVersion,
               }))
               originalDocumentId = snapshot.documentId

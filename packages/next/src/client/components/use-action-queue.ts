@@ -85,6 +85,8 @@ const __DEV__ = process.env.NODE_ENV !== 'production'
 const promisesWithDebugInfo: WeakMap<
   Promise<AppRouterState>,
   Promise<AppRouterState> & { _debugInfo?: Array<unknown> }
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
 > = __DEV__ ? new WeakMap() : (null as any)
 
 export function useActionQueue(

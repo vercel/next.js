@@ -24,6 +24,8 @@ function replaceRequestBody<T extends IncomingMessage>(
   stream: Readable
 ): T {
   for (const key in stream) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let v = stream[key as keyof Readable] as any
     if (typeof v === 'function') {
       v = v.bind(base)

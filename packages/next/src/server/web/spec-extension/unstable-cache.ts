@@ -109,6 +109,8 @@ export function unstable_cache<T extends Callback>(
     const maybeIncrementalCache:
       | import('../../lib/incremental-cache').IncrementalCache
       | undefined =
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       workStore?.incrementalCache || (globalThis as any).__incrementalCache
 
     if (!maybeIncrementalCache) {

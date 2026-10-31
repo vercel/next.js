@@ -468,15 +468,21 @@ export async function handler(
       headers: toNodeOutgoingHttpHeaders(request.headers),
       nextConfig: {
         basePath: process.env.__NEXT_BASE_PATH,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         i18n: process.env.__NEXT_I18N_CONFIG as any,
         trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
         experimental: {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           cacheLife: process.env.__NEXT_CACHE_LIFE as any,
           authInterrupts: Boolean(
             process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
           ),
-          clientParamParsingOrigins: process.env
-            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+          clientParamParsingOrigins:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
         },
       },
       page: {

@@ -171,6 +171,8 @@ export function createWebpackAliases({
           ],
 
           // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           'private-next-empty-module': false as any,
 
           // In the browser bundle, swap every module that has a `.browser` sibling

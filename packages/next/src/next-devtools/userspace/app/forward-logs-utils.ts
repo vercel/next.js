@@ -42,6 +42,8 @@ export function preLogSerializationClone<T>(
   }
 
   try {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if (typeof (value as any).then === 'function') return PROMISE_MARKER
   } catch {
     return UNAVAILABLE_MARKER
@@ -66,6 +68,8 @@ export function preLogSerializationClone<T>(
     seen.set(value as object, out)
     for (const key of Object.keys(value as object)) {
       try {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         out[key] = preLogSerializationClone((value as any)[key], seen)
       } catch {
         out[key] = UNAVAILABLE_MARKER

@@ -67,6 +67,8 @@ describe('GS(S)P Redirect Support', () => {
       },
     })
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     const { pathname } = new URL(initialHref)
@@ -87,6 +89,8 @@ describe('GS(S)P Redirect Support', () => {
       },
     })
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     const { pathname } = new URL(initialHref)
@@ -107,6 +111,8 @@ describe('GS(S)P Redirect Support', () => {
       },
     })
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     const { pathname } = new URL(initialHref)
@@ -127,6 +133,8 @@ describe('GS(S)P Redirect Support', () => {
       },
     })
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     const { pathname } = new URL(initialHref)
@@ -147,6 +155,8 @@ describe('GS(S)P Redirect Support', () => {
       },
     })
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     const { pathname } = new URL(initialHref)
@@ -168,6 +178,8 @@ describe('GS(S)P Redirect Support', () => {
         },
       })
       const initialHref = await browser.eval(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         () => (window as any).initialHref as string
       )
       const { pathname } = new URL(initialHref)
@@ -181,6 +193,8 @@ describe('GS(S)P Redirect Support', () => {
     await browser.waitForElementByCss('#index')
 
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     const { pathname } = new URL(initialHref)
@@ -194,6 +208,8 @@ describe('GS(S)P Redirect Support', () => {
       await browser.waitForElementByCss('#index')
 
       const initialHref = await browser.eval(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         () => (window as any).initialHref as string
       )
       const { pathname } = new URL(initialHref)
@@ -210,6 +226,8 @@ describe('GS(S)P Redirect Support', () => {
     })
 
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     expect(initialHref).toBeFalsy()
@@ -228,6 +246,8 @@ describe('GS(S)P Redirect Support', () => {
     })
 
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     expect(initialHref).toBeFalsy()
@@ -242,6 +262,8 @@ describe('GS(S)P Redirect Support', () => {
     })
 
     const initialHref = await browser.eval(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       () => (window as any).initialHref as string
     )
     expect(initialHref).toBeFalsy()

@@ -41,12 +41,18 @@ export default function transformer(
       if (
         defaultReactDomImport &&
         node.callee.type === 'MemberExpression' &&
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (node.callee.object as any).name === defaultReactDomImport &&
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (node.callee.property as any).name === 'render'
       ) {
         found = true
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if (hasRenderImport && (node.callee as any).name === 'render') {
         found = true
       }

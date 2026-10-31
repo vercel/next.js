@@ -14,6 +14,8 @@ describe('sandbox resource managers', () => {
         [0, 1, 2].map(
           () =>
             new Promise<void>((resolve) => {
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               timeoutsManager.add([context, resolve, 0] as any)
             })
         )
@@ -32,6 +34,8 @@ describe('sandbox resource managers', () => {
   it('clears timeouts when they are removed explicitly', () => {
     const context = {}
     const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const timeout = timeoutsManager.add([context, () => {}, 1000] as any)
 
     try {
@@ -62,6 +66,8 @@ describe('sandbox resource managers', () => {
         },
         0,
         callbackArg,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
       ] as any)
     })
 

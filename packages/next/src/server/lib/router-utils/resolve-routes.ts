@@ -844,8 +844,12 @@ export function getResolveRoutes(
           })
 
           const { query } = parsedDestination
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           delete (parsedDestination as any).query
 
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           parsedDestination.search = stringifyQuery(req as any, query)
 
           parsedDestination.pathname = normalizeRepeatedSlashes(

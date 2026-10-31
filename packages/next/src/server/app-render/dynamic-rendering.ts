@@ -301,6 +301,8 @@ const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
 
 function createPrerenderInterruptedError(message: string): Error {
   const error = new Error(message)
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(error as any).digest = NEXT_PRERENDER_INTERRUPTED
   return error
 }
@@ -315,6 +317,8 @@ export function isPrerenderInterruptedError(
   return (
     typeof error === 'object' &&
     error !== null &&
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (error as any).digest === NEXT_PRERENDER_INTERRUPTED &&
     'name' in error &&
     'message' in error &&

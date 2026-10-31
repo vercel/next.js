@@ -1055,4 +1055,6 @@ const InternalFunctionDocument: DocumentType =
       </Html>
     )
   }
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument

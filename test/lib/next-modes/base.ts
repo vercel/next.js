@@ -638,6 +638,8 @@ export class NextInstance {
         ...process.env,
         ...this.env,
         ...env,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         NODE_ENV: this.env.NODE_ENV || ('' as any),
         PORT: this.forcedPort ?? '0',
         __NEXT_TEST_MODE: 'e2e',
@@ -795,6 +797,8 @@ export class NextInstance {
         ...process.env,
         ...this.env,
         ...env,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         NODE_ENV: (env?.NODE_ENV ?? this.env.NODE_ENV ?? '') as any,
         __NEXT_TEST_MODE: 'e2e',
       },
@@ -871,6 +875,8 @@ export class NextInstance {
               exitSignal ? ` (signal ${exitSignal})` : ''
             }`
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(err as any).result = result
           reject(err)
           return

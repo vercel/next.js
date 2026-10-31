@@ -30,6 +30,8 @@ export function postNextTelemetryPayload(payload: Payload, signal?: any) {
         }).then((res) => {
           if (!res.ok) {
             const err = new Error(res.statusText)
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             ;(err as any).response = res
             throw err
           }

@@ -290,6 +290,8 @@ export function getDefineEnv({
     'process.env.__NEXT_CASE_SENSITIVE_ROUTES': Boolean(
       config.experimental.caseSensitiveRoutes
     ),
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     'process.env.__NEXT_REWRITES': rewrites as any,
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,

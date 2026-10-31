@@ -12,6 +12,8 @@ if (!process.env.TEST_FILE_PATH) {
   process.env.TEST_FILE_PATH = module.parent!.filename
 }
 
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
 
 let browserTeardown: (() => Promise<void>)[] = []
@@ -142,6 +144,8 @@ export default async function webdriver(
     userAgent,
     permissions
   )
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(appPortOrUrl, url, 'localhost')
@@ -171,7 +175,9 @@ export default async function webdriver(
           // if it's not a Next.js app return
           if (
             !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
-            // @ts-ignore next exists on window if it's a Next.js page.
+            // next exists on window if it's a Next.js page.
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             typeof ((window as any).next && (window as any).next.version) ===
               'undefined'
           ) {
@@ -181,11 +187,15 @@ export default async function webdriver(
 
           // TODO: should we also ensure router.isReady is true
           // by default before resolving?
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           if ((window as any).__NEXT_HYDRATED) {
             console.log('Next.js page already hydrated')
             callback()
           } else {
             let timeout = setTimeout(callback, 10 * 1000)
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             ;(window as any).__NEXT_HYDRATED_CB = function () {
               clearTimeout(timeout)
               console.log('Next.js hydrate callback fired')

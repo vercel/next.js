@@ -22,6 +22,8 @@ const matchNativeWin32Path = /^[A-Z]:[/\\]|^\\\\/i
 
 function unescape(str: string) {
   return str.replace(unescapeRegExp, (_, escaped, escapedWhitespace) => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const high = (`0x${escaped}` as any) - 0x10000
 
     // NaN means non-codepoint

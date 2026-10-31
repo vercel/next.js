@@ -13,6 +13,8 @@ try {
   const _random = Math.random
   Math.random = function random() {
     io(expression, 'random')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return _random.apply(null, arguments as any)
 
     // We bind here to alter the `toString` printing to match `Math.random`'s native `toString`.
