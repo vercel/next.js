@@ -34,6 +34,7 @@ pub use self::{
     code_module_ids_and_paths::{
         BatchGroupCodeModuleIdsAndPaths, CodeModuleIdAndPath, CodeModuleIdsAndPaths,
         batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
+        minified_module_factory,
     },
     content::{ChunkMinification, EcmascriptChunkContent},
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
