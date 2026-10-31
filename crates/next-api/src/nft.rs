@@ -47,7 +47,7 @@ impl EndpointTraceResult {
                 .chain(
                     self.modules
                         .iter()
-                        .map(async |m| Ok(module_data.idents.get(m).await?.unwrap().path.clone()))
+                        .map(async |m| traced_module_path(*module_data.idents, **m).owned().await)
                         .try_join()
                         .await?,
                 )
@@ -101,11 +101,7 @@ pub async fn trace_endpoint(
             .iter()
             .copied()
             .map(async |module| {
-                let entry = module_paths
-                    .get(&module)
-                    .await?
-                    .context("missing path for module")?;
-                let referenced_chunk_path = &entry.path;
+                let referenced_chunk_path = &traced_module_path(*module_paths, *module).await?;
 
                 if referenced_chunk_path.has_extension(".map") {
                     return Ok(None);
@@ -415,6 +411,38 @@ pub struct TracedModuleDataHashes(FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef
 pub struct TracedModuleData {
     pub idents: ResolvedVc<TracedModuleDataIdents>,
     pub hashes: ResolvedVc<TracedModuleDataHashes>,
+}
+
+/// The traced path of a single module.
+///
+/// The idents map is a single task that's shared by every endpoint. Reading it once per module
+/// here, instead of once per (endpoint, module), keeps every endpoint from contending on that one
+/// task's lock. Endpoints read this per-module task instead, which spreads the reads across
+/// modules. It still only depends on this module's key, so invalidation stays per module.
+#[turbo_tasks::function]
+pub async fn traced_module_path(
+    idents: ResolvedVc<TracedModuleDataIdents>,
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<FileSystemPath>> {
+    let ident = idents
+        .get(&module)
+        .await?
+        .context("missing path for module")?;
+    Ok(ident.path.clone().cell())
+}
+
+/// The content hash of a single traced module. See [`traced_module_path`] for why this is a
+/// separate per-module task.
+#[turbo_tasks::function]
+pub async fn traced_module_hash(
+    hashes: ResolvedVc<TracedModuleDataHashes>,
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<RcStr>> {
+    let hash = hashes
+        .get(&module)
+        .await?
+        .context("missing hash for module")?;
+    Ok(Vc::cell((**hash).clone()))
 }
 
 /// This caches the paths for all modules in the graph without eagerly hashing their contents.
