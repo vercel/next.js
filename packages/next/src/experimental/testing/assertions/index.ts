@@ -1010,10 +1010,7 @@ export async function createAssertionRuntime(options: {
           )
         },
         getOwnPropertyDescriptor(target, key) {
-          if (
-            key === '__vitest_poll_takeover__' ||
-            (prototypeCallable && (key === 'length' || key === 'name'))
-          )
+          if (prototypeCallable || key === '__vitest_poll_takeover__')
             return Reflect.getOwnPropertyDescriptor(target, key)
           assertStrictScope(invocationScope())
           throw new Error(

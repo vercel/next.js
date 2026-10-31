@@ -1,0 +1,808 @@
+{
+  "cases": [
+    {
+      "name": "native callable own descriptors enumerate exact fields without invoking accessors",
+      "state": "passed"
+    },
+    {
+      "name": "retained native descriptor identities remain exact in later cases",
+      "state": "passed"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "native",
+      "rows": [
+        {
+          "name": "equal",
+          "inspection": {
+            "ownKeys": {
+              "ok": true,
+              "value": ["length", "name", "prototype"]
+            },
+            "enumerableKeys": {
+              "ok": true,
+              "value": []
+            },
+            "ownDescriptors": {
+              "ok": true,
+              "value": [
+                [
+                  "length",
+                  {
+                    "descriptorKeys": [
+                      "get",
+                      "set",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": null,
+                    "valueType": null,
+                    "primitiveValue": null,
+                    "getType": "function",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "name",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": false,
+                    "valueType": "string",
+                    "primitiveValue": "methodWrapper",
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "prototype",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": false,
+                    "enumerable": false,
+                    "writable": true,
+                    "valueType": "object",
+                    "primitiveValue": null,
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": true
+                  }
+                ]
+              ]
+            },
+            "absent": {
+              "ok": true,
+              "value": true
+            },
+            "symbolAbsent": {
+              "ok": true,
+              "value": true
+            }
+          }
+        },
+        {
+          "name": "assert",
+          "inspection": {
+            "ownKeys": {
+              "ok": true,
+              "value": ["length", "name"]
+            },
+            "enumerableKeys": {
+              "ok": true,
+              "value": []
+            },
+            "ownDescriptors": {
+              "ok": true,
+              "value": [
+                [
+                  "length",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": false,
+                    "valueType": "number",
+                    "primitiveValue": 6,
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "name",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": false,
+                    "valueType": "string",
+                    "primitiveValue": "assert",
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ]
+              ]
+            },
+            "absent": {
+              "ok": true,
+              "value": true
+            },
+            "symbolAbsent": {
+              "ok": true,
+              "value": true
+            }
+          }
+        },
+        {
+          "name": "native",
+          "inspection": {
+            "ownKeys": {
+              "ok": true,
+              "value": ["length", "name", "prototype"]
+            },
+            "enumerableKeys": {
+              "ok": true,
+              "value": []
+            },
+            "ownDescriptors": {
+              "ok": true,
+              "value": [
+                [
+                  "length",
+                  {
+                    "descriptorKeys": [
+                      "get",
+                      "set",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": null,
+                    "valueType": null,
+                    "primitiveValue": null,
+                    "getType": "function",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "name",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": false,
+                    "valueType": "string",
+                    "primitiveValue": "methodWrapper",
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "prototype",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": false,
+                    "enumerable": false,
+                    "writable": true,
+                    "valueType": "object",
+                    "primitiveValue": null,
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": true
+                  }
+                ]
+              ]
+            },
+            "absent": {
+              "ok": true,
+              "value": true
+            },
+            "symbolAbsent": {
+              "ok": true,
+              "value": true
+            }
+          }
+        },
+        {
+          "name": "tagged",
+          "inspection": {
+            "ownKeys": {
+              "ok": true,
+              "value": ["length", "name", "prototype"]
+            },
+            "enumerableKeys": {
+              "ok": true,
+              "value": []
+            },
+            "ownDescriptors": {
+              "ok": true,
+              "value": [
+                [
+                  "length",
+                  {
+                    "descriptorKeys": [
+                      "get",
+                      "set",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": null,
+                    "valueType": null,
+                    "primitiveValue": null,
+                    "getType": "function",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "name",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": true,
+                    "enumerable": false,
+                    "writable": false,
+                    "valueType": "string",
+                    "primitiveValue": "methodWrapper",
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": null
+                  }
+                ],
+                [
+                  "prototype",
+                  {
+                    "descriptorKeys": [
+                      "value",
+                      "writable",
+                      "enumerable",
+                      "configurable"
+                    ],
+                    "configurable": false,
+                    "enumerable": false,
+                    "writable": true,
+                    "valueType": "object",
+                    "primitiveValue": null,
+                    "getType": "undefined",
+                    "setType": "undefined",
+                    "samePrototypeValue": true
+                  }
+                ]
+              ]
+            },
+            "absent": {
+              "ok": true,
+              "value": true
+            },
+            "symbolAbsent": {
+              "ok": true,
+              "value": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "authored",
+      "enumeration": {
+        "ownKeys": {
+          "ok": true,
+          "value": [
+            "length",
+            "name",
+            "prototype",
+            "authoredReadonly",
+            "authoredAccessor",
+            "Symbol(next.chai.descriptor.field)"
+          ]
+        },
+        "enumerableKeys": {
+          "ok": true,
+          "value": ["authoredReadonly", "authoredAccessor"]
+        },
+        "ownDescriptors": {
+          "ok": true,
+          "value": [
+            [
+              "length",
+              {
+                "descriptorKeys": ["get", "set", "enumerable", "configurable"],
+                "configurable": true,
+                "enumerable": false,
+                "writable": null,
+                "valueType": null,
+                "primitiveValue": null,
+                "getType": "function",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "name",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": true,
+                "enumerable": false,
+                "writable": false,
+                "valueType": "string",
+                "primitiveValue": "methodWrapper",
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "prototype",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": false,
+                "enumerable": false,
+                "writable": true,
+                "valueType": "object",
+                "primitiveValue": null,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": true
+              }
+            ],
+            [
+              "authoredReadonly",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": false,
+                "enumerable": true,
+                "writable": false,
+                "valueType": "object",
+                "primitiveValue": null,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "authoredAccessor",
+              {
+                "descriptorKeys": ["get", "set", "enumerable", "configurable"],
+                "configurable": true,
+                "enumerable": true,
+                "writable": null,
+                "valueType": null,
+                "primitiveValue": null,
+                "getType": "function",
+                "setType": "function",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "Symbol(next.chai.descriptor.field)",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": true,
+                "enumerable": true,
+                "writable": false,
+                "valueType": "number",
+                "primitiveValue": 73,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ]
+          ]
+        },
+        "absent": {
+          "ok": true,
+          "value": true
+        },
+        "symbolAbsent": {
+          "ok": true,
+          "value": true
+        }
+      },
+      "descriptorIdentity": {
+        "ok": true,
+        "value": {
+          "marker": true,
+          "getter": true,
+          "setter": true,
+          "symbol": true,
+          "prototype": true,
+          "noGetterReads": true
+        }
+      },
+      "reads": 0,
+      "writes": 0
+    },
+    {
+      "kind": "later",
+      "sameNative": true,
+      "enumeration": {
+        "ownKeys": {
+          "ok": true,
+          "value": [
+            "length",
+            "name",
+            "prototype",
+            "authoredReadonly",
+            "authoredAccessor",
+            "Symbol(next.chai.descriptor.field)"
+          ]
+        },
+        "enumerableKeys": {
+          "ok": true,
+          "value": ["authoredReadonly", "authoredAccessor"]
+        },
+        "ownDescriptors": {
+          "ok": true,
+          "value": [
+            [
+              "length",
+              {
+                "descriptorKeys": ["get", "set", "enumerable", "configurable"],
+                "configurable": true,
+                "enumerable": false,
+                "writable": null,
+                "valueType": null,
+                "primitiveValue": null,
+                "getType": "function",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "name",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": true,
+                "enumerable": false,
+                "writable": false,
+                "valueType": "string",
+                "primitiveValue": "methodWrapper",
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "prototype",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": false,
+                "enumerable": false,
+                "writable": true,
+                "valueType": "object",
+                "primitiveValue": null,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": true
+              }
+            ],
+            [
+              "authoredReadonly",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": false,
+                "enumerable": true,
+                "writable": false,
+                "valueType": "object",
+                "primitiveValue": null,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "authoredAccessor",
+              {
+                "descriptorKeys": ["get", "set", "enumerable", "configurable"],
+                "configurable": true,
+                "enumerable": true,
+                "writable": null,
+                "valueType": null,
+                "primitiveValue": null,
+                "getType": "function",
+                "setType": "function",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "Symbol(next.chai.descriptor.field)",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": true,
+                "enumerable": true,
+                "writable": false,
+                "valueType": "number",
+                "primitiveValue": 73,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ]
+          ]
+        },
+        "absent": {
+          "ok": true,
+          "value": true
+        },
+        "symbolAbsent": {
+          "ok": true,
+          "value": true
+        }
+      },
+      "descriptorIdentity": {
+        "ok": true,
+        "value": {
+          "marker": true,
+          "getter": true,
+          "setter": true,
+          "symbol": true,
+          "prototype": true,
+          "noGetterReads": true
+        }
+      },
+      "reads": 0,
+      "writes": 0
+    },
+    {
+      "kind": "afterAll",
+      "enumeration": {
+        "ownKeys": {
+          "ok": true,
+          "value": [
+            "length",
+            "name",
+            "prototype",
+            "authoredReadonly",
+            "authoredAccessor",
+            "Symbol(next.chai.descriptor.field)"
+          ]
+        },
+        "enumerableKeys": {
+          "ok": true,
+          "value": ["authoredReadonly", "authoredAccessor"]
+        },
+        "ownDescriptors": {
+          "ok": true,
+          "value": [
+            [
+              "length",
+              {
+                "descriptorKeys": ["get", "set", "enumerable", "configurable"],
+                "configurable": true,
+                "enumerable": false,
+                "writable": null,
+                "valueType": null,
+                "primitiveValue": null,
+                "getType": "function",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "name",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": true,
+                "enumerable": false,
+                "writable": false,
+                "valueType": "string",
+                "primitiveValue": "methodWrapper",
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "prototype",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": false,
+                "enumerable": false,
+                "writable": true,
+                "valueType": "object",
+                "primitiveValue": null,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": true
+              }
+            ],
+            [
+              "authoredReadonly",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": false,
+                "enumerable": true,
+                "writable": false,
+                "valueType": "object",
+                "primitiveValue": null,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "authoredAccessor",
+              {
+                "descriptorKeys": ["get", "set", "enumerable", "configurable"],
+                "configurable": true,
+                "enumerable": true,
+                "writable": null,
+                "valueType": null,
+                "primitiveValue": null,
+                "getType": "function",
+                "setType": "function",
+                "samePrototypeValue": null
+              }
+            ],
+            [
+              "Symbol(next.chai.descriptor.field)",
+              {
+                "descriptorKeys": [
+                  "value",
+                  "writable",
+                  "enumerable",
+                  "configurable"
+                ],
+                "configurable": true,
+                "enumerable": true,
+                "writable": false,
+                "valueType": "number",
+                "primitiveValue": 73,
+                "getType": "undefined",
+                "setType": "undefined",
+                "samePrototypeValue": null
+              }
+            ]
+          ]
+        },
+        "absent": {
+          "ok": true,
+          "value": true
+        },
+        "symbolAbsent": {
+          "ok": true,
+          "value": true
+        }
+      },
+      "descriptorIdentity": {
+        "ok": true,
+        "value": {
+          "marker": true,
+          "getter": true,
+          "setter": true,
+          "symbol": true,
+          "prototype": true,
+          "noGetterReads": true
+        }
+      },
+      "reads": 0,
+      "writes": 0
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "native callable own descriptors enumerate exact fields without invoking accessors",
+      "state": "passed"
+    },
+    {
+      "name": "retained native descriptor identities remain exact in later cases",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "2c4048192bdb7c9bfa58f7a208cb5bfa7929417e11cabe7c46789490dbba7f86",
+  "rawErrorCount": 0
+}

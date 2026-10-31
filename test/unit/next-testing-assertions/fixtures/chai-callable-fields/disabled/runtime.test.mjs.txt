@@ -1,0 +1,41 @@
+import { expect, test, chai, afterAll } from 'vitest'
+chai.config.useProxy = false
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const held = {}, marker = {}, field = Symbol.for('next.chai.descriptor.field')
+let reads = 0, writes = 0, authored, getter, setter
+const TAG = '__vitest_poll_takeover__'
+function taggedMatcher() { return { pass: true, message: () => 'descriptor tagged' } }
+Object.defineProperty(taggedMatcher, TAG, { value: false })
+expect.extend({ toFieldsTagged: taggedMatcher })
+chai.use((c, utils) => utils.addMethod(c.Assertion.prototype, 'fieldsNative', function () { return this }))
+const result = action => { try { return { ok: true, value: action() } } catch (error) { return { ok: false, name: error.name, message: error.message } } }
+function descriptor(fn, key) {
+  const d = Object.getOwnPropertyDescriptor(fn, key)
+  if (!d) return null
+  return { descriptorKeys: Reflect.ownKeys(d).map(String), configurable: d.configurable, enumerable: d.enumerable, writable: 'writable' in d ? d.writable : null, valueType: 'value' in d ? typeof d.value : null, primitiveValue: 'value' in d && (d.value === null || typeof d.value !== 'object' && typeof d.value !== 'function') ? d.value : null, getType: typeof d.get, setType: typeof d.set, samePrototypeValue: key === 'prototype' ? d.value === fn.prototype : null }
+}
+function inspect(fn) {
+  return { ownKeys: result(() => Reflect.ownKeys(fn).map(String)), enumerableKeys: result(() => Object.keys(fn)), ownDescriptors: result(() => { const ds = Object.getOwnPropertyDescriptors(fn); return Reflect.ownKeys(ds).map(key => [String(key), descriptor(fn, key)]) }), absent: result(() => Object.getOwnPropertyDescriptor(fn, 'absentCallableField') === undefined), symbolAbsent: result(() => Object.getOwnPropertyDescriptor(fn, Symbol('absent')) === undefined) }
+}
+function authoredFields() {
+  const before = reads
+  return { enumeration: inspect(authored), descriptorIdentity: result(() => { const ds = Object.getOwnPropertyDescriptors(authored); return { marker: ds.authoredReadonly.value === marker, getter: ds.authoredAccessor.get === getter, setter: ds.authoredAccessor.set === setter, symbol: ds[field].value === 73, prototype: ds.prototype.value === authored.prototype, noGetterReads: reads === before } }), reads, writes }
+}
+test('native callable own descriptors enumerate exact fields without invoking accessors', () => {
+  held.equal = chai.Assertion.prototype.equal
+  held.assert = chai.Assertion.prototype.assert
+  held.native = chai.Assertion.prototype.fieldsNative
+  held.tagged = chai.Assertion.prototype.toFieldsTagged
+  emit({ kind: 'native', rows: Object.entries(held).map(([name, fn]) => ({ name, inspection: inspect(fn) })) })
+  authored = held.native
+  getter = function () { reads++; return this }
+  setter = function () { writes++ }
+  Object.defineProperty(authored, 'authoredReadonly', { value: marker, enumerable: true, configurable: false, writable: false })
+  Object.defineProperty(authored, 'authoredAccessor', { get: getter, set: setter, enumerable: true, configurable: true })
+  Object.defineProperty(authored, field, { value: 73, enumerable: true, configurable: true })
+  emit({ kind: 'authored', ...authoredFields() })
+})
+test('retained native descriptor identities remain exact in later cases', () => {
+  emit({ kind: 'later', sameNative: authored === chai.Assertion.prototype.fieldsNative, ...authoredFields() })
+})
+afterAll(() => emit({ kind: 'afterAll', ...authoredFields() }))
