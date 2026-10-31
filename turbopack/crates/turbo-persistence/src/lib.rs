@@ -26,6 +26,7 @@ mod meta_file_builder;
 #[cfg(feature = "mmap")]
 pub mod mmap_helper;
 mod parallel_scheduler;
+mod radix_sort;
 mod rc_bytes;
 pub mod shard;
 mod shared_bytes;
