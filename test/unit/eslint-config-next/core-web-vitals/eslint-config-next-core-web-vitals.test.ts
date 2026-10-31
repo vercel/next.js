@@ -54,6 +54,9 @@ describe('eslint-config-next/core-web-vitals', () => {
          "@next/next/google-font-preconnect": [
            1,
          ],
+         "@next/next/image-alt-text": [
+           1,
+         ],
          "@next/next/inline-script-id": [
            2,
          ],
@@ -122,9 +125,6 @@ describe('eslint-config-next/core-web-vitals', () => {
            {
              "elements": [
                "img",
-             ],
-             "img": [
-               "Image",
              ],
            },
          ],

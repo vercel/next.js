@@ -74,11 +74,11 @@ const config: Linter.Config[] = [
       'react/no-unknown-property': 'off',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
+      // `<Image />` from `next/image` is checked by `@next/next/image-alt-text`.
       'jsx-a11y/alt-text': [
         'warn',
         {
           elements: ['img'],
-          img: ['Image'],
         },
       ],
       'jsx-a11y/aria-props': 'warn',
