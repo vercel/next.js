@@ -530,6 +530,9 @@ async function navigateToUnknownRoute(
     // there's no pathname to parse them from (nor a need to).
     null,
     renderedSearch,
+    // The request was made with the current tree, so the segments the
+    // response reuses from it are part of the rendered route.
+    true,
     null,
     dynamicStaleTime
   )
@@ -562,6 +565,7 @@ async function navigateToUnknownRoute(
     responseChunks,
     currentFlightRouterState,
     renderedSearch,
+    true,
     map
   ).catch(() => {
     // The cache write failed. Not fatal — the navigation completed normally,
