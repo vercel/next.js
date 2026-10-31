@@ -154,6 +154,25 @@ export type ExpectStatic = TestExpect
 // The runner reuses those real handles without putting private callbacks into
 // the task graph sent to the parent process.
 const collectionTaskViews = new WeakMap<TestCase | TestSuite, Task>()
+const collectionTaskRegistrations = new WeakMap<
+  TestCase,
+  (task: Test) => void
+>()
+
+export function registerCollectionTaskRegistration(
+  node: TestCase,
+  register: (task: Test) => void
+) {
+  collectionTaskRegistrations.set(node, register)
+}
+
+function bindCollectionTaskRegistration(node: TestCase, task: Test) {
+  const register = collectionTaskRegistrations.get(node)
+  if (register) {
+    register(task)
+    collectionTaskRegistrations.delete(node)
+  }
+}
 
 type CollectionContextOwner = {
   assertCollecting(): void
@@ -376,7 +395,10 @@ export function getCollectionTaskView(
           benchmarks: [],
         } as unknown as Test)
   collectionTaskViews.set(node, view)
-  if (node.type === 'test') getTaskContext(view as Test)
+  if (node.type === 'test') {
+    getTaskContext(view as Test)
+    bindCollectionTaskRegistration(node, view as Test)
+  }
   return view
 }
 
@@ -464,6 +486,7 @@ export function createTaskTree(
         benchmarks: [],
       }
       task = held ? Object.assign(held, test) : test
+      bindCollectionTaskRegistration(node, task as Test)
       tasks.set(node, task)
     }
     parent.tasks.push(task)

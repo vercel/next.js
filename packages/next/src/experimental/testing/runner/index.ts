@@ -412,6 +412,9 @@ function initializeFile(
     getSuiteAlias: () => publicSuiteAlias,
     getActiveCollector: worker ? () => worker.collector : undefined,
     isCollectingScope: () => getOriginatingCollection()?.id === fileId,
+    createTaskRegistration() {
+      return fileAssertions?.createTaskRegistration?.()
+    },
     getTaskExpect(task) {
       if (!fileAssertions)
         throw new Error(

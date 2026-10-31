@@ -2960,11 +2960,17 @@ export async function runCollected(
         else await runCase(child, ancestors, [], true)
     }
     function publishSuiteResult() {
+      const directCases =
+        node === root
+          ? undefined
+          : new Set(
+              node.children.flatMap((child) =>
+                child.type === 'test' ? [child.id] : []
+              )
+            )
       const finalCases = getFinalCaseResults(
         result.cases.filter(
-          (test) =>
-            node === root ||
-            test.ancestors?.some((parent) => parent.id === node.id)
+          (test) => node === root || directCases!.has(test.caseId)
         )
       )
       const children = node.children.flatMap((child) => {

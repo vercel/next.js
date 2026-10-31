@@ -10217,3 +10217,94 @@ it.each(
   },
   130000
 )
+
+it.each([
+  'utility-stubs',
+  'utility-config-counter',
+  'utility-config-clock',
+  'utility-require-registration',
+  'utility-require-capture-rows',
+  'utility-require-physical-flow',
+])(
+  'runs actual shared utility and requireAssertions lifecycle in %s',
+  async (family) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'concurrent-utilities.cjs'), process.cwd(), '', family],
+      { timeout: 20000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toMatchObject({
+      family,
+      actualFileDisposalJoined: true,
+      exactGenuineFailureProjection: true,
+      primitiveUndefinedFailures:
+        family === 'utility-require-registration'
+          ? 3
+          : family === 'utility-config-counter'
+            ? 1
+            : 0,
+      sameCapturedErrorRetryCases:
+        family === 'utility-require-capture-rows' ? 3 : 0,
+    })
+  },
+  25000
+)
+
+it.each(
+  [
+    'utility-stubs',
+    'utility-config-counter',
+    'utility-config-clock',
+    'utility-require-registration',
+    'utility-require-capture-rows',
+    'utility-require-physical-flow',
+  ].flatMap((family) => [
+    ['development', 'js', family],
+    ['production', 'mjs', family],
+  ])
+)(
+  'matches genuine shared utility and requireAssertions lifecycle in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+        join(tmpdir(), 'next-concurrent-utilities-public-')
+      ),
+      output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'concurrent-utilities-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        exactGenuineFailureProjection: true,
+        exactUndefinedErrorPayloads: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed concurrent utility observations at ' + directory
+        )
+    }
+  },
+  130000
+)

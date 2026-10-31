@@ -1,0 +1,179 @@
+{
+  "status": 1,
+  "rows": [
+    {
+      "kind": "registered on and remains on",
+      "attempt": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0,
+      "errorState": "null"
+    },
+    {
+      "kind": "registered off and enabled live",
+      "attempt": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0,
+      "errorState": "null"
+    },
+    {
+      "kind": "registered on and disabled live",
+      "attempt": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0,
+      "errorState": "null"
+    },
+    {
+      "kind": "explicit hasAssertions retains priority",
+      "attempt": 1,
+      "isExpectingAssertions": true,
+      "assertionCalls": 0,
+      "errorState": "Error"
+    },
+    {
+      "kind": "expected live undefined failure",
+      "attempt": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0,
+      "errorState": "null"
+    },
+    {
+      "kind": "retry retains original uncaptured value",
+      "attempt": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0,
+      "errorState": "null"
+    },
+    {
+      "kind": "retry retains original uncaptured value",
+      "attempt": 2,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0,
+      "errorState": "null"
+    },
+    {
+      "kind": "afterAll"
+    }
+  ],
+  "cases": [
+    {
+      "name": "registered on and remains on",
+      "state": "failed"
+    },
+    {
+      "name": "registered off and enabled live",
+      "state": "failed"
+    },
+    {
+      "name": "registered on and disabled live",
+      "state": "passed"
+    },
+    {
+      "name": "explicit hasAssertions retains priority",
+      "state": "failed"
+    },
+    {
+      "name": "expected live undefined failure",
+      "state": "passed"
+    },
+    {
+      "name": "retry retains original uncaptured value",
+      "state": "failed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 6,
+    "numPassedTests": 2,
+    "numFailedTests": 4,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "registered on and remains on",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "registered off and enabled live",
+      "state": "failed",
+      "errors": [
+        {
+          "message": "undefined",
+          "hasStack": false
+        }
+      ]
+    },
+    {
+      "name": "registered on and disabled live",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "explicit hasAssertions retains priority",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "expected live undefined failure",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "retry retains original uncaptured value",
+      "state": "failed",
+      "errors": [
+        {
+          "message": "undefined",
+          "hasStack": false
+        },
+        {
+          "message": "undefined",
+          "hasStack": false
+        }
+      ]
+    }
+  ],
+  "rawErrorCount": 0,
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "b185c25707677308842d92526dddd1c6ad8ffc12495fc3f1f52096874ec4a39e",
+  "undefinedErrorPayloads": [
+    {
+      "caseName": "registered off and enabled live",
+      "error": {
+        "message": "undefined",
+        "stacks": []
+      }
+    },
+    {
+      "caseName": "retry retains original uncaptured value",
+      "error": {
+        "message": "undefined",
+        "stacks": []
+      }
+    },
+    {
+      "caseName": "retry retains original uncaptured value",
+      "error": {
+        "message": "undefined",
+        "stacks": []
+      }
+    }
+  ]
+}

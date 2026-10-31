@@ -9,7 +9,11 @@ import type {
   Suite,
   File,
 } from './tasks'
-import { getCollectionTaskView, getTaskContext } from './tasks'
+import {
+  getCollectionTaskView,
+  getTaskContext,
+  registerCollectionTaskRegistration,
+} from './tasks'
 import type { TestExpect } from '../assertions'
 import type { ProvidedContext } from '../vitest'
 import type { TestError } from '../../../compiled/next-test-primitives'
@@ -755,6 +759,7 @@ export function createCollector(
     getActiveCollector?: () => CollectorDispatch | undefined
     isCollectingScope?: () => boolean
     getTaskExpect?: (task: Test) => TestContext['expect']
+    createTaskRegistration?: () => ((task: Test) => void) | undefined
     observeSettledDeclarationCoverage?: true
   } = {}
 ) {
@@ -915,6 +920,8 @@ export function createCollector(
     })
     const location = config.getTaskLocation?.(registrationError)
     if (location) test.location = location
+    const register = config.createTaskRegistration?.()
+    if (register) registerCollectionTaskRegistration(test, register)
     container.children.push(test)
     return test
   }

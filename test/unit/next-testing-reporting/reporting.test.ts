@@ -8617,3 +8617,84 @@ it('validates every ModuleStart stream field while retaining only actual causal 
     await rm(root, { recursive: true, force: true })
   }
 })
+
+it('preserves actual stackless reporter error identities and complete genuine fields in live and terminal views', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-stackless-reporter-consumer-')
+  )
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'stackless-reporter-consumer.cjs'),
+        process.cwd(),
+        join(directory, 'observed'),
+      ],
+      { timeout: 25000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      cases: 6,
+      completeGenuineRows: 12,
+      actualExecutionTaskSnapshotsAndCompletionBytePreserved: true,
+      reporterErrorAndArrayIdentityPreserved: true,
+      reportedDescriptorsExact: true,
+      closeJoined: true,
+      actualWorkerExit: { code: 0, signal: null },
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed stackless reporter consumer at ' + directory
+      )
+  }
+}, 30000)
+
+it('reports genuine authored falsy stacks while preserving execution error identities', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-stackless-reporter-consumer-')
+  )
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'stackless-reporter-consumer.cjs'),
+        process.cwd(),
+        join(directory, 'observed'),
+        'falsy',
+      ],
+      { timeout: 25000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      cases: 4,
+      completeGenuineRows: 8,
+      actualExecutionTaskSnapshotsAndCompletionBytePreserved: true,
+      reporterErrorAndArrayIdentityPreserved: true,
+      reportedDescriptorsExact: true,
+      closeJoined: true,
+      actualWorkerExit: { code: 0, signal: null },
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed stackless reporter consumer at ' + directory
+      )
+  }
+}, 30000)

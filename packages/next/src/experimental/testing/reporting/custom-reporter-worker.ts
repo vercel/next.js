@@ -84,6 +84,45 @@ function contextMember<T extends object>(value: T, label: string): T {
     },
   })
 }
+// Reporters receive their own IPC copies; execution Task errors stay untouched.
+const preparedReportedErrors = new WeakSet<object>()
+function prepareReportedModule<T>(module: T): T {
+  const view = module as
+    | {
+        type: string
+        result?(): { errors?: unknown[] }
+        errors?(): unknown[]
+        children?: { array(): unknown[] }
+      }
+    | undefined
+  if (!view) return module
+  const errors = view.type === 'test' ? view.result?.().errors : view.errors?.()
+  for (const error of errors ?? []) {
+    if (
+      !error ||
+      typeof error !== 'object' ||
+      preparedReportedErrors.has(error)
+    )
+      continue
+    preparedReportedErrors.add(error)
+    if ('stacks' in error && error.stacks) continue
+    const stack = (error as { stack?: unknown }).stack
+    if (typeof stack !== 'string' || stack.length === 0)
+      Object.defineProperty(error, 'stacks', {
+        value: [],
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      })
+  }
+  for (const child of view.children?.array() ?? []) prepareReportedModule(child)
+  return module
+}
+function prepareReportedModules<T>(modules: T[]): T[] {
+  for (const module of modules) prepareReportedModule(module)
+  return modules
+}
+
 async function settle(callbacks: (() => unknown)[]) {
   const results = await Promise.allSettled(
     callbacks.map(async (callback) => callback())
@@ -413,9 +452,11 @@ async function handle(message: any) {
       const tree: ReporterTaskSnapshot = message.taskTree
       if (completedModules.has(tree.id))
         throw new Error('Reporter replay requires one terminal file.')
-      live.update(tree)
+      prepareReportedModule(live.update(tree))
       if (watching) watchTrees.set(tree.id, tree)
-      const module = live.finishModule(tree.id, message.completion)
+      const module = prepareReportedModule(
+        live.finishModule(tree.id, message.completion)
+      )
       if (!module)
         throw new Error('Reporter replay requires the actual terminal file.')
       completedModules.set(tree.id, module)
@@ -433,7 +474,9 @@ async function handle(message: any) {
         typeof message.relativeModuleId !== 'string'
       )
         throw new Error('Imported reporter replay requires one native file.')
-      const module = live.update(tree, undefined, message.relativeModuleId)
+      const module = prepareReportedModule(
+        live.update(tree, undefined, message.relativeModuleId)
+      )
       completedModules.set(tree.id, module)
       await replayCases(tree)
       await settle(
@@ -468,10 +511,12 @@ async function handle(message: any) {
           'Final module state requires its actual reporter callback.'
         )
       if (
-        !live.finishModule(
-          message.entryId,
-          message.completion,
-          failedCollectedEntryIds.has(message.entryId)
+        !prepareReportedModule(
+          live.finishModule(
+            message.entryId,
+            message.completion,
+            failedCollectedEntryIds.has(message.entryId)
+          )
         )
       )
         throw new Error(
@@ -513,14 +558,16 @@ async function handle(message: any) {
       )
         throw new Error('Custom module reporters require one completed file.')
       const module =
-        live.finishModule(
-          message.entryId,
-          completion,
-          failedCollectedEntryIds.has(message.entryId)
+        prepareReportedModule(
+          live.finishModule(
+            message.entryId,
+            completion,
+            failedCollectedEntryIds.has(message.entryId)
+          )
         ) ??
-        createCustomReporterModules(root, completion).find(
-          (item) => item.id === message.entryId
-        )
+        prepareReportedModules(
+          createCustomReporterModules(root, completion)
+        ).find((item) => item.id === message.entryId)
       if (!module)
         throw new Error(
           'Custom module reporters require the actual test entry.'
@@ -547,11 +594,12 @@ async function handle(message: any) {
       finished = true
       const completion: CustomReporterCompletion = message.completion
       if (watching) watchEntryIds = completion.files.map((file) => file.entryId)
-      const modules = createCustomReporterModules(root, completion).map(
-        (module) =>
-          preparedEntryIds.has(module.id)
-            ? (live.get(module.id) ?? module)
-            : (completedModules.get(module.id) ?? module)
+      const modules = prepareReportedModules(
+        createCustomReporterModules(root, completion)
+      ).map((module) =>
+        preparedEntryIds.has(module.id)
+          ? (live.get(module.id) ?? module)
+          : (completedModules.get(module.id) ?? module)
       )
       const preparationErrors = new Map(
         (completion.snapshotPreparationFailures ?? []).flatMap((record) =>
@@ -654,7 +702,9 @@ process.on('message', (message: any) => {
   }
   if (message?.type === 'task-state' && initialized && !finished) {
     try {
-      const module = live.update(message.taskTree, message.taskUpdateIds)
+      const module = prepareReportedModule(
+        live.update(message.taskTree, message.taskUpdateIds)
+      )
       if (message.notifyCollected === true) {
         if (
           watching ||

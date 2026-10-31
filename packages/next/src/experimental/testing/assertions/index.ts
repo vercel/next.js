@@ -492,9 +492,10 @@ export async function createAssertionRuntime(options: {
     mocks: Set<{ mock: MockInstance; restore: boolean }>
     serializers: Set<Parameters<typeof addSerializer>[0]>
     utilities: AttemptUtilities
-    pollTimers: Set<() => void>
+    pollTimers?: Set<() => void>
   }
   function clearPollTimers(scope: AssertionScope, errors: unknown[]) {
+    if (!scope.pollTimers) return
     for (const clear of scope.pollTimers) {
       try {
         clear()
@@ -1816,6 +1817,10 @@ export async function createAssertionRuntime(options: {
 
   const localExpectations = new Map<string, TestExpect>()
   const preparedExpectations = new WeakMap<Test, TestExpect>()
+  const requiredAssertionErrors = new WeakMap<
+    Test,
+    { error: Error | undefined }
+  >()
   const preparedTestOwners = new WeakMap<object, Test>()
   const preparedExpectationOwners = new WeakMap<TestExpect, Test>()
   type TaskExpectationOwner = {
@@ -2316,7 +2321,7 @@ export async function createAssertionRuntime(options: {
               const clear = () => {
                 for (const timer of timers) realClearTimeout(timer)
                 timers.clear()
-                scope.pollTimers.delete(clear)
+                scope.pollTimers?.delete(clear)
               }
               const deadline = new Promise<void>((resolve) => {
                 if (scope.disposed || disposed) return
@@ -2326,6 +2331,7 @@ export async function createAssertionRuntime(options: {
                   resolve()
                 }, timeout)
                 timers.add(timer)
+                scope.pollTimers ??= new Set()
                 scope.pollTimers.add(clear)
               })
               const delay = () =>
@@ -3398,7 +3404,7 @@ export async function createAssertionRuntime(options: {
       mocks: new Set<{ mock: MockInstance; restore: boolean }>(),
       serializers: new Set<Parameters<typeof addSerializer>[0]>(),
       utilities: undefined as unknown as AttemptUtilities,
-      pollTimers: new Set(),
+      pollTimers: undefined,
     }
     scope.utilities =
       (kind === 'collection' ? collectionUtilities : fileUtilities) ??
@@ -3605,6 +3611,12 @@ export async function createAssertionRuntime(options: {
         runtimeConfig.expect?.requireAssertions &&
         state.assertionCalls === 0
       ) {
+        if (
+          'testId' in context &&
+          context.task &&
+          requiredAssertionErrors.has(context.task)
+        )
+          return [requiredAssertionErrors.get(context.task)!.error]
         return [new Error('expected any number of assertion, but got none')]
       }
       return []
@@ -4443,6 +4455,21 @@ export async function createAssertionRuntime(options: {
       nativeRejectionRecordsReleased = true
       coverageAfterAllRecords.length = 0
       scopes.clear()
+    },
+    createTaskRegistration() {
+      if (current().kind !== 'collection')
+        throw new Error(
+          'Task registrations require their live file collection.'
+        )
+      const captured = {
+        error: runtimeConfig.expect?.requireAssertions
+          ? new Error('expected any number of assertion, but got none')
+          : undefined,
+      }
+      return (task: Test) => {
+        if (!requiredAssertionErrors.has(task))
+          requiredAssertionErrors.set(task, captured)
+      }
     },
     prepareTaskExpect(task: Test) {
       const scope = current()

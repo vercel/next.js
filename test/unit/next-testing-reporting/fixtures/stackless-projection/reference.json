@@ -1,0 +1,306 @@
+{
+  "rows": [
+    {
+      "phase": "live",
+      "name": "primitive undefined",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "undefined",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "primitive string",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "stackless string",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "message object",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "stackless object",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "Error without stack",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "constructor", "name", "toString", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "stackless Error",
+          "constructor": "Function<Error>",
+          "name": "Error",
+          "toString": "Function<toString>",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "empty stack",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stack", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "empty stack",
+          "stack": "",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "authored stacks retained",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": [
+            {
+              "file": "authored-frame.mjs",
+              "method": "authored",
+              "line": 7,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "message": "authored frames",
+          "stacks": [
+            {
+              "file": "authored-frame.mjs",
+              "method": "authored",
+              "line": 7,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "primitive undefined",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "undefined",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "primitive string",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "stackless string",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "message object",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "stackless object",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "Error without stack",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "constructor", "name", "toString", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "stackless Error",
+          "constructor": "Function<Error>",
+          "name": "Error",
+          "toString": "Function<toString>",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "empty stack",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stack", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "empty stack",
+          "stack": "",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "authored stacks retained",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": [
+            {
+              "file": "authored-frame.mjs",
+              "method": "authored",
+              "line": 7,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "message": "authored frames",
+          "stacks": [
+            {
+              "file": "authored-frame.mjs",
+              "method": "authored",
+              "line": 7,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "a088b57de12eb9dbe14277b50497d93e7118bc7d15a4a1cf10a83147a19ae646"
+}
