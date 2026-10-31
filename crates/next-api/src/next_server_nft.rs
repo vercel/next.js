@@ -278,6 +278,7 @@ fn next_owned_ignores(
     ty: &ServerNftType,
     has_next_support: bool,
     is_standalone: bool,
+    has_native_routes: bool,
 ) -> Vec<RcStr> {
     let mut globs = vec![
         rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
@@ -314,6 +315,10 @@ fn next_owned_ignores(
         rcstr!("**/next/dist/compiled/browserslist/**"),
     ];
 
+    if !has_native_routes {
+        globs.push(rcstr!("**/next/dist/server/lib/native-route.external.js"));
+    }
+
     // only ignore image-optimizer code when
     // this is being handled outside of next-server
     if has_next_support {
@@ -342,6 +347,16 @@ fn next_owned_ignores(
     globs
 }
 
+#[turbo_tasks::function]
+async fn has_native_routes(project: ResolvedVc<Project>) -> Result<Vc<bool>> {
+    if *project.next_config().go_routes().await?
+        && let Some(app) = *project.app_project().await?
+    {
+        return Ok(app.has_go_routes());
+    }
+    Ok(Vc::cell(false))
+}
+
 #[turbo_tasks::value_impl]
 impl ServerNftJsonAsset {
     #[turbo_tasks::function]
@@ -353,6 +368,7 @@ impl ServerNftJsonAsset {
                 &self.ty,
                 *self.project.ci_has_next_support().await?,
                 is_standalone,
+                *has_native_routes(*self.project).await?,
             )
             .into_iter()
             .map(|g| Glob::new(g, GlobOptions::default()))
@@ -459,11 +475,16 @@ impl ServerNftJsonAsset {
         // `traced_modules_for_entries` inserts entries without consulting the glob (the
         // `parent == None` arm in `nft.rs`), whereas pruning one would delete it and everything
         // reachable only through it.
-        let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support, is_standalone)
-            .into_iter()
-            .chain(additional_ignores)
-            .map(|g| Glob::new(g, Default::default()))
-            .collect::<Vec<_>>();
+        let server_ignores_glob = next_owned_ignores(
+            &self.ty,
+            has_next_support,
+            is_standalone,
+            *has_native_routes(*self.project).await?,
+        )
+        .into_iter()
+        .chain(additional_ignores)
+        .map(|g| Glob::new(g, Default::default()))
+        .collect::<Vec<_>>();
 
         Ok(Glob::alternatives(server_ignores_glob))
     }

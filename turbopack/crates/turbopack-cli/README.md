@@ -88,16 +88,16 @@ imported packages:
   --dir path/to/project --tags special
 ```
 
-Keep Go sources and embedded assets outside `dist`. Go output paths must not
-overlap tracked inputs or embed patterns. Executable output paths must not contain
-symlinks or Windows junctions, including a redirected `dist` directory or executable.
-The shared writer validates this even when an executable's output path changes
-during watch mode. Go's build cache must be outside both the source project and
-module cache, and cannot contain either tree.
+Keep Go sources and embedded assets outside `dist`. The compiler disallows a Go
+output that overlaps tracked inputs or embed patterns. For executable outputs,
+the shared writer disallows symlinks and Windows junctions in the output path,
+including a redirected `dist` directory or executable. This also applies when
+an executable's output path is replaced during watch mode. Go's build cache must
+be outside both the source project and module cache, and cannot contain either tree.
 
 ### Module dependencies and environment
 
-Versioned pure-Go dependencies must already be in `GOMODCACHE`. Builds disable
+Versioned dependencies that do not require CGO must already be in `GOMODCACHE`. Builds disable
 downloads and use `-mod=readonly`; missing dependencies or checksums produce
 Go diagnostics without modifying `go.mod` or `go.sum`.
 
@@ -162,8 +162,9 @@ for the integration design.
 
 ### Current limitations
 
-- Native host executables only, with CGO disabled. Application code and dependencies
-  must be pure Go; standard-library implementations may use assembly.
+- Native host executables only, with CGO disabled. Imported packages may contain
+  Go assembly, local assembly headers and system object files; packages requiring
+  CGO are unsupported.
 - Go inputs are filenames, not package paths or patterns. All Go entries in one
   invocation must have the same parent directory and form one executable.
 - Module replacements (all `replace` directives), project Go workspaces, vendoring,

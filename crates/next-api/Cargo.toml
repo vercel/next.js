@@ -34,6 +34,7 @@ serde_json = { workspace = true }
 smallvec = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -46,6 +47,7 @@ turbopack = { workspace = true }
 turbopack-analyze = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-go = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-node = { workspace = true, default-features = false }
@@ -56,7 +58,6 @@ urlencoding = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
-tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]

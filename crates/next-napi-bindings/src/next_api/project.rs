@@ -845,6 +845,19 @@ pub async fn project_invalidate_file_system_cache(
 pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
+    let container = project.container;
+    if let Err(error) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            shutdown_go_operation(container)
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+    {
+        eprintln!("Failed to shut down native Go workers: {error:#}");
+    }
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
 }
@@ -865,6 +878,11 @@ async fn run_exit_handlers(exit_receiver: &Mutex<Option<ExitReceiver>>) {
         .await;
 }
 
+#[turbo_tasks::function(operation, root)]
+fn shutdown_go_operation(container: ResolvedVc<ProjectContainer>) -> Vc<turbo_tasks::Completion> {
+    container.shutdown_go()
+}
+
 /// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
 ///
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
@@ -876,6 +894,17 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    let container = project.container;
+    if let Err(error) = tt
+        .run_once(async move {
+            shutdown_go_operation(container)
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+    {
+        eprintln!("Failed to shut down native Go workers: {error:#}");
+    }
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())

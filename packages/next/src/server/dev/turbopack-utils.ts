@@ -429,8 +429,6 @@ export async function handleRouteType({
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
       if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
@@ -438,16 +436,17 @@ export async function handleRouteType({
         // bumps the `hmrHash` counter on each change; that counter is returned
         // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
         // `getHmrRefreshHash`. Unlike app pages there is no RSC for a connected
-        // browser to refetch, so `createMessage` returns nothing; the
-        // subscription exists only to advance the hash.
+        // browser to refetch, so `createMessage` returns nothing. This also
+        // refreshes native compiler issues when a broken route is repaired.
+        // Subscribe before processIssues can throw on the first compilation.
         hooks?.subscribeToChanges(
           key,
           /** includeIssues= */ true,
           route.endpoint,
           () => undefined,
           (error) => {
-            // This subscription only advances the refresh hash, so there is
-            // nothing to send the browser when it fails. `subscribeToChanges`
+            // There is nothing to send the browser when this subscription
+            // fails. `subscribeToChanges`
             // drops the subscription on error and re-creates it the next time
             // this route is ensured, so just log it.
             console.error(
@@ -460,6 +459,14 @@ export async function handleRouteType({
       }
 
       const type = writtenEndpoint.value.type
+      const isNative =
+        type === 'native' ||
+        (writtenEndpoint.value.type === 'none' &&
+          writtenEndpoint.value.nativeBuildFailed === true)
+      if (isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
+      if (!isNative) hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -478,7 +485,9 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (!isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       break
     }

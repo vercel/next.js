@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
 };
 
 use crate::{
-    GoBuildContext, filesystem,
+    GoBuildContext, filesystem_with_poll_interval,
     paths::{paths_refer_to_same_file, relative_output_path, validate_source_path},
 };
 
@@ -66,6 +66,10 @@ pub(crate) struct FileInput {
 impl FileInput {
     pub(crate) fn exists(&self) -> bool {
         self.stamp.is_some()
+    }
+
+    pub(crate) fn content_digest(&self) -> &Option<Vec<u8>> {
+        &self.digest
     }
 }
 
@@ -124,15 +128,101 @@ pub(crate) struct Inputs {
     pub embed_patterns: BTreeMap<RcStr, Vec<RcStr>>,
 }
 
-impl Inputs {
-    pub(crate) fn compiler_inputs(&self) -> Self {
-        let mut inputs = self.clone();
-        // Directory timestamps are checked live across compiler execution, but are not a cache
-        // key: replacing an unrelated file (including a published executable) changes them.
-        for directory in inputs.directories.values_mut() {
-            directory.stamp = None;
+/// Persistent compiler identity. Live filesystem metadata belongs to an individual attempt,
+/// so an identical checkout restored with different timestamps or inodes can reuse its output.
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+pub(crate) struct CompilerInputs {
+    files: BTreeMap<RcStr, Option<Vec<u8>>>,
+    directories: BTreeMap<RcStr, Option<BTreeMap<String, u8>>>,
+}
+
+/// Process-local race guards captured immediately before invoking the compiler.
+pub(crate) struct CompilationSnapshot {
+    files: BTreeMap<RcStr, Option<Stamp>>,
+    directories: BTreeMap<RcStr, DirectoryInput>,
+}
+
+fn validate_input_path(project: &Path, module_cache: &Path, path: &Path) -> Result<()> {
+    validate_source_path(
+        if path.starts_with(project) {
+            project
+        } else {
+            module_cache
+        },
+        path,
+    )
+}
+
+impl CompilerInputs {
+    pub(crate) fn snapshot(
+        &self,
+        project: &Path,
+        module_cache: &Path,
+    ) -> Result<Option<CompilationSnapshot>> {
+        let mut snapshot = CompilationSnapshot {
+            files: BTreeMap::new(),
+            directories: BTreeMap::new(),
+        };
+        for (path, expected) in &self.directories {
+            let path_ref = Path::new(path.as_str());
+            validate_input_path(project, module_cache, path_ref)?;
+            let actual = directory(path_ref)?;
+            if &actual.names != expected {
+                return Ok(None);
+            }
+            snapshot.directories.insert(path.clone(), actual);
         }
-        inputs
+        for (path, expected) in &self.files {
+            let path_ref = Path::new(path.as_str());
+            validate_input_path(project, module_cache, path_ref)?;
+            let before = stamp(path_ref)?;
+            let actual = content_digest(path_ref)?;
+            if before != stamp(path_ref)? || &actual != expected {
+                return Ok(None);
+            }
+            snapshot.files.insert(path.clone(), before);
+        }
+        Ok(snapshot
+            .is_current(project, module_cache)?
+            .then_some(snapshot))
+    }
+}
+
+impl CompilationSnapshot {
+    pub(crate) fn is_current(&self, project: &Path, module_cache: &Path) -> Result<bool> {
+        for (path, expected) in &self.files {
+            let path = Path::new(path.as_str());
+            validate_input_path(project, module_cache, path)?;
+            if &stamp(path)? != expected {
+                return Ok(false);
+            }
+        }
+        for (path, expected) in &self.directories {
+            let path = Path::new(path.as_str());
+            validate_input_path(project, module_cache, path)?;
+            if &directory(path)? != expected {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+}
+
+impl Inputs {
+    pub(crate) fn compiler_inputs(&self) -> CompilerInputs {
+        CompilerInputs {
+            files: self
+                .files
+                .iter()
+                .map(|(path, input)| (path.clone(), input.digest.clone()))
+                .collect(),
+            directories: self
+                .directories
+                .iter()
+                .map(|(path, input)| (path.clone(), input.names.clone()))
+                .collect(),
+        }
     }
     pub(crate) fn contains_input(&self, path: &Path) -> Result<bool> {
         for input in self.files.keys() {
@@ -212,9 +302,12 @@ impl<'a> Tracker<'a> {
                     format!("Go source outside project/module cache: {}", path.display())
                 })?;
             validate_source_path(Path::new(self.go_context.module_cache.as_str()), path)?;
-            let fs = filesystem(self.go_context.module_cache.clone())
-                .resolve()
-                .await?;
+            let fs = filesystem_with_poll_interval(
+                self.go_context.module_cache.clone(),
+                self.go_context.poll_interval_ms,
+            )
+            .resolve()
+            .await?;
             (
                 FileSystemPath {
                     fs: ResolvedVc::upcast(fs),
@@ -253,14 +346,7 @@ impl<'a> Tracker<'a> {
         let after = stamp(path)?;
         // Verify cached task bytes match the live file. This closes registration races even in
         // one-shot builds, where no filesystem event may have invalidated an old read yet.
-        let actual = if after.is_some() {
-            let mut file = std::fs::File::open(path)?;
-            let mut hasher = Sha256::new();
-            std::io::copy(&mut file, &mut HashWriter(&mut hasher))?;
-            Some(hasher.finalize().to_vec())
-        } else {
-            None
-        };
+        let actual = content_digest(path)?;
         self.dirty |= before != after || after != stamp(path)? || digest != actual;
         self.inputs.files.insert(
             key,
@@ -339,12 +425,28 @@ impl<'a> Tracker<'a> {
         if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs) {
             fs.await?.invalidate();
         }
-        filesystem(self.go_context.module_cache.clone())
-            .connect()
-            .await?
-            .invalidate();
+        filesystem_with_poll_interval(
+            self.go_context.module_cache.clone(),
+            self.go_context.poll_interval_ms,
+        )
+        .connect()
+        .await?
+        .invalidate();
         Ok(())
     }
+}
+
+fn content_digest(path: &Path) -> Result<Option<Vec<u8>>> {
+    let mut file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(error).with_context(|| format!("reading Go input: {}", path.display()));
+        }
+    };
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut HashWriter(&mut hasher))?;
+    Ok(Some(hasher.finalize().to_vec()))
 }
 
 struct HashWriter<'a>(&'a mut Sha256);

@@ -1839,6 +1839,70 @@ mod tests {
         Ok(take_effects(op).await?.cell())
     }
 
+    #[cfg(not(miri))]
+    #[turbo_tasks::function(operation, root)]
+    fn external_tracking_filesystem(root: RcStr) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new_with_options(
+            rcstr!("external-tracking"),
+            Vc::cell(root),
+            Vec::new(),
+            DiskWatcherConfig {
+                // Registration must walk back to the canonical root on Windows too.
+                recursive_mode: Some(crate::DiskWatcherRecursiveMode::NonRecursive),
+                ..Default::default()
+            },
+            DiskFileSystemMap::empty(),
+        )
+    }
+
+    #[cfg(not(miri))] // Native filesystem watchers are unavailable under Miri.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn external_tracking_uses_internal_paths() -> Result<()> {
+        let scratch = tempfile::tempdir()?;
+        let root = std::fs::canonicalize(scratch.path())?;
+        std::fs::create_dir(root.join("nested"))?;
+        std::fs::write(root.join("nested/input.txt"), "input")?;
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = external_tracking_filesystem(RcStr::from(root.to_str().unwrap()))
+                .resolve()
+                .strongly_consistent()
+                .await?;
+            let root_path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!(""),
+            };
+            let fs = fs.await?;
+            fs.start_watching().await?;
+            let file = root_path.join("nested/input.txt")?;
+            let directory = root_path.join("nested")?;
+            assert!(turbo_tasks::get_invalidator().is_some());
+            fs.track_file(&file).await?;
+            fs.track_directory(&directory).await?;
+            // Watcher events and writes use these same raw paths as invalidation keys.
+            assert!(
+                fs.inner
+                    .invalidator_map
+                    .lock()
+                    .unwrap()
+                    .contains_key(fs.to_sys_path_raw(&file).as_path())
+            );
+            assert!(
+                fs.inner
+                    .dir_invalidator_map
+                    .lock()
+                    .unwrap()
+                    .contains_key(fs.to_sys_path_raw(&directory).as_path())
+            );
+            fs.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_try_from_sys_path() {
         let sys_root = if cfg!(windows) {

@@ -473,6 +473,14 @@ export type ServerPath = {
 
 export type WrittenEndpoint =
   | {
+      type: 'native'
+      entryPath: string
+      serverHmrEntryPaths: []
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
+  | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
@@ -495,6 +503,8 @@ export type WrittenEndpoint =
     }
   | {
       type: 'none'
+      /** Preserve native identity when compilation failed before emitting files. */
+      nativeBuildFailed?: boolean
       serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []

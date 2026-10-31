@@ -70,14 +70,9 @@ impl Drop for Process {
         let _ = self.0.wait();
     }
 }
-fn wait_for(description: &str, mut condition: impl FnMut() -> bool) {
-    wait_for_timeout(description, Duration::from_secs(60), &mut condition);
-}
+const WAIT_TIMEOUT: Duration = Duration::from_secs(60);
 fn wait_for_log(description: &str, log: &Path, condition: impl FnMut() -> bool) {
     wait_for_timeout_and_log(description, Duration::from_secs(60), Some(log), condition);
-}
-fn wait_for_timeout(description: &str, timeout: Duration, condition: impl FnMut() -> bool) {
-    wait_for_timeout_and_log(description, timeout, None, condition);
 }
 fn wait_for_timeout_and_log(
     description: &str,
@@ -95,6 +90,16 @@ fn wait_for_timeout_and_log(
         );
         thread::sleep(Duration::from_millis(100));
     }
+}
+fn wait_until(timeout: Duration, mut condition: impl FnMut() -> bool) -> bool {
+    let deadline = Instant::now() + timeout;
+    while !condition() {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    true
 }
 
 fn controlled_go(control: &Path) -> PathBuf {
@@ -443,9 +448,11 @@ fn rejection(project: &Path, arguments: &[&str], diagnostic: &str) {
             .spawn()
             .unwrap(),
     );
-    wait_for("rejected CLI invocation", || {
-        process.0.try_wait().unwrap().is_some()
-    });
+    assert!(
+        wait_until(WAIT_TIMEOUT, || process.0.try_wait().unwrap().is_some()),
+        "timed out waiting for rejected CLI invocation {arguments:?}; output:\n{}",
+        std::fs::read_to_string(log.path()).unwrap()
+    );
     assert_eq!(process.0.wait().unwrap().code(), Some(1), "{arguments:?}");
     let error = std::fs::read_to_string(log.path()).unwrap();
     assert!(error.contains(diagnostic), "{arguments:?}: {error}");
@@ -662,7 +669,7 @@ fn watch_rejects_output_directory_redirection_and_recovers() {
 }
 
 #[test]
-fn rejects_native_application_dependencies() {
+fn accepts_assembly_dependencies_and_rejects_cgo() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
     std::fs::write(
@@ -678,14 +685,18 @@ fn rejects_native_application_dependencies() {
          }\n",
     );
     std::fs::write(native.join("native.go"), "package native\nfunc Run() {}\n").unwrap();
-    // Even unused assembly makes an application dependency unsupported.
     std::fs::write(native.join("native.s"), "").unwrap();
-    rejection(
-        project,
-        &["build", "main.go"],
-        "only pure-Go dependencies are supported: example.com/native/internal/native",
+    let output = cli(project)
+        .args(["build", "main.go", "--go", &tool()])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
     );
-    assert!(!executable(project).exists());
+    assert_eq!(run(&executable(project)).as_deref(), Some(""));
+    std::fs::remove_file(executable(project)).unwrap();
     std::fs::remove_file(native.join("native.s")).unwrap();
     std::fs::write(
         native.join("native.go"),

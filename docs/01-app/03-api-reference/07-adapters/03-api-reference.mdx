@@ -3,6 +3,24 @@ title: API Reference
 description: Reference for `modifyConfig` and `onBuildComplete` in the `NextAdapter` interface.
 ---
 
+## `goTarget`
+
+Optional compilation target for experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) executables. The default is the build host.
+
+```ts filename="my-adapter.ts"
+import type { NextAdapter } from 'next'
+
+export default {
+  name: 'my-adapter',
+  goTarget: { os: 'linux', arch: 'arm64' },
+} satisfies NextAdapter
+```
+
+- `os`: `linux`, `darwin`, or `windows`.
+- `arch`: `amd64` or `arm64`, using Go architecture names.
+
+This option applies to production adapter builds. Development and method discovery use the host platform. CGO is disabled for all targets. Invalid targets fail configuration loading before compilation.
+
 ## `async modifyConfig(config, context)`
 
 Called for any CLI command that loads the `next.config.js` file to allow modification of the configuration.

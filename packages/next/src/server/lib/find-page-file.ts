@@ -36,6 +36,9 @@ export async function findPageFile(
   isAppDir: boolean
 ): Promise<string | null> {
   const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
+  if (isAppDir && normalizedPagePath.endsWith('/route')) {
+    pagePaths.push(normalizedPagePath.slice(1) + '.go')
+  }
   const [existingPath, ...others] = (
     await Promise.all(
       pagePaths.map(async (path) => {
@@ -58,6 +61,16 @@ export async function findPageFile(
     return null
   }
 
+  if (
+    others.length > 0 &&
+    [existingPath, ...others].some(
+      (p) => p.endsWith('/route.go') || p === 'route.go'
+    )
+  ) {
+    throw new Error(
+      `Conflicting App Router handlers: ${[existingPath, ...others].join(', ')}`
+    )
+  }
   if (others.length > 0) {
     warn(
       `Duplicate page detected. ${cyan(join('pages', existingPath))} and ${cyan(
@@ -80,6 +93,8 @@ export function createValidFileMatcher(
   pageExtensions: PageExtensions,
   appDirPath: string | undefined
 ) {
+  const isNativeRoute = (filePath: string) =>
+    /(?:^|[\\/])route\.go$/.test(filePath)
   // Helper to create extension regex pattern
   const extPattern = `(?:${pageExtensions
     .map((extension) => escapeStringRegexp(extension))
@@ -131,12 +146,16 @@ export function createValidFileMatcher(
   // Determine if the file is leaf node page file or route file under layouts,
   // 'page.<extension>' | 'route.<extension>'
   function isAppRouterPage(filePath: string) {
-    return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath)
+    return (
+      isNativeRoute(filePath) ||
+      leafOnlyPageFileRegex.test(filePath) ||
+      isMetadataFile(filePath)
+    )
   }
 
   // Determine if the file is leaf node route file under app directory
   function isAppRouterRoute(filePath: string) {
-    return leafOnlyRouteFileRegex.test(filePath)
+    return isNativeRoute(filePath) || leafOnlyRouteFileRegex.test(filePath)
   }
 
   function isAppLayoutPage(filePath: string) {
@@ -148,7 +167,13 @@ export function createValidFileMatcher(
   }
 
   function isPageFile(filePath: string) {
-    return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
+    return (
+      (appDirPath &&
+        filePath.startsWith(appDirPath + sep) &&
+        isNativeRoute(filePath)) ||
+      validExtensionFileRegex.test(filePath) ||
+      isMetadataFile(filePath)
+    )
   }
 
   function isRootNotFound(filePath: string) {

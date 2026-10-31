@@ -569,6 +569,8 @@ export interface NapiWatchOptions {
 
 export interface NapiWrittenEndpoint {
   type: string
+  /** A native compiler failure has no output paths, but must retain native issue handling. */
+  nativeBuildFailed?: boolean
   entryPath?: string
   serverHmrEntryPaths: Array<string>
   clientPaths: Array<string>

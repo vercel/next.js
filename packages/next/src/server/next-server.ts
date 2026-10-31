@@ -1,4 +1,5 @@
 import './node-environment'
+import type { NativeRouteManager } from './lib/native-route.external'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -602,7 +603,11 @@ export default class NextNodeServer extends BaseServer<
     // Dev definitions retain source filenames for watcher bookkeeping. API
     // execution still needs to load the compiled server bundle.
     const modulePath = this.isDev
-      ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
+      ? join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          `${match.definition.bundlePath}.js`
+        )
       : match.definition.filename
     const module = (await loader.load(modulePath)) as {
       handler: (
@@ -1087,6 +1092,37 @@ export default class NextNodeServer extends BaseServer<
       // for the same request.
       addRequestMeta(req, 'match', match)
 
+      if (
+        this.nextConfig.experimental.goRoutes &&
+        match.definition.kind === RouteKind.APP_ROUTE
+      ) {
+        if (this.dev) {
+          await this.ensurePage({
+            page: match.definition.page,
+            definition: match.definition,
+            clientOnly: false,
+            appPaths: null,
+            url: req.url,
+          })
+        }
+        const entry = this.getAppPathsManifest()?.[match.definition.page]
+        if (entry?.endsWith('.native.json')) {
+          if (!this.nativeRoutes) {
+            const { NativeRouteManager } =
+              require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+            this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
+          }
+          await this.nativeRoutes.invoke(
+            match.definition.page,
+            entry,
+            req.originalRequest,
+            res.originalResponse,
+            match.params || {}
+          )
+          return true
+        }
+      }
+
       // TODO-APP: move this to a route handler
       const edgeFunctionsPages = this.getEdgeFunctionsPages()
       for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -1185,6 +1221,7 @@ export default class NextNodeServer extends BaseServer<
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
+    definition?: RouteMatch['definition']
     url?: string
   }): Promise<void> {
     throw new Error(
@@ -2187,7 +2224,14 @@ export default class NextNodeServer extends BaseServer<
     this.cleanupListeners.add(listener)
   }
 
+  reconcileNativeRoutes(routes: Record<string, string[]>) {
+    this.nativeRoutes?.reconcile(new Set(Object.values(routes).flat()))
+  }
+
+  private nativeRoutes: NativeRouteManager | undefined = undefined
+
   async close(): Promise<void> {
+    await this.nativeRoutes?.close()
     await this.cleanupListeners.runAll()
   }
 

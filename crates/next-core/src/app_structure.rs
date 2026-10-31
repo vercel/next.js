@@ -375,7 +375,7 @@ async fn get_directory_tree_internal(
                     continue;
                 }
                 if let Some((stem, ext)) = basename.split_once('.')
-                    && page_extensions_value.iter().any(|e| e == ext)
+                    && (page_extensions_value.iter().any(|e| e == ext) || basename == "route.go")
                 {
                     match stem {
                         "page" => modules.page = Some(file.clone()),
@@ -389,7 +389,18 @@ async fn get_directory_tree_internal(
                         "unauthorized" => modules.unauthorized = Some(file.clone()),
                         "not-found" => modules.not_found = Some(file.clone()),
                         "default" => modules.default = Some(file.clone()),
-                        "route" => modules.route = Some(file.clone()),
+                        "route" => {
+                            if let Some(existing) = &modules.route
+                                && (ext == "go" || existing.path.ends_with(".go"))
+                            {
+                                DirectoryTreeIssue {
+                                    app_dir: dir.clone(),
+                                    severity: IssueSeverity::Error,
+                                    message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
+                                }.resolved_cell().emit();
+                            }
+                            modules.route = Some(file.clone());
+                        },
                         _ => {}
                     }
                 }
@@ -695,6 +706,11 @@ pub enum Entrypoint {
         path: FileSystemPath,
         root_params: ResolvedVc<RootParamVecOption>,
     },
+    AppGoRoute {
+        page: AppPage,
+        path: FileSystemPath,
+        root_params: ResolvedVc<RootParamVecOption>,
+    },
     AppMetadata {
         page: AppPage,
         metadata: MetadataItem,
@@ -706,14 +722,15 @@ impl Entrypoint {
     pub fn page(&self) -> &AppPage {
         match self {
             Entrypoint::AppPage { pages, .. } => pages.first().unwrap(),
-            Entrypoint::AppRoute { page, .. } => page,
+            Entrypoint::AppRoute { page, .. } | Entrypoint::AppGoRoute { page, .. } => page,
             Entrypoint::AppMetadata { page, .. } => page,
         }
     }
     pub fn root_params(&self) -> ResolvedVc<RootParamVecOption> {
         match self {
             Entrypoint::AppPage { root_params, .. } => *root_params,
-            Entrypoint::AppRoute { root_params, .. } => *root_params,
+            Entrypoint::AppRoute { root_params, .. }
+            | Entrypoint::AppGoRoute { root_params, .. } => *root_params,
             Entrypoint::AppMetadata { root_params, .. } => *root_params,
         }
     }
@@ -836,6 +853,10 @@ fn add_app_page(
         Entrypoint::AppRoute {
             page: existing_page,
             ..
+        }
+        | Entrypoint::AppGoRoute {
+            page: existing_page,
+            ..
         } => {
             conflict("route", existing_page);
         }
@@ -851,18 +872,13 @@ fn add_app_page(
 fn add_app_route(
     app_dir: FileSystemPath,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
-    page: AppPage,
-    path: FileSystemPath,
-    root_params: ResolvedVc<RootParamVecOption>,
+    entrypoint: Entrypoint,
 ) {
+    let page = entrypoint.page().clone();
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
-            e.insert(Entrypoint::AppRoute {
-                page,
-                path,
-                root_params,
-            });
+            e.insert(entrypoint);
             return;
         }
     };
@@ -877,6 +893,10 @@ fn add_app_route(
             conflict("page", pages.first().unwrap());
         }
         Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        }
+        | Entrypoint::AppGoRoute {
             page: existing_page,
             ..
         } => {
@@ -920,6 +940,10 @@ fn add_app_metadata_route(
             conflict("page", pages.first().unwrap());
         }
         Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        }
+        | Entrypoint::AppGoRoute {
             page: existing_page,
             ..
         } => {
@@ -2258,13 +2282,21 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     }
 
     if let Some(route) = &modules.route {
-        add_app_route(
-            app_dir.clone(),
-            &mut result,
-            app_page.complete(PageType::Route)?,
-            route.clone(),
-            root_params,
-        );
+        let page = app_page.complete(PageType::Route)?;
+        let entrypoint = if route.path.ends_with("/route.go") {
+            Entrypoint::AppGoRoute {
+                page,
+                path: route.clone(),
+                root_params,
+            }
+        } else {
+            Entrypoint::AppRoute {
+                page,
+                path: route.clone(),
+                root_params,
+            }
+        };
+        add_app_route(app_dir.clone(), &mut result, entrypoint);
     }
 
     let Metadata {
@@ -2602,18 +2634,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         );
                     }
                 }
-                Entrypoint::AppRoute {
-                    page,
-                    path,
-                    root_params,
-                } => {
-                    add_app_route(
-                        app_dir.clone(),
-                        &mut result,
-                        page.clone(),
-                        path.clone(),
-                        *root_params,
-                    );
+                entrypoint @ (Entrypoint::AppRoute { .. } | Entrypoint::AppGoRoute { .. }) => {
+                    add_app_route(app_dir.clone(), &mut result, entrypoint.clone());
                 }
                 Entrypoint::AppMetadata {
                     page,

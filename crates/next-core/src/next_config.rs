@@ -181,6 +181,7 @@ pub struct NextConfig {
     supports_immutable_assets: Option<bool>,
 
     adapter_path: Option<RcStr>,
+    adapter_go_target: Option<GoTarget>,
     //
     // These are never used by Turbopack, and potentially non-serializable anyway:
     // cache_life: (),
@@ -199,6 +200,18 @@ impl NextConfig {
         new.cell()
     }
 }
+
+/// Provider-independent target selected by a deployment adapter for Go routes.
+#[derive(
+    Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
+)]
+pub struct GoTarget {
+    pub os: RcStr,
+    pub arch: RcStr,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionGoTarget(Option<GoTarget>);
 
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
@@ -1237,6 +1250,7 @@ pub struct ExperimentalConfig {
     /// Omit catch-all-derived route matchers whose loader trees contain an unmatched parallel
     /// route.
     strict_route_matching: Option<bool>,
+    go_routes: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1794,6 +1808,16 @@ impl NextConfig {
                 .explicit_parallel_route_children
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn adapter_go_target(&self) -> Vc<OptionGoTarget> {
+        Vc::cell(self.adapter_go_target.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn go_routes(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.go_routes.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
