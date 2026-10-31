@@ -261,6 +261,7 @@ export async function createTurbopackRoutePublisher(
     pendingPublication = result.catch(() => {})
     return result
   }
+  let published = false
 
   return {
     get sortedRoutes() {
@@ -307,37 +308,48 @@ export async function createTurbopackRoutePublisher(
       inventory?: DevelopmentDiscovery,
       runtimeChanged = false
     ) {
+      // Publication runs user callbacks: rewrites() and redirects() for route
+      // types, and exportPathMap. As with the old route watcher, a failure in
+      // the first publication fails startup, and later failures are logged so
+      // a callback that throws cannot stop a running dev server.
+      const isStartup = !published
+      published = true
       return enqueue(async () => {
-        if (inventory) {
-          development = inventory
-          reportAuthoredDiagnostics(inventory)
-        }
-        if (runtimeChanged) {
-          await propagateServerField(
-            opts,
-            'appPathRoutes',
-            serverFields.appPathRoutes
-          )
-          if (nextConfig.experimental.clientRouterFilter) {
-            clientRouterFilters = createClientRouterFilter(
-              Object.keys(serverFields.appPathRoutes || {}),
-              nextConfig.experimental.clientRouterFilterRedirects
-                ? (opts.fsChecker.originalRedirects || []).filter(
-                    (r) => !r.internal
-                  )
-                : [],
-              nextConfig.experimental.clientRouterFilterAllowedRate
+        try {
+          if (inventory) {
+            development = inventory
+            reportAuthoredDiagnostics(inventory)
+          }
+          if (runtimeChanged) {
+            await propagateServerField(
+              opts,
+              'appPathRoutes',
+              serverFields.appPathRoutes
             )
-            const signature = JSON.stringify(clientRouterFilters)
-            if (signature !== previousFilters) {
-              previousFilters = signature
-              await updateDefines(hotReloader)
+            if (nextConfig.experimental.clientRouterFilter) {
+              clientRouterFilters = createClientRouterFilter(
+                Object.keys(serverFields.appPathRoutes || {}),
+                nextConfig.experimental.clientRouterFilterRedirects
+                  ? (opts.fsChecker.originalRedirects || []).filter(
+                      (r) => !r.internal
+                    )
+                  : [],
+                nextConfig.experimental.clientRouterFilterAllowedRate
+              )
+              const signature = JSON.stringify(clientRouterFilters)
+              if (signature !== previousFilters) {
+                previousFilters = signature
+                await updateDefines(hotReloader)
+              }
             }
           }
+          if (inventory) await writeTooling(inventory)
+          await updateExportPathMap()
+          await writeEnvTypes()
+        } catch (error) {
+          if (isStartup) throw error
+          Log.warn('Failed to reload dynamic routes:', error)
         }
-        if (inventory) await writeTooling(inventory)
-        await updateExportPathMap()
-        await writeEnvTypes()
       })
     },
     async watchConfig(hotReloader: NextJsHotReloaderInterface) {

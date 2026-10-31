@@ -323,3 +323,92 @@ describe('native route discovery with legacy exportPathMap', () => {
     }, 15_000)
   })
 })
+
+describe('native route discovery when a publication callback throws', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  beforeAll(async () => {
+    // Route type generation calls rewrites(), and each route publication calls
+    // exportPathMap. Both are user code that can start failing after startup,
+    // like a rewrites() that loads its rules from a CMS.
+    await next.patchFile(
+      'next.config.ts',
+      `import { existsSync, readFileSync } from 'node:fs'
+       import { join } from 'node:path'
+       import type { NextConfig } from 'next'
+
+       function fails(callback: string) {
+         const file = join(process.cwd(), 'failing-callback.txt')
+         return existsSync(file) && readFileSync(file, 'utf8') === callback
+       }
+
+       const config: NextConfig = {
+         async rewrites() {
+           if (fails('rewrites')) {
+             throw new Error('rewrites source unavailable (simulated)')
+           }
+           return []
+         },
+         exportPathMap(defaultMap) {
+           if (fails('exportPathMap')) {
+             throw new Error('exportPathMap source unavailable (simulated)')
+           }
+           return defaultMap
+         },
+       }
+       export default config`
+    )
+    await next.start()
+  })
+
+  async function expectPage(pathname: string, text: string) {
+    await retry(async () => {
+      const response = await next.fetch(pathname, {
+        signal: AbortSignal.timeout(10_000),
+      })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain(text)
+    }, 15_000)
+  }
+
+  it.each([
+    [
+      'rewrites',
+      'app/after-rewrites-failure/page.tsx',
+      '/after-rewrites-failure',
+    ],
+    [
+      'exportPathMap',
+      'pages/after-export-path-map-failure.tsx',
+      '/after-export-path-map-failure',
+    ],
+  ])(
+    'logs a failing %s and keeps serving routes',
+    async (callback, file, pathname) => {
+      // Serving a page first ensures the startup publication has finished.
+      await expectPage('/', 'hello world')
+      const outputIndex = next.cliOutput.length
+      try {
+        await next.patchFile('failing-callback.txt', callback)
+        await next.patchFile(
+          file,
+          `export default function Page() { return <p>Added after ${callback} failed</p> }`
+        )
+        await retry(async () => {
+          expect(next.cliOutput.slice(outputIndex)).toContain(
+            `${callback} source unavailable (simulated)`
+          )
+        }, 15_000)
+
+        // A successful request after the failure proves the server survived.
+        await expectPage(pathname, `Added after ${callback} failed`)
+      } finally {
+        await next.deleteFile('failing-callback.txt')
+        await next.deleteFile(file)
+      }
+    }
+  )
+})

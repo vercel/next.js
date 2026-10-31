@@ -1236,39 +1236,6 @@ async function startWatcher(
         ...interceptionRoutes
       )
 
-      const exportPathMap =
-        (typeof nextConfig.exportPathMap === 'function' &&
-          (await nextConfig.exportPathMap?.(
-            {},
-            {
-              dev: true,
-              dir: opts.dir,
-              outDir: null,
-              distDir: distDir,
-              buildId: 'development',
-            }
-          ))) ||
-        {}
-
-      const exportPathMapEntries = Object.entries(exportPathMap || {})
-
-      if (exportPathMapEntries.length > 0) {
-        opts.fsChecker.exportPathMapRoutes = exportPathMapEntries.map(
-          ([key, value]) =>
-            buildCustomRoute(
-              'before_files_rewrite',
-              {
-                source: key,
-                destination: `${value.page}${
-                  value.query ? '?' : ''
-                }${qs.stringify(value.query)}`,
-              },
-              opts.nextConfig.basePath,
-              opts.nextConfig.experimental.caseSensitiveRoutes
-            )
-        )
-      }
-
       try {
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
@@ -1450,6 +1417,41 @@ async function startWatcher(
           await writeRootParamsTypes(
             routeTypesManifest,
             path.join(distTypesDir, 'root-params.d.ts')
+          )
+        }
+
+        // exportPathMap is user code. Call it after the routes are published,
+        // so a callback that throws is logged below without blocking them.
+        const exportPathMap =
+          (typeof nextConfig.exportPathMap === 'function' &&
+            (await nextConfig.exportPathMap?.(
+              {},
+              {
+                dev: true,
+                dir: opts.dir,
+                outDir: null,
+                distDir: distDir,
+                buildId: 'development',
+              }
+            ))) ||
+          {}
+
+        const exportPathMapEntries = Object.entries(exportPathMap || {})
+
+        if (exportPathMapEntries.length > 0) {
+          opts.fsChecker.exportPathMapRoutes = exportPathMapEntries.map(
+            ([key, value]) =>
+              buildCustomRoute(
+                'before_files_rewrite',
+                {
+                  source: key,
+                  destination: `${value.page}${
+                    value.query ? '?' : ''
+                  }${qs.stringify(value.query)}`,
+                },
+                opts.nextConfig.basePath,
+                opts.nextConfig.experimental.caseSensitiveRoutes
+              )
           )
         }
 
