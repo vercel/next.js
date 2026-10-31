@@ -46,7 +46,9 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_config::NextConfig,
+    next_config::{
+        NextConfig, SERVER_CHUNKING_CONFIG_OPTION_NAMES, warn_on_adjusted_chunking_config,
+    },
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
@@ -1075,6 +1077,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         chunking_max_merge_chunk_size,
         chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
     let next_mode = mode.await?;
@@ -1132,18 +1135,24 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapSourceType::RelativeUri
     });
     if next_mode.is_production() {
+        let ecmascript_chunking_config = ChunkingConfig {
+            // Server chunks are loaded with require(), not fetched over the network.
+            min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+            max_chunk_count_per_group: 0,
+            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
+            max_chunk_size: chunking_max_chunk_size,
+            request_cost: Some(10_000),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &SERVER_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
-                    max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
-                    max_chunk_size: chunking_max_chunk_size,
-                    request_cost: Some(10_000),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
@@ -1191,6 +1200,7 @@ pub async fn get_server_chunking_context(
         chunking_max_merge_chunk_size,
         chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1248,19 +1258,25 @@ pub async fn get_server_chunking_context(
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
+        let ecmascript_chunking_config = ChunkingConfig {
+            // Server chunks are loaded with require(), not fetched over the network.
+            min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+            max_chunk_count_per_group: 0,
+            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
+            max_chunk_size: chunking_max_chunk_size,
+            request_cost: Some(10_000),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &SERVER_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
-                    max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
-                    max_chunk_size: chunking_max_chunk_size,
-                    request_cost: Some(10_000),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,

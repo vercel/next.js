@@ -47,7 +47,7 @@ use crate::{
         runtime_entry::{RuntimeEntries, RuntimeEntry},
         transforms::get_next_client_transforms_rules,
     },
-    next_config::NextConfig,
+    next_config::{ChunkingConfigOptionNames, NextConfig, warn_on_adjusted_chunking_config},
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -574,7 +574,7 @@ pub async fn get_client_chunking_context(
     let service_worker_scope_base_path = service_worker_scope_base_path.owned().await?;
     let cross_origin_loading = *cross_origin.await?;
     let mut builder = BrowserChunkingContext::builder(
-        root_path,
+        root_path.clone(),
         client_root.clone(),
         client_root_to_root_path,
         client_root.clone(),
@@ -632,23 +632,34 @@ pub async fn get_client_chunking_context(
             // A manifest chunk keeps a lazily compiled import's URL stable across activation.
             .manifest_chunks(*lazy_dynamic_imports.await?);
     } else {
+        let ecmascript_chunking_config = ChunkingConfig {
+            min_chunk_size: chunking_min_chunk_size.unwrap_or(50_000),
+            max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
+            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(200_000),
+            max_chunk_size: chunking_max_chunk_size,
+            first_page_load_priority: chunking_first_page_load_priority,
+            priority_boost_percent: chunking_priority_boost_percent,
+            request_cost: chunking_request_cost,
+            // Generate component chunks alongside the merged chunk so that the browser
+            // runtime can fetch an already-cached one instead of the whole merged chunk.
+            generate_component_chunks: *generate_component_chunks.await?,
+            min_component_chunk_size: chunking_min_component_chunk_size.unwrap_or(20_000),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &ChunkingConfigOptionNames {
+                chunks: "client",
+                max_chunk_size: "maxChunkSize",
+                min_chunk_size: Some("minChunkSize"),
+                max_merge_chunk_size: Some("maxMergeChunkSize"),
+            },
+            root_path.clone(),
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(50_000),
-                    max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(200_000),
-                    max_chunk_size: chunking_max_chunk_size,
-                    first_page_load_priority: chunking_first_page_load_priority,
-                    priority_boost_percent: chunking_priority_boost_percent,
-                    request_cost: chunking_request_cost,
-                    // Generate component chunks alongside the merged chunk so that the browser
-                    // runtime can fetch an already-cached one instead of the whole merged chunk.
-                    generate_component_chunks: *generate_component_chunks.await?,
-                    min_component_chunk_size: chunking_min_component_chunk_size.unwrap_or(20_000),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,

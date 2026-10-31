@@ -248,14 +248,22 @@ pub struct ChunkingConfig {
 
     /// Never merges chunks bigger than this size with other chunks.
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
+    /// `0` means no limit. When `max_chunk_size` is set, this is limited to `max_chunk_size` (see
+    /// [`ChunkingConfig::normalized`]).
     pub max_merge_chunk_size: usize,
 
-    /// Best-effort upper bound on the estimated size of a chunk. After merging, chunks bigger than
-    /// this are split deterministically (by sorting their chunk items by module identifier) into
-    /// chunks that are not bigger than this size. Splitting may create chunks smaller than
-    /// `min_chunk_size` and more chunks than `max_chunk_count_per_group`. Split merged chunks do
-    /// not emit component chunks. Only a single chunk item bigger than this size can still
-    /// produce a bigger chunk. `0` disables splitting. Not used for style chunk types.
+    /// Best-effort upper bound on the estimated size of a chunk. `0` disables the limit. Not used
+    /// for style chunk types.
+    ///
+    /// Merging never creates chunks bigger than this size, and chunks bigger than this size are
+    /// never merged. Chunks that are too big on their own are split deterministically (by sorting
+    /// their chunk items by module identifier) into chunks that are not bigger than this size,
+    /// preferring chunks of at least `min_chunk_size`. To stay below the limit, chunks may be
+    /// smaller than `min_chunk_size` and there may be more chunks than
+    /// `max_chunk_count_per_group`. Only a single chunk item bigger than this size can still
+    /// produce a bigger chunk.
+    ///
+    /// This is raised to at least `3 * min_chunk_size` (see [`ChunkingConfig::normalized`]).
     pub max_chunk_size: usize,
 
     /// When enabled, a merged chunk also emits its constituent component chunks (referenced,
@@ -291,6 +299,32 @@ pub struct ChunkingConfig {
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
+
+impl ChunkingConfig {
+    /// Returns this config with consistent size limits. When `max_chunk_size` is set (not `0`):
+    ///
+    /// 1. `max_chunk_size` is raised to `3 * min_chunk_size` if it is smaller, so that chunks can
+    ///    be split into chunks of at least `min_chunk_size`.
+    /// 2. `max_merge_chunk_size` is lowered to `max_chunk_size` if it is bigger or `0` (no limit),
+    ///    since chunks bigger than `max_chunk_size` are never merged anyway.
+    ///
+    /// The production chunking algorithm always uses the normalized config. Compare with the
+    /// original config to find out whether anything was adjusted.
+    pub fn normalized(&self) -> Self {
+        let mut config = self.clone();
+        if config.max_chunk_size != 0 {
+            config.max_chunk_size = config
+                .max_chunk_size
+                .max(config.min_chunk_size.saturating_mul(3));
+            if config.max_merge_chunk_size == 0
+                || config.max_merge_chunk_size > config.max_chunk_size
+            {
+                config.max_merge_chunk_size = config.max_chunk_size;
+            }
+        }
+        config
+    }
+}
 
 /// turbopack-browser needs to know the original
 /// source of the hmr chunk list to properly map to a
@@ -896,4 +930,63 @@ fn chunk_group_assets(
             availability_info,
         )
         .output_assets_with_referenced()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChunkingConfig;
+
+    fn config(min: usize, merge: usize, max: usize) -> ChunkingConfig {
+        ChunkingConfig {
+            min_chunk_size: min,
+            max_merge_chunk_size: merge,
+            max_chunk_size: max,
+            ..Default::default()
+        }
+    }
+
+    fn limits(config: &ChunkingConfig) -> (usize, usize, usize) {
+        (
+            config.min_chunk_size,
+            config.max_merge_chunk_size,
+            config.max_chunk_size,
+        )
+    }
+
+    #[test]
+    fn normalized_keeps_valid_configs() {
+        let valid = config(50_000, 200_000, 1_000_000);
+        assert_eq!(valid.normalized(), valid);
+        // Exactly at the limits.
+        let valid = config(100, 300, 300);
+        assert_eq!(valid.normalized(), valid);
+    }
+
+    #[test]
+    fn normalized_ignores_disabled_max_chunk_size() {
+        let disabled = config(50_000, 0, 0);
+        assert_eq!(disabled.normalized(), disabled);
+        let disabled = config(50_000, 200_000, 0);
+        assert_eq!(disabled.normalized(), disabled);
+    }
+
+    #[test]
+    fn normalized_raises_max_chunk_size() {
+        assert_eq!(limits(&config(100, 200, 200).normalized()), (100, 200, 300));
+    }
+
+    #[test]
+    fn normalized_lowers_max_merge_chunk_size() {
+        assert_eq!(limits(&config(10, 500, 200).normalized()), (10, 200, 200));
+        // `0` means no limit, which is bigger than any `max_chunk_size`.
+        assert_eq!(limits(&config(10, 0, 200).normalized()), (10, 200, 200));
+    }
+
+    #[test]
+    fn normalized_lowers_max_merge_chunk_size_to_raised_max_chunk_size() {
+        assert_eq!(
+            limits(&config(100, 1_000, 200).normalized()),
+            (100, 300, 300)
+        );
+    }
 }

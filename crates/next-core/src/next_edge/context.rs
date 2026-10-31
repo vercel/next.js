@@ -26,7 +26,9 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
-    next_config::NextConfig,
+    next_config::{
+        EDGE_CHUNKING_CONFIG_OPTION_NAMES, NextConfig, warn_on_adjusted_chunking_config,
+    },
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
@@ -225,6 +227,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         style_groups_algorithm,
         chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let cross_origin_loading = *cross_origin.await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -272,14 +275,24 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
+        let mut ecmascript_chunking_config = ChunkingConfig {
+            min_chunk_size: 20_000,
+            max_chunk_size: chunking_max_chunk_size,
+            ..Default::default()
+        };
+        // Edge chunks have no explicit merge limit, so use the effective maximum chunk size.
+        // Chunks bigger than that are never merged anyway.
+        ecmascript_chunking_config.max_merge_chunk_size =
+            ecmascript_chunking_config.normalized().max_merge_chunk_size;
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &EDGE_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_size: chunking_max_chunk_size,
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
@@ -323,6 +336,7 @@ pub async fn get_edge_chunking_context(
         style_groups_algorithm,
         chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let cross_origin = *cross_origin.await?;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
@@ -387,14 +401,24 @@ pub async fn get_edge_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
+        let mut ecmascript_chunking_config = ChunkingConfig {
+            min_chunk_size: 20_000,
+            max_chunk_size: chunking_max_chunk_size,
+            ..Default::default()
+        };
+        // Edge chunks have no explicit merge limit, so use the effective maximum chunk size.
+        // Chunks bigger than that are never merged anyway.
+        ecmascript_chunking_config.max_merge_chunk_size =
+            ecmascript_chunking_config.normalized().max_merge_chunk_size;
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &EDGE_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_size: chunking_max_chunk_size,
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
