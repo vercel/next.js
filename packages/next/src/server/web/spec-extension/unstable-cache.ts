@@ -223,15 +223,44 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        if (
+        const canUseCache =
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
           !isNestedUnstableCache &&
           workStore.fetchCache !== 'force-no-store' &&
-          !workStore.isOnDemandRevalidate &&
-          !incrementalCache.isOnDemandRevalidate &&
           !workStore.isDraftMode
-        ) {
+        const isOnDemandRevalidate =
+          workStore.isOnDemandRevalidate ||
+          incrementalCache.isOnDemandRevalidate
+
+        if (canUseCache && isOnDemandRevalidate) {
+          if (workUnitStore) {
+            switch (workUnitStore.type) {
+              case 'prerender': {
+                const resumeDataCacheEntry =
+                  workUnitStore.resumeDataCache?.fetch.get(cacheKey)
+                if (resumeDataCacheEntry?.kind === CachedRouteKind.FETCH) {
+                  return resumeDataCacheEntry.data.body !== undefined
+                    ? JSON.parse(resumeDataCacheEntry.data.body)
+                    : undefined
+                }
+                break
+              }
+              case 'prerender-runtime':
+              case 'prerender-client':
+              case 'validation-client':
+              case 'prerender-legacy':
+              case 'request':
+              case 'cache':
+              case 'private-cache':
+              case 'unstable-cache':
+              case 'build-time-generator':
+                break
+              default:
+                workUnitStore satisfies never
+            }
+          }
+        } else if (canUseCache) {
           // We attempt to get the current cache entry from the incremental cache.
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
