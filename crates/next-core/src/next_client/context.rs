@@ -56,7 +56,7 @@ use crate::{
         resolve::NextSharedRuntimeResolvePlugin,
         webpack_rules::{
             WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
-            webpack_loader_options,
+            emitted_files_scope, webpack_loader_options,
         },
     },
     transform_options::{
@@ -268,6 +268,7 @@ pub async fn get_client_module_options_context(
     let mut loader_conditions = BTreeSet::new();
     loader_conditions.insert(WebpackLoaderBuiltinCondition::Browser);
     loader_conditions.extend(mode.await?.webpack_loader_conditions());
+    let emitted_files_scope = emitted_files_scope(&loader_conditions);
 
     // A separate webpack rules will be applied to codes matching foreign_code_context_condition.
     // This allows to import codes from node_modules that requires webpack loaders, which next-dev
@@ -325,6 +326,7 @@ pub async fn get_client_module_options_context(
                 .await?,
         ),
         config_location: postcss_config_location,
+        emitted_files_scope: Some(emitted_files_scope),
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {

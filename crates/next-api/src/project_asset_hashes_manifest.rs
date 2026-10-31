@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    project::Project,
+    project::{Project, with_loader_emitted_files},
     route::{Endpoint, EndpointGroup, Endpoints},
 };
 
@@ -55,13 +55,13 @@ impl OutputAsset for AssetHashesManifestAsset {
     }
 }
 
-#[turbo_tasks::function]
-pub async fn endpoint_outputs(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<OutputAssets>> {
+#[turbo_tasks::function(operation)]
+pub async fn endpoint_outputs(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Result<Vc<OutputAssets>> {
     Ok(*endpoint.output().await?.output_assets)
 }
 
-#[turbo_tasks::function]
-pub async fn endpoints_outputs(endpoints: Vc<Endpoints>) -> Result<Vc<OutputAssets>> {
+#[turbo_tasks::function(operation)]
+pub async fn endpoints_outputs(endpoints: ResolvedVc<Endpoints>) -> Result<Vc<OutputAssets>> {
     let endpoints = endpoints.await?;
     let all_outputs = endpoints
         .iter()
@@ -85,20 +85,20 @@ pub async fn expand_outputs(
     let output_assets = entrypoint_groups
         .iter()
         .map(|(_, EndpointGroup { primary, .. })| {
-            if let &[entry] = &primary.as_slice() {
-                endpoint_outputs(*entry.endpoint)
+            let operation = if let &[entry] = &primary.as_slice() {
+                endpoint_outputs(entry.endpoint)
             } else {
-                let endpoints = Vc::cell(primary.iter().map(|entry| entry.endpoint).collect());
+                let endpoints =
+                    ResolvedVc::cell(primary.iter().map(|entry| entry.endpoint).collect());
                 endpoints_outputs(endpoints)
-            }
+            };
+            with_loader_emitted_files(project, operation)
         })
-        .collect::<Vec<_>>();
+        .try_join()
+        .await?;
 
     let output_assets = expand_output_assets(
         output_assets
-            .iter()
-            .try_join()
-            .await?
             .into_iter()
             .flatten()
             .map(ExpandOutputAssetsInput::Asset),
