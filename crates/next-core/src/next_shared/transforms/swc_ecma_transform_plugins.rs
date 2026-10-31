@@ -19,22 +19,10 @@ mod native_types {
     use bincode::{Decode, Encode};
     use serde::{Deserialize, Serialize};
 
-    /// A wrapper around [`serde_json::Value`] that implements [`turbo_tasks::TaskInput`].
-    ///
-    /// [`serde_json::Value`] does not implement [`std::hash::Hash`], so we implement it manually by
-    /// hashing the serialized JSON string.
-    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
-    pub struct JsonValue(
-        #[bincode(with = "turbo_bincode::serde_self_describing")] pub serde_json::Value,
-    );
-
-    impl std::hash::Hash for JsonValue {
-        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-            serde_json::to_string(&self.0)
-                .expect("JSON serialization should never fail")
-                .hash(state);
-        }
-    }
+    /// A wrapper around a JSON value that implements [`turbo_tasks::TaskInput`]. Ordered: the
+    /// value is passed to the plugin, where key order is observable.
+    #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+    pub struct JsonValue(pub turbo_tasks::OrderedJsonValue);
 
     // Manual impl because `serde_json::Value` doesn't implement `TaskInput`, but `JsonValue` can
     // never contain any `Vc` types.
@@ -238,7 +226,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 Ok(Some((
                     SwcPluginModule::new(name.clone(), file.content().to_bytes().to_vec())
                         .resolved_cell(),
-                    JsonValue(config.clone()),
+                    JsonValue(config.clone().into()),
                 )))
             }
         })
@@ -266,6 +254,9 @@ fn swc_ecma_transform_plugins_transform_plugin(
 ) -> Vc<TransformPlugin> {
     use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::SwcEcmaTransformPluginsTransformer;
     Vc::cell(Box::new(SwcEcmaTransformPluginsTransformer::new(
-        plugins.into_iter().map(|(m, v)| (m, v.0)).collect(),
+        plugins
+            .into_iter()
+            .map(|(m, v)| (m, v.0.into_inner()))
+            .collect(),
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }

@@ -266,7 +266,7 @@ pub async fn get_babel_loader_rules(
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
                 loader: NEXT_JS_BABEL_LOADER,
-                options: loader_options,
+                options: loader_options.into(),
             }]),
             rename_as: Some(rcstr!("*")),
             condition: Some(ConditionItem::All(loader_conditions.into())),

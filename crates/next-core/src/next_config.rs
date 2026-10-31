@@ -10,8 +10,8 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OrderedIndexMap, ResolvedVc, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat,
+    FxIndexMap, NonLocalValue, OperationValue, OrderedIndexMap, OrderedJsonValue, ResolvedVc,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
@@ -129,9 +129,9 @@ pub struct NextConfig {
     turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    output_file_tracing_includes: Option<serde_json::Value>,
+    output_file_tracing_includes: Option<OrderedJsonValue>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    output_file_tracing_excludes: Option<serde_json::Value>,
+    output_file_tracing_excludes: Option<OrderedJsonValue>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
     output_file_tracing_root: Option<RcStr>,
 
@@ -1629,7 +1629,7 @@ pub struct OutputFileTracingIncludesExcludes(
 impl OutputFileTracingIncludesExcludes {
     pub async fn parse(
         project_path: FileSystemPath,
-        value: &Option<serde_json::Value>,
+        value: &Option<OrderedJsonValue>,
     ) -> Result<OutputFileTracingIncludesExcludes> {
         if let Some(value) = value
             && let Some(map) = value.as_object()

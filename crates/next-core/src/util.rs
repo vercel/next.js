@@ -473,7 +473,7 @@ pub async fn load_next_js_json_file<T: DeserializeOwned>(
     match content.parse_json_ref() {
         FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {e}"),
         FileJsonContent::NotFound => turbobail!("File not found: {file_path:?}",),
-        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value.into_inner())?),
     }
 }
 
@@ -490,7 +490,7 @@ pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
     match content.parse_json_with_comments_ref() {
         FileJsonContent::Unparsable(e) => turbobail!("File is not valid JSON: {e}"),
         FileJsonContent::NotFound => turbobail!("File not found: {file_path}",),
-        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value.into_inner())?),
     }
 }
 
