@@ -93,6 +93,32 @@ describe('app-dir action handling', () => {
     expect(actionRequestStatus).toBe(200)
   })
 
+  it('should handle action correctly with middleware redirect', async () => {
+    let actionRequestStatus: number | undefined
+    let redirectHeader: string | null = null
+
+    const browser = await next.browser('/middleware-redirect-action')
+    browser.on('response', async (res) => {
+      if (
+        res.url().includes('middleware-redirect-action') &&
+        res.request().method() === 'POST'
+      ) {
+        actionRequestStatus = res.status()
+        const headers = await res.allHeaders().catch(() => ({}))
+        redirectHeader = headers['x-action-redirect'] || null
+      }
+    })
+
+    await browser.elementByCss('#trigger-action').click()
+
+    await retry(async () => {
+      expect(await browser.url()).toContain('/client/redirects')
+    })
+
+    expect(actionRequestStatus).toBe(200)
+    expect(redirectHeader).toContain('/client/redirects')
+  })
+
   it('should handle basic actions correctly', async () => {
     const browser = await next.browser('/server')
 
