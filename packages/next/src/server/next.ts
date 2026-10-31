@@ -388,7 +388,10 @@ export class NextServer implements NextWrapperServer {
         const { config: conf, compileMode } = result
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
-            if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+            if (
+              !process.env.__NEXT_PRIVATE_STANDALONE_CONFIG &&
+              !(globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG
+            ) {
               log.warn(
                 `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
               )

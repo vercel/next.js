@@ -2031,18 +2031,32 @@ async function loadConfigImpl(
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included
-      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+      if (
+        !process.env.__NEXT_PRIVATE_STANDALONE_CONFIG &&
+        !(globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG
+      ) {
         throw err
       }
     }
   }
 
-  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
-    // we don't apply assignDefaults or modifyConfig here as it
-    // has already been applied
-    const standaloneConfig = JSON.parse(
-      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
-    )
+  if (
+    (globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG ||
+    (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG &&
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG !== '1')
+  ) {
+    let standaloneConfig: NextConfigComplete
+    if ((globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG) {
+      standaloneConfig = (globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG
+    } else {
+      standaloneConfig = JSON.parse(
+        process.env.__NEXT_PRIVATE_STANDALONE_CONFIG!
+      )
+      ;(globalThis as any).__NEXT_PRIVATE_STANDALONE_CONFIG = standaloneConfig
+      // Clean up the environment variable so child processes spawned by user code
+      // do not inherit a huge serialized configuration and fail with E2BIG.
+      delete process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    }
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2052,6 +2066,12 @@ async function loadConfigImpl(
     })
 
     return [standaloneConfig, meta]
+  }
+
+  // If a child process inherited a '1' sentinel from a parent process without globalThis,
+  // clean it up so it can fall through to normal config resolution rather than throwing.
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG === '1') {
+    delete process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
   }
 
   const curLog = silent
