@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { transform } from 'next/dist/build/swc'
 import { installBindings } from 'next/dist/build/swc/install-bindings'
+import { codeFrameColumns } from 'next/dist/shared/lib/errors/code-frame'
 import path from 'path'
 import fsp from 'fs/promises'
 
@@ -133,6 +134,44 @@ describe('next/swc', () => {
       expect(nextEntryContent).toMatch(
         /For Next.js, Node.js version "\$\{">=\d+\.\d+\.\d*"\}" is required./
       )
+    })
+  })
+
+  describe('codeFrameColumns', () => {
+    const source = 'const a = 1\nconst b = ;\n'
+    const location = { start: { line: 2, column: 11 } }
+
+    it('renders code frames with boolean color and undefined maxWidth', () => {
+      const plain = codeFrameColumns(source, location, {
+        color: false,
+        maxWidth: undefined,
+      })
+      expect(plain).toContain('> 2 | const b = ;')
+
+      const colored = codeFrameColumns(source, location, {
+        color: true,
+        maxWidth: undefined,
+      })
+      expect(colored).toContain('const')
+      expect(colored).not.toBe(plain)
+    })
+
+    it('renders code frames with language option', () => {
+      const jsFrame = codeFrameColumns(source, location, {
+        color: true,
+        language: 'javascript',
+      })
+      expect(jsFrame).toContain('const')
+
+      const cssFrame = codeFrameColumns(
+        '.a { color: red; }\n',
+        { start: { line: 1, column: 6 } },
+        {
+          color: true,
+          language: 'css',
+        }
+      )
+      expect(cssFrame).toContain('color')
     })
   })
 })
