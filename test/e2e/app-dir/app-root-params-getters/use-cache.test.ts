@@ -536,7 +536,7 @@ for (const { held, failure } of [
       env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
     })
 
-    it('currently shares the producer lookup while waiting for both root-param writes', async () => {
+    it('waits for both producer writes before retrying with different root values', async () => {
       const id = `write-order-${randomUUID()}`
       const control = (action: string) =>
         next.fetch(
@@ -567,16 +567,7 @@ for (const { held, failure } of [
         await retry(async () => {
           const state = await readState()
           expect(state.requestedLanguages).toEqual(['en', 'fr'])
-          expect(state.lookupKeys).toHaveLength(1)
-          expect(
-            next.cliOutput
-              .split('\n')
-              .some(
-                (line) =>
-                  line.includes('joining pending cross-request invocation') &&
-                  line.includes(id)
-              )
-          ).toBe(true)
+          expect(state.lookupKeys).toHaveLength(2)
         })
         await control('release-fill')
         await retry(async () => {
@@ -594,7 +585,7 @@ for (const { held, failure } of [
         // for the held write, including when that settled write rejected.
         const pendingState = await readState()
         expect(pendingState.generatedLanguages).toEqual(['en'])
-        expect(pendingState.lookupKeys).toHaveLength(1)
+        expect(pendingState.lookupKeys).toHaveLength(2)
         await control('release-write')
         const [englishPage, frenchPage] = await Promise.all([english, french])
         expect(englishPage('#value').text()).toStartWith('en:')
@@ -623,7 +614,7 @@ describe('root cache lookup across two pending generations', () => {
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
 
-  it('currently joins both generations without reading the redirected handler key', async () => {
+  it('keeps the initial generation available after a redirected generation completes during the lookup', async () => {
     const id = `lookup-history-${randomUUID()}`
     const pathname = `/ca/en/write-failure?id=${id}`
     const control = (action: string) =>
@@ -636,7 +627,6 @@ describe('root cache lookup across two pending generations', () => {
         (response) =>
           response.json() as Promise<{
             generatedLanguages: string[]
-            requestedLanguages: string[]
             initialLookupCount: number
             specificLookupCount: number
             writtenLanguages: string[]
@@ -653,16 +643,7 @@ describe('root cache lookup across two pending generations', () => {
       })
       consumer = next.render$(`${pathname}&outer=1`)
       await retry(async () => {
-        expect((await readState()).requestedLanguages).toEqual(['en', 'en'])
-        expect(
-          next.cliOutput
-            .split('\n')
-            .some(
-              (line) =>
-                line.includes('joining pending cross-request invocation') &&
-                line.includes(id)
-            )
-        ).toBe(true)
+        expect((await readState()).initialLookupCount).toBe(2)
       })
       // Read root params become known while the initial value write is held.
       // The new request starts generation under the root-specific key.
@@ -674,30 +655,22 @@ describe('root cache lookup across two pending generations', () => {
       await retry(async () => {
         expect((await readState()).generatedLanguages).toEqual(['en', 'en'])
       })
-      const pendingState = await readState()
-      expect(pendingState.initialLookupCount).toBe(1)
-      expect(pendingState.specificLookupCount).toBe(1)
-      await control('release-write')
-      await retry(() => {
-        expect(
-          next.cliOutput
-            .split('\n')
-            .some(
-              (line) =>
-                line.includes('joining pending cross-request invocation') &&
-                line.includes(id) &&
-                line.includes('"lang","en"')
-            )
-        ).toBe(true)
+      await control('release-initial-lookup')
+      await retry(async () => {
+        expect((await readState()).specificLookupCount).toBe(2)
       })
       await control('release-second-write')
-      const [, specificPage, page] = await Promise.all([
-        initialProducer,
-        specificProducer,
-        consumer,
-      ])
-      expect(page('#value').text()).toBe(specificPage('#value').text())
+      await specificProducer
+      // The redirected cache miss returns after the second producer finishes.
+      // Its retry sees a stale entry; the outer cache needs fresh data and must
+      // still find the first pending producer.
+      await control('release-specific-lookup')
+      await retry(async () => {
+        expect((await readState()).specificLookupCount).toBe(3)
+      })
       expect((await readState()).generatedLanguages).toEqual(['en', 'en'])
+      await control('release-write')
+      const [, page] = await Promise.all([initialProducer, consumer])
       expect(page('#value').text()).toStartWith('en:')
     } finally {
       await control('release-fill')

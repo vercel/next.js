@@ -18,12 +18,11 @@ const routeAwareCacheHandler = {
     const entry = await cacheHandler.get(cacheKey, softTags)
     if (
       cacheKey.includes('observed-miss-') &&
-      softTags.some((tag) => tag.includes('/path-revalidation/b')) &&
-      cacheSharingState.pendingRouteLookupResult !== null
+      softTags.some((tag) => tag.includes('/path-revalidation/b'))
     ) {
-      // Record this `get()` call before it waits on `pendingRouteLookupResult`.
-      // The handler has not checked the route's implicit-tag expiration yet.
-      cacheSharingState.pausedLookupKeys.push(cacheKey)
+      // The underlying read has selected its result. A held lookup can
+      // therefore return a miss after a concurrent write completes.
+      cacheSharingState.routeBLookupKeys.push(cacheKey)
       await cacheSharingState.pendingRouteLookupResult
     }
     if (entry === undefined) {
