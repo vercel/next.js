@@ -3180,6 +3180,14 @@ if (isNextStart) {
               })
 
               expect(handleRequestSpan).toBeDefined()
+              expect(
+                spans.filter(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'BaseServer.handleRequest' &&
+                    span.attributes?.['http.target'] === pathname
+                )
+              ).toHaveLength(1)
               expect(handleRequestSpan!.name).toBe(`GET ${route}`)
               expect(handleRequestSpan!.attributes?.['http.target']).toContain(
                 pathname
@@ -3198,6 +3206,7 @@ if (isNextStart) {
                   span.name === handleRequestSpan!.name
               )
               expect(parentSpan).toBeDefined()
+              expect(handleRequestSpan!.parentId).toBe(parentSpan!.id)
               expect(parentSpan!.name).toBe(`GET ${route}`)
             },
             30_000,

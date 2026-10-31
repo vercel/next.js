@@ -329,6 +329,95 @@ describe.each(['', '/docs'])(
       })
     })
 
+    describe('documented hostname and wildcard matching', () => {
+      const { next } = nextTestSetup({
+        files: {
+          pages: new FileRef(join(__dirname, 'misc/pages')),
+          public: new FileRef(join(__dirname, 'misc/public')),
+        },
+        startArgs: ['--hostname', '127.0.0.1'],
+        nextConfig: {
+          basePath,
+          allowedDevOrigins: [
+            'exact.example.test',
+            '*.single.example.test',
+            '**.multi.example.test',
+          ],
+        },
+      })
+
+      beforeAll(async () => {
+        await next.render(withBasePath(basePath, '/404'))
+        await retry(async () => {
+          const response = await fetchViaHTTP(
+            next.appPort,
+            withBasePath(basePath, '/_next/static/chunks/pages/_app.js')
+          )
+          expect(response.status).toBe(200)
+        })
+      })
+
+      // allowedDevOrigins.mdx matches hostname only, unlike Server Actions'
+      // allowedOrigins, which includes the port. One wildcard consumes one
+      // label; a leading double wildcard consumes one or more labels.
+      for (const { source, allowed } of [
+        { source: 'https://exact.example.test', allowed: true },
+        { source: 'http://exact.example.test:1234', allowed: true },
+        {
+          source: 'https://exact.example.test:8443/dashboard?tab=1',
+          allowed: true,
+        },
+        { source: 'https://child.single.example.test', allowed: true },
+        {
+          source: 'http://child.single.example.test:4321/path?query=value',
+          allowed: true,
+        },
+        { source: 'https://child.multi.example.test', allowed: true },
+        {
+          source:
+            'http://child.region.multi.example.test:9876/path?query=value',
+          allowed: true,
+        },
+        { source: 'https://single.example.test', allowed: false },
+        { source: 'https://a.b.single.example.test', allowed: false },
+        { source: 'https://multi.example.test', allowed: false },
+        { source: 'https://child.exact.example.test', allowed: false },
+        { source: 'https://unknown.example.test', allowed: false },
+      ]) {
+        it('[H09] matches Origin hostname for ' + source, async () => {
+          const response = await requestInternalDevMiddleware(
+            next.appPort,
+            basePath,
+            source
+          )
+          expect(response.status).toBe(allowed ? 204 : 403)
+        })
+
+        it('[H09] matches Referer hostname for no-cors ' + source, async () => {
+          const response = await requestInternalDevScript(
+            next.appPort,
+            basePath,
+            { referer: source }
+          )
+          expect(response.status).toBe(allowed ? 200 : 403)
+        })
+      }
+
+      it('[H09] allows the initialized hostname without an allowlist entry', async () => {
+        const origin = 'https://127.0.0.1:4321/another/path?query=value'
+        const endpoint = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          origin
+        )
+        const script = await requestInternalDevScript(next.appPort, basePath, {
+          referer: origin,
+        })
+        expect(endpoint.status).toBe(204)
+        expect(script.status).toBe(200)
+      })
+    })
+
     describe('configured allowed origins', () => {
       const { next } = nextTestSetup({
         files: {

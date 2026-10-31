@@ -80,6 +80,7 @@ describe('Graceful Shutdown', () => {
       appPort = await findPort()
       const { child, exit } = await launchChildServer(next, [
         'dev',
+        ...(process.env.IS_WEBPACK_TEST ? ['--webpack'] : []),
         '-p',
         String(appPort),
       ])
@@ -95,9 +96,7 @@ describe('Graceful Shutdown', () => {
 
     runTests(true)
   })
-  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
-    ? describe.skip
-    : describe)('production (next start)', () => {
+  describe('production (next start)', () => {
     const { next } = nextTestSetup({
       files: appDir,
       skipStart: true,
@@ -125,9 +124,7 @@ describe('Graceful Shutdown', () => {
 
     runTests()
   })
-  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
-    ? describe.skip
-    : describe)('production (standalone mode)', () => {
+  describe('production (standalone mode)', () => {
     const projectFiles: Record<string, string | FileRef> = {
       'next.config.mjs': `export default { output: 'standalone' }`,
     }

@@ -25,6 +25,9 @@ describe('proxy-page-extensions', () => {
     expect(html).toContain('hello from proxy-page-extensions')
   })
 
+  // A deployment does not expose its server's instrumentation boot logs.
+  // The public Proxy request/response assertions above still apply there.
+  // @force-gate !deploy
   it('should detect instrumentation.page.ts and run register()', async () => {
     // `register()` is invoked once during server boot, before any request is
     // served, so we don't need to make a request first. retry() handles the

@@ -8,6 +8,11 @@ const nextConfig = {
   rewrites() {
     return [
       {
+        source: '/reference-submit',
+        destination: '/api/node-pages?contract=handoff',
+        has: [{ type: 'header', key: 'x-reference-input', value: 'accepted' }],
+      },
+      {
         source: '/rewrite-me',
         destination: '/isr-pages',
       },

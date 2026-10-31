@@ -2,11 +2,177 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { fetchViaRawHttp, renderViaRawHTTP, retry } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { fork } from 'node:child_process'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
+import path from 'node:path'
 
 const sharedDeps = { 'get-port': '5.1.1' }
 const sharedNodeEnv = isNextDev ? 'development' : 'production'
 const deprecatedWarning = (method: string) =>
   `The \`app.${method}()\` method is deprecated in custom servers.`
+
+// @force-gate dev
+describe('custom server lifecycle ownership', () => {
+  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+  it('closes and recreates the same project in one process with fresh routes and configuration', async () => {
+    const child = fork(path.join(next.testDir, 'lifecycle-server.cjs'), [], {
+      cwd: next.testDir,
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      env: { ...process.env, NODE_ENV: 'development' },
+    })
+    let diagnostics = ''
+    child.stderr?.on('data', (chunk) => {
+      diagnostics += chunk
+    })
+    child.stdout?.on('data', (chunk) => {
+      diagnostics += chunk
+    })
+    const exited = once(child, 'exit')
+    async function ready() {
+      const [message] = await Promise.race([
+        once(child, 'message', { signal: AbortSignal.timeout(30000) }),
+        exited.then(() => {
+          throw new Error('Lifecycle child exited: ' + diagnostics)
+        }),
+      ])
+      return message as { generation: number; port: number; pid: number }
+    }
+    try {
+      const first = await ready()
+      const firstResponse = await fetch(
+        `http://127.0.0.1:${first.port}/lifecycle-first`
+      )
+      expect(firstResponse.status).toBe(200)
+      expect(firstResponse.headers.get('x-runtime-generation')).toBe('1')
+      expect(await firstResponse.text()).toContain('first runtime destination')
+      const replacementReady = ready()
+      child.send('recreate')
+      const second = await replacementReady
+      expect(second.pid).toBe(first.pid)
+      // Binding the old port proves that the old listener released ownership.
+      const probe = createServer()
+      await new Promise<void>((resolve, reject) => {
+        probe.once('error', reject)
+        probe.listen(first.port, '127.0.0.1', resolve)
+      })
+      await new Promise<void>((resolve, reject) =>
+        probe.close((error) => (error ? reject(error) : resolve()))
+      )
+      const failures: Error[] = []
+      function verify(assertion: () => void) {
+        try {
+          assertion()
+        } catch (error) {
+          failures.push(
+            error instanceof Error ? error : new Error(String(error))
+          )
+        }
+      }
+      for (let request = 0; request < 3; request++) {
+        const response = await fetch(
+          `http://127.0.0.1:${second.port}/lifecycle-second`,
+          { signal: AbortSignal.timeout(10000) }
+        )
+        const body = await response.text()
+        verify(() => expect(response.status).toBe(200))
+        verify(() =>
+          expect(response.headers.get('x-runtime-generation')).toBe('2')
+        )
+        verify(() =>
+          expect(body.includes('second runtime destination')).toBe(true)
+        )
+        const removed = await fetch(
+          `http://127.0.0.1:${second.port}/lifecycle-first`,
+          {
+            signal: AbortSignal.timeout(10000),
+          }
+        )
+        verify(() => expect(removed.status).toBe(404))
+        await removed.text()
+      }
+      // Verify disposal even when replacement requests expose stale state.
+      const closed = once(child, 'exit', { signal: AbortSignal.timeout(20000) })
+      child.send('close')
+      try {
+        const [code, signal] = await closed
+        verify(() =>
+          expect({ code, signal }).toEqual({ code: 0, signal: null })
+        )
+      } catch (error) {
+        failures.push(
+          new Error('Runtime did not exit naturally within 20000ms', {
+            cause: error,
+          })
+        )
+      }
+      if (failures.length) {
+        throw new AggregateError(
+          failures,
+          'Custom runtime recreation/disposal failed:\n' +
+            failures.map((error) => error.message).join('\n') +
+            '\nChild output:\n' +
+            diagnostics
+        )
+      }
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) {
+        const stopped = once(child, 'exit', {
+          signal: AbortSignal.timeout(5000),
+        })
+        child.kill('SIGTERM')
+        try {
+          await stopped
+        } catch {
+          child.kill('SIGKILL')
+          await exited
+        }
+      }
+    }
+  })
+})
+
+// The application owns its socket path; Next owns only HMR upgrades.
+// @force-gate dev
+describe.each(['automatic', 'explicit'])('upgrade ownership (%s)', (mode) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    startCommand: 'node upgrade-server.cjs',
+    serverReadyPattern: /- Local:/,
+    env: { NODE_ENV: 'development', ROUTING_UPGRADE_MODE: mode },
+  })
+  it('keeps application sockets working while HMR updates preserve component state', async () => {
+    const original = await next.readFile('pages/upgrade-counter.js')
+    const browser = await next.browser('/upgrade-counter')
+    async function echo() {
+      return browser.eval(`new Promise((resolve, reject) => {
+        const socket = new WebSocket(location.origin.replace(/^http/, 'ws') + '/application-socket');
+        socket.onopen = () => socket.send('application-owned');
+        socket.onmessage = (event) => { socket.close(); resolve(event.data) };
+        socket.onerror = () => reject(new Error('Application WebSocket failed'));
+      })`)
+    }
+    try {
+      expect(await echo()).toBe('application-owned')
+      await browser.elementById('upgrade-count').click()
+      expect(await browser.elementById('upgrade-count').text()).toBe('1')
+      await next.patchFile(
+        'pages/upgrade-counter.js',
+        original.replace('before edit', 'after edit')
+      )
+      await retry(async () => {
+        expect(await browser.elementById('upgrade-marker').text()).toBe(
+          'after edit'
+        )
+        expect(await browser.elementById('upgrade-count').text()).toBe('1')
+      })
+      expect(await echo()).toBe('application-owned')
+    } finally {
+      await next.patchFile('pages/upgrade-counter.js', original)
+      await browser.close()
+    }
+  })
+})
 
 describe.each([
   { title: 'HTTP', useHttps: 'false' },

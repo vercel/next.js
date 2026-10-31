@@ -312,6 +312,25 @@ describe('app dir - metadata dynamic routes', () => {
           type: 'image/png',
         },
       ])
+
+      // Verify every advertised variant is a real image endpoint, not only a
+      // correctly shaped URL in the rendered metadata.
+      const advertisedUrls = $('link[rel="icon"], link[rel="apple-touch-icon"]')
+        .toArray()
+        .map((element) => $(element).attr('href'))
+      expect(advertisedUrls).toHaveLength(4)
+
+      for (const advertisedUrl of advertisedUrls) {
+        const url = new URL(advertisedUrl, next.url)
+        const response = await next.fetch(url.pathname + url.search)
+        expect(response.status).toBe(200)
+        expect(response.headers.get('content-type')).toBe('image/png')
+
+        const image = imageSize(Buffer.from(await response.arrayBuffer()))
+        expect(image.type).toBe('png')
+        expect(image.width).toBeGreaterThan(0)
+        expect(image.height).toBeGreaterThan(0)
+      }
     })
 
     it('should fill params into dynamic routes url of metadata images', async () => {

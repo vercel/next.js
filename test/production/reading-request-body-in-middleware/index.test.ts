@@ -21,6 +21,10 @@ describe('reading request body in middleware', () => {
           if (request.nextUrl.searchParams.has("next")) {
             const res = NextResponse.next();
             res.headers.set('x-from-root-middleware', '1');
+            if (request.nextUrl.searchParams.has('handoff')) {
+              res.cookies.set('handoff-first', 'one');
+              res.cookies.set('handoff-second', 'two');
+            }
             return res;
           }
 
@@ -35,6 +39,7 @@ describe('reading request body in middleware', () => {
 
       'pages/api/hi.js': `
         export default function hi(req, res) {
+          if (req.query.handoff) res.status(201);
           res.json({
             ...req.body,
             api: true,
@@ -48,6 +53,25 @@ describe('reading request body in middleware', () => {
   it('rejects with 400 for get requests', async () => {
     const response = await fetchViaHTTP(next.url, '/')
     expect(response.status).toEqual(400)
+  })
+
+  it('preserves the consumed POST body, destination status and distinct cookies through continuation', async () => {
+    const payload = {
+      message: 'test-owned handoff payload',
+      repeated: ['one', 'two'],
+    }
+    const response = await next.fetch('/api/hi?next=1&handoff=1', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    expect(response.status).toBe(201)
+    expect(response.headers.get('x-from-root-middleware')).toBe('1')
+    expect(response.headers.getSetCookie()).toEqual([
+      'handoff-first=one; Path=/',
+      'handoff-second=two; Path=/',
+    ])
+    expect(await response.json()).toEqual({ ...payload, api: true })
   })
 
   it('returns root: true for root calls', async () => {

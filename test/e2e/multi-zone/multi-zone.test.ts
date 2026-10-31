@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -52,6 +52,91 @@ describe('multi-zone', () => {
       }
     }
   )
+
+  // multi-zones.mdx: each zone's advertised assets must be reachable through
+  // the same frontend as its pages, without colliding with the other zone.
+  for (const [pathname, prefix, zone] of [
+    ['/', '/_next/', 'host'],
+    ['/guest', '/guest/_next/', 'guest'],
+  ]) {
+    it(`serves the scripts and styles advertised by the ${zone} zone`, async () => {
+      const $ = await next.render$(pathname)
+      const scripts = $('script[src]')
+        .toArray()
+        .map((element) => $(element).attr('src')!)
+        .filter(
+          (url) => url.includes('/_next/static/') && url.includes('/chunks/')
+        )
+      const styles = $('link[rel="stylesheet"][href]')
+        .toArray()
+        .map((element) => $(element).attr('href')!)
+        .filter((url) => url.includes('/_next/'))
+      expect(scripts.length).toBeGreaterThan(0)
+      // Development injects CSS through JavaScript; production advertises it
+      // as a stylesheet. The browser assertion below verifies both modes.
+      if (!isNextDev) expect(styles.length).toBeGreaterThan(0)
+      for (const advertisedUrl of [...scripts, ...styles]) {
+        const url = new URL(advertisedUrl, next.url)
+        expect(url.pathname.startsWith(prefix)).toBe(true)
+        const response = await next.fetch(url.pathname + url.search)
+        expect(response.status).toBe(200)
+        expect(response.headers.get('content-type')).toMatch(
+          /javascript|text\/css/
+        )
+      }
+      const browser = await next.browser(pathname)
+      await retry(async () => {
+        expect(
+          await browser.eval(
+            'getComputedStyle(document.documentElement).getPropertyValue("--zone-name").trim()'
+          )
+        ).toBe(zone)
+      })
+    })
+  }
+
+  it('performs a full document navigation between zones using ordinary anchors', async () => {
+    const browser = await next.browser('/')
+    await browser.eval('window.__zoneNavigationMarker = "host"')
+    await browser.elementByCss('#visit-guest').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toContain(
+        'hello from guest app'
+      )
+    })
+    expect(new URL(await browser.url()).pathname).toBe('/guest')
+    expect(await browser.eval('window.__zoneNavigationMarker')).toBeUndefined()
+
+    await browser.eval('window.__zoneNavigationMarker = "guest"')
+    await browser.elementByCss('#visit-host').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toContain(
+        'hello from host app'
+      )
+    })
+    expect(new URL(await browser.url()).pathname).toBe('/')
+    expect(await browser.eval('window.__zoneNavigationMarker')).toBeUndefined()
+  })
+
+  for (const [zone, pathname, destination] of [
+    ['host', '/', '/blog/post-1'],
+    ['guest', '/guest', '/guest/blog/post-1'],
+  ]) {
+    it(`keeps a same-zone ${zone} Link navigation soft`, async () => {
+      const browser = await next.browser(pathname)
+      await browser.eval('window.__zoneNavigationMarker = "retained"')
+      await browser.elementByCss('#same-zone-blog').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          `hello from ${zone} app /blog/[slug]`
+        )
+      })
+      expect(new URL(await browser.url()).pathname).toBe(destination)
+      expect(await browser.eval('window.__zoneNavigationMarker')).toBe(
+        'retained'
+      )
+    })
+  }
 
   if (isNextDev) {
     async function runHMRTest(app: string) {
