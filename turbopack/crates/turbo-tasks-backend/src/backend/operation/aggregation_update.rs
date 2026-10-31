@@ -31,7 +31,10 @@
 //! debt entry still reports possible collectibility, separately from semantic edge effects.
 //!
 //! A removal (`inner_of_upper(s)_lost_follower(s)`):
-//! 1. Locks `F`. If `F.upper[U] > 0`, it decrements that inner edge.
+//! 1. Locks `F`. If `F.upper[U] > 0`, it decrements that inner edge. When this removes the last
+//!    inner edge while `F`'s completion is still running, `U` keeps `F`'s dirty state until the
+//!    completion ends, so that `U` can't become clean before the completion's pending changes have
+//!    reached it (see [`hold_dirty_state_while_completing`]). This doesn't wait either.
 //! 2. Otherwise it locks `U` and decrements `U.followers[F]`, possibly below zero.
 //! 3. If that left debt, it locks `F` again and pushes a `BalanceEdge` when `F.upper[U] > 0` now.
 //!
@@ -108,7 +111,10 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{ActivenessState, AggregationNumber, CollectibleRef, CollectiblesRef},
+    data::{
+        ActivenessState, AggregationNumber, CollectibleRef, CollectiblesRef, HeldDirtyUpper,
+        InProgressState,
+    },
     utils::swap_retain,
 };
 
@@ -258,6 +264,82 @@ pub fn get_aggregation_number(task: &TaskGuard<'_>) -> u32 {
     task.get_aggregation_number()
         .map(|a| a.effective)
         .unwrap_or_default()
+}
+
+/// Keeps the dirty state of a `completing` follower in the uppers that lose their last inner edge
+/// to it: removes the dirty container update from `data` and records it in the follower's
+/// [`InProgressStateInner::held_dirty_uppers`](crate::data::InProgressStateInner::held_dirty_uppers).
+///
+/// A completion changes the task's edges and propagates these changes to the uppers it saw at that
+/// time (e.g. that a removed child is no longer a follower). The task stays dirty until the
+/// completion is done, and that dirty state is what keeps these uppers from becoming clean before
+/// the changes reached them. Without holding it, an upper that drops the task in the meantime could
+/// become clean, and a strongly consistent read of it could complete while it still has the old
+/// data (e.g. collectibles of children that are no longer connected) or misses new data.
+///
+/// This never waits: the edge and all other data are removed as usual. The held dirty state is
+/// released by [`release_held_dirty_uppers`] when the completion ends.
+///
+/// Called wherever the last inner edge to an upper is removed together with the task's data:
+/// removals (via `on_inner_edges_disappeared`, which also covers `balance_edge` cancelling an
+/// inner edge against debt) and `balance_edge` turning an inner edge into a follower edge. GC
+/// removes edges only while no operation is active, so it never sees a completing task.
+fn hold_dirty_state_while_completing(
+    follower: &mut TaskGuard<'_>,
+    data: &mut AggregatedDataUpdate,
+    removed_upper_ids: impl IntoIterator<Item = TaskId>,
+) {
+    let Some(InProgressState::InProgress(inner)) = follower.get_in_progress_mut() else {
+        return;
+    };
+    if !inner.completing {
+        return;
+    }
+    let Some(DirtyContainerUpdate {
+        task_id: _,
+        dirty_count,
+        current_session_clean_count,
+    }) = data.dirty_container_update.take()
+    else {
+        return;
+    };
+    inner.held_dirty_uppers.extend(
+        removed_upper_ids
+            .into_iter()
+            .map(|upper_id| HeldDirtyUpper {
+                upper_id,
+                dirty_count,
+                current_session_clean_count,
+            }),
+    );
+}
+
+/// Removes the dirty state of `task_id` that is still held by uppers that lost their last inner
+/// edge to it during its completion (see [`hold_dirty_state_while_completing`]). Called when the
+/// completion ends, after the completion's own aggregation updates were executed.
+pub fn release_held_dirty_uppers(
+    ctx: &mut ExecuteContext<'_>,
+    task_id: TaskId,
+    held_dirty_uppers: Vec<HeldDirtyUpper>,
+) {
+    if held_dirty_uppers.is_empty() {
+        return;
+    }
+    let mut queue = AggregationUpdateQueue::new();
+    for held in held_dirty_uppers {
+        queue.push(
+            AggregatedDataUpdateJob {
+                upper_ids: smallvec![held.upper_id],
+                update: AggregatedDataUpdate::new().dirty_container_update(
+                    task_id,
+                    -held.dirty_count,
+                    -held.current_session_clean_count,
+                ),
+            }
+            .into(),
+        );
+    }
+    queue.execute(ctx);
 }
 
 #[derive(Debug)]
@@ -1966,8 +2048,11 @@ impl AggregationUpdateQueue {
                 }
 
                 // Since this is no longer an inner node, update the aggregated data and
-                // followers
-                let data = AggregatedDataUpdate::from_task(&mut task).invert();
+                // followers. Like any removal of an inner edge, a completing task keeps its dirty
+                // state in `upper` until its completion ends.
+                let mut data = AggregatedDataUpdate::from_task(&mut task);
+                hold_dirty_state_while_completing(&mut task, &mut data, [upper_id]);
+                let data = data.invert();
                 let followers = get_followers(&task);
                 let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                 drop(upper);
@@ -2238,7 +2323,8 @@ impl AggregationUpdateQueue {
         mut follower: TaskGuard<'_>,
         removed_upper_ids: L,
     ) {
-        let data = AggregatedDataUpdate::from_task(&mut follower);
+        let mut data = AggregatedDataUpdate::from_task(&mut follower);
+        hold_dirty_state_while_completing(&mut follower, &mut data, removed_upper_ids.iter_ids());
         let followers = get_followers(&follower);
         // if uppers became empty, it might be collectible, check now.
         if follower.is_upper_empty() {
@@ -3979,11 +4065,11 @@ mod follower_debt_tests {
     use std::{cell::RefCell, sync::Arc};
 
     use smallvec::{SmallVec, smallvec};
-    use turbo_tasks::{CellId, TaskId, TraitTypeId, TurboTasks, ValueTypeId};
+    use turbo_tasks::{CellId, TaskId, TraitTypeId, TurboTasks, ValueTypeId, event::Event};
 
     use super::{
         AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
-        update_follower_count,
+        release_held_dirty_uppers, update_follower_count,
     };
     use crate::{
         backend::{
@@ -3991,7 +4077,8 @@ mod follower_debt_tests {
             operation::ExecuteContext, storage_schema::TaskStorageAccessors,
         },
         data::{
-            ActivenessState, AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue,
+            ActivenessState, AggregationNumber, CellRef, CollectibleRef, Dirtyness,
+            InProgressState, InProgressStateInner, OutputValue,
         },
         noop_backing_storage,
     };
@@ -4967,6 +5054,171 @@ mod follower_debt_tests {
     async fn verification_detects_debt() {
         let tt = setup(&[(1, UPPER), (2, FOLLOWER)]);
         run(&tt, [remove(1, 2)]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Marks `task_id` as in progress, and as `completing` when `completing` is true.
+    fn set_in_progress(tt: &TurboTasks<TurboTasksBackend>, task_id: u32, completing: bool) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        task.set_in_progress(InProgressState::InProgress(Box::new(
+            InProgressStateInner {
+                stale: false,
+                once_task: false,
+                marked_as_completed: false,
+                completing,
+                held_dirty_uppers: Vec::new(),
+                done_event: Event::new(|| || "test done_event".to_string()),
+                new_children: Default::default(),
+            },
+        )));
+    }
+
+    /// The `(upper, dirty, current-session-clean)` contributions held for `task_id`.
+    fn held(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> Vec<(TaskId, i32, i32)> {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task_id), TaskDataCategory::All);
+        let Some(InProgressState::InProgress(inner)) = task.get_in_progress() else {
+            panic!("task {task_id} is not in progress");
+        };
+        inner
+            .held_dirty_uppers
+            .iter()
+            .map(|held| {
+                (
+                    held.upper_id,
+                    held.dirty_count,
+                    held.current_session_clean_count,
+                )
+            })
+            .collect()
+    }
+
+    /// Ends the completion of `task_id` the way the backend does: takes the held contributions out
+    /// of the in-progress state and releases them.
+    fn end_completion(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        let Some(InProgressState::InProgress(inner)) = task.take_in_progress() else {
+            panic!("task {task_id} is not in progress");
+        };
+        drop(task);
+        release_held_dirty_uppers(&mut ctx, id(task_id), inner.held_dirty_uppers);
+    }
+
+    /// Task 2 is dirty (session dependent, so dirty and current-session clean) and inner of the
+    /// aggregating task 1.
+    fn held_dirty_fixture(completing: bool) -> Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = setup(&[(1, UPPER), (2, INNER)]);
+        seed_effects(&tt, &[2], &[]);
+        set_in_progress(&tt, 2, completing);
+        run(&tt, [add(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert_eq!(effects(&tt, 1), (1, 1, 0));
+        assert_eq!(aggregated(&tt, 1), 1);
+        tt
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn removal_of_completing_inner_keeps_dirty_state_until_completion_ends() {
+        let tt = held_dirty_fixture(true);
+        run(&tt, [remove(1, 2)]);
+        // The edge and the collectibles are removed right away, nothing waits.
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(followers(&tt, 1), vec![]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        // Only the dirty state is kept, so task 1 can't become clean too early.
+        assert_eq!(effects(&tt, 1), (1, 1, 0));
+        assert_eq!(held(&tt, 2), vec![(id(1), 1, 1)]);
+        end_completion(&tt, 2);
+        assert_eq!(effects(&tt, 1), (0, 0, 0));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn removal_of_executing_inner_removes_dirty_state() {
+        let tt = held_dirty_fixture(false);
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        assert_eq!(effects(&tt, 1), (0, 0, 0));
+        assert_eq!(held(&tt, 2), vec![]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn only_the_last_inner_edge_holds_dirty_state() {
+        let tt = held_dirty_fixture(true);
+        run(&tt, [add(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 2)]);
+        // The edge stays, so the data stays and nothing is held.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert_eq!(held(&tt, 2), vec![]);
+        assert_eq!(effects(&tt, 1), (1, 1, 0));
+        assert_eq!(aggregated(&tt, 1), 1);
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(held(&tt, 2), vec![(id(1), 1, 1)]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        end_completion(&tt, 2);
+        assert_eq!(effects(&tt, 1), (0, 0, 0));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn reattached_completing_inner_releases_each_held_contribution() {
+        let tt = held_dirty_fixture(true);
+        // Separate queues, so every removal removes the last inner edge. (Within one queue the
+        // addition runs before the removals, see `moved_edge_in_one_queue_holds_once`.)
+        run(&tt, [remove(1, 2)]);
+        run(&tt, [add(1, 2)]);
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        // Each detach holds its own contribution. Together they are one dirty container.
+        assert_eq!(held(&tt, 2), vec![(id(1), 1, 1), (id(1), 1, 1)]);
+        assert_eq!(effects(&tt, 1), (1, 1, 0));
+        end_completion(&tt, 2);
+        assert_eq!(effects(&tt, 1), (0, 0, 0));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn moved_edge_in_one_queue_holds_once() {
+        let tt = held_dirty_fixture(true);
+        // Removals run after the addition, so the edge count goes 1 -> 2 -> 1 -> 0 and only the
+        // last removal drops the data and holds the dirty state.
+        run(&tt, [remove(1, 2), add(1, 2), remove(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        assert_eq!(held(&tt, 2), vec![(id(1), 1, 1)]);
+        assert_eq!(effects(&tt, 1), (1, 1, 0));
+        end_completion(&tt, 2);
+        assert_eq!(effects(&tt, 1), (0, 0, 0));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn balancing_completing_inner_into_follower_keeps_dirty_state() {
+        let tt = held_dirty_fixture(true);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            ctx.task(id(2), TaskDataCategory::All)
+                .set_aggregation_number(AggregationNumber {
+                    base: FOLLOWER,
+                    distance: 0,
+                    effective: FOLLOWER,
+                });
+        }
+        run(&tt, [balance(1, 2)]);
+        // The inner edge became a follower edge and the data left task 1 right away.
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert_eq!(followers(&tt, 1), vec![(id(2), 1)]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        assert_eq!(held(&tt, 2), vec![(id(1), 1, 1)]);
+        assert_eq!(effects(&tt, 1), (1, 1, 0));
+        end_completion(&tt, 2);
+        assert_eq!(effects(&tt, 1), (0, 0, 0));
         tt.backend().verify_aggregation_edges();
     }
 }
