@@ -134,7 +134,7 @@ env:
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
-  TURBO_CACHE: ${{ inputs.futureCompat && 'local:,remote:' || 'local:rw,remote:rw' }}
+  TURBO_CACHE: 'local:rw,remote:rw'
 
   NEXT_TELEMETRY_DISABLED: 1
   # `skipNativeInstall: 'no'` must force the download even though CI otherwise
