@@ -379,7 +379,8 @@ fn create_executions_operation() -> Vc<Executions> {
 
 // --- A `KeyedReadRef` that isn't dropped within its task execution fails the task. ---
 
-const LEAK_MESSAGE: &str = "`KeyedReadRef` was not dropped within the task execution";
+const LEAK_MESSAGE: &str =
+    "`KeyedReadRef` or `LazyReadRef` was not dropped within the task execution";
 const ORIGINAL_ERROR: &str = "original task error";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
