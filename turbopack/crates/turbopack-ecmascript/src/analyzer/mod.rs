@@ -135,6 +135,25 @@ pub mod test_utils {
             JsValue::Call(_, ref call)
                 if matches!(
                     call.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::FileUrlToPath)
+                ) =>
+            {
+                if let [JsValue::Member(_, obj, prop)] = call.args()
+                    && matches!(
+                        &**obj,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
+                    && prop.as_str() == "url"
+                {
+                    rcstr!("__filename").into()
+                } else {
+                    v.into_unknown(true, rcstr!("fileURLToPath() non constant"))
+                }
+            }
+            JsValue::Call(_, ref call)
+                if matches!(
+                    call.callee(),
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
                 ) =>
             {
