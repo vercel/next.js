@@ -36,13 +36,20 @@ use crate::{
     keyed::{KeyedAccess, KeyedEq},
 };
 
-/// An [`FxIndexMap`] whose equality and hash include the order of its entries. See the
-/// [module documentation](self).
+/// An [`FxIndexMap`] whose equality and hash include the order of its entries.
+///
+/// `IndexMap` compares like a map, so a cell holding one keeps its old content when a recomputed
+/// value only reorders the entries, and readers keep the stale order. Use this type for fields
+/// whose order matters: positions stored elsewhere, first-match semantics, or an order that reaches
+/// emitted output.
+///
+/// In a keyed cell, when only the order differs, [`KeyedEq`] reports the keys that moved: readers
+/// of the whole map see the new order, readers of unmoved keys stay valid.
 #[derive(Clone)]
 pub struct OrderedIndexMap<K, V>(FxIndexMap<K, V>);
 
-/// An [`FxIndexSet`] whose equality and hash include the order of its items. See the
-/// [module documentation](self).
+/// An [`FxIndexSet`] whose equality and hash include the order of its items. See
+/// [`OrderedIndexMap`].
 #[derive(Clone)]
 pub struct OrderedIndexSet<T>(FxIndexSet<T>);
 
