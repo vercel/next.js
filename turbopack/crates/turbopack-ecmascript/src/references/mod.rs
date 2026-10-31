@@ -2108,7 +2108,9 @@ where
                             return Ok(());
                         }
                     }
-                    let error_mode = if in_try {
+                    let error_mode = if attributes.optional {
+                        ResolveErrorMode::Ignore
+                    } else if in_try {
                         ResolveErrorMode::Warn
                     } else {
                         ResolveErrorMode::Error
@@ -4385,7 +4387,12 @@ async fn value_visitor_inner<'a>(
                 rcstr!("ignored SharedWorker constructor"),
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-            "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            "URL" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+                true,
+                rcstr!("ignored URL constructor"),
+            ),
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
