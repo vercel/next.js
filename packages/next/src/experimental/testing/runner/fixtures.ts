@@ -18,6 +18,7 @@ export type FixtureDefinition = unknown | [unknown, FixtureOptions]
 export interface FixtureRegistration {
   name: string
   definition: FixtureDefinition
+  options: FixtureOptions | undefined
   parent?: FixtureRegistration
 }
 export type FixtureDefinitions = Record<string, FixtureRegistration>
@@ -62,7 +63,7 @@ export function resolveFixtureDefinitions(
   return definitions
 }
 
-function hasBuilderFixtureOptions(value: object): boolean {
+function hasFixtureOptions(value: object): boolean {
   return Object.keys(value).some(
     (key) => key === 'auto' || key === 'scope' || key === 'injected'
   )
@@ -93,12 +94,12 @@ export function normalizeFixtureArguments(
     optionsOrValue !== null &&
     typeof optionsOrValue === 'object' &&
     !Array.isArray(optionsOrValue) &&
-    hasBuilderFixtureOptions(optionsOrValue)
+    hasFixtureOptions(optionsOrValue)
   ) {
     const candidate = optionsOrValue as FixtureOptions
     // The target's builder and tuple parsers independently select options.
     // Capture actual fields once, in that parser's order, before later use.
-    if (hasBuilderFixtureOptions(candidate)) {
+    if (hasFixtureOptions(candidate)) {
       const auto = candidate.auto ?? false
       const scope = candidate.scope ?? 'test'
       const injected = candidate.injected ?? false
@@ -144,17 +145,27 @@ export function extendFixtures(
   else fixtureDefinitionOrder.set(definitions, nextFixtureDefinitionOrder++)
   for (const [name, definition] of Object.entries(extra)) {
     let resolved = definition
+    let options: FixtureOptions | undefined
     if (
       Array.isArray(definition) &&
-      definition.length === 2 &&
+      definition.length >= 2 &&
       definition[1] &&
       typeof definition[1] === 'object' &&
-      definition[1].injected
-    )
-      resolved = [injectValue?.(name) ?? definition[0], definition[1]]
+      hasFixtureOptions(definition[1])
+    ) {
+      const candidate = definition[1] as FixtureOptions
+      const auto = candidate.auto ?? false
+      const scope = candidate.scope ?? 'test'
+      const injected = candidate.injected ?? false
+      options = { auto, scope, injected }
+      resolved = injected
+        ? (injectValue?.(name) ?? definition[0])
+        : definition[0]
+    }
     definitions[name] = {
       name,
       definition: resolved,
+      options,
       parent: definitions[name],
     }
   }
@@ -208,7 +219,10 @@ function dependencies(fn: Function): string[] {
       if (property.startsWith('...'))
         unsupported('fixture destructuring rest properties')
       const name = property.replace(/:.*|=.*/g, '').trim()
-      if (!/^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u.test(name))
+      if (
+        !/^[0-9]+$/.test(name) &&
+        !/^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u.test(name)
+      )
         unsupported('nested or computed fixture destructuring')
       return name
     })
@@ -239,19 +253,8 @@ function normalize(registration: FixtureRegistration): Fixture {
   const parent = registration.parent
     ? normalize(registration.parent)
     : undefined
-  if (
-    Array.isArray(definition) &&
-    definition.length === 2 &&
-    definition[1] &&
-    typeof definition[1] === 'object' &&
-    ('scope' in definition[1] ||
-      'auto' in definition[1] ||
-      'injected' in definition[1])
-  ) {
-    const [value, options] = definition
-    for (const key of Object.keys(options))
-      if (key !== 'scope' && key !== 'auto' && key !== 'injected')
-        unsupported(`fixture option "${key}"`)
+  const options = registration.options
+  if (options) {
     if (
       options.scope !== undefined &&
       options.scope !== 'test' &&
@@ -268,7 +271,7 @@ function normalize(registration: FixtureRegistration): Fixture {
         `The "${registration.name}" fixture was already registered as { auto: ${parent.auto} }.`
       )
     return {
-      value,
+      value: definition,
       scope: options.scope ?? 'test',
       auto: options.auto ?? false,
       registration,

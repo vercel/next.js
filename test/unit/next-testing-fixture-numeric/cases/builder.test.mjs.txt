@@ -1,0 +1,5 @@
+import { test, describe, expect } from 'vitest'
+const row = (...event) => console.log('FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: "builder", event }))
+const base = test.extend({ 42: async ({}, use) => { row('setup'); await use(42); row('cleanup') } })
+const owned = base.extend('answer', ({ 42: value }, { onCleanup }) => { row('builder', value); onCleanup(() => row('builder cleanup')); return value + 1 })
+owned('numeric builder dependency', ({ answer }) => { row('body', answer); expect(answer).toBe(43) })

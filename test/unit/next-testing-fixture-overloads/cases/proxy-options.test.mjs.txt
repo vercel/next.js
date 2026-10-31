@@ -1,0 +1,7 @@
+import { test as base, expect } from 'vitest'
+const label='proxy-options'
+const trace=[]
+const options=new Proxy({auto:false,scope:'test',injected:false},{ownKeys(target){trace.push('keys');return Reflect.ownKeys(target)},getOwnPropertyDescriptor(target,key){trace.push(['descriptor',String(key)]);return Reflect.getOwnPropertyDescriptor(target,key)},get(target,key,receiver){trace.push(['get',String(key)]);return Reflect.get(target,key,receiver)},has(target,key){trace.push(['has',String(key)]);return Reflect.has(target,key)}})
+const owned=base.extend({value:[49,options]})
+const registration=trace.slice()
+owned(label,({value})=>{console.log('FIXTURE_OVERLOAD_ROW '+JSON.stringify({label,value,registration,atBody:trace.slice()}));expect(value).toBe(49)})

@@ -1,0 +1,155 @@
+{
+  "reference": {
+    "vitest": "5.0.4",
+    "node": "26.12.1",
+    "modes": ["development", "production"],
+    "publicContracts": 8,
+    "crossFileSchedulingClaimed": false
+  },
+  "inputs": {
+    "extra-builder-option.test.mjs.txt": "054c0ee944c0c311a6fd148834667f32b5b884327341d98e42038dc993c6fc02",
+    "extra-tuple-option.test.mjs.txt": "9daa4a7a4bfc36cafdd8ed7daa33d568b455842b709d622d72c52c737a96cbe3",
+    "inherited-injected-array.test.mjs.txt": "f505d2cc26af5bb2864d856fab95e86823091d97ddff90c1fa8467fdb3b0b549",
+    "inherited-scope-array.test.mjs.txt": "767112727d76a500058a3d6faeefd14113a9159aa7f70d6e0ba115bfed059994",
+    "long-injected.test.mjs.txt": "e9330380069cad827c1dd699d75c6008a21afe729c2429b2aa78b328611eb37b",
+    "long-tuple.test.mjs.txt": "3c5cce6cbf1ecfe02c9c705a38115ca2d5e84c307f1d6c8306497f728b0add43",
+    "ordinary-array.test.mjs.txt": "8b5e5725dd5cbc317ec80dfc95e9ba8729f558a77afded656473831c34172221",
+    "proxy-options.test.mjs.txt": "7914a8b55ac9b2b7c77d1bb4424195acc26f99d6fc5921c87633efdb78b48a4a"
+  },
+  "model": {
+    "rows": [
+      {
+        "label": "extra-builder-option",
+        "kind": "number",
+        "array": false,
+        "scalar": 47,
+        "length": null,
+        "same": true
+      },
+      {
+        "label": "extra-tuple-option",
+        "kind": "number",
+        "array": false,
+        "scalar": 46,
+        "length": null,
+        "same": true
+      },
+      {
+        "label": "inherited-injected-array",
+        "kind": "object",
+        "array": true,
+        "scalar": null,
+        "length": 2,
+        "same": true
+      },
+      {
+        "label": "inherited-scope-array",
+        "kind": "object",
+        "array": true,
+        "scalar": null,
+        "length": 2,
+        "same": true
+      },
+      {
+        "label": "long-injected",
+        "kind": "number",
+        "array": false,
+        "scalar": 0,
+        "length": null,
+        "same": true
+      },
+      {
+        "label": "long-tuple",
+        "kind": "number",
+        "array": false,
+        "scalar": 42,
+        "length": null,
+        "same": true
+      },
+      {
+        "label": "ordinary-array",
+        "kind": "object",
+        "array": true,
+        "scalar": null,
+        "length": 2,
+        "same": true
+      },
+      {
+        "label": "proxy-options",
+        "value": 49,
+        "registration": [
+          "keys",
+          ["descriptor", "auto"],
+          ["descriptor", "scope"],
+          ["descriptor", "injected"],
+          ["get", "auto"],
+          ["get", "scope"],
+          ["get", "injected"]
+        ],
+        "atBody": [
+          "keys",
+          ["descriptor", "auto"],
+          ["descriptor", "scope"],
+          ["descriptor", "injected"],
+          ["get", "auto"],
+          ["get", "scope"],
+          ["get", "injected"]
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "name": "extra-builder-option",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "extra-tuple-option",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "inherited-injected-array",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "inherited-scope-array",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "long-injected",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "long-tuple",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "ordinary-array",
+        "state": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "proxy-options",
+        "state": "passed",
+        "failureMessages": []
+      }
+    ],
+    "summary": {
+      "numTotalTestSuites": 8,
+      "numPassedTestSuites": 8,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 8,
+      "numPassedTests": 8,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "success": true
+    }
+  }
+}

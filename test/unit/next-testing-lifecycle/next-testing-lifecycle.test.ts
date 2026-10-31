@@ -1644,7 +1644,7 @@ describe('Next-owned Vitest lifecycle', () => {
     )
   })
 
-  it('rejects unknown fixture options while preserving static array values', async () => {
+  it('accepts extra fixture options and keeps array values', async () => {
     const c = createCollector('file')
     expect(() =>
       c.api.test.extend<{ value: unknown }>({
@@ -1655,7 +1655,7 @@ describe('Next-owned Vitest lifecycle', () => {
           { auto: false, unknown: true },
         ] as any,
       })
-    ).toThrow('fixture option "unknown"')
+    ).not.toThrow()
     const arrayTest = c.api.test.extend<{ value: unknown[] }>({
       value: [42, { label: 'data' }],
     })

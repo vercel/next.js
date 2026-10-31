@@ -1,0 +1,6 @@
+import { test, describe, expect } from 'vitest'
+const row = (...event) => console.log('FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: "hooks", event }))
+const owned = test.extend({ 42: async ({}, use) => { row('setup'); await use(42); row('cleanup') } })
+owned.beforeEach(({ 42: value }) => { row('before', value); expect(value).toBe(42) })
+owned.afterEach(({ 42: value }) => { row('after', value); expect(value).toBe(42) })
+owned('numeric hook dependency', ({ 42: value }) => { row('body', value); expect(value).toBe(42) })
