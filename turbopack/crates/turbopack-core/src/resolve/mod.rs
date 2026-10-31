@@ -1223,6 +1223,70 @@ async fn realpath_if_exists(
     }
 }
 
+/// A string field of a `package.json`, such as a main field (`main`, `module`, ...).
+///
+/// Reading a single field instead of the whole `package.json` keeps edits to unrelated fields from
+/// invalidating resolution.
+#[turbo_tasks::function]
+async fn package_json_string_field(
+    package_json_path: FileSystemPath,
+    field: RcStr,
+) -> Result<Vc<Option<RcStr>>> {
+    let read = read_package_json(Vc::upcast(FileSource::new(package_json_path))).await?;
+    Ok(Vc::cell(
+        read.as_ref()
+            .and_then(|package_json| package_json[field.as_str()].as_str())
+            .map(RcStr::from),
+    ))
+}
+
+/// The value an alias field (such as `browser`) maps a request to.
+#[derive(PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+enum AliasFieldValue {
+    /// `false`: the request is ignored.
+    Ignore,
+    /// A request to resolve instead.
+    Request(RcStr),
+    /// Any other value, as JSON text for the error message.
+    Invalid(RcStr),
+}
+
+/// The entries of an alias field object in a `package.json`, keyed by the request they replace.
+/// `None` if the field is missing or not an object.
+#[turbo_tasks::value(transparent)]
+struct OptionAliasField(Option<FxHashMap<RcStr, AliasFieldValue>>);
+
+/// Reads the alias field `field` (such as `browser`) of a `package.json`. Like
+/// [`package_json_string_field`], this keeps edits to other fields from invalidating resolution.
+#[turbo_tasks::function]
+async fn package_json_alias_field(
+    package_json_path: FileSystemPath,
+    field: RcStr,
+) -> Result<Vc<OptionAliasField>> {
+    let read = read_package_json(Vc::upcast(FileSource::new(package_json_path))).await?;
+    let Some(entries) = read
+        .as_ref()
+        .and_then(|package_json| package_json[field.as_str()].as_object())
+    else {
+        return Ok(Vc::cell(None));
+    };
+    Ok(Vc::cell(Some(
+        entries
+            .iter()
+            .map(|(request, value)| {
+                let value = if value.as_bool() == Some(false) {
+                    AliasFieldValue::Ignore
+                } else if let Some(value) = value.as_str() {
+                    AliasFieldValue::Request(value.into())
+                } else {
+                    AliasFieldValue::Invalid(value.to_string().into())
+                };
+                (request.as_str().into(), value)
+            })
+            .collect(),
+    )))
+}
+
 #[turbo_tasks::value(shared)]
 enum ExportsFieldResult {
     Some(#[turbo_tasks(debug_ignore, unsafe_ignore)] ExportsField),
@@ -2310,10 +2374,8 @@ async fn resolve_into_folder(
         for resolve_into_package in options_value.into_package.iter() {
             match resolve_into_package {
                 ResolveIntoPackage::MainField { field: name } => {
-                    if let Some(package_json) =
-                        &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone())))
-                            .await?
-                        && let Some(field_value) = package_json[name.as_str()].as_str()
+                    if let Some(field_value) =
+                        &*package_json_string_field(package_json_path.clone(), name.clone()).await?
                     {
                         let normalized_request = RcStr::from(normalize_request(field_value));
                         if normalized_request.is_empty()
@@ -2719,13 +2781,9 @@ async fn apply_in_package(
             continue;
         };
 
-        let read =
-            read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
-        let Some(package_json) = &*read else {
-            continue;
-        };
-
-        let Some(field_value) = package_json[field.as_str()].as_object() else {
+        let alias_field =
+            package_json_alias_field(package_json_path.clone(), field.clone()).await?;
+        let Some(field_value) = &*alias_field else {
             continue;
         };
 
@@ -2748,52 +2806,55 @@ async fn apply_in_package(
 
         let refs = refs.clone();
 
-        if value.as_bool() == Some(false) {
-            return Ok(Some(ResolveResultOrCell::Value(
-                ResolveResult::primary_with_affecting_sources(
-                    RequestKey::new(request.clone()),
-                    ResolveResultItem::Ignore,
-                    refs,
-                ),
-            )));
-        }
-
-        if let Some(value) = value.as_str() {
-            if value == &*request {
-                // This would be a cycle, so we ignore it
-                return Ok(None);
+        match value {
+            AliasFieldValue::Ignore => {
+                return Ok(Some(ResolveResultOrCell::Value(
+                    ResolveResult::primary_with_affecting_sources(
+                        RequestKey::new(request.clone()),
+                        ResolveResultItem::Ignore,
+                        refs,
+                    ),
+                )));
             }
-            let mut result = resolve_internal(
-                package_path,
-                Request::parse(Pattern::Constant(value.into()))
-                    .with_query(query.clone())
-                    .with_fragment(fragment.clone()),
-                options,
-            )
-            .with_replaced_request_key(value.into(), request.clone());
-            if options_value.collect_affecting_sources && !refs.is_empty() {
-                result = result.with_affecting_sources(refs.into_iter().map(|src| *src).collect());
+            AliasFieldValue::Request(value) => {
+                if *value == request {
+                    // This would be a cycle, so we ignore it
+                    return Ok(None);
+                }
+                let mut result = resolve_internal(
+                    package_path,
+                    Request::parse(Pattern::Constant(value.clone()))
+                        .with_query(query.clone())
+                        .with_fragment(fragment.clone()),
+                    options,
+                )
+                .with_replaced_request_key(value.clone(), request.clone());
+                if options_value.collect_affecting_sources && !refs.is_empty() {
+                    result =
+                        result.with_affecting_sources(refs.into_iter().map(|src| *src).collect());
+                }
+                return Ok(Some(ResolveResultOrCell::Cell(result)));
             }
-            return Ok(Some(ResolveResultOrCell::Cell(result)));
-        }
+            AliasFieldValue::Invalid(value) => {
+                ResolvingIssue {
+                    severity: resolve_error_severity(options).await?,
+                    file_path: package_json_path.clone(),
+                    request_type: format!("alias field ({field})"),
+                    request: Request::parse(Pattern::Constant(request))
+                        .to_resolved()
+                        .await?,
+                    resolve_options: options.to_resolved().await?,
+                    error_message: Some(format!("invalid alias field value: {value}")),
+                    source: None,
+                }
+                .resolved_cell()
+                .emit();
 
-        ResolvingIssue {
-            severity: resolve_error_severity(options).await?,
-            file_path: package_json_path.clone(),
-            request_type: format!("alias field ({field})"),
-            request: Request::parse(Pattern::Constant(request))
-                .to_resolved()
-                .await?,
-            resolve_options: options.to_resolved().await?,
-            error_message: Some(format!("invalid alias field value: {value}")),
-            source: None,
+                return Ok(Some(ResolveResultOrCell::Value(
+                    ResolveResult::unresolvable_with_affecting_sources(refs),
+                )));
+            }
         }
-        .resolved_cell()
-        .emit();
-
-        return Ok(Some(ResolveResultOrCell::Value(
-            ResolveResult::unresolvable_with_affecting_sources(refs),
-        )));
     }
     Ok(None)
 }
@@ -3686,6 +3747,79 @@ mod tests {
             assert!(missing.self_cycle);
 
             anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Editing an unrelated `package.json` field must not invalidate a reader of a main field, and
+    /// changing the main field must.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_package_json_string_field_invalidation() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static MAIN_FIELD_READS: AtomicUsize = AtomicUsize::new(0);
+
+        let scratch = tempfile::tempdir().unwrap();
+        // The disk filesystem rejects paths behind a symlink, like the macOS temp dir.
+        let root = scratch.path().canonicalize().unwrap();
+        let package_json = root.join("package.json");
+        std::fs::write(
+            &package_json,
+            r#"{ "main": "./a.js", "scripts": { "build": "a" } }"#,
+        )
+        .unwrap();
+        let root: RcStr = root.to_str().unwrap().into();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
+                DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn main_field_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+            ) -> Result<Vc<Option<RcStr>>> {
+                MAIN_FIELD_READS.fetch_add(1, Ordering::SeqCst);
+                let package_json = fs.root().await?.join("package.json")?;
+                let main = package_json_string_field(package_json, rcstr!("main"))
+                    .owned()
+                    .await?;
+                Ok(Vc::cell(main))
+            }
+
+            let fs_operation = disk_fs_operation(root);
+            let fs = fs_operation.resolve().strongly_consistent().await?;
+            let read_main = async || {
+                anyhow::Ok(
+                    main_field_operation(fs)
+                        .read_strongly_consistent()
+                        .await?
+                        .clone(),
+                )
+            };
+            let rewrite = async |content: &str| {
+                std::fs::write(&package_json, content).unwrap();
+                fs_operation.read_strongly_consistent().await?.invalidate();
+                anyhow::Ok(())
+            };
+
+            assert_eq!(*read_main().await?, Some(rcstr!("./a.js")));
+            assert_eq!(MAIN_FIELD_READS.load(Ordering::SeqCst), 1);
+
+            rewrite(r#"{ "main": "./a.js", "scripts": { "build": "b" } }"#).await?;
+            assert_eq!(*read_main().await?, Some(rcstr!("./a.js")));
+            assert_eq!(MAIN_FIELD_READS.load(Ordering::SeqCst), 1);
+
+            rewrite(r#"{ "main": "./b.js", "scripts": { "build": "b" } }"#).await?;
+            assert_eq!(*read_main().await?, Some(rcstr!("./b.js")));
+            assert_eq!(MAIN_FIELD_READS.load(Ordering::SeqCst), 2);
+            Ok(())
         })
         .await
         .unwrap();
