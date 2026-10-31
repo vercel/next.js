@@ -2,8 +2,9 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OrderedIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
@@ -11,8 +12,10 @@ use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePa
 /// per-module aliases of some requests to already created module assets.
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
+///
+/// Sorted by name, so the order a module folds them into its ident in only depends on the names.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(OrderedIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
+pub struct InnerAssets(FrozenMap<RcStr, ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
