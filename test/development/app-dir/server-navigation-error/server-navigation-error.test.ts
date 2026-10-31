@@ -64,6 +64,14 @@ describe('server-navigation-error', () => {
       `)
     })
 
+    it('keeps the dev server running after mapping middleware errors', async () => {
+      const browser = await next.browser('/middleware/redirect')
+      // Reloading asks the overlay to map the error while Rspack is rebuilding.
+      await browser.refresh()
+
+      expect((await next.fetch('/')).status).toBe(200)
+    })
+
     it('should error on navigation API not-found', async () => {
       const browser = await next.browser('/middleware/not-found')
 
