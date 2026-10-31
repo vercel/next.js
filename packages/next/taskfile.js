@@ -3126,10 +3126,7 @@ export async function next_bundle_devtools(task, opts) {
 export async function next_bundle_start_server(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next-runtime.webpack-config')({
-      dev: false,
-      bundleType: 'start-server',
-    }),
+    config: require('./next-start.webpack-config'),
     name: 'next-bundle-start-server',
   })
 }
