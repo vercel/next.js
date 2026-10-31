@@ -1314,3 +1314,78 @@ it.each([
   },
   130000
 )
+
+it.each(['default', 'disabled'])(
+  'retains native callable string intrinsic after File disposal in %s',
+  async (family) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'chai-callable-intrinsic.cjs'),
+        process.cwd(),
+        '',
+        family,
+      ],
+      { timeout: 20000 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toMatchObject({
+      cases: 3,
+      completeGenuineRows: 4,
+      actualFileDisposalJoined: true,
+      retainedIntrinsicAfterDispose: true,
+      exactNativeReceiverErrorsAfterDispose: true,
+      noAdditionalGetterReads: true,
+    })
+  },
+  25000
+)
+
+it.each([
+  ['development', 'js', 'default'],
+  ['production', 'mjs', 'default'],
+  ['development', 'js', 'disabled'],
+  ['production', 'mjs', 'disabled'],
+])(
+  'matches genuine native callable string intrinsic in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-chai-intrinsic-public-')
+    )
+    const output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-callable-intrinsic-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed callable intrinsic observations at ' + directory
+        )
+    }
+  },
+  130000
+)

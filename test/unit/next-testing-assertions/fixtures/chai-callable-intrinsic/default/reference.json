@@ -1,0 +1,963 @@
+{
+  "cases": [
+    {
+      "name": "native string properties retain intrinsic identity and actual foreign receivers",
+      "state": "passed"
+    },
+    {
+      "name": "authored string getters preserve exact read counts, descriptors, receivers and errors",
+      "state": "passed"
+    },
+    {
+      "name": "readonly intrinsic properties and retained metadata calls remain native",
+      "state": "passed"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "properties",
+      "rows": [
+        {
+          "label": "equal",
+          "builtin": true,
+          "stable": true,
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          },
+          "directMethodMatchesIntrinsic": true
+        },
+        {
+          "label": "assert",
+          "builtin": true,
+          "stable": true,
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          },
+          "directMethodMatchesIntrinsic": true
+        },
+        {
+          "label": "native",
+          "builtin": true,
+          "stable": true,
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          },
+          "directMethodMatchesIntrinsic": true
+        },
+        {
+          "label": "ordinary",
+          "builtin": true,
+          "stable": true,
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          },
+          "directMethodMatchesIntrinsic": true
+        },
+        {
+          "label": "tagged",
+          "builtin": true,
+          "stable": true,
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          },
+          "directMethodMatchesIntrinsic": true
+        },
+        {
+          "label": "standalone",
+          "builtin": true,
+          "stable": true,
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          },
+          "directMethodMatchesIntrinsic": true
+        }
+      ]
+    },
+    {
+      "kind": "getter",
+      "sameGetter": true,
+      "readsBefore": 0,
+      "builtin": true,
+      "stable": true,
+      "calls": {
+        "target": {
+          "ok": true,
+          "sameStatus": true,
+          "sameValue": true
+        },
+        "otherFunction": {
+          "ok": true,
+          "sameStatus": true,
+          "sameValue": true
+        },
+        "undefined": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "Function.prototype.toString requires that 'this' be a Function",
+          "sameStatus": true,
+          "sameNativeError": true
+        },
+        "null": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "Function.prototype.toString requires that 'this' be a Function",
+          "sameStatus": true,
+          "sameNativeError": true
+        },
+        "object": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "Function.prototype.toString requires that 'this' be a Function",
+          "sameStatus": true,
+          "sameNativeError": true
+        },
+        "number": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "Function.prototype.toString requires that 'this' be a Function",
+          "sameStatus": true,
+          "sameNativeError": true
+        }
+      },
+      "markerResult": true,
+      "thrown": {
+        "ok": false,
+        "name": "Error",
+        "message": "actual string getter error",
+        "sameGetterError": true
+      },
+      "reads": 4,
+      "receivers": [false, false, false, false]
+    },
+    {
+      "kind": "readonly-retained",
+      "descriptor": {
+        "builtin": true,
+        "writable": false,
+        "configurable": false,
+        "enumerable": true
+      },
+      "read": {
+        "ok": true,
+        "builtin": true,
+        "calls": {
+          "target": {
+            "ok": true,
+            "sameStatus": true,
+            "sameValue": true
+          },
+          "otherFunction": {
+            "ok": true,
+            "sameStatus": true,
+            "sameValue": true
+          },
+          "undefined": {
+            "ok": false,
+            "name": "TypeError",
+            "message": "Function.prototype.toString requires that 'this' be a Function",
+            "sameStatus": true,
+            "sameNativeError": true
+          },
+          "null": {
+            "ok": false,
+            "name": "TypeError",
+            "message": "Function.prototype.toString requires that 'this' be a Function",
+            "sameStatus": true,
+            "sameNativeError": true
+          },
+          "object": {
+            "ok": false,
+            "name": "TypeError",
+            "message": "Function.prototype.toString requires that 'this' be a Function",
+            "sameStatus": true,
+            "sameNativeError": true
+          },
+          "number": {
+            "ok": false,
+            "name": "TypeError",
+            "message": "Function.prototype.toString requires that 'this' be a Function",
+            "sameStatus": true,
+            "sameNativeError": true
+          }
+        }
+      },
+      "retained": [
+        {
+          "label": "equal",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "assert",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "native",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "ordinary",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "tagged",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "standalone",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "afterAll",
+      "reads": 4,
+      "receivers": [false, false, false, false],
+      "sameGetter": true,
+      "retained": [
+        {
+          "label": "equal",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "assert",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "native",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "ordinary",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "tagged",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        },
+        {
+          "label": "standalone",
+          "calls": {
+            "target": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "otherFunction": {
+              "ok": true,
+              "sameStatus": true,
+              "sameValue": true
+            },
+            "undefined": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "null": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "object": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            },
+            "number": {
+              "ok": false,
+              "name": "TypeError",
+              "message": "Function.prototype.toString requires that 'this' be a Function",
+              "sameStatus": true,
+              "sameNativeError": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 3,
+    "numPassedTests": 3,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "native string properties retain intrinsic identity and actual foreign receivers",
+      "state": "passed"
+    },
+    {
+      "name": "authored string getters preserve exact read counts, descriptors, receivers and errors",
+      "state": "passed"
+    },
+    {
+      "name": "readonly intrinsic properties and retained metadata calls remain native",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "47a86714dca321c01027537581b10c04d9f448f6486874e54545214feacb5ba4",
+  "rawErrorCount": 0
+}

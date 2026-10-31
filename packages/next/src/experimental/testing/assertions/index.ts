@@ -911,6 +911,7 @@ export async function createAssertionRuntime(options: {
     Function,
     PropertyDescriptor
   >()
+  const nativeFunctionToString = Function.prototype.toString
   const strictFunctionRecords = new WeakMap<
     Function,
     {
@@ -988,7 +989,17 @@ export async function createAssertionRuntime(options: {
             key === 'bind'
           )
             return Reflect.get(target, key, proxyReceiver)
-          const value = Reflect.get(fn, key, fn)
+          const value = Reflect.get(
+            fn,
+            key,
+            prototypeCallable && key === 'toString' ? proxyReceiver : fn
+          )
+          if (
+            prototypeCallable &&
+            key === 'toString' &&
+            value === nativeFunctionToString
+          )
+            return value
           if (
             key === '_obj' ||
             (value &&

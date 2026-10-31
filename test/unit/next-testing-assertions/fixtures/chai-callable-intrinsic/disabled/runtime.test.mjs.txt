@@ -1,0 +1,46 @@
+import { expect, test, chai, afterAll } from 'vitest'
+chai.config.useProxy = false
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const intrinsic = Function.prototype.toString
+const retained = {}, held = {}, marker = {}, getterError = new Error('actual string getter error')
+let getterTarget, getter, getterKind = 'builtin', getterReads = 0, getterReceivers = []
+function standalone(value) { return value }
+function ordinaryMatcher() { return { pass: true, message: () => 'ordinary' } }
+function taggedMatcher() { return { pass: true, message: () => 'tagged' } }
+Object.defineProperty(taggedMatcher, '__vitest_poll_takeover__', { value: false })
+expect.extend({ toIntrinsicOrdinary: ordinaryMatcher, toIntrinsicTagged: taggedMatcher })
+chai.use((c, u) => { for (const name of ['intrinsicNative', 'intrinsicAccessor', 'intrinsicReadonly']) u.addMethod(c.Assertion.prototype, name, function () { return this }) })
+const attempt = action => { try { return { ok: true, value: action() } } catch (error) { return { ok: false, name: error.name, message: error.message, sameGetterError: error === getterError } } }
+function compare(method, receiver) {
+  const actual = attempt(() => Reflect.apply(method, receiver, [])), expected = attempt(() => Reflect.apply(intrinsic, receiver, []))
+  return actual.ok ? { ok: true, sameStatus: expected.ok, sameValue: expected.ok && actual.value === expected.value } : { ok: false, name: actual.name, message: actual.message, sameStatus: !expected.ok, sameNativeError: !expected.ok && actual.name === expected.name && actual.message === expected.message }
+}
+function calls(method, target) { return { target: compare(method, target), otherFunction: compare(method, standalone), undefined: compare(method, undefined), null: compare(method, null), object: compare(method, {}), number: compare(method, 73) } }
+test('native string properties retain intrinsic identity and actual foreign receivers', () => {
+  held.equal = chai.Assertion.prototype.equal
+  held.assert = chai.Assertion.prototype.assert
+  held.native = chai.Assertion.prototype.intrinsicNative
+  held.ordinary = chai.Assertion.prototype.toIntrinsicOrdinary
+  held.tagged = chai.Assertion.prototype.toIntrinsicTagged
+  held.standalone = standalone
+  emit({ kind: 'properties', rows: Object.entries(held).map(([label, target]) => { const method = target.toString; retained[label] = method; return { label, builtin: method === intrinsic, stable: method === target.toString, calls: calls(method, target), directMethodMatchesIntrinsic: attempt(() => target.toString()).value === attempt(() => Reflect.apply(intrinsic, target, [])).value } }) })
+})
+test('authored string getters preserve exact read counts, descriptors, receivers and errors', () => {
+  getterTarget = chai.Assertion.prototype.intrinsicAccessor
+  getter = function () { getterReads++; getterReceivers.push(this === getterTarget); if (getterKind === 'throw') throw getterError; return getterKind === 'marker' ? marker : intrinsic }
+  Object.defineProperty(getterTarget, 'toString', { configurable: true, get: getter })
+  const descriptor = Object.getOwnPropertyDescriptor(getterTarget, 'toString')
+  const readsBefore = getterReads, first = getterTarget.toString, second = getterTarget.toString
+  getterKind = 'marker'
+  const markerResult = getterTarget.toString === marker
+  getterKind = 'throw'
+  const thrown = attempt(() => getterTarget.toString)
+  emit({ kind: 'getter', sameGetter: descriptor.get === getter, readsBefore, builtin: first === intrinsic, stable: first === second, calls: calls(first, getterTarget), markerResult, thrown, reads: getterReads, receivers: getterReceivers })
+})
+test('readonly intrinsic properties and retained metadata calls remain native', () => {
+  const target = chai.Assertion.prototype.intrinsicReadonly
+  Object.defineProperty(target, 'toString', { value: intrinsic, writable: false, configurable: false, enumerable: true })
+  const descriptor = Object.getOwnPropertyDescriptor(target, 'toString'), read = attempt(() => target.toString)
+  emit({ kind: 'readonly-retained', descriptor: { builtin: descriptor.value === intrinsic, writable: descriptor.writable, configurable: descriptor.configurable, enumerable: descriptor.enumerable }, read: read.ok ? { ok: true, builtin: read.value === intrinsic, calls: calls(read.value, target) } : read, retained: Object.entries(held).map(([label, value]) => ({ label, calls: calls(retained[label], value) })) })
+})
+afterAll(() => emit({ kind: 'afterAll', reads: getterReads, receivers: getterReceivers, sameGetter: Object.getOwnPropertyDescriptor(getterTarget, 'toString').get === getter, retained: Object.entries(held).map(([label, value]) => ({ label, calls: calls(retained[label], value) })) }))
