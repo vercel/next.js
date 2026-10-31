@@ -4,6 +4,7 @@
  */
 export const HTTP_METHODS = [
   'GET',
+  'QUERY',
   'HEAD',
   'OPTIONS',
   'POST',

@@ -21,7 +21,7 @@ export async function GET() {
 
 ### HTTP Methods
 
-A **route** file allows you to create custom request handlers for a given route. The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`.
+A **route** file allows you to create custom request handlers for a given route. The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods) are supported: `GET`, [`QUERY`](https://www.rfc-editor.org/rfc/rfc10008.html), `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`.
 
 ```ts filename="route.ts" switcher
 export async function GET(request: Request) {}
