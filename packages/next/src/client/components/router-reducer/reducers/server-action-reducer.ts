@@ -585,11 +585,9 @@ function createRedirectErrorForAction(
   resolvedRedirectType: RedirectType
 ) {
   const redirectError = getRedirectError(redirectHref, resolvedRedirectType)
-  // We mark the error as handled because we don't want the redirect to be tried later by
-  // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect
-  // again, as it's run within an effect.
-  // We don't actually need the RedirectBoundary to do a router.push because we already
-  // have all the necessary RSC data to render the new page within a single roundtrip.
+  // We mark the error as handled because the reducer has already navigated. A
+  // RedirectBoundary that catches it must not navigate. It only resets the
+  // subtree.
   ;(redirectError as any).handled = true
   return redirectError
 }

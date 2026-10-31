@@ -16,8 +16,10 @@
 import type {
   AppHistoryState,
   NavigateAction,
+  RedirectAction,
   ScrollBehavior,
 } from './router-reducer/router-reducer-types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { NavigateOptions } from '../../shared/lib/app-router-context.shared-runtime'
 import type { LinkInstance } from './links'
 import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
@@ -47,6 +49,14 @@ export function push(_href: string, _options?: NavigateOptions): void {
 }
 
 export function replace(_href: string, _options?: NavigateOptions): void {
+  notImplemented()
+}
+
+export function redirect(
+  _href: string,
+  _redirectType: RedirectAction['redirectType'],
+  _fromTree: FlightRouterState
+): void {
   notImplemented()
 }
 

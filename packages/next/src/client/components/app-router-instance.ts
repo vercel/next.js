@@ -325,10 +325,14 @@ export const publicAppRouterInstance: AppRouterInstance = {
   back: () => window.history.back(),
   forward: () => window.history.forward(),
   prefetch: prefetchRoute,
-  replace: replace,
-  push: push,
-  refresh: refresh,
-  hmrRefresh: hmrRefresh,
+  // These call through instead of referencing the navigator's functions
+  // directly, because the navigator imports this module. If the navigator
+  // is evaluated first, its exports aren't initialized yet when this object
+  // is created.
+  replace: (href, options) => replace(href, options),
+  push: (href, options) => push(href, options),
+  refresh: () => refresh(),
+  hmrRefresh: () => hmrRefresh(),
   // Default value. Each route segment provides its own value at runtime. Refer
   // to `useRouter()`.
   bfcacheId: '0',
