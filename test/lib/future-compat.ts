@@ -10,8 +10,8 @@ export function withFutureCompatNodeOptions<T extends NodeJS.Dict<string>>(
 
   return {
     ...env,
-    NODE_OPTIONS: [env.NODE_OPTIONS, '--throw-deprecation']
-      .filter(Boolean)
-      .join(' '),
+    NODE_OPTIONS: env.NODE_OPTIONS
+      ? `${env.NODE_OPTIONS} --throw-deprecation`
+      : '--throw-deprecation',
   }
 }
