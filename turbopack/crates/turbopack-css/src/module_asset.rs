@@ -16,7 +16,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
-    source_map::structured::StructuredSourceMap,
+    source_map::structured::{SplitSourceMap, StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -338,10 +338,10 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
             source_map: if source_map {
-                Some(generate_minimal_source_map(
+                Some(SplitSourceMap::new(generate_minimal_source_map(
                     turbofmt!("{}", self.ident()).await?.to_string(),
                     code,
-                )?)
+                )?))
             } else {
                 None
             },
