@@ -1063,9 +1063,24 @@ function reifyRouteTree(
         isRootParam
       )
     } else {
-      // Param not found in resolvedParams - keep original and inherit partial
-      // TODO: This should never happen. Bail out with null.
-      partialVaryPath = parentPartialVaryPath
+      // The param wasn't resolved for this URL. The pattern still identifies
+      // the segment as a param segment (the tuple is kept as-is), so the vary
+      // path has to keep the matching param entry: a path that omits it would
+      // be a different cache key than the one the server's response is written
+      // under, and the segment would never be found again.
+      //
+      // This happens for params that live in a parallel route slot: the slot
+      // shares the URL with the main route, so a param that only the slot
+      // consumes is not resolved by the URL walk (see matchKnownRoutePart).
+      //
+      // Keep the pattern's own param value so the key stays consistent with
+      // the segment identity.
+      partialVaryPath = appendLayoutVaryPath(
+        parentPartialVaryPath,
+        originalSegment[1],
+        paramName,
+        isRootParam
+      )
     }
   } else {
     // Static segment: inherit partial vary path from parent
