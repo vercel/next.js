@@ -16,7 +16,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
-    source_map::structured::StructuredSourceMap,
+    source_map::{SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -44,6 +44,7 @@ pub struct EcmascriptCssModule {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
@@ -52,11 +53,13 @@ impl EcmascriptCssModule {
     pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source_map_generation_options: SourceMapGenerationOptions,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(EcmascriptCssModule {
             origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
+            source_map_generation_options,
         }))
     }
 }
@@ -330,20 +333,22 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             )?;
         }
         code += "});\n";
-        let source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
-            .await?;
+        let generation = self.await?.source_map_generation_options;
+        let map = if generation.should_generate_any_source_maps() {
+            Some(generate_minimal_source_map(
+                turbofmt!("{}", self.ident()).await?.to_string(),
+                code.clone(),
+            )?)
+        } else {
+            None
+        };
         Ok(EcmascriptChunkItemContent {
-            inner_code: code.clone().into(),
-            // We generate a minimal map for runtime code so that the filename is
-            // displayed in dev tools.
-            source_map: if source_map {
-                Some(generate_minimal_source_map(
-                    turbofmt!("{}", self.ident()).await?.to_string(),
-                    code,
-                )?)
-            } else {
-                None
+            inner_code: code.into(),
+            source_maps: match (generation.full, generation.shallow, map) {
+                (true, true, Some(map)) => SourceMaps::Shared(map),
+                (true, false, Some(map)) => SourceMaps::Full(map),
+                (false, true, Some(map)) => SourceMaps::Shallow(map),
+                _ => SourceMaps::None,
             },
             options: EcmascriptChunkItemOptions {
                 supports_arrow_functions: *chunking_context
@@ -386,6 +391,6 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Struc
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
+    let map = generate_js_source_map(&*sm, &mappings, None, true, true, &Default::default())?;
     Ok(map)
 }

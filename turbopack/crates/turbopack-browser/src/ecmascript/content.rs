@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
@@ -61,10 +61,6 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
-            .await?;
         // Lifetime hack to pull out the var into this scope
         let chunk_path;
         let script_or_path = match *this.chunking_context.current_chunk_method().await? {
@@ -83,10 +79,7 @@ impl EcmascriptBrowserChunkContent {
                 Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
-        let mut code = CodeBuilder::new(
-            source_maps,
-            *this.chunking_context.debug_ids_enabled().await?,
-        );
+        let mut code = CodeBuilder::new(*this.chunking_context.debug_ids_enabled().await?);
 
         let supports_arrow_functions = *this
             .chunking_context
@@ -134,7 +127,14 @@ impl EcmascriptBrowserChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(
+                code,
+                this.chunking_context
+                    .emitted_source_map_type()
+                    .await?
+                    .is_some(),
+                mangle,
+            )?;
         }
 
         Ok(code.cell())
@@ -142,7 +142,13 @@ impl EcmascriptBrowserChunkContent {
 
     #[turbo_tasks::function]
     pub(crate) async fn has_source_map(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.code().await?.has_source_map()))
+        let emitted_ty = *self
+            .await?
+            .chunking_context
+            .emitted_source_map_type()
+            .await?;
+        let code = self.code().await?;
+        Ok(Vc::cell(code.should_emit_source_map(emitted_ty)?))
     }
 }
 
@@ -155,7 +161,10 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .to_rope_with_magic_comments(
+                        *this.chunking_context.emitted_source_map_type().await?,
+                        || *this.source_map,
+                    )
                     .await?,
             ))
             .cell(),
@@ -197,19 +206,23 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 
     #[turbo_tasks::function]
-    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<FileContent>> {
+    async fn by_section(
+        self: Vc<Self>,
+        section: RcStr,
+        ty: SourceMapType,
+    ) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
                 if id == *entry_id {
-                    let sm = entry.code.generate_source_map();
+                    let sm = entry.code.generate_source_map(ty);
                     return Ok(sm);
                 }
             }

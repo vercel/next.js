@@ -11,7 +11,7 @@ use turbopack_core::{
     chunk::ChunkingContext,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     source::Source,
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 
 use crate::parse::generate_js_source_map;
@@ -33,6 +33,7 @@ impl SingleFileEcmascriptOutput {
             *this.chunking_context,
             this.source.ident(),
             Vc::upcast(self),
+            rcstr!(".js"),
         ))
     }
 }
@@ -76,7 +77,7 @@ impl SingleFileEcmascriptOutput {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    pub async fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         let FileContent::Content(file) = &*self.source.content().file_content().await? else {
             return Ok(FileContent::NotFound.cell());
         };
@@ -115,11 +116,11 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
 
         let map = generate_js_source_map(
             &*sm,
-            mappings,
+            &mappings,
             None::<&Rope>,
             true,
             true,
-            Default::default(),
+            &Default::default(),
         )?;
         Ok(FileContent::Content(File::from(map.to_rope())).cell())
     }

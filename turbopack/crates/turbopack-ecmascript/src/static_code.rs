@@ -17,7 +17,6 @@ use crate::EcmascriptAnalyzable;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
-    generate_source_map: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,7 +26,6 @@ impl StaticEcmascriptCode {
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         asset_path: FileSystemPath,
-        generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
@@ -40,24 +38,18 @@ impl StaticEcmascriptCode {
         let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module) else {
             bail!("asset is not an Ecmascript module")
         };
-        Ok(Self::cell(StaticEcmascriptCode {
-            asset,
-            generate_source_map,
-        }))
+        Ok(Self::cell(StaticEcmascriptCode { asset }))
     }
 
     /// Computes the contents of the asset and pushes it to
     /// the code builder, including the source map if available.
     #[turbo_tasks::function]
     pub async fn code(&self) -> Result<Vc<Code>> {
-        let runtime_base_content = self
-            .asset
-            .module_content_without_analysis(self.generate_source_map)
-            .await?;
-        let mut code = CodeBuilder::default();
+        let runtime_base_content = self.asset.module_content_without_analysis().await?;
+        let mut code = CodeBuilder::new(false);
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map.clone(),
+            runtime_base_content.source_maps.clone(),
         );
         Ok(Code::cell(code.build()))
     }

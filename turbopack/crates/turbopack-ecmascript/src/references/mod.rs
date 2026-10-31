@@ -814,7 +814,7 @@ async fn analyze_ecmascript_module_internal(
         .await?;
     }
 
-    if options.extract_source_map {
+    if options.source_map_generation_options.full {
         let span = tracing::trace_span!("source map reference");
         async {
             if let Some((source_map, reference)) =

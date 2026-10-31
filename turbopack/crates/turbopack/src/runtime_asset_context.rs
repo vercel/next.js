@@ -2,7 +2,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Result, Vc};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::AssetContext, environment::Environment,
-    ident::Layer,
+    ident::Layer, source_map::SourceMapGenerationOptions,
 };
 
 use crate::{
@@ -15,6 +15,7 @@ use crate::{
 #[turbo_tasks::function]
 pub async fn get_runtime_asset_context(
     environment: ResolvedVc<Environment>,
+    source_map_generation_options: SourceMapGenerationOptions,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -22,6 +23,7 @@ pub async fn get_runtime_asset_context(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
             inline_helpers: true,
+            source_map_generation_options,
             ..Default::default()
         },
         environment: Some(environment),

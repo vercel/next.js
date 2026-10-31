@@ -12,7 +12,7 @@ use crate::{
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::{GenerateSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapType},
 };
 
 #[derive(PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
@@ -23,41 +23,48 @@ enum PathType {
     FromIdent {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
+        extension: RcStr,
     },
 }
 
-/// Represents the source map of an ecmascript asset.
+/// Represents the source map of an output asset.
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
     path_ty: PathType,
+    source_map_ty: Option<SourceMapType>,
     generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
-    ) -> Vc<Self> {
-        SourceMapAsset {
+        extension: RcStr,
+    ) -> Result<Vc<Self>> {
+        Ok(SourceMapAsset {
             path_ty: PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
+                extension,
             },
+            source_map_ty: *chunking_context.emitted_source_map_type().await?,
             generate_source_map,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub fn new_fixed(
         path: FileSystemPath,
+        source_map_ty: SourceMapType,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
     ) -> Vc<Self> {
         SourceMapAsset {
             path_ty: PathType::Fixed { path },
+            source_map_ty: Some(source_map_ty),
             generate_source_map,
         }
         .cell()
@@ -78,12 +85,13 @@ impl OutputAsset for SourceMapAsset {
             PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
+                extension,
             } => chunking_context
                 .chunk_path(
                     Some(Vc::upcast(self)),
                     **ident_for_path,
                     None,
-                    rcstr!(".js"),
+                    extension.clone(),
                 )
                 .await?
                 .append(".map")?
@@ -97,7 +105,10 @@ impl OutputAsset for SourceMapAsset {
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let content = self.generate_source_map.generate_source_map();
+        let content = match self.source_map_ty {
+            Some(ty) => self.generate_source_map.generate_source_map(ty),
+            None => FileContent::NotFound.cell(),
+        };
         if content.await?.is_content() {
             Ok(AssetContent::file(content))
         } else {

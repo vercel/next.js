@@ -22,7 +22,10 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference_type::ReferenceType,
     source::{OptionSource, Source},
-    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
+    source_map::{
+        GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps,
+        structured::StructuredSourceMap,
+    },
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms,
@@ -40,16 +43,21 @@ pub struct RawEcmascriptModuleType {}
 #[turbo_tasks::value_impl]
 impl CustomModuleType for RawEcmascriptModuleType {
     #[turbo_tasks::function]
-    fn create_module(
+    async fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: ReferenceType,
-    ) -> Vc<Box<dyn Module>> {
-        Vc::upcast(RawEcmascriptModule::new(
+    ) -> Result<Vc<Box<dyn Module>>> {
+        Ok(Vc::upcast(RawEcmascriptModule::new(
             source,
             module_asset_context.compile_time_info(),
-        ))
+            module_asset_context
+                .module_options_context()
+                .await?
+                .ecmascript
+                .source_map_generation_options,
+        )))
     }
 
     #[turbo_tasks::function]
@@ -68,6 +76,7 @@ impl CustomModuleType for RawEcmascriptModuleType {
 pub struct RawEcmascriptModule {
     source: ResolvedVc<Box<dyn Source>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
@@ -76,10 +85,12 @@ impl RawEcmascriptModule {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
+        source_map_generation_options: SourceMapGenerationOptions,
     ) -> Vc<Self> {
         RawEcmascriptModule {
             source,
             compile_time_info,
+            source_map_generation_options,
         }
         .cell()
     }
@@ -160,7 +171,8 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                 env_vars.insert(name);
             }
 
-            let mut code = CodeBuilder::default();
+            let generation = module.source_map_generation_options;
+            let mut code = CodeBuilder::new(false);
             if !env_vars.is_empty() {
                 let replacements = module.compile_time_info.await?.free_var_references;
                 code += "var process = {env:\n";
@@ -213,28 +225,60 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
 
             code += "(function(){\n";
             let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
-            let source_map = if let Some((source_map, _)) =
-                parse_source_map_comment(source, source_mapping_url, &self.ident().await?.path)
-                    .await?
-            {
-                let source_map = source_map.generate_source_map().await?;
-                source_map.as_content().map(|f| f.content().clone())
+            let source_map = if generation.full {
+                if let Some((source_map, _)) =
+                    parse_source_map_comment(source, source_mapping_url, &self.ident().await?.path)
+                        .await?
+                {
+                    let source_map = source_map.generate_source_map(SourceMapType::Full).await?;
+                    source_map.as_content().map(|f| f.content().clone())
+                } else {
+                    None
+                }
             } else {
                 None
             };
-            code.push_source(content, source_map);
+            let shallow_source_map = if generation.shallow
+                || (generation.full && source_map.is_none())
+            {
+                let mut map = swc_sourcemap::SourceMapBuilder::new(None);
+                let source_id = map.add_source(self.ident().to_string().await?.to_string().into());
+                map.set_source_contents(source_id, Some(content_str.clone().into_owned().into()));
+                for (line, _) in content_str.split_inclusive('\n').enumerate() {
+                    map.add_raw(line as u32, 0, line as u32, 0, Some(source_id), None, false);
+                }
+                let mut bytes = Vec::new();
+                map.into_sourcemap().to_writer(&mut bytes)?;
+                Some(Rope::from(bytes))
+            } else {
+                None
+            };
+            let source_maps = if generation.full && generation.shallow && source_map.is_none() {
+                SourceMaps::Shared(shallow_source_map.unwrap())
+            } else {
+                SourceMaps::new(
+                    if generation.full {
+                        source_map.or_else(|| shallow_source_map.clone())
+                    } else {
+                        None
+                    },
+                    if generation.shallow {
+                        shallow_source_map
+                    } else {
+                        None
+                    },
+                )
+            };
+            code.push_source(content, source_maps);
 
             // Add newline in case the raw code had a comment as the last line and no final newline.
             code += "\n})();\n";
 
             let code = code.build();
-            let source_map = if code.has_source_map() {
-                let source_map = code.generate_source_map_ref(None);
-
+            let source_maps = code.source_maps()?.try_map(|source_map| {
                 static SECTIONS_REGEX: LazyLock<Regex> =
                     LazyLock::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
-                Some(if !SECTIONS_REGEX.is_match(&source_map.to_str()?) {
-                    // This is definitely not an index source map
+                let source_map = if !SECTIONS_REGEX.is_match(&source_map.to_str()?) {
                     source_map
                 } else {
                     let _span = tracing::span!(
@@ -244,25 +288,16 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                     .entered();
                     match swc_sourcemap::lazy::decode(&source_map.to_bytes())? {
                         swc_sourcemap::lazy::DecodedMap::Regular(_) => source_map,
-                        // without flattening the index map, we would get nested index source maps
-                        // in the output chunks, which are apparently not
-                        // supported
-                        swc_sourcemap::lazy::DecodedMap::Index(source_map) => {
-                            let source_map = source_map.flatten()?.into_raw_sourcemap();
-                            let result = serde_json::to_vec(&source_map)?;
-                            Rope::from(result)
+                        // Output chunks cannot embed nested index maps.
+                        swc_sourcemap::lazy::DecodedMap::Index(map) => {
+                            Rope::from(serde_json::to_vec(&map.flatten()?.into_raw_sourcemap())?)
                         }
                     }
-                })
-            } else {
-                None
-            };
-
-            let source_map = source_map
-                .map(|map| StructuredSourceMap::from_json(&map))
-                .transpose()?;
+                };
+                StructuredSourceMap::from_json(&source_map)
+            })?;
             Ok(EcmascriptChunkItemContent {
-                source_map,
+                source_maps,
                 inner_code: code.into_source_code(),
                 options: EcmascriptChunkItemOptions {
                     module_and_exports: true,

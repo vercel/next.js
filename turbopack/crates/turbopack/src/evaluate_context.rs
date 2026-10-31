@@ -4,6 +4,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
+    chunk::ChunkingContext,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -11,6 +12,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_node::execution_context::ExecutionContext;
@@ -111,6 +113,12 @@ pub async fn node_evaluate_asset_context(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 ignore_dynamic_requests,
+                source_map_generation_options: SourceMapGenerationOptions::from_emitted(
+                    *execution_context
+                        .chunking_context()
+                        .emitted_source_map_type()
+                        .await?,
+                ),
                 ..Default::default()
             },
             ..Default::default()

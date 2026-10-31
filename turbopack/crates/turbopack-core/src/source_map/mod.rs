@@ -23,6 +23,7 @@ use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
 };
+use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     SOURCE_URL_PROTOCOL, asset::AssetContent, source::Source,
@@ -31,24 +32,80 @@ use crate::{
 };
 
 pub(crate) mod source_map_asset;
+mod source_maps;
 pub mod structured;
 pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;
+pub use source_maps::SourceMaps;
 
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
+
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
+pub enum SourceMapType {
+    /// Traces through input source maps to the original sources.
+    #[default]
+    Full,
+    /// Maps to the input files without tracing through their source maps.
+    Shallow,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionSourceMapType(Option<SourceMapType>);
+
+/// Which source maps should be generated. This is different than the source map type that is
+/// emitted to disk.
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, DeterministicHash)]
+pub struct SourceMapGenerationOptions {
+    /// Generates maps that trace through input source maps to the original sources.
+    pub full: bool,
+    /// Generates maps to the input files without tracing through their source maps.
+    pub shallow: bool,
+}
+
+impl SourceMapGenerationOptions {
+    pub const NONE: Self = Self {
+        full: false,
+        shallow: false,
+    };
+
+    pub fn from_emitted(ty: Option<SourceMapType>) -> Self {
+        Self {
+            full: matches!(ty, Some(SourceMapType::Full)),
+            shallow: matches!(ty, Some(SourceMapType::Shallow)),
+        }
+    }
+
+    pub fn should_generate_any_source_maps(self) -> bool {
+        self.full || self.shallow
+    }
+}
+
+impl Default for SourceMapGenerationOptions {
+    fn default() -> Self {
+        Self {
+            full: true,
+            shallow: false,
+        }
+    }
+}
 
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
+    /// `ty` selects whether to trace through input source maps. Leaf implementations
+    /// may ignore this hint when the same map serves both variants.
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent>;
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent>;
 
     /// Returns an individual section of the larger source map, if found.
+    /// `ty` selects the map variant, as in [`GenerateSourceMap::generate_source_map`].
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<FileContent> {
+    fn by_section(self: Vc<Self>, _section: RcStr, _ty: SourceMapType) -> Vc<FileContent> {
         FileContent::NotFound.cell()
     }
 }
@@ -642,7 +699,7 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }

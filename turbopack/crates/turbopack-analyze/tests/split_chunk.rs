@@ -15,7 +15,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType, SourceMaps},
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,12 +23,12 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
     run_once(&REGISTRATION, async || {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(false);
         code += "Hello world!\n";
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
-            Some(Rope::from(serde_json::to_string_pretty(&json! ({
+            SourceMaps::Shallow(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA;AACA",
                 "sources": ["source1.js"],
@@ -39,7 +39,7 @@ async fn split_chunk() {
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
-            Some(Rope::from(serde_json::to_string_pretty(&json! ({
+            SourceMaps::Shallow(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA",
                 "sources": ["source2.js"],
@@ -154,7 +154,163 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self) -> Vc<FileContent> {
-        self.code.generate_source_map()
+    pub fn generate_source_map(&self, ty: SourceMapType) -> Vc<FileContent> {
+        self.code.generate_source_map(ty)
     }
+}
+
+#[test]
+fn rejects_missing_source_map_variants() {
+    let mut shallow = CodeBuilder::new(false);
+    shallow.push_source(
+        &Rope::from("shallow"),
+        SourceMaps::new(
+            None,
+            Some(turbopack_core::source_map::SourceMap::empty_rope()),
+        ),
+    );
+    let shallow = shallow.build();
+    assert!(
+        shallow
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(
+        shallow
+            .generate_source_map_ref(None, SourceMapType::Shallow)
+            .is_ok()
+    );
+
+    let mut combined = CodeBuilder::new(false);
+    combined += "synthetic prefix";
+    combined.push_code(&shallow);
+    let combined = combined.build();
+    assert!(
+        combined
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+
+    let mut incompatible = CodeBuilder::new(false);
+    incompatible.push_code(&combined);
+    incompatible.push_source(
+        &Rope::from("full"),
+        SourceMaps::new(
+            Some(turbopack_core::source_map::SourceMap::empty_rope()),
+            None,
+        ),
+    );
+    let incompatible = incompatible.build();
+    assert!(
+        incompatible
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(
+        incompatible
+            .generate_source_map_ref(None, SourceMapType::Shallow)
+            .is_err()
+    );
+}
+
+#[test]
+fn shared_maps_survive_concatenation() -> anyhow::Result<()> {
+    let mut source = CodeBuilder::new(false);
+    source.push_source(
+        &Rope::from("const value = 1;"),
+        SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
+    );
+    let mut combined = CodeBuilder::new(false);
+    combined += "prefix";
+    combined.push_code(&source.build());
+    combined += "suffix";
+    let combined = combined.build();
+    assert!(matches!(combined.source_maps()?, SourceMaps::Shared(_)));
+    assert_eq!(
+        combined.generate_source_map_ref(None, SourceMapType::Full)?,
+        combined.generate_source_map_ref(None, SourceMapType::Shallow)?,
+    );
+    Ok(())
+}
+
+#[test]
+fn shared_maps_split_when_variants_diverge() -> anyhow::Result<()> {
+    let mut code = CodeBuilder::new(false);
+    code.push_source(
+        &Rope::from("shared"),
+        SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
+    );
+    code.push_source(
+        &Rope::from("shallow"),
+        SourceMaps::Shallow(turbopack_core::source_map::SourceMap::empty_rope()),
+    );
+    let code = code.build();
+    assert!(
+        code.generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(matches!(code.source_maps()?, SourceMaps::Shallow(_)));
+    Ok(())
+}
+
+#[test]
+fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()> {
+    let full = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["original.ts"],
+        "names": [],
+    });
+    let shallow = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["input.js"],
+        "names": [],
+    });
+    let shared = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["shared.js"],
+        "names": [],
+    });
+    let mut source = CodeBuilder::new(false);
+    source += "prefix ";
+    source.push_source(
+        &Rope::from("mapped"),
+        SourceMaps::Both {
+            full: Rope::from(serde_json::to_string(&full)?),
+            shallow: Rope::from(serde_json::to_string(&shallow)?),
+        },
+    );
+    let mut combined = CodeBuilder::new(false);
+    combined.push_source(
+        &Rope::from("shared"),
+        SourceMaps::Shared(Rope::from(serde_json::to_string(&shared)?)),
+    );
+    combined.push_code(&source.build());
+    combined.push_code(&CodeBuilder::new(false).build());
+    combined += "suffix";
+    let combined = combined.build();
+
+    for (ty, map) in [
+        (SourceMapType::Full, full),
+        (SourceMapType::Shallow, shallow),
+    ] {
+        let generated = combined.generate_source_map_ref(None, ty)?;
+        let generated: serde_json::Value = serde_json::from_slice(&generated.to_bytes())?;
+        assert_eq!(
+            generated["sections"],
+            json!([
+                { "offset": { "line": 0, "column": 0 }, "map": shared },
+                { "offset": { "line": 0, "column": 6 }, "map": {
+                    "version": 3, "sources": [], "names": [], "mappings": "A",
+                } },
+                { "offset": { "line": 0, "column": 13 }, "map": map },
+                { "offset": { "line": 0, "column": 19 }, "map": {
+                    "version": 3, "sources": [], "names": [], "mappings": "A",
+                } },
+            ])
+        );
+    }
+    Ok(())
 }

@@ -39,7 +39,6 @@ pub async fn get_browser_runtime_code(
     asset_suffix: Vc<AssetSuffix>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
-    generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
@@ -50,11 +49,8 @@ pub async fn get_browser_runtime_code(
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
 
-    let shared_runtime_utils_code = embed_static_code(
-        asset_context,
-        rcstr!("shared/runtime/runtime-utils.ts"),
-        generate_source_map,
-    );
+    let shared_runtime_utils_code =
+        embed_static_code(asset_context, rcstr!("shared/runtime/runtime-utils.ts"));
 
     let mut runtime_base_code = vec!["browser/runtime/base/runtime-base.ts"];
     match runtime_type {
@@ -103,7 +99,7 @@ pub async fn get_browser_runtime_code(
         }
     };
 
-    let mut code: CodeBuilder = CodeBuilder::default();
+    let mut code: CodeBuilder = CodeBuilder::new(false);
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
@@ -232,44 +228,27 @@ pub async fn get_browser_runtime_code(
     code.push_code(&*shared_runtime_utils_code.await?);
     if include_async_module_runtime {
         code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared/runtime/async-module.ts"),
-                generate_source_map,
-            )
-            .await?,
+            &*embed_static_code(asset_context, rcstr!("shared/runtime/async-module.ts")).await?,
         );
     }
     for runtime_code in runtime_base_code {
-        code.push_code(
-            &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
-        );
+        code.push_code(&*embed_static_code(asset_context, runtime_code.into()).await?);
     }
 
     if *environment.supports_commonjs_externals().await? {
         code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/base-externals-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
+            &*embed_static_code(asset_context, rcstr!("shared-node/base-externals-utils.ts"))
+                .await?,
         );
     }
     if *environment.node_externals().await? {
         code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/node-externals-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
+            &*embed_static_code(asset_context, rcstr!("shared-node/node-externals-utils.ts"))
+                .await?,
         );
     }
     for backend_code in runtime_backend_code {
-        code.push_code(
-            &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,
-        );
+        code.push_code(&*embed_static_code(asset_context, backend_code.into()).await?);
     }
 
     // Registering chunks/chunk lists depends on the BACKEND variable set by the specific
@@ -305,13 +284,9 @@ pub async fn get_browser_runtime_code(
 }
 
 /// Returns the code for the ECMAScript worker entrypoint bootstrap.
-pub fn get_worker_runtime_code(
-    asset_context: Vc<Box<dyn AssetContext>>,
-    generate_source_map: bool,
-) -> Result<Vc<Code>> {
+pub fn get_worker_runtime_code(asset_context: Vc<Box<dyn AssetContext>>) -> Result<Vc<Code>> {
     Ok(embed_static_code(
         asset_context,
         rcstr!("browser/runtime/base/worker-entrypoint.ts"),
-        generate_source_map,
     ))
 }
