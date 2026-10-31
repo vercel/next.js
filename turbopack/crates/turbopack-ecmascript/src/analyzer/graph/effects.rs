@@ -171,7 +171,8 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
-        /// A single member read from a named import (`z.member`), used only to narrow the part.
+        /// A statically known member accessed on the imported binding, used to narrow the part
+        /// and to query purity if the named import resolves to a namespace export.
         member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
