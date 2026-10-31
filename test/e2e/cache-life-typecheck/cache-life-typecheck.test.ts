@@ -16,8 +16,12 @@ describe('cache-life-typecheck', () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('hello world')
 
+    // Route types are shared by all commands. `next dev` writes an empty
+    // placeholder first, so wait for the generated types.
     await retry(async () => {
-      await next.readFile(`${next.distDir}/types/cache-life.d.ts`)
+      expect(await next.readFile('.next/types/cache-life.d.ts')).not.toContain(
+        'Types are being generated'
+      )
     }, 10_000)
 
     await next.stop()

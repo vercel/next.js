@@ -1,5 +1,6 @@
 import fs from 'fs'
 import nodePath from 'path'
+import createDebug from 'next/dist/compiled/debug'
 import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
 import { getBindingsSync } from './swc'
@@ -9,6 +10,8 @@ import type {
   Lockfile as NativeLockfile,
   LockfileError as NativeLockfileError,
 } from './swc/types'
+
+const debugLockfile = createDebug('next:lockfile')
 
 const RETRY_DELAY_MS = 10
 const MAX_RETRY_MS = 1000
@@ -259,6 +262,71 @@ export class Lockfile {
       process.exit(1)
     }
     return lockfile
+  }
+
+  /**
+   * Waits asynchronously for a lockfile that is expected to be held only
+   * briefly by other processes (e.g. while they generate types). Unlike
+   * `acquireWithRetriesOrExit`, this never exits the process:
+   *
+   * - Polls `tryAcquire` with async sleeps, so the event loop is not blocked.
+   * - Logs `waitingMessage` once if the lock is still held after
+   *   `warnAfterMs`.
+   * - Returns `undefined` (after a warning) once `timeoutMs` elapses, so the
+   *   caller can proceed without the lock.
+   * - Keeps waiting through transient I/O errors, like a held lock.
+   * - Returns `undefined` on other I/O errors, and the dummy `Lockfile` from
+   *   `tryAcquire` when filesystem locking is unsupported. Callers must be safe
+   *   to run without the lock.
+   */
+  static async acquireWithWait(
+    path: string,
+    {
+      warnAfterMs = 5_000,
+      timeoutMs = 30_000,
+      pollMs = 50,
+      waitingMessage,
+    }: {
+      warnAfterMs?: number
+      timeoutMs?: number
+      pollMs?: number
+      waitingMessage: string
+    }
+  ): Promise<Lockfile | undefined> {
+    const startMs = Date.now()
+    let warned = false
+    if (getBindingsSync().isWasm) {
+      // WASM bindings can't lock; run without it (and without the log
+      // `tryAcquire` prints for every attempt).
+      return undefined
+    }
+    while (true) {
+      let lockfile
+      try {
+        lockfile = Lockfile.tryAcquire(path)
+      } catch (e) {
+        if (!(e instanceof LockfileError) || !e.transient) {
+          debugLockfile(`Proceeding without lockfile ${path}: ${e}`)
+          return undefined
+        }
+        debugLockfile(`Transient error acquiring lockfile ${path}: ${e}`)
+      }
+      if (lockfile !== undefined) {
+        return lockfile
+      }
+      const elapsedMs = Date.now() - startMs
+      if (elapsedMs >= timeoutMs) {
+        Log.warn(
+          `Timed out waiting for lockfile ${cyan(path)}, continuing without it.`
+        )
+        return undefined
+      }
+      if (!warned && elapsedMs >= warnAfterMs) {
+        warned = true
+        Log.info(waitingMessage)
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollMs))
+    }
   }
 
   /**

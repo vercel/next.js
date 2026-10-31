@@ -6,19 +6,19 @@ import { retry, runNextCommand } from 'next-test-utils'
 // The fixture lives in its own directory so this test file is not copied into
 // the app, where `tsc` would type-check it.
 const FIXTURE_DIR = join(__dirname, 'fixture')
-const DEV_VALIDATOR = '.next/dev/types/validator.ts'
+// Route types shared by `next dev`, `next build` and `next typegen`.
+const VALIDATOR = '.next/types/validator.ts'
 
-async function waitForDevValidator(
+async function waitForValidator(
   next: NextInstance,
   route: string,
-  expected: string,
-  validator = DEV_VALIDATOR
+  expected: string
 ) {
   // Compile the route so bundler-specific dev types are generated too.
   expect((await next.fetch(route)).status).toBe(200)
   await retry(
     async () => {
-      const content = await next.readFile(validator).catch(() => '')
+      const content = await next.readFile(VALIDATOR).catch(() => '')
       expect(content).toContain(expected)
     },
     5000,
@@ -67,10 +67,10 @@ describe('stale-dev-types', () => {
       },
     })
 
-    it('should not fail build when .next/dev has stale types from deleted routes', async () => {
-      // Step 1: Wait for dev server to generate .next/dev/types/validator.ts
-      // that references temp-route
-      await waitForDevValidator(next, '/temp-route', 'temp-route/page')
+    it('should not fail build when next dev left types of deleted routes', async () => {
+      // Step 1: Wait for dev server to generate validator.ts that references
+      // temp-route
+      await waitForValidator(next, '/temp-route', 'temp-route/page')
 
       // Step 2: Stop dev server
       await next.stop()
@@ -78,14 +78,14 @@ describe('stale-dev-types', () => {
       // Step 3: Delete the temp-route (simulating user deleting a route)
       await next.deleteFile('app/temp-route/page.tsx')
 
-      // Verify .next/dev/types/validator.ts still references deleted route (stale)
-      const staleValidator = await next.readFile(DEV_VALIDATOR)
+      // Verify validator.ts still references deleted route (stale)
+      const staleValidator = await next.readFile(VALIDATOR)
       expect(staleValidator).toContain('temp-route/page')
 
-      // Step 4: Run build - should NOT fail due to stale .next/dev types
+      // Step 4: Run build - should NOT fail due to stale types
       const { exitCode, cliOutput } = await next.build()
 
-      // Build should succeed - stale dev types should be excluded from type checking
+      // Build should succeed - the types are regenerated before type checking
       expect(cliOutput).not.toContain(
         "Cannot find module '../../../app/temp-route/page"
       )
@@ -98,13 +98,14 @@ describe('stale-dev-types', () => {
       files: FIXTURE_DIR,
     })
 
-    it('should not fail build when .next/dev has stale types from deleted routes', async () => {
-      await waitForDevValidator(next, '/temp-route', 'temp-route/page')
+    it('should not fail build when next dev left types of deleted routes', async () => {
+      await waitForValidator(next, '/temp-route', 'temp-route/page')
       await next.stop()
       await next.deleteFile('app/temp-route/page.tsx')
 
       // The TypeScript CLI checks every file the tsconfig includes, so the
-      // stale .next/dev/types must be pruned before type checking.
+      // types must be regenerated and the .next/dev/types pruned before type
+      // checking.
       const { exitCode, cliOutput } = await next.build()
 
       expect(cliOutput).not.toContain(
@@ -126,18 +127,14 @@ describe('stale-dev-types', () => {
     })
 
     it('should remove the dev types below the configured distDir', async () => {
-      const validator = 'custom-out/dev/types/validator.ts'
-      await waitForDevValidator(
-        next,
-        '/temp-route',
-        'temp-route/page',
-        validator
-      )
+      // The custom distDir is replaced by the export, so the shared types
+      // stay in .next.
+      await waitForValidator(next, '/temp-route', 'temp-route/page')
       await next.stop()
       await next.deleteFile('app/temp-route/page.tsx')
 
-      // With a custom export distDir, build artifacts are written to .next
-      // while `next dev` writes its types below the configured distDir.
+      // With a custom export distDir, build artifacts and shared types are
+      // written to .next while dev writes below the configured distDir.
       const { exitCode, cliOutput } = await next.build()
 
       expect(cliOutput).not.toContain(
@@ -145,6 +142,7 @@ describe('stale-dev-types', () => {
       )
       expect(exitCode).toBe(0)
       expect(await next.hasFile('custom-out/dev/types')).toBe(false)
+      expect(await next.readFile(VALIDATOR)).not.toContain('temp-route/page')
     })
   })
 
@@ -153,8 +151,8 @@ describe('stale-dev-types', () => {
       files: FIXTURE_DIR,
     })
 
-    it('should not leave stale dev types that fail type checking', async () => {
-      await waitForDevValidator(next, '/before', 'before/layout')
+    it('should not leave stale types that fail type checking', async () => {
+      await waitForValidator(next, '/before', 'before/layout')
       await next.stop()
 
       // Prints the TypeScript output on failure.
@@ -179,8 +177,8 @@ describe('stale-dev-types', () => {
       files: FIXTURE_DIR,
     })
 
-    it('should not leave stale dev types that fail type checking', async () => {
-      await waitForDevValidator(next, '/temp-route', 'temp-route/page')
+    it('should not leave stale types that fail type checking', async () => {
+      await waitForValidator(next, '/temp-route', 'temp-route/page')
       await next.stop()
       await next.deleteFile('app/temp-route/page.tsx')
 
@@ -199,12 +197,17 @@ describe('stale-dev-types', () => {
     })
 
     it('should keep the dev types of the running dev server', async () => {
-      await waitForDevValidator(next, '/temp-route', 'temp-route/page')
+      await waitForValidator(next, '/temp-route', 'temp-route/page')
+      // Stands in for the mode-specific types `next dev` writes to
+      // .next/dev/types (`env.d.ts`, webpack type guards).
+      const devTypesFile = '.next/dev/types/env.d.ts'
+      await next.patchFile(devTypesFile, 'export {}\n')
 
       await runTypegen(next)
 
       // The running dev server owns .next/dev/types and keeps them up to date.
-      expect(await next.readFile(DEV_VALIDATOR)).toContain('temp-route/page')
+      expect(await next.hasFile(devTypesFile)).toBe(true)
+      expect(await next.readFile(VALIDATOR)).toContain('temp-route/page')
     })
   })
 })
