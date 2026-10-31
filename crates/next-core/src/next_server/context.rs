@@ -15,8 +15,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -72,8 +72,8 @@ use crate::{
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, get_transpiled_packages,
-        internal_assets_conditions, load_next_js_jsonc_file, module_styles_rule_condition,
-        worker_forwarded_globals,
+        internal_assets_conditions, load_next_js_jsonc_file, minify_emit_options,
+        module_styles_rule_condition, worker_forwarded_globals,
     },
 };
 
@@ -1102,14 +1102,6 @@ pub async fn get_server_chunking_context_with_client_assets(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
@@ -1121,7 +1113,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .manifest_chunks(lazy_dynamic_imports);
+    .manifest_chunks(lazy_dynamic_imports)
+    // React needs deterministic function names to work correctly.
+    .emit_options(minify_emit_options(minify, no_mangling, true).await?);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1220,13 +1214,6 @@ pub async fn get_server_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
@@ -1238,7 +1225,8 @@ pub async fn get_server_chunking_context(
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .manifest_chunks(lazy_dynamic_imports);
+    .manifest_chunks(lazy_dynamic_imports)
+    .emit_options(minify_emit_options(minify, no_mangling, false).await?);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);

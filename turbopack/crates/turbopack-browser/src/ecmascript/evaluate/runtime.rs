@@ -4,13 +4,13 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
-use turbopack_ecmascript::minify::minify;
+use turbopack_ecmascript::{emit_options::EcmascriptEmitOptions, minify::minify};
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::BrowserChunkingContext;
@@ -85,8 +85,10 @@ impl EcmascriptBrowserRuntimeChunk {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*chunking_context)).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())

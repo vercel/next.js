@@ -38,7 +38,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkGroupResult, ChunkItem, ChunkItemExt, ChunkableModule, ChunkingConfigs,
-        ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource, MinifyType,
+        ChunkingContext, EmitOptions, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource,
         ModuleId, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
@@ -57,9 +57,11 @@ use turbopack_core::{
     resolve::ModulePart,
     virtual_source::VirtualSource,
 };
+use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
     EcmascriptAnalyzable, EcmascriptParsable, EnvVarAccessMode, EnvVarInfo,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    emit_options::EcmascriptEmitOptions,
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
 };
@@ -1229,11 +1231,24 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        // Intentionally override: we are not performing chunking, so minify_type is only used for
-        // generating less whitespace during AST emitting (which means less data and thus slightly
-        // faster)
-        MinifyType::default().cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        // Intentionally override: we are not performing chunking, so emit options are only used
+        // for generating less whitespace during AST emitting (which means less data and thus
+        // slightly faster)
+        Vc::cell(vec![
+            ResolvedVc::upcast(
+                EcmascriptEmitOptions::builder()
+                    .preset_minify_optimal_size()
+                    .build()
+                    .resolved_cell(),
+            ),
+            ResolvedVc::upcast(
+                CssEmitOptions::builder()
+                    .preset_minify()
+                    .build()
+                    .resolved_cell(),
+            ),
+        ])
     }
 
     #[turbo_tasks::function]

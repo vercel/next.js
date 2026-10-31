@@ -15,7 +15,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
-        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -66,7 +66,7 @@ use crate::{
     util::{
         OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, internal_assets_conditions,
-        module_styles_rule_condition, worker_forwarded_globals,
+        minify_emit_options, module_styles_rule_condition, worker_forwarded_globals,
     },
 };
 
@@ -587,14 +587,8 @@ pub async fn get_client_chunking_context(
     .chunk_base_path(Some(asset_prefix.clone()))
     .service_worker_scope_base_path(service_worker_scope_base_path)
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .source_maps(*source_maps.await?)
+    .emit_options(minify_emit_options(minify, no_mangling, false).await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
@@ -705,13 +699,7 @@ pub async fn get_service_worker_chunking_context(
     )
     .current_chunk_method(CurrentChunkMethod::StringLiteral)
     .asset_suffix(AssetSuffix::None.resolved_cell())
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
+    .emit_options(minify_emit_options(minify, no_mangling, false).await?)
     .source_maps(*source_maps.await?)
     .hash_salt(hash_salt)
     .single_chunk()

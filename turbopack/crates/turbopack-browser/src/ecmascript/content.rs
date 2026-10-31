@@ -7,7 +7,7 @@ use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
@@ -18,6 +18,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
         strict_factory_mode, write_module_factories,
     },
+    emit_options::EcmascriptEmitOptions,
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
         version::EcmascriptChunkVersion,
@@ -133,8 +134,10 @@ impl EcmascriptBrowserChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*this.chunking_context)).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())
@@ -177,11 +180,13 @@ impl EcmascriptHmrChunkContent for EcmascriptBrowserChunkContent {
 
     #[turbo_tasks::function]
     async fn ecmascript_chunk_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
+        let emit_options =
+            EcmascriptEmitOptions::get_vc_or_default(Vc::upcast(*self.chunking_context)).await?;
         Ok(EcmascriptChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,
-            *self.chunking_context.minify_type().await?,
+            emit_options,
         ))
     }
 }

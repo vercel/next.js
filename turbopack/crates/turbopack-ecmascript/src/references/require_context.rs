@@ -21,8 +21,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
-        ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -41,6 +40,7 @@ use crate::{
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
+    emit_options::EcmascriptEmitOptions,
     references::pattern_mapping::{PatternMapping, ResolveType},
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
@@ -477,7 +477,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
-        let minify = chunking_context.minify_type().await?;
+        let ecma_emit = EcmascriptEmitOptions::get_or_default(chunking_context).await?;
 
         let mut context_map = ObjectLit {
             span: DUMMY_SP,
@@ -537,7 +537,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
         let mut bytes: Vec<u8> = vec![];
         let mut wr: JsWriter<'_, &mut Vec<u8>> =
             JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
-        if matches!(*minify, MinifyType::Minify { .. }) {
+        if !ecma_emit.indent {
             wr.set_indent_str("");
         }
 
