@@ -218,7 +218,14 @@ export async function createTurbopackRoutePublisher(
     const { loadEnvConfig } = require('@next/env') as typeof import('@next/env')
     const { createEnvDefinitions } =
       require('../experimental/create-env-definitions') as typeof import('../experimental/create-env-definitions')
-    const { loadedEnvFiles } = loadEnvConfig(dir, true, undefined, true)
+    // `next dev` can run with NODE_ENV=production, which loads the production
+    // env files instead of the development ones.
+    const { loadedEnvFiles } = loadEnvConfig(
+      dir,
+      process.env.NODE_ENV === 'development',
+      undefined,
+      true
+    )
     await createEnvDefinitions({
       distDir,
       loadedEnvFiles: [
