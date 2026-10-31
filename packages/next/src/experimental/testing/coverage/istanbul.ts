@@ -28,11 +28,13 @@ import {
   type BrowserImportStatement,
   type BrowserClassicFactory,
   type BrowserAutomaticFactory,
+  type BrowserPromiseConstructor,
 } from './browser-imports'
 import { associateBrowserJsxCalls } from './browser-jsx-associations'
 import { bindIfReturnEnds } from './if-return-boundaries'
 import { bindDefaultObjectInitializer } from './default-object'
 import { bindConditionalOperandEnds } from './conditional-operands'
+import { bindConstructorConditionalEnds } from './constructor-conditional-ends'
 import { bindParameterPropertyModel } from './parameter-properties'
 import { bindNamespaceModel } from './namespaces'
 import { bindEnumModel, hasEnumDeclaration } from './enums'
@@ -691,6 +693,8 @@ async function convertCompiledScript(
           browserClassicFactories: browserNative.classicFactories.get(file),
           browserAutomaticFactories: browserNative.automaticFactories.get(file),
           browserCreatorMethods: browserNative.creatorMethods.get(file),
+          browserPromiseConstructors:
+            browserNative.promiseConstructors.get(file),
           mode: artifact.profile.mode,
           ...(artifact.kind === 'node' &&
           artifact.profile.mode === 'development' &&
@@ -1159,6 +1163,7 @@ async function recoverJavaScriptLocations(
     browserClassicFactories?: readonly BrowserClassicFactory[]
     browserAutomaticFactories?: readonly BrowserAutomaticFactory[]
     browserCreatorMethods?: readonly BrowserCreatorMethod[]
+    browserPromiseConstructors?: readonly BrowserPromiseConstructor[]
     coverage: {
       url: string
       functions: CoverageCapture['scripts'][number]['functions']
@@ -1263,7 +1268,8 @@ async function recoverJavaScriptLocations(
       file,
       model.ast,
       emitted?.ast,
-      emitted?.sourceMap ?? identityMap(file, source)
+      emitted?.sourceMap ?? identityMap(file, source),
+      emitted?.browserPromiseConstructors
     )
     if (associations.length) {
       if (!emitted)
@@ -1287,6 +1293,13 @@ async function recoverJavaScriptLocations(
         )
       data = rebound
       bindOriginalArrowLocations(file, original, data, associations)
+      bindConstructorConditionalEnds(
+        file,
+        data,
+        model.ast,
+        associations,
+        emitted.sourceMap
+      )
       bindJsxArrowInitializerEnds(
         file,
         original,

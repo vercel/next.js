@@ -1,11 +1,20 @@
 import { SourceMapGenerator } from 'next/dist/compiled/source-map'
 import { decodeCoverageMap, type CoverageMapping } from './maps'
 import type { StandardCoverageData } from './types'
+import type { BrowserPromiseConstructor } from './browser-imports'
 
 type Point = { line: number; column: number }
 type Node = {
   type: string
   loc: { start: Point; end: Point }
+  start?: number
+  end?: number
+  optional?: boolean
+  left?: Node
+  param?: Node
+  object?: Node
+  expressions?: Node[]
+  meta?: Node
   id?: Node
   init?: Node
   body?: Node
@@ -66,7 +75,8 @@ export function associateArrowBindings(
   file: string,
   authored: unknown,
   emitted: unknown,
-  sourceMap: unknown
+  sourceMap: unknown,
+  constructors: readonly BrowserPromiseConstructor[] = []
 ): ArrowBindingAssociation[] {
   const mappings = decodeCoverageMap(sourceMap).mappings
   type Declaration = {
@@ -76,6 +86,7 @@ export function associateArrowBindings(
     callbackStart?: Point
     callbackEnd?: Point
     callbackNext?: Point
+    constructorCall?: { call: Node; callee: Node }
     field?: { node: Node; owner: Node }
   }
   const declarations: Declaration[] = []
@@ -126,6 +137,26 @@ export function associateArrowBindings(
       ? arrow.loc.start
       : role
   }
+  function constructorCallback(arrow: Node, parent: Node) {
+    let newTarget = false
+    walk(arrow.body, (node) => {
+      if (
+        node.type === 'MetaProperty' &&
+        node.meta?.name === 'new' &&
+        node.property?.name === 'target'
+      )
+        newTarget = true
+    })
+    if (
+      arrow.async ||
+      newTarget ||
+      parent.callee?.type !== 'Identifier' ||
+      parent.callee.name !== 'Promise' ||
+      parent.arguments?.[0] !== arrow
+    )
+      failure(arrow)
+    return { call: parent, callee: parent.callee }
+  }
   walk(authored, (arrow, parent) => {
     if (arrow.type !== 'ArrowFunctionExpression') return
     if (
@@ -159,6 +190,20 @@ export function associateArrowBindings(
         failure(arrow)
       declarations.push({ binding: field.node.key, arrow, field })
     } else if (
+      parent?.type === 'NewExpression' &&
+      parent.arguments?.includes(arrow)
+    ) {
+      const constructorCall = constructorCallback(arrow, parent)
+      const start = callbackRoleStart(arrow, parent)
+      if (!start) failure(arrow)
+      declarations.push({
+        arrow,
+        constructorCall,
+        callbackStart: start,
+        callbackNext: parent.arguments![1]?.loc.start,
+        callbackEnd: parent.arguments![1]?.loc.start ?? arrow.body!.loc.end,
+      })
+    } else if (
       parent?.type === 'CallExpression' &&
       parent.arguments?.includes(arrow)
     ) {
@@ -183,6 +228,104 @@ export function associateArrowBindings(
     return values.every((mapping) => same(original(mapping), position))
       ? position
       : undefined
+  }
+  function binds(pattern: any, name: string): boolean {
+    if (!pattern) return false
+    if (pattern.type === 'Identifier') return pattern.name === name
+    if (pattern.type === 'RestElement') return binds(pattern.argument, name)
+    if (pattern.type === 'AssignmentPattern') return binds(pattern.left, name)
+    if (pattern.type === 'ArrayPattern')
+      return pattern.elements.some((value: any) => binds(value, name))
+    if (pattern.type === 'ObjectPattern')
+      return pattern.properties.some((value: any) =>
+        binds(value.type === 'RestElement' ? value.argument : value.value, name)
+      )
+    return false
+  }
+  function unshadowedConstructor(lease: BrowserPromiseConstructor): boolean {
+    let valid = true
+    walk(emitted, (node) => {
+      if (
+        node.start === undefined ||
+        node.end === undefined ||
+        node.start < lease.moduleStart ||
+        node.end > lease.moduleEnd
+      )
+        return
+      // The validated initializer was removed by the native import consumer.
+      // A remaining declaration cannot stand in for that namespace or Promise.
+      for (const name of [lease.binding, 'Promise']) {
+        if (
+          (node.type === 'VariableDeclarator' && binds(node.id, name)) ||
+          ([
+            'FunctionDeclaration',
+            'FunctionExpression',
+            'ArrowFunctionExpression',
+          ].includes(node.type) &&
+            (binds(node.id, name) ||
+              node.params?.some((value) => binds(value, name)))) ||
+          (node.type === 'ClassDeclaration' && binds(node.id, name)) ||
+          (node.type === 'CatchClause' && binds(node.param, name))
+        )
+          valid = false
+      }
+      const writesNamespace = (value: Node | undefined): boolean =>
+        !!value &&
+        (binds(value, lease.binding) ||
+          (value.type === 'MemberExpression' && writesNamespace(value.object)))
+      if (
+        (node.type === 'AssignmentExpression' && writesNamespace(node.left)) ||
+        (node.type === 'UpdateExpression' && writesNamespace(node.argument))
+      )
+        valid = false
+    })
+    return valid
+  }
+  function emittedConstructor(parent: Node, arrow: Node) {
+    if (
+      parent.type !== 'CallExpression' ||
+      parent.optional ||
+      parent.arguments?.[0] !== arrow ||
+      parent.callee?.type !== 'CallExpression' ||
+      parent.callee.optional ||
+      parent.callee.arguments?.length !== 1 ||
+      parent.callee.arguments[0].type !== 'Identifier' ||
+      parent.callee.arguments[0].name !== 'Promise'
+    )
+      return undefined
+    const sequence = parent.callee.callee,
+      member = sequence?.expressions?.[1]
+    if (
+      sequence?.type !== 'SequenceExpression' ||
+      sequence.expressions?.length !== 2 ||
+      sequence.expressions[0].type !== 'Literal' ||
+      sequence.expressions[0].value !== 0 ||
+      member?.type !== 'MemberExpression' ||
+      member.optional ||
+      member.object?.type !== 'Identifier' ||
+      (member.computed
+        ? member.property?.type !== 'Literal' ||
+          member.property.value !== 'bindNativePromiseConstructor'
+        : member.property?.type !== 'Identifier' ||
+          member.property.name !== 'bindNativePromiseConstructor') ||
+      !Number.isSafeInteger(parent.start) ||
+      !Number.isSafeInteger(parent.end)
+    )
+      return undefined
+    const owned = constructors.filter(
+      (lease) =>
+        typeof lease.binding === 'string' &&
+        Number.isSafeInteger(lease.moduleStart) &&
+        lease.moduleStart >= 0 &&
+        Number.isSafeInteger(lease.moduleEnd) &&
+        lease.moduleEnd > lease.moduleStart &&
+        lease.binding === member.object!.name &&
+        parent.start! >= lease.moduleStart &&
+        parent.end! <= lease.moduleEnd &&
+        unshadowedConstructor(lease)
+    )
+    if (owned.length !== 1) return undefined
+    return { call: parent, callee: parent.callee.arguments[0] }
   }
   const emittedDeclarations: Declaration[] = []
   walk(emitted, (arrow, parent) => {
@@ -212,6 +355,7 @@ export function associateArrowBindings(
     )
       emittedDeclarations.push({
         arrow,
+        constructorCall: emittedConstructor(parent, arrow),
         callbackStart: callbackRoleStart(arrow, parent),
         callbackNext:
           parent.arguments![parent.arguments!.indexOf(arrow) + 1]?.loc.start,
@@ -226,13 +370,15 @@ export function associateArrowBindings(
       callbackStart,
       callbackEnd,
       callbackNext,
+      constructorCall,
       field,
     }) => {
       const candidates = emittedDeclarations.filter((value) => {
         if (
           !!binding !== !!value.binding ||
           !!property !== !!value.property ||
-          !!field !== !!value.field
+          !!field !== !!value.field ||
+          !!constructorCall !== !!value.constructorCall
         )
           return false
         if (field && value.field) {
@@ -261,13 +407,28 @@ export function associateArrowBindings(
           )
             return false
         }
+        if (constructorCall && value.constructorCall) {
+          const call = exact(value.constructorCall.call.loc.start),
+            callee = exact(value.constructorCall.callee.loc.start)
+          if (
+            !call ||
+            !same(call, constructorCall.call.loc.start) ||
+            !callee ||
+            !same(callee, constructorCall.callee.loc.start) ||
+            value.constructorCall.call.arguments?.length !==
+              constructorCall.call.arguments?.length
+          )
+            return false
+        }
         const point = exact((value.binding ?? value.arrow).loc.start)
         const role = value.callbackStart && exact(value.callbackStart)
         const next = value.callbackNext && exact(value.callbackNext)
         return (
           point &&
           same(point, (binding ?? arrow).loc.start) &&
-          (!callbackStart || (role && same(role, callbackStart))) &&
+          (!!constructorCall ||
+            !callbackStart ||
+            (role && same(role, callbackStart))) &&
           !!callbackNext === !!value.callbackNext &&
           (!callbackNext || (next && same(next, callbackNext)))
         )
@@ -350,7 +511,13 @@ export function arrowBindingMap(
     } else {
       if (association && mapping.source !== file)
         throw new Error('Arrow binding map crosses its original source')
-      map.addMapping({ ...position, source: mapping.source, original: point })
+      const name = (mapping as CoverageMapping & { name?: string | null }).name
+      map.addMapping({
+        ...position,
+        source: mapping.source,
+        original: point,
+        ...(name == null ? {} : { name }),
+      })
     }
   }
   for (const [source, content] of decoded.sources)

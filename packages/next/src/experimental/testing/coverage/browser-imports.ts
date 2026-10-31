@@ -25,6 +25,11 @@ export type BrowserClassicFactory = {
     fragment?: { local: string; start: Point; end: Point }
   }
 }
+export type BrowserPromiseConstructor = {
+  binding: string
+  moduleStart: number
+  moduleEnd: number
+}
 export type BrowserAutomaticFactory = {
   binding: string
   moduleStart: number
@@ -369,12 +374,14 @@ export async function prepareBrowserImportInitializers(options: {
   classicFactories: ReadonlyMap<string, readonly BrowserClassicFactory[]>
   automaticFactories: ReadonlyMap<string, readonly BrowserAutomaticFactory[]>
   creatorMethods: ReadonlyMap<string, readonly BrowserCreatorMethod[]>
+  promiseConstructors: ReadonlyMap<string, readonly BrowserPromiseConstructor[]>
 }> {
   const { artifact, metadata, code, selectedSources } = options
   const statements = new Map<string, BrowserImportStatement[]>(),
     classicFactories = new Map<string, BrowserClassicFactory[]>(),
     automaticFactories = new Map<string, BrowserAutomaticFactory[]>()
   const creatorMethods = new Map<string, BrowserCreatorMethod[]>()
+  const promiseConstructors = new Map<string, BrowserPromiseConstructor[]>()
   const developmentJsxRoles = new WeakSet<object>()
   const browser = artifact.coverage?.browser
   const development =
@@ -388,6 +395,7 @@ export async function prepareBrowserImportInitializers(options: {
       classicFactories,
       automaticFactories,
       creatorMethods,
+      promiseConstructors,
     }
   if (
     artifact.kind !== 'browser' ||
@@ -420,6 +428,7 @@ export async function prepareBrowserImportInitializers(options: {
       classicFactories,
       automaticFactories,
       creatorMethods,
+      promiseConstructors,
     }
   if (!Array.isArray(sections) || !sections.length) fail()
   const starts = [0],
@@ -755,6 +764,16 @@ export async function prepareBrowserImportInitializers(options: {
       }
       remove.add(start)
       owners.push({ role, declaration })
+      if (
+        producer &&
+        role.imports[0].specifiers.some(
+          (specifier: any) =>
+            specifier.imported === 'bindNativePromiseConstructor'
+        )
+      )
+        promiseConstructors.set(source.file, [
+          { binding: role.binding, moduleStart, moduleEnd },
+        ])
       if (creator)
         creatorScopes.push({ binding: role.binding, moduleStart, moduleEnd })
     }
@@ -963,6 +982,7 @@ export async function prepareBrowserImportInitializers(options: {
       classicFactories,
       automaticFactories,
       creatorMethods,
+      promiseConstructors,
     }
   const ast = structuredClone(options.ast)
   walk(ast, (node) => {
@@ -988,6 +1008,7 @@ export async function prepareBrowserImportInitializers(options: {
     classicFactories,
     automaticFactories,
     creatorMethods,
+    promiseConstructors,
   }
 }
 

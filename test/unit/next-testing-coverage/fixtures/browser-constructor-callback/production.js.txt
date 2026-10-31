@@ -1,0 +1,1718 @@
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([typeof document === "object" ? document.currentScript : undefined,
+864, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "createSubject",
+    ()=>createSubject
+]);
+var __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);
+var __TURBOPACK__imported__module__7171__ = __turbopack_context__.i(7171);
+var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);
+;
+;
+;
+function createSubject(value) {
+    const pending = (0, __TURBOPACK__imported__module__7171__["bindNativePromiseConstructor"])(Promise)((resolve)=>resolve(value ? 'selected' : 'other'));
+    const request = (0, __TURBOPACK__imported__module__7171__["bindNativeFetchCall"])(fetch)('data:text/plain,creator-coverage');
+    const element = /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__["jsx"])("span", {
+        children: value ? 'selected' : 'other'
+    });
+    return {
+        element,
+        pending,
+        request
+    };
+}
+}),
+446, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+/**
+ * @license React
+ * react-jsx-runtime.production.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+function jsxProd(type, config, maybeKey) {
+    var key = null;
+    void 0 !== maybeKey && (key = "" + maybeKey);
+    void 0 !== config.key && (key = "" + config.key);
+    if ("key" in config) {
+        maybeKey = {};
+        for(var propName in config)"key" !== propName && (maybeKey[propName] = config[propName]);
+    } else maybeKey = config;
+    config = maybeKey.ref;
+    return {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: type,
+        key: key,
+        ref: void 0 !== config ? config : null,
+        props: maybeKey
+    };
+}
+exports.Fragment = REACT_FRAGMENT_TYPE;
+exports.jsx = jsxProd;
+exports.jsxs = jsxProd;
+}),
+8636, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+/**
+ * @license React
+ * react.production.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = Symbol.for("react.activity"), REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+function getIteratorFn(maybeIterable) {
+    if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
+    maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
+    return "function" === typeof maybeIterable ? maybeIterable : null;
+}
+var ReactNoopUpdateQueue = {
+    isMounted: function() {
+        return !1;
+    },
+    enqueueForceUpdate: function() {},
+    enqueueReplaceState: function() {},
+    enqueueSetState: function() {}
+}, assign = Object.assign, emptyObject = {};
+function Component(props, context, updater) {
+    this.props = props;
+    this.context = context;
+    this.refs = emptyObject;
+    this.updater = updater || ReactNoopUpdateQueue;
+}
+Component.prototype.isReactComponent = {};
+Component.prototype.setState = function(partialState, callback) {
+    if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState) throw Error("takes an object of state variables to update or a function which returns an object of state variables.");
+    this.updater.enqueueSetState(this, partialState, callback, "setState");
+};
+Component.prototype.forceUpdate = function(callback) {
+    this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
+};
+function ComponentDummy() {}
+ComponentDummy.prototype = Component.prototype;
+function PureComponent(props, context, updater) {
+    this.props = props;
+    this.context = context;
+    this.refs = emptyObject;
+    this.updater = updater || ReactNoopUpdateQueue;
+}
+var pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
+pureComponentPrototype.constructor = PureComponent;
+assign(pureComponentPrototype, Component.prototype);
+pureComponentPrototype.isPureReactComponent = !0;
+var isArrayImpl = Array.isArray;
+function noop() {}
+var ReactSharedInternals = {
+    H: null,
+    A: null,
+    T: null,
+    S: null
+}, hasOwnProperty = Object.prototype.hasOwnProperty;
+function ReactElement(type, key, props) {
+    var refProp = props.ref;
+    return {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: type,
+        key: key,
+        ref: void 0 !== refProp ? refProp : null,
+        props: props
+    };
+}
+function cloneAndReplaceKey(oldElement, newKey) {
+    return ReactElement(oldElement.type, newKey, oldElement.props);
+}
+function isValidElement(object) {
+    return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+}
+function escape(key) {
+    var escaperLookup = {
+        "=": "=0",
+        ":": "=2"
+    };
+    return "$" + key.replace(/[=:]/g, function(match) {
+        return escaperLookup[match];
+    });
+}
+var userProvidedKeyEscapeRegex = /\/+/g;
+function getElementKey(element, index) {
+    return "object" === typeof element && null !== element && null != element.key ? escape("" + element.key) : index.toString(36);
+}
+function resolveThenable(thenable) {
+    switch(thenable.status){
+        case "fulfilled":
+            return thenable.value;
+        case "rejected":
+            throw thenable.reason;
+        default:
+            switch("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(function(fulfilledValue) {
+                "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
+            }, function(error) {
+                "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+            })), thenable.status){
+                case "fulfilled":
+                    return thenable.value;
+                case "rejected":
+                    throw thenable.reason;
+            }
+    }
+    throw thenable;
+}
+function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
+    var type = typeof children;
+    if ("undefined" === type || "boolean" === type) children = null;
+    var invokeCallback = !1;
+    if (null === children) invokeCallback = !0;
+    else switch(type){
+        case "bigint":
+        case "string":
+        case "number":
+            invokeCallback = !0;
+            break;
+        case "object":
+            switch(children.$$typeof){
+                case REACT_ELEMENT_TYPE:
+                case REACT_PORTAL_TYPE:
+                    invokeCallback = !0;
+                    break;
+                case REACT_LAZY_TYPE:
+                    return invokeCallback = children._init, mapIntoArray(invokeCallback(children._payload), array, escapedPrefix, nameSoFar, callback);
+            }
+    }
+    if (invokeCallback) return callback = callback(children), invokeCallback = "" === nameSoFar ? "." + getElementKey(children, 0) : nameSoFar, isArrayImpl(callback) ? (escapedPrefix = "", null != invokeCallback && (escapedPrefix = invokeCallback.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c) {
+        return c;
+    })) : null != callback && (isValidElement(callback) && (callback = cloneAndReplaceKey(callback, escapedPrefix + (null == callback.key || children && children.key === callback.key ? "" : ("" + callback.key).replace(userProvidedKeyEscapeRegex, "$&/") + "/") + invokeCallback)), array.push(callback)), 1;
+    invokeCallback = 0;
+    var nextNamePrefix = "" === nameSoFar ? "." : nameSoFar + ":";
+    if (isArrayImpl(children)) for(var i = 0; i < children.length; i++)nameSoFar = children[i], type = nextNamePrefix + getElementKey(nameSoFar, i), invokeCallback += mapIntoArray(nameSoFar, array, escapedPrefix, type, callback);
+    else if (i = getIteratorFn(children), "function" === typeof i) for(children = i.call(children), i = 0; !(nameSoFar = children.next()).done;)nameSoFar = nameSoFar.value, type = nextNamePrefix + getElementKey(nameSoFar, i++), invokeCallback += mapIntoArray(nameSoFar, array, escapedPrefix, type, callback);
+    else if ("object" === type) {
+        if ("function" === typeof children.then) return mapIntoArray(resolveThenable(children), array, escapedPrefix, nameSoFar, callback);
+        array = String(children);
+        throw Error("Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead.");
+    }
+    return invokeCallback;
+}
+function mapChildren(children, func, context) {
+    if (null == children) return children;
+    var result = [], count = 0;
+    mapIntoArray(children, result, "", "", function(child) {
+        return func.call(context, child, count++);
+    });
+    return result;
+}
+function lazyInitializer(payload) {
+    if (-1 === payload._status) {
+        var ctor = payload._result, thenable = ctor();
+        thenable.then(function(moduleObject) {
+            if (0 === payload._status || -1 === payload._status) payload._status = 1, payload._result = moduleObject, void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
+        }, function(error) {
+            if (0 === payload._status || -1 === payload._status) payload._status = 2, payload._result = error, void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+        });
+        -1 === payload._status && (payload._status = 0, payload._result = thenable);
+    }
+    if (1 === payload._status) return payload._result.default;
+    throw payload._result;
+}
+var reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
+    if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
+        var event = new window.ErrorEvent("error", {
+            bubbles: !0,
+            cancelable: !0,
+            message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
+            error: error
+        });
+        if (!window.dispatchEvent(event)) return;
+    } else if ("object" === typeof process && "function" === typeof process.emit) {
+        process.emit("uncaughtException", error);
+        return;
+    }
+    console.error(error);
+};
+function startTransition(scope) {
+    var prevTransition = ReactSharedInternals.T, currentTransition = {};
+    currentTransition.types = null !== prevTransition ? prevTransition.types : null;
+    ReactSharedInternals.T = currentTransition;
+    try {
+        var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
+        null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
+        "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && returnValue.then(noop, reportGlobalError);
+    } catch (error) {
+        reportGlobalError(error);
+    } finally{
+        null !== prevTransition && null !== currentTransition.types && (prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
+    }
+}
+function addTransitionType(type) {
+    var transition = ReactSharedInternals.T;
+    if (null !== transition) {
+        var transitionTypes = transition.types;
+        null === transitionTypes ? transition.types = [
+            type
+        ] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+    } else startTransition(addTransitionType.bind(null, type));
+}
+var Children = {
+    map: mapChildren,
+    forEach: function(children, forEachFunc, forEachContext) {
+        mapChildren(children, function() {
+            forEachFunc.apply(this, arguments);
+        }, forEachContext);
+    },
+    count: function(children) {
+        var n = 0;
+        mapChildren(children, function() {
+            n++;
+        });
+        return n;
+    },
+    toArray: function(children) {
+        return mapChildren(children, function(child) {
+            return child;
+        }) || [];
+    },
+    only: function(children) {
+        if (!isValidElement(children)) throw Error("React.Children.only expected to receive a single React element child.");
+        return children;
+    }
+};
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
+exports.Component = Component;
+exports.Fragment = REACT_FRAGMENT_TYPE;
+exports.Profiler = REACT_PROFILER_TYPE;
+exports.PureComponent = PureComponent;
+exports.StrictMode = REACT_STRICT_MODE_TYPE;
+exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
+exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
+exports.__COMPILER_RUNTIME = {
+    __proto__: null,
+    c: function(size) {
+        return ReactSharedInternals.H.useMemoCache(size);
+    }
+};
+exports.addTransitionType = addTransitionType;
+exports.cache = function(fn) {
+    return function() {
+        return fn.apply(null, arguments);
+    };
+};
+exports.cacheSignal = function() {
+    return null;
+};
+exports.cloneElement = function(element, config, children) {
+    if (null === element || void 0 === element) throw Error("The argument must be a React element, but you passed " + element + ".");
+    var props = assign({}, element.props), key = element.key;
+    if (null != config) for(propName in void 0 !== config.key && (key = "" + config.key), config)!hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
+    var propName = arguments.length - 2;
+    if (1 === propName) props.children = children;
+    else if (1 < propName) {
+        for(var childArray = Array(propName), i = 0; i < propName; i++)childArray[i] = arguments[i + 2];
+        props.children = childArray;
+    }
+    return ReactElement(element.type, key, props);
+};
+exports.createContext = function(defaultValue) {
+    defaultValue = {
+        $$typeof: REACT_CONTEXT_TYPE,
+        _currentValue: defaultValue,
+        _currentValue2: defaultValue,
+        _threadCount: 0,
+        Provider: null,
+        Consumer: null
+    };
+    defaultValue.Provider = defaultValue;
+    defaultValue.Consumer = {
+        $$typeof: REACT_CONSUMER_TYPE,
+        _context: defaultValue
+    };
+    return defaultValue;
+};
+exports.createElement = function(type, config, children) {
+    var propName, props = {}, key = null;
+    if (null != config) for(propName in void 0 !== config.key && (key = "" + config.key), config)hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (props[propName] = config[propName]);
+    var childrenLength = arguments.length - 2;
+    if (1 === childrenLength) props.children = children;
+    else if (1 < childrenLength) {
+        for(var childArray = Array(childrenLength), i = 0; i < childrenLength; i++)childArray[i] = arguments[i + 2];
+        props.children = childArray;
+    }
+    if (type && type.defaultProps) for(propName in childrenLength = type.defaultProps, childrenLength)void 0 === props[propName] && (props[propName] = childrenLength[propName]);
+    return ReactElement(type, key, props);
+};
+exports.createRef = function() {
+    return {
+        current: null
+    };
+};
+exports.forwardRef = function(render) {
+    return {
+        $$typeof: REACT_FORWARD_REF_TYPE,
+        render: render
+    };
+};
+exports.isValidElement = isValidElement;
+exports.lazy = function(ctor) {
+    return {
+        $$typeof: REACT_LAZY_TYPE,
+        _payload: {
+            _status: -1,
+            _result: ctor
+        },
+        _init: lazyInitializer
+    };
+};
+exports.memo = function(type, compare) {
+    return {
+        $$typeof: REACT_MEMO_TYPE,
+        type: type,
+        compare: void 0 === compare ? null : compare
+    };
+};
+exports.startTransition = startTransition;
+exports.unstable_useCacheRefresh = function() {
+    return ReactSharedInternals.H.useCacheRefresh();
+};
+exports.use = function(usable) {
+    return ReactSharedInternals.H.use(usable);
+};
+exports.useActionState = function(action, initialState, permalink) {
+    return ReactSharedInternals.H.useActionState(action, initialState, permalink);
+};
+exports.useCallback = function(callback, deps) {
+    return ReactSharedInternals.H.useCallback(callback, deps);
+};
+exports.useContext = function(Context) {
+    return ReactSharedInternals.H.useContext(Context);
+};
+exports.useDebugValue = function() {};
+exports.useDeferredValue = function(value, initialValue) {
+    return ReactSharedInternals.H.useDeferredValue(value, initialValue);
+};
+exports.useEffect = function(create, deps) {
+    return ReactSharedInternals.H.useEffect(create, deps);
+};
+exports.useEffectEvent = function(callback) {
+    return ReactSharedInternals.H.useEffectEvent(callback);
+};
+exports.useId = function() {
+    return ReactSharedInternals.H.useId();
+};
+exports.useImperativeHandle = function(ref, create, deps) {
+    return ReactSharedInternals.H.useImperativeHandle(ref, create, deps);
+};
+exports.useInsertionEffect = function(create, deps) {
+    return ReactSharedInternals.H.useInsertionEffect(create, deps);
+};
+exports.useLayoutEffect = function(create, deps) {
+    return ReactSharedInternals.H.useLayoutEffect(create, deps);
+};
+exports.useMemo = function(create, deps) {
+    return ReactSharedInternals.H.useMemo(create, deps);
+};
+exports.useOptimistic = function(passthrough, reducer) {
+    return ReactSharedInternals.H.useOptimistic(passthrough, reducer);
+};
+exports.useReducer = function(reducer, initialArg, init) {
+    return ReactSharedInternals.H.useReducer(reducer, initialArg, init);
+};
+exports.useRef = function(initialValue) {
+    return ReactSharedInternals.H.useRef(initialValue);
+};
+exports.useState = function(initialState) {
+    return ReactSharedInternals.H.useState(initialState);
+};
+exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
+    return ReactSharedInternals.H.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+};
+exports.useTransition = function() {
+    return ReactSharedInternals.H.useTransition();
+};
+exports.version = "19.3.0-canary-b618bbb4-20261007";
+}),
+3438, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+if ("TURBOPACK compile-time truthy", 1) {
+    module.exports = __turbopack_context__.r(8636);
+} else //TURBOPACK unreachable
+;
+}),
+960, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+if ("TURBOPACK compile-time truthy", 1) {
+    module.exports = __turbopack_context__.r(446);
+} else //TURBOPACK unreachable
+;
+}),
+8359, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    NativePromise: null,
+    assertBrowserApiScope: null,
+    assertCompilerScopeActive: null,
+    assertInternalAttemptOwner: null,
+    assertScopeActive: null,
+    beginAssertionFile: null,
+    captureAsyncScope: null,
+    captureClientCommandAdmission: null,
+    captureClientResourceCommandAdmission: null,
+    captureCompilerAsyncScope: null,
+    captureContinuationScope: null,
+    captureCreatorScope: null,
+    captureDefaultKeyboardCleanupCall: null,
+    createAsyncScope: null,
+    createComponentCleanupCall: null,
+    createDeclarationStorage: null,
+    createDefaultKeyboardCleanupCall: null,
+    enterCreatorScope: null,
+    getConsoleTask: null,
+    getFileAssertionOrigin: null,
+    getOriginatingAttempt: null,
+    getOriginatingCollection: null,
+    getOriginatingHook: null,
+    getOriginatingScopeAncestors: null,
+    getOriginatingUnhandledFailureSink: null,
+    invokeClientAttempt: null,
+    isDefaultKeyboardCleanupCall: null,
+    nativePromiseAll: null,
+    nativePromiseResolve: null,
+    nativePromiseResolveFunction: null,
+    nativePromiseThen: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    NativePromise: function() {
+        return NativePromise;
+    },
+    assertBrowserApiScope: function() {
+        return assertBrowserApiScope;
+    },
+    assertCompilerScopeActive: function() {
+        return assertCompilerScopeActive;
+    },
+    assertInternalAttemptOwner: function() {
+        return assertInternalAttemptOwner;
+    },
+    assertScopeActive: function() {
+        return assertScopeActive;
+    },
+    beginAssertionFile: function() {
+        return beginAssertionFile;
+    },
+    captureAsyncScope: function() {
+        return captureAsyncScope;
+    },
+    captureClientCommandAdmission: function() {
+        return captureClientCommandAdmission;
+    },
+    captureClientResourceCommandAdmission: function() {
+        return captureClientResourceCommandAdmission;
+    },
+    captureCompilerAsyncScope: function() {
+        return captureCompilerAsyncScope;
+    },
+    captureContinuationScope: function() {
+        return captureContinuationScope;
+    },
+    captureCreatorScope: function() {
+        return captureCreatorScope;
+    },
+    captureDefaultKeyboardCleanupCall: function() {
+        return captureDefaultKeyboardCleanupCall;
+    },
+    createAsyncScope: function() {
+        return createAsyncScope;
+    },
+    createComponentCleanupCall: function() {
+        return createComponentCleanupCall;
+    },
+    createDeclarationStorage: function() {
+        return createDeclarationStorage;
+    },
+    createDefaultKeyboardCleanupCall: function() {
+        return createDefaultKeyboardCleanupCall;
+    },
+    enterCreatorScope: function() {
+        return enterCreatorScope;
+    },
+    getConsoleTask: function() {
+        return getConsoleTask;
+    },
+    getFileAssertionOrigin: function() {
+        return getFileAssertionOrigin;
+    },
+    getOriginatingAttempt: function() {
+        return getOriginatingAttempt;
+    },
+    getOriginatingCollection: function() {
+        return getOriginatingCollection;
+    },
+    getOriginatingHook: function() {
+        return getOriginatingHook;
+    },
+    getOriginatingScopeAncestors: function() {
+        return getOriginatingScopeAncestors;
+    },
+    getOriginatingUnhandledFailureSink: function() {
+        return getOriginatingUnhandledFailureSink;
+    },
+    invokeClientAttempt: function() {
+        return invokeClientAttempt;
+    },
+    isDefaultKeyboardCleanupCall: function() {
+        return isDefaultKeyboardCleanupCall;
+    },
+    nativePromiseAll: function() {
+        return nativePromiseAll;
+    },
+    nativePromiseResolve: function() {
+        return nativePromiseResolve;
+    },
+    nativePromiseResolveFunction: function() {
+        return nativePromiseResolveFunction;
+    },
+    nativePromiseThen: function() {
+        return nativePromiseThen;
+    }
+});
+const _nativecontinuation = __turbopack_context__.r(7711);
+const _enginebrandcontract = __turbopack_context__.r(1328);
+const _nativepromiseallocation = __turbopack_context__.r(5306);
+let active;
+let fileOwner;
+let assertionFileOpen = false;
+function beginAssertionFile() {
+    if (!fileOwner || assertionFileOpen) throw new Error('Browser assertion file is not available.');
+    assertionFileOpen = true;
+    return ()=>{
+        assertionFileOpen = false;
+    };
+}
+function getFileAssertionOrigin() {
+    assertBrowserApiScope('assertion');
+    return active == null ? void 0 : active.context;
+}
+const owners = new Map();
+function runInScope(scope, callback) {
+    const previous = active;
+    active = scope;
+    try {
+        return callback();
+    } finally{
+        active = previous;
+    }
+}
+/** Experimental compiler-carried creator cells. They retain the original scope,
+ * including a closed tombstone, and carry no native Promise job authority. */ const creatorScopes = new WeakMap();
+const freezeCreator = Object.freeze;
+const creatorNoop = ()=>{};
+const browserCleanupViews = new WeakMap();
+let defaultKeyboardCleanupId = 0;
+function browserCleanupView(scope, call) {
+    const view = Object.create(scope);
+    browserCleanupViews.set(view, {
+        origin: scope,
+        call
+    });
+    return view;
+}
+/** Resource views keep the exact existing owner identity at private call checks. */ function withoutBrowserCleanupView(scope) {
+    while(scope && browserCleanupViews.has(scope))scope = browserCleanupViews.get(scope).origin;
+    return scope;
+}
+function createDefaultKeyboardCleanupCall(target, nativeInvocation) {
+    const parent = active ?? fileOwner;
+    const late = (parent == null ? void 0 : parent.onLateFailure) ?? (()=>{});
+    const call = {
+        kind: 'keyboard',
+        target,
+        closed: false,
+        onLateFailure: late,
+        ...nativeInvocation ? {
+            nativeInvocation
+        } : {}
+    };
+    const owner = parent ?? {
+        kind: 'default-keyboard-cleanup',
+        context: {
+            id: `default-keyboard-cleanup:${++defaultKeyboardCleanupId}`,
+            name: 'default keyboard cleanup'
+        },
+        ancestors: [],
+        closed: false,
+        onLateFailure: late
+    };
+    return createCleanupCallView(owner, call);
+}
+function createComponentCleanupCall(target, nativeInvocation) {
+    const owner = active ?? fileOwner;
+    if (!owner || !nativeInvocation) return undefined;
+    return createCleanupCallView(owner, {
+        kind: 'component',
+        target,
+        closed: false,
+        onLateFailure: owner.onLateFailure,
+        nativeInvocation
+    });
+}
+function createCleanupCallView(owner, call) {
+    const view = browserCleanupView(owner, call);
+    return {
+        run (callback) {
+            return runInScope(view, callback);
+        },
+        settle (awaited) {
+            return runInScope(view, ()=>(0, _nativepromiseallocation.createClientNativePromise)(NativePromise, (resolve)=>{
+                    Reflect.apply(nativeThen, adoptInScope(view, awaited), [
+                        ()=>resolve({
+                                status: 'fulfilled'
+                            }),
+                        (error)=>resolve({
+                                status: 'rejected',
+                                error
+                            })
+                    ]);
+                }));
+        },
+        close () {
+            call.closed = true;
+        }
+    };
+}
+function captureDefaultKeyboardCleanupCall(target) {
+    var _browserCleanupViews_get;
+    const call = active && ((_browserCleanupViews_get = browserCleanupViews.get(active)) == null ? void 0 : _browserCleanupViews_get.call);
+    if (!call || call.kind !== 'keyboard' || call.target !== target) return undefined;
+    const assertLive = ()=>assertCleanupCallLive(call);
+    assertLive();
+    return assertLive;
+}
+function assertCleanupCallLive(call) {
+    if (call.closed) {
+        const error = new Error(call.kind === 'keyboard' ? 'Late default Browser keyboard cleanup invocation.' : 'Late Browser component cleanup invocation.');
+        call.onLateFailure(error);
+        throw error;
+    }
+}
+function isDefaultKeyboardCleanupCall(target) {
+    return captureDefaultKeyboardCleanupCall(target) !== undefined;
+}
+/** New Native work requires both the actual file invocation and this call. */ function currentCleanupNativeCall() {
+    var _browserCleanupViews_get;
+    const scope = active;
+    const call = scope && ((_browserCleanupViews_get = browserCleanupViews.get(scope)) == null ? void 0 : _browserCleanupViews_get.call);
+    if (!(call == null ? void 0 : call.nativeInvocation)) return undefined;
+    assertCleanupCallLive(call);
+    call.nativeInvocation.assertActive();
+    return scope;
+}
+function captureCreatorScope() {
+    const cell = {
+        __proto__: null
+    };
+    freezeCreator(cell);
+    creatorScopes.set(cell, (active == null ? void 0 : active.kind) === 'attempt' || (active == null ? void 0 : active.kind) === 'hook' ? active : undefined);
+    return cell;
+}
+function enterCreatorScope(cell) {
+    var _browserCleanupViews_get;
+    if (!creatorScopes.has(cell)) throw new Error('Invalid Browser Mode creator cell.');
+    const scope = creatorScopes.get(cell);
+    // Module/collection-created callables grant nothing and change no frame.
+    if (!scope) return creatorNoop;
+    const previous = active;
+    const cleanupCall = previous && ((_browserCleanupViews_get = browserCleanupViews.get(previous)) == null ? void 0 : _browserCleanupViews_get.call);
+    // The creator's closed tombstone remains authoritative for every other API.
+    // Only the actual cleanup invocation follows this private lexical view.
+    active = cleanupCall ? browserCleanupView(scope, cleanupCall) : scope;
+    let left = false;
+    return ()=>{
+        if (left) throw new Error('Browser Mode creator frame was already left.');
+        left = true;
+        active = previous;
+    };
+}
+function bind(callback, scope = active) {
+    return function(...args) {
+        return runInScope(scope, ()=>Reflect.apply(callback, this, args));
+    };
+}
+const NativePromise = Promise;
+const nativePromiseResolveFunction = Promise.resolve;
+const nativePromiseAll = Promise.all;
+const nativePromiseResolve = nativePromiseResolveFunction.bind(Promise);
+const nativePromiseThen = Promise.prototype.then;
+const nativeThen = nativePromiseThen;
+const settled = nativePromiseResolve();
+// Native Promise resolution invokes a thenable in an engine job. That job must
+// receive the same origin as the source await, including for its getter, its
+// callable body and recursive resolution. The box prevents a fulfilled value
+// from being assimilated for a second time by our transport Promise.
+function adoptInScope(scope, input) {
+    return (0, _nativepromiseallocation.createClientNativePromise)(NativePromise, (resolve, reject)=>{
+        const fulfill = (value)=>{
+            const box = Object.create(null);
+            box.value = value;
+            resolve(box);
+        };
+        const adopt = (value)=>runInScope(scope, ()=>{
+                try {
+                    if (value === null || typeof value !== 'object' && typeof value !== 'function') {
+                        fulfill(value);
+                        return;
+                    }
+                    const then = Reflect.get(value, 'then');
+                    if (typeof then !== 'function') {
+                        fulfill(value);
+                        return;
+                    }
+                    Reflect.apply(nativeThen, settled, [
+                        ()=>runInScope(scope, ()=>{
+                                let called = false;
+                                try {
+                                    Reflect.apply(then, value, [
+                                        (next)=>{
+                                            if (called) return;
+                                            called = true;
+                                            adopt(next);
+                                        },
+                                        (error)=>{
+                                            if (called) return;
+                                            called = true;
+                                            reject(error);
+                                        }
+                                    ]);
+                                } catch (error) {
+                                    if (!called) reject(error);
+                                }
+                            })
+                    ]);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        adopt(input);
+    });
+}
+// eslint-disable-next-line no-extend-native -- Test continuations retain their explicit browser scope across native Promise reactions.
+Object.defineProperty(Promise.prototype, 'then', {
+    configurable: true,
+    writable: true,
+    value: function(fulfilled, rejected) {
+        const nativeCall = (0, _nativepromiseallocation.captureClientNativeThen)(nativeThen, this);
+        if (!nativeCall) {
+            return Reflect.apply(nativeThen, this, [
+                typeof fulfilled === 'function' ? bind(fulfilled) : fulfilled,
+                typeof rejected === 'function' ? bind(rejected) : rejected
+            ]);
+        }
+        return nativeCall(typeof fulfilled === 'function' ? bind(fulfilled) : fulfilled, typeof rejected === 'function' ? bind(rejected) : rejected);
+    }
+});
+for (const name of [
+    'setTimeout',
+    'setInterval',
+    'queueMicrotask',
+    'requestAnimationFrame',
+    'requestIdleCallback'
+]){
+    const original = Reflect.get(globalThis, name);
+    if (typeof original !== 'function') continue;
+    Reflect.set(globalThis, name, function(callback, ...args) {
+        if (typeof callback !== 'function') throw new TypeError('Browser Mode task callbacks must be functions.');
+        return Reflect.apply(original, globalThis, [
+            bind(callback),
+            ...args
+        ]);
+    });
+}
+// MessageChannel is used by React's scheduler. Its registration happens while
+// collecting modules, whereas the originating work is chosen when posting.
+const nativeEventAdd = EventTarget.prototype.addEventListener;
+const channelLinks = new WeakMap();
+const closedPorts = new WeakSet();
+const messageScopes = new WeakMap();
+const eventScopes = new WeakMap();
+function invalidatePort(port) {
+    const peer = channelLinks.get(port);
+    channelLinks.delete(port);
+    messageScopes.delete(port);
+    if (peer) {
+        channelLinks.delete(peer);
+        messageScopes.delete(peer);
+    }
+}
+// Observe the transfer sequence as Web IDL actually consumes it. Reading a
+// caller's options or iterable twice would change getter and iterator behavior.
+function trackTransferOptions(options, transferred) {
+    if (options === null || typeof options !== 'object' && typeof options !== 'function') return options;
+    return new Proxy(Object.create(null), {
+        get (_target, key) {
+            const member = Reflect.get(options, key, options);
+            if (key === 'transfer') return trackTransferOptions(member, transferred);
+            if (key !== Symbol.iterator || typeof member !== 'function') return member;
+            return function(...iteratorArgs) {
+                const iterator = Reflect.apply(member, options, iteratorArgs);
+                if (iterator === null || typeof iterator !== 'object' && typeof iterator !== 'function') return iterator;
+                const next = Reflect.get(iterator, 'next');
+                return {
+                    next (...args) {
+                        const item = Reflect.apply(next, iterator, args);
+                        if (item === null || typeof item !== 'object' && typeof item !== 'function') return item;
+                        if (Reflect.get(item, 'done')) return {
+                            done: true
+                        };
+                        const value = Reflect.get(item, 'value');
+                        if (channelLinks.has(value)) transferred.add(value);
+                        return {
+                            done: false,
+                            value
+                        };
+                    },
+                    get return () {
+                        const close = Reflect.get(iterator, 'return');
+                        return typeof close === 'function' ? (...args)=>Reflect.apply(close, iterator, args) : close;
+                    }
+                };
+            };
+        }
+    });
+}
+function callWithTransfers(method, receiver, args, index) {
+    const transferred = new Set();
+    if (args.length > index) args[index] = trackTransferOptions(args[index], transferred);
+    const result = Reflect.apply(method, receiver, args);
+    for (const port of transferred)invalidatePort(port);
+    return result;
+}
+if (typeof MessageChannel !== 'undefined') {
+    const NativeChannel = MessageChannel;
+    globalThis.MessageChannel = class extends NativeChannel {
+        constructor(){
+            super();
+            channelLinks.set(this.port1, this.port2);
+            channelLinks.set(this.port2, this.port1);
+            for (const port of [
+                this.port1,
+                this.port2
+            ])for (const type of [
+                'message',
+                'messageerror'
+            ])Reflect.apply(nativeEventAdd, port, [
+                type,
+                (event)=>{
+                    var _messageScopes_get;
+                    if (!event.isTrusted) return;
+                    const captured = (_messageScopes_get = messageScopes.get(port)) == null ? void 0 : _messageScopes_get.shift();
+                    if (captured) eventScopes.set(event, captured);
+                }
+            ]);
+        }
+    };
+    const postMessage = MessagePort.prototype.postMessage;
+    MessagePort.prototype.postMessage = function(...args) {
+        const origin = active;
+        const result = callWithTransfers(postMessage, this, args, 1);
+        const target = channelLinks.get(this);
+        if (target && !closedPorts.has(this) && !closedPorts.has(target)) {
+            let queue = messageScopes.get(target);
+            if (!queue) messageScopes.set(target, queue = []);
+            queue.push({
+                scope: origin
+            });
+        }
+        return result;
+    };
+    const close = MessagePort.prototype.close;
+    MessagePort.prototype.close = function() {
+        const result = Reflect.apply(close, this, []);
+        closedPorts.add(this);
+        messageScopes.delete(this);
+        return result;
+    };
+    if (typeof structuredClone === 'function') {
+        const clone = structuredClone;
+        globalThis.structuredClone = function(...args) {
+            return callWithTransfers(clone, this, args, 1);
+        };
+    }
+    for (const target of [
+        typeof Window === 'undefined' ? undefined : Window.prototype,
+        typeof Worker === 'undefined' ? undefined : Worker.prototype,
+        typeof ServiceWorker === 'undefined' ? undefined : ServiceWorker.prototype
+    ]){
+        if (!target) continue;
+        const post = target.postMessage;
+        if (typeof post !== 'function') continue;
+        target.postMessage = function(...args) {
+            // Window supports legacy (message, targetOrigin, transfer) and options.
+            const index = typeof Window !== 'undefined' && target === Window.prototype && args.length > 2 ? 2 : 1;
+            return callWithTransfers(post, this, args, index);
+        };
+    }
+}
+function eventScope(event, fallback) {
+    var _eventScopes_get;
+    if (![
+        'message',
+        'messageerror'
+    ].includes(event.type) || !(event.currentTarget instanceof MessagePort)) return fallback;
+    // Synthetic events inherit their actual synchronous caller, never a queued message.
+    if (!event.isTrusted) return active;
+    // Detached/transferred/external ports have no certified local sender relation.
+    if (!channelLinks.has(event.currentTarget)) return undefined;
+    return (_eventScopes_get = eventScopes.get(event)) == null ? void 0 : _eventScopes_get.scope;
+}
+if (typeof EventTarget !== 'undefined') {
+    const add = EventTarget.prototype.addEventListener;
+    const remove = EventTarget.prototype.removeEventListener;
+    const listeners = new WeakMap();
+    const registrationKey = (type, capture)=>`${type}/${capture}`;
+    EventTarget.prototype.addEventListener = function(type, listener, options) {
+        var _settings_signal;
+        // Web IDL treats a null or undefined receiver as the Window global.
+        const receiver = this ?? globalThis;
+        type = `${type}`;
+        if (!listener) return Reflect.apply(add, receiver, [
+            type,
+            listener,
+            options
+        ]);
+        if (typeof listener !== 'object' && typeof listener !== 'function') return Reflect.apply(add, receiver, [
+            type,
+            listener,
+            options
+        ]);
+        const settings = typeof options === 'object' && options ? {
+            capture: !!options.capture,
+            once: !!options.once,
+            passive: options.passive,
+            signal: options.signal
+        } : {
+            capture: !!options,
+            once: false,
+            passive: undefined,
+            signal: undefined
+        };
+        let target = listeners.get(receiver);
+        if (!target) listeners.set(receiver, target = new Map());
+        let registrations = target.get(listener);
+        if (!registrations) target.set(listener, registrations = new Map());
+        const key = registrationKey(type, settings.capture);
+        let wrapped = registrations.get(key);
+        const created = !wrapped;
+        const forget = ()=>{
+            if (registrations.get(key) !== wrapped) return;
+            registrations.delete(key);
+            if (!registrations.size && target.get(listener) === registrations) target.delete(listener);
+        };
+        if (!wrapped) {
+            const origin = active;
+            wrapped = function(event) {
+                if (settings.once) forget();
+                return runInScope(eventScope(event, origin), ()=>typeof listener === 'function' ? Reflect.apply(listener, this, [
+                        event
+                    ]) : listener.handleEvent(event));
+            };
+        }
+        const result = Reflect.apply(add, receiver, [
+            type,
+            wrapped,
+            settings
+        ]);
+        // The DOM ignores duplicate and already-aborted registrations. Neither may
+        // replace or delete the original listener's owner, and invalid options may
+        // never leave a wrapper behind after native add throws.
+        if (created && !((_settings_signal = settings.signal) == null ? void 0 : _settings_signal.aborted)) {
+            registrations.set(key, wrapped);
+            if (settings.signal) Reflect.apply(nativeEventAdd, settings.signal, [
+                'abort',
+                forget,
+                {
+                    once: true
+                }
+            ]);
+        }
+        return result;
+    };
+    EventTarget.prototype.removeEventListener = function(type, listener, options) {
+        var _listeners_get, _listeners_get1;
+        const receiver = this ?? globalThis;
+        type = `${type}`;
+        const capture = typeof options === 'object' && options ? !!options.capture : !!options;
+        const registrations = listener && ((_listeners_get = listeners.get(receiver)) == null ? void 0 : _listeners_get.get(listener));
+        const key = registrationKey(type, capture);
+        const wrapped = registrations == null ? void 0 : registrations.get(key);
+        registrations == null ? void 0 : registrations.delete(key);
+        if (listener && !(registrations == null ? void 0 : registrations.size)) (_listeners_get1 = listeners.get(receiver)) == null ? void 0 : _listeners_get1.delete(listener);
+        return Reflect.apply(remove, receiver, [
+            type,
+            wrapped ?? listener,
+            capture
+        ]);
+    };
+}
+if (typeof MessagePort !== 'undefined') {
+    const descriptor = Object.getOwnPropertyDescriptor(MessagePort.prototype, 'onmessage');
+    const assigned = new WeakMap();
+    if (descriptor == null ? void 0 : descriptor.set) Object.defineProperty(MessagePort.prototype, 'onmessage', {
+        ...descriptor,
+        get () {
+            var _descriptor_get;
+            return assigned.get(this) ?? ((_descriptor_get = descriptor.get) == null ? void 0 : _descriptor_get.call(this));
+        },
+        set (listener) {
+            const origin = active;
+            const wrapped = typeof listener === 'function' ? function(event) {
+                return runInScope(eventScope(event, origin), ()=>listener.call(this, event));
+            } : listener;
+            descriptor.set.call(this, wrapped);
+            if (typeof listener === 'function') assigned.set(this, listener);
+            else assigned.delete(this);
+        }
+    });
+}
+function closed(scope) {
+    const error = new Error(`Late Browser Mode API access from closed ${scope.kind} scope "${scope.context.name}" (${scope.context.id}).`);
+    scope.onLateFailure(error);
+    throw error;
+}
+function current() {
+    if (active == null ? void 0 : active.closed) closed(active);
+    return active;
+}
+function createAsyncScope(owner, onLateFailure, onUnhandledFailure) {
+    const parent = active;
+    const scope = {
+        ...owner,
+        closed: false,
+        ancestors: parent ? [
+            parent,
+            ...parent.ancestors
+        ] : [],
+        onLateFailure,
+        onUnhandledFailure: onUnhandledFailure ?? (parent == null ? void 0 : parent.onUnhandledFailure)
+    };
+    owners.set(owner.context.id, scope);
+    if (owner.kind === 'collection') {
+        if (fileOwner) throw new Error('Browser Mode cannot reuse a page for another file.');
+        fileOwner = scope;
+    }
+    return {
+        run (callback) {
+            return runInScope(scope, callback);
+        },
+        close () {
+            scope.closed = true;
+        }
+    };
+}
+function invokeClientAttempt(owner, callback) {
+    const scope = owners.get(owner.id);
+    if (!scope || scope.closed || withoutBrowserCleanupView(current()) !== scope) throw new Error('Invalid Browser Mode attempt ownership.');
+    return callback();
+}
+function assertBrowserApiScope(kind) {
+    if (kind === 'browser-native' && currentCleanupNativeCall()) return;
+    const scope = kind === 'assertion' && assertionFileOpen ? active : current();
+    if (scope && ([
+        'attempt',
+        'collection',
+        'hook'
+    ].includes(scope.kind) || kind === 'browser-native' && [
+        'file-fixtures',
+        'worker-fixtures'
+    ].includes(scope.kind))) {
+        if (kind === 'declaration' && scope.kind !== 'collection') throw new Error('Browser Mode declarations require the active collection owner.');
+        return;
+    }
+    const error = new Error('Browser Mode API access requires its originating file, hook or test scope.');
+    fileOwner == null ? void 0 : fileOwner.onLateFailure(error);
+    throw error;
+}
+function createDeclarationStorage() {
+    const key = Symbol('browser suite declaration');
+    return {
+        getStore () {
+            var _current_declarations, _current;
+            return (_current = current()) == null ? void 0 : (_current_declarations = _current.declarations) == null ? void 0 : _current_declarations.get(key);
+        },
+        run (value, callback) {
+            assertBrowserApiScope('declaration');
+            const owner = active;
+            // This is a lexical view of the existing owner, not a new lifetime. Its
+            // inherited closed flag changes when the original collection closes.
+            const view = Object.create(owner);
+            const declarations = new Map(owner.declarations);
+            declarations.set(key, value);
+            Object.defineProperty(view, 'declarations', {
+                value: declarations
+            });
+            return runInScope(view, callback);
+        }
+    };
+}
+function assertScopeActive() {
+    current();
+}
+function getConsoleTask() {
+    const scope = active;
+    if ((scope == null ? void 0 : scope.kind) === 'attempt') {
+        const context = scope.context;
+        return {
+            taskId: context.testId,
+            caseId: context.testId,
+            attempt: {
+                id: context.id,
+                retry: context.retry,
+                repeat: context.repeat
+            }
+        };
+    }
+    if ((scope == null ? void 0 : scope.kind) === 'hook') return {
+        taskId: scope.context.suiteId
+    };
+    return undefined;
+}
+function getOriginatingAttempt() {
+    const scope = current();
+    return (scope == null ? void 0 : scope.kind) === 'attempt' ? scope.context : undefined;
+}
+function getOriginatingHook() {
+    const scope = current();
+    return (scope == null ? void 0 : scope.kind) === 'hook' ? scope.context : undefined;
+}
+function getOriginatingCollection() {
+    const scope = current();
+    return (scope == null ? void 0 : scope.kind) === 'collection' ? scope.context : undefined;
+}
+function getOriginatingScopeAncestors() {
+    var _current;
+    return ((_current = current()) == null ? void 0 : _current.ancestors.map((scope)=>scope.context.id)) ?? [];
+}
+function getOriginatingUnhandledFailureSink() {
+    return active == null ? void 0 : active.onUnhandledFailure;
+}
+function assertInternalAttemptOwner(id) {
+    const scope = owners.get(id);
+    if (!scope || scope.closed || ![
+        'attempt',
+        'hook'
+    ].includes(scope.kind)) throw new Error('Browser Mode internal assertion owner is not live.');
+}
+function captureAsyncScope() {
+    const scope = active;
+    current();
+    return {
+        run (callback) {
+            return runInScope(scope, ()=>{
+                current();
+                return callback();
+            });
+        }
+    };
+}
+const assertCompilerScopeActive = assertScopeActive;
+const captureCompilerAsyncScope = captureAsyncScope;
+/** A started operation retains only its exact private query and completion. */ function createClientCommandAdmission(scope, origin, signal) {
+    let bound;
+    let finished = false;
+    const assertOperation = (operation)=>{
+        if (!bound || bound !== operation || finished) throw new Error('Invalid Browser Mode command operation.');
+    };
+    return {
+        ...origin ? {
+            origin
+        } : {},
+        bind (operation) {
+            if (bound || finished) throw new Error('Browser Mode command operation was already bound.');
+            bound = operation;
+        },
+        query (operation, privatePureQuery) {
+            assertOperation(operation);
+            signal == null ? void 0 : signal.throwIfAborted();
+            return runInScope(scope, privatePureQuery);
+        },
+        finish (operation) {
+            assertOperation(operation);
+            finished = true;
+        }
+    };
+}
+function captureClientResourceCommandAdmission() {
+    const scope = currentCleanupNativeCall();
+    return scope ? createClientCommandAdmission(scope) : undefined;
+}
+function captureClientCommandAdmission() {
+    const resource = captureClientResourceCommandAdmission();
+    if (resource) return resource;
+    assertBrowserApiScope('browser-native');
+    const scope = current();
+    if ((scope == null ? void 0 : scope.kind) !== 'attempt') return undefined;
+    const context = scope.context;
+    return createClientCommandAdmission(scope, {
+        fileId: context.fileId,
+        caseId: context.testId,
+        attempt: {
+            id: context.id,
+            retry: context.retry,
+            repeat: context.repeat
+        }
+    }, context.signal);
+}
+function captureContinuationScope() {
+    const scope = active;
+    return {
+        run (callback) {
+            return runInScope(scope, callback);
+        },
+        resume (awaited, fulfilled, rejected) {
+            const origin = this;
+            runInScope(scope, ()=>{
+                let native;
+                try {
+                    native = (0, _enginebrandcontract.isExactNativePromise)(awaited);
+                } catch (error) {
+                    rejected(error);
+                    return;
+                }
+                if (native) {
+                    void (0, _nativecontinuation.continueNative)(awaited, origin, fulfilled, rejected);
+                    return;
+                }
+                Reflect.apply(nativeThen, adoptInScope(scope, awaited), [
+                    ({ value })=>origin.run(()=>fulfilled(value)),
+                    (error)=>origin.run(()=>rejected(error))
+                ]);
+            });
+        }
+    };
+}
+// Generator module factories receive this generic continuation binder explicitly.
+Object.defineProperty(globalThis, Symbol.for('turbopack.asyncContinuation'), {
+    configurable: false,
+    writable: false,
+    value () {
+        const scope = captureContinuationScope();
+        return Object.assign((callback)=>scope.run(callback), {
+            resume: scope.resume.bind(scope)
+        });
+    }
+});
+}),
+2361, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    getBrowserActionThen: null,
+    registerBrowserActionIdentity: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    getBrowserActionThen: function() {
+        return getBrowserActionThen;
+    },
+    registerBrowserActionIdentity: function() {
+        return registerBrowserActionIdentity;
+    }
+});
+const actions = new WeakMap();
+const getPrototypeOf = Object.getPrototypeOf;
+const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+function registerBrowserActionIdentity(action, identity) {
+    actions.set(action, identity);
+}
+function sameDescriptor(actual, expected) {
+    return actual !== undefined && actual.value === expected.value && actual.get === expected.get && actual.set === expected.set && actual.writable === expected.writable && actual.enumerable === expected.enumerable && actual.configurable === expected.configurable;
+}
+function getBrowserActionThen(input) {
+    if (input === null || typeof input !== 'object' && typeof input !== 'function') return undefined;
+    const identity = actions.get(input);
+    if (!identity || getOwnPropertyDescriptor(input, 'then')) return undefined;
+    let current = input;
+    for(let index = 0; index < identity.prototypes.length; index++){
+        const expected = identity.prototypes[index];
+        if (getPrototypeOf(current) !== expected) return undefined;
+        const descriptor = getOwnPropertyDescriptor(expected, 'then');
+        if (index === identity.prototypes.length - 1) {
+            return sameDescriptor(descriptor, identity.then) ? identity.then.value : undefined;
+        }
+        if (descriptor) return undefined;
+        current = expected;
+    }
+    return undefined;
+}
+}),
+1328, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    enginePromiseBrandKey: null,
+    isExactNativePromise: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    enginePromiseBrandKey: function() {
+        return enginePromiseBrandKey;
+    },
+    isExactNativePromise: function() {
+        return isExactNativePromise;
+    }
+});
+const _nativepromiseallocation = __turbopack_context__.r(5306);
+const enginePromiseBrandKey = 'next.test.engine-promise-brand.v1';
+const classify = globalThis[Symbol.for(enginePromiseBrandKey)];
+function isExactNativePromise(value) {
+    if (value === null || typeof value !== 'object' && typeof value !== 'function') return false;
+    const known = (0, _nativepromiseallocation.knownClientNativePromiseRoute)(value);
+    if (known !== undefined) return true;
+    if (typeof classify !== 'function') throw new Error('Browser Mode engine Promise classifier is unavailable.');
+    const decision = classify(value);
+    if (decision !== 0 && decision !== 1 && decision !== 2) throw new Error('Browser Mode engine Promise decision is invalid.');
+    return decision !== 0;
+}
+}),
+7711, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+/**
+ * This exact compiler-owned file retains native await. Its callbacks always
+ * reenter the supplied origin; it never reads or infers a current test owner.
+ */ Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "continueNative", {
+    enumerable: true,
+    get: function() {
+        return continueNative;
+    }
+});
+async function continueNative(value, scope, fulfilled, rejected) {
+    let result;
+    try {
+        result = await value;
+    } catch (error) {
+        scope.run(()=>rejected(error));
+        return;
+    }
+    scope.run(()=>fulfilled(result));
+}
+}),
+5306, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    captureClientNativeThen: null,
+    createClientNativePromise: null,
+    knownClientNativePromiseRoute: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    captureClientNativeThen: function() {
+        return captureClientNativeThen;
+    },
+    createClientNativePromise: function() {
+        return createClientNativePromise;
+    },
+    knownClientNativePromiseRoute: function() {
+        return knownClientNativePromiseRoute;
+    }
+});
+const _nativepromiseintrinsics = __turbopack_context__.r(3880);
+const intrinsics = (0, _nativepromiseintrinsics.getClientNativePromiseIntrinsics)();
+const receipts = intrinsics ? new WeakSet() : undefined;
+const addReceipt = receipts == null ? void 0 : receipts.add.bind(receipts);
+const hasReceipt = receipts == null ? void 0 : receipts.has.bind(receipts);
+const getPrototypeOf = intrinsics ? Object.getPrototypeOf : undefined;
+function createClientNativePromise(Constructor, executor) {
+    const promise = new Constructor(executor);
+    if (Constructor === (intrinsics == null ? void 0 : intrinsics.constructor)) addReceipt(promise);
+    return promise;
+}
+function knownClientNativePromiseRoute(value) {
+    if (value === null || typeof value !== 'object' && typeof value !== 'function' || !(hasReceipt == null ? void 0 : hasReceipt(value))) return undefined;
+    return getPrototypeOf(value) === intrinsics.prototype ? 1 : 2;
+}
+const own = intrinsics ? Object.getOwnPropertyDescriptor : undefined;
+const globalObject = intrinsics ? globalThis : undefined;
+function sameDescriptor(actual, expected) {
+    return !!actual && actual.value === expected.value && actual.get === expected.get && actual.set === expected.set && actual.writable === expected.writable && actual.enumerable === expected.enumerable && actual.configurable === expected.configurable;
+}
+function captureClientNativeThen(selectedThen, receiver) {
+    if (!(intrinsics == null ? void 0 : intrinsics.then) || !intrinsics.apply || !intrinsics.reflect || !intrinsics.hasRpcPromise || !intrinsics.constructorDescriptor || !intrinsics.speciesDescriptor || !intrinsics.species || selectedThen !== intrinsics.then || !receiver || typeof receiver !== 'object' && typeof receiver !== 'function' || !((hasReceipt == null ? void 0 : hasReceipt(receiver)) || intrinsics.hasRpcPromise(receiver))) return undefined;
+    const globalReflect = own(globalObject, 'Reflect');
+    if (!globalReflect || globalReflect.value !== intrinsics.reflect) return undefined;
+    const apply = own(intrinsics.reflect, 'apply');
+    if (!apply || apply.value !== intrinsics.apply || apply.get || apply.set || apply.writable !== true || apply.configurable !== true || apply.enumerable !== false) return undefined;
+    const selectedApply = intrinsics.apply;
+    return (fulfilled, rejected)=>{
+        // The actual selected callee is retained while callback arguments evaluate.
+        const qualifies = getPrototypeOf(receiver) === intrinsics.prototype && !own(receiver, 'constructor') && sameDescriptor(own(intrinsics.prototype, 'constructor'), intrinsics.constructorDescriptor) && sameDescriptor(own(intrinsics.constructor, intrinsics.species), intrinsics.speciesDescriptor);
+        const result = selectedApply(selectedThen, receiver, [
+            fulfilled,
+            rejected
+        ]);
+        if (qualifies) addReceipt(result);
+        return result;
+    };
+}
+}),
+3880, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+/** Data issued by the actual new-document initializer before authored modules. */ Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    getClientNativePromiseIntrinsics: null,
+    nativePromiseIntrinsicsKey: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    getClientNativePromiseIntrinsics: function() {
+        return getClientNativePromiseIntrinsics;
+    },
+    nativePromiseIntrinsicsKey: function() {
+        return nativePromiseIntrinsicsKey;
+    }
+});
+const nativePromiseIntrinsicsKey = 'next.test.engine-native-promise-intrinsics.v1';
+const own = Object.getOwnPropertyDescriptor;
+const captured = (()=>{
+    try {
+        var _own, _own1, _own2, _own3, _own4, _own5, _own6, _own7, _own8, _own9, _own10, _own11, _own12, _own13, _own14, _own15, _own16, _own17, _own18;
+        const record = (_own = own(globalThis, Symbol.for(nativePromiseIntrinsicsKey))) == null ? void 0 : _own.value;
+        if (!record || typeof record !== 'object') return undefined;
+        const classify = (_own1 = own(globalThis, Symbol.for('next.test.engine-promise-brand.v1'))) == null ? void 0 : _own1.value;
+        if (typeof classify !== 'function' || ((_own2 = own(record, 'classify')) == null ? void 0 : _own2.value) !== classify) return undefined;
+        const constructor = (_own3 = own(record, 'constructor')) == null ? void 0 : _own3.value;
+        const resolve = (_own4 = own(record, 'resolve')) == null ? void 0 : _own4.value;
+        const prototype = (_own5 = own(record, 'prototype')) == null ? void 0 : _own5.value;
+        if (typeof constructor !== 'function' || typeof resolve !== 'function' || !prototype || typeof prototype !== 'object') return undefined;
+        const fetch = (_own6 = own(record, 'fetch')) == null ? void 0 : _own6.value;
+        const fetchRpc = (_own7 = own(record, 'fetchRpc')) == null ? void 0 : _own7.value;
+        const json = (_own8 = own(record, 'json')) == null ? void 0 : _own8.value;
+        const readRpcJson = (_own9 = own(record, 'readRpcJson')) == null ? void 0 : _own9.value;
+        const then = (_own10 = own(record, 'then')) == null ? void 0 : _own10.value;
+        const apply = (_own11 = own(record, 'apply')) == null ? void 0 : _own11.value;
+        const reflect = (_own12 = own(record, 'reflect')) == null ? void 0 : _own12.value;
+        const hasRpcPromise = (_own13 = own(record, 'hasRpcPromise')) == null ? void 0 : _own13.value;
+        const constructorDescriptor = (_own14 = own(record, 'constructorDescriptor')) == null ? void 0 : _own14.value;
+        const speciesDescriptor = (_own15 = own(record, 'speciesDescriptor')) == null ? void 0 : _own15.value;
+        const species = (_own16 = own(record, 'species')) == null ? void 0 : _own16.value;
+        const constructPromise = (_own17 = own(record, 'constructPromise')) == null ? void 0 : _own17.value;
+        const callFetch = (_own18 = own(record, 'callFetch')) == null ? void 0 : _own18.value;
+        return Object.freeze({
+            constructor,
+            resolve,
+            prototype,
+            ...typeof constructPromise === 'function' ? {
+                constructPromise
+            } : {},
+            ...typeof callFetch === 'function' ? {
+                callFetch
+            } : {},
+            ...typeof fetch === 'function' && typeof fetchRpc === 'function' ? {
+                fetch,
+                fetchRpc
+            } : {},
+            ...typeof json === 'function' && typeof readRpcJson === 'function' ? {
+                json,
+                readRpcJson
+            } : {},
+            ...typeof then === 'function' && typeof apply === 'function' && typeof hasRpcPromise === 'function' && reflect && constructorDescriptor && speciesDescriptor && typeof species === 'symbol' ? {
+                then,
+                apply,
+                reflect,
+                hasRpcPromise,
+                constructorDescriptor,
+                speciesDescriptor,
+                species
+            } : {}
+        });
+    } catch  {
+        // Synthetic bootstrap objects keep the original unknown-value route.
+        return undefined;
+    }
+})();
+function getClientNativePromiseIntrinsics() {
+    return captured;
+}
+}),
+7171, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    bindNativeFetchCall: null,
+    bindNativePromiseConstructor: null,
+    bindNativePromiseStaticCall: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    bindNativeFetchCall: function() {
+        return bindNativeFetchCall;
+    },
+    bindNativePromiseConstructor: function() {
+        return bindNativePromiseConstructor;
+    },
+    bindNativePromiseStaticCall: function() {
+        return bindNativePromiseStaticCall;
+    }
+});
+const _nativepromiseintrinsics = __turbopack_context__.r(3880);
+const _nativepromiseallocation = __turbopack_context__.r(5306);
+const _asynccontext = __turbopack_context__.r(8359);
+const _browseractionidentity = __turbopack_context__.r(2361);
+const nativeResolve = _asynccontext.nativePromiseResolveFunction;
+const nativeAll = _asynccontext.nativePromiseAll;
+const settled = Reflect.apply(nativeResolve, _asynccontext.NativePromise, []);
+function resolveInCallScope(input, scope) {
+    const then = (0, _browseractionidentity.getBrowserActionThen)(input);
+    if (!then) return Reflect.apply(nativeResolve, _asynccontext.NativePromise, [
+        input
+    ]);
+    return (0, _nativepromiseallocation.createClientNativePromise)(_asynccontext.NativePromise, (resolve, reject)=>{
+        // Native resolution schedules one thenable job. Use the captured engine
+        // reaction queue even when authored code has replaced queueMicrotask.
+        void Reflect.apply(_asynccontext.nativePromiseThen, settled, [
+            ()=>scope.run(()=>{
+                    try {
+                        Reflect.apply(then, input, [
+                            resolve,
+                            reject
+                        ]);
+                    } catch (error) {
+                        reject(error);
+                    }
+                })
+        ]);
+    });
+}
+function bindNativePromiseStaticCall(receiver, key) {
+    // Ordinary member access preserves primitive boxing and nullish failures.
+    const callee = receiver[key];
+    return function(...args) {
+        if (receiver !== _asynccontext.NativePromise) return Reflect.apply(callee, receiver, args);
+        const scope = (0, _asynccontext.captureContinuationScope)();
+        if (key === 'resolve' && callee === nativeResolve && args.length > 0 && (0, _browseractionidentity.getBrowserActionThen)(args[0])) return resolveInCallScope(args[0], scope);
+        if (key === 'all' && callee === nativeAll) {
+            // Keep native all's iterator, capability and rejection algorithms. Its
+            // private constructor view forwards observable resolver access and calls
+            // to the original receiver, and never wraps the authored input value.
+            const constructor = new Proxy(_asynccontext.NativePromise, {
+                construct (target, values) {
+                    return Reflect.construct(target, values, target);
+                },
+                get (target, property) {
+                    const value = Reflect.get(target, property, target);
+                    if (property !== 'resolve' || typeof value !== 'function') return value;
+                    return function(input) {
+                        return value === nativeResolve ? resolveInCallScope(input, scope) : Reflect.apply(value, _asynccontext.NativePromise, [
+                            input
+                        ]);
+                    };
+                }
+            });
+            return Reflect.apply(callee, constructor, args);
+        }
+        return Reflect.apply(callee, receiver, args);
+    };
+}
+const producerIntrinsics = (0, _nativepromiseintrinsics.getClientNativePromiseIntrinsics)();
+const argumentIterator = Symbol.iterator;
+// Rest values are private own data. Forwarding must not run an authored Array
+// iterator, including when the actual constructor or callable is a fallback.
+function forwardProducerArguments(values) {
+    let index = 0;
+    return {
+        [argumentIterator] () {
+            return {
+                next () {
+                    return index < values.length ? {
+                        value: values[index++],
+                        done: false
+                    } : {
+                        done: true
+                    };
+                }
+            };
+        }
+    };
+}
+function bindNativePromiseConstructor(Promise) {
+    const construct = producerIntrinsics == null ? void 0 : producerIntrinsics.constructPromise;
+    return function(...args) {
+        if (construct) return construct(Promise, args);
+        // Synthetic/older bridges retain an actual ordinary construction, including
+        // its real new.target, argument list and native nonconstructor exception.
+        return new Promise(...forwardProducerArguments(args));
+    };
+}
+function bindNativeFetchCall(fetch) {
+    const call = producerIntrinsics == null ? void 0 : producerIntrinsics.callFetch;
+    return function(...args) {
+        if (call) return call(fetch, args);
+        return fetch(...forwardProducerArguments(args));
+    };
+}
+}),
+]);})()
+
+//# sourceMappingURL=1izzj4lg28x37.js.map

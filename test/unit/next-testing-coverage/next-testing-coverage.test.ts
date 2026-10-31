@@ -23930,3 +23930,835 @@ describe('native generated Browser Promise bridge imports', () => {
     )
   })
 })
+
+describe('native-qualified Browser Promise executor arrow coverage', () => {
+  const corpus = join(__dirname, 'fixtures/browser-constructor-callback')
+  const collect = (ast: any, type: string) => {
+    const values: any[] = []
+    const visit = (node: any, parent?: any) => {
+      if (!node || typeof node !== 'object') return
+      if (Array.isArray(node)) {
+        node.forEach((value) => visit(value, parent))
+        return
+      }
+      if (node.type === type) values.push({ node, parent })
+      for (const [key, value] of Object.entries(node))
+        if (!['loc', 'comments', 'tokens'].includes(key)) visit(value, node)
+    }
+    visit(ast)
+    return values
+  }
+  async function fixture<T>(mode: string, run: (value: any) => Promise<T>) {
+    const { mkdir } = await import('fs/promises')
+    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { buildBrowserCoverageMetadata } = await import(
+      'next/dist/experimental/testing/client/coverage-artifact'
+    )
+    const { prepareBrowserImportInitializers } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    const helpers = await import(
+      'next/dist/experimental/testing/coverage/arrow-bindings'
+    )
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-constructor-map-'))
+    )
+    try {
+      const file = join(root, 'subject.jsx'),
+        source = await readFile(join(corpus, 'subject.jsx.txt'), 'utf8'),
+        code = await readFile(join(corpus, `${mode}.js.txt`), 'utf8'),
+        proof = JSON.parse(
+          await readFile(join(corpus, `${mode}-certificate.json.txt`), 'utf8')
+        ),
+        rawMap = JSON.parse(
+          await readFile(join(corpus, `${mode}.js.map.json.txt`), 'utf8')
+        ),
+        imports = proof.developmentImports ?? proof.importInitializers,
+        script = Object.keys(imports.sectionsByScript)[0],
+        mapPath = join(script, '..', code.match(/sourceMappingURL=(\S+)/)![1]),
+        descriptor = `server/next-test/${'e'.repeat(64)}.client.json`,
+        certificate = descriptor.replace(
+          '.client.json',
+          '.browser-coverage.json'
+        ),
+        files = [script, mapPath, descriptor, certificate],
+        identities = new Map<string, string>()
+      await writeFile(file, source)
+      async function relocate(map: any): Promise<void> {
+        if (map.sections) {
+          for (const section of map.sections) await relocate(section.map)
+          return
+        }
+        for (let index = 0; index < map.sources.length; index++) {
+          const content = map.sourcesContent[index]
+          expect(typeof content).toBe('string')
+          const original = map.sources[index]
+          let destination = identities.get(original)
+          if (!destination) {
+            destination =
+              content === source
+                ? file
+                : join(root, `dependency-${identities.size}.js`)
+            identities.set(original, destination)
+            await writeFile(destination, content)
+          }
+          map.sources[index] = pathToFileURL(destination).href
+        }
+      }
+      await relocate(rawMap)
+      for (const path of files)
+        await mkdir(join(root, path, '..'), { recursive: true })
+      // The exact native section and code/map tuples are retained. Bookkeeping
+      // outputs are outside this declaration-association fixture.
+      proof.scripts = []
+      await Promise.all([
+        writeFile(join(root, script), code),
+        writeFile(join(root, mapPath), JSON.stringify(rawMap)),
+        writeFile(join(root, descriptor), '{"version":1}'),
+        writeFile(join(root, certificate), JSON.stringify(proof)),
+      ])
+      const coverage = await buildBrowserCoverageMetadata({
+        rootDir: root,
+        files,
+        projectDir: root,
+        sourceRootDir: root,
+        entryFile: file,
+        entryPath: descriptor,
+        includeEntrySource: true,
+        setupFiles: [],
+      })
+      const artifact = {
+        version: 2 as const,
+        kind: 'browser' as const,
+        profile: {
+          ...profile,
+          mode: mode as 'development' | 'production',
+          environment: 'browser' as const,
+          browserClient: true as const,
+        },
+        entryId: 'native-constructor',
+        revision: 'one',
+        rootDir: root,
+        entryPath: descriptor,
+        files,
+        diagnostics: [],
+        sourceHash: coverageHash(source),
+        coverage,
+        client: {
+          version: 1 as const,
+          asyncScope: 'promise-continuations-v1' as const,
+          sourceFile: file,
+          scripts: [script],
+          styles: [],
+          outputs: await Promise.all(
+            files.map(async (path) => ({
+              path,
+              sha256: coverageHash(await readFile(join(root, path))),
+            }))
+          ),
+        },
+      }
+      const inputAst = parseEmitted(code, {
+        ecmaVersion: 'latest',
+        locations: true,
+      })
+      const prepared = await prepareBrowserImportInitializers({
+        artifact,
+        metadata: coverage.scripts.find((value) => value.path === script)!,
+        code,
+        rawMap,
+        ast: inputAst,
+        selectedSources: new Map([[file, source]]),
+        generatedCoverage: async () => {
+          const statementMap: StandardCoverageData['statementMap'] = {},
+            s: StandardCoverageData['s'] = {}
+          for (const { node } of collect(inputAst, 'VariableDeclarator'))
+            if (node.init?.type === 'CallExpression') {
+              const id = String(Object.keys(s).length)
+              statementMap[id] = {
+                start: { ...node.init.loc.start },
+                end: { ...node.init.loc.end },
+              }
+              s[id] = 0
+            }
+          return {
+            path: file,
+            statementMap,
+            s,
+            fnMap: {},
+            f: {},
+            branchMap: {},
+            b: {},
+          }
+        },
+      })
+      const sourceMap = structuredClone(rawMap)
+      function canonical(map: any) {
+        if (map.sections) {
+          map.sections.forEach((section: any) => canonical(section.map))
+          return
+        }
+        map.sources = map.sources.map(
+          (value: string) => new URL(value).pathname
+        )
+      }
+      canonical(sourceMap)
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+      const decoded = decodeCoverageMap(sourceMap),
+        flat = new SourceMapGenerator()
+      for (const mapping of decoded.mappings)
+        flat.addMapping({
+          generated: {
+            line: mapping.generatedLine,
+            column: mapping.generatedColumn,
+          },
+          ...(mapping.source === null
+            ? {}
+            : {
+                source: mapping.source,
+                original: {
+                  line: mapping.originalLine,
+                  column: mapping.originalColumn,
+                },
+                ...((mapping as any).name
+                  ? { name: (mapping as any).name }
+                  : {}),
+              }),
+        })
+      for (const [identity, content] of decoded.sources)
+        if (content !== null) flat.setSourceContent(identity, content)
+      const mapped = JSON.parse(flat.toString())
+      const authored = parseAuthored(source, {
+          sourceType: 'module',
+          plugins: ['estree', 'jsx'],
+        }).program,
+        arrow = collect(authored, 'ArrowFunctionExpression')[0].node,
+        leases = prepared.promiseConstructors.get(file),
+        output = collect(prepared.ast, 'ArrowFunctionExpression').find(
+          ({ node }) =>
+            node.start >= leases![0].moduleStart &&
+            node.end <= leases![0].moduleEnd &&
+            node.params[0]?.name === 'resolve'
+        )!,
+        genuine = JSON.parse(
+          await readFile(join(corpus, `${mode}-genuine-subject.json`), 'utf8')
+        )
+      expect(leases).toHaveLength(1)
+      return await run({
+        ...helpers,
+        file,
+        source,
+        code,
+        authored,
+        emitted: prepared.ast,
+        map: mapped,
+        leases,
+        arrow,
+        output,
+        genuine,
+        prepared,
+        associate() {
+          return helpers.associateArrowBindings(
+            file,
+            authored,
+            prepared.ast,
+            mapped,
+            leases
+          )
+        },
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+  it.each(['development', 'production'])(
+    'associates the exact %s native constructor executor and its selected callee',
+    async (mode) => {
+      await fixture(mode, async (f) => {
+        const before = JSON.stringify([f.authored, f.emitted, f.map, f.leases]),
+          associations = f.associate()
+        expect(associations).toHaveLength(1)
+        expect(associations[0]).toEqual({
+          original: f.arrow,
+          generated: f.output.node,
+          start: { line: 4, column: 22 },
+          callback: true,
+          callbackEnd: { line: 4, column: 80 },
+        })
+        const actual = f.arrowBindingMap(f.file, f.map, associations),
+          old = decodeCoverageMap(f.map),
+          next = decodeCoverageMap(actual)
+        expect(next.mappings).toEqual(
+          old.mappings.map((mapping) =>
+            mapping.generatedLine === f.output.node.loc.start.line &&
+            mapping.generatedColumn === f.output.node.loc.start.column
+              ? { ...mapping, originalLine: 4, originalColumn: 22 }
+              : mapping
+          )
+        )
+        expect(next.sources).toEqual(old.sources)
+        expect(JSON.stringify([f.authored, f.emitted, f.map, f.leases])).toBe(
+          before
+        )
+      })
+    }
+  )
+  it.each(['development', 'production'])(
+    'keeps actual %s zero counter identities and genuine callback descriptors',
+    async (mode) => {
+      await fixture(mode, async (f) => {
+        const { convert } = require('next/dist/compiled/next-test-coverage')
+        const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+        const identity = new SourceMapGenerator()
+        for (const [index, line] of f.source.split('\n').entries()) {
+          let column = 0
+          for (const token of line.matchAll(/\w+|\s|[^\w\s]/g)) {
+            const point = { line: index + 1, column }
+            identity.addMapping({
+              generated: point,
+              source: f.file,
+              original: point,
+            })
+            column += token[0].length
+          }
+        }
+        identity.setSourceContent(f.file, f.source)
+        const zero = (code: string) => ({
+            url: pathToFileURL(f.file).href,
+            functions: [
+              {
+                isBlockCoverage: true,
+                ranges: [{ startOffset: 0, endOffset: code.length, count: 0 }],
+              },
+            ],
+          }),
+          model = (
+            await convert({
+              code: f.source,
+              ast: structuredClone(f.authored),
+              sourceMap: JSON.parse(identity.toString()),
+              coverage: zero(f.source),
+            })
+          )[f.file],
+          observed = (
+            await convert({
+              code: f.code,
+              ast: structuredClone(f.emitted),
+              sourceMap: f.map,
+              coverage: zero(f.code),
+            })
+          )[f.file],
+          associations = f.associate(),
+          rebound = (
+            await convert({
+              code: f.code,
+              ast: structuredClone(f.emitted),
+              sourceMap: f.arrowBindingMap(f.file, f.map, associations),
+              coverage: zero(f.code),
+            })
+          )[f.file]
+        expect([rebound.s, rebound.f, rebound.b]).toEqual([
+          observed.s,
+          observed.f,
+          observed.b,
+        ])
+        const counts = structuredClone([
+          model.s,
+          model.f,
+          model.b,
+          rebound.s,
+          rebound.f,
+          rebound.b,
+        ])
+        f.bindOriginalArrowLocations(f.file, model, rebound, associations)
+        const expected = Object.values(f.genuine.fnMap).find(
+          (value: any) => value.decl.start.line === 4
+        )
+        expect(
+          Object.values(model.fnMap).find(
+            (value: any) => value.decl.start.line === 4
+          )
+        ).toEqual(expected)
+        expect(
+          Object.values(rebound.fnMap).find(
+            (value: any) => value.decl.start.line === 4
+          )
+        ).toEqual(expected)
+        expect([
+          model.s,
+          model.f,
+          model.b,
+          rebound.s,
+          rebound.f,
+          rebound.b,
+        ]).toEqual(counts)
+      })
+    }
+  )
+  it.each([
+    'missing lease',
+    'duplicate lease',
+    'foreign binding',
+    'wrong module end',
+    'wrong export',
+    'wrong namespace',
+    'wrong selected constructor',
+    'wrong sequence',
+    'extra binder argument',
+    'extra constructor argument',
+    'nonfirst executor',
+    'shadowed Promise',
+    'shadowed namespace',
+    'namespace write',
+    'foreign source constructor',
+    'async executor',
+    'new target',
+    'duplicate arrow',
+  ])(
+    'refuses unqualified or ambiguous constructor association: %s',
+    async (change) => {
+      await fixture('development', async (f) => {
+        const parent = f.output.parent,
+          member = parent.callee.callee.expressions[1],
+          owner = collect(f.emitted, 'FunctionDeclaration').find(
+            ({ node }) => node.id?.name === 'createSubject'
+          ).node
+        let leases = f.leases
+        switch (change) {
+          case 'missing lease':
+            leases = []
+            break
+          case 'duplicate lease':
+            leases = [...leases, ...leases]
+            break
+          case 'foreign binding':
+            leases = [{ ...leases[0], binding: 'foreign' }]
+            break
+          case 'wrong module end':
+            leases = [{ ...leases[0], moduleEnd: parent.end - 1 }]
+            break
+          case 'wrong export':
+            member.property.value = 'bindNativeFetchCall'
+            break
+          case 'wrong namespace':
+            member.object.name = 'foreign'
+            break
+          case 'wrong selected constructor':
+            parent.callee.arguments[0].name = 'Foreign'
+            break
+          case 'wrong sequence':
+            parent.callee.callee.expressions[0].value = 1
+            break
+          case 'extra binder argument':
+            parent.callee.arguments.push(
+              structuredClone(parent.callee.arguments[0])
+            )
+            break
+          case 'extra constructor argument':
+            parent.arguments.push(structuredClone(parent.callee.arguments[0]))
+            break
+          case 'nonfirst executor':
+            parent.arguments.unshift(
+              structuredClone(parent.callee.arguments[0])
+            )
+            break
+          case 'shadowed Promise':
+            owner.params[0].name = 'Promise'
+            break
+          case 'shadowed namespace':
+            owner.params[0].name = member.object.name
+            break
+          case 'namespace write':
+            owner.body.body.unshift({
+              type: 'ExpressionStatement',
+              start: parent.start,
+              end: parent.end,
+              expression: {
+                type: 'AssignmentExpression',
+                start: parent.start,
+                end: parent.end,
+                left: structuredClone(member.object),
+                right: { type: 'Literal', value: 0 },
+              },
+            })
+            break
+          case 'foreign source constructor':
+            collect(f.authored, 'NewExpression')[0].node.callee.name = 'Foreign'
+            break
+          case 'async executor':
+            f.arrow.async = true
+            break
+          case 'new target':
+            f.arrow.body = {
+              ...f.arrow.body,
+              type: 'MetaProperty',
+              meta: { type: 'Identifier', name: 'new' },
+              property: { type: 'Identifier', name: 'target' },
+            }
+            break
+          case 'duplicate arrow':
+            parent.arguments[0] = {
+              ...f.output.node,
+              body: {
+                ...f.output.node.body,
+                type: 'SequenceExpression',
+                expressions: [structuredClone(parent)],
+              },
+            }
+            break
+          default:
+            throw new Error(`Unknown constructor control: ${change}`)
+        }
+        const before = JSON.stringify([f.authored, f.emitted, f.map, leases])
+        expect(() =>
+          f.associateArrowBindings(f.file, f.authored, f.emitted, f.map, leases)
+        ).toThrow('requires compiler-qualified binding maps')
+        expect(JSON.stringify([f.authored, f.emitted, f.map, leases])).toBe(
+          before
+        )
+      })
+    }
+  )
+  it.each([
+    'missing callee',
+    'shifted callee',
+    'foreign callee',
+    'shifted arrow',
+    'shifted parameter',
+    'foreign body',
+    'missing body',
+    'ambiguous callee',
+  ])('retains exact compiler tuple checks for %s', async (change) => {
+    await fixture('development', async (f) => {
+      const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+        map = new SourceMapGenerator(),
+        decoded = decodeCoverageMap(f.map),
+        promise = f.output.parent.callee.arguments[0]
+      const at = (mapping: any, node: any) =>
+        mapping.generatedLine === node.loc.start.line &&
+        mapping.generatedColumn === node.loc.start.column
+      for (const original of decoded.mappings) {
+        const mapping = { ...original }
+        const body = f.output.node.body.loc
+        const inBody =
+          mapping.generatedLine === body.start.line &&
+          mapping.generatedColumn >= body.start.column &&
+          mapping.generatedColumn < body.end.column
+        if (
+          (change === 'missing callee' && at(mapping, promise)) ||
+          (change === 'missing body' && inBody)
+        )
+          continue
+        if (
+          (change === 'shifted callee' && at(mapping, promise)) ||
+          (change === 'shifted arrow' && at(mapping, f.output.node)) ||
+          (change === 'shifted parameter' &&
+            at(mapping, f.output.node.params[0]))
+        )
+          mapping.originalColumn!++
+        if (
+          (change === 'foreign callee' && at(mapping, promise)) ||
+          (change === 'foreign body' && inBody)
+        )
+          mapping.source = '/foreign.jsx'
+        const token = {
+          generated: {
+            line: mapping.generatedLine,
+            column: mapping.generatedColumn,
+          },
+          ...(mapping.source === null
+            ? {}
+            : {
+                source: mapping.source,
+                original: {
+                  line: mapping.originalLine,
+                  column: mapping.originalColumn,
+                },
+              }),
+        }
+        map.addMapping(token)
+        if (change === 'ambiguous callee' && at(mapping, promise))
+          map.addMapping({ ...token, original: { line: 99, column: 0 } })
+      }
+      for (const [file, source] of decoded.sources)
+        if (source !== null) map.setSourceContent(file, source)
+      const rawMap = JSON.parse(map.toString())
+      expect(() =>
+        f.associateArrowBindings(
+          f.file,
+          f.authored,
+          f.emitted,
+          rawMap,
+          f.leases
+        )
+      ).toThrow('requires compiler-qualified binding maps')
+    })
+  })
+  const snapshotConstructorCoverage = (data: any) =>
+    structuredClone({
+      ...data,
+      meta: data.meta && {
+        ...data.meta,
+        fnNames:
+          typeof data.meta.fnNames?.entries === 'function'
+            ? Array.from(data.meta.fnNames.entries())
+            : data.meta.fnNames,
+      },
+    })
+  async function constructorConditional(f: any) {
+    const { convert } = require('next/dist/compiled/next-test-coverage')
+    const { bindConstructorConditionalEnds } = await import(
+      'next/dist/experimental/testing/coverage/constructor-conditional-ends'
+    )
+    const associations = f.associate(),
+      data = (
+        await convert({
+          code: f.code,
+          ast: structuredClone(f.emitted),
+          sourceMap: f.arrowBindingMap(f.file, f.map, associations),
+          coverage: {
+            url: pathToFileURL(f.file).href,
+            functions: [
+              {
+                isBlockCoverage: true,
+                ranges: [
+                  { startOffset: 0, endOffset: f.code.length, count: 0 },
+                ],
+              },
+            ],
+          },
+        })
+      )[f.file]
+    return { data, associations, bindConstructorConditionalEnds }
+  }
+  it.each(['development', 'production'])(
+    'binds the %s native executor conditional terminal without changing counters or tuples',
+    async (mode) => {
+      await fixture(mode, async (f) => {
+        const { data, associations, bindConstructorConditionalEnds } =
+            await constructorConditional(f),
+          before = snapshotConstructorCoverage(data),
+          input = JSON.stringify([
+            f.source,
+            f.code,
+            f.authored,
+            f.emitted,
+            f.map,
+            f.leases,
+          ])
+        expect(data.branchMap['0'].loc.end.column).toBe(Infinity)
+        expect(data.branchMap['0'].locations[1].end.column).toBe(Infinity)
+        bindConstructorConditionalEnds(
+          f.file,
+          data,
+          f.authored,
+          associations,
+          f.map
+        )
+        expect(data.branchMap['0']).toEqual(f.genuine.branchMap['0'])
+        const expected = structuredClone(before)
+        expected.branchMap['0'] = structuredClone(f.genuine.branchMap['0'])
+        delete expected.meta.seen['b:4:59:4:72:4:72:4:Infinity']
+        expected.meta.seen['b:4:59:4:72:4:72:4:79'] = 0
+        expect(snapshotConstructorCoverage(data)).toEqual(expected)
+        expect([data.s, data.f, data.b]).toEqual([before.s, before.f, before.b])
+        expect(
+          JSON.stringify([
+            f.source,
+            f.code,
+            f.authored,
+            f.emitted,
+            f.map,
+            f.leases,
+          ])
+        ).toBe(input)
+        const once = snapshotConstructorCoverage(data)
+        bindConstructorConditionalEnds(
+          f.file,
+          data,
+          f.authored,
+          associations,
+          f.map
+        )
+        expect(snapshotConstructorCoverage(data)).toEqual(once)
+      })
+    }
+  )
+  it.each([
+    'changed literal value',
+    'changed literal token',
+    'shifted literal endpoint',
+    'changed test',
+    'changed direct call',
+    'extra direct argument',
+    'duplicate emitted conditional',
+    'duplicate constructor association',
+    'duplicate observed branch',
+    'finite foreign endpoint',
+    'different terminal endpoints',
+    'missing branch counter',
+    'wrong seen owner',
+    'colliding seen key',
+    'missing callback ownership',
+    'wrong callback terminal',
+  ])('refuses an ambiguous native executor terminal: %s', async (change) => {
+    await fixture('development', async (f) => {
+      const { data, associations, bindConstructorConditionalEnds } =
+          await constructorConditional(f),
+        body = f.output.node.body,
+        conditional = body.arguments[0]
+      switch (change) {
+        case 'changed literal value':
+          conditional.alternate.value = 'foreign'
+          break
+        case 'changed literal token':
+          conditional.alternate.raw = '"other"'
+          break
+        case 'shifted literal endpoint':
+          conditional.alternate.loc.end.column++
+          break
+        case 'changed test':
+          conditional.test.name = 'foreign'
+          break
+        case 'changed direct call':
+          body.callee.name = 'foreign'
+          break
+        case 'extra direct argument':
+          body.arguments.push(structuredClone(conditional))
+          break
+        case 'duplicate emitted conditional':
+          body.callee = { ...body.callee, extra: structuredClone(conditional) }
+          break
+        case 'duplicate constructor association':
+          associations.push(associations[0])
+          break
+        case 'duplicate observed branch':
+          data.branchMap['2'] = structuredClone(data.branchMap['0'])
+          data.b['2'] = [0, 0]
+          break
+        case 'finite foreign endpoint':
+          data.branchMap['0'].loc.end.column = data.branchMap[
+            '0'
+          ].locations[1].end.column = 999
+          break
+        case 'different terminal endpoints':
+          data.branchMap['0'].loc.end.column = 79
+          break
+        case 'missing branch counter':
+          delete data.b['0']
+          break
+        case 'wrong seen owner':
+          data.meta.seen['b:4:59:4:72:4:72:4:Infinity'] = 9
+          break
+        case 'colliding seen key':
+          data.meta.seen['b:4:59:4:72:4:72:4:79'] = 9
+          break
+        case 'missing callback ownership':
+          associations[0].callback = undefined
+          break
+        case 'wrong callback terminal':
+          associations[0].callbackEnd = { line: 4, column: 999 }
+          break
+        default:
+          throw new Error(`Unknown terminal control: ${change}`)
+      }
+      const before = snapshotConstructorCoverage(data),
+        input = JSON.stringify([f.authored, f.emitted, f.map, associations])
+      expect(() =>
+        bindConstructorConditionalEnds(
+          f.file,
+          data,
+          f.authored,
+          associations,
+          f.map
+        )
+      ).toThrow('constructor conditional endpoint is ambiguous or absent')
+      expect(snapshotConstructorCoverage(data)).toEqual(before)
+      expect(JSON.stringify([f.authored, f.emitted, f.map, associations])).toBe(
+        input
+      )
+    })
+  })
+  it.each([
+    'missing test tuple',
+    'foreign consequent tuple',
+    'shifted alternate tuple',
+    'ambiguous alternate tuple',
+  ])('retains the native conditional mapping checks: %s', async (change) => {
+    await fixture('development', async (f) => {
+      const { data, associations, bindConstructorConditionalEnds } =
+          await constructorConditional(f),
+        conditional = f.output.node.body.arguments[0],
+        { SourceMapGenerator } = require('next/dist/compiled/source-map'),
+        decoded = decodeCoverageMap(f.map),
+        map = new SourceMapGenerator()
+      const at = (mapping: any, node: any) =>
+        mapping.generatedLine === node.loc.start.line &&
+        mapping.generatedColumn === node.loc.start.column
+      for (const mapping of decoded.mappings) {
+        if (change === 'missing test tuple' && at(mapping, conditional.test))
+          continue
+        const value: any = {
+          generated: {
+            line: mapping.generatedLine,
+            column: mapping.generatedColumn,
+          },
+          ...(mapping.source === null
+            ? {}
+            : {
+                source:
+                  change === 'foreign consequent tuple' &&
+                  at(mapping, conditional.consequent)
+                    ? '/foreign.jsx'
+                    : mapping.source,
+                original: {
+                  line: mapping.originalLine,
+                  column:
+                    mapping.originalColumn! +
+                    (change === 'shifted alternate tuple' &&
+                    at(mapping, conditional.alternate)
+                      ? 1
+                      : 0),
+                },
+                ...((mapping as any).name
+                  ? { name: (mapping as any).name }
+                  : {}),
+              }),
+        }
+        map.addMapping(value)
+        if (
+          change === 'ambiguous alternate tuple' &&
+          at(mapping, conditional.alternate)
+        )
+          map.addMapping({
+            ...value,
+            original: { ...value.original, column: value.original.column + 1 },
+          })
+      }
+      for (const [file, content] of decoded.sources)
+        if (content !== null) map.setSourceContent(file, content)
+      const sourceMap = JSON.parse(map.toString()),
+        before = snapshotConstructorCoverage(data)
+      expect(() =>
+        bindConstructorConditionalEnds(
+          f.file,
+          data,
+          f.authored,
+          associations,
+          sourceMap
+        )
+      ).toThrow('constructor conditional endpoint is ambiguous or absent')
+      expect(snapshotConstructorCoverage(data)).toEqual(before)
+    })
+  })
+  it('leaves a callback without constructor authority unchanged', async () => {
+    await fixture('development', async (f) => {
+      const { data, bindConstructorConditionalEnds } =
+          await constructorConditional(f),
+        before = snapshotConstructorCoverage(data)
+      bindConstructorConditionalEnds(f.file, data, f.authored, [], f.map)
+      expect(snapshotConstructorCoverage(data)).toEqual(before)
+    })
+  })
+})
