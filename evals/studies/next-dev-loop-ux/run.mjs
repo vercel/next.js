@@ -8,7 +8,7 @@ import {
 } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { getAgent } from '@vercel/agent-eval'
-import { prepare, study, task } from './prepare.mjs'
+import { prepare, study, task, fixtureRoot } from './prepare.mjs'
 
 const [condition, directory, model = task.model] = process.argv.slice(2)
 if (!['baseline', 'skills'].includes(condition) || !directory) {
@@ -24,8 +24,9 @@ const output = resolve(directory)
 if (existsSync(output)) throw new Error('Refusing to overwrite an attempt')
 mkdirSync(output, { recursive: true })
 cpSync(study, join(output, 'harness'), { recursive: true })
+cpSync(fixtureRoot, join(output, 'task'), { recursive: true })
 const { fixture } = await prepare(join(output, 'workspace'))
-const prompt = readFileSync(join(study, 'task/PROMPT.md'), 'utf8')
+const prompt = readFileSync(join(fixtureRoot, 'PROMPT.md'), 'utf8')
 const repo = resolve(study, '../../..')
 // Shared setup helpers resolve checkout Skills relative to evals/.
 process.chdir(join(repo, 'evals'))

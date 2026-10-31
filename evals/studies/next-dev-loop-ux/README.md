@@ -6,23 +6,24 @@ Compare the effort and app quality produced with and without
 The task asks agents to build search, filters, pagination, and linked detail
 pages from a specification and pinned local API data.
 
-The task uses the existing `@vercel/agent-eval` runner on Vercel Sandbox.
-The source archive is pinned and checked before preparing each workspace.
-The large upstream specification, data, and tests stay outside this repository.
-This comparison is separate from `pnpm eval` and the published leaderboard.
+The [Pokédex eval](../../evals/agent-062-pokedex-dev-loop/README.md) runs through
+`pnpm eval` and returns one pass/fail result per attempt. The commands below
+add effort and page measurements using `@vercel/agent-eval` on Vercel Sandbox.
+Both paths share the prompt and starting app. The fixture has `publish: false`.
+The large upstream specification, data, and tests are downloaded at a pinned,
+checksum-verified revision.
 
 ## Task files
 
-- `task/PROMPT.md`: the request sent to the agent.
-- `task/app/`: the starting package and config, with Cache Components and
-  Partial Prefetching enabled.
-- `task/AGENTS.md`: the bundled-docs pointer shared by both conditions.
-- `task.json`: upstream revision, archive checksum, model, and tool versions.
+- `../../evals/agent-062-pokedex-dev-loop/`: the shared prompt, starting app,
+  docs pointer, upstream pin, and normal eval assertions.
+- `task.json`: model and tool versions for the metrics comparison.
 - `run.mjs`: prepares the task and runs one coding attempt.
 - `verify.mjs`: checks the saved app against the original tests, then measures it.
 - `report.mjs`: exports success, effort, and page measurements.
 
-The agent receives the pinned upstream `template/` with `task/` overlaid on it.
+The agent receives the pinned upstream `template/` with the fixture's prompt,
+starting app, and docs pointer overlaid on it.
 This includes `SPEC.md`, design references, a local API, and acceptance tests.
 The upstream reference app and performance collector stay outside its workspace.
 
@@ -45,8 +46,9 @@ from runs of the current task.
 Dev uses app port 3100 and API port 9000. The prepared `npm test` command uses
 app port 3101 and the upstream test API on 9100. Production builds use
 `.next-production`, leaving the running dev server's `.next` files intact.
-The recorded pairs predate this isolation fix and the Skill's browser command
-fixes; keep them labeled with their original revisions.
+The earlier Luna pairs predate this isolation fix and the Skill's browser
+command fixes. The Sol pair includes them. Keep recorded runs labeled with
+their original revisions.
 
 ## Run the comparison
 
