@@ -1,9 +1,8 @@
 'use client'
 
-import type {
-  FocusAndScrollRef,
-  PrefetchKind,
-} from '../../client/components/router-reducer/router-reducer-types'
+import type { RouteTree } from '../../client/components/segment-cache/cache'
+
+import type { ScrollHandlerRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
@@ -26,7 +25,7 @@ export interface NavigateOptions {
 }
 
 export interface PrefetchOptions {
-  kind: PrefetchKind
+  kind?: 'auto' | 'full' | 'shell' | 'prefetch' | 'navigation'
   onInvalidate?: () => void
 }
 
@@ -68,6 +67,25 @@ export interface AppRouterInstance {
    * @experimental
    */
   experimental_gesturePush?(href: string, options?: NavigateOptions): void
+  /**
+   * An opaque string identifier scoped to the current route segment.
+   *
+   * Changes when the surrounding segment is freshly created by a push or
+   * replace navigation. Stays the same for back/forward navigations,
+   * `router.refresh()`, and search-param/hash-only changes.
+   *
+   * Intended to be passed to a React `key` to opt out of state preservation
+   * on fresh navigations:
+   *
+   * ```tsx
+   * <form key={useRouter().bfcacheId}>
+   * ```
+   *
+   * In most cases, prefer resetting state explicitly in an event handler, or
+   * deriving a key from your data (e.g. a draft id from the server). Use
+   * `bfcacheId` only when those patterns aren't a fit.
+   */
+  bfcacheId: string
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
@@ -75,7 +93,7 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
 )
 export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
-  parentCacheNode: CacheNode
+  parentRenderTree: RouteTree<CacheNode>
   parentSegmentPath: FlightSegmentPath | null
   parentParams: Params
   parentLoadingData: LoadingModuleData | null
@@ -86,12 +104,12 @@ export const LayoutRouterContext = React.createContext<{
 
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
-  focusAndScrollRef: FocusAndScrollRef
+  scrollRef: ScrollHandlerRef
   nextUrl: string | null
   previousNextUrl: string | null
 }>(null as any)
 
-export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+export const TemplateContext = React.createContext<React.ReactNode>(null)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'

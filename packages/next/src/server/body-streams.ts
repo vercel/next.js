@@ -1,6 +1,5 @@
 import type { IncomingMessage } from 'http'
-import type { Readable } from 'stream'
-import { PassThrough } from 'stream'
+import { PassThrough, Readable } from 'stream'
 import bytes from 'next/dist/compiled/bytes'
 
 const DEFAULT_BODY_CLONE_SIZE_LIMIT = 10 * 1024 * 1024 // 10MB
@@ -79,7 +78,13 @@ export function getCloneableBody<T extends IncomingMessage>(
     cloneBodyStream() {
       const input = buffered ?? readable
       const p1 = new PassThrough()
-      const p2 = new PassThrough()
+      // `p2` becomes the buffered body that replaces the original request stream
+      // in `finalize()` via `replaceRequestBody`. Since it is only ever fed via
+      // `.push()`, it must be a plain Readable: a Duplex (PassThrough) would copy
+      // its writable-side internals (`_writableState`, `write`, `end`, ...) onto the
+      // IncomingMessage, making the request look like an unfinished writable stream
+      // and hanging Node stream APIs such as `Readable.toWeb()`.
+      const p2 = new Readable({ read() {} })
 
       let bytesRead = 0
       const bodySizeLimit = sizeLimit ?? DEFAULT_BODY_CLONE_SIZE_LIMIT

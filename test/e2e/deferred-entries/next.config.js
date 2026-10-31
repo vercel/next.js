@@ -14,6 +14,65 @@ const homePageFile = path.join(__dirname, 'app', 'page.tsx')
 
 let lastHomePageContent = null
 
+class PrimeDeferredEntryInputFileSystemPlugin {
+  apply(compiler) {
+    let cachedHomePage
+
+    compiler.hooks.make.tapPromise(
+      'PrimeDeferredEntryInputFileSystemPlugin',
+      async () => {
+        // Simulate another plugin observing deferred sources while Webpack is
+        // building the initial entries. The callback must be able to replace
+        // these cached contents before the deferred entries are compiled.
+        await Promise.all(
+          [deferredPageFile, routeHandlerFile, homePageFile].map(
+            (filePath) =>
+              new Promise((resolve, reject) => {
+                compiler.inputFileSystem.readFile(
+                  filePath,
+                  (error, content) => {
+                    if (error) {
+                      reject(error)
+                    } else {
+                      if (filePath === homePageFile) {
+                        cachedHomePage = content
+                      }
+                      resolve()
+                    }
+                  }
+                )
+              })
+          )
+        )
+      }
+    )
+
+    compiler.hooks.finishMake.tapPromise(
+      {
+        name: 'PrimeDeferredEntryInputFileSystemPlugin',
+        stage: 1,
+      },
+      async () => {
+        await new Promise((resolve, reject) => {
+          compiler.inputFileSystem.readFile(homePageFile, (error, content) => {
+            if (error) {
+              reject(error)
+            } else if (content !== cachedHomePage) {
+              reject(
+                new Error(
+                  'Deferred entry invalidation evicted an unrelated source file'
+                )
+              )
+            } else {
+              resolve()
+            }
+          })
+        })
+      }
+    )
+  }
+}
+
 /** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
@@ -89,7 +148,11 @@ module.exports = {
     },
   },
   // Webpack loader configuration
-  webpack: (config, { isServer }) => {
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && isServer) {
+      config.plugins.push(new PrimeDeferredEntryInputFileSystemPlugin())
+    }
+
     // Add the entry logger loader to track when entries are processed
     config.module.rules.push({
       test: /\.(tsx|ts|js|jsx)$/,

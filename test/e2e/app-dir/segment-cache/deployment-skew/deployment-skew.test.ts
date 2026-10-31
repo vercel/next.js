@@ -1,5 +1,4 @@
 import type * as Playwright from 'playwright'
-import webdriver from 'next-webdriver'
 import { createRouterAct } from 'router-act'
 import { findPort, retry } from 'next-test-utils'
 import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
@@ -10,6 +9,16 @@ describe('segment cache (deployment skew)', () => {
     test('should not run during dev', () => {})
     return
   }
+
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    env: {
+      // rely on skew protection when deployed
+      NEXT_DEPLOYMENT_ID: isNextDeploy ? undefined : 'test-deployment-id',
+    },
+    disableAutoSkewProtection: true,
+  })
 
   // To debug these tests locally, first build the app:
   //   node build.mjs
@@ -38,7 +47,7 @@ describe('segment cache (deployment skew)', () => {
         await cleanup()
       })
 
-      runTests('BUILD_ID', () => port)
+      runTests(next, 'BUILD_ID', () => port)
     })
 
     describe('with NEXT_DEPLOYMENT_ID', () => {
@@ -54,18 +63,13 @@ describe('segment cache (deployment skew)', () => {
         await cleanup()
       })
 
-      runTests('DEPLOYMENT_ID', () => port)
+      runTests(next, 'DEPLOYMENT_ID', () => port)
     })
   }
 
   describe('header with deployment id', () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      env: {
-        // rely on skew protection when deployed
-        NEXT_DEPLOYMENT_ID: isNextDeploy ? undefined : 'test-deployment-id',
-      },
-      disableAutoSkewProtection: true,
+    beforeAll(async () => {
+      await next.start()
     })
 
     // Deployment skew is hard to properly e2e deploy test, so this just checks for the header.
@@ -84,7 +88,11 @@ describe('segment cache (deployment skew)', () => {
   })
 })
 
-function runTests(mode: 'BUILD_ID' | 'DEPLOYMENT_ID', getPort: () => number) {
+function runTests(
+  next: ReturnType<typeof nextTestSetup>['next'],
+  mode: 'BUILD_ID' | 'DEPLOYMENT_ID',
+  getPort: () => number
+) {
   it(
     'does not crash when prefetching a dynamic, non-PPR page ' +
       'on a different deployment',
@@ -93,7 +101,8 @@ function runTests(mode: 'BUILD_ID' | 'DEPLOYMENT_ID', getPort: () => number) {
       // from a different deployment, when PPR is disabled. Once PPR is the
       // default, it's OK to rewrite this to use the latest APIs.
       let act
-      const browser = await webdriver(getPort(), '/', {
+      const browser = await next.browser('/', {
+        baseUrl: getPort(),
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
@@ -125,7 +134,8 @@ function runTests(mode: 'BUILD_ID' | 'DEPLOYMENT_ID', getPort: () => number) {
     async () => {
       // Same as the previous test, but for a static page
       let act
-      const browser = await webdriver(getPort(), '/', {
+      const browser = await next.browser('/', {
+        baseUrl: getPort(),
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
@@ -159,7 +169,7 @@ function runTests(mode: 'BUILD_ID' | 'DEPLOYMENT_ID', getPort: () => number) {
       // target is served by a different deployment (different build ID), the
       // client falls back to an MPA navigation instead of attempting to apply
       // the foreign RSC payload.
-      const browser = await webdriver(getPort(), '/')
+      const browser = await next.browser('/', { baseUrl: getPort() })
       await browser.eval('window.next.router.push("/action-redirect")')
       await browser.waitForElementByCss('#action-page')
       let sawActionRequest = false

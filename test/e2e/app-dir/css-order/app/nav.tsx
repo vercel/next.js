@@ -87,6 +87,16 @@ export default function Nav() {
           </Link>
         </li>
         <li>
+          <Link href={'/sandwich/a'} id="sandwich-a" prefetch={false}>
+            Sandwich A
+          </Link>
+        </li>
+        <li>
+          <Link href={'/sandwich/b'} id="sandwich-b" prefetch={false}>
+            Sandwich B
+          </Link>
+        </li>
+        <li>
           <Link href={'/global-first'} id="global-first" prefetch={false}>
             Global First
           </Link>

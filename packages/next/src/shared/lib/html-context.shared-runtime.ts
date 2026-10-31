@@ -9,6 +9,7 @@ import { createContext, useContext, type JSX } from 'react'
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
   nonce?: string
+  initialHmrVersion?: string
   dangerousAsPath: string
   docComponentsRendered: {
     Html?: boolean
@@ -31,6 +32,11 @@ export type HtmlProps = {
   unstable_JsPreload?: false
   assetQueryString: string
   mutableAssetQueryString: string
+  /**
+   * Asset query string for CSS and font assets.
+   * See https://github.com/vercel/next.js/issues/92118.
+   */
+  cssAssetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

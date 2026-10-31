@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 describe('not-found-with-pages-i18n', () => {
   const { next, isNextStart, isNextDeploy } = nextTestSetup({

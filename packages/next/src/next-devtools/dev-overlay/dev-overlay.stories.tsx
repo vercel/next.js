@@ -5,11 +5,11 @@ import type { OverlayState } from './shared'
 import imgApp from './app.png'
 
 import { DevOverlay } from './dev-overlay'
-import { errors } from './storybook/errors'
+import { errors } from '../../../.storybook/fixtures/errors'
 import {
   storybookDefaultOverlayState,
   useStorybookOverlayReducer,
-} from './storybook/use-overlay-reducer'
+} from '../../../.storybook/decorators/use-overlay-reducer'
 import { DevOverlayContext, useDevOverlayContext } from '../dev-overlay.browser'
 
 const meta: Meta<typeof DevOverlay> = {

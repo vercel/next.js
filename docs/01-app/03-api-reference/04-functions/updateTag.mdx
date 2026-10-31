@@ -121,7 +121,7 @@ export async function createPost(formData) {
 ### Error when used outside Server Actions
 
 ```ts filename="app/api/posts/route.ts" switcher
-import { updateTag } from 'next/cache'
+import { revalidateTag, updateTag } from 'next/cache'
 
 export async function POST() {
   // This will throw an error

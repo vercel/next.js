@@ -21,6 +21,14 @@ impl Completion {
     pub fn immutable() -> Vc<Self> {
         Completion::cell(Completion)
     }
+
+    /// Returns a completion from a session-dependent task. Awaiting this creates a dependency on
+    /// a session-dependent task, which will cause the calling task to be re-executed when
+    /// restored from persistent cache.
+    #[turbo_tasks::function(session_dependent)]
+    pub fn session_dependent() -> Vc<Self> {
+        Completion::cell(Completion)
+    }
 }
 
 // no #[turbo_tasks::value_impl] to inline new into the caller task
@@ -53,11 +61,11 @@ impl Completions {
         } else {
             self.0
                 .iter()
-                .map(|&c| async move {
-                    // Wraps the completion in a new completion. This makes it cheaper to restore
-                    // since it doesn't need to restore the original task resp task chain.
-                    wrap(*c).await?;
-                    Ok(())
+                .map(|&c| {
+                    // Wraps the completion in a new completion. This makes it cheaper to
+                    // restore since it doesn't need to restore the
+                    // original task resp task chain.
+                    wrap(*c)
                 })
                 .try_join()
                 .await?;

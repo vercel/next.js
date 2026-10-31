@@ -2,35 +2,94 @@ use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
     ops,
+    sync::Arc,
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, structured::StructuredSourceMap},
     source_pos::SourcePos,
 };
 
+/// A per-section source map: either an opaque serialized map or a structured one whose
+/// `sourcesContent` is shared rather than copied when the section is embedded.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
+pub enum SectionMap {
+    Raw(Rope),
+    Structured(Box<StructuredSourceMap>),
+}
+
+impl From<Rope> for SectionMap {
+    fn from(map: Rope) -> Self {
+        SectionMap::Raw(map)
+    }
+}
+
+impl From<StructuredSourceMap> for SectionMap {
+    fn from(map: StructuredSourceMap) -> Self {
+        SectionMap::Structured(Box::new(map))
+    }
+}
+
+impl DeterministicHash for SectionMap {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        match self {
+            SectionMap::Raw(map) => {
+                state.write_u8(0);
+                map.deterministic_hash(state);
+            }
+            SectionMap::Structured(map) => {
+                state.write_u8(1);
+                map.deterministic_hash(state);
+            }
+        }
+    }
+}
+
+impl SectionMap {
+    pub fn to_rope(&self) -> Rope {
+        match self {
+            SectionMap::Raw(map) => map.clone(),
+            SectionMap::Structured(map) => map.to_rope(),
+        }
+    }
+}
+
 /// A mapping of byte-offset in the code string to an associated source map.
-pub type Mapping = (usize, Option<Rope>);
+pub type Mapping = (usize, Option<SectionMap>);
 
 /// Code stores combined output code and the source map of that output code.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(shared, serialization = "hash")]
+#[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    mappings: Vec<Mapping>,
+    mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
+}
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct PersistedCode(Code);
+
+#[turbo_tasks::value_impl]
+impl PersistedCode {
+    #[turbo_tasks::function]
+    pub async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
+        // PersistedCode is transparent over Code; owned() yields Code directly.
+        Ok(self.owned().await?.cell())
+    }
 }
 
 impl Code {
@@ -50,6 +109,12 @@ impl Code {
     /// Take the source code out of the Code.
     pub fn into_source_code(self) -> Rope {
         self.code
+    }
+
+    /// Stores this `Code` as a [`PersistedCode`] (fully serialized) and returns a `Vc<Code>`
+    /// backed by the persisted version, avoiding an intermediate hash-mode `Code` cell.
+    pub fn cell_persisted(self) -> ResolvedVc<PersistedCode> {
+        PersistedCode(self).resolved_cell()
     }
 
     // Formats the code with the source map and debug id comments as
@@ -145,8 +210,8 @@ impl CodeBuilder {
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source(&mut self, code: &Rope, map: Option<Rope>) {
-        self.push_map(map);
+    pub fn push_source<M: Into<SectionMap>>(&mut self, code: &Rope, map: Option<M>) {
+        self.push_map(map.map(Into::into));
         self.code += code;
     }
 
@@ -184,7 +249,7 @@ impl CodeBuilder {
     /// original code section. By inserting an empty source map when reaching a
     /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<Rope>) {
+    fn push_map(&mut self, map: Option<SectionMap>) {
         let Some(mappings) = self.mappings.as_mut() else {
             return;
         };
@@ -210,7 +275,7 @@ impl CodeBuilder {
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            mappings: self.mappings.unwrap_or_default(),
+            mappings: Arc::new(self.mappings.unwrap_or_default()),
             should_generate_debug_id: self.should_generate_debug_id,
         }
     }
@@ -271,9 +336,9 @@ pub struct OptionDebugId(Option<RcStr>);
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u64> {
+    pub fn source_code_hash(&self) -> Vc<u128> {
         let code = self;
-        let hash = hash_xxh3_hash64(code.source_code());
+        let hash = hash_xxh3_hash128(code.source_code());
         Vc::cell(hash)
     }
 
@@ -289,6 +354,11 @@ impl Code {
 
 impl Code {
     /// Generates a source map from the code's mappings.
+    ///
+    /// Section offsets are computed in UTF-16 code units by scanning the code's rope one chunk at
+    /// a time, so every chunk must be self-contained text: rope chunks (and mapping positions)
+    /// must not split a UTF-8 sequence or a "\r\n". Splitting them is a bug in the code that built
+    /// the rope, and can result in incorrect offsets for the sections after it.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
     pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
         // A debug id should be passed only if the code should generate a debug id, it is however
@@ -302,7 +372,7 @@ impl Code {
 
         let mut sections = Vec::with_capacity(self.mappings.len());
         let mut read = self.code.read();
-        for (byte_pos, map) in &self.mappings {
+        for (byte_pos, map) in self.mappings.iter() {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
                 // `fill_buf` never returns an error.
@@ -318,7 +388,7 @@ impl Code {
             last_byte_pos = *byte_pos;
 
             if let Some(map) = map {
-                sections.push((pos, map.clone()))
+                sections.push((pos, map.to_rope()))
             } else {
                 // We don't need an empty source map when column is 0 or the next char is a newline.
                 if pos.column != 0
@@ -342,5 +412,49 @@ impl Code {
         } else {
             SourceMap::sections_to_rope(sections, debug_id)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+    use turbo_tasks_fs::rope::Rope;
+
+    use super::CodeBuilder;
+
+    const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
+
+    fn section_offsets(code: &super::Code) -> Vec<(u64, u64)> {
+        let map = code.generate_source_map_ref(None);
+        let map: Value = serde_json::from_str(&map.to_str().unwrap()).unwrap();
+        map["sections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|section| {
+                let offset = &section["offset"];
+                (
+                    offset["line"].as_u64().unwrap(),
+                    offset["column"].as_u64().unwrap(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn section_offsets_count_utf16_code_units() {
+        let mut builder = CodeBuilder::default();
+        // `🦀` is a 4-byte UTF-8 sequence and two UTF-16 code units, `é` is a single unit.
+        let prefix = "line0\n\"🦀é\"; ";
+        builder += prefix;
+        builder.push_source(
+            &Rope::from("mapped();".to_string()),
+            Some(Rope::from(SECTION_MAP.to_string())),
+        );
+        let code = builder.build();
+
+        let expected_column = "\"🦀é\"; ".encode_utf16().count() as u64;
+        assert_eq!(expected_column, 7);
+        assert_eq!(section_offsets(&code), vec![(1, expected_column)]);
     }
 }

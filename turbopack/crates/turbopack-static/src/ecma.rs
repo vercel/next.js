@@ -11,8 +11,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_EXPORT_URL, TURBOPACK_EXPORT_VALUE},
     utils::StringifyJs,
@@ -46,15 +46,17 @@ impl StaticUrlJsModule {
 #[turbo_tasks::value_impl]
 impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("static in ecmascript"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
         }
-        ident
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]
@@ -135,6 +137,14 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: inner_code.into(),
+            options: EcmascriptChunkItemOptions {
+                supports_arrow_functions: *chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+                    .await?,
+                ..Default::default()
+            },
             ..Default::default()
         }
         .cell())

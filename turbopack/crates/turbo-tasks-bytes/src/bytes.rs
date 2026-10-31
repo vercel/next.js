@@ -17,7 +17,7 @@ use bytes::Bytes as CBytes;
 /// conversion to/from, bincode support, and Vc containers.
 #[derive(Clone, Debug, Default)]
 #[turbo_tasks::value(transparent, serialization = "custom")]
-pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
+pub struct Bytes(#[turbo_tasks(unsafe_ignore)] CBytes);
 
 impl Bytes {
     pub fn to_str(&self) -> Result<&'_ str, Utf8Error> {
@@ -48,9 +48,10 @@ impl Deref for Bytes {
     }
 }
 
-/// Types that implement From<X> for Bytes {}
-/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without
-/// running afoul of the `From<X> for X` base case, causing conflicting impls.
+/// Types that `impl From<CustomType> for Bytes {}`
+///
+/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without running afoul of the
+/// `From<X> for X` base case, causing conflicting impls.
 pub trait IntoBytes: Into<CBytes> {}
 impl IntoBytes for &'static [u8] {}
 impl IntoBytes for &'static str {}

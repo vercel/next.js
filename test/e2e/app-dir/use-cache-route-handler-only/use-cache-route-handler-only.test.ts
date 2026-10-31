@@ -1,10 +1,13 @@
+import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
+import escapeStringRegexp from 'escape-string-regexp'
 import { retry } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 // Explicitly don't mix route handlers with pages in this test app, to make sure
 // that this also works in isolation.
 describe('use-cache-route-handler-only', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -13,6 +16,119 @@ describe('use-cache-route-handler-only', () => {
     const { date1, date2 } = await response.json()
 
     expect(date1).toBe(date2)
+  })
+
+  if (!isNextDeploy) {
+    // In deploy mode, concurrent requests could hit different lambdas.
+    it('should dedupe concurrent cache invocations in route handlers', async () => {
+      // Restart to ensure a cold server. Without this, prior test activity
+      // can affect request timing enough for the concurrent requests to no
+      // longer overlap reliably.
+      await next.stop()
+      await next.start()
+
+      const [{ rand: first }, { rand: second }] = await Promise.all([
+        next.fetch('/node-dynamic').then((response) => response.json()),
+        next.fetch('/node-dynamic').then((response) => response.json()),
+      ])
+
+      expect(first).toBe(second)
+    })
+  }
+
+  it('refreshes cached data after tag revalidation', async () => {
+    const path = `/tag-revalidation?key=${randomUUID()}`
+    const read = () => next.fetch(path).then((response) => response.json())
+    const initial = await read()
+    expect(initial).toBeDateString()
+    expect(await read()).toBe(initial)
+
+    expect((await next.fetch(path, { method: 'POST' })).status).toBe(204)
+    // TODO: Restore this assertion on deploy when tag revalidation supports
+    // stale-while-revalidate for remote cache entries.
+    if (!isNextDeploy) {
+      expect(await read()).toBe(initial)
+    }
+
+    await retry(async () => {
+      const fresh = await read()
+      expect(fresh).toBeDateString()
+      expect(new Date(fresh)).toBeAfter(new Date(initial))
+    })
+  })
+
+  // @force-gate !deploy
+  it('dedupes tag revalidation across requests while generation is pending', async () => {
+    const key = randomUUID()
+    const path = `/tag-revalidation?key=${key}`
+    const read = () => next.fetch(path).then((response) => response.json())
+    const initial = await read()
+    expect(initial).toBeDateString()
+    await retry(() => {
+      expect(next.cliOutput).toContain(`tag-revalidation: generated ${key}`)
+    })
+    const outputIndex = next.cliOutput.length
+    const getOutput = () =>
+      stripAnsi(next.cliOutput.slice(outputIndex))
+        .split('\n')
+        .filter((line) => !line.includes(' Cache '))
+        .join('\n')
+    const generating = `tag-revalidation: generating ${key}`
+    const generated = `tag-revalidation: generated ${key}`
+
+    expect((await next.fetch(path, { method: 'POST' })).status).toBe(204)
+    expect(await read()).toBe(initial)
+    await retry(() => {
+      expect(getOutput()).toContain(generating)
+    })
+    expect(getOutput()).not.toContain(generated)
+    expect(await read()).toBe(initial)
+
+    await retry(() => {
+      const output = getOutput()
+      expect(output).toIncludeRepeated(escapeStringRegexp(generating), 1)
+      expect(output).toIncludeRepeated(escapeStringRegexp(generated), 1)
+    })
+    await retry(async () => {
+      const fresh = await read()
+      expect(fresh).toBeDateString()
+      expect(new Date(fresh)).toBeAfter(new Date(initial))
+    })
+    expect(getOutput()).toIncludeRepeated(escapeStringRegexp(generating), 1)
+  })
+
+  it('should respond to auto-implemented OPTIONS requests', async () => {
+    const response = await next.fetch('/options-auto-implemented', {
+      method: 'OPTIONS',
+    })
+
+    if (isNextStart) {
+      // TODO: `next start` answers non-GET/HEAD requests for prerendered
+      // routes with a 405 before the route handler runs, because the method
+      // guard in `BaseServer.renderToResponseWithComponentsImpl` treats any
+      // route in the prerender manifest as SSG. On Vercel the request invokes
+      // the function, and in dev the route isn't treated as SSG.
+      expect(response.status).toBe(405)
+      expect(response.headers.get('allow')).toBe('GET, HEAD')
+    } else {
+      expect(response.status).toBe(204)
+      expect(await response.text()).toBe('')
+
+      if (!isNextDeploy) {
+        // In dev, the auto-implemented OPTIONS handler runs and sets the
+        // `Allow` header. On Vercel the prerendered route is served from the
+        // CDN, which answers the preflight with a bare 204 without invoking
+        // the function, so the `Allow` header never reaches the client.
+        expect(response.headers.get('allow')).toContain('GET')
+      }
+    }
+  })
+
+  it('should prerender route handlers that respond with 204', async () => {
+    const response = await next.fetch('/no-content')
+
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe('')
   })
 
   it('should be able to revalidate prerendered route handlers', async () => {

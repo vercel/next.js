@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
@@ -16,8 +15,9 @@ use turbopack_core::{
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -33,7 +33,9 @@ use crate::{
 
 /// A module derived from an original ecmascript module that contains all
 /// the reexports from that module and also reexports the locals from
-/// [EcmascriptModuleLocalsModule].
+/// [`EcmascriptModuleLocalsModule`].
+///
+/// [`EcmascriptModuleLocalsModule`]: crate::side_effect_optimization::locals::module::EcmascriptModuleLocalsModule
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -80,27 +82,54 @@ impl EcmascriptModuleFacadeModule {
             );
         };
         let result = module.analyze().await?;
-        Ok((
-            vec![
-                // TODO skip if side effect free and no local exports
-                EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                    ExportUsage::all(),
-                )
-                .to_resolved()
-                .await?,
-            ],
-            result.esm_reexport_references,
-        ))
+
+        // The locals module has to be *evaluated* for its side effects and ordering, which this
+        // reference is what guarantees. `evaluation()` rather than `all()`: the latter would also
+        // claim every export is used, widening the locals module's usage to `All` unconditionally
+        // and defeating both export mangling and tree shaking of its unused exports.
+        let mut part_references = vec![
+            EcmascriptModulePartReference::new_part(
+                *self.module,
+                ModulePart::locals(),
+                ExportUsage::evaluation(),
+            )
+            .to_resolved()
+            .await?,
+        ];
+        // Then one reference per export that comes from the locals module, so the module graph
+        // carries *which* names this facade needs from it. Without these the evaluation reference
+        // would be the only facade -> locals edge, and it would have to claim `all()`.
+        if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
+            for (name, export) in &esm_exports.await?.exports {
+                if matches!(export, EsmExport::LocalBinding(..)) {
+                    part_references.push(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::locals(),
+                            ExportUsage::named(name.clone()),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                }
+            }
+        }
+
+        Ok((part_references, result.esm_reexport_references))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_part(ModulePart::Facade)
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(ModulePart::Facade)
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -124,12 +153,12 @@ impl Module for EcmascriptModuleFacadeModule {
         let async_module = self.async_module();
         let references = self.references();
         let is_self_async = async_module
-            .resolve()
+            .to_resolved()
             .await?
-            .is_self_async(references.resolve().await?)
-            .resolve()
+            .is_self_async(*references.to_resolved().await?)
+            .to_resolved()
             .await?;
-        Ok(is_self_async)
+        Ok(*is_self_async)
     }
 
     #[turbo_tasks::function]
@@ -143,6 +172,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     fn analyze(&self) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         bail!("EcmascriptModuleFacadeModule::analyze shouldn't be called");
+    }
+
+    #[turbo_tasks::function]
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo> {
+        EnvVarInfo::empty()
     }
 
     #[turbo_tasks::function]
@@ -177,6 +211,9 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            // A synthetic facade only evaluates the locals part and forwards bindings from its
+            // referenced modules, so compact registration can preserve its complete import order.
+            export_registration_mode: Some(ExportRegistrationMode::Reexport),
             async_module_info,
         }
         .cell())
@@ -187,18 +224,16 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let mut exports = BTreeMap::new();
-        let mut star_exports = Vec::new();
-
         let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? else {
             bail!("EcmascriptModuleFacadeModule must only be used on modules with EsmExports");
         };
         let esm_exports = esm_exports.await?;
+        let mut exports = Vec::with_capacity(esm_exports.exports.len());
         for (name, export) in &esm_exports.exports {
             let name = name.clone();
             match export {
                 EsmExport::LocalBinding(_, liveness) => {
-                    exports.insert(
+                    exports.push((
                         name.clone(),
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(
@@ -213,27 +248,27 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             name,
                             *liveness == Liveness::Mutable,
                         ),
-                    );
+                    ));
                 }
                 EsmExport::ImportedNamespace(reference) => {
-                    exports.insert(name, EsmExport::ImportedNamespace(*reference));
+                    exports.push((name, EsmExport::ImportedNamespace(*reference)));
                 }
                 EsmExport::ImportedBinding(reference, imported_name, mutable) => {
-                    exports.insert(
+                    exports.push((
                         name,
                         EsmExport::ImportedBinding(*reference, imported_name.clone(), *mutable),
-                    );
+                    ));
                 }
                 EsmExport::Error => {
-                    exports.insert(name, EsmExport::Error);
+                    exports.push((name, EsmExport::Error));
                 }
             }
         }
-        star_exports.extend(esm_exports.star_exports.iter().copied());
 
         let exports = EsmExports {
-            exports,
-            star_exports,
+            exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
+            star_exports: esm_exports.star_exports.clone(),
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

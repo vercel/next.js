@@ -15,8 +15,10 @@ export function msToNs(ms: number): bigint {
  * When `parentSpan` is provided, `TraceEvent` compilation events are recorded
  * as trace spans in the `.next/trace` file.
  *
- * The `signal` argument is partially implemented. The abort may not happen until the next
- * compilation event arrives.
+ * Returns a promise that resolves when the subscription ends.  Abort the
+ * `signal` to close the underlying async iterator and settle the promise
+ * promptly.  The iterator also closes automatically when the Rust side
+ * drops the subscription (e.g. after project shutdown).
  */
 export function backgroundLogCompilationEvents(
   project: Project,
@@ -26,12 +28,20 @@ export function backgroundLogCompilationEvents(
     parentSpan,
   }: { eventTypes?: string[]; signal?: AbortSignal; parentSpan?: Span } = {}
 ): Promise<void> {
-  const promise = (async function () {
-    for await (const event of project.compilationEventsSubscribe(eventTypes)) {
-      if (signal?.aborted) {
-        return
-      }
+  const iterator = project.compilationEventsSubscribe(eventTypes)
 
+  // If there is no signal assume there will be no clean shutdown,
+  // to ensure trace spans aren't lost just flush after each one.
+  const flushEachTraceEvent = signal === undefined
+
+  // Close the iterator as soon as the signal fires so the for-await loop
+  // exits without waiting for the next compilation event.
+  signal?.addEventListener('abort', () => iterator.return?.(undefined), {
+    once: true,
+  })
+
+  const promise = (async function () {
+    for await (const event of iterator) {
       // Record TraceEvent compilation events as trace spans in .next/trace.
       if (parentSpan && event.typeName === 'TraceEvent' && event.eventJson) {
         try {
@@ -43,11 +53,9 @@ export function backgroundLogCompilationEvents(
             Object.fromEntries(data.attributes ?? [])
           )
           traceMemoryUsage(data.name, parentSpan)
-          // We flush after each event to make sure it makes it to disk.  These events are rare and
-          // tend to happen at the very end of a build so to make sure they are logged we need to
-          // flush.
-          // NOTE: in a `next build` environment where we are reporting events to the parent thread, this is a no-op.
-          await flushAllTraces()
+          if (flushEachTraceEvent) {
+            flushAllTraces()
+          }
         } catch {}
         continue // don't log these events, they just go to the trace file
       }
@@ -77,6 +85,5 @@ export function backgroundLogCompilationEvents(
     }
   })()
   // Prevent unhandled rejection if the subscription errors after the project shuts down.
-  promise.catch(() => {})
-  return promise
+  return promise.catch(() => {})
 }

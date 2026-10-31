@@ -10,22 +10,18 @@ import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 // Webpack has
 // - a bug where App Router API routes (and Metadata) return client assets for `new URL`s.
 // - a bug where Edge Page routes return client assets for `new URL`s.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe(`Handle new URL asset references`, () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: {
       // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
-      __NEXT_IMMUTABLE_ASSET_TOKEN: isNextStart
-        ? 'test-immutable-tkn-7890'
-        : undefined,
+      __NEXT_SUPPORTS_IMMUTABLE_ASSETS: isNextStart ? '1' : undefined,
     },
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   const serverFileRegex = expect.stringMatching(
     /file:.*\/.next(\/dev)?\/server\/.*\/vercel.HASH.png$/
@@ -39,16 +35,16 @@ describe(`Handle new URL asset references`, () => {
     'Hello ' + Array(count).fill(clientUrl).join('+')
 
   beforeAll(() => {
-    let expectedToken
+    let expectedToken: string | undefined
     if (isNextDev || !isTurbopack) {
       expectedToken = undefined
     } else {
       expectedToken = next.assetToken
-      if (!expectedToken) {
-        throw new Error('Missing deployment id')
-      }
     }
-    clientUrl = `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
+    clientUrl =
+      isTurbopack && !isNextDev
+        ? `/_next/static/immutable/media/vercel.HASH.png`
+        : `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
   })
 
   it('should respond on middleware api', async () => {
@@ -200,5 +196,5 @@ describe(`Handle new URL asset references`, () => {
 })
 
 function stripVercelPngHash(text: string) {
-  return text.replace(/vercel\.[0-9a-f]{8,}\.png/g, 'vercel.HASH.png')
+  return text.replace(/vercel\.[0-9a-z_-]{4,}\.png/g, 'vercel.HASH.png')
 }

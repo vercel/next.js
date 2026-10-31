@@ -10,11 +10,9 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{
-    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
 };
 use turbo_unix_path::normalize_path;
 
@@ -30,12 +28,11 @@ pub enum Pattern {
     Concatenation(Vec<Pattern>),
 }
 
-/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
-/// derived implementation.  We can instead use the default implementation since `Pattern` contains
-/// no VCs.
+// Use a manual impl since llvm cannot prove the default generated recursive impl always returns
+// false from `is_transient`
 impl TaskInput for Pattern {
     fn is_transient(&self) -> bool {
-        // We contain no vcs so they cannot be transient.
+        // contains no vcs
         false
     }
 }
@@ -147,6 +144,50 @@ impl Pattern {
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_dynamic_parts())
             }
+        }
+    }
+
+    /// Returns the alternatives that contain no dynamic parts.
+    ///
+    /// The pattern is expected to be normalized so that alternatives are at the top level.
+    pub fn filter_static(&self) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let mut static_alternatives = list
+                .iter()
+                .filter(|alternative| !alternative.has_dynamic_parts())
+                .cloned()
+                .collect::<Vec<_>>();
+            match static_alternatives.len() {
+                0 => None,
+                1 => static_alternatives.pop(),
+                _ => Some(Pattern::Alternatives(static_alternatives)),
+            }
+        } else if self.has_dynamic_parts() {
+            None
+        } else {
+            Some(self.clone())
+        }
+    }
+
+    /// Returns the alternatives that contain significant constant parts (everything except `/`).
+    ///
+    /// The pattern is expected to be normalized so that alternatives are at the top level.
+    pub fn filter_non_dynamic(&self) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let mut non_dynamic_alternatives = list
+                .iter()
+                .filter(|alternative| alternative.has_constant_parts())
+                .cloned()
+                .collect::<Vec<_>>();
+            match non_dynamic_alternatives.len() {
+                0 => None,
+                1 => non_dynamic_alternatives.pop(),
+                _ => Some(Pattern::Alternatives(non_dynamic_alternatives)),
+            }
+        } else if self.has_constant_parts() {
+            Some(self.clone())
+        } else {
+            None
         }
     }
 
@@ -1484,9 +1525,7 @@ impl Pattern {
     }
 }
 
-#[derive(
-    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
     Directory(RcStr, FileSystemPath),
@@ -1512,14 +1551,29 @@ impl PatternMatch {
 #[derive(Debug)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
+/// Reads the directory `path` points at, enumerating it through its realpath.
+///
+/// Callers keep the original logical `path` when constructing [`PatternMatch`] values, so symlinks
+/// stay visible in the results while the directory itself is never read through a symlinked
+/// parent. Resolving also registers a dependency on the symlink chain, so replacing a link
+/// invalidates the enumeration.
+///
+/// A path that cannot be resolved (a dangling or cyclic link) is read as-is, which yields
+/// [`RawDirectoryContent::NotFound`] just as it did before.
+async fn raw_read_dir_resolved(path: &FileSystemPath) -> Result<ReadRef<RawDirectoryContent>> {
+    let resolved = path.realpath().await?.unwrap_or_else(|_| path.clone());
+    resolved.raw_read_dir().await
+}
+
 /// Find all files or directories that match the provided `pattern` with the
 /// specified `lookup_dir` directory. `prefix` is the already matched part of
 /// the pattern that leads to the `lookup_dir` directory. When
 /// `force_in_lookup_dir` is set, leaving the `lookup_dir` directory by
 /// matching `..` is not allowed.
 ///
-/// Symlinks will not be resolved. It's expected that the caller resolves
-/// symlinks when they are interested in that.
+/// Symlinks in returned matches are not resolved. Lookup directories are resolved only for
+/// physical enumeration; logical paths are retained in [`PatternMatch`] values so callers can
+/// resolve and track the symlinks they are interested in.
 #[turbo_tasks::function]
 pub async fn read_matches(
     lookup_dir: FileSystemPath,
@@ -1573,7 +1627,7 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
-                                Some(e.insert((path.raw_read_dir().await?, path)))
+                                Some(e.insert((raw_read_dir_resolved(&path).await?, path)))
                             } else {
                                 None
                             }
@@ -1607,12 +1661,14 @@ pub async fn read_matches(
                         )),
                         RawDirectoryEntry::Symlink => {
                             let fs_path = parent_fs_path.join(last_segment)?;
-                            let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
-                            else {
+                            let LinkContent::Link { target } = &*fs_path.read_link().await? else {
                                 continue;
                             };
                             let path = concat(&prefix, str).into();
-                            if link_type.contains(LinkType::DIRECTORY) {
+                            if matches!(
+                                target.resolved_type().await?,
+                                FileSystemEntryType::Directory
+                            ) {
                                 results.push((index, PatternMatch::Directory(path, fs_path)));
                             } else {
                                 results.push((index, PatternMatch::File(path, fs_path)))
@@ -1632,7 +1688,7 @@ pub async fn read_matches(
                             continue;
                         };
                         nested.push((
-                            0,
+                            index,
                             read_matches(
                                 fs_path.clone(),
                                 concat(&prefix, subpath).into(),
@@ -1738,7 +1794,7 @@ pub async fn read_matches(
                 prefix.pop();
                 prefix.pop();
             }
-            match &*lookup_dir.raw_read_dir().await? {
+            match &*raw_read_dir_resolved(&lookup_dir).await? {
                 RawDirectoryContent::Entries(map) => {
                     for (key, entry) in map.iter() {
                         match entry {
@@ -1796,10 +1852,13 @@ pub async fn read_matches(
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
+                                    if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
+                                        if matches!(
+                                            target.resolved_type().await?,
+                                            FileSystemEntryType::Directory
+                                        ) {
                                             results.push((
                                                 pos,
                                                 PatternMatch::Directory(
@@ -1818,9 +1877,12 @@ pub async fn read_matches(
                                 prefix.push('/');
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
+                                    if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
+                                        && matches!(
+                                            target.resolved_type().await?,
+                                            FileSystemEntryType::Directory
+                                        )
                                     {
                                         results.push((
                                             pos,
@@ -1830,13 +1892,21 @@ pub async fn read_matches(
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
+                                    if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
+                                        && matches!(
+                                            target.resolved_type().await?,
+                                            FileSystemEntryType::Directory
+                                        )
                                     {
-                                        results.push((
+                                        nested.push((
                                             pos,
-                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                            read_matches(
+                                                target.file_system_path().clone(),
+                                                prefix.clone().into(),
+                                                true,
+                                                pattern,
+                                            ),
                                         ));
                                     }
                                 }
@@ -1907,7 +1977,8 @@ mod tests {
     use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
     use super::{
-        Pattern, longest_common_prefix, longest_common_suffix, read_matches, split_last_segment,
+        Pattern, PatternMatch, longest_common_prefix, longest_common_suffix, read_matches,
+        split_last_segment,
     };
 
     #[test]
@@ -1995,6 +2066,83 @@ mod tests {
 
             assert_eq!(p, Pattern::Dynamic);
         }
+    }
+
+    #[test]
+    fn filter_static() {
+        let static_a = Pattern::Constant(rcstr!("./next-i18next.config.js"));
+        let static_b = Pattern::Constant(rcstr!("./i18next.config.js"));
+
+        assert_eq!(static_a.filter_static(), Some(static_a.clone()));
+        assert_eq!(Pattern::Dynamic.filter_static(), None);
+        assert_eq!(Pattern::DynamicNoSlash.filter_static(), None);
+
+        let pattern = Pattern::Alternatives(vec![
+            static_a.clone(),
+            static_b.clone(),
+            Pattern::Dynamic,
+            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!("/suffix"))]),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("/prefix/")),
+                Pattern::Dynamic,
+            ]),
+        ]);
+        assert_eq!(
+            pattern.filter_static(),
+            Some(Pattern::Alternatives(vec![static_a, static_b]))
+        );
+
+        assert_eq!(
+            Pattern::Alternatives(vec![
+                Pattern::Dynamic,
+                Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("/prefix/")),
+                    Pattern::Dynamic,
+                ]),
+            ])
+            .filter_static(),
+            None
+        );
+    }
+
+    #[test]
+    fn filter_non_dynamic() {
+        let constant = Pattern::Constant(rcstr!("./file.json"));
+        let partial = Pattern::Concatenation(vec![
+            Pattern::Constant(rcstr!("./prefix/")),
+            Pattern::Dynamic,
+        ]);
+        let dynamic = Pattern::Concatenation(vec![
+            Pattern::Dynamic,
+            Pattern::Constant(rcstr!("/")),
+            Pattern::DynamicNoSlash,
+        ]);
+
+        assert_eq!(constant.filter_non_dynamic(), Some(constant.clone()));
+        assert_eq!(partial.filter_non_dynamic(), Some(partial.clone()));
+        assert_eq!(Pattern::Dynamic.filter_non_dynamic(), None);
+        assert_eq!(Pattern::DynamicNoSlash.filter_non_dynamic(), None);
+        assert_eq!(Pattern::Constant(rcstr!("/")).filter_non_dynamic(), None);
+        assert_eq!(dynamic.filter_non_dynamic(), None);
+        assert_eq!(Pattern::Alternatives(vec![]).filter_non_dynamic(), None);
+        assert_eq!(
+            Pattern::Alternatives(vec![Pattern::Dynamic, dynamic.clone()]).filter_non_dynamic(),
+            None
+        );
+        assert_eq!(
+            Pattern::Alternatives(vec![Pattern::Dynamic, constant.clone()]).filter_non_dynamic(),
+            Some(constant.clone())
+        );
+        assert_eq!(
+            Pattern::Alternatives(vec![
+                Pattern::Dynamic,
+                constant.clone(),
+                dynamic,
+                partial.clone(),
+            ])
+            .filter_non_dynamic(),
+            Some(Pattern::Alternatives(vec![constant, partial]))
+        );
     }
 
     #[test]
@@ -2650,6 +2798,60 @@ mod tests {
         assert_eq!(split_last_segment("../../a/"), ("../..", "a"));
     }
 
+    #[cfg(all(unix, debug_assertions))]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_read_matches_resolves_lookup_dir_for_enumeration() {
+        use std::{fs::create_dir_all, os::unix::fs::symlink};
+
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        create_dir_all(root.join("real")).unwrap();
+        std::fs::write(root.join("real/file.js"), "content").unwrap();
+        symlink("real", root.join("alias")).unwrap();
+        symlink("real/file.js", root.join("file-alias")).unwrap();
+
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr) -> anyhow::Result<()> {
+            let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            let logical_dir = root.join("alias")?;
+            let matches = read_matches(
+                logical_dir.clone(),
+                rcstr!(""),
+                true,
+                Pattern::new(Pattern::Dynamic),
+            )
+            .await?;
+            assert!(matches.iter().any(|m| m
+                == &PatternMatch::File(rcstr!("file.js"), logical_dir.join("file.js").unwrap(),)));
+
+            let file_probe = read_matches(
+                root.join("file-alias")?,
+                rcstr!(""),
+                true,
+                Pattern::new(Pattern::Dynamic),
+            )
+            .await?;
+            assert!(file_probe.is_empty());
+
+            Ok(())
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = root.to_str().unwrap().into();
+        tt.run_once(async move {
+            operation(disk_root).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_read_matches() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
@@ -2662,17 +2864,21 @@ mod tests {
                 dynamic: Vec<String>,
                 dynamic_file_suffix: Vec<String>,
                 node_modules_dynamic: Vec<String>,
+                extension_ordering: Vec<String>,
+                subpath_ordering: Vec<String>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
                 let root = DiskFileSystem::new(
                     rcstr!("test"),
-                    Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join("tests/pattern/read_matches")
-                        .to_str()
-                        .unwrap()
-                        .into(),
+                    Vc::cell(
+                        Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("tests/pattern/read_matches")
+                            .to_str()
+                            .unwrap()
+                            .into(),
+                    ),
                 )
                 .root()
                 .owned()
@@ -2704,10 +2910,55 @@ mod tests {
                 .collect::<Vec<_>>();
 
                 let node_modules_dynamic = read_matches(
-                    root,
+                    root.clone(),
                     rcstr!(""),
                     false,
                     Pattern::new(Pattern::Constant(rcstr!("node_modules")).or_any_nested_file()),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                // Test: extension ordering is preserved (fast path, until_end=true)
+                // When both Component.web.tsx and Component.tsx exist, the order of
+                // alternatives determines which comes first in results.
+                let extension_ordering = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new(Pattern::Alternatives(vec![
+                        Pattern::Constant(rcstr!("extensions/Component")),
+                        Pattern::Constant(rcstr!("extensions/Component.web.tsx")),
+                        Pattern::Constant(rcstr!("extensions/Component.tsx")),
+                    ])),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                // Test: subpath ordering is preserved (fast path, until_end=false)
+                // When alternatives route to different subdirectories, the index ordering
+                // must be respected. This exercises the fix for the hardcoded `0` bug.
+                let subpath_ordering = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new({
+                        let mut p = Pattern::Alternatives(vec![
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("prio/a/")),
+                                Pattern::Dynamic,
+                            ]),
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("prio/b/")),
+                                Pattern::Dynamic,
+                            ]),
+                        ]);
+                        p.normalize();
+                        p
+                    }),
                 )
                 .await?
                 .into_iter()
@@ -2718,6 +2969,8 @@ mod tests {
                     dynamic,
                     dynamic_file_suffix,
                     node_modules_dynamic,
+                    extension_ordering,
+                    subpath_ordering,
                 }
                 .cell())
             }
@@ -2727,7 +2980,25 @@ mod tests {
             // node_modules shouldn't be matched by Dynamic here
             assert_eq!(
                 matches.dynamic,
-                &["index.js", "sub", "sub/", "sub/foo-a.js", "sub/foo-b.js"]
+                &[
+                    "extensions",
+                    "extensions/",
+                    "extensions/Component.tsx",
+                    "extensions/Component.web.tsx",
+                    "index.js",
+                    "prio",
+                    "prio/",
+                    "prio/a",
+                    "prio/a/",
+                    "prio/a/Component.tsx",
+                    "prio/b",
+                    "prio/b/",
+                    "prio/b/Component.tsx",
+                    "sub",
+                    "sub/",
+                    "sub/foo-a.js",
+                    "sub/foo-b.js",
+                ]
             );
 
             // basic dynamic file suffix
@@ -2739,6 +3010,30 @@ mod tests {
             // read_matches "node_modules/<dynamic>" should not return anything inside. We never
             // want to enumerate the list of packages here.
             assert_eq!(matches.node_modules_dynamic, &["node_modules"]);
+
+            // extension ordering: .web.tsx (index 1) must come before .tsx (index 2)
+            assert_eq!(
+                matches.extension_ordering,
+                &["extensions/Component.web.tsx", "extensions/Component.tsx",]
+            );
+
+            // subpath ordering: prio/a/ alternatives (index 0) must come before prio/b/
+            // alternatives (index 1). This verifies the fix for the hardcoded `0` bug in
+            // the until_end=false branch of the fast path.
+            assert!(
+                matches
+                    .subpath_ordering
+                    .iter()
+                    .position(|s| s.starts_with("prio/a/"))
+                    .unwrap()
+                    < matches
+                        .subpath_ordering
+                        .iter()
+                        .position(|s| s.starts_with("prio/b/"))
+                        .unwrap(),
+                "Expected prio/a/ results before prio/b/ results, got: {:?}",
+                matches.subpath_ordering
+            );
 
             Ok(())
         })

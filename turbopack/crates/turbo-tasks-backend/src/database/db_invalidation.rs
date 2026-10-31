@@ -1,11 +1,11 @@
 use std::{
     borrow::Cow,
-    fs::{self, File, read_dir},
-    io::{self, BufReader, BufWriter, ErrorKind, Write},
+    io::{BufReader, BufWriter, ErrorKind, Write},
     path::Path,
 };
 
 use anyhow::Context;
+use fs_err::{self as fs, File, read_dir};
 use serde::{Deserialize, Serialize};
 
 const INVALIDATION_MARKER: &str = "__turbo_tasks_invalidated_db";
@@ -33,13 +33,12 @@ struct InvalidationFile<'a> {
 /// If the cache was invalidated, the application may choose to show a warning to the user or log it
 /// to telemetry.
 ///
-/// This value is returned by [`crate::turbo_backing_storage`] and
-/// [`crate::default_backing_storage`].
+/// This value is returned by [`crate::turbo_backing_storage`].
 pub enum StartupCacheState {
     NoCache,
     Cached,
     Invalidated {
-        /// A short code passed to [`BackingStorage::invalidate`]. This value is
+        /// A short code passed to `TurboBackingStorage::invalidate`. This value is
         /// application-specific.
         ///
         /// If the value is `None` or doesn't match an expected value, the application should just
@@ -47,8 +46,6 @@ pub enum StartupCacheState {
         /// modified by an external tool.
         ///
         /// See [`invalidation_reasons`] for some common reason codes.
-        ///
-        /// [`BackingStorage::invalidate`]: crate::BackingStorage::invalidate
         reason_code: Option<String>,
     },
 }
@@ -78,7 +75,7 @@ pub mod invalidation_reasons {
 /// This should be run with the base (non-versioned) path, as that likely aligns closest with user
 /// expectations (e.g. if they're clearing the cache for disk space reasons).
 ///
-/// In most cases, you should prefer a higher-level API like [`crate::BackingStorage::invalidate`]
+/// In most cases, you should prefer a higher-level API like `TurboBackingStorage::invalidate`
 /// to this one.
 pub(crate) fn invalidate_db(base_path: &Path, reason_code: &str) -> anyhow::Result<()> {
     match File::create_new(base_path.join(INVALIDATION_MARKER)) {
@@ -112,7 +109,7 @@ pub(crate) fn invalidate_db(base_path: &Path, reason_code: &str) -> anyhow::Resu
 /// This should be run with the base (non-versioned) path.
 ///
 /// In most cases, you should prefer a higher-level API like
-/// [`crate::KeyValueDatabaseBackingStorage::open_versioned_on_disk`] to this one.
+/// [`TurboBackingStorage::open_versioned_on_disk`](crate::TurboBackingStorage::open_versioned_on_disk) to this one.
 pub(crate) fn check_db_invalidation_and_cleanup(
     base_path: &Path,
 ) -> anyhow::Result<StartupCacheState> {
@@ -157,7 +154,7 @@ pub(crate) fn cleanup_db(base_path: &Path) -> anyhow::Result<()> {
     })
 }
 
-fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
+fn cleanup_db_inner(base_path: &Path) -> anyhow::Result<()> {
     let Ok(contents) = read_dir(base_path) else {
         return Ok(());
     };
@@ -165,11 +162,12 @@ fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
     // delete everything except the invalidation marker
     for entry in contents {
         let entry = entry?;
+        let path = entry.path();
         if entry.file_name() != INVALIDATION_MARKER {
             if entry.file_type()?.is_dir() {
-                fs::remove_dir_all(entry.path())?;
+                fs::remove_dir_all(&path)?;
             } else {
-                fs::remove_file(entry.path())?;
+                fs::remove_file(&path)?;
             }
         }
     }

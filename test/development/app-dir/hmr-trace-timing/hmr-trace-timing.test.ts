@@ -1,46 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { existsSync, readFileSync } from 'fs'
-import type { TraceEvent } from 'next/dist/trace'
-
-interface TraceStructure {
-  events: TraceEvent[]
-  eventsByName: Map<string, TraceEvent[]>
-  eventsById: Map<string, TraceEvent>
-}
-
-function parseTraceFile(tracePath: string): TraceStructure {
-  const traceContent = readFileSync(tracePath, 'utf8')
-  const traceLines = traceContent
-    .trim()
-    .split('\n')
-    .filter((line) => line.trim())
-
-  const allEvents: TraceEvent[] = []
-
-  for (const line of traceLines) {
-    const events = JSON.parse(line) as TraceEvent[]
-    allEvents.push(...events)
-  }
-
-  const eventsByName = new Map<string, TraceEvent[]>()
-  const eventsById = new Map<string, TraceEvent>()
-
-  // Index all events
-  for (const event of allEvents) {
-    if (!eventsByName.has(event.name)) {
-      eventsByName.set(event.name, [])
-    }
-    eventsByName.get(event.name)!.push(event)
-    eventsById.set(event.id.toString(), event)
-  }
-
-  return {
-    events: allEvents,
-    eventsByName,
-    eventsById,
-  }
-}
+import { existsSync } from 'fs'
+import { parseTraceFile } from '../../../lib/parse-trace-file'
 
 describe('render-path tracing', () => {
   const { next, isNextDev } = nextTestSetup({

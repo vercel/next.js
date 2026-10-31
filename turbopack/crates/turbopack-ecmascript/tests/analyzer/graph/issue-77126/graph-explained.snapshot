@@ -1,4 +1,4 @@
-*arrow function 19* (const after eval) = (...) => false
+*arrow function 19* = (...) => false
 
 run (const after eval) = (...) => ("should not run" | "should run")
 

@@ -14,6 +14,7 @@ import noHeadElement from './rules/no-head-element'
 import noHeadImportInDocument from './rules/no-head-import-in-document'
 import noHtmlLinkForPages from './rules/no-html-link-for-pages'
 import noImgElement from './rules/no-img-element'
+import noLocationAssign from './rules/no-location-assign-relative-destination'
 import noPageCustomFont from './rules/no-page-custom-font'
 import noScriptComponentInHead from './rules/no-script-component-in-head'
 import noStyledJsxInDocument from './rules/no-styled-jsx-in-document'
@@ -33,6 +34,7 @@ const recommendedRules = {
   '@next/next/no-head-element': 'warn',
   '@next/next/no-html-link-for-pages': 'warn',
   '@next/next/no-img-element': 'warn',
+  '@next/next/no-location-assign-relative-destination': 'warn',
   '@next/next/no-page-custom-font': 'warn',
   '@next/next/no-styled-jsx-in-document': 'warn',
   '@next/next/no-sync-scripts': 'warn',
@@ -73,6 +75,7 @@ const plugin = {
     'no-head-import-in-document': noHeadImportInDocument,
     'no-html-link-for-pages': noHtmlLinkForPages,
     'no-img-element': noImgElement,
+    'no-location-assign-relative-destination': noLocationAssign,
     'no-page-custom-font': noPageCustomFont,
     'no-script-component-in-head': noScriptComponentInHead,
     'no-styled-jsx-in-document': noStyledJsxInDocument,

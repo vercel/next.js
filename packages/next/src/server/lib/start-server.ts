@@ -16,17 +16,28 @@ import http from 'http'
 import https from 'https'
 import os from 'os'
 import { exec } from 'child_process'
-import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE } from './utils'
+import {
+  blockOnOutputWrites,
+  getMemoryRestartStats,
+  RESTART_EXIT_CODE,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
+import {
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+  syncAgentUpgradeForDev,
+  syncAgentFeedbackForDev,
+  syncAgentRulesForDev,
+} from './app-info-log'
+import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -39,6 +50,7 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { isCI } from '../ci-info'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -129,7 +141,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 }
 
 export async function getRequestHandlers({
@@ -142,7 +154,7 @@ export async function getRequestHandlers({
   minimalMode,
   keepAliveTimeout,
   experimentalHttpsServer,
-  experimentalServerFastRefresh,
+  serverFastRefresh,
   quiet,
 }: {
   dir: string
@@ -154,7 +166,7 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -167,7 +179,7 @@ export async function getRequestHandlers({
     server,
     keepAliveTimeout,
     experimentalHttpsServer,
-    experimentalServerFastRefresh,
+    serverFastRefresh,
     startServerSpan,
     quiet,
   })
@@ -188,7 +200,7 @@ export async function startServer(
     allowRetry,
     keepAliveTimeout,
     selfSignedCertificate,
-    experimentalServerFastRefresh,
+    serverFastRefresh,
   } = serverOptions
   let { port } = serverOptions
 
@@ -225,6 +237,7 @@ export async function startServer(
   }
 
   let nextServer: NextServer | undefined
+  let devMemoryThresholdRestart = true
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -246,23 +259,21 @@ export async function startServer(
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
     } finally {
-      if (isDev) {
-        if (
-          v8.getHeapStatistics().used_heap_size >
-          0.8 * v8.getHeapStatistics().heap_size_limit
-        ) {
-          Log.warn(
-            `Server is approaching the used memory threshold, restarting...`
-          )
-          trace('server-restart-close-to-memory-threshold', undefined, {
-            'memory.heapSizeLimit': String(
-              v8.getHeapStatistics().heap_size_limit
-            ),
-            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
-          }).stop()
-          await flushAllTraces()
-          process.exit(RESTART_EXIT_CODE)
-        }
+      const memoryRestartStats = getMemoryRestartStats(
+        isDev,
+        devMemoryThresholdRestart,
+        v8.getHeapStatistics
+      )
+      if (memoryRestartStats) {
+        Log.warn(
+          `Server is approaching the used memory threshold, restarting...`
+        )
+        trace('server-restart-close-to-memory-threshold', undefined, {
+          'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
+          'memory.heapUsed': String(memoryRestartStats.used_heap_size),
+        }).stop()
+        flushAllTraces()
+        process.exit(RESTART_EXIT_CODE)
       }
     }
   }
@@ -425,7 +436,7 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            await flushAllTraces()
+            flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {
@@ -441,7 +452,12 @@ export async function startServer(
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir)
+                  telemetry.flushDetached({
+                    mode: 'dev',
+                    dir,
+                    distDir: null,
+                    events: null,
+                  })
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup
@@ -489,8 +505,9 @@ export async function startServer(
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
-          experimentalServerFastRefresh,
+          serverFastRefresh,
         })
+        devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
@@ -501,7 +518,50 @@ export async function startServer(
           logExperimentalInfo({
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
+            partialPrefetching: initResult.partialPrefetching,
           })
+
+          logAgentFileSync(
+            await syncAgentRulesForDev(dir, initResult.agentRules !== false),
+            (files) =>
+              `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
+            (files) =>
+              `Removed agent rules from ${files} because \`agentRules\` is disabled.`
+          )
+
+          logAgentFileSync(
+            await syncAgentUpgradeForDev(
+              dir,
+              initResult.agentUpgrade !== false
+            ),
+            (files) =>
+              `Generated upgrade instructions in ${files}. Set \`experimental.agentUpgrade: false\` in next.config to disable.`,
+            (files) =>
+              `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
+          )
+
+          if (!isCI) {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            const agentFeedbackConfigured = initResult.agentFeedback === true
+            const telemetryEnabled = telemetry?.isEnabled === true
+
+            logAgentFileSync(
+              await syncAgentFeedbackForDev(
+                dir,
+                agentFeedbackConfigured && telemetryEnabled
+              ),
+              (files) =>
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              (files) =>
+                agentFeedbackConfigured
+                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+            )
+          }
         }
 
         handlersReady()
@@ -524,25 +584,41 @@ export async function startServer(
     server.listen(port, hostname)
   })
 
+  // Watch config files for changes and distDir ancestors for deletion.
   if (isDev) {
-    function watchConfigFiles(
-      dirToWatch: string,
-      onChange: (filename: string) => void
-    ) {
-      const wp = new Watchpack()
-      wp.watch({
-        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
-      })
-      wp.on('change', onChange)
+    // Note: dir is absolute and normalized (`..` segments removed), `absDistDir`
+    // is also normalized because `path.join()` performs normalization. `distDir`
+    // does not have to be inside of `dir`!
+    const absDistDir = path.join(dir, distDir)
+    // always watch dir and absDistDir
+    const dirWatchPaths: string[] = [dir, absDistDir]
+    // also watch ancestors of absDistDir that are inside of dir.
+    let prevAncestor = absDistDir
+    while (true) {
+      const nextAncestor = path.dirname(prevAncestor)
+      // note: `dirname('/') === '/'` if we happen to reach the FS root
+      if (
+        !nextAncestor.startsWith(dir + path.sep) ||
+        nextAncestor === prevAncestor
+      ) {
+        break
+      }
+      dirWatchPaths.push(nextAncestor)
+      prevAncestor = nextAncestor
     }
-    watchConfigFiles(dir, async (filename) => {
-      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-        Log.info(
-          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-        )
+
+    const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
+    const Watchpack =
+      require('next/dist/compiled/watchpack') as typeof import('next/dist/compiled/watchpack').default
+    const wp = new Watchpack()
+    wp.watch({
+      files: configFiles,
+      missing: dirWatchPaths,
+    })
+    wp.on('change', async (filename) => {
+      if (!configFiles.includes(filename)) {
         return
       }
-
       Log.warn(
         `Found a change in ${path.basename(
           filename
@@ -550,13 +626,40 @@ export async function startServer(
       )
       process.exit(RESTART_EXIT_CODE)
     })
+    wp.on('remove', (removedPath: string) => {
+      if (dirWatchPaths.includes(removedPath)) {
+        Log.error(
+          `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory removes caches and will cause slower ' +
+            'performance.\n\n' +
+            'Deleting this directory while Next.js is running can lead to ' +
+            'undefined behavior. Restarting the server to recover...'
+        )
+        process.exit(RESTART_EXIT_CODE)
+      }
+    })
   }
 
   return { distDir }
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Output is piped to the CLI to hold it while the upgrade menu is open.
+  if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    blockOnOutputWrites()
+  }
   process.addListener('message', async (msg: any) => {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      typeof msg.nextTerminalColumns === 'number'
+    ) {
+      // The CLI's terminal was resized. Code frames read this width.
+      process.env.NEXT_PRIVATE_TERMINAL_COLUMNS = String(
+        msg.nextTerminalColumns
+      )
+      return
+    }
     if (
       msg &&
       typeof msg === 'object' &&
@@ -574,13 +677,21 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
+      let rageRestartAttrsFromParent = {}
+      if (process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS) {
+        rageRestartAttrsFromParent = JSON.parse(
+          process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
+        cpus: String(os.availableParallelism()),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
         ...enabledFeaturesFromParent,
+        ...rageRestartAttrsFromParent,
       })
 
       initializeTraceState({
@@ -609,4 +720,28 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
     }
   })
   process.send({ nextWorkerReady: true })
+}
+
+/**
+ * Report which agent files a managed-block sync touched. Silent when the sync
+ * was a no-op so every `next dev` start doesn't mention the files.
+ */
+function logAgentFileSync(
+  result: AgentFilesResult | null,
+  generatedMessage: (files: string) => string,
+  removedMessage: (files: string) => string
+): void {
+  if (!result) return
+
+  const generated: string[] = []
+  const removed: string[] = []
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
+    if (action === 'created' || action === 'updated') {
+      generated.push(file)
+    } else if (action === 'removed') {
+      removed.push(file)
+    }
+  }
+  if (generated.length > 0) Log.event(generatedMessage(generated.join(' and ')))
+  if (removed.length > 0) Log.event(removedMessage(removed.join(' and ')))
 }

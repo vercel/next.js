@@ -1,22 +1,16 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('fallback export error', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'pages')),
-      },
-      nextConfig: {
-        output: 'export',
-      },
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'pages')),
+    },
+    nextConfig: {
+      output: 'export',
+    },
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   it('should have built', async () => {
     const result = await next.build()

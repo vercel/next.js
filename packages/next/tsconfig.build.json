@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
   // Copied from tsconfig.json to not overwrite.
   "exclude": [
     "dist",

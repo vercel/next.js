@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
+import { withDevOverlayContexts } from '../../../../../.storybook/decorators/with-dev-overlay-contexts'
 
 const meta: Meta<typeof NextLogo> = {
   component: NextLogo,
@@ -64,14 +64,27 @@ export const Rendering: Story = {
   ],
 }
 
-export const Prerendering: Story = {
+export const ColdCache: Story = {
   decorators: [
     withDevOverlayContexts({
       totalErrorCount: 0,
       state: {
         buildingIndicator: false,
         renderingIndicator: false,
-        cacheIndicator: 'filling',
+        cacheIndicator: 'cold',
+      },
+    }),
+  ],
+}
+
+export const RenderingColdCache: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: true,
+        cacheIndicator: 'cold',
       },
     }),
   ],
@@ -83,7 +96,7 @@ export const CacheDisabled: Story = {
       totalErrorCount: 0,
       state: {
         buildingIndicator: false,
-        renderingIndicator: true,
+        renderingIndicator: false,
         cacheIndicator: 'bypass',
       },
     }),

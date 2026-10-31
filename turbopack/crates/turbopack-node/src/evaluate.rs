@@ -1,18 +1,17 @@
-use std::{
-    borrow::Cow, iter, process::ExitStatus, sync::Arc, thread::available_parallelism,
-    time::Duration,
-};
+use std::{iter, process::ExitStatus, time::Duration};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
+use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError,
-    ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    duration_span, fxindexmap, parallel::available_parallelism,
+    resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -23,14 +22,11 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
@@ -49,11 +45,58 @@ use crate::{
     source_map::StructuredError,
 };
 
+/// An argument passed to the evaluated JavaScript.
+#[turbo_tasks::task_input]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
+pub enum EvaluateArg {
+    Vc(ResolvedVc<JsonValue>),
+    /// Passed as a string: A path relative to [`EvaluateContext::cwd`] when both are on the same
+    /// filesystem, otherwise an absolute system path (e.g. for an additional root).
+    ///
+    /// This is converted when the evaluation runs, so that machine-specific system paths aren't
+    /// stored in task inputs or cells.
+    Path(FileSystemPath),
+}
+
+impl EvaluateArg {
+    async fn to_json(&self, cwd: &FileSystemPath) -> Result<EvaluatedArg> {
+        Ok(match self {
+            Self::Vc(value) => EvaluatedArg::ReadRef(value.await?),
+            Self::Path(path) => {
+                let path = if let Some(relative) = cwd.get_relative_path_to(path) {
+                    // prefer to give the loader a relative path if we can, to reduce the risk of
+                    // the webpack loader storing a absolute path in the output.
+                    //
+                    // this uses a unix-style `/`-separated path, but Node.js file APIs support both
+                    // `/` and `\` on Windows.
+                    relative.into_owned()
+                } else {
+                    // if the path is on another root, we must give the loader an absolute path
+                    to_sys_path(path.clone())
+                        .await?
+                        .with_context(|| format!("{path} is not on a disk filesystem"))?
+                        .into_os_string()
+                        .into_string()
+                        .map_err(|path| anyhow!("{path:?} is not valid UTF-8"))?
+                };
+                EvaluatedArg::Owned(JsonValue::String(path))
+            }
+        })
+    }
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum EvaluatedArg {
+    ReadRef(ReadRef<JsonValue>),
+    Owned(JsonValue),
+}
+
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptOutgoingMessage<'a> {
     #[serde(rename_all = "camelCase")]
-    Evaluate { args: Vec<&'a JsonValue> },
+    Evaluate { args: &'a [EvaluatedArg] },
     Result {
         id: u64,
         data: Option<JsonValue>,
@@ -70,9 +113,15 @@ enum EvalJavaScriptIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+#[turbo_tasks::value(
+    cell = "new",
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    shared
+)]
 pub struct EvaluatePool {
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
@@ -121,9 +170,9 @@ pub trait EvaluateOperation: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait Operation: Send {
-    async fn recv(&mut self) -> Result<Vec<u8>>;
+    async fn recv(&mut self) -> Result<Bytes>;
 
-    async fn send(&mut self, data: Vec<u8>) -> Result<()>;
+    async fn send(&mut self, data: Bytes) -> Result<()>;
 
     async fn wait_or_kill(&mut self) -> Result<ExitStatus>;
 
@@ -137,7 +186,7 @@ struct EmittedEvaluatePoolAssets {
     entrypoint: FileSystemPath,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn emit_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -148,20 +197,19 @@ async fn emit_evaluate_pool_assets_operation(
         main_entry_ident,
     } = &*entries.await?;
 
-    let module_path = main_entry_ident.path().await?;
-    let file_name = module_path.file_name();
-    let file_name = if file_name.ends_with(".js") {
-        Cow::Borrowed(file_name)
-    } else if let Some(file_name) = file_name.strip_suffix(".ts") {
-        Cow::Owned(format!("{file_name}.js"))
-    } else {
-        Cow::Owned(format!("{file_name}.js"))
-    };
-    let entrypoint = chunking_context.output_root().await?.join(&file_name)?;
+    let entrypoint = chunking_context
+        .chunk_path(
+            None,
+            **main_entry_ident,
+            Some(rcstr!("pool_entry")),
+            rcstr!(".js"),
+        )
+        .owned()
+        .await?;
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
+        ChunkGroupKey::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
         *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),
@@ -178,38 +226,40 @@ async fn emit_evaluate_pool_assets_operation(
     Ok(EmittedEvaluatePoolAssets {
         bootstrap: bootstrap.to_resolved().await?,
         output_root,
-        entrypoint: entrypoint.clone(),
+        entrypoint,
     }
     .cell())
 }
 
-#[turbo_tasks::value(serialization = "none")]
-struct EmittedEvaluatePoolAssetsWithEffects {
-    assets: ReadRef<EmittedEvaluatePoolAssets>,
-    effects: Arc<Effects>,
-}
-
-#[turbo_tasks::function(operation)]
-async fn emit_evaluate_pool_assets_with_effects_operation(
+#[turbo_tasks::function(operation, root, session_dependent)]
+async fn create_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
+) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    let assets = operation.read_strongly_consistent().await?;
-    let effects = Arc::new(get_effects(operation).await?);
-    Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
+    // Apply the effects here (inside this producing task) via the bounded-retry helper, draining
+    // them from the nested emit operation. Returning the serializable `EmittedEvaluatePoolAssets`
+    // (rather than a `serialization = "skip"` wrapper carrying the effects) keeps this task's
+    // output restorable from the persistent cache, so a warm restart does not re-run the
+    // effect-producing tasks.
+    //
+    // HACK: applying effects from inside a task means they may get re-applied if this task is
+    // invalidated. That's acceptable because the pool is created lazily; we can't move the
+    // apply to a true top-level task without eagerly reading the operation.
+    let assets = resolve_strongly_consistent_and_take_and_apply_effects(operation).await?;
+
+    Ok(*assets)
 }
 
-#[derive(
-    Clone, Copy, Hash, Debug, PartialEq, Eq, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum EnvVarTracking {
     WholeEnvTracked,
     Untracked,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
@@ -223,17 +273,16 @@ pub async fn get_evaluate_pool(
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<EvaluatePool>> {
-    let operation =
-        emit_evaluate_pool_assets_with_effects_operation(entries, chunking_context, module_graph);
-    let EmittedEvaluatePoolAssetsWithEffects { assets, effects } =
-        &*operation.read_strongly_consistent().await?;
-    effects.apply().await?;
+    let assets_op = create_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
+    // Effects are applied inside `create_evaluate_pool_assets_operation`; a plain strongly
+    // consistent read suffices here.
+    let assets = assets_op.read_strongly_consistent().await?;
 
     let EmittedEvaluatePoolAssets {
         bootstrap,
         output_root,
         entrypoint,
-    } = &**assets;
+    } = &*assets;
 
     let (Some(cwd), Some(entrypoint)) = (
         to_sys_path(cwd.clone()).await?,
@@ -295,6 +344,37 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
     Ok(Vc::cell(filtered))
 }
 
+/// A Node.js process could not connect back to us over the loopback interface.
+///
+/// Backends return this from [`EvaluateOperation::operation`] so that it can be
+/// reported as an actionable issue. This is not a bug in the evaluated code and
+/// retrying will not help, it usually means a sandbox blocks local networking.
+#[derive(Debug)]
+pub struct NodeJsConnectError {
+    /// The error output of the child process, which contains the reason the
+    /// connection failed.
+    pub stderr: String,
+}
+
+impl std::fmt::Display for NodeJsConnectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The Node.js child process could not connect to the parent process\n{}",
+            self.stderr
+        )
+    }
+}
+
+impl std::error::Error for NodeJsConnectError {}
+
+impl NodeJsConnectError {
+    /// Finds a [`NodeJsConnectError`] anywhere in the cause chain of `err`.
+    pub fn find(err: &anyhow::Error) -> Option<&Self> {
+        err.chain().find_map(|cause| cause.downcast_ref::<Self>())
+    }
+}
+
 struct PoolErrorHandler;
 
 /// Number of attempts before we start slowing down the retry.
@@ -306,7 +386,8 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
     type OutError = anyhow::Error;
 
     fn handle(&mut self, attempt: usize, err: anyhow::Error) -> RetryPolicy<Self::OutError> {
-        if attempt >= MAX_ATTEMPTS {
+        // A process that cannot connect to us will not be able to on a retry either.
+        if attempt >= MAX_ATTEMPTS || NodeJsConnectError::find(&err).is_some() {
             RetryPolicy::ForwardError(err)
         } else if attempt >= MAX_FAST_ATTEMPTS {
             RetryPolicy::WaitRetry(Duration::from_secs(1))
@@ -326,8 +407,10 @@ pub trait EvaluateContext {
     fn keep_alive(&self) -> bool {
         false
     }
-    fn args(&self) -> &[ResolvedVc<JsonValue>];
+    fn args(&self) -> &[EvaluateArg];
     fn cwd(&self) -> Vc<FileSystemPath>;
+    /// The source that issues about this evaluation are attributed to.
+    fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>>;
     fn emit_error(
         &self,
         error: StructuredError,
@@ -350,6 +433,15 @@ pub trait EvaluateContext {
         state: Self::State,
         pool: &EvaluatePool,
     ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Optional human-readable prefix describing *what was being evaluated*,
+    /// included verbatim in the message of the synthetic [`StructuredError`]
+    /// emitted when the Node.js subprocess crashes mid-evaluation. For
+    /// webpack-loader evaluations this is the loader chain ("loaders
+    /// [foo, bar]"). The default returns `None`.
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        None
+    }
 }
 
 pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
@@ -360,7 +452,13 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // node.js code.
     let pool = pool_op.read_strongly_consistent().await?;
 
-    let args = evaluate_context.args().iter().try_join().await?;
+    let cwd = evaluate_context.cwd().owned().await?;
+    let args = evaluate_context
+        .args()
+        .iter()
+        .map(|arg| arg.to_json(&cwd))
+        .try_join()
+        .await?;
     // Assume this is a one-off operation, so we can kill the process
     // TODO use a better way to decide that.
     let kill = !evaluate_context.keep_alive();
@@ -370,22 +468,39 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // worker. So we retry picking workers from the pools until we succeed
     // sending the job.
 
-    let (mut operation, _) = FutureRetry::new(
-        || async {
+    let operation = FutureRetry::new(
+        async || {
             let mut operation = pool.operation().await?;
             operation
-                .send(serde_json::to_vec(
-                    &EvalJavaScriptOutgoingMessage::Evaluate {
-                        args: args.iter().map(|v| &**v).collect(),
-                    },
-                )?)
+                .send(Bytes::from(serde_json::to_vec(
+                    &EvalJavaScriptOutgoingMessage::Evaluate { args: &args },
+                )?))
                 .await?;
             Ok(operation)
         },
         PoolErrorHandler,
     )
-    .await
-    .map_err(|(e, _)| e)?;
+    .await;
+    let mut operation = match operation {
+        Ok((operation, _)) => operation,
+        Err((err, _)) => {
+            if let Some(connect_error) = NodeJsConnectError::find(&err) {
+                NodeJsConnectIssue {
+                    source: IssueSource::from_source_only(
+                        evaluate_context.context_source_for_issue(),
+                    ),
+                    crash_context: evaluate_context.crash_context_prefix(),
+                    // Connection errors happen first thing on startup, so we shouldn't be too
+                    // worried about this being overly long.
+                    stderr: connect_error.stderr.as_str().trim().into(),
+                }
+                .resolved_cell()
+                .emit();
+                return Ok(Vc::cell(None));
+            }
+            return Err(err);
+        }
+    };
 
     // The evaluation sent an initial intermediate value without completing. We'll
     // need to spawn a new thread to continually pull data out of the process,
@@ -411,14 +526,19 @@ pub struct EvaluateEntries {
 impl EvaluateEntries {
     #[turbo_tasks::function]
     pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
-            self.await?
-                .entries
-                .iter()
-                .cloned()
-                .map(ResolvedVc::upcast)
-                .collect(),
-        )]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: self
+                    .await?
+                    .entries
+                    .iter()
+                    .cloned()
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+                heuristics: EntryHeuristics::default(),
+            }])
+            .cell(),
+        )
     }
 }
 
@@ -446,18 +566,18 @@ pub async fn get_evaluate_entries(
     let entry_module = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                runtime_asset.ident().path().await?.join("evaluate.js")?,
+                runtime_asset.ident().await?.path.join("evaluate.js")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
-                        "import { run } from 'RUNTIME'; run(() => import('INNER'))",
+                        "import {run} from 'RUNTIME'; run(() => import('INNER'))",
                     ))
                     .cell(),
                 ),
             )),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset
-            })),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {rcstr!("INNER") => module_asset,
+                rcstr!("RUNTIME") => runtime_asset},
+            )),
         )
         .module()
         .to_resolved()
@@ -514,7 +634,7 @@ pub async fn evaluate(
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-    args: Vec<ResolvedVc<JsonValue>>,
+    args: Vec<EvaluateArg>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 ) -> Result<Vc<Option<RcStr>>> {
@@ -541,10 +661,37 @@ async fn pull_operation<T: EvaluateContext>(
     evaluate_context: &T,
     state: &mut T::State,
 ) -> Result<Option<String>> {
-    let _guard = duration_span!("Node.js evaluation");
+    let _guard = duration_span!("Node.js evaluation", blocking = false);
 
     loop {
-        let message = serde_json::from_slice(&operation.recv().await?)?;
+        let recv_result = operation.recv().await;
+        let bytes = match recv_result {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                // The Node.js subprocess crashed (or some other IPC failure
+                // closed the connection) before sending a response. Convert
+                // this into a synthesized issue with whatever diagnostic
+                // context the pool managed to capture, so the user sees a
+                // real error message instead of an internal turbo-tasks
+                // execution-failed cascade.
+                let message = match evaluate_context.crash_context_prefix() {
+                    Some(prefix) => format!(
+                        "Node.js subprocess crashed while evaluating {}: {}",
+                        prefix,
+                        PrettyPrintError(&err)
+                    ),
+                    None => format!(
+                        "Node.js subprocess crashed while evaluating: {}",
+                        PrettyPrintError(&err)
+                    ),
+                };
+                let synthetic = StructuredError::from_message("Error".to_string(), message);
+                evaluate_context.emit_error(synthetic, pool).await?;
+                operation.disallow_reuse();
+                return Ok(None);
+            }
+        };
+        let message = serde_json::from_slice(&bytes)?;
 
         match message {
             EvalJavaScriptIncomingMessage::Error(error) => {
@@ -567,24 +714,24 @@ async fn pull_operation<T: EvaluateContext>(
                 {
                     Ok(response) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: None,
                                     data: Some(serde_json::to_value(response)?),
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                     Err(e) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: Some(PrettyPrintError(&e).to_string()),
                                     data: None,
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                 }
@@ -601,7 +748,7 @@ struct BasicEvaluateContext {
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-    args: Vec<ResolvedVc<JsonValue>>,
+    args: Vec<EvaluateArg>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
@@ -626,12 +773,16 @@ impl EvaluateContext for BasicEvaluateContext {
         )
     }
 
-    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
+    fn args(&self) -> &[EvaluateArg] {
         &self.args
     }
 
     fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
         self.cwd.clone().cell()
+    }
+
+    fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.context_source_for_issue
     }
 
     fn keep_alive(&self) -> bool {
@@ -645,6 +796,7 @@ impl EvaluateContext for BasicEvaluateContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: None,
         }
         .resolved_cell()
         .emit();
@@ -682,45 +834,119 @@ pub struct EvaluationIssue {
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
     pub root_path: FileSystemPath,
+    /// Optional extra context shown only when log details are enabled — e.g.
+    /// the loader chain that was running when a webpack-loader subprocess
+    /// errored.
+    pub detail: Option<RcStr>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluationIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error evaluating Node.js code")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Error evaluating Node.js code")))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                self.error
-                    .print(
-                        *self.assets_for_source_mapping,
-                        self.assets_root.clone(),
-                        self.root_path.clone(),
-                        FormattingMode::Plain,
-                    )
-                    .await?
-                    .into(),
-            )
-            .resolved_cell(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            self.error
+                .print(
+                    *self.assets_for_source_mapping,
+                    self.assets_root.clone(),
+                    self.root_path.clone(),
+                    FormattingMode::Plain,
+                )
+                .await?
+                .into(),
         )))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        Ok(self.detail.clone().map(StyledString::Text))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// Node.js child processes could not connect back to the parent process, which
+/// makes it impossible to run any Node.js code (webpack loaders, PostCSS, ...).
+#[turbo_tasks::value(shared)]
+pub struct NodeJsConnectIssue {
+    /// The source being transformed when the connection failed. The failure is
+    /// unrelated to its contents, but this tells the user which transform hit it.
+    pub source: IssueSource,
+    /// What was being evaluated, e.g. the loader chain.
+    pub crash_context: Option<RcStr>,
+    /// Error output of the child process, describing why the connection failed.
+    pub stderr: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for NodeJsConnectIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Node.js worker processes could not connect to Turbopack"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut first_line = vec![StyledString::Text(rcstr!(
+            "Turbopack is configured to run webpack loaders and PostCSS transforms in child \
+             processes that communicate with it over a loopback TCP connection, but the child \
+             process was unable to connect"
+        ))];
+
+        if let Some(crash_context) = &self.crash_context {
+            first_line.push(StyledString::Text(rcstr!(" while evaluating ")));
+            first_line.push(StyledString::Code(crash_context.clone()));
+        };
+        first_line.push(StyledString::Text(rcstr!(":")));
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(first_line),
+            StyledString::Code(self.stderr.clone()),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "This is likely caused by a sandbox or firewall that blocks connections. \
+                     Allow local connections, or run this code using worker threads by setting "
+                )),
+                StyledString::Code(rcstr!(
+                    "experimental.turbopackPluginRuntimeStrategy: 'workerThreads'"
+                )),
+                StyledString::Text(rcstr!(" in your Next.js config.")),
+            ]),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackPluginRuntimeStrategy"
+        )
     }
 }

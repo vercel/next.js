@@ -19,26 +19,14 @@ const getAttrs = (elems: Cheerio) =>
 
 describe('app dir - next/font', () => {
   describe('app dir - next-font', () => {
-    const {
-      next,
-      isNextDev: isDev,
-      skipped,
-    } = nextTestSetup({
+    const { next, isNextDev: isDev } = nextTestSetup({
       files: {
         app: new FileRef(join(__dirname, 'app')),
         fonts: new FileRef(join(__dirname, 'fonts')),
         node_modules: new FileRef(join(__dirname, 'node_modules')),
         'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
       },
-      dependencies: {
-        '@next/font': 'canary',
-      },
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     describe('import values', () => {
       it('should have correct values at /', async () => {
@@ -315,11 +303,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -340,11 +328,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -365,11 +353,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -390,11 +378,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -442,9 +430,13 @@ describe('app dir - next/font', () => {
         expect(preloadBeforeNavigation.length).toBe(1)
         const href = await preloadBeforeNavigation[0].getAttribute('href')
         if (process.env.IS_TURBOPACK_TEST) {
-          expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/)
+          expect(href).toMatch(
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
+          )
         } else {
-          expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
+          expect(href).toMatch(
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
+          )
         }
 
         // Navigate to a page that also imports that font
@@ -459,10 +451,12 @@ describe('app dir - next/font', () => {
         const href2 = await preloadAfterNavigation[0].getAttribute('href')
         if (process.env.IS_TURBOPACK_TEST) {
           expect(href2).toMatch(
-            /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
           )
         } else {
-          expect(href2).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
+          expect(href2).toMatch(
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
+          )
         }
       })
     })

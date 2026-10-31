@@ -2,7 +2,6 @@ use std::{path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use next_custom_transforms::react_compiler;
 use swc_core::{
     common::{GLOBALS, SourceMap},
     ecma::{
@@ -41,10 +40,12 @@ impl Task for CheckTask {
                 return Ok(false);
             };
             if !errors.is_empty() {
-                return Ok(false);
+                // SWC recovered an AST, so the source may still be accepted by Babel. Keep the
+                // compiler enabled rather than turning a parser difference into a false negative.
+                return Ok(true);
             }
 
-            Ok(react_compiler::is_required(&program))
+            Ok(swc_ecma_react_compiler::fast_check::is_required(&program))
         })
     }
 

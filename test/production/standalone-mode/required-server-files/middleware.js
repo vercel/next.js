@@ -9,5 +9,8 @@ export async function middleware(req) {
       height: 600,
     })
   }
+  if (req.nextUrl.pathname === '/dynamic/secret') {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
   return NextResponse.next()
 }

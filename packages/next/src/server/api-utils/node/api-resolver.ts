@@ -180,25 +180,24 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
-  const jsonwebtoken =
-    require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
+  const { createSigner } =
+    require('next/dist/compiled/fast-jwt') as typeof import('next/dist/compiled/fast-jwt')
   const { encryptWithSecret } =
     require('../../crypto-utils') as typeof import('../../crypto-utils')
-  const payload = jsonwebtoken.sign(
-    {
-      data: encryptWithSecret(
-        Buffer.from(options.previewModeEncryptionKey),
-        JSON.stringify(data)
-      ),
-    },
-    options.previewModeSigningKey,
-    {
-      algorithm: 'HS256',
-      ...(options.maxAge !== undefined
-        ? { expiresIn: options.maxAge }
-        : undefined),
-    }
-  )
+  const sign = createSigner({
+    key: options.previewModeSigningKey,
+    algorithm: 'HS256',
+    // Preview maxAge is in seconds, but fast-jwt expects milliseconds.
+    ...(options.maxAge !== undefined
+      ? { expiresIn: options.maxAge * 1000 }
+      : undefined),
+  })
+  const payload = sign({
+    data: encryptWithSecret(
+      Buffer.from(options.previewModeEncryptionKey),
+      JSON.stringify(data)
+    ),
+  })
 
   // limit preview mode cookie to 2KB since we shouldn't store too much
   // data here and browsers drop cookies over 4KB
@@ -258,7 +257,7 @@ async function revalidate(
       `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
     )
   }
-  const revalidateHeaders: HeadersInit = {
+  const headers: HeadersInit = {
     [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
@@ -280,7 +279,7 @@ async function revalidate(
 
   for (const key of Object.keys(req.headers)) {
     if (allowedRevalidateHeaderKeys.includes(key)) {
-      revalidateHeaders[key] = req.headers[key] as string
+      headers[key] = req.headers[key] as string
     }
   }
 
@@ -293,7 +292,7 @@ async function revalidate(
     if (internalRevalidate) {
       return await internalRevalidate({
         urlPath,
-        revalidateHeaders,
+        headers,
         opts,
       })
     }
@@ -301,7 +300,7 @@ async function revalidate(
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
         method: 'HEAD',
-        headers: revalidateHeaders,
+        headers,
       })
       // we use the cache header to determine successful revalidate as
       // a non-200 status code can be returned from a successful revalidate

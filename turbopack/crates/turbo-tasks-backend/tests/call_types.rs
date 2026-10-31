@@ -24,7 +24,7 @@ async fn test_functions() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_functions_operation(nonce: u32) -> Result<Vc<()>> {
     let _ = nonce; // ensure the nonce is part of our cache key
 
@@ -77,7 +77,7 @@ async fn test_methods() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_methods_operation() -> Result<Vc<()>> {
     assert_eq!(*Value::static_method().await?, 42);
     assert_eq!(*Value::async_static_method().await?, 42);
@@ -138,7 +138,7 @@ async fn test_trait_methods() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_trait_methods_operation() -> Result<Vc<()>> {
     assert_eq!(*Value::static_trait_method().await?, 42);
     assert_eq!(*Value::async_static_trait_method().await?, 42);

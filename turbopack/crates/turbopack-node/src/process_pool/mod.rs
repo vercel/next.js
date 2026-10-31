@@ -1,15 +1,16 @@
 use std::{
+    collections::VecDeque,
     future::Future,
     mem::take,
     path::{Path, PathBuf},
     process::{ExitStatus, Stdio},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, bail};
+use bytes::Bytes;
 use futures::join;
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
@@ -32,7 +33,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 use crate::{
     AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
-    evaluate::{EvaluateOperation, EvaluatePool, Operation},
+    evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
     source_map::apply_source_mapping,
@@ -46,6 +47,11 @@ struct NodeJsPoolProcess {
     connection: TcpStream,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
+    /// Shared ring buffer of recent stdout lines; lives independently of
+    /// `stdout_handler` so the post-mortem on a recv failure can still read
+    /// it after the handler future has returned an error.
+    recent_stdout: RecentLines,
+    recent_stderr: RecentLines,
     debug: bool,
     cpu_time_invested: Duration,
 }
@@ -79,6 +85,10 @@ impl PartialEq for NodeJsPoolProcess {
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Exit code used by the child process when it cannot connect to the port we
+/// listen on (see `js/src/child_process/index.ts`).
+const CONNECT_FAILED_EXIT_CODE: i32 = 69;
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct OutputEntry {
     data: Arc<[u8]>,
@@ -91,6 +101,17 @@ static GLOBAL_OUTPUT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_ne
 static MARKER: &[u8] = b"TURBOPACK_OUTPUT_";
 static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 
+/// Maximum number of recent output lines retained per stream for diagnostic
+/// purposes — included in the error message when the subprocess crashes
+/// before completing a recv.
+const RECENT_OUTPUT_LINES: usize = 100;
+
+/// A bounded ring buffer of recent lines from a child stream. Shared with the
+/// owning [`NodeJsPoolProcess`] so that the post-mortem code on a recv failure
+/// can read what the child wrote even if the handler future has already
+/// returned an error (and dropped its local state).
+type RecentLines = Arc<Mutex<VecDeque<Vec<u8>>>>;
+
 struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
@@ -98,6 +119,7 @@ struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     root: FileSystemPath,
     project_dir: FileSystemPath,
     final_stream: W,
+    recent_lines: RecentLines,
 }
 
 impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
@@ -113,6 +135,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             root,
             project_dir,
             final_stream,
+            recent_lines,
         } = self;
 
         async fn write_final<W: AsyncWrite + Unpin>(
@@ -183,9 +206,17 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             {
                 bail!("stream closed unexpectedly")
             }
-            if buffer.len() - start == MARKER.len() + 2
-                && &buffer[start..buffer.len() - 2] == MARKER
-            {
+            // Mirror the just-read line into the recent-lines ring buffer for
+            // diagnostic capture on subprocess crash. Skip protocol markers.
+            let line_is_marker = buffer.len() - start == MARKER.len() + 2
+                && &buffer[start..buffer.len() - 2] == MARKER;
+            if !line_is_marker {
+                let mut lines = recent_lines.lock();
+                if lines.len() >= RECENT_OUTPUT_LINES {
+                    lines.pop_front();
+                }
+                lines.push_back(buffer[start..].to_vec());
+            } else {
                 // This is new line
                 buffer.pop();
                 // This is the type
@@ -284,7 +315,7 @@ impl NodeJsPoolProcess {
         shared_stderr: SharedOutputSet,
         debug: bool,
     ) -> Result<Self> {
-        let guard = duration_span!("Node.js process startup");
+        let guard = duration_span!("Node.js process startup", blocking = false);
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;
@@ -353,6 +384,9 @@ impl NodeJsPoolProcess {
                 match status {
                     Ok(status) => {
                         let (stdout, stderr) = get_output(&mut child).await?;
+                        if status.code() == Some(CONNECT_FAILED_EXIT_CODE) {
+                            return Err(NodeJsConnectError { stderr }.into());
+                        }
                         bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
                     }
                     Err(err) => {
@@ -373,6 +407,11 @@ impl NodeJsPoolProcess {
         let child_stdout = BufReader::new(child.stdout.take().unwrap());
         let child_stderr = BufReader::new(child.stderr.take().unwrap());
 
+        let recent_stdout: RecentLines =
+            Arc::new(Mutex::new(VecDeque::with_capacity(RECENT_OUTPUT_LINES)));
+        let recent_stderr: RecentLines =
+            Arc::new(Mutex::new(VecDeque::with_capacity(RECENT_OUTPUT_LINES)));
+
         let stdout_handler = OutputStreamHandler {
             stream: child_stdout,
             shared: shared_stdout,
@@ -380,6 +419,7 @@ impl NodeJsPoolProcess {
             root: assets_root.clone(),
             project_dir: project_dir.clone(),
             final_stream: stdout(),
+            recent_lines: recent_stdout.clone(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
@@ -388,6 +428,7 @@ impl NodeJsPoolProcess {
             root: assets_root.clone(),
             project_dir: project_dir.clone(),
             final_stream: stderr(),
+            recent_lines: recent_stderr.clone(),
         };
 
         let mut process = Self {
@@ -395,13 +436,15 @@ impl NodeJsPoolProcess {
             connection,
             stdout_handler,
             stderr_handler,
+            recent_stdout,
+            recent_stderr,
             debug,
             cpu_time_invested: Duration::ZERO,
         };
 
         drop(guard);
 
-        let guard = duration_span!("Node.js initialization");
+        let guard = duration_span!("Node.js initialization", blocking = false);
         let ready_signal = process.recv().await?;
 
         if !ready_signal.is_empty() {
@@ -416,7 +459,7 @@ impl NodeJsPoolProcess {
         Ok(process)
     }
 
-    async fn recv(&mut self) -> Result<Vec<u8>> {
+    async fn recv(&mut self) -> Result<Bytes> {
         let connection = &mut self.connection;
         async fn with_timeout<T, E: Into<anyhow::Error>>(
             debug: bool,
@@ -448,20 +491,64 @@ impl NodeJsPoolProcess {
             with_timeout(debug, true, connection.read_exact(&mut packet_data))
                 .await
                 .context("reading packet data")?;
-            Ok::<_, anyhow::Error>(packet_data)
+            Ok::<_, anyhow::Error>(packet_data.into())
         };
         let (result, stdout, stderr) = join!(
             recv_future,
             self.stdout_handler.handle_operation(),
             self.stderr_handler.handle_operation(),
         );
-        let result = result?;
+        let result = match result {
+            Err(err) => {
+                // The IPC read failed — the most common cause is the child
+                // process crashing or exiting before sending a response.
+                // Attach whatever output the child wrote (recent lines from
+                // both stream handlers + the child's exit status, if
+                // available) so the user sees something diagnostic instead
+                // of an opaque "unexpected end of file" cascade.
+                return Err(self.diagnostic_recv_error(err).await);
+            }
+            Ok(result) => result,
+        };
         stdout.context("unable to handle stdout from the Node.js process in a structured way")?;
         stderr.context("unable to handle stderr from the Node.js process in a structured way")?;
         Ok(result)
     }
 
-    async fn send(&mut self, packet_data: Vec<u8>) -> Result<()> {
+    /// Build a contextualized error for a failed [`Self::recv`]. Includes
+    /// the captured stdout/stderr ring buffers and, if the child has
+    /// terminated, its exit status.
+    async fn diagnostic_recv_error(&mut self, err: anyhow::Error) -> anyhow::Error {
+        let exit_status = match self.child.as_mut() {
+            Some(child) => match timeout(Duration::from_secs(2), child.wait()).await {
+                Ok(Ok(status)) => Some(status),
+                _ => None,
+            },
+            None => None,
+        };
+        let mut output = String::new();
+        let stdout_lines: Vec<Vec<u8>> = self.recent_stdout.lock().iter().cloned().collect();
+        let stderr_lines: Vec<Vec<u8>> = self.recent_stderr.lock().iter().cloned().collect();
+        if !stdout_lines.is_empty() {
+            output.push_str("\nRecent process stdout:\n");
+            for line in stdout_lines {
+                output.push_str(&String::from_utf8_lossy(&line));
+            }
+        }
+        if !stderr_lines.is_empty() {
+            output.push_str("\nRecent process stderr:\n");
+            for line in stderr_lines {
+                output.push_str(&String::from_utf8_lossy(&line));
+            }
+        }
+        let exit_note = match exit_status {
+            Some(status) => format!("Node.js process exited with {status}"),
+            None => "Node.js process is still running or its exit status is unavailable".into(),
+        };
+        // ast-grep-ignore: no-context-format
+        err.context(format!("{exit_note}{output}"))
+    }
+    async fn send(&mut self, packet_data: Bytes) -> Result<()> {
         self.connection
             .write_u32(
                 packet_data
@@ -487,7 +574,7 @@ type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
 
 /// All non-empty `IdleProcessQueues`s of the whole application.
 /// This is used to scale down processes globally.
-static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
+static ACTIVE_POOLS: LazyLock<IdleProcessQueues> = LazyLock::new(Default::default);
 
 /// Arguments needed to spawn a new Node.js process. Extracted so that
 /// `pre_warm` can clone them once instead of cloning each pool field
@@ -523,16 +610,21 @@ impl ProcessArgs {
     }
 }
 
-/// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
-/// [env].
+/// A pool of Node.js workers operating on an `entrypoint` with specific `cwd` and `env`.
 ///
-/// The pool will spawn processes when needed and reuses old ones. It will never
-/// spawn more then a certain number of concurrent processes. This is specified
-/// with the `concurrency` argument in the constructor.
+/// The pool will spawn processes when needed and reuses old ones. It will never spawn more then a
+/// certain number of concurrent processes. This is specified with the `concurrency` argument in the
+/// constructor.
 ///
-/// The worker will *not* use the env of the parent process by default. All env
-/// vars need to be provided to make the execution as pure as possible.
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+/// The worker will *not* use the `env` of the parent process by default. All environment variables
+/// need to be provided to make the execution as pure as possible.
+#[turbo_tasks::value(
+    cell = "new",
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    shared
+)]
 pub struct ChildProcessPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
@@ -540,21 +632,21 @@ pub struct ChildProcessPool {
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
     pub project_dir: FileSystemPath,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
     /// Semaphore to limit the number of concurrent operations in general
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
     /// Semaphore to limit the number of concurrently booting up processes
     /// (excludes one-off processes)
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     bootup_semaphore: Arc<Semaphore>,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     shared_stdout: SharedOutputSet,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     shared_stderr: SharedOutputSet,
     debug: bool,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     stats: Arc<Mutex<NodeJsPoolStats>>,
 }
 
@@ -654,7 +746,7 @@ impl EvaluateOperation for ChildProcessPool {
         // Acquire a running process (handles concurrency limits, boots up the process)
 
         let operation = {
-            let _guard = duration_span!("Node.js operation");
+            let _guard = duration_span!("Node.js operation", blocking = true);
             let (process, permits) = self.acquire_process().await?;
             ChildProcessOperation {
                 process: Some(process),
@@ -799,17 +891,15 @@ pub struct ChildProcessOperation {
 
 #[async_trait::async_trait]
 impl Operation for ChildProcessOperation {
-    async fn recv(&mut self) -> Result<Vec<u8>> {
-        let vec = self
-            .with_process(|process| async move {
-                process.recv().await.context("failed to receive message")
-            })
+    async fn recv(&mut self) -> Result<Bytes> {
+        let bytes = self
+            .with_process(async |process| process.recv().await.context("failed to receive message"))
             .await?;
-        Ok(vec)
+        Ok(bytes)
     }
 
-    async fn send(&mut self, message: Vec<u8>) -> Result<()> {
-        self.with_process(|process| async move {
+    async fn send(&mut self, message: Bytes) -> Result<()> {
+        self.with_process(async |process| {
             timeout(Duration::from_secs(30), process.send(message))
                 .await
                 .context("timeout while sending message")?

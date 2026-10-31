@@ -1,0 +1,9 @@
+;[
+  'package.json',
+  'test/unit/depth-3/asset-2.txt',
+  'test/unit/depth-3/asset.txt',
+  'test/unit/depth-3/child-1.js',
+  'test/unit/depth-3/child-2.js',
+  'test/unit/depth-3/child-3.js',
+  'test/unit/depth-3/input.js',
+]

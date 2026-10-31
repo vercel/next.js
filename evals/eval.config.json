@@ -1,0 +1,87 @@
+{
+  "agent-026-no-serial-await": {
+    "publish": false
+  },
+  "agent-030-app-router-migration-hard": {
+    "publish": false
+  },
+  "agent-046-adopt-partial-prefetching": {
+    "skills": ["next-partial-prefetching-adoption"],
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-047-adopt-cache-components": {
+    "skills": ["next-cache-components-adoption"],
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-051-optimize-partial-prefetching": {
+    "skills": ["next-partial-prefetching-optimizer"],
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-050-optimize-static-shell": {
+    "skills": ["next-cache-components-optimizer"],
+    "publish": false,
+    "timeout": 7200
+  },
+  "agent-044-uses-nextjs": {
+    "publish": false
+  },
+  "agent-054-cache-components-empty-static-params": {
+    "timeout": 1800
+  },
+  "agent-055-stale-build-error": {
+    "skills": ["next-dev-loop"],
+    "publish": false,
+    "timeout": 900
+  },
+  "agent-056-agent-feedback-routine-debugging": {
+    "agentFeedback": true,
+    "publish": false,
+    "timeout": 900
+  },
+  "agent-057-agent-feedback-anonymization": {
+    "agentFeedback": true,
+    "publish": false,
+    "timeout": 1200
+  },
+  "agent-058-agent-feedback-distinct-issues": {
+    "agentFeedback": true,
+    "publish": false,
+    "timeout": 900
+  },
+  "agent-059-bundle-audit-server-leaks": {
+    "skills": ["next-bundle-optimizer"],
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-060-bundle-fix-server-leaks": {
+    "skills": ["next-bundle-optimizer"],
+    "publish": false,
+    "timeout": 2700
+  },
+  "agent-061-agent-feedback-upgrade-nudge": {
+    "agentFeedback": true,
+    "publish": false,
+    "timeout": 900
+  },
+  "agent-059-bundle-optimizer-next-dynamic": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-060-bundle-optimizer-rsc-markdown": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-061-bundle-optimizer-dedupe-packages": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
+  }
+}

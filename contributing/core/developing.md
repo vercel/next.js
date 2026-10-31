@@ -19,10 +19,14 @@ _You'll need a working node.js environment with pnpm._
   npm install -g pnpm@latest
   ```
 
+  Corepack needs to be version 0.34.5 or newer to run pnpm 11+. Check with
+  `corepack --version`. Older versions are still bundled with some Node.js
+  releases and fail with `Cannot find module '.../bin/pnpm.cjs'`; upgrade with
+  `npm install -g corepack@latest`.
+
   `pnpm` [respects the `packageManager` field in `package.json` by
-  default](https://pnpm.io/settings#managepackagemanagerversions), even when
-  installed without Corepack. This ensures that pnpm behaves the same locally as
-  it does in CI.
+  default](https://pnpm.io/settings/cli#pmonfail), even when installed without
+  Corepack. This ensures that pnpm behaves the same locally as it does in CI.
 
 - _(Optional)_ Install [fnm](https://github.com/Schniz/fnm) or
   [nvm](https://github.com/nvm-sh/nvm). This will ensure you use the same
@@ -129,6 +133,12 @@ Or without running the build:
 pnpm pack-next --no-js-build --tar && pnpm unpack-next path/to/project
 ```
 
+To create tarballs inside the project directory with deployable relative `file:` references:
+
+```bash
+pnpm pack-next --project path/to/project --deployable-tar
+```
+
 Without going through a tarball (only works if you've added the overrides from `pack-next`):
 
 ```bash
@@ -162,7 +172,7 @@ $ pnpm unpack-next path/to/project
 
 ## Developing the Dev Overlay
 
-The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/client/components/react-dev-overlay/README.md).
+The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/next-devtools/README.md).
 
 ## `NODE_ENV` vs `__NEXT_DEV_SERVER`
 
@@ -180,17 +190,3 @@ pnpm sweep
 ```
 
 It will also clean up other caches (pnpm store, cargo, etc.) and run `git gc` for you.
-
-### MacOS disk compression
-
-If you want to automatically use APFS disk compression on macOS for `node_modules/` and `target/` you can install a launch agent with:
-
-```bash
-./scripts/LaunchAgents/install-macos-agents.sh
-```
-
-Or run it manually with:
-
-```bash
-./scripts/macos-compress.sh
-```

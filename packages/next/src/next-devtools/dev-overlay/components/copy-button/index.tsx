@@ -66,6 +66,8 @@ type CopyButtonProps = React.HTMLProps<HTMLButtonElement> & {
   actionLabel: string
   successLabel: string
   icon?: React.ReactNode
+  /** When true, render the action/success label next to the icon. */
+  showLabel?: boolean
 }
 
 export function CopyButton(
@@ -80,6 +82,7 @@ export function CopyButton(
     actionLabel,
     successLabel,
     icon,
+    showLabel,
     disabled,
     ...rest
   } = props
@@ -134,7 +137,7 @@ export function CopyButton(
     <button
       {...rest}
       type="button"
-      title={label}
+      title={showLabel ? undefined : label}
       aria-label={label}
       aria-disabled={isDisabled}
       data-nextjs-copy-button
@@ -151,12 +154,13 @@ export function CopyButton(
       }}
     >
       {renderedIcon}
+      {showLabel ? <span data-nextjs-copy-button-label>{label}</span> : null}
       {copyState.state === 'error' ? ` ${copyState.error}` : null}
     </button>
   )
 }
 
-function CopyIcon(props: React.SVGProps<SVGSVGElement>) {
+export function CopyIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="14"
@@ -215,6 +219,6 @@ export const COPY_BUTTON_STYLES = `
     color: var(--color-ansi-red);
   }
   .nextjs-data-copy-button--success:not([aria-disabled="true"]) {
-    color: var(--color-ansi-green);
+    color: var(--color-gray-900);
   }
 `

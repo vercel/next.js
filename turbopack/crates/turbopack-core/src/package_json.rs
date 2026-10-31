@@ -1,26 +1,23 @@
 use std::ops::Deref;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;
 use crate::{
     asset::Asset,
-    issue::{
-        IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString,
-    },
+    issue::{IssueExt, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
 /// wrapper is necessary so that we can reference the [FileJsonContent]'s inner
 /// [serde_json::Value] without cloning it.
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct PackageJson(ReadRef<FileJsonContent>);
 
 impl Deref for PackageJson {
@@ -33,7 +30,7 @@ impl Deref for PackageJson {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct OptionPackageJson(Option<PackageJson>);
 
 /// Reads a package.json file (if it exists). If the file is unparsable, it
@@ -69,32 +66,28 @@ pub struct PackageJsonIssue {
     pub source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for PackageJsonIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error parsing package.json file")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error parsing package.json file"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.error_message.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.error_message.clone())))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

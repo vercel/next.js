@@ -4,7 +4,7 @@ if (typeof window !== 'undefined') {
   deploymentId = document.documentElement.dataset.dplId
   // Immediately remove the attribute to prevent hydration errors (the dplId was inserted into the
   // HTML only), React isn't aware of it at all.
-  delete document.documentElement.dataset.dplId
+  document.documentElement.removeAttribute('data-dpl-id')
 } else {
   // Client side: replaced with globalThis.NEXT_DEPLOYMENT_ID
   // Server side: left as is or replaced with a string or replaced with false
@@ -24,9 +24,9 @@ export function getDeploymentIdQuery(ampersand = false): string {
 }
 
 export function getAssetToken(): string | undefined {
-  return (
-    process.env.NEXT_IMMUTABLE_ASSET_TOKEN || process.env.NEXT_DEPLOYMENT_ID
-  )
+  return process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS
+    ? undefined
+    : process.env.NEXT_DEPLOYMENT_ID
 }
 
 export function getAssetTokenQuery(ampersand = false): string {

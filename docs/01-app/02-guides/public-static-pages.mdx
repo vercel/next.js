@@ -2,6 +2,10 @@
 title: Building public pages
 description: Learn how to build public, "static" pages that share data across users, such as landing pages, list pages (products, blogs, etc.), marketing and news sites.
 nav_title: Public pages
+related:
+  links:
+    - app/guides/keeping-pages-static
+    - app/guides/incremental-static-regeneration-cache-components
 ---
 
 Public pages show the same content to every user. Common examples include landing pages, marketing pages, and product pages.
@@ -20,7 +24,7 @@ You can find the resources used in this example here:
 
 - [Video](https://youtu.be/F6romq71KtI)
 - [Demo](https://cache-components-public-pages.labs.vercel.dev/)
-- [Code](https://github.com/vercel-labs/cache-components-public-pages)
+- [Code](https://github.com/nextjs/cache-components-public-pages)
 
 ### Step 1: Add a simple header
 
@@ -44,6 +48,8 @@ export default async function Page() {
 #### Static components
 
 The `<Header />` component doesn't depend on any inputs that change between requests, such as: external data, request headers, route params, the current time, or random values.
+
+> **Good to know**: If you need to display locale-aware dates or times without a visible flash, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 Since its output never changes and can be determined ahead of time, this kind of component is called a **static** component. With no reason to wait for a request, Next.js can safely **prerender** the page at [build time](/docs/app/glossary#build-time).
 
@@ -97,7 +103,7 @@ However, if this component is rendered at request time, fetching its data will d
 
 Even though the header is rendered instantly, it can't be sent to the browser until the product list has finished fetching.
 
-To protect us from this performance cliff, Next.js will show us a [warning](/docs/messages/blocking-route) the first time we **await** data: `Blocking data was accessed outside of Suspense`
+To protect us from this performance cliff, the first time we **await** this uncached data Next.js shows a [warning](/docs/messages/blocking-prerender-dynamic): accessing uncached data outside of `<Suspense>` prevents the route from being prerendered.
 
 At this point, we have to decide how to **unblock** the response. Either:
 
@@ -244,10 +250,9 @@ If we refresh the page one last time, we can see most of the page loads instantl
 
 We've learned how to build mostly static pages that include pockets of dynamic content.
 
-We started with a static page, added async work, and resolved the blocking behavior by caching what could be prerendered, and streaming what couldn't.
+We started with a static page, added async work, and resolved the blocking behavior by caching what could be prerendered and streaming what could not. From here, you can:
 
-In future guides, we'll learn how to:
-
-- Revalidate prerendered pages or cached data.
-- Create variants of the same page with route params.
-- Create private pages with personalized user data.
+- [Keep selected route output static](/docs/app/guides/keeping-pages-static) as the application changes.
+- [Revalidate prerendered pages or cached data](/docs/app/guides/incremental-static-regeneration-cache-components).
+- [Create variants with route parameters](/docs/app/api-reference/functions/generate-static-params).
+- [Add authentication to a Cache Components application](/docs/app/guides/authentication-with-cache-components).

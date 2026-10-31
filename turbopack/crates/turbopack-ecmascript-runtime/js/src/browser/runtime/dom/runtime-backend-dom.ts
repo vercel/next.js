@@ -11,18 +11,98 @@
 
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
+  if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
+  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const qi = src.indexOf('?')
+  return qi >= 0 ? src.slice(qi) : ''
+}
+
+/**
+ * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
+ * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
+ * form of `url`.
+ *
+ * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
+ * to be escaped.
+ */
+function matchesChunkUrl(
+  value: string | null,
+  url: string,
+  decodedUrl: string
+): boolean {
   return (
-    (self.TURBOPACK_ASSET_SUFFIX ??
-      document?.currentScript
-        ?.getAttribute?.('src')
-        ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
-    ''
+    value != null &&
+    (value === url ||
+      value.startsWith(url + '?') ||
+      value === decodedUrl ||
+      value.startsWith(decodedUrl + '?'))
   )
+}
+
+// These lookups only search `<head>`: the runtime inserts its chunk tags there,
+// and chunk tags rendered into the HTML are expected there too. Tags in
+// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
+// with the size of the page content. A chunk whose tag is only in `<body>` is
+// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
+// `<body>` tags in place.
+//
+// They iterate the tag collection and compare attribute values as plain
+// strings. `querySelectorAll` with attribute selectors would need the URL to be
+// CSS-escaped.
+
+/**
+ * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ */
+function findChunkScripts(url: string): HTMLScriptElement[] {
+  const decodedUrl = decodeURI(url)
+  const scripts = document.head.getElementsByTagName('script')
+  const result: HTMLScriptElement[] = []
+  for (let i = 0; i < scripts.length; i++) {
+    const script = scripts[i]
+    if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+      result.push(script)
+    }
+  }
+  return result
+}
+
+/**
+ * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
+ * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
+ * (ASCII case-insensitive) are returned.
+ */
+function findChunkLinks(
+  url: string,
+  stylesheetsOnly: boolean = false
+): HTMLLinkElement[] {
+  const decodedUrl = decodeURI(url)
+  const links = document.head.getElementsByTagName('link')
+  const result: HTMLLinkElement[] = []
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i]
+    if (
+      (!stylesheetsOnly ||
+        link.getAttribute('rel')?.toLowerCase() === 'stylesheet') &&
+      matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)
+    ) {
+      result.push(link)
+    }
+  }
+  return result
+}
+
+/**
+ * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
+ * refers to `url`.
+ */
+function findChunkStylesheets(url: string): HTMLLinkElement[] {
+  return findChunkLinks(url, true)
 }
 
 type ChunkResolver = {
   resolved: boolean
   loadingStarted: boolean
+  retryAttempts: number
   resolve: () => void
   reject: (error?: Error) => void
   promise: Promise<any>
@@ -38,11 +118,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 ;(() => {
   BACKEND = {
     async registerChunk(chunk, params) {
-      let chunkPath = getPathFromScript(chunk)
-      let chunkUrl = getUrlFromScript(chunk)
-
-      const resolver = getOrCreateResolver(chunkUrl)
-      resolver.resolve()
+      // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
+      let chunkPath: ChunkPath | undefined
+      if (chunk != null) {
+        chunkPath = getPathFromScript(chunk)
+        const resolver = getOrCreateResolver(getUrlFromScript(chunk))
+        resolver.resolve()
+      }
 
       if (params == null) {
         return
@@ -77,34 +159,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
       return doLoadChunk(sourceType, chunkUrl)
     },
-
-    async loadWebAssembly(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      wasmChunkPath: ChunkPath,
-      _edgeModule: () => WebAssembly.Module,
-      importsObj: WebAssembly.Imports
-    ): Promise<Exports> {
-      const req = fetchWebAssembly(wasmChunkPath)
-
-      const { instance } = await WebAssembly.instantiateStreaming(
-        req,
-        importsObj
-      )
-
-      return instance.exports
-    },
-
-    async loadWebAssemblyModule(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      wasmChunkPath: ChunkPath,
-      _edgeModule: () => WebAssembly.Module
-    ): Promise<WebAssembly.Module> {
-      const req = fetchWebAssembly(wasmChunkPath)
-
-      return await WebAssembly.compileStreaming(req)
-    },
   }
 
   function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
@@ -119,6 +173,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       resolver = {
         resolved: false,
         loadingStarted: false,
+        retryAttempts: 0,
         promise,
         resolve: () => {
           resolver!.resolved = true
@@ -129,6 +184,72 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       chunkResolvers.set(chunkUrl, resolver)
     }
     return resolver
+  }
+
+  /**
+   * Rejects a chunk resolver and drops it from the cache.
+   * We don't want to cache failed chunk loads: a later
+   * request for the same chunk should try again.
+   */
+  function rejectChunkResolver(
+    chunkUrl: ChunkUrl,
+    resolver: ChunkResolver,
+    error?: Error
+  ) {
+    if (chunkResolvers.get(chunkUrl) === resolver) {
+      chunkResolvers.delete(chunkUrl)
+    }
+    resolver.reject(error)
+  }
+
+  function getChunkLoadRetryDelayMs() {
+    const jitter = Math.floor(
+      Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1)
+    )
+    return CHUNK_LOAD_RETRY_BASE_DELAY_MS + jitter
+  }
+
+  function isRetryableChunkLoadError(error?: Error): boolean {
+    return (
+      error == null ||
+      (error instanceof DOMException && error.name === 'NetworkError')
+    )
+  }
+
+  /**
+   * Handles a failed chunk load: retries the load once after a short delay.
+   */
+  function onChunkLoadError(
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolver: ChunkResolver,
+    error?: Error,
+    reload?: () => void
+  ) {
+    if (
+      !isRetryableChunkLoadError(error) ||
+      resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS ||
+      chunkResolvers.get(chunkUrl) !== resolver
+    ) {
+      rejectChunkResolver(chunkUrl, resolver, error)
+      return
+    }
+
+    resolver.retryAttempts++
+    setTimeout(() => {
+      // if this chunk is being fetched multiple times, and one of those
+      // attempts succeeds. or, if this chunk has another resolver
+      // mapped to it - it's safe to skip retrying.
+      if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+        return
+      }
+      if (reload) {
+        reload()
+      } else {
+        resolver.loadingStarted = false
+        doLoadChunk(sourceType, chunkUrl)
+      }
+    }, getChunkLoadRetryDelayMs())
   }
 
   /**
@@ -165,59 +286,73 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(chunkUrl)
+        try {
+          importScripts(chunkUrl)
+        } catch (error) {
+          onChunkLoadError(sourceType, chunkUrl, resolver, error as Error)
+        }
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`
         )
       }
     } else {
-      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-      const decodedChunkUrl = decodeURI(chunkUrl)
-
       if (isCss(chunkUrl)) {
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
-        )
+        const previousLinks = findChunkStylesheets(chunkUrl)
         if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
           resolver.resolve()
         } else {
-          const link = document.createElement('link')
-          link.rel = 'stylesheet'
-          link.href = chunkUrl
-          link.onerror = () => {
-            resolver.reject()
-          }
-          link.onload = () => {
-            // CSS chunks do not register themselves, and as such must be marked as
-            // loaded instantly.
-            resolver.resolve()
+          const createLink = () => {
+            const link = document.createElement('link')
+            link.rel = 'stylesheet'
+            link.crossOrigin = CROSS_ORIGIN
+            link.href = chunkUrl
+            link.onerror = () => {
+              // Re-insert a fresh tag at the same position on retry to preserve
+              // cascade order.
+              const anchor = document.createComment('')
+              link.replaceWith(anchor)
+              onChunkLoadError(sourceType, chunkUrl, resolver, undefined, () =>
+                anchor.replaceWith(createLink())
+              )
+            }
+            link.onload = () => {
+              // CSS chunks do not register themselves, and as such must be marked as
+              // loaded instantly.
+              resolver.resolve()
+            }
+            return link
           }
           // Append to the `head` for webpack compatibility.
-          document.head.appendChild(link)
+          document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
-        const previousScripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
-        )
+        const previousScripts = findChunkScripts(chunkUrl)
         if (previousScripts.length > 0) {
-          // There is this edge where the script already failed loading, but we
-          // can't detect that. The Promise will never resolve in this case.
-          for (const script of Array.from(previousScripts)) {
-            script.addEventListener('error', () => {
-              resolver.reject()
-            })
+          for (const script of previousScripts) {
+            script.addEventListener(
+              'error',
+              () => {
+                // Drop the failed tag so a retry can re-add it cleanly.
+                script.remove()
+                onChunkLoadError(sourceType, chunkUrl, resolver)
+              },
+              { once: true }
+            )
           }
         } else {
           const script = document.createElement('script')
+          script.crossOrigin = CROSS_ORIGIN
           script.src = chunkUrl
           // We'll only mark the chunk as loaded once the script has been executed,
           // which happens in `registerChunk`. Hence the absence of `resolve()` in
           // this branch.
           script.onerror = () => {
-            resolver.reject()
+            // Drop the failed tag so a retry can re-add it cleanly.
+            script.remove()
+            onChunkLoadError(sourceType, chunkUrl, resolver)
           }
           // Append to the `head` for webpack compatibility.
           document.head.appendChild(script)
@@ -229,9 +364,5 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
     resolver.loadingStarted = true
     return resolver.promise
-  }
-
-  function fetchWebAssembly(wasmChunkPath: ChunkPath) {
-    return fetch(getChunkRelativeUrl(wasmChunkPath))
   }
 })()

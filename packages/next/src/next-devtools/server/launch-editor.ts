@@ -61,7 +61,11 @@ const COMMON_EDITORS_MACOS = {
     '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl',
   '/Applications/Visual Studio Code.app/Contents/MacOS/Electron':
     '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+  '/Applications/Visual Studio Code.app/Contents/MacOS/Code':
+    '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
   '/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Electron':
+    '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code',
+  '/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Code - Insiders':
     '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code',
   '/Applications/VSCodium.app/Contents/MacOS/Electron':
     '/Applications/VSCodium.app/Contents/Resources/app/bin/code',

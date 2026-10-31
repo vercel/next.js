@@ -1,4 +1,5 @@
 import type { ExportRouteResult } from '../types'
+import type { RouteCacheMetadata } from './types'
 import type {
   PagesRenderContext,
   PagesSharedContext,
@@ -43,7 +44,8 @@ export async function exportPagesPage(
   hasOrigQueryValues: boolean,
   renderOpts: RenderOpts,
   components: LoadComponentsReturnType,
-  fileWriter: MultiFileWriter
+  fileWriter: MultiFileWriter,
+  routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult | undefined> {
   if (components.getServerSideProps) {
     throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
@@ -113,7 +115,7 @@ export async function exportPagesPage(
     renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
 
   const metadata = renderResult?.metadata || {}
-  if (metadata.pageData) {
+  if (metadata.pageData && !ssgNotFound) {
     const dataFile = join(
       pagesDataDir,
       htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
@@ -125,6 +127,12 @@ export async function exportPagesPage(
   if (!ssgNotFound) {
     // don't attempt writing to disk if getStaticProps returned not found
     fileWriter.append(htmlFilepath, html)
+    if (routeCache) {
+      fileWriter.append(
+        htmlFilepath.replace(/\.html$/, '.meta'),
+        JSON.stringify({ routeCache })
+      )
+    }
   }
 
   return {

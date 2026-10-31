@@ -6,9 +6,11 @@ export const styles = css`
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
     --next-dialog-padding: 12px;
-    --next-dialog-notch-height: 42px;
     --next-dialog-border-width: 1px;
 
+    background-color: var(--color-gray-100);
+    padding: 0 4px 4px 4px;
+    border-radius: var(--rounded-2xl);
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -25,15 +27,6 @@ export const styles = css`
     &[data-rendered='true'] {
       opacity: 1;
       scale: 1;
-    }
-
-    [data-nextjs-scroll-fader][data-side='top'] {
-      left: 1px;
-      top: calc(
-        var(--next-dialog-notch-height) + var(--next-dialog-border-width)
-      );
-      width: calc(100% - var(--next-dialog-padding));
-      opacity: 0;
     }
   }
 
@@ -61,12 +54,16 @@ export const styles = css`
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: var(--next-dialog-padding);
+    padding: 0;
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
+    display: flex;
+    flex-direction: column;
     flex-shrink: 0;
+    gap: 4px;
     margin-bottom: 8px;
+    padding: 20px;
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {

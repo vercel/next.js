@@ -1,7 +1,6 @@
 #![allow(internal_features)]
 #![feature(proc_macro_diagnostic)]
 #![feature(allow_internal_unstable)]
-#![feature(box_patterns)]
 
 mod assert_fields;
 mod derive;
@@ -9,6 +8,7 @@ mod func;
 mod function_macro;
 mod global_name;
 mod primitive_macro;
+mod task_input_attr_macro;
 mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
@@ -22,11 +22,6 @@ mod value_trait_arguments;
 
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
-
-#[proc_macro_derive(TraceRawVcs, attributes(turbo_tasks))]
-pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
-    derive::derive_trace_raw_vcs(input)
-}
 
 #[proc_macro_derive(NonLocalValue, attributes(turbo_tasks))]
 pub fn derive_non_local_value_attr(input: TokenStream) -> TokenStream {
@@ -51,11 +46,6 @@ pub fn derive_value_debug_format_attr(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DeterministicHash, attributes(turbo_tasks))]
 pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     derive::derive_deterministic_hash(input)
-}
-
-#[proc_macro_derive(TaskInput, attributes(turbo_tasks))]
-pub fn derive_task_input(input: TokenStream) -> TokenStream {
-    derive::derive_task_input(input)
 }
 
 /// Derive macro for `ValueToString`. Also generates `ValueToStringify for &T`.
@@ -83,6 +73,11 @@ pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
+    task_input_attr_macro::task_input(args, input)
 }
 
 /// <!--

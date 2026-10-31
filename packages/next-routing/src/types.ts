@@ -58,7 +58,17 @@ export type ResolveRoutesParams = {
     locales: string[]
   }
   routes: {
+    /**
+     * When false (default), route matching is case-insensitive to mirror
+     * Next.js default behavior. When true, matches are case-sensitive.
+     */
+    caseSensitive?: boolean
     beforeMiddleware: Array<Route>
+    /**
+     * Middleware matcher definitions used to decide whether middleware should
+     * be invoked for the current request.
+     */
+    middlewareMatchers?: Array<Route>
     beforeFiles: Array<Route>
     afterFiles: Array<Route>
     dynamicRoutes: Array<Route>
@@ -69,6 +79,20 @@ export type ResolveRoutesParams = {
   invokeMiddleware: (ctx: MiddlewareContext) => Promise<MiddlewareResult>
 }
 
+export type ResolveRoutesQueryValue = string | string[]
+export type ResolveRoutesQuery = Record<string, ResolveRoutesQueryValue>
+
+export type RouteInvocationTarget = {
+  /**
+   * Concrete pathname that should be invoked after routing resolution.
+   */
+  pathname: string
+  /**
+   * Concrete query that should be invoked after routing resolution.
+   */
+  query: ResolveRoutesQuery
+}
+
 export type ResolveRoutesResult = {
   middlewareResponded?: boolean
   externalRewrite?: URL
@@ -76,7 +100,19 @@ export type ResolveRoutesResult = {
     url: URL
     status: number
   }
-  matchedPathname?: string
+  /**
+   * Resolved pathname selected by route matching. For dynamic routes this is
+   * the matched template pathname.
+   */
+  resolvedPathname?: string
+  /**
+   * Merged query produced by rewrite/middleware routing.
+   */
+  resolvedQuery?: ResolveRoutesQuery
+  /**
+   * Concrete invocation target to use when invoking the resolved route/module.
+   */
+  invocationTarget?: RouteInvocationTarget
   resolvedHeaders?: Headers
   status?: number
   routeMatches?: Record<string, string>

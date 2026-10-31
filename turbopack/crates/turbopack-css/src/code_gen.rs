@@ -5,9 +5,9 @@ use crate::chunk::CssImport;
 
 /// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub struct CodeGeneration {
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     pub imports: Vec<CssImport>,
 }
 

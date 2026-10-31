@@ -70,10 +70,13 @@ pub const NODE_EXTERNALS: [&str; 68] = [
     "zlib",
 ];
 
-/// List of node.js internals that are supported by edge runtime.
-/// If anything Node.js builtin module apart from these these imports are
-/// used and user does not provide alias for the polyfill, a runtime error will be thrown.
-/// See https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+/// The Node.js built-in modules that are supported by edge runtime.
+///
+/// If any Node.js builtin module apart from these these imports are used and the user does not
+/// provide an alias for it (i.e. a polyfill), a runtime error will be thrown.
+///
+/// See <https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules>
+//
 // SAFETY: This has to be sorted alphabetically since we are doing binary search on it
 pub const EDGE_NODE_EXTERNALS: [&str; 7] = [
     "assert",

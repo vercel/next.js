@@ -5,17 +5,16 @@
 
 mod util;
 
-use std::{env, path::PathBuf};
+use std::{env, fs::canonicalize, path::PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
-use dunce::canonicalize;
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
+    debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -26,9 +25,14 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
+    global_module_ids::get_global_module_id_strategy,
+    module_options::{
+        EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
+        side_effect_free_packages_glob,
+    },
 };
 use turbopack_core::{
+    asset::AssetContent,
     chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -39,16 +43,23 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        ExternalTraced, ExternalType,
-        options::{ImportMap, ImportMapping},
+        ExternalTraced, ExternalType, ResolveResult,
+        options::{
+            ImportMap, ImportMapResult, ImportMapping, ImportMappingReplacement,
+            ReplacedImportMapping,
+        },
+        parse::Request,
+        pattern::Pattern,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -77,12 +88,12 @@ struct RunTestResult {
 struct JsResult {
     uncaught_exceptions: Vec<String>,
     unhandled_rejections: Vec<String>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     jest_result: JestRunResult,
 }
 
-#[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -213,51 +224,95 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         noop_backing_storage(),
     ));
 
-    tt.run_once(async move {
-        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
-        let result = emit_op.read_strongly_consistent().owned().await?;
-        apply_effects(emit_op).await?;
+    #[turbo_tasks::value(serialization = "skip", evict = "never")]
+    struct JsResultWithEffects {
+        result: ReadRef<JsResult>,
+        effects: Effects,
+    }
 
-        Ok(result)
+    #[turbo_tasks::function(operation, root)]
+    async fn run_inner_operation(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResult>> {
+        let prepared_test = prepare_test(resource).to_resolved().await?;
+        let run_result_op = run_test_operation(prepared_test);
+        if snapshot_mode == IssueSnapshotMode::Snapshots {
+            snapshot_issues(*prepared_test, run_result_op).await?;
+        }
+
+        let result = (*run_result_op.connect().await?.js_result.await?).clone();
+
+        Ok(result.cell())
+    }
+
+    /// Wrapper operation that collects all effects (including snapshot issue file writes) from
+    /// [`run_inner_operation`].
+    #[turbo_tasks::function(operation, root)]
+    async fn run_inner_operation_with_effects(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResultWithEffects>> {
+        let op = run_inner_operation(resource, snapshot_mode);
+        let result = op.connect().await?.clone();
+        let effects = take_effects(op).await?;
+        Ok(JsResultWithEffects { result, effects }.cell())
+    }
+
+    tt.run_once(async move {
+        let op = run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode);
+        let result_with_effects =
+            read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
+
+        Ok((*result_with_effects.result).clone())
     })
     .await
 }
 
-#[turbo_tasks::function(operation)]
-async fn run_inner_operation(
-    resource: RcStr,
-    snapshot_mode: IssueSnapshotMode,
-) -> Result<Vc<JsResult>> {
-    let prepared_test = prepare_test(resource).to_resolved().await?;
-    let run_result_op = run_test_operation(prepared_test);
-    if snapshot_mode == IssueSnapshotMode::Snapshots {
-        snapshot_issues(*prepared_test, run_result_op).await?;
-    }
-
-    Ok(*run_result_op.connect().await?.js_result)
-}
-
-#[derive(
-    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, Debug, Deserialize, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
-    #[serde(default = "default_tree_shaking_mode")]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default = "default_true")]
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default = "default_true")]
     remove_unused_imports: bool,
     #[serde(default = "default_true")]
     remove_unused_exports: bool,
     #[serde(default = "default_true")]
     scope_hoisting: bool,
+    #[serde(default = "default_true")]
+    infer_module_side_effects: bool,
+    #[serde(default)]
+    cjs_tree_shaking: bool,
+    #[serde(default = "default_true")]
+    mangle_export_names: bool,
+    #[serde(default = "default_true")]
+    mangle_via_materialized_namespace_object: bool,
+    #[serde(default = "default_true")]
+    cross_module_constants: bool,
+    #[serde(default)]
+    cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
-}
-
-fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
-    Some(TreeShakingMode::ReexportsOnly)
+    #[serde(default)]
+    global_module_ids: bool,
+    /// Assign numeric module ids, as production builds do, instead of the
+    /// human-readable ident-based ids tests use by default.
+    #[serde(default)]
+    numeric_module_ids: bool,
+    /// Packages that are assumed to be side effect free, unless they declare otherwise in their
+    /// package.json.
+    #[serde(default)]
+    side_effect_free_packages: Vec<RcStr>,
+    /// Whether a request starting with `/` resolves from the test's directory. Set this to `false`
+    /// to leave `ResolveOptions::server_relative_root` unset, as an embedder that doesn't support
+    /// such requests would, which makes them unresolvable.
+    #[serde(default = "default_true")]
+    server_relative_root: bool,
 }
 
 fn default_true() -> bool {
@@ -267,12 +322,23 @@ fn default_true() -> bool {
 impl Default for TestOptions {
     fn default() -> Self {
         Self {
-            tree_shaking_mode: default_tree_shaking_mode(),
+            follow_reexports: default_true(),
+            module_fragments_enabled: false,
             remove_unused_exports: default_true(),
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
+            cjs_tree_shaking: false,
+            mangle_export_names: default_true(),
+            mangle_via_materialized_namespace_object: default_true(),
+            cjs_scope_hoisting: false,
+            cross_module_constants: true,
+            infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            global_module_ids: false,
+            numeric_module_ids: false,
+            side_effect_free_packages: Vec::new(),
+            server_relative_root: default_true(),
         }
     }
 }
@@ -296,15 +362,17 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone());
-    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
+    let root_fs = DiskFileSystem::new(rcstr!("workspace"), Vc::cell(REPO_ROOT.clone()));
+    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
     let project_root = project_fs.root().owned().await?;
 
-    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
-        "stripping repo root {:?} from resource path {:?}",
-        &*REPO_ROOT,
-        resource_path.display()
-    ))?;
+    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
+        format!(
+            "stripping repo root {:?} from resource path {:?}",
+            REPO_ROOT,
+            resource_path.display()
+        )
+    })?;
     let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let path = root_fs.root().await?.join(&relative_path)?;
     let project_path = project_root.join(&relative_path)?;
@@ -333,7 +401,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<Vc<RunTestResult>> {
     let PreparedTest {
         path,
@@ -374,6 +442,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
+        rcstr!("generated-chain/"),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            GeneratedChainReplacer {
+                dir: project_path.join("input/generated-chain")?,
+            }
+            .resolved_cell(),
+        ))
+        .resolved_cell(),
+    );
+    import_map.insert_wildcard_alias(
         rcstr!("esm-external/"),
         ImportMapping::External(
             Some(rcstr!("*")),
@@ -398,6 +476,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    let side_effect_free_packages = if options.side_effect_free_packages.is_empty() {
+        None
+    } else {
+        Some(
+            side_effect_free_packages_glob(Vc::cell(options.side_effect_free_packages.clone()))
+                .to_resolved()
+                .await?,
+        )
+    };
+
     let mut fallback_import_map = ImportMap::empty();
     fallback_import_map.insert_exact_alias(
         rcstr!("fallback"),
@@ -420,15 +508,25 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_import_as_bytes: true,
                 import_externals: true,
                 enable_exports_info_inlining: true,
-                infer_module_side_effects: true,
+                cjs_tree_shaking: options.cjs_tree_shaking,
+                mangle_export_names: options.mangle_export_names,
+                mangle_via_materialized_namespace_object: options
+                    .mangle_via_materialized_namespace_object,
+                cjs_scope_hoisting: options.cjs_scope_hoisting,
+                cross_module_constants: options.cross_module_constants,
+                infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()
             },
             environment: Some(env),
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
+            side_effect_free_packages,
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
+                    side_effect_free_packages,
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -442,6 +540,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             enable_node_native_modules: true,
             enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
+            // A `/`-rooted request resolves from the test's own directory, which is not the root
+            // of the filesystem (that is the repository root), so the two are distinguishable.
+            server_relative_root: options.server_relative_root.then(|| project_path.clone()),
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ResolveOptionsContext {
@@ -489,15 +590,27 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let single_graph = SingleModuleGraph::new_with_entries(
         entries.graph_entries().to_resolved().await?,
-        false,
-        true,
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_side_effect_free_module_info` (run below via `compute_binding_usage_info`
+            // when removing unused imports) reads `side_effects` from the graph node.
+            include_side_effects: options.remove_unused_imports,
+            // Module merging (driven by `scope_hoisting` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: options.scope_hoisting,
+            // `get_global_module_id_strategy` (used for global/numeric ids below) reads the
+            // stringified ident from the graph node.
+            include_ident_strings: options.global_module_ids || options.numeric_module_ids,
+            ..Default::default()
+        },
     );
-    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(compute_binding_usage_info(
             module_graph,
             options.remove_unused_imports,
+            /* drop_unused_module_data */ false,
         ))
     } else {
         None
@@ -505,8 +618,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     if options.remove_unused_imports
         && let Some(binding_usage) = binding_usage
     {
-        module_graph =
-            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+        module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     }
     let module_graph = module_graph.connect();
 
@@ -534,6 +646,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         None
     });
+
+    // Production builds assign numeric module ids; the default ident-based ids are strings.
+    // Exercising both matters for code that keys off the module cache, since `ModuleId` is
+    // `string | number`.
+    if options.global_module_ids || options.numeric_module_ids {
+        builder = builder.module_id_strategy(
+            get_global_module_id_strategy(module_graph)
+                .to_resolved()
+                .await?,
+        );
+    }
 
     if options.remove_unused_imports {
         builder = builder.unused_references(
@@ -608,18 +731,94 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
     run_result_op: OperationVc<RunTestResult>,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     let PreparedTest { path, .. } = &*prepared_test.await?;
-    let _ = run_result_op.resolve_strongly_consistent().await;
+    let _ = run_result_op.resolve().strongly_consistent().await;
 
     let plain_issues = run_result_op
         .peek_issues()
-        .get_plain_issues(IssueFilter::everything())
+        .get_plain_issues(&IssueFilter::everything())
         .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await
         .context("Unable to handle issues")?;
 
-    Ok(Default::default())
+    Ok(())
+}
+
+/// Resolves `generated-chain/<kind>/<n>` to a generated module that loads
+/// `generated-chain/<kind>/<n - 1>`, so a test can build a module chain of any depth without
+/// fixture files. `<kind>` is `esm` (static `import`) or `cjs` (`require`), and `<n> = 0` is the
+/// leaf. Each module exports `depth`, the number of modules from it to the leaf, inclusive.
+///
+/// When the leaf evaluates, it stores the number of `module evaluation` frames on the stack in
+/// `globalThis.__generatedChainEvaluationFrames[kind]`, so a test can check that the chain was
+/// evaluated one module at a time instead of being merged into fewer modules.
+#[turbo_tasks::value]
+struct GeneratedChainReplacer {
+    /// The generated modules are placed in this directory, as `<kind>/<n>.js`, so their idents
+    /// and output chunks show where they come from.
+    dir: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for GeneratedChainReplacer {
+    #[turbo_tasks::function]
+    async fn replace(&self, capture: Vc<Pattern>) -> Result<Vc<ReplacedImportMapping>> {
+        let capture = capture.await?;
+        let Some((kind, n)) = capture
+            .as_constant_string()
+            .and_then(|capture| capture.split_once('/'))
+        else {
+            bail!("expected `generated-chain/<kind>/<n>`, got `generated-chain/{capture:?}`");
+        };
+        let n: u32 = n
+            .parse()
+            .with_context(|| format!("invalid depth in `generated-chain/{kind}/{n}`"))?;
+        let code = match (kind, n) {
+            ("esm", 0) => format!("{}\nexport const depth = 1\n", leaf_prelude(kind)),
+            ("esm", n) => format!(
+                "import {{ depth as below }} from 'generated-chain/esm/{}'\nexport const depth = \
+                 below + 1\n",
+                n - 1
+            ),
+            ("cjs", 0) => format!("{}\nexports.depth = 1;\n", leaf_prelude(kind)),
+            ("cjs", n) => format!(
+                "exports.depth = require('generated-chain/cjs/{}').depth + 1;\n",
+                n - 1
+            ),
+            (kind, _) => bail!("unknown kind `{kind}` in `generated-chain/{kind}/{n}`"),
+        };
+
+        let source = VirtualSource::new(
+            self.dir.join(&format!("{kind}/{n}.js"))?,
+            AssetContent::file(FileContent::Content(code.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ReplacedImportMapping::Direct(
+            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        )
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn result(&self, _lookup_path: FileSystemPath, _request: Vc<Request>) -> Vc<ImportMapResult> {
+        // `replace` always returns `Direct`, so this is never called.
+        ImportMapResult::NoEntry.cell()
+    }
+}
+
+/// Records how many `module evaluation` frames are on the stack when the leaf of a generated chain
+/// evaluates.
+fn leaf_prelude(kind: &str) -> String {
+    format!(
+        "const stackTraceLimit = Error.stackTraceLimit
+Error.stackTraceLimit = Infinity
+const frames = new Error().stack.split('\\n').filter((line) => line.includes('module evaluation'))
+Error.stackTraceLimit = stackTraceLimit
+globalThis.__generatedChainEvaluationFrames ??= {{}}
+globalThis.__generatedChainEvaluationFrames.{kind} = frames.length"
+    )
 }

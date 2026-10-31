@@ -1,9 +1,8 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { Playwright } from 'next-webdriver'
 
 function getStaleness(browser: Playwright) {
   return browser

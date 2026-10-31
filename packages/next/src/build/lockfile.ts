@@ -4,10 +4,23 @@ import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
 import { getBindingsSync } from './swc'
 
-import type { Binding, Lockfile as NativeLockfile } from './swc/types'
+import type {
+  Binding,
+  Lockfile as NativeLockfile,
+  LockfileError as NativeLockfileError,
+} from './swc/types'
 
 const RETRY_DELAY_MS = 10
 const MAX_RETRY_MS = 1000
+
+class LockfileError extends Error {
+  transient: boolean
+
+  constructor(error: NativeLockfileError) {
+    super(error.message)
+    this.transient = error.transient
+  }
+}
 
 /**
  * Information about a running dev server, stored inside the lock file itself.
@@ -76,7 +89,7 @@ export class Lockfile {
   /**
    * The underlying `Lockfile` object returned by the native bindings.
    *
-   * This can be `undefined` on wasm, where we don't acquire a real lockfile.
+   * This can be `undefined` on WASM or when filesystem locking is unsupported.
    */
   private bindings: Binding
   private nativeLockfile: NativeLockfile | undefined
@@ -95,7 +108,8 @@ export class Lockfile {
    * best-effort, depending on the platform.
    *
    * - If we fail to acquire the lock, we return `undefined`.
-   * - If we're on wasm, this always returns a dummy `Lockfile` object.
+   * - If locking is unsupported, this returns a dummy `Lockfile` object.
+   * - I/O failures throw an error with the lockfile path and filesystem error message.
    *
    * @param path - Path to the lock file
    * @param unlockOnExit - Whether to unlock the file on process exit
@@ -113,19 +127,19 @@ export class Lockfile {
       )
       return new Lockfile(bindings, undefined)
     } else {
-      let nativeLockfile
-      try {
-        nativeLockfile = bindings.lockfileTryAcquireSync(path, content)
-      } catch (e) {
-        // this happens if there's an IO error (e.g. `ENOENT`), which is
-        // different than if we just didn't acquire the lock
-        throw new Error(
-          'An IO error occurred while attempting to create and acquire the lockfile',
-          { cause: e }
-        )
+      const result = bindings.lockfileTryAcquireSync(path, content)
+      if (result.type === 'error') {
+        const error = new LockfileError(result.error)
+        if (result.error.unsupported) {
+          Log.warn(
+            `Skipping creating a lockfile at ${cyan(path)} because filesystem locking is unsupported (${error.message}). Avoid running multiple Next.js processes with the same build directory.`
+          )
+          return new Lockfile(bindings, undefined)
+        }
+        throw error
       }
-      if (nativeLockfile != null) {
-        const jsLockfile = new Lockfile(bindings, nativeLockfile)
+      if (result.type === 'acquired') {
+        const jsLockfile = new Lockfile(bindings, result.lockfile)
         if (unlockOnExit) {
           const exitListener = () => {
             // Best-Effort: If we don't do this, the operating system will
@@ -152,6 +166,7 @@ export class Lockfile {
    * lockfile, then this will output an error message and exit the process with
    * a non-zero exit code.
    *
+   * This also retries transient I/O failures, logging the final error before exiting.
    * This will retry a small number of times. This can be useful when running
    * processes in a loop, e.g. if cleanup isn't fully synchronous due to child
    * parent/processes.
@@ -173,12 +188,23 @@ export class Lockfile {
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
+    let lastError: LockfileError | undefined
     while (Date.now() - startMs < MAX_RETRY_MS) {
-      lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
+      try {
+        lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
+        lastError = undefined
+      } catch (error) {
+        if (!(error instanceof LockfileError) || !error.transient) throw error
+        lastError = error
+      }
       if (lockfile !== undefined) break
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }
     if (lockfile === undefined) {
+      if (lastError !== undefined) {
+        Log.error(`Unable to acquire the lockfile at ${cyan(path)}.`, lastError)
+        process.exit(1)
+      }
       const isDev = processName === 'next dev'
 
       if (isDev) {
@@ -202,12 +228,17 @@ export class Lockfile {
             )
           }
           console.error()
+          console.error(
+            `You can access the existing server at ${cyan(serverInfo.appUrl)},`
+          )
           // Use platform-appropriate kill command
           const killCommand =
             process.platform === 'win32'
               ? `taskkill /PID ${serverInfo.pid} /F`
               : `kill ${serverInfo.pid}`
-          console.error(`Run ${cyan(killCommand)} to stop it.`)
+          console.error(
+            `or run ${cyan(killCommand)} to stop it and start a new one.`
+          )
         } else {
           // Fallback when we can't read server info from the lockfile
           Log.error(

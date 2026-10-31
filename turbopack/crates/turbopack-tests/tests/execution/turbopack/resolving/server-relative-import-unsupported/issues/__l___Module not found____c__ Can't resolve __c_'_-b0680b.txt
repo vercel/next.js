@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js:9:15  Module not found: Can't resolve '/package.json'
+  
+       5 | // guessing at that root would resolve it. It must not: reporting the request as
+       6 | // unsupported and then resolving it anyway would contradict itself.
+       7 | 
+       8 | it('should not resolve a `/`-rooted request', () => {
+         +                v----------------------v
+       9 +   expect(() => require('/package.json')).toThrow()
+         +                ^----------------------^
+      10 | })
+      11 | 
+      12 | it('should not resolve one below the importing directory either', () => {
+      13 |   expect(() => require('/input/dir/foo.js')).toThrow()
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: server relative '/package.json'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js
+  | Type of request: commonjs request
+  |

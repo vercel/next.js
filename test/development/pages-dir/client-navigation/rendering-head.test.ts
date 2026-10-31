@@ -1,11 +1,9 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering <Head />', () => {
   const { next } = nextTestSetup({

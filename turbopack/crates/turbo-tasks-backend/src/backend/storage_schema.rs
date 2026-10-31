@@ -17,32 +17,35 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-use std::sync::Arc;
+use std::{
+    hash::{BuildHasherDefault, Hash},
+    sync::Arc,
+};
 
 use parking_lot::Mutex;
+use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
-    ValueTypeId,
-    backend::{CachedTaskType, TransientTaskType},
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::counter_map::CounterMap,
+    backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
     },
 };
 
-/// Auto-set storage for small sets of keys with unit values.
-/// Optimized for small collections (< 8 items use SmallVec inline).
-type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+type TinyVec<T, const MAX: usize> = auto_hash_map::TinyVec<T, 0, MAX>;
+type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.
-type AutoMap<K, V> =
-    auto_hash_map::AutoMap<K, V, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+///
+/// See [`AutoSet`] for the meaning of `I`.
+type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
 
 /// The complete task storage schema.
 ///
@@ -53,7 +56,7 @@ type AutoMap<K, V> =
 /// - `TaskFlags` bitfield for boolean flags
 /// - Accessor methods and traits
 ///
-/// Fields are stored lazily in `Vec<LazyField>` by default for memory efficiency.
+/// Fields are stored lazily in `TinyVec<LazyField>` by default for memory efficiency.
 /// Fields with `inline` are stored directly on TaskStorage (for hot-path access).
 ///
 /// Note: This struct is consumed by the macro and does not appear in the output.
@@ -74,8 +77,14 @@ struct TaskStorageSchema {
 
     /// Tasks that depend on this task's output.
 
-    #[field(storage = "auto_set", category = "data", inline, filter_transient)]
-    output_dependent: AutoSet<TaskId>,
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        inline,
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    output_dependent: AutoSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -84,7 +93,7 @@ struct TaskStorageSchema {
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
-    upper: CounterMap<TaskId, u32>,
+    upper: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
@@ -96,15 +105,15 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    collectibles: CounterMap<CollectibleRef, i32>,
+    collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Aggregated collectibles from the subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    aggregated_collectibles: CounterMap<CollectibleRef, i32>,
+    aggregated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Outdated collectibles to be cleaned up (transient).
     #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
-    outdated_collectibles: CounterMap<CollectibleRef, i32>,
+    outdated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     // =========================================================================
     // STATE FIELDS (meta)
@@ -122,7 +131,7 @@ struct TaskStorageSchema {
 
     /// Individual dirty containers in the aggregated subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    aggregated_dirty_containers: CounterMap<TaskId, i32>,
+    aggregated_dirty_containers: CounterMap<TaskId, i32, 3>,
 
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
@@ -131,7 +140,20 @@ struct TaskStorageSchema {
 
     /// Individual clean containers in current session (transient).
     #[field(storage = "counter_map", category = "transient")]
-    aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
+    aggregated_current_session_clean_containers: CounterMap<TaskId, i32, 3>,
+
+    /// Number of **persistent** parent tasks that list this task in their `children` set.
+    #[field(storage = "direct", category = "meta", inline, default)]
+    parent_count: u32,
+
+    /// Number of **transient** in-session references to this task. Two sources bump it:
+    /// - a **transient parent** connecting this task as a child (transient parents are never
+    ///   persisted, so their edge can't count toward the durable `parent_count`), and
+    /// - a **detached handle** that holds this task's `OperationVc` outside the tracked graph
+    ///   (e.g. a `DetachedVc` passed to JS across the NAPI boundary), which pins it like a GC
+    ///   root.
+    #[field(storage = "direct", category = "transient", inline, default)]
+    transient_ref_count: u32,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -144,6 +166,14 @@ struct TaskStorageSchema {
     /// Whether the task output is immutable (persisted).
     #[field(storage = "flag", category = "data")]
     immutable: bool,
+
+    /// Whether an optimization of the aggregation number for this task is pending.
+    /// Set when an `OptimizeJob` for this task is dropped without being processed (because
+    /// the in-memory `optimize_queue` was at capacity, or the `AggregationUpdateQueue` ran
+    /// out of its optimization budget). Cleared by `optimize_task` when it actually runs.
+    /// Persisted so that a dropped optimization is recovered after restart.
+    #[field(storage = "flag", category = "meta")]
+    optimization_pending: bool,
 
     /// Whether clean in current session (transient flag).
     #[field(storage = "flag", category = "transient")]
@@ -161,21 +191,33 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     data_restored: bool,
 
-    /// Whether meta was modified before snapshot mode was entered.
+    /// Whether meta data restoration is currently in progress by another thread.
+    #[field(storage = "flag", category = "transient")]
+    meta_restoring: bool,
+
+    /// Whether data restoration is currently in progress by another thread.
+    #[field(storage = "flag", category = "transient")]
+    data_restoring: bool,
+
+    /// Whether meta has unpersisted modifications. Set by every persistable meta modification and
+    /// cleared when a snapshot captures the task.
     #[field(storage = "flag", category = "transient")]
     meta_modified: bool,
 
-    /// Whether data was modified before snapshot mode was entered.
+    /// Whether data has unpersisted modifications. Set by every persistable data modification and
+    /// cleared when a snapshot captures the task.
     #[field(storage = "flag", category = "transient")]
     data_modified: bool,
 
-    /// Whether meta was modified after snapshot mode was entered (snapshot taken).
+    /// Whether meta was captured by the in-progress snapshot and has not been persisted (encoded)
+    /// yet.
     #[field(storage = "flag", category = "transient")]
-    meta_snapshot: bool,
+    meta_snapshot_pending: bool,
 
-    /// Whether data was modified after snapshot mode was entered (snapshot taken).
+    /// Whether data was captured by the in-progress snapshot and has not been persisted (encoded)
+    /// yet.
     #[field(storage = "flag", category = "transient")]
-    data_snapshot: bool,
+    data_snapshot_pending: bool,
 
     /// Whether dependencies have been prefetched.
     #[field(storage = "flag", category = "transient")]
@@ -187,6 +229,16 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     stateful: bool,
 
+    /// Whether this task is new and needs its type persisted to the task cache.
+    /// Set when task is created, cleared after persisting.
+    #[field(storage = "flag", category = "transient")]
+    pub new_task: bool,
+
+    /// GC soft-deletion marker. Set by the garbage collector when a task is marked for deletion.
+    /// `meta` simply to ensure that setting/clearing it tracks a modification.
+    #[field(storage = "flag", category = "meta")]
+    deleted: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -197,11 +249,11 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    children: AutoSet<TaskId>,
+    children: AutoSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    followers: CounterMap<TaskId, u32>,
+    followers: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // DEPENDENCIES (data)
@@ -213,9 +265,11 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    output_dependencies: AutoSet<TaskId>,
+    output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Cells this task depends on.
+    /// Cells this task depends on as a whole (keyless `CellDependency::All`). The common case;
+    /// kept separate from `cell_dependencies_hashed` so it stores a bare `CellRef` instead of the
+    /// wider `CellDependency` enum (no tag, no `u64`).
     #[field(
         storage = "auto_set",
         category = "data",
@@ -223,7 +277,17 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
+    cell_dependencies: AutoSet<CellRef, 3>,
+
+    /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -233,51 +297,77 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    collectibles_dependencies: AutoSet<CollectiblesRef>,
+    collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_output_dependencies: AutoSet<TaskId>,
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
+    outdated_output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Outdated cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies: AutoSet<(CellRef, Option<u64>)>,
+    /// Outdated keyless cell dependencies to be cleaned up (transient).
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
+    outdated_cell_dependencies: AutoSet<CellRef, 3>,
+
+    /// Outdated hashed cell dependencies to be cleaned up (transient).
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
+    outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
+    outdated_collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
+    /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
+    /// `cell_dependencies`. In a `cell_dependents` entry the `CellRef.task` field holds the
+    /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
+    cell_dependents: AutoSet<CellRef, 3>,
+
+    /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
+    /// `cell_dependencies_hashed`.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
 
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
+    collectibles_dependents: AutoSet<(TraitTypeId, TaskId), 3>,
 
-    // =========================================================================
-    // CELL DATA (data)
-    // =========================================================================
-    /// Persistent cell data (serializable).
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        shrink_on_completion,
+        custom_drop_partial,
+        custom_mutators,
+        as_type = "AutoMap<CellId, SharedReference, 1>"
+    )]
+    cell_data: CellData,
+
+    /// Hash of transient cell data, persisted for hash-based change detection when
+    /// transient data has been evicted from memory.
+    ///
+    /// Stored as `[u8; 16]` (little-endian bytes of a u128) rather than `u128` to keep
+    /// the 1-byte alignment out of the `AutoMap` and therefore out of the `LazyField`
+    /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
+    /// alignment requirement.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
-
-    /// Transient cell data (not serializable).
-    #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    transient_cell_data: AutoMap<CellId, SharedReference>,
+    cell_data_hash: AutoMap<CellId, CellHash, 1>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_type_max_index: AutoMap<ValueTypeId, u32>,
+    cell_type_max_index: AutoMap<ValueTypeId, u32, 3>,
 
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
@@ -292,10 +382,10 @@ struct TaskStorageSchema {
 
     /// In-progress cell state for cells being computed (transient).
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    in_progress_cells: AutoMap<CellId, InProgressCellState>,
+    in_progress_cells: AutoMap<CellId, InProgressCellState, 1>,
 
     #[field(storage = "direct", category = "data", inline)]
-    pub persistent_task_type: Option<Arc<CachedTaskType>>,
+    pub persistent_task_type: Option<CachedTaskTypeArc>,
 
     #[field(storage = "direct", category = "transient")]
     pub transient_task_type: Arc<TransientTask>,
@@ -333,9 +423,26 @@ impl TaskFlags {
         }
     }
 
-    /// Check if any snapshot flag is set
-    pub fn any_snapshot(&self) -> bool {
-        self.meta_snapshot() || self.data_snapshot()
+    /// Set or clear the restoring bits for the given category
+    pub fn set_restoring(&mut self, category: TaskDataCategory, value: bool) {
+        match category {
+            TaskDataCategory::Meta => {
+                self.set_meta_restoring(value);
+            }
+            TaskDataCategory::Data => {
+                self.set_data_restoring(value);
+            }
+            TaskDataCategory::All => {
+                self.set_meta_restoring(value);
+                self.set_data_restoring(value);
+            }
+        }
+    }
+
+    /// Check if the in-progress snapshot captured any category of this task that it has not
+    /// persisted yet.
+    pub fn any_snapshot_pending(&self) -> bool {
+        self.meta_snapshot_pending() || self.data_snapshot_pending()
     }
 
     /// Check if any modified flag is set
@@ -358,21 +465,156 @@ impl TaskFlags {
             SpecificTaskDataCategory::Data => self.set_data_modified(value),
         }
     }
+}
 
-    /// Check if the specified category has a snapshot
-    pub fn is_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
-        match category {
-            SpecificTaskDataCategory::Meta => self.meta_snapshot(),
-            SpecificTaskDataCategory::Data => self.data_snapshot(),
-        }
+// =============================================================================
+// Eviction
+// =============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum UnevictableReason {
+    // Either in progress or soon to be inprogress
+    InProgress,
+    /// Modified flags are set, or data/meta has not been restored yet.
+    Modified,
+    /// GC deleted the task but its tombstone has not been persisted yet, e.g. because the GC pass
+    /// was interrupted and abandoned its snapshot.
+    MarkedForDeletion,
+    /// The task is transient
+    Transient,
+    // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
+    NothingToEvict,
+}
+
+impl UnevictableReason {
+    /// All variants in discriminant order. Keep this in sync when adding variants —
+    /// iteration and indexing rely on it covering every case.
+    pub const ALL: [UnevictableReason; Self::COUNT] = [
+        UnevictableReason::InProgress,
+        UnevictableReason::Modified,
+        UnevictableReason::MarkedForDeletion,
+        UnevictableReason::Transient,
+        UnevictableReason::NothingToEvict,
+    ];
+
+    /// Number of variants. Derived from the last variant's discriminant, so adding a
+    /// new variant before `NothingToEvict` stays correct automatically.
+    pub const COUNT: usize = (UnevictableReason::NothingToEvict as usize) + 1;
+
+    #[inline]
+    pub const fn index(self) -> usize {
+        self as usize
     }
 
-    /// Set the snapshot flag for the specified category
-    pub fn set_snapshot(&mut self, category: SpecificTaskDataCategory, value: bool) {
-        match category {
-            SpecificTaskDataCategory::Meta => self.set_meta_snapshot(value),
-            SpecificTaskDataCategory::Data => self.set_data_snapshot(value),
+    /// Stable name used as a tracing span field. Matches the snake_case convention
+    /// of the other span fields in `evict_after_snapshot`.
+    pub const fn span_name(self) -> &'static str {
+        match self {
+            UnevictableReason::InProgress => "skipped_in_progress",
+            UnevictableReason::Modified => "skipped_modified",
+            UnevictableReason::MarkedForDeletion => "skipped_marked_for_deletion",
+            UnevictableReason::Transient => "skipped_transient",
+            UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
         }
+    }
+}
+
+/// Eviction level for a task after a snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValueEvictability {
+    /// Task cannot be evicted.
+    Unevictable(UnevictableReason),
+    Evictable {
+        meta: bool,
+        data: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyEvictability {
+    Evictable,
+    /// The task was already removed from `task_cache` in a prior eviction cycle.
+    AlreadyEvicted,
+    /// This means the task is new, so we cannot evict it
+    Unevictable,
+}
+
+impl TaskStorage {
+    /// Determine the evictability level of this task based on its flags.
+    ///
+    /// This checks only the flags on the TaskStorage itself. The caller
+    /// must additionally check that the task is not transient (via TaskId).
+    pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
+        let flags = &self.flags;
+
+        // === Absolute blockers ===
+        if flags.new_task() {
+            return (
+                KeyEvictability::Unevictable,
+                ValueEvictability::Unevictable(UnevictableReason::Modified),
+            );
+        }
+        let key_evictability = match &self.persistent_task_type {
+            None => KeyEvictability::Unevictable,
+            // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
+            // references it. It must have been already evicted on a prior cycle.
+            Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
+            Some(_) => KeyEvictability::Evictable,
+        };
+        // All these flags imply that the task is currently being used in some way
+        // either literally executing, or about to
+        if self.get_in_progress().is_some()
+            || self.get_activeness().is_some()
+            // Without these checks we could corrupt racing reads.
+            // Basically if a task restores ALL but data is already restored, then it will set meta_restoring, so it would break semantics to clear data_restored while that is happening.  We could fix it by adding a loop to the restoring threads but it is just much simpler to back off in this case.
+            || flags.meta_restoring()
+            || flags.data_restoring()
+        {
+            return (
+                key_evictability,
+                ValueEvictability::Unevictable(UnevictableReason::InProgress),
+            );
+        }
+        debug_assert!(
+            self.get_transient_task_type().is_none(),
+            "only transient tasks can have transient_task_types so it cannot be set here"
+        );
+
+        // This is common after a round of eviction we end up with tasks with only transient state
+        // There is no need to search for it, we can just assume any task in this state is preserved
+        // for some reason.  NOTE: new tasks have the restored flags set as part of construction so
+        // the only way for a task to end up in this situation is through eviction
+        if !flags.data_restored() && !flags.meta_restored() {
+            return (
+                key_evictability,
+                ValueEvictability::Unevictable(UnevictableReason::NothingToEvict),
+            );
+        }
+
+        // === Data evictability (independent) ===
+        // Data can be dropped if it's been restored from disk and hasn't been
+        // modified.
+        let data_evictable =
+            flags.data_restored() && !flags.data_modified() && !flags.data_snapshot_pending();
+
+        // === Meta evictability (independent) ===
+        // Same semantics as data: flag checks only.
+        let meta_evictable =
+            flags.meta_restored() && !flags.meta_modified() && !flags.meta_snapshot_pending();
+
+        // === Combined decision ===
+        (
+            key_evictability,
+            if !data_evictable && !meta_evictable {
+                ValueEvictability::Unevictable(UnevictableReason::Modified)
+            } else {
+                ValueEvictability::Evictable {
+                    meta: meta_evictable,
+                    data: data_evictable,
+                }
+            },
+        )
     }
 }
 
@@ -501,10 +743,10 @@ impl TaskStorage {
     }
 
     /// Encode fields for the specified category
-    pub fn encode<E: bincode::enc::Encoder>(
+    pub fn encode(
         &self,
         category: SpecificTaskDataCategory,
-        encoder: &mut E,
+        encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
     ) -> Result<(), bincode::error::EncodeError> {
         match category {
             SpecificTaskDataCategory::Meta => self.encode_meta(encoder),
@@ -524,14 +766,6 @@ impl TaskStorage {
         }
     }
 
-    /// Clone only the fields for the specified category
-    pub fn clone_category_snapshot(&self, category: SpecificTaskDataCategory) -> TaskStorage {
-        match category {
-            SpecificTaskDataCategory::Meta => self.clone_meta_snapshot(),
-            SpecificTaskDataCategory::Data => self.clone_data_snapshot(),
-        }
-    }
-
     /// Initialize a transient task with the given root type and activeness tracking.
     ///
     /// This sets up the activeness state for root/once tasks.
@@ -542,7 +776,8 @@ impl TaskStorage {
         task_type: TransientTaskType,
         should_track_activeness: bool,
     ) {
-        // Mark as fully restored since transient tasks don't need restoration from disk
+        // Mark as fully restored since transient tasks don't need restoration from disk,
+        // and as new since this task was just created.
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
@@ -573,12 +808,13 @@ impl TaskStorage {
         }));
         self.set_in_progress(InProgressState::Scheduled {
             done_event,
-            reason: TaskExecutionReason::Initial,
+            reason: TaskExecutionReason::Root,
         });
     }
 
     /// Returns counts for aggregation tree and collectibles fields.
     /// Used for cache size statistics.
+    #[cfg(feature = "print_cache_item_size")]
     pub fn meta_counts(&self) -> MetaCounts {
         MetaCounts {
             upper: self.upper().len(),
@@ -590,9 +826,110 @@ impl TaskStorage {
             aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
         }
     }
+
+    /// The number of persistent parents referencing this task (0 when the field is absent).
+    pub fn gc_parent_count(&self) -> u32 {
+        self.get_parent_count().copied().unwrap_or(0)
+    }
+
+    /// The number of transient (session-only) references to this task (0 when absent). See the
+    /// `transient_ref_count` field for what counts as one.
+    pub fn gc_transient_ref_count(&self) -> u32 {
+        self.get_transient_ref_count().copied().unwrap_or(0)
+    }
+
+    /// Pins a newly initialized task until its construction operation connects it to the graph.
+    pub fn gc_pin_for_construction(&mut self) {
+        debug_assert_eq!(self.gc_transient_ref_count(), 0);
+        self.set_transient_ref_count(1);
+    }
+
+    /// Whether a GC pass can collect this task: nothing references it, via parents, transient
+    /// pins, or aggregation edges.
+    ///
+    /// Only reads `Meta`, so the shard scan and the under-guard recheck get the same answer -- it
+    /// is exact in both, not a pre-filter.
+    ///
+    /// The `Data`-category dependent sets are deliberately not consulted:
+    ///
+    /// - `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry. A cell dependent
+    ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
+    ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
+    ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
+    ///   `all_assets_from_entries_filtered`, whose tasks could then never be collected.
+    /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
+    ///   *output*, which is the `OperationVc` representation, and those reads go through
+    ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
+    ///   travels laterally as an argument, lands in `cell_dependents` instead.)
+    ///
+    /// Removing the cell sets exposed a race in the GC cascade -- rebalancing running while other
+    /// workers were still collecting -- which `gc_collect` now avoids by deferring all rebalance
+    /// work until the parallel phase is quiescent.
+    pub fn gc_collectible(&self) -> bool {
+        self.gc_unreferenced(ReferenceScope::All)
+    }
+
+    /// Whether nothing in `scope` refers to this task.
+    fn gc_unreferenced(&self, scope: ReferenceScope) -> bool {
+        // None of the predicates below are correct without this.
+        if !self.flags.is_restored(TaskDataCategory::Meta)
+            // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
+            // don't re-select it, or a second pass would collect it again while it is still
+            // resident.
+            || self.flags.deleted()
+            || self.gc_parent_count() != 0
+        {
+            return false;
+        }
+        match scope {
+            ReferenceScope::All => {
+                // It is rare for an upper to be present when the ref counts are 0, but it happens
+                // transiently during a concurrent GC pass as uppers move around in the cascade.
+                self.upper().is_empty()
+                    // It would be rare for a collectibles dependent to be the only thing holding a
+                    // task, but the invalidation that disconnected the task may not have bubbled
+                    // all the way up yet.
+                    && self.collectibles_dependents().is_none_or(|d| d.is_empty())
+                    && self.gc_transient_ref_count() == 0
+                    && self.get_in_progress().is_none()
+                    && self.get_activeness().is_none()
+            }
+            // Same two edge sets, minus the entries that die with the session. The pins above are
+            // skipped entirely: they are `category = "transient"` and never reach disk.
+            ReferenceScope::Persistent => {
+                self.upper().iter().all(|(u, _)| u.is_transient())
+                    && self
+                        .collectibles_dependents()
+                        .is_none_or(|d| d.iter().all(|(_, t)| t.is_transient()))
+            }
+        }
+    }
+
+    /// Whether this task is a GC **root**: nothing *persistent* refers to it, so only this session
+    /// is keeping it alive -- a `transient_ref` pin, an in-progress execution, activeness, or an
+    /// `upper` / collectibles edge from a transient task.
+    pub fn gc_is_root(&self) -> bool {
+        self.gc_unreferenced(ReferenceScope::Persistent) && !self.gc_collectible()
+    }
+}
+
+/// Which references [`TaskStorage::gc_unreferenced`] counts.
+///
+/// A task can be held by references that outlive the session and by references that do not -- the
+/// transient entries of `upper` / `collectibles_dependents`, and the `transient_ref_count`,
+/// `in_progress` and `activeness` pins. The two GC predicates care about different subsets:
+/// collectibility about everything currently holding the task, rootness about only what would
+/// survive a restart.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ReferenceScope {
+    /// Every referrer, transient ones included.
+    All,
+    /// Only referrers that outlive the session.
+    Persistent,
 }
 
 /// Counts for aggregation tree and collectibles fields.
+#[cfg(feature = "print_cache_item_size")]
 #[derive(Default)]
 pub struct MetaCounts {
     pub upper: usize,
@@ -610,24 +947,141 @@ trait IsTransient {
     fn is_transient(&self) -> bool;
 }
 
+impl IsTransient for TaskId {
+    fn is_transient(&self) -> bool {
+        TaskId::is_transient(self)
+    }
+}
+
+impl IsTransient for CollectibleRef {
+    fn is_transient(&self) -> bool {
+        CollectibleRef::is_transient(self)
+    }
+}
+impl IsTransient for CollectiblesRef {
+    fn is_transient(&self) -> bool {
+        CollectiblesRef::is_transient(self)
+    }
+}
+impl IsTransient for OutputValue {
+    fn is_transient(&self) -> bool {
+        OutputValue::is_transient(self)
+    }
+}
 impl IsTransient for (TraitTypeId, TaskId) {
     fn is_transient(&self) -> bool {
         self.1.is_transient()
     }
 }
-impl IsTransient for (CellId, Option<u64>, TaskId) {
+impl IsTransient for CellRef {
     fn is_transient(&self) -> bool {
-        self.2.is_transient()
+        CellRef::is_transient(self)
     }
 }
-impl IsTransient for (CellRef, Option<u64>) {
+impl IsTransient for (CellRef, u64) {
     fn is_transient(&self) -> bool {
-        self.0.task.is_transient()
+        self.0.is_transient()
     }
 }
 
+/// Defines a strategy for merging data from disk into this storage item.
+///
+/// For most types this is a trivial `extend` call
+pub(crate) trait MergeRestore {
+    type Item;
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>);
+}
+
+impl<K, V, const I: usize> MergeRestore for CounterMap<K, V, I>
+where
+    K: Eq + Hash,
+{
+    type Item = (K, V);
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        self.extend(items)
+    }
+}
+impl<V, const I: usize> MergeRestore for AutoSet<V, I>
+where
+    V: Eq + Hash,
+{
+    type Item = V;
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        self.extend(items)
+    }
+}
+
+/// Outcome of a `drop_partial` call: did residue (transient entries that
+/// can't be reconstructed from disk) survive the drop?
+#[must_use]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum DropPartialOutcome {
+    /// Field is fully empty after the drop
+    Empty,
+    /// Transient entries remain — they cannot be reconstructed from disk
+    /// and must be preserved through the eviction
+    HasResidue,
+}
+
+/// Helper trait for drop_partial implementation. `CellData` and the
+/// macro-generated `LazyField` arms also implement this trait so all
+/// `filter_transient` / `custom_drop_partial` fields share one signature.
+pub(crate) trait DropPartial {
+    /// Drop persistent entries; preserve transient residue. Returns
+    /// [`DropPartialOutcome`] so callers must explicitly distinguish the
+    /// empty and residue cases.
+    fn drop_partial(&mut self) -> DropPartialOutcome;
+}
+
+impl<T: IsTransient> DropPartial for Option<T> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.take_if(|v| !v.is_transient());
+        if self.is_none() {
+            DropPartialOutcome::Empty
+        } else {
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
+
+impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.retain(|t| t.is_transient());
+        if self.is_empty() {
+            DropPartialOutcome::Empty
+        } else {
+            self.shrink_to_fit();
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
+
+impl<K: IsTransient + Hash + Eq, V: Eq, const I: usize> DropPartial for CounterMap<K, V, I> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.retain(|k, _v| k.is_transient());
+        if self.is_empty() {
+            DropPartialOutcome::Empty
+        } else {
+            self.shrink_to_fit();
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
+impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for AutoMap<K, V, I> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.retain(|k, v| k.is_transient() || v.is_transient());
+        if self.is_empty() {
+            DropPartialOutcome::Empty
+        } else {
+            self.shrink_to_fit();
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
+    // Only used by `test_schema_size`, which is 64-bit only.
+    #[cfg(target_pointer_width = "64")]
     use std::mem::size_of;
 
     use turbo_tasks::{CellId, TaskId};
@@ -720,20 +1174,23 @@ mod tests {
         assert!(storage.flags.current_session_clean());
 
         // Test persisted_bits only includes non-transient flags
-        // invalidator=bit 0, immutable=bit 1 (persisted)
-        // current_session_clean=bit 2 (transient)
+        // optimization_pending=bit 0, deleted=bit 1 (meta, persisted)
+        // invalidator=bit 2, immutable=bit 3 (data, persisted)
+        // current_session_clean and the other transient flags come after
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b11); // Only bits 0, 1
+        assert_eq!(persisted, 0b1100); // invalidator + immutable
 
         // Test TaskFlags constants
-        assert_eq!(TaskFlags::PERSISTED_MASK, 0b11); // 2 persisted flags
+        assert_eq!(TaskFlags::PERSISTED_MASK, 0b1111); // 4 persisted flags
 
         // Test set_persisted_bits preserves transient flags
         let mut storage2 = TaskStorage::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
-        storage2.flags.set_persisted_bits(0b10); // Set immutable only
+        storage2.flags.set_persisted_bits(0b1000); // Set immutable only
         assert!(storage2.flags.immutable());
         assert!(!storage2.flags.invalidator());
+        assert!(!storage2.flags.optimization_pending());
+        assert!(!storage2.flags.deleted());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
 
@@ -747,8 +1204,8 @@ mod tests {
         assert!(!storage.flags.data_restored());
         assert!(!storage.flags.meta_modified());
         assert!(!storage.flags.data_modified());
-        assert!(!storage.flags.meta_snapshot());
-        assert!(!storage.flags.data_snapshot());
+        assert!(!storage.flags.meta_snapshot_pending());
+        assert!(!storage.flags.data_snapshot_pending());
         assert!(!storage.flags.prefetched());
 
         // Test setting restored flags
@@ -764,24 +1221,24 @@ mod tests {
         assert!(storage.flags.data_modified());
 
         // Test setting snapshot flags
-        storage.flags.set_meta_snapshot(true);
-        storage.flags.set_data_snapshot(true);
-        assert!(storage.flags.meta_snapshot());
-        assert!(storage.flags.data_snapshot());
+        storage.flags.set_meta_snapshot_pending(true);
+        storage.flags.set_data_snapshot_pending(true);
+        assert!(storage.flags.meta_snapshot_pending());
+        assert!(storage.flags.data_snapshot_pending());
 
         // Test prefetched flag
         storage.flags.set_prefetched(true);
         assert!(storage.flags.prefetched());
 
         // Verify these are all transient (not in persisted_bits)
-        // Only invalidator, immutable should be persisted
+        // Only optimization_pending, deleted, invalidator and immutable should be persisted
         let persisted = storage.flags.persisted_bits();
         assert_eq!(persisted, 0b00); // No persisted flags set
 
         // Set a persisted flag and verify internal state flags are still transient
         storage.flags.set_immutable(true);
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b10); // Only immutable (bit 1)
+        assert_eq!(persisted, 0b1000); // Only immutable (bit 3)
     }
 
     // Helper to create encoder
@@ -821,6 +1278,9 @@ mod tests {
         original
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
+        original.set_parent_count(3);
+        // Transient ref count (should NOT be serialized).
+        original.set_transient_ref_count(9);
 
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
@@ -866,6 +1326,9 @@ mod tests {
             decoded.aggregated_dirty_containers(),
             original.aggregated_dirty_containers()
         );
+        assert_eq!(decoded.get_parent_count(), Some(&3));
+        // Transient parent count is NOT serialized; it stays at its default (absent == 0).
+        assert_eq!(decoded.get_transient_ref_count(), None);
 
         // Note: invalidator and immutable are data category flags, not meta
         // They should NOT have changed during meta encode/decode
@@ -917,16 +1380,10 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original.cell_dependencies_mut().insert((
-            CellRef {
-                task: TaskId::new(1).unwrap(),
-                cell: CellId {
-                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                    index: 0,
-                },
-            },
-            None,
-        ));
+        original.cell_dependencies_mut().insert(CellRef {
+            task: TaskId::new(1).unwrap(),
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
+        });
 
         // Set lazy data transient field (should NOT be serialized)
         original
@@ -1039,21 +1496,342 @@ mod tests {
     }
 
     // ==========================================================================
+    // drop_partial + restore_*_from round-trip with transient residue
+    // ==========================================================================
+
+    fn persistent_task(id: u32) -> TaskId {
+        assert!(id & turbo_tasks::TRANSIENT_TASK_BIT == 0);
+        TaskId::new(id).unwrap()
+    }
+
+    fn transient_task(id: u32) -> TaskId {
+        TaskId::new(id | turbo_tasks::TRANSIENT_TASK_BIT).unwrap()
+    }
+
+    /// After `drop_partial(data=true)`, persistent entries in `filter_transient`
+    /// data fields are cleared but transient residue must remain so transient
+    /// dependents aren't silently lost. `restore_data_from` must then merge the
+    /// persistent portion back in without clobbering the residue.
+    #[test]
+    fn drop_partial_retains_transient_residue_data() {
+        let mut storage = TaskStorage::new();
+
+        // Mix persistent and transient references in a filter_transient data field.
+        storage.output_dependent_mut().insert(persistent_task(1));
+        storage.output_dependent_mut().insert(persistent_task(2));
+        storage.output_dependent_mut().insert(transient_task(3));
+
+        // Lazy filter_transient data field.
+        storage.cell_dependencies_mut().insert(CellRef {
+            task: persistent_task(10),
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
+        });
+
+        // Mark as restored so the task is eligible for dropping.
+        storage.flags.set_data_restored(true);
+        storage.flags.set_meta_restored(true);
+
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(true, false)
+        );
+
+        // Persistent entries gone; transient residue preserved.
+        assert!(!storage.output_dependent().contains(&persistent_task(1)));
+        assert!(!storage.output_dependent().contains(&persistent_task(2)));
+        assert!(storage.output_dependent().contains(&transient_task(3)));
+        assert_eq!(storage.output_dependent().len(), 1);
+        // Lazy non-filter-transient residue: cell_dependencies had only persistent
+        // entries and should be dropped entirely.
+        assert!(storage.cell_dependencies().is_none());
+        // data_restored cleared; meta_restored untouched.
+        assert!(!storage.flags.data_restored());
+        assert!(storage.flags.meta_restored());
+
+        // Simulate a restore from disk: source has the persistent entries only
+        // (transient ones would have been filtered during encode).
+        let mut source = TaskStorage::new();
+        source.output_dependent_mut().insert(persistent_task(1));
+        source.output_dependent_mut().insert(persistent_task(2));
+
+        storage.restore_data_from(source);
+
+        // After restore: persistent + transient should both be present.
+        assert!(storage.output_dependent().contains(&persistent_task(1)));
+        assert!(storage.output_dependent().contains(&persistent_task(2)));
+        assert!(storage.output_dependent().contains(&transient_task(3)));
+        assert_eq!(storage.output_dependent().len(), 3);
+    }
+
+    /// Same idea for meta: transient `upper` keys (a `CounterMap` residue) must
+    /// survive the drop and merge cleanly with the persistent upper set on
+    /// restore.
+    #[test]
+    fn drop_partial_retains_transient_residue_meta() {
+        let mut storage = TaskStorage::new();
+
+        storage.upper_mut().insert(persistent_task(1), 1);
+        storage.upper_mut().insert(transient_task(2), 1);
+
+        // Also populate a lazy filter_transient meta field.
+        storage.children_mut().insert(persistent_task(100));
+        storage.children_mut().insert(transient_task(200));
+
+        storage.flags.set_data_restored(true);
+        storage.flags.set_meta_restored(true);
+
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(false, true)
+        );
+
+        // Inline upper: transient residue remains.
+        assert_eq!(storage.upper().len(), 1);
+        assert_eq!(storage.upper().get(&transient_task(2)), Some(&1));
+        // Lazy children: transient residue remains.
+        assert_eq!(storage.children().unwrap().len(), 1);
+        assert!(storage.children().unwrap().contains(&transient_task(200)));
+        assert!(!storage.flags.meta_restored());
+        assert!(storage.flags.data_restored());
+
+        // Restore persistent meta fields.
+        let mut source = TaskStorage::new();
+        source.upper_mut().insert(persistent_task(1), 1);
+        source.children_mut().insert(persistent_task(100));
+
+        storage.restore_meta_from(source);
+
+        // After restore: residue + persistent are both present.
+        assert_eq!(storage.upper().len(), 2);
+        assert_eq!(storage.upper().get(&persistent_task(1)), Some(&1));
+        assert_eq!(storage.upper().get(&transient_task(2)), Some(&1));
+        assert_eq!(storage.children().unwrap().len(), 2);
+        assert!(storage.children().unwrap().contains(&persistent_task(100)));
+        assert!(storage.children().unwrap().contains(&transient_task(200)));
+    }
+
+    /// `drop_partial` on a field with no transient entries must fully reset the
+    /// field to default — this is the hot path we optimized for.
+    #[test]
+    fn drop_partial_resets_fields_without_transients() {
+        let mut storage = TaskStorage::new();
+
+        storage.output_dependent_mut().insert(persistent_task(1));
+        storage.output_dependent_mut().insert(persistent_task(2));
+        storage.flags.set_data_restored(true);
+        storage.flags.set_meta_restored(true);
+
+        // Only persistent entries → no `filter_transient` residue, but the
+        // `meta_restored` transient flag is still set (we only dropped the
+        // data category), so the authoritative outcome is `HasResidue`.
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(true, false)
+        );
+
+        assert!(storage.output_dependent().is_empty());
+    }
+
+    /// Regression: `drop_partial(true, true)` must clear persisted flag bits
+    /// so a fully-evicted task reports `is_empty()`. Before this, tasks with
+    /// persistent data flags (e.g. `invalidator`, `immutable`) would get stuck
+    /// as `NothingToEvict` because `self.flags.0 != 0` even though all data
+    /// had been dropped.
+    #[test]
+    fn drop_partial_clears_persisted_flags_so_is_empty() {
+        let mut storage = TaskStorage::new();
+        storage.flags.set_data_restored(true);
+        storage.flags.set_meta_restored(true);
+        storage.flags.set_invalidator(true);
+        storage.flags.set_immutable(true);
+
+        // Drop both categories → both `*_restored` transient flags are
+        // cleared, persisted flag bits are cleared, no residue. Outcome is
+        // `Empty` and the caller can erase the entry.
+        assert_eq!(DropPartialOutcome::Empty, storage.drop_partial(true, true));
+
+        assert!(!storage.flags.invalidator());
+        assert!(!storage.flags.immutable());
+        assert!(!storage.flags.data_restored());
+        assert!(!storage.flags.meta_restored());
+        assert!(
+            storage.is_empty(),
+            "fully evicted storage should be is_empty() so it can be removed from the shard"
+        );
+    }
+
+    /// Filter-transient `output`: when `output` is `Some(transient)` it must
+    /// survive `drop_partial(meta=true)` so restore can merge the disk value
+    /// back in (normally disk value would be `None` if current output was
+    /// transient at encode time).
+    #[test]
+    fn drop_partial_retains_transient_output() {
+        let mut storage = TaskStorage::new();
+        storage.set_output(OutputValue::Output(transient_task(1)));
+        storage.flags.set_data_restored(true);
+        storage.flags.set_meta_restored(true);
+
+        // Filter-transient `output` keeps its transient value → residue.
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(false, true)
+        );
+
+        // Transient output retained.
+        assert_eq!(
+            storage.get_output(),
+            Some(&OutputValue::Output(transient_task(1)))
+        );
+    }
+
+    // ==========================================================================
+    // cell_data custom_drop_partial dispatch
+    // ==========================================================================
+
+    mod cell_data_drop_partial {
+        //! End-to-end: verify `TaskStorage::drop_partial` dispatches to
+        //! `CellData::drop_partial`, and that `restore_data_from` merges the
+        //! retained residue with incoming persistent entries instead of
+        //! clobbering it. The per-variant partitioning is covered in
+        //! `cell_data.rs` — here we only need one non-recoverable entry as
+        //! residue and one recoverable entry to be dropped.
+        use turbo_tasks::{self as turbo_tasks, VcValueType};
+
+        use super::*;
+
+        #[turbo_tasks::value]
+        struct Keepable(#[allow(dead_code)] u32);
+
+        #[turbo_tasks::value(serialization = "skip", evict = "last")]
+        struct KeepMe(#[allow(dead_code)] u32);
+
+        fn dummy_ref() -> SharedReference {
+            SharedReference::new(triomphe::Arc::new(0u32))
+        }
+
+        fn keepable_cell(index: u32) -> CellId {
+            CellId::new(Keepable::get_value_type_id(), index)
+        }
+
+        fn keep_me_cell(index: u32) -> CellId {
+            CellId::new(KeepMe::get_value_type_id(), index)
+        }
+
+        #[test]
+        fn drop_partial_retains_non_recoverable_entries() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.cell_data_mut().insert(keep_me_cell(1), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            // KeepMe is `evict = "last"` → non-recoverable → retained as
+            // residue.
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(true, false)
+            );
+
+            let cells = storage.cell_data().expect("residue keeps the variant");
+            assert_eq!(cells.len(), 1);
+            assert!(cells.contains_key(&keep_me_cell(1)));
+            assert!(!cells.contains_key(&keepable_cell(0)));
+        }
+
+        #[test]
+        fn drop_partial_removes_variant_when_all_recoverable() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(true, false)
+            );
+
+            assert!(
+                storage.cell_data().is_none(),
+                "variant is dropped when drop_partial empties it"
+            );
+        }
+
+        #[test]
+        fn restore_merges_residue_with_incoming() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.cell_data_mut().insert(keep_me_cell(1), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(true, false)
+            );
+            // Only KeepMe entry survives.
+            assert_eq!(storage.cell_data().unwrap().len(), 1);
+
+            // Simulate a restore: disk had only the persistable entry.
+            let mut source = TaskStorage::new();
+            source.cell_data_mut().insert(keepable_cell(0), dummy_ref());
+
+            storage.restore_data_from(source);
+
+            let cells = storage
+                .cell_data()
+                .expect("residue + incoming both present");
+            assert_eq!(cells.len(), 2);
+            assert!(cells.contains_key(&keepable_cell(0)));
+            assert!(cells.contains_key(&keep_me_cell(1)));
+        }
+
+        #[test]
+        fn drop_partial_meta_does_not_touch_cell_data() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            // Meta-only drop doesn't touch `cell_data` (data category), so
+            // the data category stays non-empty → `HasResidue`.
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(false, true)
+            );
+
+            // cell_data is category=data; meta-only drop leaves it alone.
+            assert_eq!(storage.cell_data().unwrap().len(), 1);
+        }
+    }
+
+    // ==========================================================================
     // Schema Size Tests
     // ==========================================================================
 
+    // `hanging_detection` adds an `Arc<dyn Fn() -> String>` description to every `Event`, which
+    // grows `LazyField` past the size asserted here. The feature is diagnostic-only, so the sizes
+    // are not meaningful under it.
     #[test]
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(all(target_pointer_width = "64", not(feature = "hanging_detection")))]
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            136,
-            "TaskStorage size changed! If this is intentional, update this test."
+            128,
+            "TaskStorage size changed! Update this test."
         );
+        // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
-            56,
-            "LazyField size changed! If this is intentional, update this test."
+            40,
+            "LazyField size changed! Update this test."
         );
     }
 }

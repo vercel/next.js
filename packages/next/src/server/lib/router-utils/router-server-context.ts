@@ -2,18 +2,17 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { NextConfigRuntime } from '../../config-shared'
 import type { UrlWithParsedQuery } from 'node:url'
 import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache-indicator'
+import type { AnyStream } from '../../app-render/stream-ops'
 
 export type RevalidateFn = (config: {
   urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
+  headers: { [key: string]: string | string[] }
   opts: { unstable_onlyGenerated?: boolean }
 }) => Promise<void>
 
-// The RouterServerContext contains instance specific
-// information that isn't available/relevant when
-// deployed in serverless environments, the key is
-// the relative project dir this allows separate contexts
-// when running multiple next instances in same process
+// Services and runtime state supplied by a running NextServer, keyed by the
+// relative project dir so multiple instances can share a process. Built route
+// handlers can also run without a NextServer or this context.
 export type RouterServerContext = Record<
   string,
   {
@@ -31,6 +30,8 @@ export type RouterServerContext = Record<
     ) => Promise<void>
     // exposing nextConfig for dev mode specifically
     nextConfig?: NextConfigRuntime
+    // Current server-owned prefix; absent when no NextServer owns this route.
+    getAssetPrefix?: () => string
     // whether running in custom server mode
     isCustomServer?: boolean
     // whether test proxy is enabled
@@ -40,13 +41,13 @@ export type RouterServerContext = Record<
     // allow setting ISR status in dev
     setIsrStatus?: (key: string, value: boolean | undefined) => void
     setReactDebugChannel?: (
-      debugChannel: { readable: ReadableStream<Uint8Array> },
+      debugChannel: { readable: AnyStream },
       htmlRequestId: string,
       requestId: string
     ) => void
     setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
     sendErrorsToBrowser?: (
-      errorsRscStream: ReadableStream<Uint8Array>,
+      errorsRscStream: AnyStream,
       htmlRequestId: string
     ) => void
     // indicates request handlers are already wrapped by next-server tracing

@@ -1,3 +1,4 @@
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 
@@ -18,11 +19,17 @@ pub struct RawModule {
 #[turbo_tasks::value_impl]
 impl Module for RawModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        match &self.modifier {
-            Some(modifier) => self.source.ident().with_modifier(modifier.clone()),
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(match &self.modifier {
+            Some(modifier) => self
+                .source
+                .ident()
+                .owned()
+                .await?
+                .with_modifier(modifier.clone())
+                .into_vc(),
             None => self.source.ident(),
-        }
+        })
     }
 
     #[turbo_tasks::function]

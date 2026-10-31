@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-cycle-constant/input/index.js"],"sourcesContent":["import { ONE } from './multiple-1.js'\n\nconsole.log(ONE)\n"],"names":["console","log"],"mappings":";AAAA;;AAEAA,QAAQC,GAAG,CAAC,6OAAG"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-cycle-constant/input/multiple-1.js"],"sourcesContent":["import { TWO } from './multiple-2.js'\n\nexport const ONE = '1' + TWO\n"],"names":["ONE"],"mappings":";;;;AAAA;;AAEO,MAAMA,MAAM,MAAM,6OAAG"}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-cycle-constant/input/multiple-2.js"],"sourcesContent":["import { ONE } from './multiple-1.js'\n\nexport const TWO = '2' + ONE\n"],"names":["TWO"],"mappings":";;;;AAAA;;AAEO,MAAMA,MAAM,MAAM,6OAAG"}}]
+}

@@ -351,9 +351,9 @@ export async function POST(request: Request) {
   try {
     const clonedRequest = request.clone()
 
-    await request.body()
-    await clonedRequest.body()
-    await request.body() // Throws error
+    await request.text()
+    await clonedRequest.text()
+    await request.text() // Throws error
 
     return new Response(null, { status: 204 })
   } catch {
@@ -367,9 +367,9 @@ export async function POST(request) {
   try {
     const clonedRequest = request.clone()
 
-    await request.body()
-    await clonedRequest.body()
-    await request.body() // Throws error
+    await request.text()
+    await clonedRequest.text()
+    await request.text() // Throws error
 
     return new Response(null, { status: 204 })
   } catch {
@@ -442,7 +442,7 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request.
+You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request, and forward only the headers the backend needs. Copying every incoming header also sends the user's `Cookie` and `Authorization` values, so forward those only if the backend expects them.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
@@ -458,10 +458,18 @@ export async function POST(request: Request, { params }) {
   const { slug } = await params
   const pathname = slug.join('/')
   const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
+
+  const headers = new Headers()
+  for (const name of ['accept', 'content-type']) {
+    const value = request.headers.get(name)
+    if (value) headers.set(name, value)
+  }
+
+  // The inner Request keeps the method and body; the outer one replaces the headers
+  const proxyRequest = new Request(new Request(proxyURL, request), { headers })
 
   try {
-    return fetch(proxyRequest)
+    return await fetch(proxyRequest)
   } catch (reason) {
     const message =
       reason instanceof Error ? reason.message : 'Unexpected exception'
@@ -485,10 +493,18 @@ export async function POST(request, { params }) {
   const { slug } = await params
   const pathname = slug.join('/')
   const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
+
+  const headers = new Headers()
+  for (const name of ['accept', 'content-type']) {
+    const value = request.headers.get(name)
+    if (value) headers.set(name, value)
+  }
+
+  // The inner Request keeps the method and body; the outer one replaces the headers
+  const proxyRequest = new Request(new Request(proxyURL, request), { headers })
 
   try {
-    return fetch(proxyRequest)
+    return await fetch(proxyRequest)
   } catch (reason) {
     const message =
       reason instanceof Error ? reason.message : 'Unexpected exception'
@@ -575,7 +591,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -597,7 +613,7 @@ export async function GET(request) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -612,7 +628,13 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('session_token')
   const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
 
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const destination = new URL(redirectUrl ?? '/', request.url)
+  // Prevent open redirects: only allow same-origin destinations
+  if (destination.origin !== request.nextUrl.origin) {
+    return new Response('Invalid redirect', { status: 400 })
+  }
+
+  const response = NextResponse.redirect(destination)
 
   response.cookies.set({
     value: token,
@@ -634,7 +656,13 @@ export async function GET(request) {
   const token = request.nextUrl.searchParams.get('session_token')
   const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
 
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const destination = new URL(redirectUrl ?? '/', request.url)
+  // Prevent open redirects: only allow same-origin destinations
+  if (destination.origin !== request.nextUrl.origin) {
+    return new Response('Invalid redirect', { status: 400 })
+  }
+
+  const response = NextResponse.redirect(destination)
 
   response.cookies.set({
     value: token,
@@ -709,12 +737,12 @@ export function proxy(request) {
 }
 ```
 
-You can also proxy requests using `proxy`:
+You can also proxy requests using `proxy`. This example reads `request.nextUrl`, so `request` is typed as [`NextRequest`](#nextrequest-and-nextresponse):
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
     const rewriteUrl = new URL('https://nextjs.org')
     return NextResponse.rewrite(rewriteUrl)
@@ -736,9 +764,9 @@ export function proxy(request) {
 Another type of response `proxy` can produce are redirects:
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/v1/docs') {
     request.nextUrl.pathname = '/v2/docs'
     return NextResponse.redirect(request.nextUrl)
@@ -802,6 +830,8 @@ export async function POST(request) {
 }
 ```
 
+A rate limiter that keeps its counts in memory tracks each server instance separately, and the counts reset when an instance restarts. When your app runs on more than one instance, keep the counts in a shared data store or use your host's rate limiting.
+
 ### Verify payloads
 
 Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
@@ -813,6 +843,8 @@ Store user-generated static assets in dedicated services. When possible, upload 
 ### Access to protected resources
 
 Always verify credentials before granting access. Do not rely on proxy alone for authentication and authorization.
+
+Checks in a Route Handler run only when the handler runs. When a response sets `Cache-Control: public` with a `max-age` or `s-maxage`, a CDN can store it and serve later requests for the same URL without calling the handler. Which headers a CDN reads, and what it includes in the cache key, depends on your host. Credential checks and rate limits do not apply to requests served from the cache, so cache only responses that are safe to serve to anyone with the URL.
 
 Remove sensitive or unnecessary data from responses and backend logs.
 
@@ -885,7 +917,7 @@ For these, use community libraries like [`swr`](https://swr.vercel.app/) or [`re
 
 ### Server Actions
 
-Server Actions let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
+[Server Actions](/docs/app/guides/server-actions) let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
 
 Server Actions are queued. Using them for data fetching introduces sequential execution.
 

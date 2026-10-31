@@ -1,3 +1,5 @@
+import { LinkAccordion } from '../../components/link-accordion'
+
 // Fully static page - no dynamic data access
 export default function RewriteBetaPage() {
   return (
@@ -6,6 +8,7 @@ export default function RewriteBetaPage() {
       <p id="rewrite-content" data-content="beta">
         Content: beta
       </p>
+      <LinkAccordion href="/hub">Hub</LinkAccordion>
     </div>
   )
 }

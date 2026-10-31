@@ -72,10 +72,23 @@ type Actions = {
       [name: string]: {
         moduleId: string | number
         async: boolean
+        // Root param dependencies collected from the cache module's graph. An
+        // empty list means none were found; absence means collection did not
+        // run.
+        rootParamDependencies?: readonly string[]
+        durability?: {
+          codeHash: string
+          runtimeEnvVarsRead: string[]
+          runtimeEnvVarsExistence: string[]
+        }
       }
     }
-    // Record which layer the action is in (rsc or sc_action), in the specific entry.
-    layer: {
+    // Record which layer the action is in (rsc or sc_action), in the specific entry
+    //
+    // This is only used by Webpack to correctly output the manifest. It's value shouldn't be relied
+    // upon externally. It's possible that the same action can be in different layers in a single
+    // page, which cannot be modelled with this API anyway.
+    layer?: {
       [name: string]: string
     }
   }
@@ -786,8 +799,7 @@ export class FlightClientEntryPlugin {
       }
 
       if (isCSSMod(mod)) {
-        const sideEffectFree =
-          mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
+        const sideEffectFree = mod.factoryMeta && mod.factoryMeta.sideEffectFree
 
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph
@@ -1016,7 +1028,7 @@ export class FlightClientEntryPlugin {
           async: false,
         }
 
-        currentCompilerServerActions[id].layer[bundlePath] = fromClient
+        currentCompilerServerActions[id].layer![bundlePath] = fromClient
           ? WEBPACK_LAYERS.actionBrowser
           : WEBPACK_LAYERS.reactServerComponents
       }
@@ -1124,13 +1136,11 @@ export class FlightClientEntryPlugin {
     })
 
     for (let id in pluginState.serverActions) {
-      const action = pluginState.serverActions[id]
+      const { layer, ...action } = pluginState.serverActions[id]
       for (let name in action.workers) {
         const modId =
           pluginState.serverActionModules[name][
-            action.layer[name] === WEBPACK_LAYERS.actionBrowser
-              ? 'client'
-              : 'server'
+            layer![name] === WEBPACK_LAYERS.actionBrowser ? 'client' : 'server'
           ]
         action.workers[name] = modId!
       }
@@ -1138,13 +1148,11 @@ export class FlightClientEntryPlugin {
     }
 
     for (let id in pluginState.edgeServerActions) {
-      const action = pluginState.edgeServerActions[id]
+      const { layer, ...action } = pluginState.edgeServerActions[id]
       for (let name in action.workers) {
         const modId =
           pluginState.edgeServerActionModules[name][
-            action.layer[name] === WEBPACK_LAYERS.actionBrowser
-              ? 'client'
-              : 'server'
+            layer![name] === WEBPACK_LAYERS.actionBrowser ? 'client' : 'server'
           ]
         action.workers[name] = modId!
       }

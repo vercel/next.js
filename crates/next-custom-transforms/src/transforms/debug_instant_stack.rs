@@ -8,48 +8,66 @@ use swc_core::{
     quote,
 };
 
-fn build_page_extensions_regex(page_extensions: &[String]) -> String {
-    if page_extensions.is_empty() {
-        "(ts|js)x?".to_string()
-    } else {
-        let escaped: Vec<String> = page_extensions
-            .iter()
-            .map(|ext| regex::escape(ext))
-            .collect();
-        format!("({})", escaped.join("|"))
+#[derive(Debug)]
+pub struct DebugInstantStack {
+    page_or_layout: Regex,
+}
+
+impl DebugInstantStack {
+    pub fn new<I, S>(page_extensions: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut result = String::from(r"[\\/](page|layout|default)\.");
+        let mut iter = page_extensions.into_iter();
+        if let Some(first) = iter.next() {
+            result.push('(');
+            result.push_str(&regex::escape(first.as_ref()));
+            for ext in iter {
+                result.push('|');
+                result.push_str(&regex::escape(ext.as_ref()));
+            }
+            result.push(')');
+        } else {
+            result.push_str("(ts|js)x?");
+        }
+        result.push('$');
+        Self {
+            page_or_layout: Regex::new(&result).unwrap(),
+        }
+    }
+    pub fn get_pass(&self, filepath: String) -> impl Pass + use<> {
+        visit_mut_pass(DebugInstantStackPass {
+            filepath,
+            instant_export_span: None,
+            page_or_layout: self.page_or_layout.clone(),
+        })
     }
 }
 
-pub fn debug_instant_stack(filepath: String, page_extensions: Vec<String>) -> impl Pass {
-    visit_mut_pass(DebugInstantStack {
-        filepath,
-        instant_export_span: None,
-        page_extensions,
-    })
-}
-
-struct DebugInstantStack {
+struct DebugInstantStackPass {
     filepath: String,
     instant_export_span: Option<Span>,
-    page_extensions: Vec<String>,
+    page_or_layout: Regex,
 }
 
 /// Given an export specifier, returns `Some((exported_name, local_name))` if
-/// the exported name is `unstable_instant`.
+/// the exported name is `instant`.
 fn get_instant_specifier_names(specifier: &ExportSpecifier) -> Option<(&Ident, &Ident)> {
     match specifier {
-        // `export { orig as unstable_instant }`
+        // `export { orig as instant }`
         ExportSpecifier::Named(ExportNamedSpecifier {
             exported: Some(ModuleExportName::Ident(exported)),
             orig: ModuleExportName::Ident(orig),
             ..
-        }) if exported.sym == "unstable_instant" => Some((exported, orig)),
-        // `export { unstable_instant }`
+        }) if exported.sym == "instant" => Some((exported, orig)),
+        // `export { instant }`
         ExportSpecifier::Named(ExportNamedSpecifier {
             exported: None,
             orig: ModuleExportName::Ident(orig),
             ..
-        }) if orig.sym == "unstable_instant" => Some((orig, orig)),
+        }) if orig.sym == "instant" => Some((orig, orig)),
         _ => None,
     }
 }
@@ -80,23 +98,20 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
     None
 }
 
-impl VisitMut for DebugInstantStack {
+impl VisitMut for DebugInstantStackPass {
     fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
-        let ext_pattern = build_page_extensions_regex(&self.page_extensions);
-        let page_or_layout_re =
-            Regex::new(&format!(r"[\\/](page|layout|default)\.{ext_pattern}$")).unwrap();
-        if !page_or_layout_re.is_match(&self.filepath) {
+        if !self.page_or_layout.is_match(&self.filepath) {
             return;
         }
 
         for item in items.iter() {
             match item {
-                // `export const unstable_instant = ...`
+                // `export const instant = ...`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                     if let Decl::Var(var_decl) = &export_decl.decl {
                         for decl in &var_decl.decls {
                             if let Pat::Ident(ident) = &decl.name
-                                && ident.id.sym == "unstable_instant"
+                                && ident.id.sym == "instant"
                                 && let Some(init) = &decl.init
                             {
                                 self.instant_export_span = Some(init.span());
@@ -104,13 +119,13 @@ impl VisitMut for DebugInstantStack {
                         }
                     }
                 }
-                // `export { unstable_instant }` or `export { x as unstable_instant }`
+                // `export { instant }` or `export { x as instant }`
                 // with or without `from '...'`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                     for specifier in &named.specifiers {
                         if let Some((_exported, orig)) = get_instant_specifier_names(specifier) {
                             if named.src.is_some() {
-                                // Re-export: `export { unstable_instant } from './config'`
+                                // Re-export: `export { instant } from './config'`
                                 // Point at the export specifier itself
                                 self.instant_export_span = Some(specifier.span());
                             } else {
@@ -141,7 +156,7 @@ impl VisitMut for DebugInstantStack {
             }
 
             let mut cons = quote!(
-                "function unstable_instant() {
+                "function instant() {
                     const error = $new_error
                     error.name = 'Instant Validation'
                     return error
@@ -150,7 +165,7 @@ impl VisitMut for DebugInstantStack {
             );
 
             // Patch source_span onto the Function
-            // for sourcemap mapping back to the unstable_instant config value
+            // for sourcemap mapping back to the instant config value
             if let Expr::Fn(f) = &mut cons {
                 f.function.span = source_span;
             }

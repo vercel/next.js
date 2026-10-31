@@ -1,7 +1,10 @@
 import { install } from "../helpers/install";
 import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
-import { getPnpmMajorVersion } from "../helpers/get-pkg-manager";
+import {
+  getPackageManagerVersion,
+  getPnpmMajorVersion,
+} from "../helpers/get-pkg-manager";
 
 import { async as glob } from "fast-glob";
 import os from "os";
@@ -15,7 +18,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.3.1";
 function sorted(obj: Record<string, string>) {
   return Object.keys(obj)
     .sort()
@@ -57,6 +60,8 @@ export const installTemplate = async ({
   skipInstall,
   bundler,
   reactCompiler,
+  cacheComponents,
+  agentFeedback,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -69,7 +74,9 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!biome) copySource.push("!biome.json");
-  if (!tailwind) copySource.push("!postcss.config.mjs");
+  if (!tailwind || bundler === Bundler.Turbopack) {
+    copySource.push("!postcss.config.mjs");
+  }
 
   await copy(copySource, root, {
     parents: true,
@@ -106,6 +113,30 @@ export const installTemplate = async ({
     );
   }
 
+  if (tailwind && bundler === Bundler.Turbopack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      `/* config options here */
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+`,
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
   if (reactCompiler) {
     const nextConfigFile = path.join(
       root,
@@ -116,6 +147,39 @@ export const installTemplate = async ({
     configContent = configContent.replace(
       "/* config options here */\n",
       "/* config options here */\n  reactCompiler: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
+  if (cacheComponents) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    // `partialPrefetching` is enabled alongside `cacheComponents` because the
+    // only reason to disable it is when adopting `cacheComponents` from before
+    // the option existed.
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  cacheComponents: true,\n  partialPrefetching: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
+  if (agentFeedback) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  experimental: {\n    agentFeedback: true,\n  },\n",
     );
 
     await fs.writeFile(nextConfigFile, configContent);
@@ -211,6 +275,25 @@ export const installTemplate = async ({
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
   const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
 
+  // When isolated tests pack workspace packages and pass their tarball
+  // paths via `NEXT_TEST_PKG_PATHS` (set by `run-tests.js`), prefer those
+  // paths over `version` so siblings like `next-rspack` and
+  // `eslint-config-next` install from their own tarball — not from the
+  // `next` tarball, which would cause npm to extract `next`'s contents
+  // into the sibling's `node_modules/` entry. Their packed workspace
+  // companions are added as overrides below.
+  const testPkgPaths: Map<string, string> | null = (() => {
+    const env = process.env.NEXT_TEST_PKG_PATHS;
+    if (!env) return null;
+    try {
+      return new Map<string, string>(JSON.parse(env));
+    } catch {
+      return null;
+    }
+  })();
+  const resolvePkgVersion = (name: string): string =>
+    testPkgPaths?.get(name) ?? version;
+
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
     name: appName,
@@ -229,24 +312,13 @@ export const installTemplate = async ({
     dependencies: {
       react: nextjsReactPeerVersion,
       "react-dom": nextjsReactPeerVersion,
-      next: version,
+      next: resolvePkgVersion("next"),
     },
     devDependencies: {},
   };
 
   if (bundler === Bundler.Rspack) {
-    const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
-    if (
-      NEXT_PRIVATE_TEST_VERSION &&
-      path.isAbsolute(NEXT_PRIVATE_TEST_VERSION)
-    ) {
-      packageJson.dependencies["next-rspack"] = path.resolve(
-        path.dirname(NEXT_PRIVATE_TEST_VERSION),
-        "../next-rspack/next-rspack-packed.tgz",
-      );
-    } else {
-      packageJson.dependencies["next-rspack"] = version;
-    }
+    packageJson.dependencies["next-rspack"] = resolvePkgVersion("next-rspack");
   }
 
   if (reactCompiler) {
@@ -268,9 +340,13 @@ export const installTemplate = async ({
 
   /* Add Tailwind CSS dependencies. */
   if (tailwind) {
+    const tailwindPlugin =
+      bundler === Bundler.Turbopack
+        ? "@tailwindcss/turbopack"
+        : "@tailwindcss/postcss";
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@tailwindcss/postcss": "^4",
+      [tailwindPlugin]: "^4",
       tailwindcss: "^4",
     };
   }
@@ -279,8 +355,8 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^9",
-      "eslint-config-next": version,
+      eslint: "^10",
+      "eslint-config-next": resolvePkgVersion("eslint-config-next"),
     };
   }
 
@@ -288,7 +364,7 @@ export const installTemplate = async ({
   if (biome) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@biomejs/biome": "2.2.0",
+      "@biomejs/biome": "2.4.2",
     };
   }
 
@@ -320,6 +396,51 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
+  // Direct dependencies above install from their packed tarballs, but their
+  // workspace companions (e.g. `@next/env` from `next`) would otherwise
+  // resolve from the registry, where a freshly bumped release version may not
+  // be published yet. Point them at their local tarballs too. Only override
+  // companions of direct dependencies: Yarn Classic resolves every
+  // `resolutions` entry, even ones nothing depends on.
+  const testPkgCompanions: Record<string, string> = {
+    next: "@next/env",
+    "eslint-config-next": "@next/eslint-plugin-next",
+  };
+  const testPkgOverrides: Record<string, string> = {};
+  if (testPkgPaths) {
+    const isDirectDependency = (name: string) =>
+      Boolean(
+        packageJson.dependencies[name] || packageJson.devDependencies?.[name],
+      );
+    for (const [parent, companion] of Object.entries(testPkgCompanions)) {
+      const tarballPath = testPkgPaths.get(companion);
+      if (
+        tarballPath &&
+        isDirectDependency(parent) &&
+        !isDirectDependency(companion)
+      ) {
+        testPkgOverrides[companion] = tarballPath;
+      }
+    }
+  }
+  const hasTestPkgOverrides = Object.keys(testPkgOverrides).length > 0;
+  if (hasTestPkgOverrides) {
+    // npm and bun read `overrides`; yarn and bun read `resolutions`.
+    packageJson.overrides = sorted(testPkgOverrides);
+    packageJson.resolutions = sorted(testPkgOverrides);
+  }
+  // pnpm v10+ reads overrides from the `pnpm-workspace.yaml` written below.
+  // JSON strings are valid YAML double-quoted scalars, including Windows paths.
+  const pnpmWorkspaceOverrides = hasTestPkgOverrides
+    ? [
+        "overrides:",
+        ...Object.entries(sorted(testPkgOverrides)).map(
+          ([name, tarballPath]) =>
+            `  ${JSON.stringify(name)}: ${JSON.stringify(tarballPath)}`,
+        ),
+      ]
+    : [];
+
   if (packageManager === "pnpm") {
     // Only create pnpm-workspace.yaml for pnpm v10+.
     // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
@@ -328,7 +449,27 @@ export const installTemplate = async ({
     // If we can't determine the version, assume latest (v10+) since we already
     // know pnpm is being used at this point.
     const pnpmMajorVersion = getPnpmMajorVersion();
-    if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
+      // In pnpm v11, `ignoredBuiltDependencies` (and the other build-script
+      // settings) were removed in favor of a single `allowBuilds` map where
+      // `false` denies a package from running build scripts. See
+      // https://pnpm.io/blog/releases/11.0
+      const pnpmWorkspaceYaml = [
+        "allowBuilds:",
+        // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+        // If it needs to build binaries from source, next-swc wouldn't work either.
+        // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+        "  sharp: false",
+        // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
+        "  unrs-resolver: false",
+        ...pnpmWorkspaceOverrides,
+        "",
+      ].join(os.EOL);
+      await fs.writeFile(
+        path.join(root, "pnpm-workspace.yaml"),
+        pnpmWorkspaceYaml,
+      );
+    } else if (pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [
         "ignoredBuiltDependencies:",
         // Sharp has prebuilt binaries for the platforms next-swc has binaries.
@@ -337,12 +478,29 @@ export const installTemplate = async ({
         "  - sharp",
         // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
         "  - unrs-resolver",
+        ...pnpmWorkspaceOverrides,
         "",
       ].join(os.EOL);
       await fs.writeFile(
         path.join(root, "pnpm-workspace.yaml"),
         pnpmWorkspaceYaml,
       );
+    } else if (hasTestPkgOverrides) {
+      // pnpm v9 gets no `pnpm-workspace.yaml`, so use package.json instead.
+      packageJson.pnpm = { overrides: sorted(testPkgOverrides) };
+    }
+  }
+
+  // Pin the package manager version via corepack so the project always uses the
+  // same version the project was created with. This avoids subtle differences
+  // between the pnpm/yarn/bun version on a contributor's PATH and the one used
+  // to scaffold the project (e.g. a pnpm-workspace.yaml written for pnpm v10+
+  // but installed with pnpm v9 on PATH).
+  // See: https://nodejs.org/api/packages.html#packagemanager
+  if (packageManager !== "npm") {
+    const packageManagerVersion = getPackageManagerVersion(packageManager);
+    if (packageManagerVersion) {
+      packageJson.packageManager = `${packageManager}@${packageManagerVersion}`;
     }
   }
 

@@ -4,6 +4,10 @@ import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-cal
 import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 import { ErrorCause, styles as errorCauseStyles } from './error-cause'
 import {
+  ErrorAggregateErrors,
+  styles as errorAggregateErrorsStyles,
+} from './error-aggregate-errors'
+import {
   useFrames,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
@@ -46,6 +50,13 @@ export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
       {error.cause && (
         <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
       )}
+
+      {'aggregateErrors' in error && error.aggregateErrors !== null && (
+        <ErrorAggregateErrors
+          errors={error.aggregateErrors}
+          dialogResizerRef={dialogResizerRef}
+        />
+      )}
     </>
   )
 }
@@ -53,4 +64,5 @@ export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
 export const styles = `
   ${PSEUDO_HTML_DIFF_STYLES}
   ${errorCauseStyles}
+  ${errorAggregateErrorsStyles}
 `

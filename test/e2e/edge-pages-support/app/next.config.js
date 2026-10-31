@@ -11,8 +11,6 @@ module.exports = {
       },
     ]
   },
-  experimental: {
-    adapterPath:
-      process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.js'),
-  },
+  adapterPath:
+    process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.js'),
 }

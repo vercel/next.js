@@ -1,6 +1,8 @@
 import {
+  buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
+  getPlaceholderFallbackRouteParams,
 } from './fallback-params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
@@ -53,8 +55,8 @@ describe('createOpaqueFallbackRouteParams', () => {
     it('get method works correctly', () => {
       const result = createOpaqueFallbackRouteParams(fallbackParams)!
 
-      expect(result.get('slug')?.[0]).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
-      expect(result.get('modal')?.[0]).toMatch(/^%%drp:modal:[a-f0-9]+%%$/)
+      expect(result.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
+      expect(result.get('modal')).toMatch(/^%%drp:modal:[a-f0-9]+%%$/)
       expect(result.get('nonexistent')).toBeUndefined()
       expect(result.get('')).toBeUndefined()
     })
@@ -65,10 +67,58 @@ describe('createOpaqueFallbackRouteParams', () => {
       const entries = Array.from(result.entries())
       expect(entries).toHaveLength(2)
 
-      const [name, [value]] = entries[0]
+      const [name, value] = entries[0]
       expect(name).toBe('slug')
       expect(value).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
+  })
+})
+
+describe('placeholder fallback route params', () => {
+  it('builds route placeholders by dynamic param type', () => {
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'dynamic',
+      })
+    ).toBe('[slug]')
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'catchall',
+      })
+    ).toBe('[...slug]')
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'optional-catchall',
+      })
+    ).toBe('[[...slug]]')
+  })
+
+  it('returns only fallback params that are still placeholders', () => {
+    const fallbackParams: readonly FallbackRouteParam[] = [
+      { paramName: 'team', paramType: 'dynamic' },
+      { paramName: 'project', paramType: 'dynamic' },
+      { paramName: 'slug', paramType: 'catchall' },
+      { paramName: 'optional', paramType: 'optional-catchall' },
+    ]
+
+    const result = getPlaceholderFallbackRouteParams(
+      {
+        team: '[team]',
+        project: 'dashboard',
+        slug: ['[...slug]'],
+        optional: '[[...optional]]',
+      },
+      fallbackParams
+    )
+
+    expect(result).toEqual([
+      { paramName: 'team', paramType: 'dynamic' },
+      { paramName: 'slug', paramType: 'catchall' },
+      { paramName: 'optional', paramType: 'optional-catchall' },
+    ])
   })
 })
 
@@ -82,7 +132,7 @@ describe('getFallbackRouteParams', () => {
 
       expect(result).not.toBeNull()
       expect(result!.has('slug')).toBe(true)
-      expect(result!.get('slug')?.[1]).toBe('d') // 'd' = dynamic (short type)
+      expect(result!.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
 
     it('should extract multiple nested dynamic segments', () => {
@@ -99,8 +149,8 @@ describe('getFallbackRouteParams', () => {
       expect(result!.size).toBe(2)
       expect(result!.has('category')).toBe(true)
       expect(result!.has('slug')).toBe(true)
-      expect(result!.get('category')?.[1]).toBe('d')
-      expect(result!.get('slug')?.[1]).toBe('d')
+      expect(result!.get('category')).toMatch(/^%%drp:category:[a-f0-9]+%%$/)
+      expect(result!.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
 
     it('should extract catchall segment', () => {
@@ -112,7 +162,7 @@ describe('getFallbackRouteParams', () => {
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
       expect(result!.has('slug')).toBe(true)
-      expect(result!.get('slug')?.[1]).toBe('c') // 'c' = catchall
+      expect(result!.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
 
     it('should extract optional catchall segment', () => {
@@ -128,7 +178,7 @@ describe('getFallbackRouteParams', () => {
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
       expect(result!.has('slug')).toBe(true)
-      expect(result!.get('slug')?.[1]).toBe('oc') // 'oc' = optional-catchall
+      expect(result!.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
 
     it('should extract mixed static and dynamic segments', () => {
@@ -187,6 +237,24 @@ describe('getFallbackRouteParams', () => {
 
       expect(result).not.toBeNull()
       // Only projectSlug should be a fallback param, vercel is static
+      expect(result!.has('projectSlug')).toBe(true)
+      expect(result!.has('teamSlug')).toBe(false)
+    })
+
+    it('should treat encoded placeholders as dynamic segments', () => {
+      // Tree: /[teamSlug]/[projectSlug] but page is /vercel/%5BprojectSlug%5D
+      const loaderTree = createLoaderTree(
+        '',
+        {},
+        createLoaderTree('[teamSlug]', {}, createLoaderTree('[projectSlug]'))
+      )
+      const routeModule = createMockRouteModule(loaderTree)
+      const result = getFallbackRouteParams(
+        '/vercel/%5BprojectSlug%5D',
+        routeModule
+      )
+
+      expect(result).not.toBeNull()
       expect(result!.has('projectSlug')).toBe(true)
       expect(result!.has('teamSlug')).toBe(false)
     })
@@ -339,8 +407,7 @@ describe('getFallbackRouteParams', () => {
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
       expect(result!.has('photoId')).toBe(true)
-      // Should have intercepted type
-      expect(result!.get('photoId')?.[1]).toBe('di(.)') // 'di(.)' = dynamic-intercepted-(.)'
+      expect(result!.get('photoId')).toMatch(/^%%drp:photoId:[a-f0-9]+%%$/)
     })
   })
 
@@ -572,7 +639,7 @@ describe('getFallbackRouteParams', () => {
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
       expect(result!.has('slug')).toBe(true)
-      expect(result!.get('slug')?.[1]).toBe('c') // catchall
+      expect(result!.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
 
     it('should handle optional catchall in parallel route', () => {
@@ -586,7 +653,7 @@ describe('getFallbackRouteParams', () => {
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
       expect(result!.has('optional')).toBe(true)
-      expect(result!.get('optional')?.[1]).toBe('oc') // optional-catchall
+      expect(result!.get('optional')).toMatch(/^%%drp:optional:[a-f0-9]+%%$/)
 
       result = getFallbackRouteParams('/sidebar/is/real', routeModule)
       expect(result).toBeNull()

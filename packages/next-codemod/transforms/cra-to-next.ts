@@ -1,3 +1,5 @@
+import type { Element as CheerioElement, Node as CheerioNode } from 'cheerio'
+
 import fs from 'fs'
 import path from 'path'
 import execa from 'execa'
@@ -196,11 +198,14 @@ class CraTransform {
     const documentPage = path.join(this.pagesDir, `_document.${pageExt}`)
     const catchAllPage = path.join(this.pagesDir, `[[...slug]].${pageExt}`)
 
-    const gatherTextChildren = (children: CheerioElement[]) => {
+    const gatherTextChildren = (children: CheerioNode[]) => {
       return children
         .map((child) => {
           if (child.type === 'text') {
-            return child.data
+            // `data` only exists on Data nodes according to types so this is sus.
+            // @ts-expect-error - Found when upgrading to TypeScript 6.0.
+            const text = child.data
+            return text
           }
           return ''
         })

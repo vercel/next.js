@@ -13,14 +13,14 @@ bench = false
 
 # [NOTE]: Before enable this, ensure this can build all of the target platforms we support.
 avif = ["image/avif"]
-webp = ["image/webp"]
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-base64 = "0.21.0"
+async-trait = { workspace = true }
+base64 = { workspace = true }
 bincode = { workspace = true }
 image = { workspace = true, default-features = false, features = [
   "gif",
@@ -29,15 +29,16 @@ image = { workspace = true, default-features = false, features = [
   "ico",
   "bmp",
   "tga",
+  "webp",
 ] }
+# Reads dimensions from headers for formats we can't decode (see `ImageBuffer::Raw`)
+imagesize = { workspace = true, features = ["heif"] }
 mime = { workspace = true }
-once_cell = { workspace = true }
+phf = { workspace = true }
 regex = { workspace = true }
-rustc-hash = { workspace = true }
 serde = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
-

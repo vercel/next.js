@@ -4,12 +4,12 @@ use std::{
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::{empty, once},
+    sync::LazyLock,
 };
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -17,8 +17,8 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -31,13 +31,11 @@ use crate::{
         Issue, IssueExt, IssueSource, module::emit_unknown_module_type_error,
         resolve::ResolvingIssue,
     },
-    module::{Module, Modules, OptionModule},
-    output::{OutputAsset, OutputAssets},
+    module::Module,
     package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
-        alias_map::AliasKey,
         error::{handle_resolve_error, resolve_error_severity},
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         options::{
@@ -48,9 +46,9 @@ use crate::{
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
-        remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
+        remap::{ExportImport, ExportsField, ImportsField},
     },
-    source::{OptionSource, Source, Sources},
+    source::Source,
 };
 
 mod alias_map;
@@ -64,13 +62,17 @@ pub mod plugin;
 pub(crate) mod remap;
 
 pub use alias_map::{
-    AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern, AliasTemplate,
+    AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
+    AliasTemplate,
 };
-pub use remap::{ResolveAliasMap, SubpathValue};
+pub use remap::{
+    ReplacedSubpathValue, ReplacedSubpathValueResult, ReplacedSubpathValueResultType,
+    ResolveAliasMap, SubpathValue, TerminalState,
+};
 
 /// Controls how resolve errors are handled.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Default, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Default, Hash)]
 pub enum ResolveErrorMode {
     /// Emit an error issue (default behavior)
     #[default]
@@ -84,14 +86,13 @@ pub enum ResolveErrorMode {
 /// Type alias for a resolved after-resolve plugin paired with its condition.
 type AfterResolvePluginWithCondition = (
     ResolvedVc<Box<dyn AfterResolvePlugin>>,
-    Vc<AfterResolvePluginCondition>,
+    ReadRef<AfterResolvePluginCondition>,
 );
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
-    OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External {
         /// uri, path, reference, etc.
         name: RcStr,
@@ -106,9 +107,19 @@ pub enum ModuleResolveResultItem {
     /// Resolve the reference to an empty module.
     Empty,
     Custom(u8),
+    /// A duplicate of an item that appeared earlier in the primary array.
+    /// The usize is the index of the first occurrence. Most callers should skip
+    /// this variant.
+    ///
+    /// Bakes duplicate detection into the datastructure to make filtering for uniques trivial which
+    /// is required by primary_modules.
+    Duplicate(usize),
 }
 
 impl ModuleResolveResultItem {
+    // Returns the module for this item if it is one
+    // NOTE: if this is a `ModuleResolveResultItem::Duplicate` we return `None`, it is expected that
+    // callers will have already found the module earlier.
     async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
@@ -151,7 +162,7 @@ pub enum ImportUsage {
     /// This import is used only by these specific exports, if all exports are unused, the import
     /// can also be removed.
     ///
-    /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
+    /// (This is only ever set on named export module-part references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
 }
@@ -168,6 +179,16 @@ pub enum ExportUsage {
     All,
     /// Only side effects are used.
     Evaluation,
+    /// Use the same exports that are used from the referencing module. This is used by transparent
+    /// module proxies and re-exports that forward their export surface to another module.
+    ///
+    /// Namespace provenance that reached the referencing module is forwarded independently of the
+    /// used names. This keeps multi-hop namespace reads safe for export-name mangling.
+    Passthrough {
+        /// Whether this edge itself exposes a namespace object's original property names, even if
+        /// the referencing module was only consumed through statically known named exports.
+        namespace_object_may_escape: bool,
+    },
 }
 
 impl Display for ExportUsage {
@@ -186,6 +207,18 @@ impl Display for ExportUsage {
             }
             ExportUsage::All => write!(f, "all"),
             ExportUsage::Evaluation => write!(f, "evaluation"),
+            ExportUsage::Passthrough {
+                namespace_object_may_escape,
+                ..
+            } => write!(
+                f,
+                "passthrough{}",
+                if *namespace_object_may_escape {
+                    " namespace"
+                } else {
+                    ""
+                }
+            ),
         }
     }
 }
@@ -205,6 +238,19 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn partial_namespace_object(names: Vec<RcStr>) -> Vc<Self> {
+        Self::PartialNamespaceObject(names.into_iter().collect()).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn passthrough(namespace_object_may_escape: bool) -> Vc<Self> {
+        Self::Passthrough {
+            namespace_object_may_escape,
+        }
+        .cell()
     }
 }
 
@@ -242,29 +288,16 @@ impl ModuleResolveResult {
         .resolved_cell()
     }
 
-    pub fn output_asset(
-        request_key: RequestKey,
-        output_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> ResolvedVc<Self> {
-        ModuleResolveResult {
-            primary: vec![(
-                request_key,
-                ModuleResolveResultItem::OutputAsset(output_asset),
-            )]
-            .into_boxed_slice(),
-            affecting_sources: Default::default(),
-        }
-        .resolved_cell()
-    }
-
     pub fn modules(
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ResolvedVc<Self> {
+        let mut primary: Vec<_> = modules
+            .into_iter()
+            .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
+            .collect();
+        Self::mark_duplicates(&mut primary);
         ModuleResolveResult {
-            primary: modules
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+            primary: primary.into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -274,11 +307,13 @@ impl ModuleResolveResult {
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
+        let mut primary: Vec<_> = modules
+            .into_iter()
+            .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
+            .collect();
+        Self::mark_duplicates(&mut primary);
         ModuleResolveResult {
-            primary: modules
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+            primary: primary.into_boxed_slice(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -286,6 +321,26 @@ impl ModuleResolveResult {
 }
 
 impl ModuleResolveResult {
+    /// Marks duplicate items as `Duplicate(first_index)` in place.
+    /// Preserves ordering; the first occurrence stays, subsequent occurrences
+    /// of the same module/output asset become `Duplicate`.
+    fn mark_duplicates(primary: &mut [(RequestKey, ModuleResolveResultItem)]) {
+        if primary.len() <= 1 {
+            return;
+        }
+        // Map from module identity to the index of first occurrence
+        let mut seen_modules = FxHashMap::default();
+        for (i, (_, item)) in primary.iter_mut().enumerate() {
+            if let ModuleResolveResultItem::Module(m) = *item {
+                if let Some(&first) = seen_modules.get(&m) {
+                    *item = ModuleResolveResultItem::Duplicate(first);
+                } else {
+                    seen_modules.insert(m, i);
+                }
+            }
+        }
+    }
+
     /// Returns all module results (but ignoring any errors).
     pub fn primary_modules_raw_iter(
         &self,
@@ -296,22 +351,35 @@ impl ModuleResolveResult {
         })
     }
 
-    /// Returns a set (no duplicates) of primary modules in the result.
-    pub async fn primary_modules_ref(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
-        let mut set = FxIndexSet::default();
+    /// Returns primary modules (no duplicates). Emits errors for Unknown items.
+    /// Duplicates are already marked at construction time so no extra dedup is
+    /// needed here.
+    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>> {
+        self.primary
+            .iter()
+            .map(async |(_, item)| item.as_module().await)
+            .join()
+            .await
+            .into_iter()
+            .filter_map(Result::transpose)
+            .collect()
+    }
+
+    /// Returns the first module in the result, or None.
+    pub async fn first_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         for (_, item) in self.primary.iter() {
             if let Some(module) = item.as_module().await? {
-                set.insert(module);
+                return Ok(Some(module));
             }
         }
-        Ok(set.into_iter().collect())
+        Ok(None)
     }
 
     pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
     }
 
-    pub fn is_unresolvable_ref(&self) -> bool {
+    pub fn is_unresolvable(&self) -> bool {
         self.primary.is_empty()
     }
 
@@ -330,25 +398,56 @@ pub struct ModuleResolveResultBuilder {
 
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
+        let mut primary: Vec<_> = v.primary.into_iter().collect();
+        Self::mark_duplicates(&mut primary);
         ModuleResolveResult {
-            primary: v.primary.into_iter().collect(),
+            primary: primary.into_boxed_slice(),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
 }
+
+/// Resolves a `Duplicate(i)` marker by looking up the underlying item in `source`.
+/// `mark_duplicates` only ever produces backwards-pointing `Duplicate` indices into
+/// `Module(_)` entries, so a single lookup is enough.
+fn expand_duplicate<'a>(
+    source: &'a [(RequestKey, ModuleResolveResultItem)],
+    item: &'a ModuleResolveResultItem,
+) -> &'a ModuleResolveResultItem {
+    if let ModuleResolveResultItem::Duplicate(i) = *item {
+        &source[i].1
+    } else {
+        item
+    }
+}
+
 impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
     fn from(v: ModuleResolveResult) -> Self {
+        // Expand `Duplicate(i)` markers as we copy into the builder. The indices are valid
+        // for `v.primary`, but the builder's `FxIndexMap` may be re-keyed and merged with
+        // other results, so the indices wouldn't survive. The final
+        // `From<Builder> for ModuleResolveResult` re-runs `mark_duplicates` on the merged
+        // primary array.
+        let primary = v
+            .primary
+            .iter()
+            .map(|(k, item)| (k.clone(), expand_duplicate(&v.primary, item).clone()))
+            .collect();
         ModuleResolveResultBuilder {
-            primary: IntoIterator::into_iter(v.primary).collect(),
+            primary,
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
 }
 impl ModuleResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
+        // Expand `Duplicate(i)` markers from `other` against `other.primary` before
+        // inserting — the indices only make sense within `other`, not within the merged
+        // result. The final `mark_duplicates` pass on conversion will re-derive markers.
         for (k, v) in other.primary.iter() {
             if !self.primary.contains_key(k) {
-                self.primary.insert(k.clone(), v.clone());
+                self.primary
+                    .insert(k.clone(), expand_duplicate(&other.primary, v).clone());
             }
         }
         let set = self
@@ -387,63 +486,38 @@ impl ModuleResolveResult {
         }
     }
 
+    /// Combines results from distinct lookup directories. Unlike `alternatives`, entries with
+    /// identical request keys can point at different modules and must both be kept.
     #[turbo_tasks::function]
-    pub fn is_unresolvable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolvable_ref())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
-        for (_, item) in self.primary.iter() {
-            if let Some(module) = item.as_module().await? {
-                return Ok(Vc::cell(Some(module)));
+    pub async fn concat(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
+        if results.len() == 1 {
+            return Ok(results.into_iter().next().unwrap());
+        }
+        let mut primary = Vec::new();
+        let mut affecting_sources = Vec::new();
+        let mut seen_sources = FxHashSet::default();
+        for result in results.into_iter().try_join().await? {
+            primary.extend(
+                result.primary.iter().map(|(key, item)| {
+                    (key.clone(), expand_duplicate(&result.primary, item).clone())
+                }),
+            );
+            for source in result.affecting_sources.iter().copied() {
+                if seen_sources.insert(source) {
+                    affecting_sources.push(source);
+                }
             }
         }
-        Ok(Vc::cell(None))
-    }
-
-    /// Returns a set (no duplicates) of primary modules in the result. All
-    /// modules are already resolved Vc.
-    #[turbo_tasks::function]
-    pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
-        let mut set = FxIndexSet::default();
-        for (_, item) in self.primary.iter() {
-            if let Some(module) = item.as_module().await? {
-                set.insert(module);
-            }
-        }
-        Ok(Vc::cell(set.into_iter().collect()))
-    }
-
-    #[turbo_tasks::function]
-    pub fn primary_output_assets(&self) -> Vc<OutputAssets> {
-        Vc::cell(
-            self.primary
-                .iter()
-                .filter_map(|(_, item)| match item {
-                    &ModuleResolveResultItem::OutputAsset(a) => Some(a),
-                    _ => None,
-                })
-                .collect(),
-        )
+        Self::mark_duplicates(&mut primary);
+        Ok(Self::cell(Self {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: affecting_sources.into_boxed_slice(),
+        }))
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    TaskInput,
-    Hash,
-    NonLocalValue,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum ExternalTraced {
     Untraced,
     Traced,
@@ -458,21 +532,8 @@ impl Display for ExternalTraced {
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum ExternalType {
     Url,
     CommonJs,
@@ -521,8 +582,8 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolving and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
-#[turbo_tasks::value]
+#[derive(Clone, Debug, Default, Hash)]
+#[turbo_tasks::value(task_input)]
 pub struct RequestKey {
     pub request: Option<RcStr>,
     pub conditions: FrozenMap<RcStr, bool>,
@@ -572,7 +633,7 @@ impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut result = String::new();
-        if self.is_unresolvable_ref() {
+        if self.is_unresolvable() {
             result.push_str("unresolvable");
         }
         for (i, (request, item)) in self.primary.iter().enumerate() {
@@ -596,7 +657,7 @@ impl ValueToString for ResolveResult {
                         result,
                         " ({ty}, {traced}, {:?})",
                         if let Some(target) = target {
-                            Some(target.value_to_string().await?)
+                            Some(target.to_string_ref().await?)
                         } else {
                             None
                         }
@@ -707,8 +768,28 @@ impl ResolveResult {
         self.affecting_sources.iter().copied()
     }
 
-    pub fn is_unresolvable_ref(&self) -> bool {
+    pub fn is_unresolvable(&self) -> bool {
         self.primary.is_empty()
+    }
+
+    pub fn first_source(&self) -> Option<ResolvedVc<Box<dyn Source>>> {
+        self.primary.iter().find_map(|(_, item)| {
+            if let &ResolveResultItem::Source(a) = item {
+                Some(a)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn primary_sources(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> {
+        self.primary.iter().filter_map(|(_, item)| {
+            if let &ResolveResultItem::Source(a) = item {
+                Some(a)
+            } else {
+                None
+            }
+        })
     }
 
     pub async fn map_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
@@ -875,7 +956,7 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn as_raw_module_result(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(self
-            .map_module(|asset| async move {
+            .map_module(async |asset| {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
                     RawModule::new(*asset).to_resolved().await?,
                 )))
@@ -951,38 +1032,6 @@ impl ResolveResult {
         }
     }
 
-    #[turbo_tasks::function]
-    pub fn is_unresolvable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolvable_ref())
-    }
-
-    #[turbo_tasks::function]
-    pub fn first_source(&self) -> Vc<OptionSource> {
-        Vc::cell(self.primary.iter().find_map(|(_, item)| {
-            if let &ResolveResultItem::Source(a) = item {
-                Some(a)
-            } else {
-                None
-            }
-        }))
-    }
-
-    #[turbo_tasks::function]
-    pub fn primary_sources(&self) -> Vc<Sources> {
-        Vc::cell(
-            self.primary
-                .iter()
-                .filter_map(|(_, item)| {
-                    if let &ResolveResultItem::Source(a) = item {
-                        Some(a)
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-        )
-    }
-
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The `old_request_key`
     /// (prefix) is replaced with the `request_key`. It's not expected that the [ResolveResult]
     /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
@@ -991,7 +1040,7 @@ impl ResolveResult {
     fn with_replaced_request_key(
         &self,
         old_request_key: RcStr,
-        request_key: RequestKey,
+        new_request_key: RcStr,
     ) -> Result<Vc<Self>> {
         let new_primary = self
             .primary
@@ -1000,11 +1049,8 @@ impl ResolveResult {
                 let remaining = k.request.as_ref()?.strip_prefix(&*old_request_key)?;
                 Some((
                     RequestKey {
-                        request: request_key
-                            .request
-                            .as_ref()
-                            .map(|r| format!("{r}{remaining}").into()),
-                        conditions: request_key.conditions.clone(),
+                        request: Some(format!("{new_request_key}{remaining}").into()),
+                        conditions: k.conditions.clone(),
                     },
                     v.clone(),
                 ))
@@ -1140,7 +1186,9 @@ async fn type_exists(
     ty: FileSystemEntryType,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
 ) -> Result<Option<FileSystemPath>> {
-    let path = realpath(fs_path, refs).await?;
+    let Some(path) = realpath_if_exists(fs_path, refs).await? else {
+        return Ok(None);
+    };
     Ok(if *path.get_type().await? == ty {
         Some(path)
     } else {
@@ -1148,17 +1196,17 @@ async fn type_exists(
     })
 }
 
-async fn realpath(
+async fn realpath_if_exists(
     fs_path: &FileSystemPath,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
-) -> Result<FileSystemPath> {
+) -> Result<Option<FileSystemPath>> {
     let result = fs_path.realpath_with_links().await?;
     if let Some(refs) = refs {
         refs.extend(
             result
                 .symlinks
                 .iter()
-                .map(|path| async move {
+                .map(async |path| {
                     Ok(ResolvedVc::upcast(
                         FileSource::new(path.clone()).to_resolved().await?,
                     ))
@@ -1168,14 +1216,16 @@ async fn realpath(
         );
     }
     match &result.path_result {
-        Ok(path) => Ok(path.clone()),
-        Err(e) => bail!(e.as_error_message(fs_path, &result).await?),
+        Ok(path) => Ok(Some(path.clone())),
+        // Treat paths whose symlinks cannot be resolved as missing candidates, matching Node.js
+        // module resolution so lookup can continue in ancestor directories.
+        Err(_) => Ok(None),
     }
 }
 
 #[turbo_tasks::value(shared)]
 enum ExportsFieldResult {
-    Some(#[turbo_tasks(debug_ignore, trace_ignore)] ExportsField),
+    Some(#[turbo_tasks(debug_ignore, unsafe_ignore)] ExportsField),
     None,
 }
 
@@ -1212,7 +1262,7 @@ async fn exports_field(
 #[turbo_tasks::value(shared)]
 enum ImportsFieldResult {
     Some(
-        #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
+        #[turbo_tasks(debug_ignore, unsafe_ignore)] ImportsField,
         FileSystemPath,
     ),
     None,
@@ -1224,7 +1274,7 @@ enum ImportsFieldResult {
 async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldResult>> {
     // We don't need to collect affecting sources here because we don't use them
     let package_json_context =
-        find_context_file(lookup_path, package_json().resolve().await?, false).await?;
+        find_context_file(lookup_path, *package_json().to_resolved().await?, false).await?;
     let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context else {
         return Ok(ImportsFieldResult::None.cell());
     };
@@ -1345,7 +1395,7 @@ pub async fn find_context_file_or_package_key(
     Ok(find_context_file(lookup_path.parent(), names, false))
 }
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 enum FindPackageItem {
     PackageDirectory { name: RcStr, dir: FileSystemPath },
     PackageFile { name: RcStr, file: FileSystemPath },
@@ -1381,10 +1431,9 @@ async fn find_package(
 
     for resolve_modules in &options.modules {
         match resolve_modules {
-            ResolveModules::Nested(root, names) => {
+            ResolveModules::Nested(names) => {
                 let mut lookup_path = lookup_path.clone();
-                let mut lookup_path_value = lookup_path.clone();
-                while lookup_path_value.is_inside_ref(root) {
+                loop {
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
                         if let Some(fs_path) = dir_exists(
@@ -1398,25 +1447,26 @@ async fn find_package(
                                     .await?;
                             for m in &*matches {
                                 if let PatternMatch::Directory(_, package_dir) = m {
+                                    let Some(dir) = realpath_if_exists(
+                                        package_dir,
+                                        collect_affecting_sources.then_some(&mut affecting_sources),
+                                    )
+                                    .await?
+                                    else {
+                                        continue;
+                                    };
                                     packages.push(FindPackageItem::PackageDirectory {
                                         name: get_package_name(&fs_path, package_dir)?,
-                                        dir: realpath(
-                                            package_dir,
-                                            collect_affecting_sources
-                                                .then_some(&mut affecting_sources),
-                                        )
-                                        .await?,
+                                        dir,
                                     });
                                 }
                             }
                         }
                     }
-                    lookup_path = lookup_path.parent();
-                    let new_context_value = lookup_path.clone();
-                    if new_context_value == lookup_path_value {
+                    if lookup_path.is_root() {
                         break;
                     }
-                    lookup_path_value = new_context_value;
+                    lookup_path = lookup_path.parent();
                 }
             }
             ResolveModules::Path {
@@ -1428,23 +1478,31 @@ async fn find_package(
                 for m in &*matches {
                     match m {
                         PatternMatch::Directory(_, package_dir) => {
+                            let Some(resolved_dir) = realpath_if_exists(
+                                package_dir,
+                                collect_affecting_sources.then_some(&mut affecting_sources),
+                            )
+                            .await?
+                            else {
+                                continue;
+                            };
                             packages.push(FindPackageItem::PackageDirectory {
                                 name: get_package_name(dir, package_dir)?,
-                                dir: realpath(
-                                    package_dir,
-                                    collect_affecting_sources.then_some(&mut affecting_sources),
-                                )
-                                .await?,
+                                dir: resolved_dir,
                             });
                         }
                         PatternMatch::File(_, package_file) => {
+                            let Some(file) = realpath_if_exists(
+                                package_file,
+                                collect_affecting_sources.then_some(&mut affecting_sources),
+                            )
+                            .await?
+                            else {
+                                continue;
+                            };
                             packages.push(FindPackageItem::PackageFile {
                                 name: get_package_name(dir, package_file)?,
-                                file: realpath(
-                                    package_file,
-                                    collect_affecting_sources.then_some(&mut affecting_sources),
-                                )
-                                .await?,
+                                file,
                             });
                         }
                     }
@@ -1465,15 +1523,19 @@ async fn find_package(
                 let matches =
                     read_matches(dir.clone(), rcstr!(""), true, package_name_with_extensions)
                         .await?;
-                for m in matches {
+                for m in &matches {
                     if let PatternMatch::File(_, package_file) = m {
+                        let Some(file) = realpath_if_exists(
+                            package_file,
+                            collect_affecting_sources.then_some(&mut affecting_sources),
+                        )
+                        .await?
+                        else {
+                            continue;
+                        };
                         packages.push(FindPackageItem::PackageFile {
                             name: get_package_name(dir, package_file)?,
-                            file: realpath(
-                                package_file,
-                                collect_affecting_sources.then_some(&mut affecting_sources),
-                            )
-                            .await?,
+                            file,
                         });
                     }
                 }
@@ -1531,7 +1593,7 @@ pub async fn resolve_raw(
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(path, result).await?),
+            Err(error) => bail!(error.clone()),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
@@ -1560,7 +1622,7 @@ pub async fn resolve_raw(
     ) -> Result<Vec<Vc<ResolveResult>>> {
         Ok(matches
             .iter()
-            .map(|m| async move {
+            .map(async |m| {
                 Ok(if let PatternMatch::File(request, path) = m {
                     Some(to_result(request.clone(), path, collect_affecting_sources).await?)
                 } else {
@@ -1593,22 +1655,14 @@ pub async fn resolve_raw(
             path,
         )
         .await?;
-        results.extend(
-            collect_matches(&matches, collect_affecting_sources)
-                .await?
-                .into_iter(),
-        );
+        results.extend(collect_matches(&matches, collect_affecting_sources).await?);
     }
 
     {
         let matches =
             read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
 
-        results.extend(
-            collect_matches(&matches, collect_affecting_sources)
-                .await?
-                .into_iter(),
-        );
+        results.extend(collect_matches(&matches, collect_affecting_sources).await?);
     }
 
     Ok(merge_results(results))
@@ -1632,7 +1686,7 @@ pub async fn resolve_inline(
 ) -> Result<Vc<ResolveResult>> {
     let span = tracing::info_span!(
         "resolving",
-        lookup_path = display(lookup_path.value_to_string().await?),
+        lookup_path = display(lookup_path.to_string_ref().await?),
         name = tracing::field::Empty,
         reference_type = display(&reference_type),
     );
@@ -1664,8 +1718,8 @@ pub async fn resolve_inline(
         let raw_result = match before_plugins_result {
             Some(result) => result,
             None => {
-                resolve_internal(lookup_path.clone(), request, options)
-                    .resolve()
+                *resolve_internal(lookup_path.clone(), request, options)
+                    .to_resolved()
                     .await?
             }
         };
@@ -1686,50 +1740,52 @@ pub async fn resolve_inline(
 #[turbo_tasks::function]
 pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
+    request: ResolvedVc<Request>,
     reference_type: ReferenceType,
     issue_source: Option<IssueSource>,
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let resolve_options = origin.resolve_options();
+    let origin_ref = origin.into_trait_ref().await?;
+    let resolve_options = origin_ref.resolve_options();
     let rel_request = request.as_relative();
-    let origin_path_parent = origin.origin_path().await?.parent();
+    let origin_path = origin_ref.origin_path();
+    let origin_path_parent = origin_path.parent();
     let rel_result = resolve(
         origin_path_parent.clone(),
         reference_type.clone(),
         rel_request,
         resolve_options,
     );
-    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
-    {
-        let result = resolve(
-            origin_path_parent,
-            reference_type.clone(),
-            request,
-            resolve_options,
-        );
-        if resolve_options.await?.collect_affecting_sources {
-            result.with_affecting_sources(
-                rel_result
-                    .await?
-                    .get_affecting_sources()
-                    .map(|src| *src)
-                    .collect(),
-            )
+    let result =
+        if rel_result.await?.is_unresolvable() && rel_request.to_resolved().await? != request {
+            let result = resolve(
+                origin_path_parent,
+                reference_type.clone(),
+                *request,
+                resolve_options,
+            );
+            if resolve_options.await?.collect_affecting_sources {
+                result.with_affecting_sources(
+                    rel_result
+                        .await?
+                        .get_affecting_sources()
+                        .map(|src| *src)
+                        .collect(),
+                )
+            } else {
+                result
+            }
         } else {
-            result
-        }
-    } else {
-        rel_result
-    };
-    let result = origin
+            rel_result
+        };
+    let result = origin_ref
         .asset_context()
         .process_resolve_result(result, reference_type.clone());
     handle_resolve_error(
         result,
         reference_type,
-        origin,
-        request,
+        origin_path,
+        *request,
         resolve_options,
         error_mode,
         issue_source,
@@ -1745,13 +1801,28 @@ async fn get_matching_before_resolve_plugins(
     options: Vc<ResolveOptions>,
     request: Vc<Request>,
 ) -> Result<Vc<MatchingBeforeResolvePlugins>> {
-    let mut matching_plugins = Vec::new();
-    for &plugin in &options.await?.before_resolve_plugins {
-        let condition = plugin.before_resolve_condition().resolve().await?;
-        if *condition.matches(request).await? {
-            matching_plugins.push(plugin);
-        }
-    }
+    let request_ref = request.await?;
+    let matching_plugins = options
+        .await?
+        .before_resolve_plugins
+        .iter()
+        .map(async |plugin| {
+            Ok(
+                if plugin
+                    .into_trait_ref()
+                    .await?
+                    .before_resolve_condition()
+                    .await?
+                    .matches(&request_ref)
+                {
+                    Some(*plugin)
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?;
     Ok(Vc::cell(matching_plugins))
 }
 
@@ -1788,7 +1859,10 @@ async fn handle_after_resolve_plugins(
     let resolved_conditions = options_value
         .after_resolve_plugins
         .iter()
-        .map(async |p| Ok((*p, p.after_resolve_condition().resolve().await?)))
+        .map(async |p| {
+            let condition = p.into_trait_ref().await?.after_resolve_condition().await?;
+            Ok((*p, condition))
+        })
         .try_join()
         .await?;
 
@@ -1800,7 +1874,7 @@ async fn handle_after_resolve_plugins(
         plugins_with_conditions: &[AfterResolvePluginWithCondition],
     ) -> Result<Option<Vc<ResolveResult>>> {
         for (plugin, after_resolve_condition) in plugins_with_conditions {
-            if *after_resolve_condition.matches(path.clone()).await?
+            if after_resolve_condition.matches(&path)
                 && let Some(result) = *plugin
                     .after_resolve(
                         path.clone(),
@@ -1824,9 +1898,9 @@ async fn handle_after_resolve_plugins(
 
     for (key, primary) in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
-            let path = source.ident().path().owned().await?;
+            let path = source.ident().await?.path.clone();
             if let Some(new_result) = apply_plugins_to_path(
-                path.clone(),
+                path,
                 lookup_path.clone(),
                 reference_type.clone(),
                 request,
@@ -1881,7 +1955,7 @@ async fn resolve_internal_inline(
 ) -> Result<Vc<ResolveResult>> {
     let span = tracing::info_span!(
         "internal resolving",
-        lookup_path = display(lookup_path.value_to_string().await?),
+        lookup_path = display(lookup_path.to_string_ref().await?),
         name = tracing::field::Empty
     );
     if !span.is_disabled() {
@@ -1938,9 +2012,7 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| async {
-                        resolve_internal_inline(lookup_path.clone(), **req, options).await
-                    })
+                    .map(|req| resolve_internal_inline(lookup_path.clone(), **req, options))
                     .try_join()
                     .await?;
 
@@ -1957,7 +2029,7 @@ async fn resolve_internal_inline(
                     lookup_path.clone(),
                     rcstr!(""),
                     *force_in_lookup_dir,
-                    Pattern::new(path.clone()).resolve().await?,
+                    *Pattern::new(path.clone()).to_resolved().await?,
                 )
                 .await?;
 
@@ -2035,30 +2107,35 @@ async fn resolve_internal_inline(
                 new_pat.push_front(rcstr!(".").into());
                 let relative = Request::relative(new_pat, query.clone(), fragment.clone(), true);
 
-                if !has_alias {
-                    ResolvingIssue {
-                        severity: resolve_error_severity(options).await?,
-                        request_type: "server relative import: not implemented yet".to_string(),
-                        request: relative.to_resolved().await?,
-                        file_path: lookup_path.clone(),
-                        resolve_options: options.to_resolved().await?,
-                        error_message: Some(
-                            "server relative imports are not implemented yet. Please try an \
-                             import relative to the file you are importing from."
-                                .to_string(),
-                        ),
-                        source: None,
+                // A `/`-rooted request is resolved from `server_relative_root`. It is not resolved
+                // relative to the importing file, and it does not fall back to a wider directory,
+                // so it can't reach outside of that root.
+                if let Some(root) = &options_value.server_relative_root {
+                    Box::pin(resolve_internal_inline(root.clone(), relative, options)).await?
+                } else {
+                    // Without a root configured there is nothing to resolve this from, so it isn't
+                    // supported. Guessing at the root of the filesystem would silently resolve or
+                    // silently fail depending on what happens to live there.
+                    if !has_alias {
+                        ResolvingIssue {
+                            severity: resolve_error_severity(options).await?,
+                            request_type: "server relative import: not implemented yet".to_string(),
+                            request: relative.to_resolved().await?,
+                            file_path: lookup_path.clone(),
+                            resolve_options: options.to_resolved().await?,
+                            error_message: Some(
+                                "server relative imports are not implemented yet. Please try an \
+                                 import relative to the file you are importing from."
+                                    .to_string(),
+                            ),
+                            source: None,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
-                }
 
-                Box::pin(resolve_internal_inline(
-                    lookup_path.root().owned().await?,
-                    relative,
-                    options,
-                ))
-                .await?
+                    ResolveResult::unresolvable().cell()
+                }
             }
             Request::Windows {
                 path: _,
@@ -2182,7 +2259,7 @@ async fn resolve_internal_inline(
         if !matches!(*request_value, Request::Alternatives { .. }) {
             // Apply fallback import mappings if provided
             if let Some(import_map) = &options_value.fallback_import_map
-                && *result.is_unresolvable().await?
+                && result.await?.is_unresolvable()
             {
                 let result = import_map
                     .await?
@@ -2249,7 +2326,7 @@ async fn resolve_into_folder(
 
                         // main field will always resolve not fully specified
                         let options = if options_value.fully_specified {
-                            options.with_fully_specified(false).resolve().await?
+                            *options.with_fully_specified(false).to_resolved().await?
                         } else {
                             options
                         };
@@ -2259,7 +2336,7 @@ async fn resolve_into_folder(
                                 .await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
-                        if !result.is_unresolvable_ref() {
+                        if !result.is_unresolvable() {
                             let mut result: ResolveResultBuilder =
                                 result.with_request_ref(rcstr!(".")).into();
                             if options_value.collect_affecting_sources {
@@ -2488,7 +2565,7 @@ async fn resolve_relative_request(
         forward: FxHashMap<RcStr, SmallVec<[RcStr; 3]>>,
         reverse: FxHashMap<RcStr, RcStr>,
     }
-    static TS_EXTENSION_REPLACEMENTS: Lazy<ExtensionReplacements> = Lazy::new(|| {
+    static TS_EXTENSION_REPLACEMENTS: LazyLock<ExtensionReplacements> = LazyLock::new(|| {
         let mut forward = FxHashMap::default();
         forward.insert(
             rcstr!(".js"),
@@ -2560,7 +2637,7 @@ async fn resolve_relative_request(
         lookup_path.clone(),
         rcstr!(""),
         force_in_lookup_dir,
-        Pattern::new(new_path.clone()).resolve().await?,
+        *Pattern::new(new_path.clone()).to_resolved().await?,
     )
     .await?;
 
@@ -2634,7 +2711,7 @@ async fn apply_in_package(
 
         let FindContextFileResult::Found(package_json_path, refs) = &*find_context_file(
             lookup_path.clone(),
-            package_json().resolve().await?,
+            *package_json().to_resolved().await?,
             options_value.collect_affecting_sources,
         )
         .await?
@@ -2670,12 +2747,11 @@ async fn apply_in_package(
         };
 
         let refs = refs.clone();
-        let request_key = RequestKey::new(request.clone());
 
         if value.as_bool() == Some(false) {
             return Ok(Some(ResolveResultOrCell::Value(
                 ResolveResult::primary_with_affecting_sources(
-                    request_key,
+                    RequestKey::new(request.clone()),
                     ResolveResultItem::Ignore,
                     refs,
                 ),
@@ -2694,7 +2770,7 @@ async fn apply_in_package(
                     .with_fragment(fragment.clone()),
                 options,
             )
-            .with_replaced_request_key(value.into(), request_key);
+            .with_replaced_request_key(value.into(), request.clone());
             if options_value.collect_affecting_sources && !refs.is_empty() {
                 result = result.with_affecting_sources(refs.into_iter().map(|src| *src).collect());
             }
@@ -2738,7 +2814,7 @@ async fn find_self_reference(
     lookup_path: FileSystemPath,
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context =
-        find_context_file(lookup_path, package_json().resolve().await?, false).await?;
+        find_context_file(lookup_path, *package_json().to_resolved().await?, false).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
         let read =
             read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
@@ -2800,7 +2876,7 @@ async fn resolve_module_request(
             fragment.clone(),
             options,
         );
-        if !(*result.is_unresolvable().await?) {
+        if !result.await?.is_unresolvable() {
             return Ok(result);
         }
     }
@@ -2808,7 +2884,7 @@ async fn resolve_module_request(
     let result = find_package(
         lookup_path.clone(),
         module.clone(),
-        resolve_modules_options(options).resolve().await?,
+        *resolve_modules_options(options).to_resolved().await?,
         options_value.collect_affecting_sources,
     )
     .await?;
@@ -2836,7 +2912,7 @@ async fn resolve_module_request(
                         fragment.clone(),
                         options,
                     )
-                    .with_replaced_request_key(rcstr!("."), RequestKey::new(name.clone())),
+                    .with_replaced_request_key(rcstr!("."), name.clone()),
                 );
             }
             FindPackageItem::PackageFile { name, file } => {
@@ -2853,7 +2929,7 @@ async fn resolve_module_request(
                     )
                     .await?
                     .into_cell()
-                    .with_replaced_request_key(rcstr!("."), RequestKey::new(name.clone()));
+                    .with_replaced_request_key(rcstr!("."), name.clone());
                     results.push(resolved_result)
                 }
             }
@@ -2895,9 +2971,6 @@ async fn resolve_into_package(
     let options_value = options.await?;
     let mut results = Vec::new();
 
-    let is_root_match = path.is_match("") || path.is_match("/");
-    let could_match_others = path.could_match_others("");
-
     let mut export_path_request = path.clone();
     export_path_request.push_front(rcstr!(".").into());
     for resolve_into_package in options_value.into_package.iter() {
@@ -2925,6 +2998,7 @@ async fn resolve_into_package(
                         conditions,
                         unspecified_conditions,
                         query,
+                        ExportImport::Export,
                     )
                     .await?,
                 );
@@ -2936,15 +3010,24 @@ async fn resolve_into_package(
         }
     }
 
-    // apply main field(s) or fallback to index.js if there's no subpath
-    if is_root_match {
-        results.push(resolve_into_folder(
-            package_path.clone(),
-            options.with_fully_specified(false),
-        ));
+    // Apply main field(s) or fall back to index.js for each matching package root.
+    // Keep the trailing slash in the request key: `package` and `package/` may
+    // resolve to the same source, but they are different requests.
+    let matches_root = path.is_match("");
+    let matches_root_with_slash = path.is_match("/");
+    if matches_root || matches_root_with_slash {
+        let root_result =
+            resolve_into_folder(package_path.clone(), options.with_fully_specified(false));
+        if matches_root {
+            results.push(root_result);
+        }
+        if matches_root_with_slash {
+            results.push(root_result.with_request(rcstr!("./")));
+        }
     }
 
-    if could_match_others {
+    // The slash-only root is already handled above; only resolve deeper subpaths here.
+    if path.could_match_others("/") {
         let mut new_pat = path.clone();
         new_pat.push_front(rcstr!(".").into());
 
@@ -3015,7 +3098,7 @@ async fn resolve_import_map_result(
             let request = Request::parse_string(name.clone());
 
             // We must avoid cycles during resolving
-            if request.resolve().await? == original_request
+            if *request.to_resolved().await? == original_request
                 && *alias_lookup_path == original_lookup_path
             {
                 None
@@ -3024,18 +3107,13 @@ async fn resolve_import_map_result(
                     alias_lookup_path.clone(),
                     request,
                     match ty {
-                        // TODO is that root correct?
-                        ExternalType::CommonJs => {
-                            node_cjs_resolve_options(alias_lookup_path.root().owned().await?)
-                        }
-                        ExternalType::EcmaScriptModule => {
-                            node_esm_resolve_options(alias_lookup_path.root().owned().await?)
-                        }
+                        ExternalType::CommonJs => node_cjs_resolve_options(),
+                        ExternalType::EcmaScriptModule => node_esm_resolve_options(),
                         ExternalType::Script | ExternalType::Url | ExternalType::Global => options,
                     },
                 )
                 .await?
-                .is_unresolvable_ref();
+                .is_unresolvable();
                 if is_external_resolvable {
                     Some(ResolveResultOrCell::Value(ResolveResult::primary(
                         ResolveResultItem::External {
@@ -3099,12 +3177,12 @@ impl ResolveResultOrCell {
     async fn into_cell_if_resolvable(self) -> Result<Option<Vc<ResolveResult>>> {
         match self {
             ResolveResultOrCell::Cell(resolved_result) => {
-                if !*resolved_result.is_unresolvable().await? {
+                if !resolved_result.await?.is_unresolvable() {
                     return Ok(Some(resolved_result));
                 }
             }
             ResolveResultOrCell::Value(resolve_result) => {
-                if !resolve_result.is_unresolvable_ref() {
+                if !resolve_result.is_unresolvable() {
                     return Ok(Some(resolve_result.cell()));
                 }
             }
@@ -3127,7 +3205,7 @@ async fn resolved(
     let result = &*fs_path.realpath_with_links().await?;
     let path = match &result.path_result {
         Ok(path) => path,
-        Err(e) => bail!(e.as_error_message(&fs_path, result).await?),
+        Err(error) => bail!(error.clone()),
     };
 
     let path_ref = path.clone();
@@ -3136,7 +3214,7 @@ async fn resolved(
         path.parent(),
         options,
         options_value,
-        |package_path| package_path.get_relative_path_to(&path_ref),
+        |package_path| package_path.get_relative_request_to(&path_ref),
         query.clone(),
         fragment.clone(),
     )
@@ -3177,7 +3255,7 @@ async fn resolved(
                 result
                     .symlinks
                     .iter()
-                    .map(|symlink| async move {
+                    .map(async |symlink| {
                         anyhow::Ok(ResolvedVc::upcast(
                             FileSource::new(symlink.clone()).to_resolved().await?,
                         ))
@@ -3191,6 +3269,21 @@ async fn resolved(
     ))
 }
 
+/// Attaches `conditions` to a resolve result.
+///
+/// When `conditions` is empty the original `Vc` is returned as-is to avoid an
+/// unnecessary await. Otherwise the result is awaited, annotated, and re-wrapped.
+async fn apply_conditions(
+    resolve_result: Vc<ResolveResult>,
+    conditions: &[(RcStr, bool)],
+) -> Result<Vc<ResolveResult>> {
+    if conditions.is_empty() {
+        Ok(resolve_result)
+    } else {
+        Ok(resolve_result.await?.with_conditions(conditions).cell())
+    }
+}
+
 async fn handle_exports_imports_field(
     package_path: FileSystemPath,
     package_json_path: FileSystemPath,
@@ -3200,6 +3293,7 @@ async fn handle_exports_imports_field(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
     query: RcStr,
+    ty: ExportImport,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
     let mut conditions_state = FxHashMap::default();
@@ -3219,70 +3313,82 @@ async fn handle_exports_imports_field(
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
-        ) {
-            // Match found, stop (leveraging the lazy `lookup` iterator).
+        ) != TerminalState::Unset
+        {
+            // A definitive match was found (results added or import blocked);
+            // stop iterating over further alias entries.
             break;
         }
     }
 
     let mut resolved_results = Vec::new();
     for ReplacedSubpathValueResult {
-        result_path,
+        ty: result_ty,
         conditions,
         map_prefix,
         map_key,
     } in results
     {
-        if let Some(result_path) = result_path.with_normalized_path() {
-            let request = Request::parse(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("./")),
-                result_path.clone(),
-            ]))
-            .resolve()
-            .await?;
-
-            let resolve_result = Box::pin(resolve_internal_inline(
-                package_path.clone(),
-                request,
-                options,
-            ))
-            .await?;
-
-            let resolve_result = if let Some(req) = req.as_constant_string() {
-                resolve_result.with_request(req.clone())
-            } else {
-                match map_key {
-                    AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
-                    AliasKey::Wildcard { .. } => {
-                        // - `req` is the user's request (key of the export map)
-                        // - `result_path` is the final request (value of the export map), so
-                        //   effectively `'{foo}*{bar}'`
-
-                        // Because of the assertion in AliasMapLookupIterator, `req` is of the
-                        // form:
-                        // - "prefix...<dynamic>" or
-                        // - "prefix...<dynamic>...suffix"
-
-                        let mut old_request_key = result_path;
-                        // Remove the Pattern::Constant(rcstr!("./")), from above again
-                        old_request_key.push_front(rcstr!("./").into());
-                        let new_request_key = req.clone();
-
-                        resolve_result.with_replaced_request_key_pattern(
-                            Pattern::new(old_request_key),
-                            Pattern::new(new_request_key),
-                        )
+        match result_ty {
+            ReplacedSubpathValueResultType::Path(result_path) => {
+                let request = match ty {
+                    ExportImport::Export => {
+                        // Only relative paths are allowed in exports fields
+                        Pattern::Concatenation(vec![
+                            Pattern::Constant(rcstr!("./")),
+                            result_path.clone(),
+                        ])
                     }
-                }
-            };
+                    ExportImport::Import => result_path.clone(),
+                };
+                let request = *Request::parse(request).to_resolved().await?;
 
-            let resolve_result = if !conditions.is_empty() {
-                let resolve_result = resolve_result.await?.with_conditions(&conditions);
-                resolve_result.cell()
-            } else {
-                resolve_result
-            };
-            resolved_results.push(resolve_result);
+                let resolve_result = Box::pin(resolve_internal_inline(
+                    package_path.clone(),
+                    request,
+                    options,
+                ))
+                .await?;
+
+                let resolve_result = if let Some(req) = req.as_constant_string() {
+                    resolve_result.with_request(req.clone())
+                } else {
+                    match map_key {
+                        AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
+                        AliasKey::Wildcard { .. } => {
+                            // - `req` is the user's request (key of the export map)
+                            // - `result_path` is the final request (value of the export map), so
+                            //   effectively `'{foo}*{bar}'`
+
+                            // Because of the assertion in AliasMapLookupIterator, `req` is of the
+                            // form:
+                            // - "prefix...<dynamic>" or
+                            // - "prefix...<dynamic>...suffix"
+
+                            let mut old_request_key = result_path;
+                            if matches!(ty, ExportImport::Export) {
+                                // Remove the Pattern::Constant(rcstr!("./")) from above again
+                                old_request_key.push_front(rcstr!("./").into());
+                            }
+                            let new_request_key = req.clone();
+
+                            resolve_result.with_replaced_request_key_pattern(
+                                Pattern::new(old_request_key),
+                                Pattern::new(new_request_key),
+                            )
+                        }
+                    }
+                };
+
+                let resolve_result = apply_conditions(resolve_result, &conditions).await?;
+                resolved_results.push(resolve_result);
+            }
+            ReplacedSubpathValueResultType::Empty => {
+                // `false` in the exports/imports field: resolve to an empty module.
+                let resolve_result = ResolveResult::primary(ResolveResultItem::Empty).cell();
+                let resolve_result = apply_conditions(resolve_result, &conditions).await?;
+                resolved_results.push(resolve_result);
+            }
         }
     }
 
@@ -3310,8 +3416,7 @@ async fn resolve_package_internal_with_imports_field(
     let Pattern::Constant(specifier) = pattern else {
         bail!("PackageInternal requests can only be Constant strings");
     };
-    // https://github.com/nodejs/node/blob/1b177932/lib/internal/modules/esm/resolve.js#L615-L619
-    if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
+    if specifier == "#" || specifier.ends_with('/') {
         ResolvingIssue {
             severity: resolve_error_severity(resolve_options).await?,
             file_path: file_path.clone(),
@@ -3341,6 +3446,7 @@ async fn resolve_package_internal_with_imports_field(
         conditions,
         unspecified_conditions,
         RcStr::default(),
+        ExportImport::Import,
     )
     .await
 }
@@ -3348,41 +3454,45 @@ async fn resolve_package_internal_with_imports_field(
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ModulePart {
-    /// Represents the side effects of a module. This part is evaluated even if
-    /// all exports are unused.
+    /// Represents the side effects of a module, such as `import "./module"`.
+    /// This part is evaluated even if all exports are unused.
     Evaluation,
-    /// Represents an export of a module.
+    /// Represents a named export, such as `foo` in `export const foo = "bar";`.
     Export(RcStr),
-    /// Represents a renamed export of a module.
+    /// Represents an export for which one member is used.
+    ///
+    /// For example, `import { value } from "./module"; value.member` is represented as
+    /// `{ export: "value", member: "member" }`. At this point, `value` has not yet been
+    /// resolved and might be either an ordinary value or a namespace object. If it is not a
+    /// namespace object, this behaves like [`ModulePart::Export`].
+    PartialExport { export: RcStr, member: RcStr },
+    /// Represents an export renamed while following re-exports, such as `foo` exported as `bar`
+    /// by `export { foo as bar } from "./module"`.
     RenamedExport {
         original_export: RcStr,
         export: RcStr,
     },
-    /// Represents a namespace object of a module exported as named export.
+    /// Represents a namespace object exported as a named export, such as `ns` in
+    /// `export * as ns from "./module"`.
     RenamedNamespace { export: RcStr },
-    /// A pointer to a specific part.
+    /// Represents a namespace object exported as a named export when only one member is used.
+    ///
+    /// For example, `import { ns } from "./lib"; ns.member`, where `lib` contains
+    /// `export * as ns from "./module"`, is represented as
+    /// `{ export: "ns", member: "member" }` after resolving `ns` to the namespace object.
+    RenamedPartialNamespace { export: RcStr, member: RcStr },
+    /// Points to a generated module-fragment part by its numeric index, such as the part that
+    /// contains one local declaration.
     Internal(u32),
-    /// The local declarations of a module.
+    /// Represents the local declarations of a module, such as `const value = 1`.
     Locals,
-    /// The whole exports of a module.
+    /// Represents the module's export declarations, such as `export { foo, bar }`.
     Exports,
-    /// A facade of the module behaving like the original, but referencing
-    /// internal parts.
+    /// Represents a facade that behaves like the original module while referencing its internal
+    /// parts, such as the facade emitted for a split module.
     Facade,
 }
 
@@ -3395,6 +3505,10 @@ impl ModulePart {
         ModulePart::Export(export)
     }
 
+    pub fn partial_export(export: RcStr, member: RcStr) -> Self {
+        ModulePart::PartialExport { export, member }
+    }
+
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
         ModulePart::RenamedExport {
             original_export,
@@ -3404,6 +3518,22 @@ impl ModulePart {
 
     pub fn renamed_namespace(export: RcStr) -> Self {
         ModulePart::RenamedNamespace { export }
+    }
+
+    pub fn renamed_partial_namespace(export: RcStr, member: RcStr) -> Self {
+        ModulePart::RenamedPartialNamespace { export, member }
+    }
+
+    /// Returns the named export exposed by this part, if it has one.
+    pub fn get_export(&self) -> Option<&RcStr> {
+        match self {
+            ModulePart::Export(export)
+            | ModulePart::PartialExport { export, .. }
+            | ModulePart::RenamedExport { export, .. }
+            | ModulePart::RenamedNamespace { export }
+            | ModulePart::RenamedPartialNamespace { export, .. } => Some(export),
+            _ => None,
+        }
     }
 
     pub fn internal(id: u32) -> Self {
@@ -3428,12 +3558,16 @@ impl Display for ModulePart {
         match self {
             ModulePart::Evaluation => f.write_str("module evaluation"),
             ModulePart::Export(export) => write!(f, "export {export}"),
+            ModulePart::PartialExport { export, member } => {
+                write!(f, "export {export} .{member}")
+            }
             ModulePart::RenamedExport {
                 original_export,
                 export,
             } => write!(f, "export {original_export} as {export}"),
-            ModulePart::RenamedNamespace { export } => {
-                write!(f, "export * as {export}")
+            ModulePart::RenamedNamespace { export } => write!(f, "export * as {export}"),
+            ModulePart::RenamedPartialNamespace { export, member } => {
+                write!(f, "export * as {export} .{member}")
             }
             ModulePart::Internal(id) => write!(f, "internal part {id}"),
             ModulePart::Locals => f.write_str("locals"),
@@ -3449,18 +3583,113 @@ mod tests {
         io::Write,
     };
 
+    use anyhow::Result;
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{TryJoinIterExt, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-    use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+    use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
 
+    use super::*;
     use crate::{
-        resolve::{
-            ResolveResult, ResolveResultItem, node::node_esm_resolve_options, parse::Request,
-            pattern::Pattern,
-        },
-        source::Source,
+        asset::AssetContent, module::Module, raw_module::RawModule, source::Source,
+        virtual_source::VirtualSource,
     };
+
+    #[test]
+    fn module_part_export_names_and_display() {
+        let export = rcstr!("value");
+        let member = rcstr!("member");
+        let original = rcstr!("original");
+
+        let with_exports = [
+            ModulePart::export(export.clone()),
+            ModulePart::partial_export(export.clone(), member.clone()),
+            ModulePart::renamed_export(original, export.clone()),
+            ModulePart::renamed_namespace(export.clone()),
+            ModulePart::renamed_partial_namespace(export.clone(), member.clone()),
+        ];
+        for part in with_exports {
+            assert_eq!(part.get_export(), Some(&export));
+        }
+
+        let without_exports = [
+            ModulePart::evaluation(),
+            ModulePart::internal(0),
+            ModulePart::locals(),
+            ModulePart::exports(),
+            ModulePart::facade(),
+        ];
+        for part in without_exports {
+            assert_eq!(part.get_export(), None);
+        }
+
+        assert_eq!(
+            ModulePart::partial_export(export.clone(), member.clone()).to_string(),
+            "export value .member"
+        );
+        assert_eq!(
+            ModulePart::renamed_partial_namespace(export, member).to_string(),
+            "export * as value .member"
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_symlink_resolution_failures_are_missing_candidates() {
+        use std::os::unix::fs::symlink;
+
+        #[turbo_tasks::value]
+        struct MissingPathsResult {
+            missing_file: bool,
+            dangling: bool,
+            self_cycle: bool,
+        }
+
+        let scratch = tempfile::tempdir().unwrap();
+        create_dir_all(scratch.path().join("package")).unwrap();
+        symlink("package", scratch.path().join("linked-package")).unwrap();
+        symlink("missing", scratch.path().join("dangling")).unwrap();
+        symlink("self-cycle", scratch.path().join("self-cycle")).unwrap();
+
+        let path = RcStr::from(scratch.path().to_str().unwrap());
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        #[turbo_tasks::function(operation, root)]
+        async fn missing_paths_through_symlinks_operation(
+            path: RcStr,
+        ) -> Result<Vc<MissingPathsResult>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
+            let root = fs.root().owned().await?;
+            Ok(MissingPathsResult {
+                missing_file: realpath_if_exists(&root.join("linked-package/package.json")?, None)
+                    .await?
+                    .is_none(),
+                dangling: realpath_if_exists(&root.join("dangling")?, None)
+                    .await?
+                    .is_none(),
+                self_cycle: realpath_if_exists(&root.join("self-cycle")?, None)
+                    .await?
+                    .is_none(),
+            }
+            .cell())
+        }
+
+        tt.run_once(async move {
+            let missing = missing_paths_through_symlinks_operation(path)
+                .read_strongly_consistent()
+                .await?;
+            assert!(missing.missing_file);
+            assert!(missing.dangling);
+            assert!(missing.self_cycle);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_explicit_js_resolves_to_ts() {
@@ -3469,6 +3698,7 @@ mod tests {
             pattern: rcstr!("./foo.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo.js", "foo.ts")],
         })
         .await;
@@ -3481,6 +3711,7 @@ mod tests {
             pattern: rcstr!("./foo").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo", "foo.ts")],
         })
         .await;
@@ -3493,6 +3724,7 @@ mod tests {
             pattern: rcstr!("./posts").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./posts", "posts.ts")],
         })
         .await;
@@ -3505,6 +3737,7 @@ mod tests {
             pattern: rcstr!("./bar.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./bar.js", "bar.js")],
         })
         .await;
@@ -3517,6 +3750,7 @@ mod tests {
             pattern: rcstr!("./foo.ts").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo.ts", "foo.ts")],
         })
         .await;
@@ -3530,6 +3764,7 @@ mod tests {
             pattern: rcstr!("./client#frag").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./client", "client.ts")],
         })
         .await;
@@ -3543,6 +3778,7 @@ mod tests {
             pattern: rcstr!("./client#component.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             // Whether or not this request key is correct somewhat ambiguous.  It depends on whether
             // or not we consider this fragment to be part of the request pattern
             expected: vec![("./client", "client#component.ts")],
@@ -3558,6 +3794,7 @@ mod tests {
             pattern: rcstr!("./page#section").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./page", "page#section.ts")],
         })
         .await;
@@ -3570,6 +3807,7 @@ mod tests {
             pattern: rcstr!("./client?q=s").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./client", "client.ts")],
         })
         .await;
@@ -3590,6 +3828,7 @@ mod tests {
             ]),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![
                 ("./src/foo.js", "src/foo.ts"),
                 ("./src/bar.js", "src/bar.js"),
@@ -3611,6 +3850,7 @@ mod tests {
             ]),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![
                 ("./src/bar.js", "src/bar.js"),
                 ("./src/bar", "src/bar.js"),
@@ -3627,12 +3867,163 @@ mod tests {
         .await;
     }
 
+    /// Test that custom `resolveExtensions` ordering is respected:
+    /// `.web.tsx` appears before `.tsx` in the list, so it must win when both exist.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_custom_extensions_web_before_default() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["Component.web.tsx", "Component.tsx"],
+            pattern: rcstr!("./Component").into(),
+            enable_typescript_with_output_extension: false,
+            fully_specified: false,
+            custom_extensions: Some(vec![
+                rcstr!(".web.tsx"),
+                rcstr!(".web.ts"),
+                rcstr!(".web.jsx"),
+                rcstr!(".web.js"),
+                rcstr!(".tsx"),
+                rcstr!(".ts"),
+                rcstr!(".jsx"),
+                rcstr!(".js"),
+            ]),
+            expected: vec![("./Component", "Component.web.tsx")],
+        })
+        .await;
+    }
+
+    /// Test that when `.web.tsx` doesn't exist, resolution falls back to `.tsx`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_custom_extensions_fallback_when_web_missing() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["Component.tsx"],
+            pattern: rcstr!("./Component").into(),
+            enable_typescript_with_output_extension: false,
+            fully_specified: false,
+            custom_extensions: Some(vec![
+                rcstr!(".web.tsx"),
+                rcstr!(".web.ts"),
+                rcstr!(".web.jsx"),
+                rcstr!(".web.js"),
+                rcstr!(".tsx"),
+                rcstr!(".ts"),
+                rcstr!(".jsx"),
+                rcstr!(".js"),
+            ]),
+            expected: vec![("./Component", "Component.tsx")],
+        })
+        .await;
+    }
+
+    #[rstest::rstest]
+    #[case::main(rcstr!("package").into(), r#"{"main":"./main.js"}"#, vec![("package", "main.js")])]
+    #[case::main_trailing_slash(rcstr!("package/").into(), r#"{"main":"./main.js"}"#, vec![("package/", "main.js")])]
+    #[case::index(rcstr!("package").into(), "{}", vec![("package", "index.js")])]
+    #[case::index_trailing_slash(rcstr!("package/").into(), "{}", vec![("package/", "index.js")])]
+    #[case::exports(rcstr!("package").into(), r#"{"exports":"./main.js"}"#, vec![("package", "main.js")])]
+    #[case::exports_trailing_slash(rcstr!("package/").into(), r#"{"exports":"./main.js"}"#, vec![])]
+    #[case::exports_subpath(rcstr!("package/subpath.js").into(), r#"{"exports":{"./subpath.js":"./main.js"}}"#, vec![("package/subpath.js", "main.js")])]
+    #[case::dynamic_subpath(
+        Pattern::concat([rcstr!("package/").into(), Pattern::Dynamic, rcstr!(".js").into()]),
+        r#"{"main":"./main.js"}"#,
+        vec![("package/index.js", "index.js"), ("package/main.js", "main.js"), ("package/subpath.js", "subpath.js")]
+    )]
+    #[case::dynamic_trailing_slash(
+        Pattern::concat([rcstr!("package/").into(), Pattern::Dynamic]),
+        r#"{"main":"./main.js"}"#,
+        vec![
+            ("package/", "main.js"),
+            ("package/index", "index.js"), ("package/index.js", "index.js"),
+            ("package/main", "main.js"), ("package/main.js", "main.js"),
+            ("package/package", "package.json"), ("package/package.json", "package.json"),
+            ("package/subpath", "subpath.js"), ("package/subpath.js", "subpath.js")
+        ]
+    )]
+    #[case::dynamic_roots(
+        Pattern::Alternatives(vec![
+            rcstr!("package").into(),
+            Pattern::concat([rcstr!("package/").into(), Pattern::Dynamic]),
+        ]),
+        r#"{"main":"./main.js"}"#,
+        vec![
+            ("package", "main.js"), ("package/", "main.js"),
+            ("package/index", "index.js"), ("package/index.js", "index.js"),
+            ("package/main", "main.js"), ("package/main.js", "main.js"),
+            ("package/package", "package.json"), ("package/package.json", "package.json"),
+            ("package/subpath", "subpath.js"), ("package/subpath.js", "subpath.js")
+        ]
+    )]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_package_root_request_keys(
+        #[case] pattern: Pattern,
+        #[case] package_json: &str,
+        #[case] expected: Vec<(&str, &str)>,
+    ) {
+        let scratch = tempfile::tempdir().unwrap();
+        let package_path = scratch.path().join("node_modules/package");
+        create_dir_all(&package_path).unwrap();
+        std::fs::write(package_path.join("package.json"), package_json).unwrap();
+        for name in ["main.js", "index.js", "subpath.js"] {
+            std::fs::write(package_path.join(name), "").unwrap();
+        }
+
+        let path = RcStr::from(scratch.path().to_str().unwrap());
+        let mut expected: Vec<(String, String)> = expected
+            .into_iter()
+            .map(|(key, file)| (key.to_string(), format!("node_modules/package/{file}")))
+            .collect();
+        expected.sort();
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        #[turbo_tasks::value(transparent)]
+        struct PackageRequestOutput(Vec<(String, String)>);
+
+        #[turbo_tasks::function(operation, root)]
+        async fn resolve_package_request_operation(
+            path: RcStr,
+            pattern: Pattern,
+        ) -> Result<Vc<PackageRequestOutput>> {
+            let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
+            let lookup_path = fs.root().owned().await?;
+            let result = resolve(
+                lookup_path,
+                ReferenceType::CommonJs(Default::default()),
+                Request::parse(pattern),
+                node_cjs_resolve_options(),
+            )
+            .await?;
+            let mut entries = Vec::new();
+            for (key, item) in &result.primary {
+                let ResolveResultItem::Source(source) = item else {
+                    panic!("expected a source, got {item:?}");
+                };
+                entries.push((key.to_string(), source.ident().await?.path.path.to_string()));
+            }
+            entries.sort();
+            Ok(Vc::cell(entries))
+        }
+
+        tt.run_once(async move {
+            let result = resolve_package_request_operation(path, pattern)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(&*result, &expected);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     /// Parameters for resolve_relative_request_test
     struct TestParams<'a> {
         files: Vec<&'a str>,
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
+        /// Custom extensions list; when `None`, uses the default `[".ts", ".js", ".json"]`
+        custom_extensions: Option<Vec<RcStr>>,
         expected: Vec<(&'a str, &'a str)>,
     }
 
@@ -3643,6 +4034,7 @@ mod tests {
             pattern,
             enable_typescript_with_output_extension,
             fully_specified,
+            custom_extensions,
             expected,
         }: TestParams<'_>,
     ) {
@@ -3673,18 +4065,21 @@ mod tests {
             noop_backing_storage(),
         ));
 
+        let custom_extensions_owned = custom_extensions;
+
         tt.run_once(async move {
             #[turbo_tasks::value(transparent)]
             struct ResolveRelativeRequestOutput(Vec<(String, String)>);
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn resolve_relative_request_operation(
                 path: RcStr,
                 pattern: Pattern,
                 enable_typescript_with_output_extension: bool,
                 fully_specified: bool,
-            ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
-                let fs = DiskFileSystem::new(rcstr!("temp"), path);
+                custom_extensions: Option<Vec<RcStr>>,
+            ) -> Result<Vc<ResolveRelativeRequestOutput>> {
+                let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
                 let lookup_path = fs.root().owned().await?;
 
                 let result = resolve_relative_helper(
@@ -3692,6 +4087,7 @@ mod tests {
                     pattern,
                     enable_typescript_with_output_extension,
                     fully_specified,
+                    custom_extensions,
                 )
                 .await?;
 
@@ -3719,6 +4115,7 @@ mod tests {
                 pattern,
                 enable_typescript_with_output_extension,
                 fully_specified,
+                custom_extensions_owned,
             )
             .read_strongly_consistent()
             .await?;
@@ -3737,12 +4134,15 @@ mod tests {
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
-    ) -> anyhow::Result<Vc<ResolveResult>> {
+        custom_extensions: Option<Vec<RcStr>>,
+    ) -> Result<Vc<ResolveResult>> {
         let request = Request::parse(pattern.clone());
 
-        let mut options_value = node_esm_resolve_options(lookup_path.clone())
+        let extensions = custom_extensions
+            .unwrap_or_else(|| vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")]);
+        let mut options_value = node_esm_resolve_options()
             .with_fully_specified(fully_specified)
-            .with_extensions(vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")])
+            .with_extensions(extensions)
             .owned()
             .await?;
         options_value.enable_typescript_with_output_extension =
@@ -3755,7 +4155,7 @@ mod tests {
                 force_in_lookup_dir,
                 fragment,
             } => {
-                super::resolve_relative_request(
+                resolve_relative_request(
                     lookup_path,
                     request,
                     options,
@@ -3769,5 +4169,254 @@ mod tests {
             }
             r => panic!("request should be relative, got {r:?}"),
         }
+    }
+
+    /// Snapshot of a `ModuleResolveResult::primary` array, encoded as `Vec<String>` so it
+    /// can cross the strongly-consistent read boundary (operation outputs need to be
+    /// `Encode`/`Decode`). One string per entry:
+    ///   - `module:<path>`  for `Module(_)`
+    ///   - `dup:<i>`        for `Duplicate(i)`
+    ///   - `other`          for everything else
+    #[turbo_tasks::value(transparent)]
+    pub struct DupCheckResult(Vec<String>);
+
+    async fn snapshot_primary(result: &ModuleResolveResult) -> Result<Vec<String>> {
+        let mut out = Vec::with_capacity(result.primary.len());
+        for (_, item) in result.primary.iter() {
+            out.push(match *item {
+                ModuleResolveResultItem::Module(m) => {
+                    let ident = m.ident().await?;
+                    format!("module:{}", ident.path.path)
+                }
+                ModuleResolveResultItem::Duplicate(i) => format!("dup:{i}"),
+                _ => "other".to_string(),
+            });
+        }
+        Ok(out)
+    }
+
+    #[turbo_tasks::function]
+    fn fs() -> Vc<Box<dyn FileSystem>> {
+        Vc::upcast(DiskFileSystem::new(rcstr!("temp"), Vc::cell(fs_path())))
+    }
+
+    #[turbo_tasks::function]
+    async fn make_module(name: RcStr) -> Result<Vc<Box<dyn Module>>> {
+        let path = fs().root().await?.join(&name)?;
+        let file_content =
+            FileContent::Content(turbo_tasks_fs::File::from(format!("// {name}"))).resolved_cell();
+        let content = AssetContent::file(*file_content).to_resolved().await?;
+        let source = VirtualSource::new(path, *content);
+        let module = RawModule::new(Vc::upcast(source)).to_resolved().await?;
+        Ok(Vc::upcast(*module))
+    }
+
+    fn fs_path() -> RcStr {
+        rcstr!("/tmp/_mdt")
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn modules_constructor_marks_module_duplicates() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m_a = make_module(rcstr!("a.js")).to_resolved().await?;
+            let m_b = make_module(rcstr!("b.js")).to_resolved().await?;
+
+            let result = ModuleResolveResult::modules([
+                (RequestKey::new(rcstr!("a")), m_a),
+                (RequestKey::new(rcstr!("b")), m_b),
+                (RequestKey::new(rcstr!("a-again")), m_a),
+                (RequestKey::new(rcstr!("b-again")), m_b),
+            ])
+            .await?;
+
+            // primary_modules() yields each module exactly once, in first-seen order.
+            let modules = result.primary_modules().await?;
+            assert_eq!(modules.as_slice(), [m_a, m_b]);
+
+            Ok(Vc::cell(snapshot_primary(&result).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "module:b.js", "dup:0", "dup:1"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn first_module_returns_first_when_duplicates_follow() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m = make_module(rcstr!("a.js")).to_resolved().await?;
+
+            let result = ModuleResolveResult::modules([
+                (RequestKey::default(), m),
+                (RequestKey::new(rcstr!("again")), m),
+                (RequestKey::new(rcstr!("once-more")), m),
+            ])
+            .await?;
+
+            assert_eq!(result.first_module().await?, Some(m));
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
+            Ok(Vc::cell(snapshot_primary(&result).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "dup:0", "dup:0"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn builder_marks_module_duplicates_skipping_non_dedup_items() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m = make_module(rcstr!("a.js")).to_resolved().await?;
+
+            let mut builder = ModuleResolveResultBuilder {
+                primary: Default::default(),
+                affecting_sources: Vec::new(),
+            };
+            builder.primary.insert(
+                RequestKey::new(rcstr!("k0")),
+                ModuleResolveResultItem::Module(m),
+            );
+            builder.primary.insert(
+                RequestKey::new(rcstr!("k1")),
+                ModuleResolveResultItem::Empty,
+            );
+            builder.primary.insert(
+                RequestKey::new(rcstr!("k2")),
+                ModuleResolveResultItem::Module(m),
+            );
+            let result: ModuleResolveResult = builder.into();
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
+            Ok(Vc::cell(snapshot_primary(&result).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "other", "dup:0"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn alternatives_preserves_unique_module_set() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m_a = make_module(rcstr!("a.js")).to_resolved().await?;
+            let m_b = make_module(rcstr!("b.js")).to_resolved().await?;
+
+            // r1 has m_a twice → Module(m_a), Duplicate(0).
+            let r1 = *ModuleResolveResult::modules([
+                (RequestKey::new(rcstr!("k1")), m_a),
+                (RequestKey::new(rcstr!("k2")), m_a),
+            ]);
+            // r2 prepended with m_b so the ordering inside r2 puts m_b at index 0 — a "stale"
+            // 0 from r1 would now incorrectly point at m_b after a naive concatenation.
+            let r2 = *ModuleResolveResult::module(m_b);
+
+            let merged = ModuleResolveResult::alternatives(vec![r1, r2]).await?;
+            assert_eq!(merged.primary_modules().await?.as_slice(), [m_a, m_b]);
+
+            // Verify every Duplicate(i) is well-formed
+            for (i, (_, item)) in merged.primary.iter().enumerate() {
+                if let ModuleResolveResultItem::Duplicate(first) = *item {
+                    assert!(
+                        first < i,
+                        "Duplicate index {first} at position {i} must point backwards"
+                    );
+                    let pointed = &merged.primary[first].1;
+                    let ModuleResolveResultItem::Module(pointed_module) = *pointed else {
+                        panic!(
+                            "Duplicate({first}) at {i} points at {pointed:?}, expected a concrete \
+                             Module"
+                        );
+                    };
+                    // The pointed-at module must be m_a — proves the index was re-derived
+                    // against the merged array, not carried stale from r1.
+                    assert_eq!(
+                        pointed_module, m_a,
+                        "Duplicate({first}) at position {i} points at the wrong module"
+                    );
+                }
+            }
+            Ok(Vc::cell(snapshot_primary(&merged).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "dup:0", "module:b.js"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concat_preserves_distinct_modules_with_same_request_key() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let app = make_module(rcstr!("app.js")).to_resolved().await?;
+            let package = make_module(rcstr!("package.js")).to_resolved().await?;
+            let key = RequestKey::new(rcstr!("./config.js"));
+            let app_result = *ModuleResolveResult::module_with_key(key.clone(), app);
+            let package_result = *ModuleResolveResult::modules([
+                (key, package),
+                (RequestKey::new(rcstr!("also-app")), app),
+            ]);
+            let combined = ModuleResolveResult::concat(vec![app_result, package_result]).await?;
+            assert_eq!(combined.primary_modules().await?.as_slice(), [app, package]);
+            Ok(Vc::cell(snapshot_primary(&combined).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:app.js", "module:package.js", "dup:0"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

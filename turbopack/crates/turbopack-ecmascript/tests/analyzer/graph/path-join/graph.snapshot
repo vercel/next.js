@@ -81,12 +81,13 @@
                 Module(
                     ModuleValue {
                         module: "path",
-                        annotations: ImportAnnotations {
-                            map: {},
-                            turbopack_loader: None,
-                            turbopack_rename_as: None,
-                            turbopack_module_type: None,
-                        },
+                        annotations: None,
+                        analyze_for_constants: false,
+                        reference: Some(
+                            ModuleReferenceIndex(
+                                2,
+                            ),
+                        ),
                     },
                 ),
                 Constant(
@@ -113,12 +114,13 @@
             Module(
                 ModuleValue {
                     module: "path",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(

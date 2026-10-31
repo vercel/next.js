@@ -3,7 +3,7 @@ use std::fmt;
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     ModuleAssetContext,
     module_options::{
@@ -21,9 +21,8 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     ident::Layer,
-    resolve::options::{ImportMap, ImportMapping},
+    resolve::options::ImportMap,
 };
-use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
@@ -56,20 +55,6 @@ pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<Im
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
-
-    import_map.insert_wildcard_alias(
-        rcstr!("@vercel/turbopack-ecmascript-runtime/"),
-        ImportMapping::PrimaryAlternative(
-            rcstr!("./*"),
-            Some(
-                turbopack_ecmascript_runtime::embed_fs()
-                    .root()
-                    .owned()
-                    .await?,
-            ),
-        )
-        .resolved_cell(),
-    );
 
     Ok(import_map.cell())
 }
@@ -114,7 +99,8 @@ async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         environment: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        follow_reexports: true,
+        module_fragments_enabled: false,
         keep_last_successful_parse: is_dev,
         ..Default::default()
     };

@@ -1,11 +1,13 @@
 import type * as Playwright from 'playwright'
-import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
+import { isNextDev, isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 import { findPort } from 'next-test-utils'
 
 describe('segment cache (revalidation)', () => {
+  // Deploy mode exclusion: This suite starts and mutates a process-local test
+  // data server.
   if (isNextDev || isNextDeploy) {
     test('disabled in development / deployment', () => {})
     return
@@ -16,7 +18,11 @@ describe('segment cache (revalidation)', () => {
   let dataVersions = new Map()
   let TestLog = createTestLog()
 
-  let next
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
   beforeAll(async () => {
     port = await findPort()
     server = createTestDataServer(async (key, res) => {
@@ -34,10 +40,8 @@ describe('segment cache (revalidation)', () => {
     })
     server.listen(port)
 
-    next = await createNext({
-      files: __dirname,
-      env: { TEST_DATA_SERVICE_URL: `http://localhost:${port}` },
-    })
+    next.env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
+    await next.start()
   })
 
   beforeEach(async () => {
@@ -46,7 +50,6 @@ describe('segment cache (revalidation)', () => {
   })
 
   afterAll(async () => {
-    await next?.destroy()
     server?.close()
   })
 

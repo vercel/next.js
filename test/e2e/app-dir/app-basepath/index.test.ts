@@ -13,7 +13,8 @@ describe('app dir - basepath', () => {
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
     await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#page-2')
+    // Hard nav from pages -> app triggers on-demand compilation in dev; allow extra time
+    await browser.waitForElementByCss('#page-2', 30000)
   })
 
   it('should support `basePath`', async () => {
@@ -155,7 +156,12 @@ describe('app dir - basepath', () => {
 
       expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
       expect(request.method()).toEqual('POST')
-      expect(response.status()).toEqual(303)
+      expect(response.status()).toEqual(200)
+
+      const headers = await response.allHeaders()
+      expect(headers['x-action-redirect']).toBeDefined()
+      expect(headers.location).toBeUndefined()
+      expect(headers['content-type']).toContain('text/x-component')
     }
   )
 
@@ -164,7 +170,6 @@ describe('app dir - basepath', () => {
     const destinationPagePath = '/outsideBasePath'
 
     const requests: Request[] = []
-    const responses: Response[] = []
 
     const browser = await next.browser(initialPagePath)
 
@@ -176,36 +181,36 @@ describe('app dir - basepath', () => {
       }
     })
 
-    browser.on('response', (res) => {
-      const url = res.url()
-
-      if (!url.includes('_next')) {
-        responses.push(res)
-      }
-    })
-
     await browser.elementById('redirect-absolute-external').click()
-    await retry(async () =>
-      expect(await browser.url()).toContain('/outsideBasePath')
-    )
 
+    // `/outsideBasePath` is proxied to a third-party host, so the URL only
+    // commits once that host responds, which can take longer than a `retry()`
+    // cycle in CI. Wait for the browser to issue the document request instead,
+    // which only depends on Next.js.
+    //
     // We expect to see two requests, first a POST invoking the server
     // action. And second a GET request resolving the redirect.
-    expect(requests).toHaveLength(2)
-    expect(responses).toHaveLength(2)
+    await retry(async () => {
+      expect(requests.map((req) => [req.method(), req.url()])).toEqual([
+        ['POST', `${next.url}${initialPagePath}`],
+        ['GET', `${next.url}${destinationPagePath}`],
+      ])
+    })
 
     const [firstRequest, secondRequest] = requests
-    const [firstResponse, secondResponse] = responses
 
-    expect(firstRequest.url()).toEqual(`${next.url}${initialPagePath}`)
-    expect(firstRequest.method()).toEqual('POST')
+    const firstResponse = await firstRequest.response()
+    expect(firstResponse.status()).toEqual(200)
+    const headers = await firstResponse.allHeaders()
+    expect(headers['x-action-redirect']).toBeDefined()
+    expect(headers.location).toBeUndefined()
 
-    expect(secondRequest.url()).toEqual(`${next.url}${destinationPagePath}`)
-    expect(secondRequest.method()).toEqual('GET')
-
-    expect(firstResponse.status()).toEqual(303)
     // Since this is an external request to a resource outside of NextJS
     // we expect to see a separate request resolving the external URL.
+    const secondResponse = await secondRequest.response()
     expect(secondResponse.status()).toEqual(200)
+    await retry(async () => {
+      expect(await browser.url()).toBe(`${next.url}${destinationPagePath}`)
+    })
   })
 })

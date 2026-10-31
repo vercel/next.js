@@ -1,37 +1,35 @@
-use std::{borrow::Cow, future::Future};
+use std::borrow::Cow;
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str, TsSatisfiesExpr,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
+            TsSatisfiesExpr, TsTypeAssertion,
         },
         utils::IsDirective,
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
-    util::WrapFuture,
-};
+use turbo_tasks::{JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, util::WrapFuture};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    analyzer::{ConstantNumber, ConstantValue, JsValue, ObjectPart, graph::EvalContext},
+    analyzer::{
+        Bump, ConstantNumber, ConstantValue, JsValue, ObjectPart, ThreadLocal, graph::EvalContext,
+    },
     parse::{ParseResult, parse},
 };
 
@@ -43,17 +41,7 @@ use crate::{
 };
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
@@ -65,17 +53,7 @@ pub enum NextSegmentDynamic {
 }
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
@@ -89,9 +67,7 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
-#[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
 pub enum NextRevalidate {
     #[default]
     Never,
@@ -101,26 +77,64 @@ pub enum NextRevalidate {
     },
 }
 
+#[derive(PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+pub enum NextSegmentRegion {
+    Single(RcStr),
+    Multiple(Vec<RcStr>),
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NextSegmentRsc {
+    Server,
+    Client,
+}
+
+impl NextSegmentRegion {
+    pub fn to_vec(&self) -> Vec<RcStr> {
+        match self {
+            Self::Single(region) => vec![region.clone()],
+            Self::Multiple(regions) => regions.clone(),
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
+    pub rsc: Option<NextSegmentRsc>,
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
+    pub max_duration: Option<u32>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<Vec<RcStr>>,
+    pub preferred_region: Option<NextSegmentRegion>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
+    pub unstable_allow_dynamic: Option<Vec<RcStr>>,
 
     /// Whether these exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
-    pub unstable_instant: Option<Span>,
+    pub instant: Option<Span>,
+    #[turbo_tasks(unsafe_ignore)]
+    #[bincode(with_serde)]
+    pub prefetch: Option<Span>,
+    #[turbo_tasks(unsafe_ignore)]
+    #[bincode(with_serde)]
+    pub ensure_static: Option<Span>,
+}
+
+/// Legacy config fields that are fallbacks for individual exports outside the App Router.
+#[derive(Default)]
+struct LegacySegmentConfig {
+    runtime: Option<NextRuntime>,
+    max_duration: Option<u32>,
 }
 
 #[turbo_tasks::value_impl]
@@ -136,17 +150,30 @@ impl NextSegmentConfig {
     /// the parent's values.
     pub fn apply_parent_config(&mut self, parent: &Self) {
         let NextSegmentConfig {
+            // A layout's RSC classification does not apply to its child page.
+            rsc: _,
             dynamic,
             dynamic_params,
             revalidate,
+            max_duration,
             fetch_cache,
             runtime,
             preferred_region,
-            ..
+            // TODO what about these?
+            instant: _,
+            prefetch: _,
+            ensure_static: _,
+            // Don't need merging
+            middleware_matcher: _,
+            unstable_allow_dynamic: _,
+            generate_image_metadata: _,
+            generate_sitemaps: _,
+            generate_static_params: _,
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
         *revalidate = revalidate.or(parent.revalidate);
+        *max_duration = max_duration.or(parent.max_duration);
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
@@ -161,13 +188,11 @@ impl NextSegmentConfig {
             name: &str,
         ) -> Result<()> {
             match (a.as_ref(), b) {
-                (Some(a), Some(b)) => {
-                    if *a != *b {
-                        bail!(
-                            "Sibling segment configs have conflicting values for {}",
-                            name
-                        )
-                    }
+                (Some(a), Some(b)) if *a != *b => {
+                    bail!(
+                        "Sibling segment configs have conflicting values for {}",
+                        name
+                    )
                 }
                 (None, Some(b)) => {
                     *a = Some(b.clone());
@@ -177,14 +202,28 @@ impl NextSegmentConfig {
             Ok(())
         }
         let Self {
+            rsc,
             dynamic,
             dynamic_params,
             revalidate,
+            max_duration,
             fetch_cache,
             runtime,
             preferred_region,
-            ..
+            // TODO what about these?
+            instant: _,
+            prefetch: _,
+            ensure_static: _,
+            // Don't need merging
+            middleware_matcher: _,
+            unstable_allow_dynamic: _,
+            generate_image_metadata: _,
+            generate_sitemaps: _,
+            generate_static_params: _,
         } = self;
+        // Carry the leaf page's RSC classification up through its loader-tree branch. Unlike route
+        // segment config, classifications in different parallel branches are not conflicts.
+        *rsc = (*rsc).or(parallel_config.rsc);
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
             dynamic_params,
@@ -192,14 +231,83 @@ impl NextSegmentConfig {
             "dynamicParams",
         )?;
         merge_parallel(revalidate, &parallel_config.revalidate, "revalidate")?;
+        merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
         merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
         merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
-        merge_parallel(
-            preferred_region,
-            &parallel_config.preferred_region,
-            "preferredRegion",
-        )?;
+        match (preferred_region.as_ref(), &parallel_config.preferred_region) {
+            (Some(a), Some(b)) if a.to_vec() != b.to_vec() => {
+                bail!("Sibling segment configs have conflicting values for preferredRegion")
+            }
+            (None, Some(b)) => {
+                *preferred_region = Some(b.clone());
+            }
+            _ => {}
+        }
         Ok(())
+    }
+
+    pub fn get_proxy_matchers(
+        &self,
+        has_i18n: bool,
+        has_i18n_locales: bool,
+        base_path: Option<&str>,
+    ) -> Option<Vec<ProxyMatcher>> {
+        self.middleware_matcher.as_ref().map(|matchers| {
+            matchers
+                .iter()
+                .map(|matcher| {
+                    let mut matcher = match matcher {
+                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
+                            original_source: matcher.as_str().into(),
+                            ..Default::default()
+                        },
+                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                    };
+
+                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
+                    let mut source = matcher.original_source.to_string();
+                    let is_root = source == "/";
+                    let has_locale = matcher.locale;
+
+                    if has_i18n_locales && has_locale {
+                        if is_root {
+                            source.clear();
+                        }
+                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
+                    }
+
+                    // Match transport-specific route forms that resolve to the
+                    // same page:
+                    // - Pages Router data routes: /_next/data/<build-id>/...
+                    // - App Router transport routes: .rsc, ...segments/...segment.rsc
+                    if is_root {
+                        source.push('(');
+                        if has_i18n {
+                            source.push_str("|\\.json|");
+                        }
+                        source.push_str("/?index|/?index\\.json|");
+                        source.push_str("/?index(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)");
+                        source.push_str(")?");
+                    } else {
+                        source.push_str("{(\\.json|\\.rsc|\\.segments/.+\\.segment\\.rsc)}?");
+                    };
+
+                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
+
+                    if let Some(base_path) = base_path.as_ref() {
+                        source.insert_str(0, base_path);
+                    }
+
+                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
+                    // using path-to-regexp. Currently there is no
+                    // equivalent of that so it post-processes
+                    // this value to the relevant regex in manifest-loader.ts
+                    matcher.regexp = Some(RcStr::from(source));
+
+                    matcher
+                })
+                .collect()
+        })
     }
 }
 
@@ -237,14 +345,14 @@ impl NextSegmentConfigParsingIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(
                 format!(
@@ -254,52 +362,42 @@ impl Issue for NextSegmentConfigParsingIssue {
                 .into(),
             ),
             StyledString::Text(self.error.clone()),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.ident.await?.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "The exported configuration object in a source file needs to have a very specific \
-                 format from which some properties can be statically parsed at compiled-time."
-            ))
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "The exported configuration object in a source file needs to have a very specific \
+             format from which some properties can be statically parsed at compiled-time."
+        ))))
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.detail)
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        match self.detail {
+            Some(d) => Ok(Some((*d.await?).clone())),
+            None => Ok(None),
+        }
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-        ))
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config")
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
@@ -374,7 +472,8 @@ pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let path = source.ident().path().await?;
+    let ident = source.ident().await?;
+    let path = &ident.path;
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
@@ -403,6 +502,9 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         },
         EcmascriptInputTransforms::empty(),
+        // node_env is not used here: EcmascriptInputTransforms::empty() means no
+        // transforms are applied, so TransformContext::node_env is never accessed.
+        rcstr!("development"),
         false,
         false,
     )
@@ -419,12 +521,27 @@ pub async fn parse_segment_config_from_source(
         return Ok(Default::default());
     };
 
-    let config = WrapFuture::new(
+    // Arena for the `JsValue`s produced while evaluating config expressions;
+    // freed when this function returns.
+    let arena = ThreadLocal::new();
+    let mut config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
+            let mut legacy_config = LegacySegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
-                parse_config_value(source, mode, &mut config, eval_context, ident, init, span).await
+                parse_config_value(
+                    source,
+                    mode,
+                    &mut config,
+                    &mut legacy_config,
+                    eval_context,
+                    &arena,
+                    ident,
+                    init,
+                    span,
+                )
+                .await
             };
 
             for item in &module_ast.body {
@@ -502,6 +619,10 @@ pub async fn parse_segment_config_from_source(
                     }
                 }
             }
+            // Individual exports take precedence over legacy config fields, regardless of
+            // export order. App Router ignores legacy config, so its fallback stays empty.
+            config.runtime = config.runtime.or(legacy_config.runtime);
+            config.max_duration = config.max_duration.or(legacy_config.max_duration);
             anyhow::Ok(config)
         },
         |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
@@ -524,6 +645,12 @@ pub async fn parse_segment_config_from_source(
             _ => false,
         });
 
+    config.rsc = Some(if is_client_entry {
+        NextSegmentRsc::Client
+    } else {
+        NextSegmentRsc::Server
+    });
+
     if mode == ParseSegmentMode::App && is_client_entry {
         if let Some(span) = config.generate_static_params {
             invalid_config(
@@ -540,20 +667,29 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
 
-        if let Some(span) = config.unstable_instant {
-            invalid_config(
-                source,
-                "unstable_instant",
-                span,
-                rcstr!(
-                    "App pages cannot export \"unstable_instant\" from a Client Component module. \
-                     To use this API, convert this module to a Server Component by removing the \
-                     \"use client\" directive."
-                ),
-                None,
-                IssueSeverity::Error,
-            )
-            .await?;
+        let server_only_route_configs = [
+            ("instant", config.instant),
+            ("prefetch", config.prefetch),
+            ("ensureStatic", config.ensure_static),
+        ];
+        for (config_name, usage) in server_only_route_configs {
+            if let Some(span) = usage {
+                invalid_config(
+                    source,
+                    config_name,
+                    span,
+                    format!(
+                        "\"{}\" is a route segment config and can only be used when the segment \
+                         is a Server Component module. Remove the \"use client\" directive to use \
+                         this API.",
+                        config_name
+                    )
+                    .into(),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await?;
+            }
         }
     }
 
@@ -565,7 +701,7 @@ async fn invalid_config(
     key: &str,
     span: Span,
     error: RcStr,
-    value: Option<&JsValue>,
+    value: Option<&JsValue<'_>>,
     severity: IssueSeverity,
 ) -> Result<()> {
     let detail = if let Some(value) = value {
@@ -593,31 +729,36 @@ async fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
+    legacy_config: &mut LegacySegmentConfig,
     eval_context: &EvalContext,
+    arena: &ThreadLocal<Bump>,
     key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
     span: Span,
 ) -> Result<()> {
     let get_value = || {
         let init = init.as_deref();
-        // Unwrap `export const config = { .. } satisfies ProxyConfig`, usually this is already
-        // transpiled away, but we are looking at the original source here.
-        let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
-            Some(&**expr)
-        } else {
-            init
+        // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
+        // this is already transpiled away, but we are looking at the original source here.
+        let init = match init {
+            Some(Expr::TsAs(TsAsExpr { expr, .. }))
+            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
+            | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
+            _ => init,
         };
-        init.map(|init| eval_context.eval(init)).map(|v| {
-            // Special case, as we don't call `link` here: assume that `undefined` is a free
-            // variable.
-            if let JsValue::FreeVar(name) = &v
-                && name == "undefined"
-            {
-                JsValue::Constant(ConstantValue::Undefined)
-            } else {
-                v
-            }
-        })
+        init.map(|init| eval_context.eval(arena.get_or_default(), init))
+            .map(|v| {
+                // Special case, as we don't call `link` here: assume that `undefined` is a free
+                // variable.
+                if let JsValue::FreeVar(name) = &v
+                    && name == "undefined"
+                {
+                    JsValue::Constant(ConstantValue::Undefined)
+                } else {
+                    v
+                }
+            })
     };
 
     match &*key {
@@ -731,17 +872,43 @@ async fn parse_config_value(
                             continue;
                         }
 
-                        config.runtime = runtime
+                        legacy_config.runtime = runtime
                     }
                     "matcher" => {
                         config.middleware_matcher =
                             parse_route_matcher_from_js_value(source, span, value).await?;
                     }
+                    "unstable_allowDynamic" => {
+                        config.unstable_allow_dynamic = parse_static_string_or_array_from_js_value(
+                            source,
+                            span,
+                            "config",
+                            "unstable_allowDynamic",
+                            value,
+                        )
+                        .await?;
+                    }
                     "regions" => {
-                        config.preferred_region = parse_static_string_or_array_from_js_value(
+                        config.preferred_region = parse_preferred_region_from_js_value(
                             source, span, "config", "regions", value,
                         )
                         .await?;
+                    }
+                    "maxDuration" => {
+                        legacy_config.max_duration = match parse_max_duration(value) {
+                            Ok(duration) => duration,
+                            Err(error) => {
+                                return invalid_config(
+                                    source,
+                                    "config",
+                                    span,
+                                    format!("`maxDuration` {error}").into(),
+                                    Some(value),
+                                    IssueSeverity::Error,
+                                )
+                                .await;
+                            }
+                        };
                     }
                     _ => {
                         // Ignore,
@@ -834,9 +1001,9 @@ async fn parse_config_value(
             };
 
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if *val >= 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
-                        seconds: *val as u32,
+                        seconds: val as u32,
                     });
                 }
                 JsValue::Constant(ConstantValue::False) => {
@@ -850,6 +1017,34 @@ async fn parse_config_value(
                     //https://github.com/vercel/next.js/blob/cd46c221d2b7f796f963d2b81eea1e405023db23/packages/next/src/server/lib/patch-fetch.ts#L20
                 }
             }
+        }
+        "maxDuration" => {
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "maxDuration",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+
+            config.max_duration = match parse_max_duration(&value) {
+                Ok(duration) => duration,
+                Err(error) => {
+                    return invalid_config(
+                        source,
+                        "maxDuration",
+                        span,
+                        format!("It {error}").into(),
+                        Some(&value),
+                        IssueSeverity::Error,
+                    )
+                    .await;
+                }
+            };
         }
         "fetchCache" => {
             let Some(value) = get_value() else {
@@ -951,17 +1146,14 @@ async fn parse_config_value(
                 return Ok(());
             }
 
-            if let Some(preferred_region) = parse_static_string_or_array_from_js_value(
+            config.preferred_region = parse_preferred_region_from_js_value(
                 source,
                 span,
                 "preferredRegion",
                 "preferredRegion",
                 &value,
             )
-            .await?
-            {
-                config.preferred_region = Some(preferred_region);
-            }
+            .await?;
         }
         "generateImageMetadata" => {
             config.generate_image_metadata = true;
@@ -972,8 +1164,14 @@ async fn parse_config_value(
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
         }
-        "unstable_instant" => {
-            config.unstable_instant = Some(span);
+        "instant" => {
+            config.instant = Some(span);
+        }
+        "prefetch" => {
+            config.prefetch = Some(span);
+        }
+        "ensureStatic" => {
+            config.ensure_static = Some(span);
         }
         _ => {}
     }
@@ -981,12 +1179,46 @@ async fn parse_config_value(
     Ok(())
 }
 
+fn parse_max_duration(value: &JsValue<'_>) -> Result<Option<u32>, &'static str> {
+    if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+        return Ok(None);
+    }
+    let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
+        return Err("needs to be a static number.");
+    };
+    if !val.is_finite() || *val < 0.0 || val.fract() != 0.0 || *val > u32::MAX as f64 {
+        return Err("needs to be a non-negative integer no greater than 4294967295.");
+    }
+    Ok(Some(*val as u32))
+}
+
+async fn parse_preferred_region_from_js_value(
+    source: ResolvedVc<Box<dyn Source>>,
+    span: Span,
+    key: &str,
+    sub_key: &str,
+    value: &JsValue<'_>,
+) -> Result<Option<NextSegmentRegion>> {
+    let is_array = matches!(value, JsValue::Array { .. });
+    Ok(
+        parse_static_string_or_array_from_js_value(source, span, key, sub_key, value)
+            .await?
+            .and_then(|regions| {
+                if is_array {
+                    Some(NextSegmentRegion::Multiple(regions))
+                } else {
+                    regions.into_iter().next().map(NextSegmentRegion::Single)
+                }
+            }),
+    )
+}
+
 async fn parse_static_string_or_array_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
     key: &str,
     sub_key: &str,
-    value: &JsValue,
+    value: &JsValue<'_>,
 ) -> Result<Option<Vec<RcStr>>> {
     Ok(match value {
         // Single value is turned into a single-element Vec.
@@ -1039,129 +1271,130 @@ async fn parse_static_string_or_array_from_js_value(
 async fn parse_route_matcher_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
-    value: &JsValue,
+    value: &JsValue<'_>,
 ) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
-    let parse_matcher_kind_matcher = async |value: &JsValue, sub_key: &str, matcher_idx: usize| {
-        let mut route_has = vec![];
-        if let JsValue::Array { items, .. } = value {
-            for (i, item) in items.iter().enumerate() {
-                if let JsValue::Object { parts, .. } = item {
-                    let mut route_type = None;
-                    let mut route_key = None;
-                    let mut route_value = None;
+    let parse_matcher_kind_matcher =
+        async |value: &JsValue<'_>, sub_key: &str, matcher_idx: usize| {
+            let mut route_has = vec![];
+            if let JsValue::Array { items, .. } = value {
+                for (i, item) in items.iter().enumerate() {
+                    if let JsValue::Object { parts, .. } = item {
+                        let mut route_type = None;
+                        let mut route_key = None;
+                        let mut route_value = None;
 
-                    for matcher_part in parts {
-                        if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
-                            match part_key.as_str() {
-                                Some("type") => {
-                                    if let Some(part_value) = part_value.as_str().filter(|v| {
-                                        *v == "header"
-                                            || *v == "cookie"
-                                            || *v == "query"
-                                            || *v == "host"
-                                    }) {
-                                        route_type = Some(part_value);
-                                    } else {
+                        for matcher_part in parts {
+                            if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
+                                match part_key.as_str() {
+                                    Some("type") => {
+                                        if let Some(part_value) = part_value.as_str().filter(|v| {
+                                            *v == "header"
+                                                || *v == "cookie"
+                                                || *v == "query"
+                                                || *v == "host"
+                                        }) {
+                                            route_type = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
+                                                     must be one of the strings: 'header', \
+                                                     'cookie', 'query', 'host'"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    Some("key") => {
+                                        if let Some(part_value) = part_value.as_str() {
+                                            route_key = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].key` \
+                                                     must be a string"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    Some("value") => {
+                                        if let Some(part_value) = part_value.as_str() {
+                                            route_value = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].\
+                                                     value` must be a string"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    _ => {
                                         invalid_config(
                                             source,
                                             "config",
                                             span,
                                             format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
-                                                 must be one of the strings: 'header', 'cookie', \
-                                                 'query', 'host'"
+                                                "Unexpected property in \
+                                                 `matcher[{matcher_idx}].{sub_key}[{i}]` object"
                                             )
                                             .into(),
-                                            Some(part_value),
+                                            Some(part_key),
                                             IssueSeverity::Error,
                                         )
                                         .await?;
                                     }
-                                }
-                                Some("key") => {
-                                    if let Some(part_value) = part_value.as_str() {
-                                        route_key = Some(part_value);
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].key` must \
-                                                 be a string"
-                                            )
-                                            .into(),
-                                            Some(part_value),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                Some("value") => {
-                                    if let Some(part_value) = part_value.as_str() {
-                                        route_value = Some(part_value);
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].value` \
-                                                 must be a string"
-                                            )
-                                            .into(),
-                                            Some(part_value),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                _ => {
-                                    invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!(
-                                            "Unexpected property in \
-                                             `matcher[{matcher_idx}].{sub_key}[{i}]` object"
-                                        )
-                                        .into(),
-                                        Some(part_key),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await?;
                                 }
                             }
                         }
-                    }
-                    let r = match route_type {
-                        Some("header") => route_key.map(|route_key| RouteHas::Header {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("query") => route_key.map(|route_key| RouteHas::Query {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("host") => route_value.map(|route_value| RouteHas::Host {
-                            value: route_value.into(),
-                        }),
-                        _ => None,
-                    };
+                        let r = match route_type {
+                            Some("header") => route_key.map(|route_key| RouteHas::Header {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("query") => route_key.map(|route_key| RouteHas::Query {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("host") => route_value.map(|route_value| RouteHas::Host {
+                                value: route_value.into(),
+                            }),
+                            _ => None,
+                        };
 
-                    if let Some(r) = r {
-                        route_has.push(r);
+                        if let Some(r) = r {
+                            route_has.push(r);
+                        }
                     }
                 }
             }
-        }
 
-        anyhow::Ok(route_has)
-    };
+            anyhow::Ok(route_has)
+        };
 
     let mut matchers = vec![];
 
@@ -1328,14 +1561,12 @@ async fn parse_segment_config_from_loader_tree_internal(
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .map(|loader_tree| async move {
-            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
-        })
-        .try_join()
-        .await?;
+        .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
+        .join()
+        .await;
 
     for tree in parallel_configs {
-        config.apply_parallel_config(&tree)?;
+        config.apply_parallel_config(&tree?)?;
     }
 
     let modules = &loader_tree.modules;

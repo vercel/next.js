@@ -13,6 +13,8 @@ body:
 
         Before opening a new issue, please do a [search](https://github.com/vercel/next.js/issues) of existing issues and :+1: upvote the existing issue instead. This will result in a quicker resolution.
 
+        We encourage you to use AI to assist you in researching and reviewing bug reports. However, you must review and deeply understand the issues you are reporting. For this reason, **issue descriptions from external contributors must be written and created by a human**. You can use AI to help create a reproduction.
+
         If you need help with your own project, you can:
         - Start a discussion in the ["Help"](https://github.com/vercel/next.js/discussions/categories/help) section.
         - Ask a question in [Vercel Community](https://vercel.community/tags/c/help/9/nextjs).

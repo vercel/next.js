@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
@@ -11,16 +11,16 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
+        ModuleGraph, chunk_group_info::ChunkGroupKey, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssetsWithReferenced,
-    reference::{ModuleReferences, SingleModuleReference},
+    reference::ModuleReferences,
 };
 
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
     utils::{StringifyJs, StringifyModuleId},
@@ -51,8 +51,13 @@ impl AsyncLoaderModule {
     }
 
     #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(rcstr!("async loader"))
+    pub async fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Result<Vc<AssetIdent>> {
+        Ok(module
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("async loader"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -60,27 +65,28 @@ impl AsyncLoaderModule {
         &self,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        if let Some(chunk_items) = self.availability_info.available_modules() {
-            let inner_module = ResolvedVc::upcast(self.inner);
-            let batches = module_graph
-                .module_batches(self.chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(inner_module).await?;
-            if let Some(chunkable_module_or_batch) =
-                ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
-            {
-                return Ok(OutputAssetsWithReferenced {
-                    assets: ResolvedVc::cell(vec![]),
-                    referenced_assets: ResolvedVc::cell(vec![]),
-                    references: ResolvedVc::cell(vec![]),
-                }
-                .cell());
+        let inner_module = ResolvedVc::upcast(self.inner);
+        let batches = module_graph
+            .module_batches(self.chunking_context.batching_config())
+            .await?;
+        let module_or_batch = batches.get_entry(inner_module).await?;
+        if let Some(chunkable_module_or_batch) =
+            ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+            && self
+                .availability_info
+                .is_available(module_graph.to_resolved().await?, chunkable_module_or_batch)
+                .await?
+        {
+            return Ok(OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
             }
+            .cell());
         }
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
+            ChunkGroupKey::Async(ResolvedVc::upcast(self.inner)),
             module_graph,
             self.availability_info,
         ))
@@ -118,14 +124,7 @@ impl Module for AsyncLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleModuleReference::new(
-                *ResolvedVc::upcast(self.await?.inner),
-                rcstr!("async module"),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+        bail!("AsyncLoaderModule::references should never be called")
     }
 
     #[turbo_tasks::function]
@@ -161,6 +160,15 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions: *chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?,
+            ..Default::default()
+        };
+
         if estimated {
             let code = formatdoc! {
                 r#"
@@ -171,6 +179,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             };
             return Ok(EcmascriptChunkItemContent {
                 inner_code: code.into(),
+                options,
                 ..Default::default()
             }
             .cell());
@@ -243,6 +252,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())
@@ -254,8 +264,6 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident();
-
         let this = self.await?;
 
         let nested_async_availability = this
@@ -275,11 +283,15 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             this.availability_info.ident().await?
         };
 
-        if let Some(availability_ident) = availability_ident {
-            ident = ident.with_modifier(availability_ident)
-        }
-
-        Ok(ident)
+        Ok(if let Some(availability_ident) = availability_ident {
+            self.ident()
+                .owned()
+                .await?
+                .with_modifier(availability_ident)
+                .into_vc()
+        } else {
+            self.ident()
+        })
     }
 
     #[turbo_tasks::function]

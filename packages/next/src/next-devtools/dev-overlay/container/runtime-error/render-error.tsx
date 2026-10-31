@@ -1,3 +1,4 @@
+import type { RuntimeErrorBoundary } from '../../../../server/dev/hot-reloader-types'
 import type { OverlayState } from '../../shared'
 import type { StackFrame } from '../../../shared/stack-frame'
 
@@ -6,6 +7,7 @@ import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
+import { isInstantNavigationError } from '../errors'
 
 export type SupportedErrorEvent = {
   id: number
@@ -14,10 +16,18 @@ export type SupportedErrorEvent = {
   type: 'runtime' | 'recoverable' | 'console'
 }
 
+export type RuntimeErrorEvent = SupportedErrorEvent & {
+  /** A React root failure or a Next.js unrecoverable rendering path. */
+  isFatal: boolean
+  boundary: RuntimeErrorBoundary | undefined
+}
+
 type Props = {
   children: (params: {
     runtimeErrors: ReadyRuntimeError[]
     totalErrorCount: number
+    normalErrorCount: number
+    instantErrorCount: number
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
@@ -38,7 +48,12 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
-    [eventId: string]: ReadyRuntimeError
+    [eventId: string]:
+      | ReadyRuntimeError
+      | {
+          event: RuntimeErrorEvent
+          resolved: ReadyRuntimeError
+        }
   }>({})
 
   const [runtimeErrors, nextError] = useMemo<
@@ -52,11 +67,30 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
       const e = errors[idx]
       const { id } = e
       if (id in lookups) {
-        ready.push(lookups[id])
+        const lookup = lookups[id]
+        if (!('event' in lookup)) {
+          ready.push(lookup)
+          continue
+        }
+        const resolved = lookup.resolved
+        if (lookup.event !== e) {
+          // Dedupe promotion preserves the ID while replacing the event.
+          // Keep the overlay mounted while resolving the replacement frames.
+          if (next === null) {
+            next = e
+          }
+          ready.push(
+            resolved.type === e.type ? resolved : { ...resolved, type: e.type }
+          )
+          continue
+        }
+        ready.push(resolved)
         continue
       }
 
-      next = e
+      if (next === null) {
+        next = e
+      }
       break
     }
 
@@ -70,12 +104,28 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
 
     const resolved = getErrorByType(nextError, isAppDir)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO: fetch-while-rendering
-    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+    setLookups((m) => ({
+      ...m,
+      [resolved.id]:
+        'isFatal' in nextError
+          ? { event: nextError as RuntimeErrorEvent, resolved }
+          : resolved,
+    }))
   }, [nextError, isAppDir])
 
   const totalErrorCount = errors.length
+  const instantErrorCount = useMemo(
+    () => runtimeErrors.filter((e) => isInstantNavigationError(e.error)).length,
+    [runtimeErrors]
+  )
+  const normalErrorCount = runtimeErrors.length - instantErrorCount
 
-  return children({ runtimeErrors, totalErrorCount })
+  return children({
+    runtimeErrors,
+    totalErrorCount,
+    normalErrorCount,
+    instantErrorCount,
+  })
 }
 
 const RenderBuildError = ({ children }: Props) => {
@@ -84,5 +134,7 @@ const RenderBuildError = ({ children }: Props) => {
     // Build errors and missing root layout tags persist until fixed,
     // so we can set a fixed error count of 1
     totalErrorCount: 1,
+    normalErrorCount: 1,
+    instantErrorCount: 0,
   })
 }

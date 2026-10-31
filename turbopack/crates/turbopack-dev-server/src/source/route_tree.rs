@@ -3,18 +3,14 @@ use std::{fmt::Write, mem::replace};
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    fxindexmap, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
 
 use crate::source::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
-#[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum RouteType {
     Exact,
     CatchAll,
@@ -23,9 +19,8 @@ pub enum RouteType {
 }
 
 /// Some normal segment of a route.
-#[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum BaseSegment {
     Static(RcStr),
     Dynamic,
@@ -39,17 +34,16 @@ impl BaseSegment {
     }
 }
 
-/// This struct allows to cell a list of RouteTrees and merge them into one.
+/// This struct allows to cell a list of [`RouteTree`]s and merge them into one.
 ///
-/// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would
-/// lead to creating new tasks over and over. A celled list leads to task reuse
-/// and faster operation.
+/// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would lead to creating new
+/// tasks over and over. A celled list leads to task reuse and faster operation.
 #[turbo_tasks::value(transparent)]
 pub struct RouteTrees(Vec<ResolvedVc<RouteTree>>);
 
 #[turbo_tasks::value_impl]
 impl RouteTrees {
-    /// Merges the list of RouteTrees into one RouteTree.
+    /// Merges the list of [`RouteTree`]s into one [`RouteTree`].
     #[turbo_tasks::function]
     pub async fn merge(&self) -> Result<Vc<RouteTree>> {
         let trees = &self.0;
@@ -171,7 +165,7 @@ impl RouteTree {
         self.static_segments.extend(
             static_segments
                 .into_iter()
-                .map(|(key, value)| async {
+                .map(async |(key, value)| {
                     Ok((
                         key,
                         if value.len() == 1 {

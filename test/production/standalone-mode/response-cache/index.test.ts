@@ -2,8 +2,7 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   killApp,
   findPort,
@@ -13,20 +12,22 @@ import {
 } from 'next-test-utils'
 
 describe('minimal-mode-response-cache', () => {
-  let next: NextInstance
   let server
   let port
   let appPort
   let output = ''
 
-  beforeAll(async () => {
+  beforeAll(() => {
     // test build against environment with next support
     process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
+  })
 
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+  })
+
+  beforeAll(async () => {
     await next.stop()
 
     await fs.move(
@@ -88,7 +89,6 @@ describe('minimal-mode-response-cache', () => {
   afterAll(async () => {
     delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
-    await next.destroy()
     if (server) await killApp(server)
   })
 

@@ -24,7 +24,6 @@ note: required by a bound in `turbo_tasks::macro_helpers::into_task_fn_with_this
   --> $WORKSPACE/turbopack/crates/turbo-tasks/src/task/function.rs
    |
    | pub const fn into_task_fn_with_this<
-   |              ---------------------- required by a bound in this function
 ...
    |     F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `into_task_fn_with_this`

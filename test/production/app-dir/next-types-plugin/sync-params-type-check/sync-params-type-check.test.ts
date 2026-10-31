@@ -10,7 +10,6 @@ const strictRouteTypes =
     const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
 
     it('should pass build with Promise params', async () => {

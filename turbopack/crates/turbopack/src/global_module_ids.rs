@@ -1,9 +1,9 @@
 use anyhow::{Context, Result, bail};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{JoinIterExt, ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{
@@ -11,7 +11,6 @@ use turbopack_core::{
         chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
     },
     ident::AssetIdent,
-    module::Module,
     module_graph::{ModuleGraph, RefData},
 };
 use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
@@ -23,17 +22,17 @@ pub async fn get_global_module_id_strategy(
     let span = tracing::info_span!("compute module id map");
     async move {
         let module_graph = module_graph.await?;
-        let graphs = &module_graph.graphs;
 
-        // All modules in the graph
-        let module_idents = graphs
-            .iter()
-            .flat_map(|graph| graph.iter_nodes())
-            .map(|m| m.ident());
-
-        // And additionally, all the modules that are inserted by chunking (i.e. async loaders)
+        // All modules in the graph and additionally, all the modules that are inserted by chunking
+        // (i.e. async loaders). For graph modules we read the eagerly-resolved ident AND its
+        // pre-resolved `ident_string` from the node, so we don't fan out a `to_string()` task per
+        // module here (the production/CLI-build graphs that run this are built with
+        // `include_ident_strings`). Async-loader idents are synthesized and not in the graph, so
+        // their strings are still computed via `to_string()`.
+        let mut modules = FxHashSet::default();
         let mut async_idents = vec![];
         module_graph.traverse_edges_unordered(|parent, current| {
+            modules.insert(current);
             if let Some((
                 _,
                 &RefData {
@@ -49,18 +48,35 @@ pub async fn get_global_module_id_strategy(
             Ok(())
         })?;
 
-        let mut module_id_map = module_idents
-            .chain(async_idents.into_iter())
-            .map(|ident| async move {
+        // Resolve graph-module idents to `(ident, (ident_str, hash))`, reading the pre-resolved
+        // `ident_string` from the node (the graph is built with `include_ident_strings`, else
+        // `module_ident_string` bails — no silent per-module `to_string()` fallback).
+        let graph_entries = modules
+            .into_iter()
+            .map(async |module| {
+                let ident = module_graph.module_ident(module)?;
+                let ident_str = module_graph.module_ident_string(module)?.await?;
+                let hash = hash_xxh3_hash64(&ident_str);
+                Ok((ident, (ident_str, hash)))
+            })
+            .join()
+            .await;
+        // Async-loader idents are synthesized (not in the graph); compute their strings directly.
+        let async_entries = async_idents
+            .into_iter()
+            .map(async |ident| {
                 let ident = ident.to_resolved().await?;
                 let ident_str = ident.to_string().await?;
                 let hash = hash_xxh3_hash64(&ident_str);
                 Ok((ident, (ident_str, hash)))
             })
-            .try_join()
-            .await?
+            .join()
+            .await;
+
+        let mut module_id_map = graph_entries
             .into_iter()
-            .collect::<FxHashMap<_, _>>();
+            .chain(async_entries)
+            .collect::<Result<FxHashMap<_, _>>>()?;
 
         finalize_module_ids(&mut module_id_map);
 

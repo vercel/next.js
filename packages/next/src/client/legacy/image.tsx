@@ -4,34 +4,28 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  useContext,
-  useMemo,
   useState,
   type JSX,
 } from 'react'
 import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
-import {
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../../shared/lib/image-config'
+import { VALID_LOADERS } from '../../shared/lib/image-config'
 import type {
-  ImageConfigComplete,
+  PreparedImageConfig,
   LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import { useImageConfig } from '../use-image-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
-import { getDeploymentId } from '../../shared/lib/deployment-id'
+import { getAssetToken, getDeploymentId } from '../../shared/lib/deployment-id'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
@@ -47,7 +41,7 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = PreparedImageConfig
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
@@ -130,17 +124,22 @@ function defaultLoader({
   // Extract dpl parameter early so validation uses the clean URL
   let deploymentId = getDeploymentId()
   if (src.startsWith('/') && !src.startsWith('//')) {
-    // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
-    // double-encoding with the `encodeURIComponent(src)` below
-    const qIndex = src.indexOf('?')
-    if (qIndex !== -1) {
-      const params = new URLSearchParams(src.slice(qIndex + 1))
-      const srcDpl = params.get('dpl')
-      if (srcDpl) {
-        deploymentId = srcDpl
-        params.delete('dpl')
-        const remaining = params.toString()
-        src = src.slice(0, qIndex) + (remaining ? '?' + remaining : '')
+    if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+      // immutable static asset and supported by platform, don't add `?dpl=`
+      deploymentId = undefined
+    } else {
+      // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+      // double-encoding with the `encodeURIComponent(src)` below
+      const qIndex = src.indexOf('?')
+      if (qIndex !== -1) {
+        const params = new URLSearchParams(src.slice(qIndex + 1))
+        const srcDpl = params.get('dpl')
+        if (srcDpl) {
+          deploymentId = srcDpl
+          params.delete('dpl')
+          const remaining = params.toString()
+          src = src.slice(0, qIndex) + (remaining ? '?' + remaining : '')
+        }
       }
     }
   }
@@ -218,7 +217,13 @@ function defaultLoader({
         // We use dynamic require because this should only error in development
         const { hasRemoteMatch } =
           require('../../shared/lib/match-remote-pattern') as typeof import('../../shared/lib/match-remote-pattern')
-        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        if (
+          !hasRemoteMatch(
+            config.domains ?? [],
+            config.remotePatterns ?? [],
+            parsedSrc
+          )
+        ) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -427,7 +432,10 @@ function generateImgAttrs({
   if (unoptimized) {
     if (src.startsWith('/') && !src.startsWith('//')) {
       let deploymentId = getDeploymentId()
-      if (deploymentId) {
+      if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+        // immutable static asset and supported by platform, don't add `?dpl=`
+        deploymentId = undefined
+      } else if (deploymentId) {
         // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
         // double-encoding with the `encodeURIComponent(src)` below
         const qIndex = src.indexOf('?')
@@ -693,26 +701,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const configContext = useContext(ImageConfigContext)
-  const config: ImageConfig = useMemo(() => {
-    const c = configEnv || configContext || imageConfigDefault
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    return {
-      ...c,
-      allSizes,
-      deviceSizes,
-      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-      // security sensitive configs like `localPatterns`, which is needed
-      // during the server render to ensure it's validated. Therefore use
-      // configContext, which holds the config from the server for validation.
-      localPatterns:
-        typeof window === 'undefined'
-          ? configContext?.localPatterns
-          : c.localPatterns,
-    }
-  }, [configContext])
+  const config: ImageConfig = useImageConfig()
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'

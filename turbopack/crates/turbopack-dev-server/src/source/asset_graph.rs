@@ -4,7 +4,8 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Vc, fxindexset,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, ValueToStringRef, Vc,
+    fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -27,7 +28,7 @@ struct OutputAssetsMap(
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: FileSystemPath,
     root_assets: ResolvedVc<OutputAssetsSet>,
@@ -88,7 +89,7 @@ async fn expand(
     let mut assets_set = FxHashSet::default();
     let root_assets_with_path = root_assets
         .iter()
-        .map(|&asset| async move {
+        .map(async |&asset| {
             let path = asset.path().await?;
             Ok((path, asset))
         })
@@ -135,8 +136,8 @@ async fn expand(
             .assets
             .await?
             .into_iter()
-            .chain(refs.referenced_assets.await?.into_iter());
-        for &asset in ref_assets {
+            .chain(refs.referenced_assets.await?);
+        for asset in ref_assets {
             if assets_set.insert(asset) {
                 let path = asset.path().await?;
                 if let Some(sub_path) = root_path.get_path_to(&path) {
@@ -192,7 +193,7 @@ fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     (sub_paths_buffer, n)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<OutputAssetsMap> {
     source.all_assets_map()
 }
@@ -219,7 +220,7 @@ impl ContentSource for AssetGraphContentSource {
                     )),
                 )
             })
-            .map(|v| async move { v.to_resolved().await })
+            .map(|v| v.to_resolved())
             .try_join()
             .await?;
         Ok(Vc::<RouteTrees>::cell(routes).merge())
@@ -286,8 +287,8 @@ impl Introspectable for AssetGraphContentSource {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<RcStr> {
-        self.root_path.value_to_string()
+    async fn title(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.root_path.to_string_ref().await?))
     }
 
     #[turbo_tasks::function]
@@ -306,7 +307,7 @@ impl Introspectable for AssetGraphContentSource {
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets
             .iter()
-            .map(|&asset| async move {
+            .map(async |&asset| {
                 Ok((
                     rcstr!("root"),
                     IntrospectableOutputAsset::new(*asset).to_resolved().await?,
@@ -319,7 +320,7 @@ impl Introspectable for AssetGraphContentSource {
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|&a| !root_assets.contains(a))
-            .map(|&asset| async move {
+            .map(async |&asset| {
                 Ok((
                     rcstr!("inner"),
                     IntrospectableOutputAsset::new(*asset).to_resolved().await?,
@@ -353,7 +354,7 @@ impl Introspectable for FullyExpanded {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
-        Ok(self.0.await?.root_path.value_to_string())
+        Ok(Vc::cell(self.0.await?.root_path.to_string_ref().await?))
     }
 
     #[turbo_tasks::function]
@@ -363,7 +364,7 @@ impl Introspectable for FullyExpanded {
         let expanded_assets = expand(&*source.root_assets.await?, &source.root_path, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| async move {
+            .map(async |(_k, &v)| {
                 Ok((
                     rcstr!("asset"),
                     IntrospectableOutputAsset::new(*v).to_resolved().await?,

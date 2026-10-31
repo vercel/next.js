@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { execSync } from 'child_process'
 
 const dependencies = {
-  'es-check': '9.6.1',
+  'es-check': '9.6.4',
   browserslist: '4.28.1',
 }
 
@@ -71,6 +71,29 @@ describe('escheck-output', () => {
         { cwd: next.testDir, encoding: 'utf8' }
       )
 
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+  })
+
+  // Webpack doesn't properly downlevel
+  ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)('ancient', () => {
+    let browserslist = ['ios >= 9']
+
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      packageJson: {
+        browserslist,
+      },
+    })
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}" --noCache`,
+        { cwd: next.testDir, encoding: 'utf8' }
+      )
+
+      console.log(esCheckOutput)
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
     })
   })

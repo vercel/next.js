@@ -119,6 +119,59 @@ Disallow: /
 Sitemap: https://acme.com/sitemap.xml
 ```
 
+### Non-standard directives
+
+Some search engines support directives that aren't part of the [Robots Exclusion Standard](https://en.wikipedia.org/wiki/Robots.txt#Standard), such as `Request-Rate` (Seznam) or `Clean-param` (Yandex). Pass these through the `other` field on a rule. Keys preserve their casing and array values emit one line per entry, scoped to the rule's `User-Agent` block.
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      { userAgent: '*', allow: '/' },
+      {
+        userAgent: 'SeznamBot',
+        allow: '/',
+        other: {
+          'Request-Rate': '10/1m',
+        },
+      },
+    ],
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: [
+      { userAgent: '*', allow: '/' },
+      {
+        userAgent: 'SeznamBot',
+        allow: '/',
+        other: {
+          'Request-Rate': '10/1m',
+        },
+      },
+    ],
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: *
+Allow: /
+
+User-Agent: SeznamBot
+Allow: /
+Request-Rate: 10/1m
+```
+
+> **Good to know**: Values in `other` are passed through verbatim. Next.js does not validate directive names or values, so refer to the target search engine's documentation for the exact syntax.
+
 ### Robots object
 
 ```tsx
@@ -129,12 +182,14 @@ type Robots = {
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        other?: Record<string, string | number | Array<string | number>>
       }
     | Array<{
         userAgent: string | string[]
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        other?: Record<string, string | number | Array<string | number>>
       }>
   sitemap?: string | string[]
   host?: string
@@ -143,6 +198,7 @@ type Robots = {
 
 ## Version History
 
-| Version   | Changes              |
-| --------- | -------------------- |
-| `v13.3.0` | `robots` introduced. |
+| Version   | Changes                                                    |
+| --------- | ---------------------------------------------------------- |
+| `v16.3.0` | Added `other` field for non-standard per-agent directives. |
+| `v13.3.0` | `robots` introduced.                                       |

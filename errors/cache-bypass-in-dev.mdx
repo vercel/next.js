@@ -4,27 +4,32 @@ title: Caches Bypassed in Development Mode
 
 ## Disabling Caches in Development Mode
 
-While running Next.js in development mode with `next dev` an initial page load or client navigation was handled with a `cache-control: no-store` header. The most common reason for this is that you have your web browser's DevTools open with "Disable Cache" enabled. Another common reason is you performed a hard refresh (Cmd + Shift + R / Ctrl + Shift + R).
+While running Next.js in development mode with `next dev`, an initial page load or client navigation was handled with server caches bypassed. This can happen when the request includes a `cache-control: no-cache` header. The most common reason for this is that you have your web browser's DevTools open with "Disable Cache" enabled. Another common reason is you performed a hard refresh (Cmd + Shift + R / Ctrl + Shift + R).
 
-Disabling caches while in development mode affects the debugging experience of Cache Components. Read on to understand more about how Next.js handles caches in development mode and what changes when they are intentionally disabled.
+This can also happen when [`draftMode`](/docs/app/api-reference/functions/draft-mode) is enabled. Draft Mode is designed to bypass caches so you can preview live or unpublished content before it is published to the cached or prerendered version of your site.
 
-## Understanding Cache handling in Development Mode
+Bypassing caches while in development mode affects the debugging experience of Cache Components and Instant Insights. Read on to understand more about how Next.js handles caches in development mode and what changes when they are intentionally bypassed.
 
-In development mode, Next.js ensures that Cache Components render in the right environment to allow for React DevTools to highlight which components are part of the available for prerendering statically before any user request, which are available when prefetching segments at runtime before a navigation occurs, and finally which are dynamic and will only be fetched on user navigation.
+## Understanding Cache Handling in Development Mode
 
-This behavior has a small cost when a cold cache is encountered. Rather than streaming immediately Next.js will wait to fill this cache before streaming the response. As you navigate around you App in development mode these caches will fill and most navigations to cached content should feel instant once warm.
+In development mode, Next.js ensures that Cache Components render in the right environment so React DevTools can highlight which components are available for static prerendering before any user request, which are available when prefetching segments at runtime before a navigation occurs, and which are dynamic and only fetched during user navigation.
 
-However if you instruct Next.js to skip all server caches using something like the "Disable Cache" option in your browser's DevTools, this behavior would be detrimental since every cache will be considered cold on every request leading to blocking navigations. Instead Next.js prints a warning that this particular request is not suitable for debugging Cache Components and then renders fresh results as fast as possible.
+This behavior has a small cost when a cold cache is encountered. Rather than streaming immediately, Next.js waits to fill this cache before streaming the response. As you navigate around your app in development mode, these caches will fill and most navigations to cached content should feel instant once warm.
 
-## Should you use "Disable Cache"?
+However, if you instruct Next.js to skip all server caches using something like the "Disable Cache" option in your browser's DevTools, or by enabling Draft Mode, this behavior would be detrimental since every cache will be considered cold on every request, leading to blocking navigations. Instead, Next.js prints a warning that this particular request is not suitable for debugging Cache Components or Instant Insights and then renders fresh results as fast as possible.
 
-Chrome, in particular, defaults all network request to "Disable Cache" when DevTools is open. For Next.js this is not recommended because it is overly aggressive in what is not cached and can provide a false impression of page performance that doesn't represent realistic usage of a web app.
+## Should You Bypass Caches?
 
-However there are times when disabling a server caches can be useful. For instance if you know some upstream data system has updated but these updates are not connected to your local dev environment through features like `revalidateTag`.
+Chrome, in particular, defaults all network requests to "Disable Cache" when DevTools is open. For Next.js this is not recommended because it is overly aggressive in what is not cached and can provide a false impression of page performance that doesn't represent realistic usage of a web app.
 
-If you must turn on "Disable Cache" to force a refresh we recommend that you disable the option once you've achieved your goal.
+However, there are times when bypassing server caches can be useful. For instance, if you know some upstream data system has updated but these updates are not connected to your local dev environment through features like `revalidateTag`, a hard refresh or "Disable Cache" can force a fresh render.
+
+If you must turn on "Disable Cache" to force a refresh, we recommend that you disable the option once you've achieved your goal.
+
+If this warning appears while Draft Mode is enabled, it is expected. Draft Mode intentionally bypasses `"use cache"` and other server caches so your preview can render the latest content dynamically. Disable Draft Mode when you want to debug what can be prerendered, prefetched, or cached for normal visitors.
 
 ## Useful Links
 
+- [`draftMode` function](/docs/app/api-reference/functions/draft-mode)
 - [`revalidateTag` function](/docs/app/api-reference/functions/revalidateTag)
 - [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)

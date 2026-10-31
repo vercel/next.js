@@ -181,7 +181,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) return
 
         // TODO: Rspack does not store middleware entries in persistent cache, causing
-        // test/integration/middleware-src/test/index.test.ts to fail. This is a temporary
+        // test/e2e/middleware-src/middleware-src.test.ts to fail. This is a temporary
         // workaround to skip middleware entry caching until Rspack properly supports it.
         if (page === '/middleware') {
           return

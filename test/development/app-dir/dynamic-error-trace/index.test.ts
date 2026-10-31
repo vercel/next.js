@@ -1,11 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - dynamic error trace', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should show the error trace', async () => {
     const browser = await next.browser('/')
@@ -13,7 +11,6 @@ describe('app dir - dynamic error trace', () => {
     // TODO(veil): Where is the stackframe for app/page.js?
     await expect(browser).toDisplayRedbox(`
      {
-       "code": "E828",
        "description": "Route / with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
        "environmentLabel": "Server",
        "label": "Runtime Error",

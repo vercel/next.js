@@ -16,3 +16,23 @@ export function ClientExpr() {
     </>
   )
 }
+
+export function ClientNumber() {
+  return (
+    <>
+      {typeof MY_NUMBER_VARIABLE === 'number'
+        ? String(MY_NUMBER_VARIABLE)
+        : 'not set'}
+    </>
+  )
+}
+
+export function ClientBoolean() {
+  return (
+    <>
+      {typeof MY_BOOLEAN_VARIABLE === 'boolean'
+        ? String(MY_BOOLEAN_VARIABLE)
+        : 'not set'}
+    </>
+  )
+}

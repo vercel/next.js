@@ -7,12 +7,17 @@
 
 ## Match CI Environment Variables
 
-Read the job environment variables from `pr-status` output and mirror them locally.
+Read the "Job Environment Variables" section in `index.md` and mirror them locally. Key variables:
 
-Key variables to watch:
+- `IS_WEBPACK_TEST=1` — forces webpack mode (turbopack is default locally).
+- `NEXT_SKIP_ISOLATE=1` — skips package isolation; **never use** when verifying module resolution or build-time compilation fixes.
+- Feature flags like `__NEXT_USE_NODE_STREAMS=true`, `__NEXT_CACHE_COMPONENTS=true` change DefinePlugin replacements.
 
-- `IS_WEBPACK_TEST=1` forces webpack mode.
-- `NEXT_SKIP_ISOLATE=1` skips package isolation and can hide module-resolution issues.
+Example: a failure in "test node streams prod" needs:
+
+```bash
+IS_WEBPACK_TEST=1 __NEXT_USE_NODE_STREAMS=true __NEXT_CACHE_COMPONENTS=true NEXT_TEST_MODE=start
+```
 
 ## Isolation Rule
 

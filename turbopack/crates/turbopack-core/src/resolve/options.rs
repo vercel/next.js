@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -25,13 +25,10 @@ use crate::{
 pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
-#[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ResolveModules {
-    /// when inside of path, use the list of directories to
-    /// resolve inside these
-    Nested(FileSystemPath, Vec<RcStr>),
+    /// Starting from the lookup path, look for modules in these directories at each parent.
+    Nested(Vec<RcStr>),
     /// look into that directory, unless the request has an excluded extension
     Path {
         dir: FileSystemPath,
@@ -39,9 +36,10 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default)]
 pub enum ConditionValue {
     Set,
+    #[default]
     Unset,
     Unknown,
 }
@@ -59,7 +57,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -77,7 +75,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request within a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),
@@ -399,7 +397,13 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(FileSystemPath, ResolvedVc<Glob>, ResolvedVc<ImportMapping>)>,
+    /// Each glob is matched against the resolved path relative to its root. A root of `None`
+    /// matches resolved paths on any filesystem, relative to that filesystem's root.
+    pub by_glob: Vec<(
+        /* root */ Option<FileSystemPath>,
+        ResolvedVc<Glob>,
+        ResolvedVc<ImportMapping>,
+    )>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -533,7 +537,16 @@ impl ValueToString for ImportMapResult {
             }
             ImportMapResult::NoEntry => Ok(Vc::cell(rcstr!("No import map entry"))),
             ImportMapResult::Error(issue) => Ok(Vc::cell(
-                format!("error: {}", issue.title().await?.to_unstyled_string()).into(),
+                format!(
+                    "error: {}",
+                    issue
+                        .into_trait_ref()
+                        .await?
+                        .title()
+                        .await?
+                        .to_unstyled_string()
+                )
+                .into(),
             )),
         }
     }
@@ -576,8 +589,8 @@ impl ImportMap {
 
         let results = lookup_rel
             .into_iter()
-            .chain(lookup_rel_parent.into_iter())
-            .chain(lookup.into_iter())
+            .chain(lookup_rel_parent)
+            .chain(lookup)
             .map(async |result| {
                 import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
@@ -602,7 +615,11 @@ impl ResolvedMap {
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         for (root, glob, mapping) in self.by_glob.iter() {
-            if let Some(path) = root.get_path_to(&resolved)
+            let path = match root {
+                Some(root) => root.get_path_to(&resolved),
+                None => Some(&*resolved.path),
+            };
+            if let Some(path) = path
                 && glob.await?.matches(path)
             {
                 return Ok(import_mapping_to_result(
@@ -652,14 +669,23 @@ pub struct ResolveOptions {
     pub collect_affecting_sources: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
+    /// The directory that a request starting with `/` (a [`Request::ServerRelative`]) resolves
+    /// from, e.g. `/dir/file.js`. A request that doesn't exist below this directory is not
+    /// resolved, so `/` can't reach outside of it.
+    ///
+    /// When unset, there is nothing to resolve such a request from, so it isn't supported: it
+    /// reports an issue saying so and doesn't resolve.
+    ///
+    /// [`Request::ServerRelative`]: crate::resolve::parse::Request::ServerRelative
+    pub server_relative_root: Option<FileSystemPath>,
 
     pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_impl]
 impl ResolveOptions {
-    /// Returns a new [Vc<ResolveOptions>] with its import map extended to
-    /// include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its import map extended to include the given import
+    /// map.
     #[turbo_tasks::function]
     pub async fn with_extended_import_map(
         self: Vc<Self>,
@@ -677,8 +703,8 @@ impl ResolveOptions {
         Ok(resolve_options.cell())
     }
 
-    /// Returns a new [Vc<ResolveOptions>] with its fallback import map extended
-    /// to include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its fallback import map extended to include the
+    /// given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,
