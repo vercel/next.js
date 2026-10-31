@@ -9,9 +9,6 @@ on:
     types:
       - completed
 
-env:
-  SLACK_WEBHOOK_URL: ${{ secrets[github.event.workflow_run.event == 'schedule' && 'FUTURE_COMPAT_SLACK_WEBHOOK_URL' || 'BROKEN_CANARY_SLACK_WEBHOOK_URL'] }}
-
 permissions: {}
 
 jobs:
@@ -90,6 +87,7 @@ jobs:
 
   report-failure:
     name: report failure to slack
+    environment: ${{ github.event.workflow_run.event == 'schedule' && 'bot-autonomous' || '' }}
     permissions:
       actions: read
     # Report the failure to Slack after all retries are exhausted.
@@ -165,4 +163,4 @@ jobs:
               "workflow_branch": ${{ toJSON(github.event.workflow_run.head_branch) }}
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets[github.event.workflow_run.event == 'schedule' && 'FUTURE_COMPAT_SLACK_WEBHOOK_URL' || 'BROKEN_CANARY_SLACK_WEBHOOK_URL'] }}
