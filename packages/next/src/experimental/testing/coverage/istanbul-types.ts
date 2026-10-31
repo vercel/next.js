@@ -5,6 +5,31 @@ import type { StandardCoverageLocation } from './types'
 
 type Position = StandardCoverageLocation['start']
 
+/** Actual pre-instrumentation output from the real Session-owned options. */
+export interface IstanbulTypeScriptSource {
+  version: 1
+  code: string
+  inputSourceMap: CompilerTransformSourceMap
+}
+
+/** Local only; actual options and encryption keys never enter metadata. */
+export type IstanbulTypeScriptOptionsGetter = (
+  source: { file: string; sha256: string },
+  signal: AbortSignal
+) => Promise<Record<string, unknown>>
+
+/** Parent-produced declarations after reading the actual leased artifact. */
+export interface IstanbulSourceDeclarations {
+  version: 1
+  profile: TestProfile
+  owner:
+    | { kind: 'compiler-source'; revision: string }
+    | { kind: 'runtime-entry'; entryId: string; revision: string }
+  source: { file: string; sha256: string }
+  typeScriptSource: IstanbulTypeScriptSource
+  initial: IstanbulRawFileCoverage
+}
+
 /** Actual instrumenter output before the provider's source-map remapping. */
 export interface IstanbulRawFileCoverage {
   path: string
@@ -41,7 +66,7 @@ export interface IstanbulSourcePlan {
   /** Default discovery captures actual evaluated sources, without eager zeros. */
   importedOnly?: true
   profile: TestProfile
-  sources: { file: string; sha256: string }[]
+  sources: { file: string; sha256: string; declarationRevision?: string }[]
 }
 
 export interface IstanbulInstrumentationMetadata {
@@ -51,6 +76,7 @@ export interface IstanbulInstrumentationMetadata {
     file: string
     sha256: string
     initial: IstanbulRawFileCoverage
+    typeScriptSource?: IstanbulTypeScriptSource
   }[]
 }
 

@@ -182,6 +182,12 @@ export function createExecutionBrokerHost(options: {
     compiled: CompiledCoverageSource,
     signal: AbortSignal
   ) => Promise<void>
+  /** Actual parent artifact lease; this observation grants no worker capability. */
+  onIstanbulArtifact?: (
+    artifact: CompiledTestArtifact,
+    execution: SerializableOptions,
+    signal: AbortSignal
+  ) => Promise<void>
   /** Parent validates before evaluation and seals after worker cleanup. */
   onRuntimeConfiguration?: (
     artifact: CompiledTestArtifact,
@@ -478,12 +484,31 @@ export function createExecutionBrokerHost(options: {
             return true
           }
           if (options.userCancelSignal?.aborted && (await notExecuted())) return
-          const sealRuntimeConfiguration = options.onRuntimeConfiguration
-            ? await options.onRuntimeConfiguration(
-                message.artifact,
-                request.controller.signal
+          if (
+            message.options.coverage?.kind === 'node-istanbul' &&
+            message.artifact.coverage?.istanbul?.sources.some(
+              (source) => source.typeScriptSource
+            )
+          ) {
+            if (!options.onIstanbulArtifact)
+              throw new Error(
+                'Typed Istanbul requires its parent artifact consumer.'
               )
-            : undefined
+            await options.onIstanbulArtifact(
+              message.artifact,
+              message.options,
+              request.controller.signal
+            )
+          }
+          const sealRuntimeConfiguration =
+            options.onRuntimeConfiguration &&
+            (message.options.coverage?.kind !== 'node-istanbul' ||
+              message.artifact.runtimeConfigurationImports)
+              ? await options.onRuntimeConfiguration(
+                  message.artifact,
+                  request.controller.signal
+                )
+              : undefined
           if (options.userCancelSignal?.aborted && (await notExecuted())) return
           if (
             message.options.captureOneShotV8CollectionRestoration !==

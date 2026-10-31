@@ -6,7 +6,11 @@ import {
   remapIstanbulCoverage,
 } from '../../../compiled/next-test-instrumentation'
 import { coverageHash, readArtifactFile, within } from './artifact'
-import { assertIstanbulProfile } from './istanbul-profile'
+import {
+  assertIstanbulProfile,
+  assertIstanbulSourceExtension,
+} from './istanbul-profile'
+import { verifySourceCoverageArtifact } from './source-profile'
 import { assertIstanbulCjsSource } from './istanbul-cjs'
 import { readIstanbulHarnessCoverage } from './istanbul-harness'
 import { fileURLToPath } from 'url'
@@ -37,7 +41,8 @@ function wireInitial(value: IstanbulRawFileCoverage) {
 export async function assertIstanbulMetadata(
   metadata: IstanbulInstrumentationMetadata,
   projectDir: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  artifact?: CompiledTestArtifact
 ) {
   const root = await realpath(projectDir)
   if (
@@ -55,12 +60,41 @@ export async function assertIstanbulMetadata(
       !isAbsolute(source.file) ||
       resolve(source.file) !== source.file ||
       !within(root, source.file) ||
-      !/\.(?:js|mjs|cjs)$/.test(source.file) ||
+      !/\.(?:js|mjs|cjs|ts|mts|[jt]sx)$/.test(source.file) ||
       seen.has(source.file) ||
       (await realpath(source.file)) !== source.file
     )
       throw new Error('Invalid Istanbul selected source.')
     seen.add(source.file)
+    if (/\.(?:ts|mts|[jt]sx)$/.test(source.file)) {
+      if (!artifact)
+        throw new Error(
+          'Typed Istanbul metadata requires its actual leased compiler artifact.'
+        )
+      const { readIstanbulTypeScriptDeclarations } = await import(
+        './istanbul-typescript-artifact.js'
+      )
+      await readIstanbulTypeScriptDeclarations({
+        artifact,
+        source,
+        projectDir: root,
+        profile: artifact.profile,
+        owner: artifact.coverage?.sourceAnalysis
+          ? { kind: 'compiler-source', revision: artifact.revision }
+          : {
+              kind: 'runtime-entry',
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+            },
+        signal,
+      })
+      continue
+    }
+    if (Object.hasOwn(source, 'typeScriptSource'))
+      throw new Error(
+        'Unrequested typed Istanbul metadata on a JavaScript source.'
+      )
+    if (artifact) assertIstanbulSourceExtension(artifact.profile, source.file)
     const bytes = await readFile(source.file, 'utf8')
     assertIstanbulCjsSource(bytes, source.file)
     if (
@@ -86,8 +120,11 @@ async function assertArtifact(
     coverage?.version !== 1 ||
     !coverage.istanbul ||
     coverage.sourceAnalysis ||
-    coverage.sourcePreservation ||
-    coverage.importRoles ||
+    (artifact.profile.mode === 'development' && coverage.sourcePreservation) ||
+    (coverage.importRoles !== undefined &&
+      !coverage.istanbul.sources.some((source) =>
+        /\.[jt]sx$/.test(source.file)
+      )) ||
     coverage.browser ||
     artifact.nativeTsConfigInputs ||
     artifact.moduleMocking ||
@@ -95,7 +132,30 @@ async function assertArtifact(
     artifact.dynamicModuleMocking
   )
     throw new Error('Istanbul requires its isolated JavaScript artifact.')
-  await assertIstanbulMetadata(coverage.istanbul, projectDir, signal)
+  if (artifact.profile.mode === 'production') {
+    for (const source of coverage.istanbul.sources) {
+      assertIstanbulSourceExtension(artifact.profile, source.file)
+      if (source.typeScriptSource)
+        throw new Error(
+          'Production typed Istanbul metadata is not implemented.'
+        )
+    }
+    signal.throwIfAborted()
+    await verifySourceCoverageArtifact(artifact)
+    signal.throwIfAborted()
+  }
+  if (
+    coverage.istanbul.sources.some((source) =>
+      /\.(?:ts|mts|[jt]sx)$/.test(source.file)
+    )
+  )
+    await assertIstanbulMetadata(
+      coverage.istanbul,
+      projectDir,
+      signal,
+      artifact
+    )
+  else await assertIstanbulMetadata(coverage.istanbul, projectDir, signal)
   const harness = await readIstanbulHarnessCoverage({
     entryPath: artifact.entryPath,
     files: artifact.files,
@@ -244,17 +304,49 @@ export async function remapIstanbulCapture(
   await assertArtifact(artifact, projectDir, signal)
   const metadata = artifact.coverage!.istanbul!
   validateCapture(capture, metadata)
-  const sources = metadata.importedOnly
+  const typed = metadata.sources.some((source) => source.typeScriptSource)
+  const sources = typed
     ? metadata.sources.filter((source) =>
-        Object.hasOwn(capture.files, source.file)
+        metadata.importedOnly || source.typeScriptSource
+          ? Object.hasOwn(capture.files, source.file)
+          : true
       )
-    : metadata.sources
-  const data = Object.fromEntries(
-    sources.map((source) => [
-      source.file,
-      structuredClone(capture.files[source.file] ?? source.initial),
-    ])
-  )
+    : metadata.importedOnly
+      ? metadata.sources.filter((source) =>
+          Object.hasOwn(capture.files, source.file)
+        )
+      : metadata.sources
+  const data = typed
+    ? Object.fromEntries(
+        await Promise.all(
+          sources.map(async (source) => {
+            const raw = structuredClone(
+              capture.files[source.file] ?? source.initial
+            )
+            if (!source.typeScriptSource) return [source.file, raw] as const
+            const { bindIstanbulTypeScriptBodyMappings } = await import(
+              './istanbul-typescript-body-map.js'
+            )
+            const associated = bindIstanbulTypeScriptBodyMappings({
+              file: source.file,
+              authoredSource: await readFile(source.file, 'utf8'),
+              emittedSource: source.typeScriptSource.code,
+              rawCoverage: raw,
+            })
+            if (!associated)
+              throw new Error(
+                'Typed Istanbul captured map roles became incomplete.'
+              )
+            return [source.file, associated] as const
+          })
+        )
+      )
+    : Object.fromEntries(
+        sources.map((source) => [
+          source.file,
+          structuredClone(capture.files[source.file] ?? source.initial),
+        ])
+      )
   const remapped = await remapIstanbulCoverage(data)
   signal.throwIfAborted()
   return {

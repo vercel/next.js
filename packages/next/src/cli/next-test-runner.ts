@@ -1293,6 +1293,15 @@ export async function nextTestRunner(
             ? {
                 facts: summary.istanbulCoverage!,
                 plan: summary.istanbulSourcePlan!,
+                ...(summary.istanbulSourceDeclarations
+                  ? {
+                      declarations: summary.istanbulSourceDeclarations,
+                      runtimeConfiguration: {
+                        receipts: summary.runtimeConfigurationReceipts ?? [],
+                        plan: summary.runtimeConfigurationPlan!,
+                      },
+                    }
+                  : {}),
                 expected: new Set(entries.map((entry) => entry.id)),
                 config: standardCoverageOptions,
                 status: summary.status,

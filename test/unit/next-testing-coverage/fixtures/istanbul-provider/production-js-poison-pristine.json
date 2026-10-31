@@ -1,0 +1,485 @@
+{
+  "reference": "Vitest5.0.4/Istanbul5.0.4",
+  "node": "v26.12.1",
+  "actualProductionEnvGate": true,
+  "profiles": 1,
+  "rows": [
+    {
+      "name": "ordinary-js-unimported-poison-production",
+      "sourceFiles": {
+        "suite.test.mjs": {
+          "source": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
+          "sha256": "05b9386d895f23345bee390f57b3ae9c4d4ef47d144d6f8c53746d80899035d4"
+        },
+        "subject.js": {
+          "source": "throw new Error('selected unimported production source must never evaluate')\nexport function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n",
+          "sha256": "4559a2ed470eb057f21b790453dbb1a26883f841f3f25c29ce468ec4fb2424b6"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "configSHA256": "9fd1042ea4dfb5f31b07fcfbed29786f90b52c6d7240470be92ebe8a32b5248c",
+      "mode": "production",
+      "exitCode": 0,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "production zero",
+                "status": "passed",
+                "title": "production zero",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subject.js": {
+            "path": "<fixture>/subject.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 0
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 13
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 4,
+                  "column": 2
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "4": {
+                "start": {
+                  "line": 6,
+                  "column": 27
+                },
+                "end": {
+                  "line": 6,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 2,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 6,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 6,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 3,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 3,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 3,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 0,
+              "1": 0,
+              "2": 0,
+              "3": 0,
+              "4": 0
+            },
+            "f": {
+              "0": 0,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "production zero",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "production zero",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "lifecycle": "before-all\nbefore-each\nbody:zero\nafter-each\nafter-all\n",
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subject.js": {
+            "path": "<fixture>/subject.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 0
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 13
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              },
+              "3": {
+                "start": {
+                  "line": 4,
+                  "column": 2
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "4": {
+                "start": {
+                  "line": 6,
+                  "column": 27
+                },
+                "end": {
+                  "line": 6,
+                  "column": 35
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 2,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": null
+                  }
+                }
+              },
+              "1": {
+                "name": "unused",
+                "decl": {
+                  "start": {
+                    "line": 6,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 6,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 3,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 3,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 3,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 0,
+              "1": 0,
+              "2": 0,
+              "3": 0,
+              "4": 0
+            },
+            "f": {
+              "0": 0,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 4,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 5,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.js": {
+            "lines": {
+              "total": 4,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 5,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.js\nFN:2,choose\nFN:6,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:1,0\nDA:3,0\nDA:4,0\nDA:6,0\nLF:4\nLH:0\nBRDA:3,0,0,0\nBRDA:3,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
+      },
+      "snapshots": {},
+      "specFile": "suite.test.mjs",
+      "passedCases": 1,
+      "authoredProductionEnvGate": true,
+      "coveredSources": 1
+    }
+  ],
+  "scope": "Genuine selected-unimported production JS subject with throwing evaluation; original callbacks unchanged; whole Source and installed Node26 models pass.",
+  "actualNodes": [26]
+}

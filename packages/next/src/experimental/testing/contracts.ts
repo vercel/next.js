@@ -154,6 +154,12 @@ export interface TestCompilerSessionOptions {
   readIstanbulInstrumentation?: (
     sourceFiles: readonly string[]
   ) => import('./coverage/istanbul-types').IstanbulInstrumentationMetadata
+  /** Local typed-only initialization after the actual project/config/lock exist. */
+  prepareIstanbulTypeScript?: (
+    getOptions: import('./coverage/istanbul-types').IstanbulTypeScriptOptionsGetter
+  ) => Promise<
+    import('./coverage/istanbul-types').IstanbulInstrumentationMetadata
+  >
   /** Caller retains deletion ownership through every worker and compiler shutdown. */
   allocateArtifact?: (parentDir: string) => Promise<{
     stagingDir: string

@@ -1,7 +1,10 @@
 import { createRequire } from 'module'
 import { dirname, resolve } from 'path'
 import { isDeepStrictEqual } from 'util'
-import { assertIstanbulProfile } from '../coverage/istanbul-profile'
+import {
+  assertIstanbulProfile,
+  assertIstanbulSourceExtension,
+} from '../coverage/istanbul-profile'
 import type { TestProfile } from '../contracts'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import type { IstanbulInstrumentationDescriptor } from '../coverage/istanbul-types'
@@ -21,6 +24,14 @@ export function withIstanbulInstrumentation(
     descriptor.metadata.version !== 1
   )
     throw new Error('Istanbul instrumentation profile or metadata differs.')
+  if (profile.mode === 'production')
+    for (const source of descriptor.metadata.sources) {
+      assertIstanbulSourceExtension(profile, source.file)
+      if (source.typeScriptSource)
+        throw new Error(
+          'Production typed Istanbul metadata is not implemented.'
+        )
+    }
   if (
     Object.keys(config.turbopack?.rules ?? {}).length ||
     config.experimental.swcPlugins?.length
@@ -49,6 +60,28 @@ export function withIstanbulInstrumentation(
           ],
         },
       },
+    },
+  }
+}
+
+/** Same owned loader transport; TypeScript is lowered by its real Session first. */
+export function withIstanbulTypeScriptInstrumentation(
+  config: NextConfigComplete,
+  dir: string,
+  profile: TestProfile,
+  descriptor: IstanbulInstrumentationDescriptor
+): NextConfigComplete {
+  if (profile.mode !== 'development')
+    throw new Error(
+      'Typed Istanbul requires its qualified development profile.'
+    )
+  const actual = withIstanbulInstrumentation(config, dir, profile, descriptor)
+  const rules = actual.turbopack!.rules!
+  return {
+    ...actual,
+    turbopack: {
+      ...actual.turbopack,
+      rules: { ...rules, '*.{ts,mts,tsx,jsx}': rules['*.{js,mjs,cjs}'] },
     },
   }
 }

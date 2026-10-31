@@ -5,6 +5,7 @@ import {
 import type { RuntimeModuleCompletion } from './execution/completed-module'
 import type {
   IstanbulSourcePlan,
+  IstanbulSourceDeclarations,
   IstanbulStandardFileCoverage,
 } from './coverage/istanbul-types'
 import {
@@ -366,6 +367,17 @@ export async function runTests(
     throw new Error(
       'Istanbul currently requires one one-shot isolated development Node JavaScript project.'
     )
+  if (
+    istanbul &&
+    projects.some(
+      (project) =>
+        project.profile.mode === 'production' &&
+        project.entries.some((entry) => !/\.(?:js|mjs)$/.test(entry.file))
+    )
+  )
+    throw new Error(
+      'Production Istanbul requires ordinary Node JS/MJS test entries.'
+    )
   const istanbulSourcePlan = istanbul
     ? (options.istanbulSourcePlan ??
       (await (
@@ -397,6 +409,11 @@ export async function runTests(
   }
   const standardCoverage: StandardFileCoverage[] = []
   const istanbulCoverage: IstanbulStandardFileCoverage[] = []
+  const istanbulSourceDeclarations: IstanbulSourceDeclarations[] = []
+  const typedIstanbulCandidates =
+    istanbulSourcePlan?.sources.some((source) =>
+      /\.(?:ts|mts|[jt]sx)$/.test(source.file)
+    ) === true
   const compilerSourceCoverage: CompilerSourceCoverage[] = []
   const runtimeConfigurationReceipts: RuntimeConfigurationReceipt[] = []
   if (
@@ -422,7 +439,7 @@ export async function runTests(
       : { version: 1 as const, requests: [], inputs: [] }
   await assertCoverageSourcePlan(coverageSourcePlan, options.signal)
   const runtimeConfigurationPlan =
-    options.standardCoverageOptions && !istanbul
+    options.standardCoverageOptions && (!istanbul || typedIstanbulCandidates)
       ? options.runtimeConfigurationPlan
         ? structuredClone(options.runtimeConfigurationPlan)
         : await createRuntimeConfigurationPlan({
@@ -902,7 +919,35 @@ export async function runTests(
     }
     try {
       controller.signal.throwIfAborted()
-      if (runtimeConfigurationPlan && (!options.execute || coverageLease))
+      if (
+        istanbulSourcePlan &&
+        !options.execute &&
+        artifact.coverage?.istanbul?.sources.some(
+          (source) => source.typeScriptSource
+        )
+      ) {
+        const { appendIstanbulDeclarations, readIstanbulRuntimeDeclarations } =
+          await import('./coverage/istanbul-typescript-parent.js')
+        appendIstanbulDeclarations(
+          istanbulSourceDeclarations,
+          await readIstanbulRuntimeDeclarations({
+            artifact,
+            entry,
+            projectDir,
+            plan: istanbulSourcePlan,
+            signal: controller.signal,
+            assertLease() {
+              controller.signal.throwIfAborted()
+              coverageLease?.()
+            },
+          })
+        )
+      }
+      if (
+        runtimeConfigurationPlan &&
+        (!options.execute || coverageLease) &&
+        (!istanbul || artifact.runtimeConfigurationImports)
+      )
         stagedRuntimeConfiguration = await prepareRuntimeConfigurationReceipt({
           artifact,
           plan: runtimeConfigurationPlan,
@@ -1466,6 +1511,9 @@ export async function runTests(
           ...(istanbulSourcePlan
             ? {
                 istanbulSourcePlan,
+                ...(typedIstanbulCandidates
+                  ? { runtimeConfigurationPlan }
+                  : {}),
                 ...(options.coverageInputs
                   ? { coverageInputs: options.coverageInputs }
                   : {}),
@@ -1632,11 +1680,26 @@ export async function runTests(
             facts: completion.result.istanbulCoverage,
             projectDir,
             plan: istanbulSourcePlan!,
+            ...(completion.result.istanbulSourceDeclarations
+              ? { declarations: completion.result.istanbulSourceDeclarations }
+              : {}),
             expected: selected,
             revisions: collectionRevisions,
             signal: controller.signal,
           }))
         )
+        if (completion.result.istanbulSourceDeclarations) {
+          const { appendIstanbulDeclarations } = await import(
+            './coverage/istanbul-typescript-parent.js'
+          )
+          appendIstanbulDeclarations(
+            istanbulSourceDeclarations,
+            completion.result.istanbulSourceDeclarations
+          )
+          runtimeConfigurationReceipts.push(
+            ...(completion.result.runtimeConfigurationReceipts ?? [])
+          )
+        }
       } else if (options.standardCoverageOptions) {
         const { assertStandardCoverageFacts } = await import(
           './coverage/report-standard.js'
@@ -1894,6 +1957,10 @@ export async function runTests(
             sourceRequests.some((request) =>
               /\.[jt]sx$/.test(request.source.file)
             )
+          const plannedIstanbulJsxImports =
+            istanbulSourcePlan?.sources.some((source) =>
+              /\.[jt]sx$/.test(source.file)
+            ) === true
           const plannedTypeScriptImports =
             options.nodeTypeScriptImportCoverage === true &&
             project.isolate !== false &&
@@ -1942,6 +2009,12 @@ export async function runTests(
                 ...(instrumentation
                   ? {
                       istanbulInstrumentation: instrumentation.descriptor,
+                      ...(instrumentation.prepareTypeScript
+                        ? {
+                            prepareIstanbulTypeScript:
+                              instrumentation.prepareTypeScript,
+                          }
+                        : {}),
                       ...(instrumentation.readMetadata
                         ? {
                             readIstanbulInstrumentation:
@@ -1968,7 +2041,9 @@ export async function runTests(
                 ...(plannedDevelopmentBrowserImports
                   ? { browserDevelopmentImportPlan: coverageSourcePlan }
                   : {}),
-                ...(plannedJsx || plannedTypeScriptImports
+                ...(plannedJsx ||
+                plannedTypeScriptImports ||
+                plannedIstanbulJsxImports
                   ? { nativeImportCoverageRoles: true }
                   : {}),
                 ...(project.compilerAliases
@@ -1987,6 +2062,51 @@ export async function runTests(
               controller.signal.throwIfAborted()
               if (sessionClosed || session !== compilerSession)
                 throw new Error('Planned JSX coverage artifact lease closed')
+            }
+            if (
+              istanbulSourcePlan &&
+              typedIstanbulCandidates &&
+              !istanbulSourcePlan.importedOnly
+            ) {
+              const {
+                appendIstanbulDeclarations,
+                readIstanbulCompilerDeclarations,
+              } = await import('./coverage/istanbul-typescript-parent.js')
+              const configuration = runtimeConfigurationPlan!.requests.find(
+                (request) => isDeepStrictEqual(request.profile, project.profile)
+              )
+              if (!configuration)
+                throw new Error('Missing typed Istanbul configuration request.')
+              for (const source of istanbulSourcePlan.sources) {
+                if (!source.declarationRevision) continue
+                const compiled = await compilerSession.compileCoverageSource(
+                  { file: source.file, sha256: source.sha256 },
+                  {
+                    signal: controller.signal,
+                    revision: source.declarationRevision,
+                    configurationImports: configuration.authorization,
+                  }
+                )
+                if (options.onCoverageSource)
+                  await options.onCoverageSource(compiled, controller.signal)
+                else {
+                  if (options.execute)
+                    throw new Error(
+                      'Typed Istanbul source analysis requires its parent broker.'
+                    )
+                  appendIstanbulDeclarations(
+                    istanbulSourceDeclarations,
+                    await readIstanbulCompilerDeclarations({
+                      compiled,
+                      projectDir,
+                      plan: istanbulSourcePlan,
+                      configurationPlan: runtimeConfigurationPlan!,
+                      signal: controller.signal,
+                      assertLease: assertCoverageLease,
+                    })
+                  )
+                }
+              }
             }
             for (const request of sourceRequests) {
               const compiled = await compilerSession.compileCoverageSource(
@@ -2215,6 +2335,7 @@ export async function runTests(
                     started: fileStarted,
                     ...(plannedJsx ||
                     plannedTypeScriptImports ||
+                    typedIstanbulCandidates ||
                     plannedBrowserDeclarations
                       ? { coverageLease: assertCoverageLease }
                       : {}),
@@ -2380,7 +2501,18 @@ export async function runTests(
     ...(istanbul
       ? {
           istanbulCoverage,
-          ...(!options.execute ? { istanbulSourcePlan } : {}),
+          ...(!options.execute
+            ? {
+                istanbulSourcePlan,
+                ...(istanbulSourceDeclarations.length
+                  ? {
+                      istanbulSourceDeclarations,
+                      runtimeConfigurationPlan,
+                      runtimeConfigurationReceipts,
+                    }
+                  : {}),
+              }
+            : {}),
         }
       : {}),
     ...(options.standardCoverageOptions && !istanbul

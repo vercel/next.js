@@ -31,6 +31,52 @@ export type BrowserAutomaticFactory = {
   moduleEnd: number
   imports: readonly string[]
 }
+/** Shape only: native issuer, module, context, AST and map checks remain required. */
+export function isGeneratedBrowserPromiseImport(role: any): boolean {
+  if (
+    role?.request !== 'private-next-test-promise-static-call' ||
+    role.resolvedFormat !== 'commonjs' ||
+    !Array.isArray(role.imports) ||
+    role.imports.length !== 1
+  )
+    return false
+  const imported = role.imports[0]
+  if (
+    !keys(imported, ['declarationOrder', 'origin', 'specifiers']) ||
+    !integer(imported.declarationOrder) ||
+    imported.origin !== 'generated' ||
+    !Array.isArray(imported.specifiers) ||
+    !imported.specifiers.length ||
+    imported.specifiers.length > 3
+  )
+    return false
+  // The transform emits a retained subset in this order, using issued locals.
+  const bindings = [
+    ['bindNativePromiseStaticCall', '__next_promise_static_call'],
+    ['bindNativePromiseConstructor', '__next_promise_construct'],
+    ['bindNativeFetchCall', '__next_promise_fetch'],
+  ] as const
+  let previous = -1
+  const locals = new Set<string>()
+  return imported.specifiers.every((specifier: any) => {
+    if (
+      !keys(specifier, ['kind', 'local', 'imported']) ||
+      specifier.kind !== 'named' ||
+      typeof specifier.local !== 'string' ||
+      locals.has(specifier.local)
+    )
+      return false
+    const position = bindings.findIndex(([name]) => name === specifier.imported)
+    if (
+      position <= previous ||
+      !specifier.local.startsWith(bindings[position][1])
+    )
+      return false
+    previous = position
+    locals.add(specifier.local)
+    return true
+  })
+}
 /** This role uses actual development calls, without a production factory grant. */
 function ownsDevelopmentJsxCalls(
   role: any,
@@ -627,8 +673,16 @@ export async function prepareBrowserImportInitializers(options: {
         ) &&
         role.imports[0].specifiers[0].local !==
           role.imports[0].specifiers[1].local
+      const producer = isGeneratedBrowserPromiseImport(role)
       if (
         (role.request === 'private-next-test-creator-scope' && !creator) ||
+        (role.request === 'private-next-test-promise-static-call' &&
+          !producer) ||
+        (producer &&
+          owners.some(
+            ({ role: owner }) =>
+              owner.request === 'private-next-test-promise-static-call'
+          )) ||
         (creator &&
           creatorScopes.some((scope) => scope.moduleStart === moduleStart))
       )
@@ -651,7 +705,7 @@ export async function prepareBrowserImportInitializers(options: {
           ![
             'authored',
             'generated-jsx',
-            ...(creator || developmentJsx ? ['generated'] : []),
+            ...(creator || producer || developmentJsx ? ['generated'] : []),
           ].includes(imported.origin) ||
           !keys(
             imported,

@@ -188,6 +188,14 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       ...(request.istanbulSourcePlan
         ? {
             istanbulSourcePlan: request.istanbulSourcePlan,
+            ...(request.istanbulSourcePlan.sources.some((source) =>
+              /\.(?:ts|mts|[jt]sx)$/.test(source.file)
+            )
+              ? {
+                  runtimeConfigurationPlan: request.runtimeConfigurationPlan,
+                  onCoverageSource: broker.analyzeCoverageSource,
+                }
+              : {}),
             ...(request.coverageInputs
               ? { coverageInputs: request.coverageInputs }
               : {}),

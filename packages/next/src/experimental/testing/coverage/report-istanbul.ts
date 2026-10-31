@@ -14,6 +14,8 @@ import {
 } from './report-standard'
 import type {
   IstanbulMappedFileCoverage,
+  IstanbulRawFileCoverage,
+  IstanbulSourceDeclarations,
   IstanbulSourcePlan,
   IstanbulStandardFileCoverage,
 } from './istanbul-types'
@@ -36,6 +38,7 @@ export async function assertIstanbulCoverageFacts(options: {
   facts: unknown
   projectDir: string
   plan: IstanbulSourcePlan
+  declarations?: readonly IstanbulSourceDeclarations[]
   expected: ReadonlySet<string>
   revisions?: ReadonlyMap<string, string>
   signal: AbortSignal
@@ -70,18 +73,35 @@ export async function assertIstanbulCoverageFacts(options: {
   const sources = options.plan.importedOnly
     ? options.plan.sources.filter((source) => requested.has(source.file))
     : options.plan.sources
-  const initial = Object.fromEntries(
+  const typedSources = sources.some((source) =>
+    /\.(?:ts|mts|[jt]sx)$/.test(source.file)
+  )
+  const typed =
+    typedSources || options.declarations !== undefined
+      ? await (
+          await import('./istanbul-typescript-parent.js')
+        ).assertIstanbulSourceDeclarations(options)
+      : undefined
+  const initial: Record<string, IstanbulRawFileCoverage> = Object.fromEntries(
     await Promise.all(
-      sources.map(
-        async (source) =>
-          [
-            source.file,
-            instrumentJavaScript(
-              await readFile(source.file, 'utf8'),
-              source.file
-            ).initial,
-          ] as const
-      )
+      sources.map(async (source) => {
+        if (/\.(?:ts|mts|[jt]sx)$/.test(source.file)) {
+          const record = typed?.sources.get(source.file)
+          if (!record)
+            throw new Error(
+              'Typed Istanbul coverage omitted parent compiler declarations.'
+            )
+          const rebuilt = await (
+            await import('./istanbul-typescript-artifact.js')
+          ).regenerateIstanbulTypeScriptSource(record, root, options.signal)
+          return [source.file, rebuilt.associated] as const
+        }
+        return [
+          source.file,
+          instrumentJavaScript(await readFile(source.file, 'utf8'), source.file)
+            .initial,
+        ] as const
+      })
     )
   )
   const maps = await remapIstanbulCoverage(initial)
@@ -110,7 +130,9 @@ export async function assertIstanbulCoverageFacts(options: {
       !Array.isArray(fact.files) ||
       (options.plan.importedOnly
         ? fact.files.length > selected.size
-        : fact.files.length !== selected.size)
+        : typedSources
+          ? fact.files.length > selected.size
+          : fact.files.length !== selected.size)
     )
       throw new Error(
         'Incomplete, duplicate or unrequested Istanbul coverage fact.'
@@ -121,6 +143,8 @@ export async function assertIstanbulCoverageFacts(options: {
       const source = selected.get(file?.file)
       if (
         !source ||
+        (/\.(?:ts|mts|[jt]sx)$/.test(file.file) &&
+          !typed?.runtime.get(fact.entryId)?.has(file.file)) ||
         files.has(file.file) ||
         file.sha256 !== source.sha256 ||
         !file.data ||
@@ -159,6 +183,15 @@ export async function assertIstanbulCoverageFacts(options: {
         }
       }
     }
+    if (
+      !options.plan.importedOnly &&
+      [...selected.keys()].some(
+        (file) => !/\.(?:ts|mts|[jt]sx)$/.test(file) && !files.has(file)
+      )
+    )
+      throw new Error(
+        'Istanbul coverage omitted its explicit JavaScript source.'
+      )
   }
   if (entries.size !== options.expected.size)
     throw new Error('Istanbul coverage omitted an expected completed entry.')
@@ -171,6 +204,11 @@ export async function publishIstanbulCoverage(options: {
   projectDir: string
   facts: IstanbulStandardFileCoverage[]
   plan: IstanbulSourcePlan
+  declarations?: readonly IstanbulSourceDeclarations[]
+  runtimeConfiguration?: {
+    receipts: readonly import('./runtime-configuration').RuntimeConfigurationReceipt[]
+    plan: import('./runtime-configuration').RuntimeConfigurationPlan
+  }
   expected: ReadonlySet<string>
   config: StandardCoverageOptions
   status: 'passed' | 'failed' | 'cancelled'
@@ -205,6 +243,39 @@ export async function publishIstanbulCoverage(options: {
   )
     return { published: false, thresholdErrors: [] }
   const facts = await assertIstanbulCoverageFacts(options)
+  const assertTypedConfiguration = async () => {
+    if (!options.declarations?.length) {
+      if (options.runtimeConfiguration !== undefined)
+        throw new Error('Unrequested typed Istanbul runtime configuration.')
+      return
+    }
+    const runtime = options.runtimeConfiguration
+    if (!runtime)
+      throw new Error(
+        'Typed Istanbul coverage omitted its actual runtime configuration receipts.'
+      )
+    const ids = new Set(
+      runtime.receipts.map((receipt) => receipt.compiler.entryId)
+    )
+    if (
+      options.declarations.some(
+        (record) =>
+          record.owner.kind === 'runtime-entry' &&
+          !ids.has(record.owner.entryId)
+      )
+    )
+      throw new Error(
+        'Typed Istanbul runtime declarations omitted their actual configuration receipt.'
+      )
+    await (
+      await import('./runtime-configuration.js')
+    ).assertRuntimeConfigurationReceipts({
+      ...runtime,
+      facts: facts.filter((fact) => ids.has(fact.entryId)),
+      signal: options.signal,
+    })
+  }
+  await assertTypedConfiguration()
   const root = await realpath(options.projectDir)
   const output = resolve(root, options.config.reportsDirectory)
   if (output === root || !within(root, output))
@@ -214,11 +285,39 @@ export async function publishIstanbulCoverage(options: {
   const data = mergeIstanbulCoverage(
     // The pinned merger mutates its first input; closed captures stay immutable
     // when generation is followed by the later report-file transaction.
-    structuredClone(
-      facts.map((fact) =>
-        Object.fromEntries(fact.files.map((file) => [file.file, file.data]))
+    structuredClone([
+      ...(options.declarations?.some(
+        (record) => record.owner.kind === 'compiler-source'
       )
-    )
+        ? [
+            await remapIstanbulCoverage(
+              Object.fromEntries(
+                await Promise.all(
+                  options.declarations
+                    .filter((record) => record.owner.kind === 'compiler-source')
+                    .map(async (record) => {
+                      const rebuilt = await (
+                        await import('./istanbul-typescript-artifact.js')
+                      ).regenerateIstanbulTypeScriptSource(
+                        {
+                          ...record.source,
+                          initial: record.initial,
+                          typeScriptSource: record.typeScriptSource,
+                        },
+                        root,
+                        options.signal
+                      )
+                      return [record.source.file, rebuilt.associated] as const
+                    })
+                )
+              )
+            ),
+          ]
+        : []),
+      ...facts.map((fact) =>
+        Object.fromEntries(fact.files.map((file) => [file.file, file.data]))
+      ),
+    ])
   )
   const sources = new Map(
     options.plan.sources.map((source) => [source.file, source])
@@ -239,7 +338,14 @@ export async function publishIstanbulCoverage(options: {
     files,
     config: options.config,
     signal: options.signal,
-    assertRuntime: () => assertIstanbulSourcePlan(options.plan, options.signal),
+    assertRuntime: async () => {
+      await assertIstanbulSourcePlan(options.plan, options.signal)
+      if (options.declarations)
+        await (
+          await import('./istanbul-typescript-parent.js')
+        ).assertIstanbulSourceDeclarations(options)
+      await assertTypedConfiguration()
+    },
     ...(options.onCoverageMap
       ? {
           onCoverageMap: options.onCoverageMap,

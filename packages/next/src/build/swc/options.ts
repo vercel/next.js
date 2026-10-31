@@ -23,7 +23,11 @@ const regeneratorRuntimePath = require.resolve(
 )
 
 function isTypeScriptFile(filename: string) {
-  return filename.endsWith('.ts') || filename.endsWith('.tsx')
+  return (
+    filename.endsWith('.ts') ||
+    filename.endsWith('.tsx') ||
+    filename.endsWith('.mts')
+  )
 }
 
 function isCommonJSFile(filename: string) {
@@ -37,7 +41,7 @@ function shouldOutputCommonJs(filename: string) {
 }
 
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
-  const isTSFile = filename.endsWith('.ts')
+  const isTSFile = filename.endsWith('.ts') || filename.endsWith('.mts')
   const hasTsSyntax = isTypeScriptFile(filename)
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators

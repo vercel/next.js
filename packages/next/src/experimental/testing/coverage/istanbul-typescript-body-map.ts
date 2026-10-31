@@ -1,3 +1,5 @@
+import { createIstanbulJsxBodyProjection } from './istanbul-jsx-body'
+import type { Program } from '@babel/types'
 import { parse } from 'next/dist/compiled/babel/parser'
 import {
   SourceMapConsumer,
@@ -43,9 +45,15 @@ type MapRole = {
 const same = (a: Point, b: { line: number | null; column: number | null }) =>
   a.line === b.line && a.column === b.column
 
-function semantic(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(semantic)
+function semantic(
+  value: unknown,
+  project?: (value: unknown) => unknown
+): unknown {
+  if (Array.isArray(value))
+    return value.map((child) => semantic(child, project))
   if (!value || typeof value !== 'object') return value
+  const projected = project?.(value)
+  if (projected !== undefined) return projected
   return Object.fromEntries(
     Object.entries(value)
       .filter(
@@ -64,16 +72,21 @@ function semantic(value: unknown): unknown {
             'innerComments',
           ].includes(key)
       )
-      .map(([key, child]) => [key, semantic(child)])
+      .map(([key, child]) => [key, semantic(child, project)])
   )
 }
-function exportedFunctions(program: AstNode, typed: boolean) {
+function exportedFunctions(
+  program: AstNode,
+  typed: boolean,
+  support?: ReadonlySet<unknown>
+) {
   if (
     !Array.isArray(program.body) ||
     program.directives?.length ||
     program.interpreter ||
     program.body.some(
       (node) =>
+        !support?.has(node) &&
         !(typed && node.type === 'TSTypeAliasDeclaration') &&
         !(
           node.type === 'ExportNamedDeclaration' &&
@@ -147,7 +160,7 @@ export function bindIstanbulTypeScriptBodyMappings({
   try {
     const map = rawCoverage.inputSourceMap
     if (
-      !/\.(?:ts|mts)$/.test(file) ||
+      !/\.(?:ts|mts|[jt]sx)$/.test(file) ||
       rawCoverage.path !== file ||
       map?.version !== 3 ||
       (map as CompilerTransformSourceMap & { sourceRoot?: unknown })
@@ -158,17 +171,39 @@ export function bindIstanbulTypeScriptBodyMappings({
       map.sourcesContent[0] !== authoredSource
     )
       return
+    const authoredProgram = parse(authoredSource, {
+      sourceType: 'module',
+      plugins: file.endsWith('.jsx')
+        ? ['jsx']
+        : /\.tsx$/.test(file)
+          ? ['typescript', 'jsx']
+          : ['typescript'],
+    }).program
+    const emittedFile = parse(emittedSource, {
+      sourceType: 'module',
+      tokens: true,
+    })
+    const emittedProgram = emittedFile.program
+    const mappings = roles(map)
+    const jsx = /\.[jt]sx$/.test(file)
+      ? createIstanbulJsxBodyProjection({
+          file,
+          authored: authoredProgram as unknown as Program,
+          emitted: emittedProgram as unknown as Program,
+          mappings,
+          tokens: emittedFile.tokens ?? [],
+          rawCoverage,
+          semantic,
+        })
+      : undefined
     const authored = exportedFunctions(
-      parse(authoredSource, {
-        sourceType: 'module',
-        plugins: ['typescript'],
-      }).program as unknown as AstNode,
+      authoredProgram as unknown as AstNode,
       true
     )
     const emitted = exportedFunctions(
-      parse(emittedSource, { sourceType: 'module' })
-        .program as unknown as AstNode,
-      false
+      emittedProgram as unknown as AstNode,
+      false,
+      jsx?.supportStatements
     )
     const functions = Object.values(rawCoverage.fnMap)
     if (
@@ -178,7 +213,6 @@ export function bindIstanbulTypeScriptBodyMappings({
       functions.length !== emitted.length
     )
       return
-    const mappings = roles(map)
     const unusedAuthored = new Set(authored)
     const unusedEmitted = new Set(emitted)
     const additions: { generated: Point; original: Point }[] = []
@@ -199,7 +233,10 @@ export function bindIstanbulTypeScriptBodyMappings({
             semantic(node.params),
             semantic(generated[0].params)
           ) &&
-          isDeepStrictEqual(semantic(node.body), semantic(generated[0].body))
+          isDeepStrictEqual(
+            semantic(node.body),
+            semantic(generated[0].body, jsx?.project)
+          )
       )
       if (original.length !== 1 || !unusedAuthored.delete(original[0])) return
       const name = mappings.filter((mapping) =>
@@ -231,6 +268,7 @@ export function bindIstanbulTypeScriptBodyMappings({
         })
     }
     if (unusedAuthored.size || unusedEmitted.size) return
+    additions.push(...(jsx?.reportMappings ?? []))
     const generator = SourceMapGenerator.fromSourceMap(
       new SourceMapConsumer(map as unknown as RawSourceMap)
     )

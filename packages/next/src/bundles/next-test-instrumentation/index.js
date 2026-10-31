@@ -1,4 +1,5 @@
 import { createInstrumenter } from '@vitest/istanbul-lib-instrument'
+export { readInitialCoverage } from '@vitest/istanbul-lib-instrument'
 import { createCoverageMap } from '@vitest/istanbul-lib-coverage'
 import { createSourceMapStore } from '@vitest/istanbul-lib-source-maps'
 import MagicString from 'magic-string'
@@ -21,6 +22,30 @@ export function instrumentJavaScript(source, file) {
     ignoreLines: true,
   })
   const code = instrumenter.instrumentSync(source, file, inputMap)
+  return {
+    code,
+    map: instrumenter.lastSourceMap(),
+    initial: instrumenter.lastFileCoverage(),
+  }
+}
+
+/** The real Session's mapped JavaScript phase, separate from the raw-JS path. */
+export function instrumentMappedJavaScript(source, file, inputSourceMap) {
+  const instrumenter = createInstrumenter({
+    produceSourceMap: true,
+    autoWrap: false,
+    esModules: true,
+    compact: false,
+    coverageVariable: '__VITEST_COVERAGE__',
+    coverageGlobalScope: 'globalThis',
+    coverageGlobalScopeFunc: false,
+    ignoreLines: true,
+  })
+  const code = instrumenter.instrumentSync(
+    source,
+    file,
+    structuredClone(inputSourceMap)
+  )
   return {
     code,
     map: instrumenter.lastSourceMap(),

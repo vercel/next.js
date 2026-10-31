@@ -38,7 +38,7 @@ export function assertCoverageRequest(
     if (
       options.coverage.version !== 1 ||
       artifact.kind !== 'node' ||
-      artifact.profile.mode !== 'development' ||
+      !['development', 'production'].includes(artifact.profile.mode) ||
       artifact.profile.environment !== 'node' ||
       artifact.profile.route !== undefined ||
       artifact.profile.browserClient !== undefined ||
@@ -50,6 +50,10 @@ export function assertCoverageRequest(
       throw new Error(
         'Istanbul coverage requires its matching artifact and awaited parent consumer.'
       )
+    if (artifact.profile.mode === 'production')
+      assertSourceCoverageArtifact(artifact)
+    else if (artifact.coverage.sourcePreservation)
+      throw new Error('Unrequested production source coverage provenance.')
     return
   }
   if (

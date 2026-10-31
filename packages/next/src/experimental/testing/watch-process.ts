@@ -3,7 +3,10 @@ import {
   type SnapshotPreparationFailure,
 } from './execution/snapshot-preparation'
 import type { RuntimeModuleCompletion } from './execution/completed-module'
-import type { IstanbulSourcePlan } from './coverage/istanbul-types'
+import type {
+  IstanbulSourcePlan,
+  IstanbulSourceDeclarations,
+} from './coverage/istanbul-types'
 import { isDeepStrictEqual } from 'util'
 import {
   createRuntimeConfigurationPlan,
@@ -510,6 +513,10 @@ export async function runWatchProcess(
     ).assertIstanbulSourcePlan(istanbulSourcePlan, options.signal)
     request = { ...request, istanbulSourcePlan }
   }
+  const typedIstanbulCandidates =
+    istanbulSourcePlan?.sources.some((source) =>
+      /\.(?:ts|mts|[jt]sx)$/.test(source.file)
+    ) === true
   const coverageSourcePlan =
     request.operation === 'run' && request.standardCoverageOptions && !istanbul
       ? (request.coverageSourcePlan ??
@@ -543,7 +550,9 @@ export async function runWatchProcess(
     request = { ...request, coverageSourcePlan }
   }
   const runtimeConfigurationPlan =
-    request.operation === 'run' && request.standardCoverageOptions && !istanbul
+    request.operation === 'run' &&
+    request.standardCoverageOptions &&
+    (!istanbul || typedIstanbulCandidates)
       ? (request.runtimeConfigurationPlan ??
         (await createRuntimeConfigurationPlan({
           projectDir: request.projectDir,
@@ -624,6 +633,7 @@ export async function runWatchProcess(
     let forcedCancellation = false
     const artifactDirectories = new Set<string>()
     const artifactRoots = new Set<string>()
+    const istanbulSourceDeclarations: IstanbulSourceDeclarations[] = []
     const compilerSourceCoverage = new Map<string, CompilerSourceCoverage>()
     const runtimeConfigurationReceipts = new Map<
       string,
@@ -836,6 +846,74 @@ export async function runWatchProcess(
               customSuiteEntries.add(entry.id)
               await options.onCustomCoverageSuite!(fact)
               options.signal.throwIfAborted()
+            },
+          }
+        : {}),
+      ...(typedIstanbulCandidates && istanbulSourcePlan
+        ? {
+            onIstanbulArtifact: async (artifact, execution, signal) => {
+              if (
+                !artifactRoots.has(artifact.rootDir) ||
+                request.operation !== 'run'
+              )
+                throw new Error(
+                  'Typed Istanbul runtime declarations lack their parent artifact lease.'
+                )
+              const entry = request.projects
+                .flatMap((project) => project.entries)
+                .find((candidate) => candidate.id === artifact.entryId)
+              if (!entry || !isDeepStrictEqual(entry, execution.entry))
+                throw new Error(
+                  'Typed Istanbul runtime artifact has a foreign selected entry.'
+                )
+              const {
+                appendIstanbulDeclarations,
+                readIstanbulRuntimeDeclarations,
+              } = await import('./coverage/istanbul-typescript-parent.js')
+              appendIstanbulDeclarations(
+                istanbulSourceDeclarations,
+                await readIstanbulRuntimeDeclarations({
+                  artifact,
+                  entry,
+                  projectDir: request.projectDir,
+                  plan: istanbulSourcePlan,
+                  signal,
+                  assertLease() {
+                    signal.throwIfAborted()
+                    if (!artifactRoots.has(artifact.rootDir))
+                      throw new Error('Typed Istanbul artifact lease closed.')
+                  },
+                })
+              )
+            },
+            onCoverageSource: async (compiled, signal) => {
+              if (
+                !artifactRoots.has(compiled.artifact.rootDir) ||
+                claimedSourceRevisions.has(compiled.artifact.revision)
+              )
+                throw new Error(
+                  'Typed Istanbul compiler declarations lack their parent artifact lease.'
+                )
+              const {
+                appendIstanbulDeclarations,
+                readIstanbulCompilerDeclarations,
+              } = await import('./coverage/istanbul-typescript-parent.js')
+              const records = await readIstanbulCompilerDeclarations({
+                compiled,
+                projectDir: request.projectDir,
+                plan: istanbulSourcePlan,
+                configurationPlan: runtimeConfigurationPlan!,
+                signal,
+                assertLease() {
+                  signal.throwIfAborted()
+                  if (!artifactRoots.has(compiled.artifact.rootDir))
+                    throw new Error(
+                      'Typed Istanbul source artifact lease closed.'
+                    )
+                },
+              })
+              claimedSourceRevisions.add(compiled.artifact.revision)
+              appendIstanbulDeclarations(istanbulSourceDeclarations, records)
             },
           }
         : {}),
@@ -1411,6 +1489,7 @@ export async function runWatchProcess(
           } else if (message.value.result.customCoverage !== undefined)
             throw new Error('Unsolicited custom coverage facts.')
           if (
+            message.value.result.istanbulSourceDeclarations !== undefined ||
             message.value.result.istanbulSourcePlan !== undefined ||
             message.value.result.compilerSourceCoverage !== undefined ||
             message.value.result.coverageSourcePlan !== undefined ||
@@ -1437,6 +1516,9 @@ export async function runWatchProcess(
                 facts: message.value.result.istanbulCoverage,
                 projectDir: request.projectDir,
                 plan: istanbulSourcePlan!,
+                ...(typedIstanbulCandidates
+                  ? { declarations: istanbulSourceDeclarations }
+                  : {}),
                 expected: selectedFiles,
                 revisions: collectionRevisions,
                 signal: options.signal,
@@ -1444,6 +1526,26 @@ export async function runWatchProcess(
               message.value.result.istanbulSourcePlan = structuredClone(
                 istanbulSourcePlan!
               )
+              if (istanbulSourceDeclarations.length) {
+                const receipts = [...runtimeConfigurationReceipts.values()]
+                await assertRuntimeConfigurationReceipts({
+                  receipts,
+                  facts: message.value.result.istanbulCoverage!.filter((fact) =>
+                    receipts.some(
+                      (receipt) => receipt.compiler.entryId === fact.entryId
+                    )
+                  ),
+                  plan: runtimeConfigurationPlan!,
+                  signal: options.signal,
+                })
+                message.value.result.istanbulSourceDeclarations =
+                  structuredClone(istanbulSourceDeclarations)
+                message.value.result.runtimeConfigurationPlan = structuredClone(
+                  runtimeConfigurationPlan!
+                )
+                message.value.result.runtimeConfigurationReceipts =
+                  structuredClone(receipts)
+              }
             }
           } else if (request.standardCoverageOptions) {
             if (message.value.result.unsafeCleanup)
@@ -1657,6 +1759,16 @@ export async function runWatchProcess(
                 ? {
                     istanbulCoverage: message.value.result.istanbulCoverage,
                     istanbulSourcePlan: message.value.result.istanbulSourcePlan,
+                    ...(message.value.result.istanbulSourceDeclarations
+                      ? {
+                          istanbulSourceDeclarations:
+                            message.value.result.istanbulSourceDeclarations,
+                          runtimeConfigurationPlan:
+                            message.value.result.runtimeConfigurationPlan,
+                          runtimeConfigurationReceipts:
+                            message.value.result.runtimeConfigurationReceipts,
+                        }
+                      : {}),
                   }
                 : {}),
               ...(message.value.result.compilerSourceCoverage

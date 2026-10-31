@@ -12,6 +12,23 @@ export function instrumentJavaScript(
   map: CompilerTransformSourceMap
   initial: IstanbulRawFileCoverage
 }
+export function instrumentMappedJavaScript(
+  source: string,
+  file: string,
+  inputSourceMap: CompilerTransformSourceMap
+): {
+  code: string
+  map: CompilerTransformSourceMap
+  initial: IstanbulRawFileCoverage
+}
+export function readInitialCoverage(code: string):
+  | {
+      path: string
+      hash: string
+      gcv: string
+      coverageData: IstanbulRawFileCoverage
+    }
+  | undefined
 export function remapIstanbulCoverage(
   data: Record<string, IstanbulRawFileCoverage>
 ): Promise<Record<string, IstanbulMappedFileCoverage>>

@@ -17290,7 +17290,7 @@ describe('private Istanbul JavaScript producer', () => {
     await expect(
       createIstanbulSourcePlan({
         projectDir: '/unused',
-        profile: { ...profile, mode: 'production' },
+        profile: { ...profile, mode: 'production', route: '/unsupported' },
         config: {} as any,
         excludedFiles: [],
         signal: new AbortController().signal,
@@ -23166,4 +23166,767 @@ describe('Istanbul TypeScript function body map association', () => {
     },
     50000
   )
+})
+
+describe('Istanbul typed subject compiler lowering', () => {
+  const profiles = ['ts', 'mts'].flatMap((extension) =>
+    ['explicit', 'imported'].flatMap((selection) =>
+      ['true', 'false', 'both', 'imported-zero', 'unimported-zero'].map(
+        (hit) => `mjs-${extension}-${selection}-${hit}`
+      )
+    )
+  )
+  it.each(profiles)(
+    'matches complete genuine reports and exact compiler maps for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-subject-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'typed-source-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 140000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    150000
+  )
+  it('keeps actual typed compiler declarations, runtime counters and config publication separate', async () => {
+    const { execFile } = require('node:child_process')
+    const { promisify } = require('node:util')
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-owners-'))
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'typed-source-declarations.cjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+      )
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 130000)
+})
+
+describe('Istanbul actual JSX and TSX source lowering', () => {
+  it.each([
+    'unchanged',
+    'missing-branch',
+    'duplicate-branch',
+    'different-branch-location',
+    'changed-consequent-range',
+    'counter-cardinality',
+    'conflicting-closing-role',
+    'changed-child-value',
+  ])(
+    'retains exact report-only JSX child token ownership for %s',
+    async (mutation) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'istanbul-jsx-child-token.mjs'),
+          join(__dirname, '../../..'),
+          mutation,
+        ],
+        { encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 }
+      )
+    },
+    40000
+  )
+
+  it.each(
+    require('./fixtures/istanbul-provider/jsx-source-pristine.json').rows.map(
+      ({ name }: { name: string }) => name
+    )
+  )(
+    'matches complete genuine cases, module lifetimes and reports for %s',
+    async (profile) => {
+      const { execFile } = require('node:child_process')
+      const { promisify } = require('node:util')
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-jsx-source-'))
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'jsx-source-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 140000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    150000
+  )
+})
+
+describe('production ordinary JS/MJS Istanbul admission', () => {
+  const production = { ...profile, mode: 'production' as const }
+  const signal = new AbortController().signal
+  const config = {
+    reporter: ['json' as const],
+    include: ['subject.*'],
+    exclude: [],
+    reportsDirectory: 'coverage',
+    reportOnFailure: true,
+    thresholds: {},
+  }
+
+  // Structural certificate controls; real native output is covered by public runs.
+  async function certificateFixture() {
+    const f = await fixture(),
+      entryPath = `server/next-test/${'e'.repeat(64)}.js`,
+      proofPath = entryPath.replace(/\.js$/, '.source-coverage.json'),
+      certificate = {
+        version: 1,
+        kind: 'node-source-coverage',
+        mode: 'production',
+        sourceMaps: 'absolute-file-uri',
+        preserveOriginalSyntax: true,
+      }
+    const { mkdir } = await import('fs/promises')
+    await mkdir(join(f.root, 'server/next-test'), { recursive: true })
+    await writeFile(join(f.root, proofPath), JSON.stringify(certificate))
+    const { readSourceCoverageProof } = await import(
+      'next/dist/experimental/testing/coverage/source-profile'
+    )
+    const files = [...f.artifact.files, proofPath],
+      sourcePreservation = await readSourceCoverageProof(
+        f.root,
+        entryPath,
+        files
+      )
+    return {
+      ...f,
+      proofPath,
+      certificate,
+      artifact: {
+        ...f.artifact,
+        profile: production,
+        entryPath,
+        files,
+        coverage: {
+          ...f.artifact.coverage,
+          sourcePreservation,
+          istanbul: { version: 1 as const, sources: [] },
+        },
+      },
+    }
+  }
+
+  it('requires the production source witness before admitting an Istanbul request', async () => {
+    const f = await certificateFixture()
+    try {
+      const { assertCoverageRequest } = await import(
+        'next/dist/experimental/testing/execution/coverage'
+      )
+      const onIstanbulCoverage = jest.fn(),
+        options = {
+          coverage: { version: 1 as const, kind: 'node-istanbul' as const },
+          onIstanbulCoverage,
+        }
+      expect(() => assertCoverageRequest(f.artifact, options)).not.toThrow()
+      for (const change of [
+        { sourcePreservation: undefined },
+        {
+          sourcePreservation: {
+            ...f.artifact.coverage.sourcePreservation,
+            nativeMetadata: {
+              ...f.artifact.coverage.sourcePreservation.nativeMetadata,
+              path: 'foreign.source-coverage.json',
+            },
+          },
+        },
+      ])
+        expect(() =>
+          assertCoverageRequest(
+            { ...f.artifact, coverage: { ...f.artifact.coverage, ...change } },
+            options
+          )
+        ).toThrow('native source-preserving Node compilation')
+      expect(() =>
+        assertCoverageRequest({ ...f.artifact, profile }, options)
+      ).toThrow('Unrequested production source coverage')
+      expect(onIstanbulCoverage).not.toHaveBeenCalled()
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('rechecks the complete production certificate before remapping actual counters', async () => {
+    const f = await certificateFixture()
+    try {
+      const { remapIstanbulCapture } = await import(
+        'next/dist/experimental/testing/coverage/istanbul-capture'
+      )
+      const capture = {
+          version: 1 as const,
+          kind: 'node-istanbul' as const,
+          files: {},
+        },
+        held = JSON.stringify(capture)
+      await expect(
+        remapIstanbulCapture(f.artifact, capture, f.root, signal)
+      ).resolves.toMatchObject({ files: [] })
+      await writeFile(
+        join(f.root, f.proofPath),
+        JSON.stringify(f.certificate) + '\n'
+      )
+      await expect(
+        remapIstanbulCapture(f.artifact, capture, f.root, signal)
+      ).rejects.toThrow('changed after compilation')
+      expect(JSON.stringify(capture)).toBe(held)
+      const controller = new AbortController(),
+        reason = new Error('actual production owner cancelled')
+      controller.abort(reason)
+      await expect(
+        remapIstanbulCapture(f.artifact, capture, f.root, controller.signal)
+      ).rejects.toBe(reason)
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['ts', 'mts', 'tsx', 'jsx', 'cjs', 'cts'])(
+    'refuses selected or actually loaded .%s while leaving absent imports unevaluated',
+    async (extension) => {
+      const root = await realpath(
+        await mkdtemp(join(tmpdir(), 'next-production-istanbul-boundary-'))
+      )
+      let service: { dispose(): Promise<void> } | undefined
+      try {
+        const file = join(root, 'subject.' + extension)
+        await writeFile(
+          file,
+          "throw new Error('absent unsupported source must not evaluate')\n"
+        )
+        const {
+          createIstanbulSourcePlan,
+          openIstanbulInstrumentation,
+          istanbulSourceSelector,
+        } = await import(
+          'next/dist/experimental/testing/coverage/istanbul-instrumentation'
+        )
+        await expect(
+          createIstanbulSourcePlan({
+            projectDir: root,
+            profile: production,
+            config,
+            excludedFiles: [],
+            signal,
+          })
+        ).rejects.toThrow('ordinary Node JS/MJS sources')
+        const importedConfig = { ...config, include: undefined },
+          plan = await createIstanbulSourcePlan({
+            projectDir: root,
+            profile: production,
+            config: importedConfig,
+            excludedFiles: [],
+            signal,
+          })
+        expect(plan.sources).toEqual([])
+        const actual = await openIstanbulInstrumentation({
+          projectDir: root,
+          plan,
+          signal,
+          selectSource: istanbulSourceSelector(root, importedConfig, []),
+        })
+        service = actual
+        expect(actual.readMetadata!([])).toEqual({
+          version: 1,
+          importedOnly: true,
+          sources: [],
+        })
+        expect(() => actual.readMetadata!([file])).toThrow(
+          'ordinary Node JS/MJS sources'
+        )
+        expect(actual.prepareTypeScript).toBeUndefined()
+      } finally {
+        await service?.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('production ordinary JS/MJS Istanbul complete public reports', () => {
+  const models = require('./fixtures/istanbul-provider/production-js-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches complete genuine cases, maps, reports and lifecycle for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-production-istanbul-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'production-istanbul-js-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('production ordinary Istanbul no-evaluation and cancellation', () => {
+  it.each([
+    [
+      'unimported poison source',
+      'production-istanbul-js-reports.mjs',
+      'ordinary-js-unimported-poison-production',
+      '--poison',
+    ],
+    ['actual SIGINT and recovery', 'production-istanbul-cancel-recovery.mjs'],
+  ])(
+    'preserves complete reports and ownership for %s',
+    async (_name, helper, ...args) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-production-istanbul-boundary-public-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, helper),
+            join(__dirname, '../../..'),
+            output,
+            ...args,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 245000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    250000
+  )
+})
+
+describe('native generated Browser Promise bridge imports', () => {
+  const fixtureDir = join(__dirname, 'fixtures/browser-promise-imports')
+  const bindings = [
+    ['bindNativePromiseStaticCall', '__next_promise_static_call'],
+    ['bindNativePromiseConstructor', '__next_promise_construct'],
+    ['bindNativeFetchCall', '__next_promise_fetch'],
+  ] as const
+  async function roleFor(mode = 'development') {
+    const certificate = JSON.parse(
+      await readFile(join(fixtureDir, `${mode}-certificate.json.txt`), 'utf8')
+    )
+    const sections =
+      certificate.developmentImports ?? certificate.importInitializers
+    return (
+      Object.values(sections.sectionsByScript)[0] as any[]
+    )[0].data.roles.find(
+      (role: any) => role.request === 'private-next-test-promise-static-call'
+    )
+  }
+  async function shape(role: any) {
+    const { isGeneratedBrowserPromiseImport } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    return isGeneratedBrowserPromiseImport(role)
+  }
+  it.each(['development', 'production'])(
+    'accepts the unchanged %s native constructor/fetch role',
+    async (mode) => {
+      const role = await roleFor(mode)
+      expect(role.imports[0].specifiers).toEqual(
+        bindings.slice(1).map(([imported, local]) => ({
+          kind: 'named',
+          local,
+          imported,
+        }))
+      )
+      expect(await shape(role)).toBe(true)
+    }
+  )
+  it.each([1, 2, 3, 4, 5, 6, 7])(
+    'accepts only the ordered compiler subset %s',
+    async (mask) => {
+      const role = await roleFor()
+      role.imports[0].specifiers = bindings
+        .filter((_, index) => mask & (1 << index))
+        .map(([imported, local]) => ({
+          kind: 'named',
+          local: `${local}1`,
+          imported,
+        }))
+      expect(await shape(role)).toBe(true)
+    }
+  )
+  it.each([
+    'other request',
+    'esm target',
+    'authored origin',
+    'generated jsx origin',
+    'missing imports',
+    'empty imports',
+    'multiple imports',
+    'negative order',
+    'fractional order',
+    'source range',
+    'extra import field',
+    'missing specifiers',
+    'empty specifiers',
+    'too many specifiers',
+    'reversed specifiers',
+    'duplicate export',
+    'duplicate local',
+    'unknown export',
+    'wrong local prefix',
+    'crossed local prefix',
+    'nonstring local',
+    'default specifier',
+    'namespace specifier',
+    'extra specifier field',
+    'null specifier',
+    'null import',
+    'null role',
+  ])('refuses malformed or unissued bridge shape: %s', async (change) => {
+    let role = await roleFor()
+    const imported = role.imports[0],
+      specifiers = imported.specifiers
+    switch (change) {
+      case 'other request':
+        role.request = 'other'
+        break
+      case 'esm target':
+        role.resolvedFormat = 'esm'
+        break
+      case 'authored origin':
+        imported.origin = 'authored'
+        break
+      case 'generated jsx origin':
+        imported.origin = 'generated-jsx'
+        break
+      case 'missing imports':
+        delete role.imports
+        break
+      case 'empty imports':
+        role.imports = []
+        break
+      case 'multiple imports':
+        role.imports.push(structuredClone(imported))
+        break
+      case 'negative order':
+        imported.declarationOrder = -1
+        break
+      case 'fractional order':
+        imported.declarationOrder = 0.5
+        break
+      case 'source range':
+        imported.sourceRange = {
+          start: { line: 1, column: 0 },
+          end: { line: 1, column: 1 },
+        }
+        break
+      case 'extra import field':
+        imported.extra = true
+        break
+      case 'missing specifiers':
+        delete imported.specifiers
+        break
+      case 'empty specifiers':
+        imported.specifiers = []
+        break
+      case 'too many specifiers':
+        imported.specifiers = [...specifiers, ...specifiers]
+        break
+      case 'reversed specifiers':
+        specifiers.reverse()
+        break
+      case 'duplicate export':
+        specifiers[1].imported = specifiers[0].imported
+        break
+      case 'duplicate local':
+        specifiers[1].local = specifiers[0].local
+        break
+      case 'unknown export':
+        specifiers[0].imported = 'bindNativeOtherCall'
+        break
+      case 'wrong local prefix':
+        specifiers[0].local = 'authored'
+        break
+      case 'crossed local prefix':
+        specifiers[0].local = bindings[0][1]
+        break
+      case 'nonstring local':
+        specifiers[0].local = null
+        break
+      case 'default specifier':
+        specifiers[0].kind = 'default'
+        break
+      case 'namespace specifier':
+        specifiers[0].kind = 'namespace'
+        break
+      case 'extra specifier field':
+        specifiers[0].typeOnly = true
+        break
+      case 'null specifier':
+        specifiers[0] = null
+        break
+      case 'null import':
+        role.imports[0] = null
+        break
+      case 'null role':
+        role = null
+        break
+      default:
+        throw new Error(`Unknown bridge shape control: ${change}`)
+    }
+    expect(await shape(role)).toBe(false)
+  })
+
+  // Relocate the retained native section, script and indexed map to an owned
+  // fixture root. Keep the authored bytes and every emitted byte unchanged;
+  // bookkeeping outputs are outside this import-association control.
+  async function prepare(change = 'none') {
+    const { mkdir } = await import('fs/promises')
+    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
+    const { buildBrowserCoverageMetadata } = await import(
+      'next/dist/experimental/testing/client/coverage-artifact'
+    )
+    const { prepareBrowserImportInitializers } = await import(
+      'next/dist/experimental/testing/coverage/browser-imports'
+    )
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-browser-promise-import-'))
+    )
+    try {
+      const file = join(root, 'subject.jsx'),
+        source = await readFile(join(fixtureDir, 'subject.jsx.txt'), 'utf8'),
+        code = await readFile(join(fixtureDir, 'development.js.txt'), 'utf8'),
+        native = JSON.parse(
+          await readFile(
+            join(fixtureDir, 'development-certificate.json.txt'),
+            'utf8'
+          )
+        ),
+        [script, sections] = Object.entries(
+          native.developmentImports.sectionsByScript
+        )[0] as [string, any[]],
+        rawMap = JSON.parse(
+          await readFile(
+            join(fixtureDir, 'development.js.map.json.txt'),
+            'utf8'
+          )
+        )
+      for (const section of rawMap.sections)
+        section.map.sources = section.map.sources.map(
+          () => pathToFileURL(file).href
+        )
+      const data = sections[0].data,
+        role = data.roles.find(
+          (value: any) =>
+            value.request === 'private-next-test-promise-static-call'
+        )
+      if (change === 'duplicate module role') {
+        const other = data.roles.find((value: any) => value.request === 'react')
+        other.request = role.request
+        other.imports = structuredClone(role.imports)
+      }
+      if (change === 'wrong context') role.context = 'foreign'
+      if (change === 'wrong target') role.target.value = 'foreign'
+      if (change === 'wrong binding') role.binding = 'foreign'
+      if (change === 'wrong range') role.end.column--
+      if (change === 'extra role field') role.extra = true
+      if (change === 'wrong issuer') data.issuer.sha256 = '0'.repeat(64)
+      if (change === 'wrong generated origin')
+        role.imports[0].origin = 'generated-jsx'
+      const descriptor = `server/next-test/${'d'.repeat(64)}.client.json`,
+        certificate = descriptor.replace(
+          '.client.json',
+          '.browser-coverage.json'
+        ),
+        proof = { ...native, scripts: [] }
+      const files = [script, script + '.map', descriptor, certificate]
+      for (const path of files)
+        await mkdir(join(root, path, '..'), { recursive: true })
+      await Promise.all([
+        writeFile(file, source),
+        writeFile(join(root, script), code),
+        writeFile(join(root, script + '.map'), JSON.stringify(rawMap)),
+        writeFile(join(root, descriptor), '{"version":1}'),
+        writeFile(join(root, certificate), JSON.stringify(proof)),
+      ])
+      const coverage = await buildBrowserCoverageMetadata({
+        rootDir: root,
+        files,
+        projectDir: root,
+        sourceRootDir: root,
+        entryFile: file,
+        entryPath: descriptor,
+        includeEntrySource: true,
+        setupFiles: [],
+      })
+      const artifact = {
+        version: 2 as const,
+        kind: 'browser' as const,
+        profile: {
+          ...profile,
+          environment: 'browser' as const,
+          browserClient: true as const,
+        },
+        entryId: 'retained-native',
+        revision: 'one',
+        rootDir: root,
+        entryPath: descriptor,
+        files,
+        diagnostics: [],
+        sourceHash: coverageHash(source),
+        coverage,
+        client: {
+          version: 1 as const,
+          asyncScope: 'promise-continuations-v1' as const,
+          sourceFile: file,
+          scripts: [script],
+          styles: [],
+          outputs: await Promise.all(
+            files.map(async (path) => ({
+              path,
+              sha256: coverageHash(await readFile(join(root, path))),
+            }))
+          ),
+        },
+      }
+      const ast = parseEmitted(code, { ecmaVersion: 'latest', locations: true })
+      let generatedCalls = 0
+      const result = await prepareBrowserImportInitializers({
+        artifact,
+        metadata: coverage.scripts.find((value) => value.path === script)!,
+        code,
+        rawMap,
+        ast,
+        selectedSources: new Map([[file, source]]),
+        generatedCoverage: async () => {
+          generatedCalls++
+          const statementMap: StandardCoverageData['statementMap'] = {},
+            s: StandardCoverageData['s'] = {}
+          const visit = (node: any) => {
+            if (!node || typeof node !== 'object') return
+            if (Array.isArray(node)) {
+              node.forEach(visit)
+              return
+            }
+            if (
+              node.type === 'VariableDeclarator' &&
+              node.init?.type === 'CallExpression'
+            ) {
+              const id = String(Object.keys(s).length)
+              statementMap[id] = {
+                start: { ...node.init.loc.start },
+                end: { ...node.init.loc.end },
+              }
+              s[id] = 1
+            }
+            for (const [key, value] of Object.entries(node))
+              if (!['loc', 'comments', 'tokens'].includes(key)) visit(value)
+          }
+          visit(ast)
+          return {
+            path: file,
+            statementMap,
+            s,
+            fnMap: {},
+            f: {},
+            branchMap: {},
+            b: {},
+          }
+        },
+      })
+      return { result, file, generatedCalls, original: ast, role }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+  it('accepts the retained native JSX issuer without making bridge counters', async () => {
+    const { result, file, generatedCalls, original, role } = await prepare()
+    expect(generatedCalls).toBe(1)
+    expect(result.statements.get(file)).toEqual([
+      { start: { line: 1, column: 7 }, count: 1 },
+      { start: { line: 1, column: 18 }, count: 1 },
+    ])
+    expect(result.creatorMethods.size).toBe(0)
+    const declarations = (ast: unknown) => {
+      const names: string[] = []
+      const visit = (node: any) => {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) {
+          node.forEach(visit)
+          return
+        }
+        if (
+          node.type === 'VariableDeclarator' &&
+          node.id?.type === 'Identifier'
+        )
+          names.push(node.id.name)
+        for (const [key, value] of Object.entries(node))
+          if (!['loc', 'comments', 'tokens'].includes(key)) visit(value)
+      }
+      visit(ast)
+      return names
+    }
+    expect(declarations(original)).toContain(role.binding)
+    expect(declarations(result.ast)).not.toContain(role.binding)
+  })
+  it.each([
+    'duplicate module role',
+    'wrong context',
+    'wrong target',
+    'wrong binding',
+    'wrong range',
+    'extra role field',
+    'wrong issuer',
+    'wrong generated origin',
+  ])('retains enclosing native ownership checks: %s', async (change) => {
+    await expect(prepare(change)).rejects.toThrow(
+      'Unsupported or ambiguous native Browser import coverage ownership'
+    )
+  })
 })

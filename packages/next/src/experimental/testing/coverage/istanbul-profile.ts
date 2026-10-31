@@ -3,7 +3,7 @@ import type { TestProfile } from '../contracts'
 /** No instrumentation dependency is loaded for an ordinary compiler session. */
 export function assertIstanbulProfile(profile: TestProfile) {
   if (
-    profile.mode !== 'development' ||
+    !['development', 'production'].includes(profile.mode) ||
     profile.environment !== 'node' ||
     profile.runtime !== 'nodejs' ||
     profile.bundler !== 'turbopack' ||
@@ -11,6 +11,17 @@ export function assertIstanbulProfile(profile: TestProfile) {
     profile.browserClient !== undefined
   )
     throw new Error(
-      'Istanbul instrumentation requires isolated development Node JavaScript.'
+      'Istanbul instrumentation requires isolated development Node JavaScript or production Node JS/MJS.'
+    )
+}
+
+/** Production admission is independent of the qualified development typed lane. */
+export function assertIstanbulSourceExtension(
+  profile: TestProfile,
+  file: string
+) {
+  if (profile.mode === 'production' && !/\.(?:js|mjs)$/.test(file))
+    throw new Error(
+      'Production Istanbul requires ordinary Node JS/MJS sources.'
     )
 }
