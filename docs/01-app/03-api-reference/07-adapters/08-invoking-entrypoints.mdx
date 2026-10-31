@@ -98,9 +98,9 @@ Relevant files in the Next.js core:
 
 With experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) handlers, `output.filePath` identifies a native executable rather than a JavaScript module. Package it with the declared `assets` for the target operating system and architecture, preserving executable permissions and the asset destination paths.
 
-By default, the executable targets the build host. An adapter targeting a different platform can set `NEXT_ADAPTER_GO_TARGET` during `next build` to `{"os":"linux","architecture":"x86_64","linking":"static"}`. This experiment currently supports that cross-compilation target only; source analysis still runs on the build host. The setting is independent of the adapter provider.
+By default, the executable targets the build host. An adapter can select a deployment target through its [`goTarget` option](/docs/app/api-reference/adapters/api-reference#gotarget). The supported operating systems are `linux`, `darwin`, and `windows`, with `amd64` and `arm64` architectures. CGO stays disabled, and source analysis runs on the build host regardless of the target.
 
-Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. By default, the generated server matches its emitted route pattern and derives decoded dynamic parameters from the request URL.
+Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The server listens on `0.0.0.0` so container and function ingress can reach it. The adapter owns network isolation and trusted-header filtering. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. By default, the generated server matches its emitted route pattern and derives decoded dynamic parameters from the request URL.
 
 Each executable contains only its own emitted route pattern. `NEXT_GO_ADAPTER_ROUTING` configures how that executable reads routing metadata; it does not contain a list of routes.
 

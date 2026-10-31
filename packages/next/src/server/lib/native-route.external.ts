@@ -26,6 +26,17 @@ const HOP_BY_HOP_HEADERS = new Set([
   'transfer-encoding',
   'upgrade',
 ])
+// These fields use list syntax (Set-Cookie instead preserves separate field lines).
+const MERGED_RESPONSE_HEADERS = new Set([
+  'set-cookie',
+  'link',
+  'vary',
+  'warning',
+  'www-authenticate',
+  'proxy-authenticate',
+  'server-timing',
+  'cache-control',
+])
 const EMPTY_PARAMS = Buffer.from('{}').toString('base64url')
 
 /** Owns activation and transport, never compilation or filesystem watching. */
@@ -214,8 +225,13 @@ export class NativeRouteManager {
     if (!pending) {
       pending = this.start(executable)
       this.workers.set(executable, pending)
-      // Startup failures stay cached until the executable changes or the server restarts.
-      pending.catch(() => {})
+      // Dev caches a broken generation until an edit. Production must recover from
+      // transient spawn/readiness failures without requiring a server restart.
+      pending.catch(() => {
+        if (!this.dev && this.workers.get(executable) === pending) {
+          this.workers.delete(executable)
+        }
+      })
     }
     const worker = await pending
     if (worker.retired) throw new Error('Native route process exited')
@@ -315,8 +331,9 @@ export class NativeRouteManager {
           }
           for (const [name, value] of Object.entries(responseHeaders)) {
             // Headers supplied by Next's routing/proxy phases remain on res.
-            const existing =
-              name === 'set-cookie' ? res.getHeader(name) : undefined
+            const existing = MERGED_RESPONSE_HEADERS.has(name)
+              ? res.getHeader(name)
+              : undefined
             const merged = existing
               ? [
                   ...(Array.isArray(existing)

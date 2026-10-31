@@ -54,8 +54,8 @@ async function expectExplicitMethods(
 describe('native-route-go', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Provider deployment requires an adapter that packages Go outputs. This
-    // fixture exercises local native processes and adapter build artifacts.
+    // No configured deployment adapter supports runtime: 'go'; see README.md.
+    // Copied adapter executables and their HTTP contract are verified in start mode.
     skipDeployment: true,
     env: {
       // Node's route-table watcher also needs polling in this fixture.
@@ -93,6 +93,10 @@ describe('native-route-go', () => {
     expect(response.headers.get('x-native-route')).toBe('yes')
     expect(response.headers.get('set-cookie')).toContain('first=1')
     expect(response.headers.get('set-cookie')).toContain('second=2')
+    expect(response.headers.get('vary')).toContain('X-Proxy')
+    expect(response.headers.get('vary')).toContain('X-Go')
+    expect(response.headers.get('link')).toContain('</proxy.css>')
+    expect(response.headers.get('link')).toContain('</go.css>')
     expect(await response.json()).toMatchObject({
       id: 'a b',
       method: 'POST',
@@ -195,6 +199,21 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it('repairs ordinary JS route errors alongside native routes', async () => {
+      const source = await next.readFile('app/js/route.ts')
+      try {
+        await next.patchFile('app/js/route.ts', 'export function GET( {')
+        expect((await next.fetch('/js')).status).toBe(500)
+      } finally {
+        await next.patchFile('app/js/route.ts', source)
+      }
+      await retry(async () => {
+        const response = await next.fetch('/js')
+        expect(response.status).toBe(200)
+        expect(await response.json()).toEqual({ language: 'js' })
+      })
+    })
+
     it('rebuilds the dispatch table and Allow header when method declarations change', async () => {
       const path = 'app/methods/route.go'
       const source = await next.readFile(path)
@@ -370,6 +389,32 @@ describe('native-route-go', () => {
     })
   }
   if (isNextStart) {
+    it('retries a transient worker startup failure in production', async () => {
+      const trace = await next.readJSON('.next/next-server.js.nft.json')
+      expect(
+        trace.files.some((file: string) =>
+          file.endsWith('native-route.external.js')
+        )
+      ).toBe(true)
+      await next.stop()
+      try {
+        await next.start({
+          skipBuild: true,
+          env: {
+            NEXT_TEST_GO_STARTUP_FAIL_ONCE_PATH: join(
+              next.testDir,
+              'startup-once'
+            ),
+          },
+        })
+        expect((await next.fetch('/native/first-start')).status).toBe(500)
+        expect((await data('/native/retried-start')).id).toBe('retried-start')
+      } finally {
+        await next.stop()
+        await next.start({ skipBuild: true })
+      }
+    })
+
     it('starts relocated output without a Go toolchain', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/server/app-paths-manifest.json')
@@ -404,7 +449,7 @@ describe('native-route-go', () => {
       })
       expect((await data()).id).toBe('example')
     })
-    // This covers three builds plus startup checks for multiple packaged servers.
+    // This covers host/amd64/arm64 builds and startup checks for packaged servers.
     it('emits standalone Go adapter outputs alongside existing Node outputs', async () => {
       await next.stop()
       await next.patchFile('next.config.ts', (config) =>
@@ -948,53 +993,49 @@ describe('native-route-go', () => {
         })
       }
 
-      const providerBuild = await next.build({
-        env: {
-          NEXT_ADAPTER_GO_TARGET: JSON.stringify({
-            os: 'linux',
-            architecture: 'x86_64',
-            linking: 'static',
-          }),
-        },
-      })
-      expect(providerBuild.exitCode).toBe(0)
-      const providerContext: Parameters<NextAdapter['onBuildComplete']>[0] =
-        await next.readJSON('go-adapter-output.json')
-      const providerGoOutputs = providerContext.outputs.appRoutes.filter(
-        (output) => output.runtime === 'go'
-      )
-      const providerNodeOutput = providerContext.outputs.appRoutes.find(
-        (output) => output.pathname === '/adapter-base/js'
-      )!
-      expect(providerGoOutputs).toHaveLength(7)
-      for (const output of providerGoOutputs) {
-        expect(Object.keys(output).sort()).toEqual(
-          Object.keys(providerNodeOutput).sort()
+      // Adapter targets are independent of provider and of the host analysis tool.
+      const capture = await next.readFile('capture-adapter.mjs')
+      for (const [arch, machine] of [
+        ['amd64', 62],
+        ['arm64', 183],
+      ] as const) {
+        await next.patchFile(
+          'capture-adapter.mjs',
+          capture.replace(
+            "  name: 'native-route-go-output-capture',",
+            `  name: 'native-route-go-output-capture',\n  goTarget: { os: 'linux', arch: '${arch}' },`
+          )
         )
-        expect(output).not.toHaveProperty('sourceFile')
-        expect(output).not.toHaveProperty('target')
-        expect(output.filePath).not.toMatch(/\.exe$/)
-        // Inspect the provider target without executing it on macOS/Windows.
-        const executable = await fs.readFile(output.filePath)
-        expect(executable.subarray(0, 4)).toEqual(
-          Buffer.from([0x7f, 0x45, 0x4c, 0x46])
+        const targetBuild = await next.build()
+        expect(targetBuild.exitCode).toBe(0)
+        const targetContext: Parameters<NextAdapter['onBuildComplete']>[0] =
+          await next.readJSON('go-adapter-output.json')
+        const targetGoOutputs = targetContext.outputs.appRoutes.filter(
+          (output) => output.runtime === 'go'
         )
-        expect(executable[4]).toBe(2) // ELFCLASS64
-        expect(executable[5]).toBe(1) // Little endian
-        expect(executable.readUInt16LE(18)).toBe(62) // EM_X86_64
+        expect(targetGoOutputs).toHaveLength(7)
+        for (const output of targetGoOutputs) {
+          expect(output).not.toHaveProperty('target')
+          expect(output.filePath).not.toMatch(/\.exe$/)
+          const executable = await fs.readFile(output.filePath)
+          expect(executable.subarray(0, 4)).toEqual(
+            Buffer.from([0x7f, 0x45, 0x4c, 0x46])
+          )
+          expect(executable[4]).toBe(2)
+          expect(executable[5]).toBe(1)
+          expect(executable.readUInt16LE(18)).toBe(machine)
+        }
       }
-
-      const invalidProviderBuild = await next.build({
-        env: {
-          NEXT_ADAPTER_GO_TARGET: JSON.stringify({
-            os: 'linux',
-            architecture: 'arm64',
-            linking: 'static',
-          }),
-        },
-      })
-      expect(invalidProviderBuild.exitCode).not.toBe(0)
-      expect(invalidProviderBuild.cliOutput).toContain('NEXT_ADAPTER_GO_TARGET')
+      await next.patchFile(
+        'capture-adapter.mjs',
+        capture.replace(
+          "  name: 'native-route-go-output-capture',",
+          "  name: 'native-route-go-output-capture',\n  goTarget: { os: 'invalid', arch: 'amd64' },"
+        )
+      )
+      const invalidTargetBuild = await next.build()
+      expect(invalidTargetBuild.exitCode).not.toBe(0)
+      expect(invalidTargetBuild.cliOutput).toContain('NextAdapter.goTarget')
     }, 180_000)
   }
 })
@@ -1004,7 +1045,8 @@ describe('native-route-go in src/app', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // This fixture exercises local native process lifecycle and source edits.
+    // No configured deployment adapter supports Go. This case also moves sources
+    // and starts a local server; see README.md for the deploy coverage boundary.
     skipDeployment: true,
     env: { WATCHPACK_POLLING: '50' },
   })
@@ -1033,8 +1075,44 @@ describe('native route diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // This fixture inspects local compiler diagnostics rather than deployments.
+    // These assertions invoke local failing builds, which cannot be deployed.
+    // See README.md; HTTP adapter behavior is exercised by the start-mode cases.
     skipDeployment: true,
+  })
+  it('does not require Go or trace its runtime when no Go routes exist', async () => {
+    const files = (
+      await fs.readdir(join(next.testDir, 'app'), { recursive: true })
+    ).filter((file) => file.endsWith('route.go'))
+    try {
+      for (const file of files) {
+        await fs.rename(
+          join(next.testDir, 'app', file),
+          join(next.testDir, 'app', `${file}.disabled`)
+        )
+      }
+      const result = await next.runCommand(['build', '--turbopack'], {
+        env: {
+          TURBOPACK_GO: '/missing-go-toolchain',
+          IS_TURBOPACK_TEST: '1',
+          IS_WEBPACK_TEST: '',
+        },
+      })
+      if (result.exitCode !== 0) throw new Error(result.cliOutput)
+      expect(result.exitCode).toBe(0)
+      const trace = await next.readJSON('.next/next-server.js.nft.json')
+      expect(
+        trace.files.some((file: string) =>
+          file.endsWith('native-route.external.js')
+        )
+      ).toBe(false)
+    } finally {
+      for (const file of files) {
+        await fs.rename(
+          join(next.testDir, 'app', `${file}.disabled`),
+          join(next.testDir, 'app', file)
+        )
+      }
+    }
   })
   it('reports unsupported native handlers when building with Webpack', async () => {
     const result = await next.runCommand(['build', '--webpack'], {

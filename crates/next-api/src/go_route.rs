@@ -92,26 +92,20 @@ async fn go_build_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSess
     // Adapters may deploy to a different platform than the build host. Keep this
     // target separate from the host session, whose analysis helper must run locally.
     if is_adapter_build(project).await?
-        && let Some(target) = std::env::var_os("NEXT_ADAPTER_GO_TARGET")
+        && let Some(target) = &*project.next_config().adapter_go_target().await?
     {
-        let target: serde_json::Value = serde_json::from_str(
-            target
-                .to_str()
-                .context("NEXT_ADAPTER_GO_TARGET must be UTF-8 JSON")?,
-        )
-        .context("Invalid NEXT_ADAPTER_GO_TARGET JSON")?;
         ensure!(
-            target.get("os").and_then(serde_json::Value::as_str) == Some("linux")
-                && target
-                    .get("architecture")
-                    .and_then(serde_json::Value::as_str)
-                    == Some("x86_64")
-                && target.get("linking").and_then(serde_json::Value::as_str) == Some("static"),
-            "NEXT_ADAPTER_GO_TARGET only supports static Linux x86_64 executables"
+            matches!(target.os.as_str(), "linux" | "darwin" | "windows")
+                && matches!(target.arch.as_str(), "amd64" | "arm64"),
+            "Invalid NextAdapter.goTarget: unsupported Go os or arch"
         );
-        go_context.goos = rcstr!("linux");
-        go_context.goarch = rcstr!("amd64");
-        go_context.exe_suffix = rcstr!("");
+        go_context.goos = target.os.clone();
+        go_context.goarch = target.arch.clone();
+        go_context.exe_suffix = if target.os == "windows" {
+            rcstr!(".exe")
+        } else {
+            rcstr!("")
+        };
     }
     let persistent = GoBuildSession::persistent(scope, go_context.options);
     // The session may have been decoded from the task cache. Its fresh runtime state is the

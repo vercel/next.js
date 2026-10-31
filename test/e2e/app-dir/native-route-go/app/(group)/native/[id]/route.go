@@ -13,6 +13,18 @@ import (
 //go:embed assets/*
 var assets embed.FS
 
+// Only the production recovery test sets this path. The worker exits once before readiness.
+func init() {
+	if path := os.Getenv("NEXT_TEST_GO_STARTUP_FAIL_ONCE_PATH"); path != "" {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			if err := os.WriteFile(path, []byte("failed once"), 0600); err != nil {
+				panic(err)
+			}
+			panic("startup-fail-once")
+		}
+	}
+}
+
 func GET(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Handled-By", "GET")
 	serveNative(w, r)
@@ -35,6 +47,8 @@ func serveNative(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Set-Cookie", "first=1; Path=/")
 	w.Header().Add("Set-Cookie", "second=2; Path=/")
 	w.Header().Set("X-Native-Route", "yes")
+	w.Header().Add("Vary", "X-Go")
+	w.Header().Add("Link", "</go.css>; rel=preload")
 	w.WriteHeader(201)
 	json.NewEncoder(w).Encode(map[string]any{
 		"id": r.PathValue("id"), "method": r.Method, "query": r.URL.RawQuery,

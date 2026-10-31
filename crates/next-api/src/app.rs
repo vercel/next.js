@@ -845,6 +845,13 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    pub async fn has_go_routes(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.app_entrypoints().await?.values().any(
+            |entry| matches!(entry, AppEntrypoint::AppGoRoute { .. }),
+        )))
+    }
+
+    #[turbo_tasks::function]
     pub async fn route_keys(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         let app_entrypoints = self.app_entrypoints();
         Ok(Vc::cell(

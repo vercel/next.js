@@ -10,7 +10,10 @@ export function proxy(req: NextRequest) {
       request: { headers },
     })
   }
-  return NextResponse.next({ request: { headers } })
+  const response = NextResponse.next({ request: { headers } })
+  response.headers.append('Vary', 'X-Proxy')
+  response.headers.append('Link', '</proxy.css>; rel=preload')
+  return response
 }
 export const config = {
   matcher: ['/native/:path*', '/rewritten/:path*', '/proxy-target'],
