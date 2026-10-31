@@ -6,9 +6,6 @@ on:
     types:
       - completed
 
-env:
-  SLACK_WEBHOOK_URL: ${{ secrets[github.event.workflow_run.event == 'schedule' && 'FUTURE_COMPAT_SLACK_WEBHOOK_URL' || 'BROKEN_DEPLOY_SLACK_WEBHOOK_URL'] }}
-
 permissions: {}
 
 jobs:
@@ -43,6 +40,7 @@ jobs:
 
   report-failure:
     name: report failure to slack
+    environment: ${{ github.event.workflow_run.event == 'schedule' && 'bot-autonomous' || '' }}
     # Report the failure to Slack if the test-e2e-deploy-release workflow has failed 2 times
     # Manual runs (workflow_dispatch) are likely personal tests and don't
     # require action by the on-call.
@@ -70,4 +68,4 @@ jobs:
               "workflow_branch": ${{ toJSON(github.event.workflow_run.head_branch) }}
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets[github.event.workflow_run.event == 'schedule' && 'FUTURE_COMPAT_SLACK_WEBHOOK_URL' || 'BROKEN_DEPLOY_SLACK_WEBHOOK_URL'] }}
