@@ -250,6 +250,14 @@ pub struct ChunkingConfig {
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
 
+    /// Best-effort upper bound on the estimated size of a chunk. After merging, chunks bigger than
+    /// this are split deterministically (by sorting their chunk items by module identifier) into
+    /// chunks that are not bigger than this size. Splitting may create chunks smaller than
+    /// `min_chunk_size` and more chunks than `max_chunk_count_per_group`. Split merged chunks do
+    /// not emit component chunks. Only a single chunk item bigger than this size can still
+    /// produce a bigger chunk. `0` disables splitting. Not used for style chunk types.
+    pub max_chunk_size: usize,
+
     /// When enabled, a merged chunk also emits its constituent component chunks (referenced,
     /// loaded on demand) so the runtime can fetch an individual component chunk instead of the
     /// whole merged chunk when it is already cached.

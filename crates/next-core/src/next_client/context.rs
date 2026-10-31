@@ -512,6 +512,8 @@ pub struct ClientChunkingContextOptions {
     pub chunking_min_chunk_size: Option<usize>,
     pub chunking_max_chunk_count_per_group: Option<usize>,
     pub chunking_max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum JS chunk size, `0` disables splitting.
+    pub chunking_max_chunk_size: usize,
     pub chunking_min_component_chunk_size: Option<usize>,
     pub generate_component_chunks: Vc<bool>,
 }
@@ -562,6 +564,7 @@ pub async fn get_client_chunking_context(
         chunking_min_chunk_size,
         chunking_max_chunk_count_per_group,
         chunking_max_merge_chunk_size,
+        chunking_max_chunk_size,
         chunking_min_component_chunk_size,
         generate_component_chunks,
     } = options;
@@ -636,6 +639,7 @@ pub async fn get_client_chunking_context(
                     min_chunk_size: chunking_min_chunk_size.unwrap_or(50_000),
                     max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
                     max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(200_000),
+                    max_chunk_size: chunking_max_chunk_size,
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,

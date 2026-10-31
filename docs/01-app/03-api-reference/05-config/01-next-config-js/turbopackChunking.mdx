@@ -36,6 +36,7 @@ const nextConfig = {
       minChunkSize: 50000,
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
+      maxChunkSize: 1000000,
       minComponentChunkSize: 20000,
       generateComponentChunks: false,
     },
@@ -53,6 +54,7 @@ const nextConfig = {
       minChunkSize: 50000,
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
+      maxChunkSize: 1000000,
       minComponentChunkSize: 20000,
       generateComponentChunks: false,
     },
@@ -75,6 +77,7 @@ const nextConfig = {
       minChunkSize: 50000,
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
+      maxChunkSize: 1000000,
     },
   },
 } satisfies NextConfig
@@ -90,6 +93,7 @@ const nextConfig = {
       minChunkSize: 50000,
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
+      maxChunkSize: 1000000,
     },
   },
 }
@@ -117,6 +121,15 @@ the size of the compressed, minified output).
 - **`maxMergeChunkSize`** (default `200000`): Turbopack never merges a chunk
   larger than this size with other chunks. This keeps the code in large chunks
   from being duplicated across multiple large output chunks.
+- **`maxChunkSize`** (default `1000000`): a best-effort maximum estimated
+  chunk size. After merging, Turbopack splits JavaScript chunks bigger than
+  this into smaller chunks. It sorts their modules by identifier and prefers
+  splitting where paths differ most (e.g. between two packages), which keeps
+  splits deterministic and helps avoid unrelated chunk changes. To stay under
+  the limit, it may create chunks smaller than `minChunkSize` or more chunks
+  than `maxChunkCountPerGroup`. A single module bigger than this size still
+  produces a bigger chunk. Unlike the other thresholds, this also applies to
+  server and edge chunks. Set it to `0` to disable splitting.
 
 When merging chunks, the trade-off being made is an improvement to performance on initial page
 loads at the cost of navigation performance. This is because each additional network request
@@ -166,6 +179,9 @@ This avoids re-downloading JavaScript the browser already has when navigating.
 - **`minComponentChunkSize`** (default `20000`): component chunks smaller than
   this size are folded into a single component instead of being emitted on their own,
   to avoid producing many tiny chunks.
+
+When `maxChunkSize` splits a merged chunk, Turbopack emits the split chunks without
+component chunks.
 
 </AppOnly>
 

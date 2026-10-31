@@ -959,6 +959,15 @@ export interface ExperimentalConfig {
      */
     maxMergeChunkSize?: number
     /**
+     * Best-effort maximum estimated size of a JavaScript chunk, in bytes of uncompressed,
+     * unminified code. Bigger chunks are split deterministically (by module identifier) into
+     * smaller chunks. Splitting can create chunks smaller than `minChunkSize` or exceed
+     * `maxChunkCountPerGroup`. Split merged chunks do not emit component chunks. Unlike the other
+     * size thresholds, this also applies to server and edge chunks. Set to `0` to disable
+     * splitting. Defaults to `1000000` (1 MB).
+     */
+    maxChunkSize?: number
+    /**
      * Emit each merged production chunk's constituent component chunks alongside it, so the
      * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
      */
