@@ -1025,6 +1025,7 @@ pub struct ServerChunkingContextOptions {
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
@@ -1059,6 +1060,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         source_maps,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         debug_ids,
         client_root,
@@ -1149,7 +1151,8 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(builder.build())
@@ -1173,6 +1176,7 @@ pub async fn get_server_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         debug_ids,
         client_root,
@@ -1264,7 +1268,8 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(builder.build())
