@@ -461,6 +461,10 @@ pub struct EsmAssetReferenceOptions {
     /// Explicit export-usage passthrough mode for syntax-driven forwarding. `Some(false)` forwards
     /// used names without exposing the target namespace's original property names.
     pub export_usage_passthrough: Option<bool>,
+    /// An internal part imported only to preserve evaluation order, without reading its exports.
+    pub evaluation_only: bool,
+    /// The named binding read from an internal fragment, rather than its namespace.
+    pub internal_binding: Option<RcStr>,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
@@ -484,6 +488,8 @@ struct EsmReferenceExtras {
     /// Whether the importing module's used exports should be forwarded to the target. The boolean
     /// records whether this edge itself exposes the target namespace's original property names.
     export_usage_passthrough: Option<bool>,
+    evaluation_only: bool,
+    internal_binding: Option<RcStr>,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
@@ -503,6 +509,8 @@ impl EsmReferenceExtras {
     fn new(
         annotations: Option<&ImportAnnotations>,
         export_usage_passthrough: Option<bool>,
+        evaluation_only: bool,
+        internal_binding: Option<RcStr>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Option<Box<Self>> {
         let extras = EsmReferenceExtras {
@@ -517,6 +525,8 @@ impl EsmReferenceExtras {
                 export_usage_passthrough,
                 annotations.is_some_and(|a| a.export_usage_passthrough()),
             ),
+            evaluation_only,
+            internal_binding,
             resolve_override,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
@@ -563,6 +573,8 @@ impl EsmAssetReference {
             import_externals,
             module_fragments_enabled,
             export_usage_passthrough,
+            evaluation_only,
+            internal_binding,
             resolve_override,
         } = options;
 
@@ -590,6 +602,8 @@ impl EsmAssetReference {
             extras: EsmReferenceExtras::new(
                 annotations.as_ref(),
                 export_usage_passthrough,
+                evaluation_only,
+                internal_binding,
                 resolve_override,
             ),
         })
@@ -772,6 +786,16 @@ impl ModuleReference for EsmAssetReference {
                 // Evaluation references preserve their side-effect-only semantics even when the
                 // corresponding import forwards export usage.
                 (Some(ModulePart::Evaluation), _) => ExportUsage::Evaluation,
+                _ if self.extras.as_deref().is_some_and(|e| e.evaluation_only) => {
+                    ExportUsage::RequiredEvaluation
+                }
+                _ if let Some(binding) = self
+                    .extras
+                    .as_deref()
+                    .and_then(|e| e.internal_binding.as_ref()) =>
+                {
+                    ExportUsage::Named(binding.clone())
+                }
                 (_, Some(namespace_object_may_escape)) => ExportUsage::Passthrough {
                     namespace_object_may_escape,
                 },

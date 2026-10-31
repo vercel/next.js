@@ -177,8 +177,11 @@ pub enum ExportUsage {
     /// This means the whole content of the module is used.
     #[default]
     All,
-    /// Only side effects are used.
+    /// Only side effects are used. The reference can be removed if the target is side-effect-free.
     Evaluation,
+    /// Evaluation is required by the referencing module, but no exports are used. Unlike
+    /// `Evaluation`, this dependency cannot be removed based on the target's side-effect metadata.
+    RequiredEvaluation,
     /// Use the same exports that are used from the referencing module. This is used by transparent
     /// module proxies and re-exports that forward their export surface to another module.
     ///
@@ -207,6 +210,7 @@ impl Display for ExportUsage {
             }
             ExportUsage::All => write!(f, "all"),
             ExportUsage::Evaluation => write!(f, "evaluation"),
+            ExportUsage::RequiredEvaluation => write!(f, "required evaluation"),
             ExportUsage::Passthrough {
                 namespace_object_may_escape,
                 ..
@@ -233,6 +237,11 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn evaluation() -> Vc<Self> {
         Self::Evaluation.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn required_evaluation() -> Vc<Self> {
+        Self::RequiredEvaluation.cell()
     }
 
     #[turbo_tasks::function]
