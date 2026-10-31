@@ -18,7 +18,6 @@ on:
 
 env:
   NEXT_TEST_FUTURE_COMPAT: ${{ inputs.futureCompat && '1' || '' }}
-  TURBO_CACHE: ${{ inputs.futureCompat && 'local:,remote:' || 'local:rw,remote:rw' }}
   TURBOPACK_BENCH_COUNTS: '100'
   TURBOPACK_BENCH_PROGRESS: '1'
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
