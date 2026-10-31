@@ -43,7 +43,8 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -589,8 +590,19 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let single_graph = SingleModuleGraph::new_with_entries(
         entries.graph_entries().to_resolved().await?,
-        false,
-        true,
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_side_effect_free_module_info` (run below via `compute_binding_usage_info`
+            // when removing unused imports) reads `side_effects` from the graph node.
+            include_side_effects: options.remove_unused_imports,
+            // Module merging (driven by `scope_hoisting` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: options.scope_hoisting,
+            // `get_global_module_id_strategy` (used for global/numeric ids below) reads the
+            // stringified ident from the graph node.
+            include_ident_strings: options.global_module_ids || options.numeric_module_ids,
+            ..Default::default()
+        },
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 

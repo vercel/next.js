@@ -16,7 +16,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    module_graph::{ModuleGraph, SingleModuleGraph},
+    module_graph::{ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
@@ -531,8 +531,7 @@ impl PostCssTransformedAsset {
         let module_graph = ModuleGraph::from_graphs(
             vec![SingleModuleGraph::new_with_entries(
                 entries.graph_entries().to_resolved().await?,
-                false,
-                false,
+                ModuleGraphOptions::default(),
             )],
             None,
         )
