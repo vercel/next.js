@@ -57,7 +57,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: send webhook
-        if: ${{ github.event.workflow_run.event == 'schedule' }}
         uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
         with:
           payload: |
@@ -68,4 +67,4 @@ jobs:
               "workflow_branch": ${{ toJSON(github.event.workflow_run.head_branch) }}
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ github.event.workflow_run.event == 'schedule' && secrets.FUTURE_COMPAT_SLACK_WEBHOOK_URL || '' }}
+          SLACK_WEBHOOK_URL: ${{ secrets[github.event.workflow_run.event == 'schedule' && 'FUTURE_COMPAT_SLACK_WEBHOOK_URL' || 'BROKEN_DEPLOY_SLACK_WEBHOOK_URL'] }}
