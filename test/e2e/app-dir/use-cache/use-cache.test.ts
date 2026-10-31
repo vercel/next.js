@@ -1269,6 +1269,10 @@ describe('use-cache', () => {
 
       const cacheKeys = Array.from(resumeDataCache.cache.keys())
 
+      expect(cacheKeys.some((key) => key.includes('non-prefetchable'))).toBe(
+        false
+      )
+
       // There should be no cache entry for the "middle" cache function, because
       // it's only used inside another cache scope ("outer"). Whereas "inner" is
       // also used inside a prerender scope (the page). Additionally, there
