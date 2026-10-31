@@ -2,7 +2,8 @@ import { isTestCI } from '../config-environment'
 import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import { randomBytes } from 'node:crypto'
-import { resolve } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
+import { mkdir } from 'node:fs/promises'
 import type {
   Browser,
   BrowserContext,
@@ -698,6 +699,68 @@ export async function executeClient(
               )
             )
             break
+          }
+          case 'screenshot': {
+            if (
+              command.args.length !== 2 ||
+              !command.args[1] ||
+              typeof command.args[1] !== 'object' ||
+              Array.isArray(command.args[1])
+            )
+              throw new Error('Invalid Browser Mode screenshot command.')
+            return runAction(async () => {
+              const [name, values] = command.args as [
+                string,
+                Omit<NonNullable<Parameters<Page['screenshot']>[0]>, 'mask'> & {
+                  base64?: boolean
+                  save?: boolean
+                  mask?: { selector: string; locator: string }[]
+                },
+              ]
+              const {
+                element: _element,
+                target: _target,
+                ...config
+              } = values as typeof values & {
+                element?: unknown
+                target?: unknown
+              }
+              config.save ??= true
+              if (!config.save) config.base64 = true
+              const input = config.path || name
+              // The reference resolves screenshot paths with portable separators.
+              const normalized = input.replace(/\\/g, '/')
+              const path = config.path
+                ? resolve(dirname(artifact.client.sourceFile), normalized)
+                : resolve(
+                    dirname(artifact.client.sourceFile),
+                    '__screenshots__',
+                    basename(artifact.client.sourceFile),
+                    normalized
+                  )
+              const save = config.save
+              if (save) await mkdir(dirname(path), { recursive: true })
+              const mask = config.mask?.map((target) =>
+                getClientCommandLocator(
+                  actionFrame,
+                  {
+                    kind: 'locator',
+                    selector: target.selector,
+                    description: target.locator,
+                  },
+                  clientLocatorEngine
+                )
+              )
+              const buffer = await locator.screenshot({
+                ...config,
+                mask,
+                path: save ? path : undefined,
+              })
+              if (!save) return buffer.toString('base64')
+              if (config.base64)
+                return { path, base64: buffer.toString('base64') }
+              return path
+            })
           }
           default:
             throw new Error('Unsupported Browser Mode element command.')

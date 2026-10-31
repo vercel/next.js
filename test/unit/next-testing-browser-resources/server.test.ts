@@ -6064,3 +6064,205 @@ it.each([
     })
   }
 )
+
+it.each([
+  'path',
+  'empty',
+  'file',
+  'utility',
+  'captured',
+  'target-error',
+  'native-error',
+  'unawaited',
+  'legacy',
+  'closed-scope',
+])(
+  'captures the actual upload target while retaining lazy payloads: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'locator-upload-target.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      synchronousOnceOnlyTarget: true,
+      lazyPayloadAndActionIdentity: true,
+      exactOptionsAndOriginalErrors: true,
+      legacyAndClosedScopeRetained: true,
+    })
+  }
+)
+
+it('decodes an upload through its actual serialized locator descriptor', () => {
+  const {
+    resolveClientCommandTarget,
+  } = require('next/dist/experimental/testing/client/command-target')
+  expect(
+    resolveClientCommandTarget({
+      method: 'upload',
+      locator: { selector: '#upload', locator: "locator('#upload')" },
+      args: [[], { timeout: 5000 }],
+    })
+  ).toEqual({
+    kind: 'locator',
+    selector: '#upload',
+    description: "locator('#upload')",
+  })
+})
+
+it.each([
+  { locator: null },
+  { locator: [] },
+  { locator: { selector: 1, locator: "locator('#upload')" } },
+  { locator: { selector: '#upload', locator: 1 } },
+  {
+    locator: { selector: '#upload', locator: "locator('#upload')" },
+    element: 'next-test-element-0',
+  },
+  { element: 'next-test-locator-0' },
+  {
+    locator: { selector: '#upload', locator: "locator('#upload')" },
+    args: undefined,
+  },
+  {
+    locator: { selector: '#upload', locator: "locator('#upload')" },
+    method: 'future-upload',
+  },
+])('retains malformed upload target refusal: %j', (target) => {
+  const {
+    resolveClientCommandTarget,
+  } = require('next/dist/experimental/testing/client/command-target')
+  expect(() =>
+    resolveClientCommandTarget({ method: 'upload', args: [[]], ...target })
+  ).toThrow('Invalid Browser Mode element command.')
+})
+
+it.each([
+  'locator',
+  'body',
+  'element',
+  'page-null',
+  'page-number',
+  'locator-null',
+  'locator-number',
+  'getters',
+  'lazy-target',
+  'mask-null',
+  'delegate',
+  'delegate-getter',
+  'original-error',
+  'native-error',
+  'repeat',
+  'unawaited',
+  'concurrent',
+  'outside',
+  'once',
+  'mask',
+])('retains actual screenshot action, options and delegation: %s', (mode) => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'locator-screenshot.cjs'), mode],
+    { encoding: 'utf8', timeout: 15000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    mode,
+    actualScreenshotActionAndLazySerialization: true,
+    pageDelegationAndOriginalErrors: true,
+    pinnedOptionAndCounterEffects: true,
+    existingScopeAndThenIdentity: true,
+  })
+})
+
+it('decodes the real screenshot locator without admitting legacy element targets', () => {
+  const {
+    resolveClientCommandTarget,
+  } = require('next/dist/experimental/testing/client/command-target')
+  expect(
+    resolveClientCommandTarget({
+      method: 'screenshot',
+      locator: { selector: '#image', locator: "locator('#image')" },
+      args: ['image.png', {}],
+    })
+  ).toEqual({
+    kind: 'locator',
+    selector: '#image',
+    description: "locator('#image')",
+  })
+  expect(() =>
+    resolveClientCommandTarget({
+      method: 'screenshot',
+      element: 'next-test-element-0',
+      args: ['image.png', {}],
+    })
+  ).toThrow('Invalid Browser Mode element command.')
+})
+
+it.each([
+  'path',
+  'base64',
+  'unsaved',
+  'default',
+  'backslash',
+  'mask',
+  'native-error',
+  'path-number',
+  'invalid-options',
+  'legacy',
+  'cancel',
+])(
+  'joins real screenshot consumer paths, values and native operation: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'client-screenshot.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/execute'),
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      actualNativeScreenshotBufferAndOptions: true,
+      sourceBasedPathAndSaveSemantics: true,
+      naturalErrorsAndAdmissionPreserved: true,
+      allOwnedCleanupJoined: true,
+      componentOnlyNoRealBrowserClaim: true,
+    })
+  }
+)
+
+// These calls are checked by the repository types command without executing
+// Browser operations in the Node process that owns this suite.
+function checkScreenshotPublicTypes(
+  page: typeof import('next/dist/experimental/testing/client/browser-context').page,
+  element: Element
+) {
+  const path: Promise<string> = page.screenshot()
+  const encoded: Promise<{ path: string; base64: string }> = page.screenshot({
+    base64: true,
+  })
+  const unsaved: Promise<string> = page.screenshot({
+    save: false,
+    base64: true,
+  })
+  const locator = page.elementLocator(element)
+  const locatorPath: Promise<string> = locator.screenshot()
+  const locatorEncoded: Promise<{ path: string; base64: string }> =
+    locator.screenshot({ base64: true })
+  const masked: Promise<string> = page.screenshot({
+    mask: [element, locator] as const,
+    clip: { x: 0, y: 0, width: 64, height: 32 },
+    omitBackground: true,
+    scale: 'css',
+  })
+  // @ts-expect-error Locator screenshots always select their actual receiver.
+  locator.screenshot({ element })
+  // @ts-expect-error The native provider accepts only PNG and JPEG encodings.
+  page.screenshot({ type: 'svg' })
+  // @ts-expect-error Save is a public Boolean option.
+  page.screenshot({ save: 'false' })
+  void [path, encoded, unsaved, locatorPath, locatorEncoded, masked]
+}
+void checkScreenshotPublicTypes

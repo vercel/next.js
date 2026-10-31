@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict')
-const { JSDOM } = require('jsdom')
+const { createRequire } = require('node:module')
+const provider = createRequire(require.resolve('jest-environment-jsdom'))
+const { JSDOM } = provider(provider.resolve('jsdom'))
 const client = require('next/dist/experimental/testing/client/async-context')
 const {
   page,

@@ -96,6 +96,8 @@ interface ClientSerializedLocatorCommand {
     | 'clear'
     | 'fill'
     | 'selectOptions'
+    | 'upload'
+    | 'screenshot'
   locator: ClientSerializedLocator
   element?: never
   args: unknown[]

@@ -42,6 +42,15 @@ type SelectValues =
   | ElementLocator[]
 type UploadOptions = Parameters<Locator['setInputFiles']>[1]
 type UploadFiles = string | string[] | File | File[]
+interface ScreenshotOptions
+  extends Omit<NonNullable<Parameters<Page['screenshot']>[0]>, 'mask'> {
+  element?: Element | ElementLocator
+  base64?: boolean
+  save?: boolean
+  mask?: ReadonlyArray<Element | ElementLocator>
+}
+type LocatorScreenshotOptions = Omit<ScreenshotOptions, 'element'>
+type ScreenshotResult = string | { path: string; base64: string }
 type TypeOptions = { skipClick?: boolean; skipAutoClose?: boolean }
 type WheelOptions = { times?: number } & (
   | {
@@ -206,6 +215,39 @@ class UploadAction<T> extends Action<T> {
   }
 }
 
+class ScreenshotAction extends Action<ScreenshotResult> {
+  constructor(name: string, options: ScreenshotOptions) {
+    super(
+      async (_args, actionOptions, source) => {
+        const values = actionOptions as ScreenshotOptions
+        const serialized = {
+          ...values,
+          ...(await serializeScreenshotOptions(values)),
+        }
+        const { element, ...commandOptions } = serialized
+        return dispatchBrowserCommandResult(
+          undefined,
+          'screenshot',
+          [name, commandOptions],
+          undefined,
+          undefined,
+          source,
+          {
+            locator: element || {
+              selector: 'body',
+              locator: "locator('body')",
+            },
+          }
+        ) as Promise<ScreenshotResult>
+      },
+      [],
+      options
+    )
+    if (new.target === ScreenshotAction)
+      registerBrowserActionIdentity(this, screenshotActionIdentity)
+  }
+}
+
 const actionThenDescriptor = Object.getOwnPropertyDescriptor(
   Action.prototype,
   'then'
@@ -216,6 +258,10 @@ const locatorActionIdentity: BrowserActionIdentity = {
 }
 const uploadActionIdentity: BrowserActionIdentity = {
   prototypes: [UploadAction.prototype, Action.prototype],
+  then: actionThenDescriptor,
+}
+const screenshotActionIdentity: BrowserActionIdentity = {
+  prototypes: [ScreenshotAction.prototype, Action.prototype],
   then: actionThenDescriptor,
 }
 
@@ -345,11 +391,16 @@ async function dispatchBrowserCommandResult(
     method === 'clear' ||
     method === 'fill' ||
     method === 'selectOptions' ||
+    method === 'upload' ||
+    method === 'screenshot' ||
     method === 'dragAndDrop'
       ? method
       : undefined
   if (serializedTarget && serializedMethod === undefined)
     throw new Error('Serialized Browser targets require a locator action.')
+  const legacyMethod = method === 'screenshot' ? undefined : method
+  if (!serializedTarget && legacyMethod === undefined)
+    throw new Error('Screenshots require a serialized Browser target.')
   const admission = actionCallbacks?.captureCommandAdmission?.()
   const element = serializedTarget ? undefined : resolveElement!()
   if (
@@ -402,7 +453,7 @@ async function dispatchBrowserCommandResult(
   if (!command) throw new Error('Browser element transport has closed.')
   const value: ClientBrowserCommand = serializedTarget
     ? { method: serializedMethod!, locator: serializedTarget.locator, args }
-    : { method, element: browserElementId(element!), args }
+    : { method: legacyMethod!, element: browserElementId(element!), args }
   const operation = errorSource
     ? command(value, admission?.origin, errorSource)
     : admission
@@ -428,6 +479,64 @@ function browserElementId(element: Element) {
 }
 
 const locatorFormatter = createBrowserLocatorFormatter()
+async function serializeScreenshotElement(value: Element | ElementLocator) {
+  if (!value) throw new Error('Expected element or locator to be defined.')
+  if (value instanceof Element) return locatorFormatter.serializeElement(value)
+  if (typeof value === 'object' && locatorBrand in value)
+    return value.serialize()
+  throw new Error(
+    'Expected element or locator to be an instance of Element or Locator.'
+  )
+}
+
+async function serializeScreenshotOptions(options: ScreenshotOptions) {
+  const [element, ...mask] = await Promise.all([
+    options.element ? serializeScreenshotElement(options.element) : undefined,
+    ...('mask' in options
+      ? options.mask!.map((value) => serializeScreenshotElement(value))
+      : []),
+  ])
+  return 'mask' in options ? { element, mask } : { element }
+}
+
+const screenshotIds: Record<number, Record<string, number>> = {}
+function screenshotTaskName(task: Task): string {
+  return task.suite
+    ? `${screenshotTaskName(task.suite)} ${task.name}`
+    : task.name
+}
+
+function screenshot(
+  options: Omit<ScreenshotOptions, 'save'> & { save: false }
+): Promise<string>
+function screenshot(
+  options: Omit<ScreenshotOptions, 'base64'> & { base64: true }
+): Promise<{ path: string; base64: string }>
+function screenshot(
+  options?: Omit<ScreenshotOptions, 'base64'>
+): Promise<string>
+function screenshot(options?: ScreenshotOptions): Promise<ScreenshotResult>
+function screenshot(
+  options: ScreenshotOptions = {}
+): Promise<ScreenshotResult> {
+  const currentTest = actionCallbacks?.getConsoleTask()
+  if (!currentTest)
+    throw new Error('Cannot take a screenshot outside of a test.')
+  if (currentTest.concurrent)
+    throw new Error(
+      'Cannot take a screenshot in a concurrent test because ' +
+        "concurrent tests run at the same time in the same iframe and affect each other's environment. " +
+        'Use a non-concurrent test to take a screenshot.'
+    )
+  const repeatCount = currentTest.result?.repeatCount ?? 0
+  const taskName = screenshotTaskName(currentTest)
+  const number = screenshotIds[repeatCount]?.[taskName] ?? 1
+  screenshotIds[repeatCount] ??= {}
+  screenshotIds[repeatCount][taskName] = number + 1
+  const name =
+    options.path || `${taskName.replace(/[^a-z0-9]/gi, '-')}-${number}.png`
+  return new ScreenshotAction(name, options)
+}
 let nativeLocatorElements: (locator: ElementLocator) => Element[]
 
 interface SerializedLocator {
@@ -754,6 +863,9 @@ class ElementLocator {
     )
   }
   upload(files: UploadFiles, options?: UploadOptions): Promise<void> {
+    const serializedTarget = serializedClickTargets
+      ? { locator: this.serialize() }
+      : undefined
     return createAction(
       this,
       async () => {
@@ -779,15 +891,24 @@ class ElementLocator {
             }
           })
         )
-        await this.dispatch('upload', [
-          values,
-          ...(options === undefined ? [] : [options]),
-        ])
+        await this.dispatch(
+          'upload',
+          [values, ...(options === undefined ? [] : [options])],
+          undefined,
+          serializedTarget
+        )
       },
       [files],
       options,
       true
     )
+  }
+  screenshot(
+    options: Omit<LocatorScreenshotOptions, 'base64'> & { base64: true }
+  ): Promise<{ path: string; base64: string }>
+  screenshot(options?: LocatorScreenshotOptions): Promise<string>
+  screenshot(options?: LocatorScreenshotOptions): Promise<ScreenshotResult> {
+    return page.screenshot({ ...options, element: this })
   }
   #action(
     method: ClientBrowserCommand['method'],
@@ -919,6 +1040,7 @@ function selectors(root: Element | ElementLocator) {
 }
 const root = new ElementLocator(() => [document.body], '')
 export const page = Object.assign(selectors(root), {
+  screenshot,
   elementLocator(element: Element) {
     assertBrowserApiScope('browser-native')
     if (!(element instanceof Element) || element.ownerDocument !== document)

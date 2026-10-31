@@ -49,7 +49,9 @@ export function resolveClientCommandTarget(
         value.method !== 'hover' &&
         value.method !== 'clear' &&
         value.method !== 'fill' &&
-        value.method !== 'selectOptions') ||
+        value.method !== 'selectOptions' &&
+        value.method !== 'upload' &&
+        value.method !== 'screenshot') ||
       !value.locator ||
       typeof value.locator !== 'object' ||
       Array.isArray(value.locator)
@@ -67,6 +69,7 @@ export function resolveClientCommandTarget(
       description: locator.locator,
     }
   }
+  if (value.method === 'screenshot') return invalid()
   if (typeof value.element !== 'string') return invalid()
   const deferred = /^next-test-locator-[0-9]+$/.test(value.element)
   if (
