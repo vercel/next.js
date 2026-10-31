@@ -174,10 +174,10 @@ describe('app-root-param-getters - cache - at runtime', () => {
         expect(await browser.elementById('dynamic').text()).toBe('dynamic')
       })
 
-      // If the Resume Data Cache lookup missed during the resume (e.g. due
-      // to a key mismatch caused by root params), the "use cache" function
-      // would re-execute and produce a different random value than the one
-      // in the prerendered shell, causing a hydration error.
+      // If the Resume Data Cache lookup missed during the resume (e.g. due to a
+      // key mismatch caused by root params), the "use cache" function would
+      // re-execute and produce a different random value than the one in the
+      // prerendered shell, causing a hydration error.
       await assertNoConsoleErrors(browser)
     })
 
@@ -252,8 +252,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
         expect(await browser.elementById('lang-value').text()).toBe('fr')
       })
 
-      // Wait for the cache to settle by verifying the random value is
-      // stable across two consecutive loads.
+      // Wait for the cache to settle by verifying the random value is stable
+      // across two consecutive loads.
       let frRandom: string = ''
       await retry(async () => {
         await browser.loadPage(next.url + '/fr/ca/conditional-on-another-cache')
@@ -262,8 +262,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
         expect(await browser.elementById('random').text()).toBe(frRandom)
       })
 
-      // Different root params must now produce different entries because
-      // lang is being read.
+      // Different root params must now produce different entries because lang
+      // is being read.
       await browser.loadPage(next.url + '/en/us/conditional-on-another-cache')
 
       expect(await browser.elementById('lang-value').text()).toBe('en')
@@ -367,7 +367,8 @@ describe('app-root-param-getters - cache - at build', () => {
   })
 
   if (isNextDev) {
-    // we omit these tests in dev because they are duplicates semantically to the runtime fixture tested above
+    // we omit these tests in dev because they are duplicates semantically to
+    // the runtime fixture tested above
     it('noop in dev', () => {})
   } else {
     it('should allow using root params within a "use cache" at build time', async () => {
@@ -517,6 +518,194 @@ describe('app-root-param-getters - cache dedup with root params', () => {
       // In production, private caches are not persisted and are never deduped
       // across requests, so each ca/fr request generates its own value.
       expect(randomFr1).not.toBe(randomFr2)
+    }
+  })
+})
+
+for (const { held, failure } of [
+  { held: 'redirect', failure: '' },
+  { held: 'value', failure: '' },
+  { held: 'redirect', failure: 'value' },
+  { held: 'value', failure: 'redirect' },
+]) {
+  // Handler barriers require both requests to reach the same server process.
+  // @force-gate start
+  describe(`root cache writes: hold ${held}, fail ${failure}`, () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+      env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
+    })
+
+    it('currently shares the producer lookup while waiting for both root-param writes', async () => {
+      const id = `write-order-${randomUUID()}`
+      const control = (action: string) =>
+        next.fetch(
+          `/write-failure-control?id=${id}&held=${held}&failure=${failure}`,
+          { method: 'POST', body: action }
+        )
+      const readState = () =>
+        next.fetch('/write-failure-control').then(
+          (response) =>
+            response.json() as Promise<{
+              requestedLanguages: string[]
+              generatedLanguages: string[]
+              startedWrites: string[]
+              failedWriteLanguages: string[]
+              writtenLanguages: string[]
+              lookupKeys: string[]
+            }>
+        )
+      await control('hold-fill')
+      await control(`hold-${held}-write`)
+      const english = next.render$(`/ca/en/write-failure?id=${id}`)
+      let french: ReturnType<typeof next.render$> | undefined
+      try {
+        await retry(async () => {
+          expect((await readState()).generatedLanguages).toEqual(['en'])
+        })
+        french = next.render$(`/ca/fr/write-failure?id=${id}`)
+        await retry(async () => {
+          const state = await readState()
+          expect(state.requestedLanguages).toEqual(['en', 'fr'])
+          expect(state.lookupKeys).toHaveLength(1)
+          expect(
+            next.cliOutput
+              .split('\n')
+              .some(
+                (line) =>
+                  line.includes('joining pending cross-request invocation') &&
+                  line.includes(id)
+              )
+          ).toBe(true)
+        })
+        await control('release-fill')
+        await retry(async () => {
+          const state = await readState()
+          expect(state.startedWrites).toEqual(
+            expect.arrayContaining(['redirect', 'value'])
+          )
+          if (failure !== '') {
+            expect(state.failedWriteLanguages).toEqual(['en'])
+          } else {
+            expect(state.writtenLanguages).toContain('en')
+          }
+        })
+        // The other write already settled. Root-key retries still have to wait
+        // for the held write, including when that settled write rejected.
+        const pendingState = await readState()
+        expect(pendingState.generatedLanguages).toEqual(['en'])
+        expect(pendingState.lookupKeys).toHaveLength(1)
+        await control('release-write')
+        const [englishPage, frenchPage] = await Promise.all([english, french])
+        expect(englishPage('#value').text()).toStartWith('en:')
+        const frenchValue = frenchPage('#value').text()
+        expect(frenchValue).toStartWith('fr:')
+        await retry(async () => {
+          expect((await readState()).writtenLanguages).toContain('fr')
+        })
+        expect(
+          (await next.render$(`/ca/fr/write-failure?id=${id}`))('#value').text()
+        ).toBe(frenchValue)
+      } finally {
+        await control('release-fill')
+        await control('release-write')
+        await Promise.allSettled([english, french])
+      }
+    })
+  })
+}
+
+// The handler and both generation controls require a shared server process.
+// @force-gate start
+describe('root cache lookup across two pending generations', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
+  })
+
+  it('currently joins both generations without reading the redirected handler key', async () => {
+    const id = `lookup-history-${randomUUID()}`
+    const pathname = `/ca/en/write-failure?id=${id}`
+    const control = (action: string) =>
+      next.fetch(`/write-failure-control?id=${id}`, {
+        method: 'POST',
+        body: action,
+      })
+    const readState = () =>
+      next.fetch('/write-failure-control').then(
+        (response) =>
+          response.json() as Promise<{
+            generatedLanguages: string[]
+            requestedLanguages: string[]
+            initialLookupCount: number
+            specificLookupCount: number
+            writtenLanguages: string[]
+          }>
+      )
+    await control('hold-fill')
+    await control('hold-lookup-history')
+    const initialProducer = next.render$(pathname)
+    let consumer: ReturnType<typeof next.render$> | undefined
+    let specificProducer: ReturnType<typeof next.render$> | undefined
+    try {
+      await retry(async () => {
+        expect((await readState()).generatedLanguages).toEqual(['en'])
+      })
+      consumer = next.render$(`${pathname}&outer=1`)
+      await retry(async () => {
+        expect((await readState()).requestedLanguages).toEqual(['en', 'en'])
+        expect(
+          next.cliOutput
+            .split('\n')
+            .some(
+              (line) =>
+                line.includes('joining pending cross-request invocation') &&
+                line.includes(id)
+            )
+        ).toBe(true)
+      })
+      // Read root params become known while the initial value write is held.
+      // The new request starts generation under the root-specific key.
+      await control('release-fill')
+      await retry(async () => {
+        expect((await readState()).writtenLanguages).toContain('en')
+      })
+      specificProducer = next.render$(pathname)
+      await retry(async () => {
+        expect((await readState()).generatedLanguages).toEqual(['en', 'en'])
+      })
+      const pendingState = await readState()
+      expect(pendingState.initialLookupCount).toBe(1)
+      expect(pendingState.specificLookupCount).toBe(1)
+      await control('release-write')
+      await retry(() => {
+        expect(
+          next.cliOutput
+            .split('\n')
+            .some(
+              (line) =>
+                line.includes('joining pending cross-request invocation') &&
+                line.includes(id) &&
+                line.includes('"lang","en"')
+            )
+        ).toBe(true)
+      })
+      await control('release-second-write')
+      const [, specificPage, page] = await Promise.all([
+        initialProducer,
+        specificProducer,
+        consumer,
+      ])
+      expect(page('#value').text()).toBe(specificPage('#value').text())
+      expect((await readState()).generatedLanguages).toEqual(['en', 'en'])
+      expect(page('#value').text()).toStartWith('en:')
+    } finally {
+      await control('release-fill')
+      await control('release-initial-lookup')
+      await control('release-specific-lookup')
+      await control('release-second-write')
+      await control('release-write')
+      await Promise.allSettled([initialProducer, consumer, specificProducer])
     }
   })
 })
