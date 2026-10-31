@@ -2267,3 +2267,18 @@ export async function listClientChunks(distDir: string) {
     })
   ).map((f) => path.relative(distDir, f))
 }
+
+/**
+ * Returns the traced files of an `.nft.json`, including those under Turbopack's
+ * `additionalRoots` (e.g. pnpm's global virtual store). Paths are relative to
+ * their own root, so they can be matched against, but not resolved.
+ */
+export function getAllNftFiles(nft: {
+  files: string[]
+  additionalRoots?: { files: string[] }[]
+}): string[] {
+  return [
+    ...nft.files,
+    ...(nft.additionalRoots ?? []).flatMap((root) => root.files),
+  ]
+}

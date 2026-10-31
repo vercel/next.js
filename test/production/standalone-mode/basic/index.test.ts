@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('standalone mode - metadata routes', () => {
   const { next } = nextTestSetup({
+    // Webpack and Rspack standalone tracing do not support the global virtual store.
+    pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
     files: __dirname,
     dependencies: {
       swr: 'latest',

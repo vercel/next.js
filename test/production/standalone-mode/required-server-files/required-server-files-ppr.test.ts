@@ -32,6 +32,8 @@ describe('required server files app router', () => {
   })
 
   const { next } = nextTestSetup({
+    // Webpack and Rspack standalone tracing do not support the global virtual store.
+    pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
     files: {
       app: new FileRef(join(__dirname, 'app')),
       'pages/catch-all/[[...rest]].js': new FileRef(
