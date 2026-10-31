@@ -6,6 +6,38 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, OperationValue, TaskInput};
 use turbo_tasks_fs::FileSystemPath;
 
+/// Parse inline requests before splitting loader queries. The boolean suppresses configured
+/// loaders; without pre/post loaders, `!`, `!!`, and `-!` have the same effect.
+/// Match-resource requests (`!=!`) are not handled here.
+pub fn parse_inline_loader_request(request: &str) -> Option<(bool, Vec<&str>, &str)> {
+    if request.starts_with("data:") || request.starts_with("//") || request.contains("!=!") {
+        return None;
+    }
+    if request
+        .split(['!', '?', '#'])
+        .next()
+        .unwrap_or_default()
+        .contains("://")
+    {
+        return None;
+    }
+    let (skip, rest) = if let Some(rest) = request.strip_prefix("!!") {
+        (true, rest)
+    } else if let Some(rest) = request.strip_prefix("-!") {
+        (true, rest)
+    } else if let Some(rest) = request.strip_prefix('!') {
+        (true, rest)
+    } else {
+        (false, request)
+    };
+    if !skip && !rest.contains('!') {
+        return None;
+    }
+    let mut segments = rest.split('!');
+    let resource = segments.next_back().unwrap_or_default();
+    Some((skip, segments.filter(|s| !s.is_empty()).collect(), resource))
+}
+
 #[derive(
     Clone,
     PartialEq,

@@ -110,6 +110,16 @@ pub struct WebpackLoaders {
 #[turbo_tasks::value_impl]
 impl WebpackLoaders {
     #[turbo_tasks::function]
+    pub fn loaders(&self) -> Vc<WebpackLoaderItems> {
+        *self.loaders
+    }
+
+    #[turbo_tasks::function]
+    pub fn rename_as(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.rename_as.clone())
+    }
+
+    #[turbo_tasks::function]
     pub fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
@@ -531,7 +541,9 @@ impl WebpackLoadersProcessedAsset {
                     EvaluateArg::Vc(ResolvedVc::cell(content)),
                     EvaluateArg::Path(resource_fs_path.clone()),
                     // We need to pass the query string to the loader
-                    EvaluateArg::Vc(ResolvedVc::cell(source_ident.query.to_string().into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(
+                        format!("{}{}", source_ident.query, source_ident.fragment).into(),
+                    )),
                     EvaluateArg::Vc(ResolvedVc::cell(json!(*loaders))),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.target.await?.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),

@@ -2053,8 +2053,13 @@ async fn resolve_internal_inline(
                         }
                         PatternMatch::Directory(matched_pattern, path) => {
                             results.push(
-                                resolve_into_folder(path.clone(), options)
-                                    .with_request(matched_pattern.clone()),
+                                resolve_into_folder(
+                                    path.clone(),
+                                    options,
+                                    query.clone(),
+                                    fragment.clone(),
+                                )
+                                .with_request(matched_pattern.clone()),
                             );
                         }
                     }
@@ -2293,6 +2298,8 @@ async fn resolve_internal_inline(
 async fn resolve_into_folder(
     package_path: FileSystemPath,
     options: Vc<ResolveOptions>,
+    query: RcStr,
+    fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
     let options_value = options.await?;
 
@@ -2322,7 +2329,13 @@ async fn resolve_into_folder(
                         {
                             continue;
                         }
-                        let request = Request::parse_string(normalized_request);
+                        let mut request = Request::parse_string(normalized_request);
+                        if !query.is_empty() {
+                            request = request.with_query(query.clone());
+                        }
+                        if !fragment.is_empty() {
+                            request = request.with_fragment(fragment.clone());
+                        }
 
                         // main field will always resolve not fully specified
                         let options = if options_value.fully_specified {
@@ -2374,7 +2387,9 @@ async fn resolve_into_folder(
         ),
     };
 
-    let request = Request::parse(pattern);
+    let request = Request::parse(pattern)
+        .with_query(query)
+        .with_fragment(fragment);
     let result = resolve_internal_inline(package_path.clone(), request, options)
         .await?
         .with_request(rcstr!("."));
@@ -2683,7 +2698,8 @@ async fn resolve_relative_request(
     for m in matches.iter() {
         if let PatternMatch::Directory(matched_pattern, path) = m {
             results.push(
-                resolve_into_folder(path.clone(), options).with_request(matched_pattern.clone()),
+                resolve_into_folder(path.clone(), options, query.clone(), fragment.clone())
+                    .with_request(matched_pattern.clone()),
             );
         }
     }
@@ -2998,6 +3014,7 @@ async fn resolve_into_package(
                         conditions,
                         unspecified_conditions,
                         query,
+                        fragment,
                         ExportImport::Export,
                     )
                     .await?,
@@ -3016,8 +3033,12 @@ async fn resolve_into_package(
     let matches_root = path.is_match("");
     let matches_root_with_slash = path.is_match("/");
     if matches_root || matches_root_with_slash {
-        let root_result =
-            resolve_into_folder(package_path.clone(), options.with_fully_specified(false));
+        let root_result = resolve_into_folder(
+            package_path.clone(),
+            options.with_fully_specified(false),
+            query.clone(),
+            fragment.clone(),
+        );
         if matches_root {
             results.push(root_result);
         }
@@ -3293,6 +3314,7 @@ async fn handle_exports_imports_field(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
     query: RcStr,
+    fragment: RcStr,
     ty: ExportImport,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
@@ -3300,6 +3322,9 @@ async fn handle_exports_imports_field(
 
     if !query.is_empty() {
         path.push(query.into());
+    }
+    if !fragment.is_empty() {
+        path.push(fragment.into());
     }
     let req = path;
 
@@ -3445,6 +3470,7 @@ async fn resolve_package_internal_with_imports_field(
         Pattern::Constant(specifier.clone()),
         conditions,
         unspecified_conditions,
+        RcStr::default(),
         RcStr::default(),
         ExportImport::Import,
     )

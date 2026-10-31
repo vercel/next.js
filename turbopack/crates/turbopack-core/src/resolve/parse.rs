@@ -96,9 +96,38 @@ static URI_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([^/\\:]+:)(.+
 static DATA_URI_REMAINDER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap());
 static MODULE_PATH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap());
+    LazyLock::new(|| Regex::new(r"^((?:@[^/?#]+/)?[^/?#]+)(.*)$").unwrap());
 
 impl Request {
+    /// The complete constant request, including its query and fragment. Inline loader requests
+    /// must be interpreted before their individual segments' queries are resolved.
+    pub fn raw_request(&self) -> Option<RcStr> {
+        let path = self.request()?;
+        let (query, fragment) = match self {
+            Request::Raw {
+                query, fragment, ..
+            }
+            | Request::Relative {
+                query, fragment, ..
+            }
+            | Request::Module {
+                query, fragment, ..
+            }
+            | Request::ServerRelative {
+                query, fragment, ..
+            }
+            | Request::Windows {
+                query, fragment, ..
+            } => (query.as_str(), fragment.as_str()),
+            _ => ("", ""),
+        };
+        if query.is_empty() && fragment.is_empty() {
+            Some(path)
+        } else {
+            Some(format!("{path}{query}{fragment}").into())
+        }
+    }
+
     /// Turns the request into a string.
     ///
     /// This is not only used for printing the request to the user, but also for matching inner
@@ -415,14 +444,15 @@ impl Request {
             Request::Module {
                 module,
                 path,
-                query: _,
-                fragment: _,
+                query,
+                fragment,
             } => {
                 let mut pat = module.clone();
                 pat.push_front(rcstr!("./").into());
                 pat.push(path.clone());
-                // TODO add query
                 Self::parse(pat)
+                    .with_query(query.clone())
+                    .with_fragment(fragment.clone())
             }
             Request::PackageInternal { path } => {
                 let mut pat = Pattern::Constant(rcstr!("./"));

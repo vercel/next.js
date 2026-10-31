@@ -4,6 +4,7 @@ declare const __turbopack_external_require__: {
 
 import type { Channel as Ipc } from '../types'
 import { dirname, resolve as pathResolve } from 'path'
+import { parse as parseQueryString } from 'querystring'
 import {
   StackFrame,
   parse as parseStackTrace,
@@ -168,9 +169,24 @@ const transform = (
     const resource = pathResolve(contextDir, name)
     const resourceDir = dirname(resource)
 
-    const loadersWithOptions = loaders.map((loader) =>
-      typeof loader === 'string' ? { loader, options: {} } : loader
-    )
+    const loadersWithOptions = loaders.map((config) => {
+      const { loader, options } =
+        typeof config === 'string' ? { loader: config, options: {} } : config
+      const suffixStart = loader.search(/[?#]/)
+      const loaderPath =
+        suffixStart === -1 ? loader : loader.slice(0, suffixStart)
+      const suffix = suffixStart === -1 ? '' : loader.slice(suffixStart)
+      return {
+        loader: loaderPath,
+        // Preserve string options, decoding loader-runner's NUL escapes from remainingRequest.
+        // this.query and generated requests depend on their spelling, not just getOptions().
+        options: Object.keys(options).length
+          ? options
+          : suffix.startsWith('?')
+            ? suffix.slice(1).replace(/\0(.)/g, '$1')
+            : undefined,
+      }
+    })
     const buildDependencies = new Set<string>()
 
     const logs: Array<{
@@ -189,6 +205,7 @@ const transform = (
             // For debugging purpose, if someone find context is not full compatible to
             // webpack they can guess this comes from turbopack
             __reserved: 'TurbopackContext',
+            userRequest: contextify(contextDir, resource + query),
           },
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
@@ -198,9 +215,12 @@ const transform = (
           utils: { absolutify, contextify, createHash },
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
-            return entry.options && typeof entry.options === 'object'
-              ? entry.options
-              : {}
+            if (typeof entry.options === 'string') {
+              return entry.options.startsWith('{')
+                ? JSON.parse(entry.options)
+                : parseQueryString(entry.options, '&', '=', { maxKeys: 0 })
+            }
+            return entry.options || {}
           },
           addBuildDependency(dependency: string) {
             buildDependencies.add(dependency)
@@ -565,12 +585,19 @@ const transform = (
           },
         },
 
-        loaders: loadersWithOptions.map((loader) => ({
-          loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [contextDir, resourceDir],
-          }),
-          options: loader.options,
-        })),
+        loaders: loadersWithOptions.map((loader) => {
+          const resolved = __turbopack_external_require__.resolve(
+            loader.loader,
+            {
+              paths: [contextDir, resourceDir],
+            }
+          )
+          return {
+            loader: resolved,
+            options: loader.options,
+            type: resolved.endsWith('.mjs') ? 'module' : undefined,
+          }
+        }),
         readResource: (_filename, callback) => {
           // TODO assuming that filename === resource, but loaders might change that
           let data =

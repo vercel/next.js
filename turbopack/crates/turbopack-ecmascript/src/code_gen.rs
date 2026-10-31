@@ -12,12 +12,16 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
-use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
+use turbopack_core::{
+    chunk::{ChunkingContext, ModuleChunkItemIdExt},
+    reference::ModuleReference,
+};
 
 use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    create_visitor,
     references::{
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
@@ -43,6 +47,7 @@ use crate::{
         service_worker::ServiceWorkerAssetReferenceCodeGen,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
+    utils::module_id_to_lit,
 };
 
 #[derive(Default)]
@@ -196,6 +201,7 @@ pub enum CodeGen {
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
     MemberReplacement(MemberReplacement),
+    ModuleId(AstPathId),
     RemovalCodeGen(RemovalCodeGen),
     CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen),
     CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
@@ -234,6 +240,18 @@ impl CodeGen {
             Self::ImportMetaBinding(v) => v.code_generation(trie, ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(trie, ctx).await,
             Self::MemberReplacement(v) => v.code_generation(trie, ctx).await,
+            Self::ModuleId(path) => {
+                let id = module.chunk_item_id(ctx).await?;
+                let id = module_id_to_lit(&id);
+                Ok(CodeGeneration::visitors(vec![create_visitor!(
+                    trie,
+                    *path,
+                    visit_mut_expr,
+                    |expr: &mut Expr| {
+                        *expr = id.clone();
+                    }
+                )]))
+            }
             Self::RemovalCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
