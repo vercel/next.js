@@ -51,8 +51,7 @@ export default function () {
         })
         // Unconditionally accept an update to this module, we'll check if it's
         // still a Refresh Boundary later.
-        // @ts-ignore importMeta is replaced in the loader
-        global.importMeta.webpackHot.accept()
+        __webpack_module__.hot.accept()
 
         // This field is set when the previous version of this module was a
         // Refresh Boundary, letting us know we need to check for invalidation or
