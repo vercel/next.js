@@ -2232,7 +2232,7 @@ impl AggregationUpdateQueue {
         &mut self,
         ctx: &mut ExecuteContext<'_>,
         upper_id: TaskId,
-        lost_follower_ids: L,
+        mut lost_follower_ids: L,
     ) {
         let mut upper = ctx.task(
             upper_id,
@@ -2243,7 +2243,10 @@ impl AggregationUpdateQueue {
         // STEP 2
         let mut removed_followers = L::default();
         let mut followers_with_debt = L::default();
-        for lost_follower_id in lost_follower_ids {
+        // Consume in swap-removal order. AutoMap's small linear representation also removes by
+        // swapping: for IDs aligned with insertion order, visiting the swapped replacement next
+        // avoids repeatedly scanning to the end. Other input/map histories need not benefit.
+        lost_follower_ids.retain(|lost_follower_id| {
             let change = update_follower_count(&mut upper, lost_follower_id, -1);
             if change.transition() == EdgeTransition::Disappeared {
                 removed_followers.push(lost_follower_id);
@@ -2251,7 +2254,8 @@ impl AggregationUpdateQueue {
             if change.is_debt() {
                 followers_with_debt.push(lost_follower_id);
             }
-        }
+            false
+        });
 
         let effects = if !removed_followers.is_empty() {
             // May optimize the task
@@ -4156,6 +4160,144 @@ mod follower_debt_tests {
         run(&tt, [remove(1, 2), remove(1, 3)]);
         assert_eq!(aggregated(&tt, 1), 0);
         assert_no_edges(&tt, &[1, 2, 3]);
+    }
+
+    /// Only disappearance notifications, excluding the independent data-update jobs.
+    fn queued_lost_ids(queue: &AggregationUpdateQueue) -> Vec<TaskId> {
+        queue
+            .jobs
+            .iter()
+            .flat_map(|item| match &item.job {
+                AggregationUpdateJob::InnerOfUppersLostFollowers(job) => {
+                    job.lost_follower_ids.to_vec()
+                }
+                AggregationUpdateJob::InnerOfUpperLostFollowers {
+                    lost_follower_ids, ..
+                } => lost_follower_ids.to_vec(),
+                AggregationUpdateJob::InnerOfUppersLostFollower {
+                    lost_follower_id, ..
+                } => vec![*lost_follower_id],
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn follower_removal_emits_swap_order_and_propagates() {
+        // One Option input, the last linear-map size, and the first larger map size. Exact batch
+        // order intentionally changes, but every vanished edge must still reach the ancestor.
+        for count in [1, 32, 33] {
+            let mut tasks = vec![(1, UPPER), (2, ROOT)];
+            tasks.extend((3..3 + count).map(|task| (task, FOLLOWER)));
+            let tt = setup(&tasks);
+            run(&tt, [add(2, 1)]);
+            run(&tt, (3..3 + count).map(|task| add(1, task)));
+            assert_eq!(aggregated(&tt, 2), 1 + count as i32);
+            {
+                let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                let mut queue = AggregationUpdateQueue::new_without_optimizations();
+                if count == 1 {
+                    queue.inner_of_upper_lost_follower(&mut ctx, id(3), id(1));
+                } else {
+                    queue.inner_of_upper_lost_followers(
+                        &mut ctx,
+                        (3..3 + count).map(id).collect(),
+                        id(1),
+                    );
+                }
+                let expected: Vec<_> = std::iter::once(id(3))
+                    .chain((4..3 + count).rev().map(id))
+                    .collect();
+                assert_eq!(queued_lost_ids(&queue), expected, "{count} followers");
+                assert_eq!(queue.jobs.len(), 1);
+                queue.execute(&mut ctx);
+            }
+            assert!(followers(&tt, 1).is_empty());
+            assert_eq!(aggregated(&tt, 2), 1);
+            for task in 3..3 + count {
+                assert!(uppers(&tt, task).is_empty());
+            }
+            run(&tt, [remove(2, 1)]);
+            assert_eq!(aggregated(&tt, 2), 0);
+            assert_no_edges(
+                &tt,
+                &tasks.iter().map(|&(task, _)| task).collect::<Vec<_>>(),
+            );
+            tt.stop_and_wait().await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn follower_removal_keeps_retained_references_and_ancestor_data() {
+        let tt = setup(&[(1, UPPER), (2, ROOT), (3, FOLLOWER), (4, FOLLOWER)]);
+        run(&tt, [add(2, 1), add_count(1, 3, 2), add_count(1, 4, 2)]);
+        assert_eq!(aggregated(&tt, 2), 3);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            queue.inner_of_upper_lost_followers(&mut ctx, smallvec![id(3), id(4)], id(1));
+            assert!(queue.is_empty(), "2→1 must not emit disappearance effects");
+        }
+        assert_eq!(followers(&tt, 1), vec![(id(3), 1), (id(4), 1)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(2), 1)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(2), 1)]);
+        assert_eq!(aggregated(&tt, 2), 3);
+        tt.backend().verify_aggregation_edges();
+        run(&tt, [remove(1, 3), remove(1, 4), remove(2, 1)]);
+        assert_eq!(aggregated(&tt, 2), 0);
+        assert_no_edges(&tt, &[1, 2, 3, 4]);
+        tt.stop_and_wait().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn follower_removal_preserves_duplicate_multiplicity_and_mixed_debt() {
+        let tt = setup(&[
+            (1, UPPER),
+            (2, ROOT),
+            (3, FOLLOWER),
+            (4, FOLLOWER),
+            (5, FOLLOWER),
+            (6, INNER),
+        ]);
+        run(
+            &tt,
+            [
+                add(2, 1),
+                add_count(1, 3, 2),
+                add(1, 4),
+                add(1, 6),
+                remove(1, 5),
+            ],
+        );
+        assert_eq!(aggregated(&tt, 1), 1);
+        assert_eq!(aggregated(&tt, 2), 4);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            queue.inner_of_upper_lost_followers(
+                &mut ctx,
+                smallvec![id(3), id(4), id(3), id(5), id(6), id(5)],
+                id(1),
+            );
+            let mut vanished = queued_lost_ids(&queue);
+            vanished.sort_unstable();
+            assert_eq!(vanished, vec![id(3), id(4)], "one effect per positive edge");
+            queue.execute(&mut ctx);
+        }
+        assert_eq!(followers(&tt, 1), vec![(id(5), -3)]);
+        assert_eq!(aggregated(&tt, 1), 0);
+        assert_eq!(aggregated(&tt, 2), 1);
+        assert!(uppers(&tt, 3).is_empty());
+        assert!(uppers(&tt, 4).is_empty());
+        assert!(uppers(&tt, 6).is_empty());
+        // The three late matching additions pay pure debt without changing the ancestor's data.
+        run(&tt, [add_count(1, 5, 3)]);
+        assert!(followers(&tt, 1).is_empty());
+        assert_eq!(aggregated(&tt, 2), 1);
+        run(&tt, [remove(2, 1)]);
+        assert_eq!(aggregated(&tt, 2), 0);
+        assert_no_edges(&tt, &[1, 2, 3, 4, 5, 6]);
+        tt.stop_and_wait().await;
     }
 
     #[tokio::test(flavor = "multi_thread")]
