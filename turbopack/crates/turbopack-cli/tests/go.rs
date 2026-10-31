@@ -71,14 +71,8 @@ impl Drop for Process {
     }
 }
 const WAIT_TIMEOUT: Duration = Duration::from_secs(60);
-fn wait_for(description: &str, mut condition: impl FnMut() -> bool) {
-    wait_for_timeout(description, Duration::from_secs(60), &mut condition);
-}
 fn wait_for_log(description: &str, log: &Path, condition: impl FnMut() -> bool) {
     wait_for_timeout_and_log(description, Duration::from_secs(60), Some(log), condition);
-}
-fn wait_for_timeout(description: &str, timeout: Duration, condition: impl FnMut() -> bool) {
-    wait_for_timeout_and_log(description, timeout, None, condition);
 }
 fn wait_for_timeout_and_log(
     description: &str,
@@ -456,8 +450,8 @@ fn rejection(project: &Path, arguments: &[&str], diagnostic: &str) {
     );
     assert!(
         wait_until(WAIT_TIMEOUT, || process.0.try_wait().unwrap().is_some()),
-        "timed out waiting for rejected CLI invocation {arguments:?}; stderr:\n{}",
-        std::fs::read_to_string(stderr.path()).unwrap()
+        "timed out waiting for rejected CLI invocation {arguments:?}; output:\n{}",
+        std::fs::read_to_string(log.path()).unwrap()
     );
     assert_eq!(process.0.wait().unwrap().code(), Some(1), "{arguments:?}");
     let error = std::fs::read_to_string(log.path()).unwrap();
