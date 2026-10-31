@@ -1,0 +1,1 @@
+The Playwright regression test passes with Cache Components off but fails after navigating from Billing to Profile because it finds two Email fields and can read the hidden route's status. Fix the test so it always interacts with and asserts on the visible page. Do not change the application behavior or disable Cache Components, and run the regression test.

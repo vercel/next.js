@@ -1,0 +1,1 @@
+The contact form should keep an unfinished draft when someone navigates away, but after a successful send and choosing Done it should be empty when they return. In development it can currently reset after the route becomes visible again. Fix the reset behavior so it is tied to completing the send flow rather than Activity visibility. Keep Cache Components enabled.
