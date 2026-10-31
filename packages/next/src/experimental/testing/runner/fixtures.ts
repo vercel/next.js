@@ -181,9 +181,15 @@ function dependencies(fn: Function): string[] {
   const metadata = fixtureCallbackMetadata.get(fn)
   const implementation = metadata?.original ?? fn
   const argument = metadata?.argument ?? 0
-  const source = Function.prototype.toString
+  let source = Function.prototype.toString
     .call(implementation)
     .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+  if (
+    /__async\(\s*(?:this|null)\s*,\s*(?:null|arguments|\[[_0-9,\s]*\])\s*,\s*function\s*\*/.test(
+      source
+    )
+  )
+    source = source.split(/__async\(\s*(?:this|null)\s*,/)[1]
   const match = source.match(/^[^(]*\(([^)]*)\)/)
   if (!match) {
     return unsupported('fixture callbacks without plain object destructuring')
