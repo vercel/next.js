@@ -20,6 +20,7 @@ pub mod raw;
 pub mod removal;
 pub mod require_context;
 pub mod service_worker;
+pub mod synthetic_source;
 #[cfg(test)]
 mod tests;
 pub mod type_issue;
@@ -2562,13 +2563,11 @@ where
 
             analysis.add_reference_code_gen(
                 RequireContextAssetReference::new(
-                    source,
                     origin,
                     options.dir,
                     options.include_subdirs,
                     options.filter.cell(),
                     Some(issue_source(source, span)),
-                    error_mode,
                 )
                 .await?,
                 analysis.intern_path(ast_path),
@@ -4535,17 +4534,15 @@ async fn require_context_visitor<'a>(
     let dir = origin_path.parent().join(options.dir.as_str())?;
 
     let map = RequireContextMap::generate(
-        origin,
-        dir,
+        dir.clone(),
         options.include_subdirs,
         options.filter.cell(),
-        None,
-        ResolveErrorMode::Warn,
+        origin.into_trait_ref().await?.resolve_options(),
     );
 
     Ok(JsValue::WellKnownFunction(
         WellKnownFunctionKind::RequireContextRequire(Box::new(
-            RequireContextValue::from_context_map(map).await?,
+            RequireContextValue::from_context_map(map, &origin_path.parent(), &dir).await?,
         )),
     ))
 }

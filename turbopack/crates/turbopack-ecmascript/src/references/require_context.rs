@@ -1,49 +1,35 @@
-use std::{borrow::Cow, collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, fmt::Write};
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::{
-    common::DUMMY_SP,
-    ecma::{
-        ast::{
-            Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
-            Stmt, {self},
-        },
-        codegen::{Emitter, text_writer::JsWriter},
-    },
-    quote, quote_expr,
-};
+use swc_core::{ecma::ast::Expr, quote};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath};
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
-        ModuleChunkItemIdExt,
-    },
+    asset::AssetContent,
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
+    context::AssetContext,
     ident::AssetIdent,
     issue::IssueSource,
-    module::{Module, ModuleSideEffects},
-    module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences},
-    reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
+    module::Module,
+    reference::ModuleReference,
+    reference_type::{InnerAssets, ReferenceType},
+    resolve::{ModuleResolveResult, options::ResolveOptions, origin::ResolveOrigin},
     source::Source,
+    virtual_source::VirtualSource,
 };
-use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    EcmascriptChunkPlaceable,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
-    chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::pattern_mapping::{PatternMapping, ResolveType},
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
-    utils::module_id_to_lit,
+    references::synthetic_source::SyntheticSource,
+    runtime_functions::TURBOPACK_REQUIRE,
+    utils::{StringifyJs, module_id_to_lit},
 };
 
 #[turbo_tasks::value]
@@ -61,8 +47,8 @@ pub(crate) struct DirList(
 #[turbo_tasks::value_impl]
 impl DirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        Self::read_internal(dir.clone(), dir, recursive, filter)
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool) -> Vc<Self> {
+        Self::read_internal(dir.clone(), dir, recursive)
     }
 
     #[turbo_tasks::function]
@@ -70,11 +56,9 @@ impl DirList {
         root: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
-        filter: Vc<EsRegex>,
     ) -> Result<Vc<Self>> {
         let root_val = root.clone();
         let dir_val = dir.clone();
-        let regex = &filter.await?;
 
         let mut list = FxIndexMap::default();
 
@@ -87,10 +71,7 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    // Webpack always checks the RegExp against a path prefixed with `./`
-                    if let Some(relative_path) = root_val.get_relative_request_to(path)
-                        && regex.is_match(&relative_path)
-                    {
+                    if let Some(relative_path) = root_val.get_relative_request_to(path) {
                         list.insert(relative_path, DirListEntry::File(path.clone()));
                     }
                 }
@@ -99,14 +80,9 @@ impl DirList {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(
-                                DirList::read_internal(
-                                    root.clone(),
-                                    path.clone(),
-                                    recursive,
-                                    filter,
-                                )
-                                .to_resolved()
-                                .await?,
+                                DirList::read_internal(root.clone(), path.clone(), recursive)
+                                    .to_resolved()
+                                    .await?,
                             ),
                         );
                     }
@@ -154,85 +130,91 @@ pub(crate) struct FlatDirList(
 #[turbo_tasks::value_impl]
 impl FlatDirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        DirList::read(dir, recursive, filter).flatten()
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool) -> Vc<Self> {
+        DirList::read(dir, recursive).flatten()
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Debug)]
-pub struct RequireContextMapEntry {
-    pub origin_relative: RcStr,
-    pub request: ResolvedVc<Request>,
-    pub result: ResolvedVc<ModuleResolveResult>,
-}
-
-/// The resolved context map for a `require.context(..)` call.
+/// The keys of a `require.context(..)` call. Each key is a request relative to the
+/// context directory.
 #[turbo_tasks::value(transparent)]
-pub struct RequireContextMap(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RequireContextMapEntry>,
-);
+pub struct RequireContextMap(Vec<RcStr>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
+    /// Like webpack, a file can be requested from the context in every way it could
+    /// be resolved: by its path relative to the context directory (`./dir/index.js`),
+    /// without one of the resolve extensions (`./dir/index`), and as a directory when
+    /// it is a default file (`./dir/` and `./dir`). The filter applies to these keys,
+    /// not to the files, and the keys are sorted.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
-        origin: Vc<Box<dyn ResolveOrigin>>,
         dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
-        issue_source: Option<IssueSource>,
-        error_mode: ResolveErrorMode,
+        resolve_options: Vc<ResolveOptions>,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
+        let filter = filter.await?;
+        let resolve_options = resolve_options.await?;
 
-        let list = &*FlatDirList::read(dir, recursive, filter).await?;
+        let list = &*FlatDirList::read(dir, recursive).await?;
 
-        let mut map = FxIndexMap::default();
+        let mut keys: Vec<RcStr> = list
+            .keys()
+            .flat_map(|context_relative| alternative_keys(context_relative, &resolve_options))
+            .filter(|key| filter.is_match(key))
+            .collect();
+        // Files can share a key, e.g. `./foo` for both `foo.js` and `foo/index.js`.
+        keys.sort();
+        keys.dedup();
 
-        for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_request_to(path) else {
-                bail!("invariant error: this was already checked in `list_dir`");
-            };
-
-            let request = Request::parse(origin_relative.clone().into())
-                .to_resolved()
-                .await?;
-            let result = cjs_resolve(
-                origin,
-                *request,
-                CommonJsReferenceSubType::Undefined,
-                issue_source,
-                error_mode,
-            )
-            .to_resolved()
-            .await?;
-
-            map.insert(
-                context_relative.clone(),
-                RequireContextMapEntry {
-                    origin_relative,
-                    request,
-                    result,
-                },
-            );
-        }
-
-        Ok(Vc::cell(map))
+        Ok(Vc::cell(keys))
     }
 }
 
-/// A reference for `require.context()`, will replace it with an inlined map
-/// wrapped in `__turbopack_module_context__`;
+/// The keys a file can be requested by from a context, as webpack's
+/// `RequireContextPlugin` derives them.
+fn alternative_keys(request: &RcStr, resolve_options: &ResolveOptions) -> Vec<RcStr> {
+    if resolve_options.fully_specified {
+        return vec![request.clone()];
+    }
+
+    let mut keys: Vec<RcStr> = resolve_options
+        .extensions
+        .iter()
+        .filter_map(|extension| request.strip_suffix(extension.as_str()))
+        .map(RcStr::from)
+        .collect();
+    keys.push(request.clone());
+
+    let mut with_directories = Vec::with_capacity(keys.len());
+    for key in keys {
+        for default_file in &resolve_options.default_files {
+            if let Some(directory) = key
+                .strip_suffix(default_file.as_str())
+                .filter(|directory| directory.ends_with('/'))
+            {
+                with_directories.push(directory.into());
+                with_directories.push(directory[..directory.len() - 1].into());
+            }
+        }
+        with_directories.push(key);
+    }
+    with_directories
+}
+
+/// A reference for `require.context()`. The call is replaced with a synthetic
+/// module that requires every matched file, wrapped in
+/// `__turbopack_module_context__`.
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 pub struct RequireContextAssetReference {
-    pub inner: ResolvedVc<RequireContextAsset>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub dir: RcStr,
     pub include_subdirs: bool,
+    filter: ResolvedVc<EsRegex>,
 
     pub issue_source: Option<IssueSource>,
-    pub error_mode: ResolveErrorMode,
 }
 
 impl std::fmt::Display for RequireContextAssetReference {
@@ -248,54 +230,107 @@ impl std::fmt::Display for RequireContextAssetReference {
 
 impl RequireContextAssetReference {
     pub async fn new(
-        source: ResolvedVc<Box<dyn Source>>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         dir: RcStr,
         include_subdirs: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        error_mode: ResolveErrorMode,
     ) -> Result<Self> {
-        let map = RequireContextMap::generate(
-            *origin,
-            origin
-                .into_trait_ref()
-                .await?
-                .origin_path()
-                .parent()
-                .join(&dir)?,
-            include_subdirs,
-            filter,
-            issue_source,
-            error_mode,
-        )
-        .to_resolved()
-        .await?;
-        let inner = RequireContextAsset {
-            source,
-            origin,
-            map,
-
-            dir: dir.clone(),
-            include_subdirs,
-        }
-        .resolved_cell();
-
         Ok(RequireContextAssetReference {
-            inner,
+            origin,
             dir,
             include_subdirs,
+            filter: filter.to_resolved().await?,
             issue_source,
-            error_mode,
         })
+    }
+}
+
+/// Every argument of the `require.context()` call is part of the ident, so that two
+/// calls only share a synthetic module when they match the same files. The calling
+/// module is too, since the source map of the synthetic module points at the call.
+fn modifier(
+    origin_path: &FileSystemPath,
+    dir: &RcStr,
+    include_subdirs: bool,
+    filter: &EsRegex,
+) -> RcStr {
+    format!(
+        "require.context {}/{} /{}/{} in {}",
+        dir,
+        if include_subdirs { "**" } else { "*" },
+        filter.pattern,
+        filter.flags,
+        origin_path.path,
+    )
+    .into()
+}
+
+#[turbo_tasks::value_impl]
+impl RequireContextAssetReference {
+    /// The synthetic CommonJS module the `require.context()` call is replaced with,
+    /// which exports the context. It lives in the context directory, so that each key
+    /// is also the request for its module, and resolves like `require(key)` would.
+    #[turbo_tasks::function]
+    async fn module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let origin = self.origin.into_trait_ref().await?;
+        let origin_path = origin.origin_path();
+        let context_dir = origin_path.parent().join(&self.dir)?;
+        let filter = self.filter.await?;
+
+        let keys = RequireContextMap::generate(
+            context_dir.clone(),
+            self.include_subdirs,
+            *self.filter,
+            origin.resolve_options(),
+        )
+        .await?;
+
+        // One dependency per key: `require.resolve` evaluates to the id of its module at
+        // compile time, which the runtime requires.
+        let mut code = String::from("module.exports = __turbopack_module_context__([\n");
+        for key in keys.iter() {
+            let key = StringifyJs(key);
+            writeln!(code, "  {key}, require.resolve({key}),")?;
+        }
+        code.push_str("]);\n");
+
+        // Issues in the synthetic module are reported at the call.
+        let ident = AssetIdent::from_path(context_dir.join(".require-context.cjs")?)
+            .with_modifier(modifier(
+                &origin_path,
+                &self.dir,
+                self.include_subdirs,
+                &filter,
+            ))
+            .into_vc()
+            .to_resolved()
+            .await?;
+        let source: Vc<Box<dyn Source>> = match self.issue_source {
+            Some(call_site) => Vc::upcast(SyntheticSource::new(*ident, code.into(), call_site)),
+            None => Vc::upcast(VirtualSource::new_with_ident(
+                *ident,
+                AssetContent::file(FileContent::Content(File::from(code)).cell()),
+            )),
+        };
+
+        let asset_context = *origin.asset_context();
+        Ok(asset_context
+            .process(
+                source,
+                ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+            )
+            .module())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for RequireContextAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
+    async fn resolve_reference(self: Vc<Self>) -> Result<Vc<ModuleResolveResult>> {
+        Ok(*ModuleResolveResult::module(
+            self.module().to_resolved().await?,
+        ))
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -345,8 +380,7 @@ impl RequireContextAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let module_id = self
             .reference
-            .await?
-            .inner
+            .module()
             .chunk_item_id(chunking_context)
             .await?;
 
@@ -359,8 +393,7 @@ impl RequireContextAssetReferenceCodeGen {
             |expr: &mut Expr| {
                 if let Expr::Call(_) = expr {
                     *expr = quote!(
-                        "$turbopack_module_context($turbopack_require($id))" as Expr,
-                        turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+                        "$turbopack_require($id)" as Expr,
                         turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                         id: Expr = module_id_to_lit(&module_id)
                     );
@@ -369,191 +402,5 @@ impl RequireContextAssetReferenceCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-#[derive(ValueToString)]
-#[value_to_string("resolved reference")]
-pub struct ResolvedModuleReference(ResolvedVc<ModuleResolveResult>);
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ResolvedModuleReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *self.0
-    }
-
-    fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        })
-    }
-}
-
-#[turbo_tasks::value]
-pub struct RequireContextAsset {
-    source: ResolvedVc<Box<dyn Source>>,
-
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    map: ResolvedVc<RequireContextMap>,
-
-    dir: RcStr,
-    include_subdirs: bool,
-}
-
-fn modifier(dir: &RcStr, include_subdirs: bool) -> RcStr {
-    format!(
-        "require.context {}/{}",
-        dir,
-        if include_subdirs { "**" } else { "*" },
-    )
-    .into()
-}
-
-#[turbo_tasks::value_impl]
-impl Module for RequireContextAsset {
-    #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .source
-            .ident()
-            .owned()
-            .await?
-            .with_modifier(modifier(&self.dir, self.include_subdirs))
-            .into_vc())
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(Some(self.source))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let map = &*self.map.await?;
-
-        Ok(Vc::cell(
-            map.iter()
-                .map(|(_, entry)| {
-                    ResolvedVc::upcast(ResolvedVc::<ResolvedModuleReference>::cell(entry.result))
-                })
-                .collect(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
-        ModuleSideEffects::SideEffectFree.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModule for RequireContextAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for RequireContextAsset {
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_item_content(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
-        _async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
-    ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let map = &*self.map.await?;
-        let minify = chunking_context.minify_type().await?;
-
-        let mut context_map = ObjectLit {
-            span: DUMMY_SP,
-            props: vec![],
-        };
-
-        for (key, entry) in map {
-            let pm = PatternMapping::resolve_request(
-                *entry.request,
-                *self.origin,
-                chunking_context,
-                *entry.result,
-                ResolveType::ChunkItem,
-                None,
-            )
-            .await?;
-
-            let PatternMapping::Single(pm) = &*pm else {
-                continue;
-            };
-
-            let key_expr = Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()));
-
-            let prop = KeyValueProp {
-                key: PropName::Str(key.as_str().into()),
-                value: quote_expr!(
-                    "{ id: () => $id, module: () => $module }",
-                    id: Expr =
-                        pm.create_id(Cow::Borrowed(&key_expr)),
-                    module: Expr =
-                        pm.create_require(Cow::Borrowed(&key_expr)),
-                ),
-            };
-
-            context_map
-                .props
-                .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(prop))));
-        }
-
-        let expr = quote_expr!(
-            "$turbopack_export_value($obj);",
-            turbopack_export_value: Expr = TURBOPACK_EXPORT_VALUE.into(),
-            obj: Expr = Expr::Object(context_map),
-        );
-
-        let module = ast::Module {
-            span: DUMMY_SP,
-            body: vec![ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr,
-            }))],
-            shebang: None,
-        };
-
-        let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-
-        let mut bytes: Vec<u8> = vec![];
-        let mut wr: JsWriter<'_, &mut Vec<u8>> =
-            JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
-        if matches!(*minify, MinifyType::Minify { .. }) {
-            wr.set_indent_str("");
-        }
-
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
-            comments: None,
-            wr,
-        };
-
-        emitter.emit_module(&module)?;
-
-        Ok(EcmascriptChunkItemContent {
-            inner_code: bytes.into(),
-            ..Default::default()
-        }
-        .cell())
     }
 }
