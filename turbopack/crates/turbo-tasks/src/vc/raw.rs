@@ -801,15 +801,6 @@ impl ReadRawVcFuture {
         self.read_cell_options.tracking = ReadCellTracking::Tracked { key: None };
     }
 
-    /// Whether the final cell read is tracked as a dependency, including when it was previously
-    /// configured with [`ReadRawVcFuture::untracked`].
-    pub(crate) fn is_cell_read_tracked(&self) -> bool {
-        matches!(
-            self.read_cell_options.tracking,
-            ReadCellTracking::Tracked { .. }
-        )
-    }
-
     /// The task cell the [`RawVc`] was resolved to. Only available once the future has completed
     /// successfully.
     pub(crate) fn resolved_cell(&self) -> Option<(TaskId, CellId)> {

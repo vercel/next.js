@@ -233,7 +233,10 @@ where
     /// Read the value once for many synchronous keyed accesses via the returned
     /// [`KeyedReadRef`]. Once that is dropped, the task only depends on the accessed keys instead
     /// of the full value. See [`KeyedReadRef`] for details.
-    pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
+    ///
+    /// Only exposed as [`Vc::keyed`](crate::Vc::keyed), so it can't be combined with builder
+    /// options like `untracked()` that would conflict with the dependency it registers.
+    pub(crate) async fn read_keyed(self) -> Result<KeyedReadRef<T>> {
         let (read_ref, dependency) = self.read_with_keyed_dependency(false).await?;
         Ok(KeyedReadRef::new(read_ref, dependency))
     }
@@ -246,11 +249,10 @@ where
     /// Read the value via the returned [`LazyReadRef`]. When the value is never accessed via
     /// [`LazyReadRef::get`], the dependency is removed again once it's dropped. See
     /// [`LazyReadRef`] for details.
-    pub async fn lazy_reader(self) -> Result<LazyReadRef<T>> {
-        if !self.raw.is_cell_read_tracked() {
-            // Preserve `.untracked()`: there's no dependency for the `LazyReadRef` to remove.
-            return Ok(LazyReadRef::new(self.await?, None));
-        }
+    ///
+    /// Only exposed as [`Vc::lazy_reader`](crate::Vc::lazy_reader), so it can't be combined with
+    /// builder options like `untracked()`: an untracked read has no dependency to remove.
+    pub(crate) async fn read_lazy(self) -> Result<LazyReadRef<T>> {
         let (read_ref, dependency) = self.read_with_keyed_dependency(true).await?;
         Ok(LazyReadRef::new(read_ref, dependency))
     }

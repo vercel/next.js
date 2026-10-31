@@ -601,7 +601,7 @@ where
     /// fails. See [`KeyedReadRef`] for details.
     pub async fn keyed(self) -> Result<KeyedReadRef<T>> {
         let future: ReadVcFuture<T> = self.node.into_read().into();
-        future.keyed().await
+        future.read_keyed().await
     }
 }
 
@@ -618,7 +618,7 @@ where
     /// [`LazyReadRef`] for details.
     pub async fn lazy_reader(self) -> Result<LazyReadRef<T>> {
         let future: ReadVcFuture<T> = self.node.into_read().into();
-        future.lazy_reader().await
+        future.read_lazy().await
     }
 }
 

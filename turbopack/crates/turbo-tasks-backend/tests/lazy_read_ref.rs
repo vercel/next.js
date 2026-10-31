@@ -90,18 +90,15 @@ enum Mode {
     /// The `LazyReadRef` is accessed iff `access` and dropped in a detached future that shares the
     /// task execution's state, which the execution waits for. That's still within the execution.
     DroppedInDetached,
-    /// An untracked lazy read, accessed iff `access`. Never creates a dependency.
-    Untracked,
 }
 
-const MODES: [Mode; 7] = [
+const MODES: [Mode; 6] = [
     Mode::Lazy,
     Mode::TwoLazy,
     Mode::TwoLazyReverseDrop,
     Mode::FullBefore,
     Mode::FullWhileAlive,
     Mode::DroppedInDetached,
-    Mode::Untracked,
 ];
 
 fn mode_index(mode: Mode) -> u8 {
@@ -152,12 +149,6 @@ async fn read_lazy(value: OperationVc<Value>, mode: u8, access: bool) -> Result<
                 result = Some(lazy.get().step);
             }
             turbo_tasks::macro_helpers::spawn_detached_for_testing(async move { drop(lazy) });
-        }
-        Mode::Untracked => {
-            let lazy = value.untracked().lazy_reader().await?;
-            if access {
-                result = Some(lazy.get().step);
-            }
         }
     }
     Ok(ReadResult {
@@ -238,15 +229,6 @@ async fn lazy_read_ref_two_refs_reverse_drop() {
     run(&REGISTRATION, async || {
         check_mode(Mode::TwoLazyReverseDrop, true, true).await?;
         check_mode(Mode::TwoLazyReverseDrop, false, false).await
-    })
-    .await
-    .unwrap()
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn lazy_read_ref_untracked_does_not_depend() {
-    run(&REGISTRATION, async || {
-        check_mode(Mode::Untracked, true, false).await
     })
     .await
     .unwrap()
