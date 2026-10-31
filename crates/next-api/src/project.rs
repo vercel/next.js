@@ -1887,11 +1887,7 @@ impl Project {
                     .await?,
             chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
-            chunking_max_chunk_size: self
-                .next_config()
-                .turbopack_chunking()
-                .await?
-                .max_server_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)

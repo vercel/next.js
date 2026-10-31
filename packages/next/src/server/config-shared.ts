@@ -968,10 +968,11 @@ export interface ExperimentalConfig {
      */
     maxChunkSize?: number
     /**
-     * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. Server chunks have
-     * fixed minimum chunk sizes. Node.js server chunks also have a fixed `maxMergeChunkSize`, while
-     * edge chunks use the effective maximum chunk size as their merge limit. Set to `0` to disable
-     * the limit. Defaults to `10000000` (10 MB).
+     * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. For Node.js,
+     * must be at least 3 times `minServerChunkSize`, and not smaller than `maxMergeServerChunkSize`;
+     * otherwise the values are adjusted with a warning. Edge uses a fixed minimum of 20 KB and
+     * the effective maximum as its merge limit. Set to `0` to disable the maximum size limit.
+     * Defaults to `10000000` (10 MB).
      */
     maxServerChunkSize?: number
     /**
@@ -987,8 +988,8 @@ export interface ExperimentalConfig {
     minComponentChunkSize?: number
     /**
      * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
-     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
-     * apply to Edge runtime chunks.
+     * Smaller chunks are merged into bigger ones to avoid that, unless `maxServerChunkSize` takes
+     * precedence. Defaults to `4000` (4 KB). Doesn't apply to Edge runtime chunks.
      */
     minServerChunkSize?: number
     /**

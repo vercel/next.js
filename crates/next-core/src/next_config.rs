@@ -1593,8 +1593,8 @@ pub const SERVER_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
     ChunkingConfigOptionNames {
         chunks: "server",
         max_chunk_size: "maxServerChunkSize",
-        min_chunk_size: None,
-        max_merge_chunk_size: None,
+        min_chunk_size: Some("minServerChunkSize"),
+        max_merge_chunk_size: Some("maxMergeServerChunkSize"),
     };
 
 /// [`ChunkingConfigOptionNames`] of edge server chunks.
