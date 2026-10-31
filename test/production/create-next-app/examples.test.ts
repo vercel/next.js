@@ -41,6 +41,7 @@ describe('create-next-app --example', () => {
           'package.json',
           'app/page.tsx',
           'app/layout.tsx',
+          'next-env.d.ts',
           'node_modules/next',
         ],
       })
@@ -72,6 +73,7 @@ describe('create-next-app --example', () => {
           'package.json',
           'app/page.tsx',
           'app/layout.tsx',
+          'next-env.d.ts',
           'node_modules/next',
         ],
       })
@@ -140,6 +142,7 @@ describe('create-next-app --example', () => {
           'package.json',
           'app/page.tsx',
           'app/layout.tsx',
+          'next-env.d.ts',
           'node_modules/next',
         ],
       })
@@ -176,6 +179,7 @@ describe('create-next-app --example', () => {
           'package.json',
           'app/page.tsx',
           'app/layout.tsx',
+          'next-env.d.ts',
           'node_modules/next',
         ],
       })
