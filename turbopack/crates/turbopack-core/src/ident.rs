@@ -322,6 +322,10 @@ impl AssetIdent {
         const MAX_FILENAME: usize = 80;
         if name.len() - i > MAX_FILENAME {
             i = name.len() - MAX_FILENAME;
+            // Keep the suffix within the byte limit without splitting a UTF-8 character.
+            while !name.is_char_boundary(i) {
+                i += 1;
+            }
             if let Some(j) = name[i..].find('_')
                 && j < 20
             {
@@ -459,6 +463,50 @@ pub mod tests {
 
             let output_name = output_name_operation().read_strongly_consistent().await?;
             assert_eq!(&*output_name, "prefix-a_b_c_d.js");
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_output_name_truncation_utf8() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn output_name_operation(filename: RcStr) -> anyhow::Result<Vc<RcStr>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().owned().await?;
+                let ident = AssetIdent::from_path(root.join(&filename)?).into_vc();
+                let output = ident.output_name(root, None, rcstr!(".css")).await?;
+                Ok(Vc::cell((*output).clone()))
+            }
+
+            for character in ['å', '界', '🦀'] {
+                let width = character.len_utf8();
+                for offset in 1..width {
+                    // Position the 80-byte suffix boundary inside the character.
+                    let tail = "z".repeat(80 - width + offset);
+                    let filename = format!("{}{character}{tail}.css", "a".repeat(16));
+                    let output = output_name_operation(filename.into())
+                        .read_strongly_consistent()
+                        .await?;
+
+                    // Advancing to the next boundary removes the entire character.
+                    assert!(output.ends_with(&format!("_{tail}.css")));
+                    // Four hash characters, separator, at most 80 bytes, extension.
+                    assert!(output.len() <= 4 + 1 + 80 + 4);
+                }
+            }
+
+            let output = output_name_operation(rcstr!("short.css"))
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(&*output, "short.css");
 
             Ok(())
         })
