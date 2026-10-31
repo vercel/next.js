@@ -98,16 +98,22 @@ Relevant files in the Next.js core:
 
 With experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) handlers, `output.filePath` identifies a native executable rather than a JavaScript module. Package it with the declared `assets` for the target operating system and architecture, preserving executable permissions and the asset destination paths.
 
+By default, the executable targets the build host. An adapter targeting a different platform can set `NEXT_ADAPTER_GO_TARGET` during `next build` to `{"os":"linux","architecture":"x86_64","linking":"static"}`. This experiment currently supports that cross-compilation target only; source analysis still runs on the build host. The setting is independent of the adapter provider.
+
 Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. By default, the generated server matches its emitted route pattern and derives decoded dynamic parameters from the request URL.
 
-Platforms that preserve the public URL when rewriting to a Go function must supply the concrete routed pathname separately. Set the function's `NEXT_GO_ADAPTER_ROUTING` environment variable to JSON with `version: 1` and `pathHeader` naming a trusted request header:
+Each executable contains only its own emitted route pattern. `NEXT_GO_ADAPTER_ROUTING` configures how that executable reads routing metadata; it does not contain a list of routes.
+
+Platforms that preserve the public URL when rewriting to a Go function must supply the concrete routed pathname separately. Set the function's `NEXT_GO_ADAPTER_ROUTING` environment variable to JSON with `version: 1` and `pathHeader` naming a trusted request header with the `x-next-internal-` prefix:
 
 ```json
-{ "version": 1, "pathHeader": "x-platform-route-path" }
+{ "version": 1, "pathHeader": "x-next-internal-route-path" }
 ```
 
 The adapter must remove caller-supplied values for this header at ingress and replace them with exactly one concrete, escaped pathname after routing, including `basePath`. Send the routed pathname rather than a dynamic route template, and omit its query string and fragment. For example, a public request for `/alias?key=one` rewritten to `/users/a%2Fb` retains `/alias?key=one` as its HTTP request URL while the routing header carries `/users/a%2Fb`.
 
-The server derives parameters from this trusted pathname and removes the routing header before calling the matching HTTP method function. `r.URL`, `r.RequestURI`, and the request query reflect the request forwarded by the platform, including any URL normalization it performs. Escaped slashes remain within their original parameter segments. Missing, repeated, or invalid routing headers return `400`; a valid pathname that does not match the emitted route returns `404`. Invalid routing configuration fails server startup. When the environment variable is unset or empty, routing headers have no special meaning and the server continues matching the request URL.
+These paths serve different purposes: the routed pathname selects and populates dynamic parameters, while the forwarded request URL remains available to application code. For a rewrite from `/alias` to `/users/a%2Fb`, matching `/alias` against `/users/[id]` would fail, and replacing the request URL would hide the URL requested by the caller. Platforms that forward the rewritten URL directly can leave `NEXT_GO_ADAPTER_ROUTING` unset.
+
+The server derives parameters from this trusted pathname and removes the routing header before calling the matching HTTP method function. `r.URL`, `r.RequestURI`, and the request query reflect the request forwarded by the platform, including any URL normalization it performs. Escaped slashes stay within their original parameter segments. Missing, repeated, or invalid routing headers return `400`; a valid pathname that does not match the emitted route returns `404`. Invalid routing configuration fails server startup. When the environment variable is unset or empty, routing headers have no special meaning and the server continues matching the request URL.
 
 The platform routes requests to the correct Go function and runs its own rewrite and proxy integration. Node.js outputs continue to use their existing handler interface. JavaScript callbacks such as `ctx.waitUntil` cannot be passed to the Go process; the initial server contract provides no completion guarantee for post-response work.

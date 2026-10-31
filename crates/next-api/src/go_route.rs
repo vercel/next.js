@@ -89,15 +89,17 @@ async fn go_build_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSess
         ));
     }
     let mut go_context = host_go_build_session(*project).await?.go_context.clone();
+    // Adapters may deploy to a different platform than the build host. Keep this
+    // target separate from the host session, whose analysis helper must run locally.
     if is_adapter_build(project).await?
-        && let Some(target) = std::env::var_os("NEXT_ADAPTER_VERCEL_GO_TARGET")
+        && let Some(target) = std::env::var_os("NEXT_ADAPTER_GO_TARGET")
     {
         let target: serde_json::Value = serde_json::from_str(
             target
                 .to_str()
-                .context("NEXT_ADAPTER_VERCEL_GO_TARGET must be UTF-8 JSON")?,
+                .context("NEXT_ADAPTER_GO_TARGET must be UTF-8 JSON")?,
         )
-        .context("Invalid NEXT_ADAPTER_VERCEL_GO_TARGET JSON")?;
+        .context("Invalid NEXT_ADAPTER_GO_TARGET JSON")?;
         ensure!(
             target.get("os").and_then(serde_json::Value::as_str) == Some("linux")
                 && target
@@ -105,7 +107,7 @@ async fn go_build_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSess
                     .and_then(serde_json::Value::as_str)
                     == Some("x86_64")
                 && target.get("linking").and_then(serde_json::Value::as_str) == Some("static"),
-            "NEXT_ADAPTER_VERCEL_GO_TARGET only supports static Linux x86_64 executables"
+            "NEXT_ADAPTER_GO_TARGET only supports static Linux x86_64 executables"
         );
         go_context.goos = rcstr!("linux");
         go_context.goarch = rcstr!("amd64");
@@ -135,6 +137,8 @@ async fn host_go_build_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuil
     if let Some(context) = &*session {
         return Ok(GoBuildSession::persistent(scope, context.options.clone()));
     }
+    // Optional path to an installed Go compiler; otherwise resolve `go` from PATH.
+    // This selects the toolchain for both host-side discovery and route compilation.
     let go = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
     let mut context = GoBuildContext::host(Path::new(&go), None, "").await?;
     context.poll_interval_ms = *project.watch_poll_interval_ms().await?;
@@ -343,6 +347,10 @@ impl Endpoint for GoRouteEndpoint {
             .join("\n");
         let dispatch = include_str!("go_route_dispatch.go")
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
+        // Adapter builds emit an independent PORT-based HTTP server for one route, with
+        // URL matching and parameter extraction owned by that executable. Development
+        // and self-hosted builds emit a private worker: Next.js has already routed the
+        // request and supplies its parameters, authentication token, and lifetime pipe.
         let wrapper = if is_adapter_build(this.project).await? {
             let pathname = AppPath::from(this.page.clone()).to_string();
             let base_path = this.project.next_config().base_path().await?;

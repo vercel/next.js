@@ -1077,20 +1077,18 @@ pub async fn app_entry_point_to_route(
                 })
                 .collect(),
         ),
-        AppEntrypoint::AppRoute { page, path, .. } if path.path.ends_with("/route.go") => {
-            Route::AppRoute {
-                original_name: page.to_string().into(),
-                endpoint: ResolvedVc::upcast(
-                    crate::go_route::GoRouteEndpoint {
-                        project: app_project.await?.project,
-                        path,
-                        page,
-                    }
-                    .resolved_cell(),
-                ),
-                has_action_manifest: false,
-            }
-        }
+        AppEntrypoint::AppGoRoute { page, path, .. } => Route::AppRoute {
+            original_name: page.to_string().into(),
+            endpoint: ResolvedVc::upcast(
+                crate::go_route::GoRouteEndpoint {
+                    project: app_project.await?.project,
+                    path,
+                    page,
+                }
+                .resolved_cell(),
+            ),
+            has_action_manifest: false,
+        },
         AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(

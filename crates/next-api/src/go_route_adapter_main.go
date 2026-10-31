@@ -13,10 +13,12 @@ import (
 	"strings"
 )
 
+// Each executable contains only its own route pattern, not the application route table.
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
 
+// This config selects trusted transport metadata; it contains no routes.
 type nextGoAdapterRouting struct {
 	Version    int    `json:"version"`
 	PathHeader string `json:"pathHeader"`
@@ -27,11 +29,11 @@ func nextGoRoutingConfig() (*nextGoAdapterRouting, error) {
 	if raw == "" {
 		return nil, nil
 	}
-	invalid := fmt.Errorf("invalid NEXT_GO_ADAPTER_ROUTING: expected version 1 and a valid pathHeader")
+	invalid := fmt.Errorf("invalid NEXT_GO_ADAPTER_ROUTING: expected version 1 and a valid x-next-internal-* pathHeader")
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	var config nextGoAdapterRouting
-	if err := decoder.Decode(&config); err != nil || config.Version != 1 || config.PathHeader == "" {
+	if err := decoder.Decode(&config); err != nil || config.Version != 1 || !strings.HasPrefix(strings.ToLower(config.PathHeader), "x-next-internal-") || len(config.PathHeader) == len("x-next-internal-") {
 		return nil, invalid
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
