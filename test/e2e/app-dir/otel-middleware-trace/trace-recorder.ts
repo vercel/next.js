@@ -25,7 +25,9 @@ const PRINTED_ATTRIBUTES = [
 const MAX_REMEMBERED_SPANS = 10_000
 
 interface Store {
-  // The parent of each span started here, from `onStart`'s parent context.
+  // The parent of each span started here, from `onStart`'s parent context:
+  // only a fallback for spans without an SDK parent field (see
+  // `getParentAtEnd`).
   parents: Map<string, string | undefined>
   // The traces of the `instrumentation.ts` lifecycle spans ended here.
   lifecycleTraceIds: Set<string>
@@ -55,6 +57,26 @@ function toMicroseconds([seconds, nanoseconds]: [number, number]) {
 function getType(span: { attributes: ReadableSpan['attributes'] }) {
   const type = span.attributes['next.span_type']
   return typeof type === 'string' ? type : undefined
+}
+
+// The parent a span has when it ends, as span processors' `onEnd` and
+// exporters see it: the adapter can make a started span a root before it ends
+// (see `clearSpanParent` in `deferred-request-span.ts`). The field's presence
+// decides, as `undefined` is a root: `parentSpanContext` in
+// `@opentelemetry/sdk-trace` 2.x, `parentSpanId` in `sdk-trace-base` 1.x.
+// Falls back to the parent at start for a span with neither.
+function getParentAtEnd(
+  span: ReadableSpan,
+  parentAtStart: () => string | undefined
+): string | undefined {
+  const sdkSpan = span as ReadableSpan & { parentSpanId?: string }
+  if ('parentSpanContext' in sdkSpan) {
+    return sdkSpan.parentSpanContext?.spanId
+  }
+  if ('parentSpanId' in sdkSpan) {
+    return sdkSpan.parentSpanId
+  }
+  return parentAtStart()
 }
 
 function write(event: Record<string, unknown>) {
@@ -88,9 +110,7 @@ export const spanRecorder: SpanProcessor = {
   onEnd(span: ReadableSpan) {
     const { traceId, spanId } = span.spanContext()
     const store = getStore()
-    const parentId = store.parents.has(spanId)
-      ? store.parents.get(spanId)
-      : span.parentSpanContext?.spanId
+    const parentId = getParentAtEnd(span, () => store.parents.get(spanId))
     store.parents.delete(spanId)
     const type = getType(span)
     if (type?.startsWith('Instrumentation.')) {
@@ -129,6 +149,25 @@ export const spanRecorder: SpanProcessor = {
   },
   forceFlush: () => Promise.resolve(),
   shutdown: () => Promise.resolve(),
+}
+
+/**
+ * The traces of the root spans the `@vercel/otel` span processor of this
+ * process keeps as open (it keeps every root span until it ends), or
+ * `undefined` if the processor isn't found. Relies on internals of
+ * `@vercel/otel` and the OpenTelemetry SDK, for the test to check that the
+ * middleware doesn't leave root spans open.
+ */
+export function getOpenRootSpanTraceIds(): string[] | undefined {
+  const tracer = trace.getTracer('otel-test-root-state') as any
+  const sdkTracer =
+    typeof tracer._getTracer === 'function' ? tracer._getTracer() : tracer
+  for (const processor of sdkTracer?._spanProcessor?._spanProcessors ?? []) {
+    if (processor?.rootSpanIds instanceof Map) {
+      return [...processor.rootSpanIds.keys()]
+    }
+  }
+  return undefined
 }
 
 /** The trace of the active span, for the test to collect its spans. */
