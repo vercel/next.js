@@ -39,7 +39,7 @@ describe('CPU Profiling - next dev', () => {
     // Verify profile names are meaningful
     for (const profile of cpuProfiles) {
       expect(profile).toMatch(
-        /^(dev-main|dev-server)-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.cpuprofile$/
+        /^(dev-main|dev-server)-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d+\.cpuprofile$/
       )
     }
   })
