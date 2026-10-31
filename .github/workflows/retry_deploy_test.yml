@@ -51,7 +51,6 @@ jobs:
           github.event.workflow_run.event == 'schedule'
         ) &&
         github.event.workflow_run.conclusion == 'failure' &&
-        github.repository == 'vercel/next.js' &&
         github.event.workflow_run.run_attempt >= 2 &&
         !github.event.workflow_run.head_repository.fork
       }}
