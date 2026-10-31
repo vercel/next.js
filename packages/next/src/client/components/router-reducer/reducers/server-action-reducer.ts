@@ -391,12 +391,15 @@ export function serverActionReducer(
       const navigateType = redirectType || 'push'
 
       if (redirectLocation !== undefined) {
-        // If the action triggered a redirect, the action promise will be rejected with
-        // a redirect so that it's handled by RedirectBoundary as we won't have a valid
-        // action result to resolve the promise with. This will effectively reset the state of
-        // the component that called the action as the error boundary will remount the tree.
-        // The status code doesn't matter here as the action handler will have already sent
-        // a response with the correct status code.
+        // If the action triggered a redirect, the reducer navigates here, and the
+        // action's promise rejects with a redirect error. There's no result to
+        // resolve it with, and rejecting stops code that awaited the action.
+        // The rejection is stored in the caller's state (e.g. `useActionState`)
+        // and thrown again on every render, so the nearest RedirectBoundary has
+        // to remount that subtree to clear it, which also resets a form that
+        // submitted the action. The status code doesn't matter here as the
+        // action handler will have already sent a response with the correct
+        // status code.
 
         if (isExternalURL(redirectLocation)) {
           // External redirect. Triggers an MPA navigation.
@@ -585,11 +588,9 @@ function createRedirectErrorForAction(
   resolvedRedirectType: RedirectType
 ) {
   const redirectError = getRedirectError(redirectHref, resolvedRedirectType)
-  // We mark the error as handled because we don't want the redirect to be tried later by
-  // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect
-  // again, as it's run within an effect.
-  // We don't actually need the RedirectBoundary to do a router.push because we already
-  // have all the necessary RSC data to render the new page within a single roundtrip.
+  // Marked as handled because the reducer has already navigated. A
+  // RedirectBoundary that catches it never navigates; it only clears it by
+  // remounting the subtree.
   ;(redirectError as any).handled = true
   return redirectError
 }
