@@ -6,6 +6,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
     ValueToStringRef, Vc,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
@@ -65,6 +66,44 @@ fn relevant_parent_indices(
     } else {
         intersection
     }
+}
+
+/// What the client references of a server component make available to the server components that
+/// follow it in the route (its segment's page, child segments, and the files after it in the same
+/// segment).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FollowingAvailability {
+    /// Nothing: `error`, `not-found`, `forbidden`, `unauthorized`, `default`, `global-error` and
+    /// `global-not-found` are only rendered in some states, so the following server components
+    /// must not rely on the modules they reference.
+    None,
+    /// Everything, if it emits no CSS: `loading` is the Suspense fallback around the segment's
+    /// children. Its client references are part of the response whenever anything below it is,
+    /// but its styles are rendered inside the fallback, so they only apply while it is shown.
+    /// Availability can't be limited to code, so a `loading` that emits CSS makes nothing
+    /// available.
+    UnlessItEmitsCss,
+    /// Everything: `layout` and `template` are rendered, with their styles, whenever anything
+    /// below them is.
+    All,
+}
+
+pub fn following_availability(server_path: &FileSystemPath) -> FollowingAvailability {
+    match server_path.file_stem() {
+        Some("layout" | "template") => FollowingAvailability::All,
+        Some("loading") => FollowingAvailability::UnlessItEmitsCss,
+        _ => FollowingAvailability::None,
+    }
+}
+
+/// Whether a chunk group emits CSS files.
+async fn emits_css(chunk_group: Vc<ChunkGroupResult>) -> Result<bool> {
+    for &asset in chunk_group.await?.assets.await?.iter() {
+        if asset.path().await?.has_extension(".css") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -306,7 +345,7 @@ pub async fn get_app_client_references_chunks(
                 let base_ident = server_component.ident().owned().await?;
 
                 let server_path = server_component.server_path().owned().await?;
-                let is_layout = server_path.file_stem() == Some("layout");
+                let following_availability = following_availability(&server_path);
                 let server_component_path = server_path.to_string_ref().await?;
 
                 let ssr_modules = client_references
@@ -436,12 +475,22 @@ pub async fn get_app_client_references_chunks(
                 };
 
                 if let Some(client_chunk_group) = client_chunk_group {
+                    let available_to_following = match following_availability {
+                        FollowingAvailability::None => false,
+                        FollowingAvailability::UnlessItEmitsCss => {
+                            !emits_css(*client_chunk_group).await?
+                        }
+                        FollowingAvailability::All => true,
+                    };
                     let client_chunk_group = current_client_chunk_group
                         .concatenate(*client_chunk_group)
                         .to_resolved()
                         .await?;
 
-                    if is_layout {
+                    // Only server components that are rendered whenever the following ones are
+                    // make their chunks available to them. A module shared by e.g. `loading.js`
+                    // and `page.js` is then emitted once, in the chunks of `loading.js`.
+                    if available_to_following {
                         current_client_chunk_group = client_chunk_group;
                     }
 
@@ -467,7 +516,7 @@ pub async fn get_app_client_references_chunks(
                         .to_resolved()
                         .await?;
 
-                    if is_layout {
+                    if following_availability != FollowingAvailability::None {
                         current_ssr_chunk_group = ssr_chunk_group;
                     }
 
