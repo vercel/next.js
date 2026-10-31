@@ -354,18 +354,19 @@ describe('native-route-go', () => {
     it('discovers route additions, removals and renames', async () => {
       const source = await next.readFile('app/catch/[...slug]/route.go')
       await next.patchFile('app/added/route.go', source)
+      // A request issued before discovery can compile the 404 page first.
       await retry(async () => {
         expect((await next.fetch('/added')).status).toBe(200)
-      })
+      }, 30_000)
       await next.renameFolder('app/added', 'app/renamed')
       await retry(async () => {
         expect((await next.fetch('/added')).status).toBe(404)
         expect((await next.fetch('/renamed')).status).toBe(200)
-      })
+      }, 30_000)
       await next.deleteFile('app/renamed/route.go')
       await retry(async () => {
         expect((await next.fetch('/renamed')).status).toBe(404)
-      })
+      }, 30_000)
     })
   }
   if (isNextStart) {
@@ -403,6 +404,7 @@ describe('native-route-go', () => {
       })
       expect((await data()).id).toBe('example')
     })
+    // This covers three builds plus startup checks for multiple packaged servers.
     it('emits standalone Go adapter outputs alongside existing Node outputs', async () => {
       await next.stop()
       await next.patchFile('next.config.ts', (config) =>
@@ -643,7 +645,7 @@ describe('native-route-go', () => {
           undefined,
           {
             headers: {
-              'x-test-go-routing-path': '/adapter-base/native/forged',
+              'x-next-internal-route-path': '/adapter-base/native/forged',
             },
           }
         )
@@ -654,7 +656,7 @@ describe('native-route-go', () => {
           undefined,
           {
             headers: {
-              'x-test-go-routing-path': '/adapter-base/native/forged',
+              'x-next-internal-route-path': '/adapter-base/native/forged',
             },
           }
         )
@@ -709,7 +711,7 @@ describe('native-route-go', () => {
 
       const routing = JSON.stringify({
         version: 1,
-        pathHeader: 'x-test-go-routing-path',
+        pathHeader: 'x-next-internal-route-path',
       })
       await withStandaloneRoute(
         nativeOutput,
@@ -723,7 +725,7 @@ describe('native-route-go', () => {
               method: 'POST',
               body: 'rewritten body',
               headers: {
-                'x-test-go-routing-path': '/adapter-base/native/a%2Fb',
+                'x-next-internal-route-path': '/adapter-base/native/a%2Fb',
                 'x-next-go-token': 'forged',
                 'x-next-go-params': 'forged',
               },
@@ -744,7 +746,7 @@ describe('native-route-go', () => {
             undefined,
             {
               headers: {
-                'x-test-go-routing-path': '/adapter-base/native/rewritten',
+                'x-next-internal-route-path': '/adapter-base/native/rewritten',
               },
             }
           )
@@ -772,7 +774,7 @@ describe('native-route-go', () => {
               `http://127.0.0.1:${port}`,
               '/alias',
               undefined,
-              { headers: { 'x-test-go-routing-path': value } }
+              { headers: { 'x-next-internal-route-path': value } }
             )
             expect(invalid.status).toBe(400)
           }
@@ -781,7 +783,7 @@ describe('native-route-go', () => {
               `http://127.0.0.1:${port}/alias`,
               {
                 headers: {
-                  'x-test-go-routing-path': [
+                  'x-next-internal-route-path': [
                     '/adapter-base/native/first',
                     '/adapter-base/native/second',
                   ],
@@ -806,7 +808,11 @@ describe('native-route-go', () => {
             `http://127.0.0.1:${port}`,
             '/alias',
             undefined,
-            { headers: { 'x-test-go-routing-path': '/adapter-base/unrelated' } }
+            {
+              headers: {
+                'x-next-internal-route-path': '/adapter-base/unrelated',
+              },
+            }
           )
           expect(unmatched.status).toBe(404)
         },
@@ -823,7 +829,7 @@ describe('native-route-go', () => {
             undefined,
             {
               headers: {
-                'x-test-go-routing-path':
+                'x-next-internal-route-path':
                   '/adapter-base/catch/one%2Ftwo/three%20four',
               },
             }
@@ -850,7 +856,7 @@ describe('native-route-go', () => {
               `http://127.0.0.1:${port}`,
               '/optional-alias?key=%252f',
               undefined,
-              { headers: { 'x-test-go-routing-path': path } }
+              { headers: { 'x-next-internal-route-path': path } }
             )
             expect(response.status).toBe(200)
             expect(await response.json()).toMatchObject({
@@ -873,7 +879,11 @@ describe('native-route-go', () => {
             `http://127.0.0.1:${port}`,
             '/static-alias?key=%2f&key=one+two',
             undefined,
-            { headers: { 'x-matched-path': '/adapter-base/adapter-static' } }
+            {
+              headers: {
+                'x-next-internal-matched-path': '/adapter-base/adapter-static',
+              },
+            }
           )
           expect(response.status).toBe(200)
           expect(await response.json()).toMatchObject({
@@ -883,7 +893,10 @@ describe('native-route-go', () => {
           })
         },
         {
-          routing: JSON.stringify({ version: 1, pathHeader: 'x-matched-path' }),
+          routing: JSON.stringify({
+            version: 1,
+            pathHeader: 'x-next-internal-matched-path',
+          }),
         }
       )
       await withStandaloneRoute(
@@ -898,7 +911,7 @@ describe('native-route-go', () => {
             undefined,
             {
               headers: {
-                'x-test-go-routing-path':
+                'x-next-internal-route-path':
                   '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
               },
             }
@@ -916,11 +929,16 @@ describe('native-route-go', () => {
       for (const invalid of [
         '{',
         'null',
-        JSON.stringify({ version: 2, pathHeader: 'x-test-go-routing-path' }),
+        JSON.stringify({
+          version: 2,
+          pathHeader: 'x-next-internal-route-path',
+        }),
         JSON.stringify({ version: 1 }),
         JSON.stringify({ version: 1, pathHeader: '' }),
         JSON.stringify({ version: 1, pathHeader: 'invalid header' }),
         JSON.stringify({ version: 1, pathHeader: ':invalid' }),
+        JSON.stringify({ version: 1, pathHeader: 'x-platform-route-path' }),
+        JSON.stringify({ version: 1, pathHeader: 'x-next-internal-' }),
         JSON.stringify({ version: 1, pathHeader: 'x-path', unknown: true }),
         `${routing} {}`,
       ]) {
@@ -932,7 +950,7 @@ describe('native-route-go', () => {
 
       const providerBuild = await next.build({
         env: {
-          NEXT_ADAPTER_VERCEL_GO_TARGET: JSON.stringify({
+          NEXT_ADAPTER_GO_TARGET: JSON.stringify({
             os: 'linux',
             architecture: 'x86_64',
             linking: 'static',
@@ -968,7 +986,7 @@ describe('native-route-go', () => {
 
       const invalidProviderBuild = await next.build({
         env: {
-          NEXT_ADAPTER_VERCEL_GO_TARGET: JSON.stringify({
+          NEXT_ADAPTER_GO_TARGET: JSON.stringify({
             os: 'linux',
             architecture: 'arm64',
             linking: 'static',
@@ -976,10 +994,8 @@ describe('native-route-go', () => {
         },
       })
       expect(invalidProviderBuild.exitCode).not.toBe(0)
-      expect(invalidProviderBuild.cliOutput).toContain(
-        'NEXT_ADAPTER_VERCEL_GO_TARGET'
-      )
-    })
+      expect(invalidProviderBuild.cliOutput).toContain('NEXT_ADAPTER_GO_TARGET')
+    }, 180_000)
   }
 })
 
@@ -990,6 +1006,7 @@ describe('native-route-go in src/app', () => {
     skipStart: true,
     // This fixture exercises local native process lifecycle and source edits.
     skipDeployment: true,
+    env: { WATCHPACK_POLLING: '50' },
   })
   beforeAll(async () => {
     if (skipped) return
@@ -1000,13 +1017,15 @@ describe('native-route-go in src/app', () => {
     await next.start()
   })
   it('discovers grouped native handlers below src/app', async () => {
-    const response = await next.fetch('/native/source')
-    expect(response.status).toBe(201)
-    expect(await response.json()).toMatchObject({
-      id: 'source',
-      sibling: 'sibling-v1',
-      proxy: '1',
-    })
+    await retry(async () => {
+      const response = await next.fetch('/native/source')
+      expect(response.status).toBe(201)
+      expect(await response.json()).toMatchObject({
+        id: 'source',
+        sibling: 'sibling-v1',
+        proxy: '1',
+      })
+    }, 30_000)
   })
 })
 

@@ -10,6 +10,6 @@ func GET(w http.ResponseWriter, r *http.Request) {
 		"params": ParamValues(r, "slug"), "value": r.PathValue("slug"),
 		"path": r.URL.EscapedPath(), "requestURI": r.RequestURI,
 		"query":         r.URL.RawQuery,
-		"routingHeader": r.Header.Get("X-Test-Go-Routing-Path"),
+		"routingHeader": r.Header.Get("X-Next-Internal-Route-Path"),
 	})
 }
