@@ -41,7 +41,7 @@ use next_core::{
     app_structure::find_app_dir,
     next_config::DIST_PROFILES_DIR_NAME,
     next_telemetry::ProjectFeatureUsageSummary,
-    route_discovery::DevelopmentDiscovery,
+    route_discovery::{DevelopmentDiscovery, OptionDevelopmentDiscovery},
     tracing_presets::{
         TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
         TRACING_NEXT_TURBOPACK_TARGETS,
@@ -1254,14 +1254,28 @@ struct EntrypointsWithIssues {
 async fn get_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
-    // Tooling must continue receiving authored-file updates when a conflicting route or another
-    // compilation diagnostic prevents the effective runtime inventory from being returned.
-    let development = container.development_discovery().owned().await?;
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
     let filter = container.project().issue_filter().await?;
     let (entrypoints, issues, effects) =
         strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let development = match &entrypoints {
+        // The runtime inventory embeds the same discovery.
+        Some(entrypoints) => entrypoints.development.clone(),
+        // Tooling must continue receiving authored-file updates when a conflicting route or
+        // another compilation diagnostic prevents the effective runtime inventory from being
+        // returned. Discovery failures follow the runtime inventory's rule: one reported with an
+        // Error issue, such as a `next` package that is briefly missing during an install, means
+        // no tooling update instead of a fatal error. The runtime inventory reports that issue.
+        None => {
+            let (development, ..) = strongly_consistent_catch_collectables(
+                project_container_development_discovery_operation(container),
+                &filter,
+            )
+            .await?;
+            development.and_then(ReadRef::into_owned)
+        }
+    };
     Ok(EntrypointsWithIssues {
         entrypoints,
         development,
@@ -1278,6 +1292,13 @@ fn project_container_entrypoints_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Vc<Entrypoints> {
     container.entrypoints()
+}
+
+#[turbo_tasks::function(operation, root)]
+fn project_container_development_discovery_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<OptionDevelopmentDiscovery> {
+    container.development_discovery()
 }
 
 #[turbo_tasks::value(serialization = "skip")]
