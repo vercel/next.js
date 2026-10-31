@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, source::Source,
@@ -55,10 +55,7 @@ impl StructuredImageModuleType {
                     .cell(),
                 ),
                 ReferenceType::Internal(ResolvedVc::cell(
-                    fxindexmap!(
-                        rcstr!("IMAGE") => ResolvedVc::upcast(static_asset)
-                    )
-                    .into(),
+                    [(rcstr!("IMAGE"), ResolvedVc::upcast(static_asset))].into(),
                 )),
             )
             .module())

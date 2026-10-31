@@ -70,9 +70,10 @@ pub async fn bootstrap(
         .to_resolved()
         .await?;
 
-    let mut inner_assets = inner_assets.owned().await?;
-    inner_assets.insert(rcstr!("ENTRY"), asset);
-    inner_assets.insert(rcstr!("BOOTSTRAP_CONFIG"), config_asset);
+    let inner_assets = inner_assets.await?.extend([
+        (rcstr!("ENTRY"), asset),
+        (rcstr!("BOOTSTRAP_CONFIG"), config_asset),
+    ]);
 
     let asset = asset_context
         .process(

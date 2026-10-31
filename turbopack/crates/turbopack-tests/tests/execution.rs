@@ -14,7 +14,7 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
-    debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
+    debug::ValueDebugFormat, read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -578,12 +578,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            ReferenceType::Internal(ResolvedVc::cell(
-                fxindexmap! {
-                    rcstr!("TESTS") => test_asset,
-                }
-                .into(),
-            )),
+            ReferenceType::Internal(ResolvedVc::cell([(rcstr!("TESTS"), test_asset)].into())),
         )
         .module();
 
