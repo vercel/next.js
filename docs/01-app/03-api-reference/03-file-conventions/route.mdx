@@ -401,7 +401,7 @@ export async function POST(req) {
 These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
 
 ```ts filename="app/api/route.ts" switcher
-// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_an_iterator_or_async_iterator_to_a_stream
 function iteratorToStream(iterator: any) {
   return new ReadableStream({
     async pull(controller) {
