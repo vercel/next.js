@@ -137,7 +137,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
     ;(async () => {
       if (
         request.match(
-          /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|jest-worker|stacktrace-parser|@ampproject\/toolbox-optimizer)/
+          /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|stacktrace-parser|@ampproject\/toolbox-optimizer)/
         )
       ) {
         callback(null, 'commonjs ' + request)

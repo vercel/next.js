@@ -1721,9 +1721,6 @@ importers:
       is-wsl:
         specifier: 2.2.0
         version: 2.2.0
-      jest-worker:
-        specifier: 27.5.1
-        version: 27.5.1
       json5:
         specifier: 2.2.3
         version: 2.2.3

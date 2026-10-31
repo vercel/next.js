@@ -2,7 +2,7 @@ import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { Worker } from '../../lib/worker'
+import { Worker } from '../../lib/worker/index'
 import origDebug from 'next/dist/compiled/debug'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
@@ -46,10 +46,9 @@ async function webpackBuildWithWorker(
 
   for (const compilerName of compilerNames) {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
+      workerName: `Next.js webpack worker (${compilerName})`,
       exposedMethods: ['workerMain'],
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
+      maxWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {
@@ -78,7 +77,7 @@ async function webpackBuildWithWorker(
       recordTraceEvents(curResult.debugTraceEvents)
     }
     // destroy worker so it's not sticking around using memory
-    await worker.end()
+    await worker.shutdown()
 
     // Update plugin state
     pluginState = deepMerge(pluginState, curResult.pluginState)
