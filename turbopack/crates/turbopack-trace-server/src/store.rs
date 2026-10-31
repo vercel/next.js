@@ -29,10 +29,10 @@ const CUT_OFF_DEPTH: u32 = 80;
 /// `memory_pressure` is an OS-reported value in `0..=100`; `memory_footprint`
 /// is the process resident memory size in bytes. `0` is used when the reporter
 /// platform did not expose the corresponding signal.
-type MemorySample = (Timestamp, u64, u8, u64, u64);
+pub(crate) type MemorySample = (Timestamp, u64, u8, u64, u64);
 
 /// Maximum number of memory samples returned in a query result.
-const MAX_MEMORY_SAMPLES: usize = 200;
+pub(crate) const MAX_MEMORY_SAMPLES: usize = 200;
 /// Maximum number of equal-duration concurrency segments in a span query.
 const MAX_CONCURRENCY_SAMPLES: usize = 200;
 
@@ -435,6 +435,36 @@ impl Store {
             .collect()
     }
 
+    /// Up to `max_samples` samples in `[start, end]`. When there are more,
+    /// consecutive groups are merged into the sample with the most memory in
+    /// each, kept whole.
+    ///
+    /// Unlike [`Self::memory_samples_for_range_with_ts`], which takes each
+    /// column's max separately for the viewer's per-signal series, every row
+    /// here is a real sample, so its columns can be compared with each other
+    /// (e.g. footprint minus memory). A group's own peak footprint can be in a
+    /// different row, so compute peaks from [`Self::memory_samples_slice`].
+    #[allow(
+        dead_code,
+        reason = "only used by the query API in lib.rs, not the binary"
+    )]
+    pub fn memory_sample_rows_for_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        max_samples: usize,
+    ) -> Vec<MemorySample> {
+        let slice = self.memory_samples_slice(start, end);
+        let max_samples = max_samples.max(1);
+        if slice.len() <= max_samples {
+            return slice.to_vec();
+        }
+        slice
+            .chunks(slice.len().div_ceil(max_samples))
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, ..)| *mem).unwrap())
+            .collect()
+    }
+
     /// Returns up to `MAX_MEMORY_SAMPLES` active worker thread counts in the
     /// range `[start, end]`, with the same length and group boundaries as
     /// [`Self::memory_samples_for_range`]. Each group is downsampled by taking
@@ -510,7 +540,51 @@ impl Store {
         })
     }
 
-    fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
+    /// Timestamps of the first and last memory sample, or `None` without any.
+    #[allow(
+        dead_code,
+        reason = "only used by the query API in lib.rs, not the binary"
+    )]
+    pub fn memory_sample_range(&self) -> Option<(Timestamp, Timestamp)> {
+        Some((
+            self.memory_samples.first()?.0,
+            self.memory_samples.last()?.0,
+        ))
+    }
+
+    /// Committed bytes and footprint at `ts`, linearly interpolated between the
+    /// samples on either side. Before the first sample or after the last, the
+    /// nearest one: the first sample often lands just after work starts, and
+    /// the longest spans lost their start reading. `None` only without any
+    /// samples.
+    ///
+    /// Short spans often contain no sample at all, so this is what gives them
+    /// a memory reading.
+    #[allow(
+        dead_code,
+        reason = "only used by the query API in lib.rs, not the binary"
+    )]
+    pub fn memory_at(&self, ts: Timestamp) -> Option<(u64, u64)> {
+        let after = self.memory_samples.partition_point(|(t, ..)| *t < ts);
+        let Some(&(after_ts, after_mem, _, after_footprint, _)) = self.memory_samples.get(after)
+        else {
+            let &(_, mem, _, footprint, _) = self.memory_samples.last()?;
+            return Some((mem, footprint));
+        };
+        if after_ts == ts || after == 0 {
+            return Some((after_mem, after_footprint));
+        }
+        let (before_ts, before_mem, _, before_footprint, _) = self.memory_samples[after - 1];
+        let span = (*after_ts - *before_ts) as f64;
+        let t = (*ts - *before_ts) as f64 / span;
+        let lerp = |a: u64, b: u64| (a as f64 + (b as f64 - a as f64) * t).round() as u64;
+        Some((
+            lerp(before_mem, after_mem),
+            lerp(before_footprint, after_footprint),
+        ))
+    }
+
+    pub(crate) fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
         // Binary search for the first sample >= start
         let lo = self.memory_samples.partition_point(|(ts, ..)| *ts < start);
         // Binary search for the first sample > end
@@ -693,6 +767,68 @@ mod tests {
                 .active_worker_threads_samples_for_range(Timestamp::from_micros(202), end)
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn memory_at_interpolates_between_samples() {
+        let mut store = Store::new();
+        // Without samples there is nothing to report.
+        assert_eq!(store.memory_at(Timestamp::from_micros(5)), None);
+        store.add_memory_sample(Timestamp::from_micros(10), 100, 0, 1000, 1);
+        store.add_memory_sample(Timestamp::from_micros(20), 200, 0, 3000, 1);
+
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(10)),
+            Some((100, 1000))
+        );
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(15)),
+            Some((150, 2000))
+        );
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(20)),
+            Some((200, 3000))
+        );
+        // Outside the sampled range, the nearest sample.
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(9)),
+            Some((100, 1000))
+        );
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(21)),
+            Some((200, 3000))
+        );
+        // Decreasing memory interpolates downwards.
+        store.add_memory_sample(Timestamp::from_micros(30), 0, 0, 0, 1);
+        assert_eq!(
+            store.memory_at(Timestamp::from_micros(25)),
+            Some((100, 1500))
+        );
+    }
+
+    #[test]
+    fn downsampled_rows_are_whole_samples() {
+        let mut store = Store::new();
+        // In each pair, one sample has the most memory and the other the
+        // largest footprint.
+        for i in 0..10u64 {
+            let (mem, footprint) = if i % 2 == 0 {
+                (100 + i, 1)
+            } else {
+                (1, 500 + i)
+            };
+            store.add_memory_sample(Timestamp::from_micros(i), mem, 0, footprint, 1);
+        }
+        let rows =
+            store.memory_sample_rows_for_range(Timestamp::ZERO, Timestamp::from_micros(9), 5);
+        assert_eq!(rows.len(), 5);
+        for (i, &(ts, mem, _, footprint, _)) in rows.iter().enumerate() {
+            let i = 2 * i as u64;
+            assert_eq!(
+                (ts, mem, footprint),
+                (Timestamp::from_micros(i), 100 + i, 1)
+            );
+        }
     }
 
     fn ts(micros: u64) -> Timestamp {
