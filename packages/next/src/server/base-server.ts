@@ -1002,7 +1002,16 @@ export default abstract class Server<
                   // is different from the handleRequest span. This ensures APM
                   // tools that read attributes from the outermost span (e.g.
                   // a platform-created HTTP span) can derive the resource name.
-                  if (parentSpan && parentSpan !== span) {
+                  // The parent may have ended already: an HTTP instrumentation
+                  // ends its server span when the response closes, and a route
+                  // handler's response closes before this callback runs.
+                  // Setting an attribute on an ended span is dropped, and the
+                  // SDK warns "Operation attempted on ended Span" each time.
+                  if (
+                    parentSpan &&
+                    parentSpan !== span &&
+                    parentSpan.isRecording()
+                  ) {
                     parentSpan.setAttribute('http.route', route)
                   }
                 } else {
