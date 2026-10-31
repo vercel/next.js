@@ -442,18 +442,18 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name == 'push' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && (github.event_name == 'push' || inputs.futureCompat || github.event_name == 'schedule') }}
 
     strategy:
       fail-fast: false
       matrix:
         mode:
-          - '-F turbopack=false'
-          - '-F turbopack=true'
+          - '--filter turbopack=false'
+          - '--filter turbopack=true'
         selector:
-          - '--scenario=heavy-npm-deps-dev -F page=homepage'
-          - '--scenario=heavy-npm-deps-build -F page=homepage'
-          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled -F page=homepage'
+          - '--scenario=heavy-npm-deps-dev --filter page=homepage'
+          - '--scenario=heavy-npm-deps-build --filter page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --filter page=homepage'
     permissions:
       contents: read
       id-token: write
@@ -462,7 +462,7 @@ jobs:
       futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
-          --datadog=ubuntu-latest-16-core-arm-oss \
+          ${{ !(inputs.futureCompat || github.event_name == 'schedule') && '--datadog=ubuntu-latest-16-core-arm-oss' || '' }} \
           ${{ matrix.mode }} \
           ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
