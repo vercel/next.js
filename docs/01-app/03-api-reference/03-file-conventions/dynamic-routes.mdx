@@ -202,25 +202,26 @@ Provide params ahead of time to prerender pages at build time. You can prerender
 
 During the build process, the route is executed with each sample param to collect the HTML result. If dynamic content or runtime data are accessed incorrectly, the build will fail.
 
-```tsx filename="app/blog/[slug]/page.tsx" highlight={3-5,8,19}
+```tsx filename="app/blog/[slug]/page.tsx" highlight={3-5,11-12,18-19,30}
 import { Suspense } from 'react'
 
 export async function generateStaticParams() {
   return [{ slug: '1' }, { slug: '2' }, { slug: '3' }]
 }
 
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
-  const { slug } = await params
-
+export default function Page({ params }: PageProps<'/blog/[slug]'>) {
   return (
     <div>
       <h1>Blog Post</h1>
-      <Content slug={slug} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <Content params={params} />
+      </Suspense>
     </div>
   )
 }
 
-async function Content({ slug }: { slug: string }) {
+async function Content({ params }: Pick<PageProps<'/blog/[slug]'>, 'params'>) {
+  const { slug } = await params
   const post = await getPost(slug)
   return (
     <article>
@@ -237,64 +238,53 @@ async function getPost(slug: string) {
 }
 ```
 
-Build-time validation only covers code paths that execute with the sample params. If your route has conditional logic that accesses runtime APIs for certain param values not in your samples, those branches won't be validated at build time:
+> **Good to know**: This example uses `<Suspense>` so [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) can keep URL-specific `params` out of the shared App Shell.
+
+Build-time validation only covers code paths that execute for values returned by `generateStaticParams`. Code paths reached only by other param values are validated on the first request.
+
+For example, suppose `generateStaticParams` only returns slugs that do not start with `localized-`. The build does not execute the conditional branch below. The first request for a `localized-*` slug fails because `cookies()` cannot be read inside a [`'use cache'`](/docs/app/api-reference/directives/use-cache#request-time-apis) scope:
 
 ```tsx filename="app/blog/[slug]/page.tsx"
 import { cookies } from 'next/headers'
 
-export async function generateStaticParams() {
-  return [{ slug: 'public-post' }, { slug: 'hello-world' }]
-}
+async function getPost(slug: string) {
+  'use cache'
 
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
-  const { slug } = await params
-
-  if (slug.startsWith('private-')) {
-    // This branch is never executed at build time
-    // Runtime requests for 'private-*' slugs will error
-    return <PrivatePost slug={slug} />
+  let locale = 'en'
+  if (slug.startsWith('localized-')) {
+    locale = (await cookies()).get('locale')?.value ?? 'en'
   }
 
-  return <PublicPost slug={slug} />
-}
-
-async function PrivatePost({ slug }: { slug: string }) {
-  const token = (await cookies()).get('token')
-  // ... fetch and render private post using token for auth
+  const res = await fetch(
+    `https://api.vercel.app/blog/${slug}?locale=${locale}`
+  )
+  return res.json()
 }
 ```
 
-For runtime params not returned by `generateStaticParams`, validation occurs during the first request. In the example above, requests for slugs starting with `private-` will fail because `PrivatePost` accesses `cookies()` without a Suspense boundary. Other runtime params that don't hit the conditional branch will render successfully and be saved to disk for subsequent requests.
+Read the cookie outside the cached function and pass its value as an argument. In the full example above, `Content` is already inside `<Suspense>`:
 
-To fix this, wrap `PrivatePost` with Suspense:
-
-```tsx filename="app/blog/[slug]/page.tsx" highlight={13-15}
-import { Suspense } from 'react'
-import { cookies } from 'next/headers'
-
-export async function generateStaticParams() {
-  return [{ slug: 'public-post' }, { slug: 'hello-world' }]
-}
-
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+```tsx filename="app/blog/[slug]/page.tsx"
+async function Content({ params }: Pick<PageProps<'/blog/[slug]'>, 'params'>) {
   const { slug } = await params
+  const locale = slug.startsWith('localized-')
+    ? ((await cookies()).get('locale')?.value ?? 'en')
+    : 'en'
+  const post = await getPost(slug, locale)
 
-  if (slug.startsWith('private-')) {
-    return (
-      <Suspense fallback={<div>Loading...</div>}>
-        <PrivatePost slug={slug} />
-      </Suspense>
-    )
-  }
-
-  return <PublicPost slug={slug} />
+  return <article>{post.title}</article>
 }
 
-async function PrivatePost({ slug }: { slug: string }) {
-  const token = (await cookies()).get('token')
-  // ... fetch and render private post using token for auth
+async function getPost(slug: string, locale: string) {
+  'use cache'
+  const res = await fetch(
+    `https://api.vercel.app/blog/${slug}?locale=${locale}`
+  )
+  return res.json()
 }
 ```
+
+For params not returned by `generateStaticParams`, Partial Prefetching serves the Suspense fallback while Next.js renders the URL-specific page. Next.js saves the completed page so later visits can receive it without the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for details.
 
 ## Examples
 
