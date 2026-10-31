@@ -1579,6 +1579,15 @@ pub struct ChunkingConfigOptionNames {
     pub max_merge_chunk_size: Option<&'static str>,
 }
 
+/// [`ChunkingConfigOptionNames`] of client chunks.
+pub const CLIENT_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "client",
+        max_chunk_size: "maxChunkSize",
+        min_chunk_size: Some("minChunkSize"),
+        max_merge_chunk_size: Some("maxMergeChunkSize"),
+    };
+
 /// [`ChunkingConfigOptionNames`] of Node.js server chunks.
 pub const SERVER_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
     ChunkingConfigOptionNames {

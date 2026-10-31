@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_component_chunks/input/pages/p2.js"],"sourcesContent":["import { x } from '../shared/x.js'\nimport { z } from '../shared/z.js'\n\nexport const p2 = [x, z]\n"],"names":["p2"],"mappings":";;;;AAAA;AACA;;;AAEO,MAAMA,KAAK;IAAC,iOAAC;IAAE,iOAAC;CAAC"}}]
-}
