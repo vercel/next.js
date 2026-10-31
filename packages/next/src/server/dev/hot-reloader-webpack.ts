@@ -1037,7 +1037,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       name: bundlePath,
                       page,
                       appPaths: entryData.appPaths,
-                      allNormalizedAppPaths: null, // Not available in dev mode
+                      staticSiblingsByParentUrl: undefined, // Not available in dev mode
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
                         relative(
@@ -1178,7 +1178,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     name: bundlePath,
                     page,
                     appPaths: entryData.appPaths,
-                    allNormalizedAppPaths: null, // Not available in dev mode
+                    staticSiblingsByParentUrl: undefined, // Not available in dev mode
                     pagePath,
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
