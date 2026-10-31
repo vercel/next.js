@@ -3407,6 +3407,9 @@ impl AggregationUpdateQueue {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
+pub mod aggregation_queue;
+
 trait TaskIdWithOptionalCount {
     fn task_id_and_count(&self) -> (TaskId, u32);
 }
