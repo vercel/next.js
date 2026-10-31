@@ -1,10 +1,5 @@
 import type { RouteTree } from './segment-cache/cache'
-import React, {
-  useEffect,
-  useMemo,
-  useInsertionEffect,
-  useDeferredValue,
-} from 'react'
+import React, { useEffect, useMemo, useInsertionEffect } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -187,19 +182,17 @@ function Head({
 }: {
   headRenderTree: RouteTree<CacheNode>
 }): React.ReactNode {
-  // If the head has a `prefetchRsc`, it's the statically prefetched data. We
-  // should use that on initial render instead of `rsc`. Then we'll switch to
-  // `rsc` when the dynamic response streams in.
   const head = headRenderTree.data.rsc
   const prefetchHead = headRenderTree.data.prefetchRsc
 
-  // If no prefetch data is available, then we go straight to rendering `head`.
-  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
+  if (prefetchHead === null) {
+    return head
+  }
 
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument.
-  return useDeferredValue(head, resolvedPrefetchRsc)
+  // The prefetched head may be an empty optimistic placeholder. Only use it
+  // if the final head suspends, rather than committing an empty head before
+  // attempting to render a final head that may already be available.
+  return <React.Suspense fallback={prefetchHead}>{head}</React.Suspense>
 }
 
 /**
@@ -486,10 +479,6 @@ function Router({
     }
   }, [tree, scrollRef, nextUrl, previousNextUrl])
 
-  // The head is wrapped in an extra component so we can use
-  // `useDeferredValue` to swap between the prefetched and final versions of
-  // the head. (This is what LayoutRouter does for segment data, too.)
-  //
   // The `key` is used to remount the component whenever the head moves to a
   // different page, one of its path param values changes (the same inputs as
   // LayoutRouter's keys), or its search params change. These are the entries

@@ -87,4 +87,56 @@ describe('metadata-soft-nav-cache-components', () => {
       )
     })
   })
+
+  it('does not commit an empty title before rendering an available head', async () => {
+    let page: Playwright.Page = null as any
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    expect(await browser.eval(() => document.title)).toBe('Home Default')
+
+    // Observe between commits, rather than only checking the eventual title.
+    // The navigation response already contains this route's static metadata.
+    const titleObserver = await page.evaluateHandle(() => {
+      const titles = [document.title]
+      const observer = new MutationObserver(() => {
+        titles.push(document.title)
+      })
+      observer.observe(document.head, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      })
+      return { titles, stop: () => observer.disconnect() }
+    })
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/static-head"]')
+          .click()
+        await browser.elementByCss('a[href="/static-head"]').click()
+      },
+      { includes: 'Static head content' }
+    )
+
+    await browser.waitForElementByCss('#static-head')
+    await retry(async () => {
+      expect(await browser.eval(() => document.title)).toBe(
+        'Static Head | Site'
+      )
+    })
+
+    const titles = await titleObserver.evaluate(({ titles, stop }) => {
+      stop()
+      return titles
+    })
+    await titleObserver.dispose()
+    expect(titles).toContain('Static Head | Site')
+    expect(titles).not.toContain('')
+  })
 })

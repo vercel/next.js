@@ -13,6 +13,11 @@ export default function Home() {
             static-meta (static metadata, dynamic body)
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/static-head" prefetch={false}>
+            static-head (static metadata, no prefetch)
+          </LinkAccordion>
+        </li>
       </ul>
     </main>
   )
