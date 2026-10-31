@@ -82,9 +82,15 @@ describe('segment cache - vary params base dynamic', () => {
       }))
   }
 
+  // Revealing an accordion's link must start the route's prefetches inside
+  // `act`, which times out when none starts. Starting from the home page, the
+  // visible links there prefetch the same routes as soon as it loads; when
+  // those prefetches finish before `act` begins, the revealed link finds the
+  // routes already cached and starts nothing. So start from a page whose only
+  // links are the accordions'.
   const collectSegmentPrefetchResponses = async (
     href: string,
-    startPath: string = '/'
+    startPath: string = '/link-accordions'
   ) => {
     let act: ReturnType<typeof createRouterAct>
     const segmentPrefetchResponses: Array<Promise<SegmentPrefetchResponse>> = []
