@@ -34,6 +34,7 @@ import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
+import { DecodeError } from '../../shared/lib/utils'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
@@ -406,6 +407,11 @@ async function requestHandler(
     } catch (err) {
       if (!closeController.isClosed) {
         closeController.dispatchClose()
+      }
+      if (err instanceof DecodeError) {
+        return new Response('Bad Request', {
+          status: 400,
+        })
       }
       const silenceLog = false
       await pageRouteModule.onRequestError(
