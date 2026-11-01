@@ -1267,7 +1267,12 @@ impl TurboTasksBackend {
     /// A concurrent `update_cell` that collected the [`CellKey::Keyed`] dependent before the
     /// conversion still invalidates `reader`, as it always invalidates collected
     /// [`CellKey::Keyed`] dependents.
-    fn convert_remaining_keyed_cell_dependencies(
+    ///
+    /// Unlike [`Self::convert_keyed_cell_dependency`], which narrows a dependency to
+    /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
+    /// depend on the cell content and converts to a full dependency (or just removes the edge when
+    /// the cell's task is immutable), so it can't reuse that method.
+    fn convert_remaining_keyed_cell_dependencies_at_task_completion(
         &self,
         ctx: &mut ExecuteContext<'_>,
         reader: TaskId,
@@ -2362,10 +2367,14 @@ impl TurboTasksBackend {
 
         let mut ctx = self.execute_context(turbo_tasks);
 
-        // `CellKey::Keyed` ids are only meaningful within this execution, so convert the remaining
-        // ones to normal dependencies first, before the outdated edges are cleaned up.
+        // Normally no `CellKey::Keyed` dependencies remain here: dropping a `KeyedReadRef` within
+        // the execution already converted its dependency. They only remain when a `KeyedReadRef`
+        // leaked (the manager panics after this returns) or its conversion was refused because
+        // the cell content was missing (e.g. during a concurrent `update_cell`). Their ids are only
+        // meaningful within this execution, so convert them to normal dependencies first, before
+        // the outdated edges are cleaned up, to keep the dependency graph consistent.
         if has_keyed_reads && self.should_track_dependencies() {
-            self.convert_remaining_keyed_cell_dependencies(&mut ctx, task_id);
+            self.convert_remaining_keyed_cell_dependencies_at_task_completion(&mut ctx, task_id);
         }
         // Only checked for executions with `keyed_reader()` reads, so other tasks don't pay for it.
         debug_assert!(

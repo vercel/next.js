@@ -579,7 +579,10 @@ mod invalidate_cell_dependents_tests {
         }
 
         tt.backend()
-            .convert_remaining_keyed_cell_dependencies(&mut ctx, task(DEPENDENT));
+            .convert_remaining_keyed_cell_dependencies_at_task_completion(
+                &mut ctx,
+                task(DEPENDENT),
+            );
 
         let (cell_task, dependent) =
             ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
