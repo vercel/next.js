@@ -76,6 +76,15 @@ export type {
 } from './runner/tasks'
 export type TestAPI<ExtraContext extends object = {}> =
   TestDeclaration<ExtraContext>
+export type TaskState = import('./runner/tasks').TaskResult['state']
+export type TestExecutionMethod = 'run' | 'collect'
+export interface TestTryOptions {
+  retry: number
+  repeats: number
+}
+export interface ExternalResult {
+  source?: string
+}
 export interface ProvidedContext {}
 export function inject<Key extends keyof ProvidedContext & string>(
   key: Key
@@ -561,6 +570,12 @@ export type {
   ExpectTypeOf,
   SnapshotResult,
   SnapshotStateOptions,
+  SnapshotData,
+  SnapshotMatchOptions,
+  SnapshotSerializer,
+  SnapshotSummary,
+  SnapshotUpdateState,
+  UncheckedSnapshot,
 } from '../../compiled/next-test-primitives'
 
 export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =

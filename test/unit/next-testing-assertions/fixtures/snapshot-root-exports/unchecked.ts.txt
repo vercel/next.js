@@ -1,0 +1,2 @@
+import type {UncheckedSnapshot} from 'vitest'
+const unchecked:UncheckedSnapshot={filePath:'/snapshot.snap',keys:['case 1','case 2']};unchecked.keys.push('case 3');void unchecked

@@ -1,0 +1,2 @@
+import type {SnapshotData} from 'vitest'
+const data:SnapshotData={ 'suite > case 1':'serialized', named:'value' }; const value:string=data.named; void value

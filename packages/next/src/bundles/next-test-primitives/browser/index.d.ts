@@ -27,6 +27,12 @@ export {
   stripSnapshotIndentation,
   type SnapshotStateOptions,
   type SnapshotResult,
+  type SnapshotData,
+  type SnapshotMatchOptions,
+  type SnapshotSerializer,
+  type SnapshotSummary,
+  type SnapshotUpdateState,
+  type UncheckedSnapshot,
 } from '@vitest/snapshot'
 
 export { expectTypeOf } from 'expect-type'

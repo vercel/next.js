@@ -2203,7 +2203,10 @@ declare class SnapshotState {
 	getSnapshotFiles(): string[];
 	pack(): Promise<SnapshotResult>;
 }
+
+type SnapshotData = Record<string, string>;
 type SnapshotUpdateState = "all" | "new" | "none";
+type SnapshotSerializer = Plugin$1;
 interface SnapshotStateOptions {
 	updateSnapshot: SnapshotUpdateState;
 	snapshotEnvironment: SnapshotEnvironment;
@@ -2238,6 +2241,26 @@ interface SnapshotResult {
 	matched: number;
 	unchecked: number;
 	uncheckedKeys: Array<string>;
+	unmatched: number;
+	updated: number;
+}
+interface UncheckedSnapshot {
+	filePath: string;
+	keys: Array<string>;
+}
+interface SnapshotSummary {
+	added: number;
+	didUpdate: boolean;
+	failure: boolean;
+	filesAdded: number;
+	filesRemoved: number;
+	filesRemovedList: Array<string>;
+	filesUnmatched: number;
+	filesUpdated: number;
+	matched: number;
+	total: number;
+	unchecked: number;
+	uncheckedKeysByFile: Array<UncheckedSnapshot>;
 	unmatched: number;
 	updated: number;
 }
@@ -5494,4 +5517,4 @@ declare function createBrowserLocatorFormatter(): {
 }
 
 export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, createBrowserLocatorFormatter, createChaiAssertInterface, createChaiShouldInterface, createTimerContext, customMatchers, matchers$1 as domMatchers, equals, expectTypeOf, fnNameFor, format, generateToBeMessage, getChaiAssertionIdentity, getChaiAssertionTransferSourceIdentity, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, getVitestAssertionTaskRuntime, hasAsymmetric, hasChaiAssertionTaskFlagTransfer, hasProperty, inspect, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, mockObject, pluralize, prettyDOM, queries, recordAsyncExpect, registerVitestAssertionTaskRuntime, setState, sparseArrayEquality, index_d as spies, stringify, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
-export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, MaybeMockedDeep, Mock, MockContext, Disposable as MockDisposable, MockInstance, MockResult, MockResultIncomplete, MockResultReturn, MockResultThrow, MockSettledResult, MockSettledResultFulfilled, MockSettledResultIncomplete, MockSettledResultRejected, Mocked, MockedClass, MockedFunction, MockedObject, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, TestError, Tester, TesterContext };
+export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, MaybeMockedDeep, Mock, MockContext, Disposable as MockDisposable, MockInstance, MockResult, MockResultIncomplete, MockResultReturn, MockResultThrow, MockSettledResult, MockSettledResultFulfilled, MockSettledResultIncomplete, MockSettledResultRejected, Mocked, MockedClass, MockedFunction, MockedObject, PromisifyAssertion, RawMatcherFn, SnapshotData, SnapshotMatchOptions, SnapshotResult, SnapshotSerializer, SnapshotStateOptions, SnapshotSummary, SnapshotUpdateState, SyncExpectationResult, TestError, Tester, TesterContext, UncheckedSnapshot };

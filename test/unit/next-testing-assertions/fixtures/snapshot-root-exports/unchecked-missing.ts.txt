@@ -1,0 +1,2 @@
+import type {UncheckedSnapshot} from 'vitest'
+const unchecked:UncheckedSnapshot={filePath:'/snapshot.snap'};void unchecked

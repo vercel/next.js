@@ -1,0 +1,2 @@
+import type {SnapshotUpdateState} from 'vitest'
+const modes:SnapshotUpdateState[]=['all','new','none'];void modes

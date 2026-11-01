@@ -1533,3 +1533,43 @@ it.each(
   },
   130000
 )
+
+it('matches six genuine snapshot root type exports without controller dependencies', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'snapshot-root-exports.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 20,
+    accepted: 8,
+    rejected: 12,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    transitiveSnapshotTypeIdentity: true,
+    serializerOverloadContracts: true,
+    noVitestViteFormatterDependencies: true,
+    typeOnlyImports: true,
+  })
+}, 35000)
+
+it('matches standalone task and external-result root type contracts', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'standalone-target-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 18,
+    accepted: 9,
+    rejected: 9,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    taskStateUnionIdentity: true,
+    executionAndTryFieldIdentities: true,
+    noVitestViteFormatterDependencies: true,
+    typeOnlyImports: true,
+  })
+}, 35000)

@@ -1,0 +1,2 @@
+import type {SnapshotSerializer} from 'vitest'
+const serializer:SnapshotSerializer={test(value){return typeof value==='string'},serialize(value,config,indentation,depth,refs,printer){const number:number=depth;void number;return printer(value,config,indentation,depth,refs)}};void serializer

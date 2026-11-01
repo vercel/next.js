@@ -1,0 +1,2 @@
+import type {SnapshotSerializer} from 'vitest'
+const serializer:SnapshotSerializer={test(){return true},serialize(){return 42}};void serializer
