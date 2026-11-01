@@ -1,0 +1,3 @@
+import { test, expect } from 'vitest'
+const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: "metadata-getter", event }))
+let reads = 0; const metadata = { get value() { row('metadata', ++reads); return 42 } }; const retry = { count: 0, metadata }; test('nested getter publication', { retry }, () => { row('body', reads, typeof Object.getOwnPropertyDescriptor(metadata, 'value').get); expect(reads).toBe(1) }); row('registered', reads)

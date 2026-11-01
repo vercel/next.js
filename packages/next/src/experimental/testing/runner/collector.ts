@@ -545,7 +545,8 @@ export interface SuiteCollector<ExtraContext extends object = object> {
 
 export function validateOptions(
   options: TestOptions | SuiteOptions,
-  suiteOptions = false
+  suiteOptions = false,
+  carriedRetryOptions = false
 ) {
   for (const key of Object.keys(options)) {
     if (key === 'tags') {
@@ -584,6 +585,8 @@ export function validateOptions(
     if (key === 'retry' && typeof options.retry === 'object') {
       if (!options.retry || Array.isArray(options.retry))
         throw new TypeError('Test retry must be a number or an options object.')
+      // The actual collected Task transport owns property reads in this role.
+      if (carriedRetryOptions) continue
       for (const field of Object.keys(options.retry)) {
         if (field === 'condition') {
           const condition = options.retry.condition
@@ -777,6 +780,8 @@ export function createCollector(
     getTaskExpect?: (task: Test) => TestContext['expect']
     createTaskRegistration?: () => ((task: Test) => void) | undefined
     observeSettledDeclarationCoverage?: true
+    /** Real collected Task transport captures retry data after collection. */
+    carriedRetryOptions?: true
   } = {}
 ) {
   const root = suite(fileId, '', 'run', undefined, {
@@ -896,7 +901,7 @@ export function createCollector(
       ...tagOptions,
       ...ownOptions,
     }
-    validateOptions(options)
+    validateOptions(options, false, config.carriedRetryOptions === true)
     const meta = Object.assign(
       Object.create(null),
       tagMeta,
@@ -1163,7 +1168,7 @@ export function createCollector(
           options = (optionsOrFn as SuiteOptions | undefined) ?? {}
           fn = typeof body === 'function' ? body : undefined
         }
-        validateOptions(options, true)
+        validateOptions(options, true, config.carriedRetryOptions === true)
         options = { ...declarationOptions, ...options }
         // Chain modifiers override an explicit opposing option in 5.0.4.
         for (const key of ['concurrent', 'shuffle'] as const)
@@ -1700,7 +1705,7 @@ export function createCollector(
         // Read the raw parameterization marker at the same point as the target.
         // Only plain raw receivers are qualified by this collector increment.
         const each = this.each
-        validateOptions(options, true)
+        validateOptions(options, true, config.carriedRetryOptions === true)
         const result = rawSuite(name, factory, suiteMode, options)
         if (each !== undefined)
           (result.suite as Suite & { each?: boolean }).each = each

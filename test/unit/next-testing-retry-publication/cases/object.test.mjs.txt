@@ -1,0 +1,3 @@
+import { test, expect } from 'vitest'
+const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: "object", event }))
+const metadata = { nested: { value: 42 } }; const retry = { count: 0, metadata }; test('object metadata', { retry }, () => { row('body', retry.metadata === metadata, metadata.nested.value); expect(metadata.nested.value).toBe(42); metadata.nested.value = 99; row('mutated', metadata.nested.value) }); row('registered')

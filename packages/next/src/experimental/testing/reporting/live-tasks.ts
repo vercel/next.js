@@ -55,7 +55,8 @@ export function isTaskLocation(value: unknown): value is TaskLocation {
 export function captureReporterTaskTree(
   file: File,
   packs?: ReadonlyMap<string, Pick<Task, 'result' | 'meta'>>,
-  resolveLocation: typeof getPublishedTaskLocation = getPublishedTaskLocation
+  resolveLocation: typeof getPublishedTaskLocation = getPublishedTaskLocation,
+  getRetry?: (task: Test) => Test['retry']
 ): ReporterTaskSnapshot {
   function visit(task: Task): ReporterTaskSnapshot {
     const pack = packs?.get(task.id) ?? task
@@ -76,7 +77,7 @@ export function captureReporterTaskTree(
       shuffle: task.shuffle,
       ...(task.type === 'test'
         ? {
-            retry: task.retry,
+            retry: getRetry ? getRetry(task) : task.retry,
             repeats: task.repeats,
             fails: task.fails,
             timeout: task.timeout,

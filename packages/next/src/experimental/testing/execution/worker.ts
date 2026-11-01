@@ -317,9 +317,21 @@ async function run({
   }[] = []
   assertPublicSnapshotPreparationRole(artifact, options)
   assertJUnitSuiteRole(artifact, options)
+  const carriedRetryOptions =
+    options.captureTaskResults === true &&
+    artifact.kind === 'node' &&
+    artifact.profile.environment === 'node' &&
+    artifact.profile.route === undefined &&
+    artifact.profile.browserClient === undefined &&
+    !artifact.cohort &&
+    (!options.entry.executionEnvironment ||
+      options.entry.executionEnvironment.name === 'node')
   const taskUpdates =
     options.captureTaskResults || options.preparePublicSnapshots === true
       ? createReporterTaskUpdates<CaseResult>({
+          ...(carriedRetryOptions
+            ? { carriedRetryOptions: true as const }
+            : {}),
           ...(options.captureModuleStart === true
             ? { captureModuleStart: true as const }
             : {}),
@@ -843,6 +855,7 @@ async function run({
     file = entry.testRunner.initializeTestFile({
       ...(assertionEnvironment !== undefined ? { assertionEnvironment } : {}),
       publicTaskSelection: true,
+      ...(carriedRetryOptions ? { carriedRetryOptions: true as const } : {}),
       ...(options.preparePublicSnapshots === true ||
       prepareReadOnlySelectedPublicFile
         ? { preparePublicSnapshots: true }
@@ -881,17 +894,21 @@ async function run({
       options.preparePublicSnapshots === true
         ? {
             onCollectionFailure: async (actualFile) => {
+              const taskTree = captureReporterTaskTree(
+                actualFile,
+                undefined,
+                file!.getPublishedTaskLocation
+              )
               await event({
                 type: 'file-collected',
                 entryId: artifact.entryId,
                 revision: artifact.revision,
-                taskTree: captureReporterTaskTree(
-                  actualFile,
-                  undefined,
-                  file!.getPublishedTaskLocation
-                ),
+                taskTree,
               })
-              taskUpdates!.collected(actualFile)
+              taskUpdates!.collected(
+                actualFile,
+                carriedRetryOptions ? taskTree : undefined
+              )
               failedCollectedFile = actualFile
               failedCollectionObserved = true
             },
@@ -1220,17 +1237,21 @@ async function run({
           : {}),
         onCollected: taskUpdates
           ? async (actualFile) => {
+              const taskTree = captureReporterTaskTree(
+                actualFile,
+                undefined,
+                file!.getPublishedTaskLocation
+              )
               await event({
                 type: 'file-collected',
                 entryId: artifact.entryId,
                 revision: artifact.revision,
-                taskTree: captureReporterTaskTree(
-                  actualFile,
-                  undefined,
-                  file!.getPublishedTaskLocation
-                ),
+                taskTree,
               })
-              taskUpdates.collected(actualFile)
+              taskUpdates.collected(
+                actualFile,
+                carriedRetryOptions ? taskTree : undefined
+              )
             }
           : undefined,
         onSuiteEnd(suiteResult, task) {

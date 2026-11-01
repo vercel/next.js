@@ -22,6 +22,8 @@ export function createReporterTaskUpdates<
 >(options: {
   /** Defer the existing leading root pack until its actual preparation. */
   captureModuleStart?: true
+  /** Reuse only retry data from the actual initial collected snapshot. */
+  carriedRetryOptions?: true
   onUpdate(update: ReporterTaskUpdate<Result>): void | Promise<void>
   getTaskLocation?(task: Task): TaskLocation | undefined
 }) {
@@ -32,7 +34,7 @@ export function createReporterTaskUpdates<
     throw new Error('Invalid reporter module preparation request.')
   let file: File | undefined
   let filePrepared = false
-  const tasks = new Map<string, Task>()
+  const tasks = new Map<string, { task: Task; retry: Test['retry'] }>()
   const preparedSuites = new Set<string>()
   const pendingTasks = new Map<
     string,
@@ -45,6 +47,13 @@ export function createReporterTaskUpdates<
   const sends = new Set<Promise<void>>()
   const errors: unknown[] = []
 
+  function getCarriedRetry(task: Test): Test['retry'] {
+    const retained = tasks.get(task.id)
+    if (retained?.task !== task)
+      throw new Error('Reporter retry does not belong to its collected task.')
+    return retained.retry
+  }
+
   function flush() {
     if (timer !== undefined) realClearTimeout(timer)
     timer = undefined
@@ -56,7 +65,8 @@ export function createReporterTaskUpdates<
         taskTree: captureReporterTaskTree(
           file,
           pendingTasks,
-          options.getTaskLocation
+          options.getTaskLocation,
+          options.carriedRetryOptions === true ? getCarriedRetry : undefined
         ),
         taskUpdateIds: [...pendingTasks.keys()],
         caseResults,
@@ -81,7 +91,7 @@ export function createReporterTaskUpdates<
   }
   function assertOwned(task: Task) {
     if (disposed || !file) throw new Error('Reporter task owner is not open.')
-    if (tasks.get(task.id) !== task)
+    if (tasks.get(task.id)?.task !== task)
       throw new Error('Reporter task update does not belong to its file.')
   }
   function schedule(task: Task) {
@@ -93,17 +103,34 @@ export function createReporterTaskUpdates<
     else if (timer === undefined) timer = realSetTimeout(flush, 100)
   }
   return {
-    collected(actualFile: File) {
+    collected(actualFile: File, carriedTree?: ReporterTaskSnapshot) {
       if (file || disposed)
         throw new Error('Reporter task file already collected.')
       file = actualFile
-      function visit(task: Task) {
+      function visit(task: Task, carried?: ReporterTaskSnapshot) {
+        if (
+          options.carriedRetryOptions === true &&
+          (!carried ||
+            carried.id !== task.id ||
+            carried.type !== task.type ||
+            (task.type === 'suite' &&
+              carried.tasks?.length !== task.tasks.length))
+        )
+          throw new Error('Reporter retry requires its actual collected tree.')
         if (tasks.has(task.id))
           throw new Error('Duplicate reporter task identity.')
-        tasks.set(task.id, task)
-        if (task.type === 'suite') for (const child of task.tasks) visit(child)
+        tasks.set(task.id, {
+          task,
+          retry:
+            options.carriedRetryOptions === true && task.type === 'test'
+              ? carried!.retry
+              : undefined,
+        })
+        if (task.type === 'suite')
+          for (const [index, child] of task.tasks.entries())
+            visit(child, carried?.tasks?.[index])
       }
-      visit(file)
+      visit(file, carriedTree)
       if (options.captureModuleStart !== true) {
         preparedSuites.add(file.id)
         schedule(file)
@@ -126,7 +153,7 @@ export function createReporterTaskUpdates<
     caseStart(testId: string) {
       if (options.captureModuleStart === true && !filePrepared)
         throw new Error('Reporter case started before actual File preparation.')
-      const task = tasks.get(testId)
+      const task = tasks.get(testId)?.task
       if (!task || task.type !== 'test')
         throw new Error('Unknown reporter case start.')
       const ancestors: Suite[] = []

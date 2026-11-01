@@ -141,6 +141,8 @@ export function getActiveHook(): SuiteHookContext | undefined {
 }
 
 export interface TestFileOptions {
+  /** Actual isolated Node collected-Task consumer owns retry publication. */
+  carriedRetryOptions?: true
   /** Actual collection catch only; observation does not certify later cleanup. */
   onCollectionFailure?(file: File, error: unknown): void | Promise<void>
   /** Enabled only by actual compiled execution hosts; private callers retain their scopes. */
@@ -325,6 +327,7 @@ export function initializeTestFile(options: TestFileOptions) {
 function initializeFile(
   {
     publicTaskSelection,
+    carriedRetryOptions,
     prepareEmptyPublicFile,
     preparePublicSnapshots,
     finalizePublicTaskModes,
@@ -398,6 +401,9 @@ function initializeFile(
     printConsoleTrace: undefined,
   }
   const collector = createCollector(fileId, {
+    ...(carriedRetryOptions === true
+      ? { carriedRetryOptions: true as const }
+      : {}),
     ...(captureCollectionCoverage === true &&
     captureSettledCollectionDeclarations === true
       ? { observeSettledDeclarationCoverage: true as const }

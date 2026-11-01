@@ -1,0 +1,3 @@
+import { test, expect } from 'vitest'
+const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: "count-getter", event }))
+let reads = 0; const retry = { get count() { row('count', ++reads); return 1 } }; test('count publication', { retry }, () => { row('body', reads); expect(reads).toBe(2) }); row('registered', reads)
