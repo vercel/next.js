@@ -95,6 +95,10 @@ describe('Next.js sandbox process polyfill', () => {
     expect(
       moduleContext.runtime.evaluate('typeof process.getBuiltinModule')
     ).toBe('undefined')
+    // Some libraries feature-detect with `in` instead of `typeof`.
+    expect(
+      moduleContext.runtime.evaluate("'getBuiltinModule' in process")
+    ).toBe(false)
   })
 
   it('should still throw for other unsupported Node.js process APIs', () => {
