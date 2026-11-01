@@ -306,6 +306,13 @@ export async function openTestEnvironment(
       const { openEdgeContext } = await import('./edge.js')
       const edge = openEdgeContext(options)
       teardown = edge.dispose
+      // EdgeVM can initialize host infrastructure while constructing its realm.
+      // The pinned provider captures originals after that constructor as well.
+      // Keep existing originals and all subsequent authored mutation guards.
+      for (const key of Reflect.ownKeys(globalThis)) {
+        if (!before.has(key))
+          before.set(key, Object.getOwnPropertyDescriptor(globalThis, key)!)
+      }
       populateWindow(edge.context, false)
     } else if (selected.name === 'happy-dom') {
       const provider = await load('happy-dom')

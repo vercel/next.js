@@ -21,9 +21,9 @@ const sharedGlobals = [
 ]
 
 /** A real provider context; the selected test remains natively compiled Node. */
-export function openEdgeContext(options: Record<string, unknown>) {
-  if (Object.keys(options).length)
-    throw new Error('Edge Runtime environment options are not supported yet.')
+// Pinned Vitest's built-in Edge environment ignores environmentOptions.
+// Keep their parser/worker serialization contract without forwarding VM options.
+export function openEdgeContext(_options: Record<string, unknown>) {
   const runtime = new EdgeRuntime({
     extend(context) {
       const realm = context as Context

@@ -1,0 +1,53 @@
+{
+  "status": 0,
+  "counts": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "success": true
+  },
+  "cases": [
+    {
+      "ancestorTitles": [],
+      "fullName": "ignored environment options retain real Edge execution",
+      "status": "passed",
+      "title": "ignored environment options retain real Edge execution",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ],
+  "rows": [
+    {
+      "type": "stdout",
+      "value": {
+        "edge": "edge-runtime",
+        "ignoredInitialCode": "undefined",
+        "functionCode": 7,
+        "response": {
+          "status": 201,
+          "text": "real-edge-response"
+        },
+        "fetched": "actual-data-fetch",
+        "matched": "item",
+        "buffer": "65646765",
+        "mode": "development"
+      }
+    }
+  ],
+  "terminal": {
+    "reason": "passed",
+    "errors": [],
+    "modules": [
+      {
+        "state": "passed",
+        "errors": []
+      }
+    ]
+  }
+}

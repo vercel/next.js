@@ -2464,15 +2464,15 @@ describe('owned custom execution environment', () => {
     }
   })
 
-  it('rejects unqualified Edge VM options before exposing provider globals', () => {
+  it('ignores Edge VM options without evaluating code and restores globals', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'next-edge-options-'))
     try {
       expect(
         probe(
           root,
-          `(async()=>{const {openTestEnvironment}=require(process.argv[1]);let rejected=false;try{await openTestEnvironment(process.argv[2],{name:'edge-runtime',options:{initialCode:'globalThis.unqualifiedEdgeCode=true'}})}catch(error){rejected=error.message.includes('options are not supported')}console.log(JSON.stringify({rejected,removed:!('EdgeRuntime'in globalThis)&&!('unqualifiedEdgeCode'in globalThis)}))})().catch(error=>{console.error(error);process.exitCode=1})`
+          `(async()=>{const {openTestEnvironment}=require(process.argv[1]);const owned=await openTestEnvironment(process.argv[2],{name:'edge-runtime',options:{initialCode:'globalThis.unqualifiedEdgeCode=true'}});const ignored=!('unqualifiedEdgeCode'in globalThis);await owned.dispose();console.log(JSON.stringify({ignored,removed:!('EdgeRuntime'in globalThis)&&!('unqualifiedEdgeCode'in globalThis)}))})().catch(error=>{console.error(error);process.exitCode=1})`
         )
-      ).toEqual({ rejected: true, removed: true })
+      ).toEqual({ ignored: true, removed: true })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -7466,4 +7466,107 @@ it('forwards the pinned keyboard grammar and distinct native release roles', () 
     exactPinnedNativeCallContract: true,
     existingLargeRepeatGuardRetained: true,
   })
+})
+
+describe('pinned Edge environment ignored options', () => {
+  it.each(['default', 'initial', 'codeGeneration', 'unknown'])(
+    'executes the real provider and restores globals for %s',
+    (variant) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'edge-options.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          variant,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        variant,
+        realProviderRow: true,
+        optionsIgnoredAndUnmodified: true,
+        hostGlobalsKept: true,
+        providerGlobalsRestored: true,
+        repeatedDispose: true,
+      })
+    }
+  )
+
+  it('retains the existing nonserializable environment-options refusal', () => {
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'edge-options.cjs'),
+        path.dirname(require.resolve('next/package.json')),
+        'nonserializable',
+      ],
+      { encoding: 'utf8', timeout: 10000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      variant: 'nonserializable',
+      parserRefusalPreserved: true,
+      providerNotExposed: true,
+    })
+  })
+})
+
+it.each(['cold', 'authored-nonconfig'])(
+  'retains the cold Edge constructor boundary and later mutation guard for %s',
+  (variant) => {
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'edge-options.cjs'),
+        path.dirname(require.resolve('next/package.json')),
+        variant,
+      ],
+      { encoding: 'utf8', timeout: 10000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      variant,
+      coldRealProvider: true,
+      providerGlobalsRestored: true,
+      authoredNonconfigGuardHeld: variant === 'authored-nonconfig',
+    })
+  }
+)
+
+describe('public pinned Edge environment option execution', () => {
+  it.each(
+    ['development', 'production'].flatMap((mode) =>
+      ['default', 'initial', 'codeGeneration', 'unknown'].map((variant) => ({
+        mode,
+        variant,
+      }))
+    )
+  )(
+    'matches the complete genuine $mode/$variant model',
+    ({ mode, variant }) => {
+      const root = mkdtempSync(path.join(tmpdir(), 'next-edge-options-public-'))
+      try {
+        const stdout = execFileSync(
+          process.execPath,
+          [
+            path.join(__dirname, 'edge-options-cli.mjs'),
+            path.resolve(__dirname, '../../..'),
+            path.join(root, 'evidence'),
+            mode,
+            variant,
+          ],
+          { encoding: 'utf8', timeout: 150000 }
+        )
+        expect(JSON.parse(stdout)).toEqual({
+          mode,
+          variant,
+          cases: 1,
+          rows: 1,
+          completeGenuineModel: true,
+          ignoredOptionsNotAppliedToVM: true,
+        })
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+    180000
+  )
 })
