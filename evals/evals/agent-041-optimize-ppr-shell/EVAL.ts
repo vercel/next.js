@@ -12,6 +12,16 @@
  * the PPR shell requires replacing it with per-section Suspense boundaries
  * so each section can stream independently.
  *
+ * This eval is judged semantically end to end. It previously also grepped
+ * app/page.tsx for >=3 literal <Suspense> tags and for each section sitting in
+ * its own block in that file. Those two assertions contradicted the judge: a
+ * model that co-locates each boundary inside the section component builds
+ * fine, yields a correctly partially prerendered route, and was passed by the
+ * judge, yet failed the greps purely because the tags were not typed in
+ * page.tsx. They vetoed the judge they were meant to be replaced by, so they
+ * are gone; the granularity requirement they encoded now lives in the
+ * criterion below.
+ *
  * The does-Page-block-on-data check is semantic, so it uses the agentic LLM
  * judge rather than regex. The old /getDashboardData\s*\(/ whole-file ban
  * rejected functionally correct streaming — e.g. async section components
@@ -22,43 +32,19 @@
  */
 
 import { expect, test } from 'vitest'
+import { environment } from '@vercel/agent-eval/eval'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { environment } from '@vercel/agent-eval/eval'
 
-const appDir = join(process.cwd(), 'app')
+const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
 
-function readFile(name: string): string {
-  return readFileSync(join(appDir, name), 'utf-8')
-}
-
-test('Page has at least 3 Suspense boundaries', () => {
-  const page = readFile('page.tsx')
-
-  const suspenseCount = (page.match(/<Suspense[\s>]/g) || []).length
-  expect(suspenseCount).toBeGreaterThanOrEqual(3)
+test('keeps Cache Components enabled', () => {
+  expect(config).toMatch(/cacheComponents\s*:\s*true/)
 })
 
-test('Each dashboard section has its own Suspense boundary in page.tsx', () => {
-  const page = readFile('page.tsx')
-
-  // Split page into Suspense blocks: text between each <Suspense and </Suspense>
-  const suspenseBlocks = page.split(/<Suspense[\s>]/).slice(1)
-
-  const components = ['CardStats', 'RevenueChart', 'LatestInvoices']
-  for (const component of components) {
-    const inOwnBlock = suspenseBlocks.some(
-      (block) => block.includes(component) && block.includes('</Suspense>')
-    )
-    expect(inOwnBlock, `${component} should be inside its own <Suspense>`).toBe(
-      true
-    )
-  }
-})
-
-test('Page does not await all data before rendering', async () => {
+test('renders the dashboard shell while sections stream independently', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The dashboard page must produce a static PPR shell: the default-exported Page component in app/page.tsx returns its JSX frame without blocking on dashboard data, and the data-driven sections stream in under <Suspense> boundaries.
+    `The dashboard produces a useful static shell: the Dashboard heading renders without waiting for dashboard data, while the summary cards, Revenue section, and Latest Invoices section suspend and reveal independently with section-appropriate fallbacks rather than collapsing into one all-or-nothing loading state. Judge the rendered component tree, not how many <Suspense> strings appear in one file. Docs for the exact Next.js version installed here ship at node_modules/next/dist/docs — see 01-app/03-api-reference/05-config/01-next-config-js/cacheComponents.md and 01-app/03-api-reference/03-file-conventions/loading.md.
 
 For reference, one correct solution keeps Page synchronous and moves each await into a Suspense-wrapped child:
 

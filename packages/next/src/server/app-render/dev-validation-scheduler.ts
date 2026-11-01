@@ -79,9 +79,9 @@ export function beginDevValidation(
  * Give incoming requests a chance to enter app rendering and supersede the
  * current validation before another expensive render attempt starts.
  *
- * The regular global `setImmediate` is patched by staged rendering and can run
- * inside the current timer task. The original immediate is required here so we
- * actually pass through the event-loop poll phase where HTTP requests arrive.
+ * @returns Whether validation should continue.
+ * - `true`: validation should continue
+ * - `false` the validation was superseded and should be aborted.
  */
 export async function yieldToForegroundRequest(
   validationSignal: AbortSignal
@@ -90,6 +90,9 @@ export async function yieldToForegroundRequest(
     return false
   }
 
+  // Pass through the event-loop poll phase where HTTP requests arrive.
+  // Defensively use the unpatched setImmediate (even though this should never run
+  // in a context where setImmediate is patched, e.g. in `runInSequentialTasks`)
   await new Promise<void>((resolve) => unpatchedSetImmediate(resolve))
   return !validationSignal.aborted
 }

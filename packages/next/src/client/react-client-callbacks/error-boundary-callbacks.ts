@@ -6,6 +6,7 @@ import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-cs
 import { reportGlobalError } from './report-global-error'
 import { ErrorBoundaryHandler } from '../components/error-boundary'
 import DefaultErrorBoundary from '../components/builtin/global-error'
+import type { RuntimeErrorBoundary } from '../../server/dev/hot-reloader-types'
 
 const devToolErrorMod: typeof import('../../next-devtools/userspace/app/errors') =
   process.env.NODE_ENV !== 'production'
@@ -23,6 +24,7 @@ export function onCaughtError(
   const errorBoundaryComponent = errorInfo.errorBoundary?.constructor
 
   let isImplicitErrorBoundary
+  let boundary: RuntimeErrorBoundary | undefined
 
   if (process.env.NODE_ENV !== 'production') {
     const { AppDevOverlayErrorBoundary } =
@@ -30,6 +32,32 @@ export function onCaughtError(
 
     isImplicitErrorBoundary =
       errorBoundaryComponent === AppDevOverlayErrorBoundary
+
+    if (
+      process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR &&
+      errorInfo.errorBoundary
+    ) {
+      let component: any = errorBoundaryComponent
+      let kind: 'default-global' | 'custom-global' | 'custom' = 'custom'
+      if (errorBoundaryComponent === AppDevOverlayErrorBoundary) {
+        component = (
+          errorInfo.errorBoundary as InstanceType<
+            typeof AppDevOverlayErrorBoundary
+          >
+        ).props.globalError[0]
+        kind =
+          component === DefaultErrorBoundary
+            ? 'default-global'
+            : 'custom-global'
+      } else if (errorBoundaryComponent === ErrorBoundaryHandler) {
+        component = (
+          errorInfo.errorBoundary as InstanceType<typeof ErrorBoundaryHandler>
+        ).props.errorComponent
+        kind = component === DefaultErrorBoundary ? 'default-global' : 'custom'
+      }
+      const name = component?.displayName || component?.name
+      boundary = { kind, ...(typeof name === 'string' && name ? { name } : {}) }
+    }
   }
 
   isImplicitErrorBoundary =
@@ -54,7 +82,7 @@ export function onCaughtError(
     // We don't consider errors caught unless they're caught by an explicit error
     // boundary. The built-in ones are considered implicit.
     // This mimics how the same app would behave without Next.js.
-    return onUncaughtError(thrownValue)
+    return reportUncaughtError(thrownValue, boundary)
   }
 
   // Skip certain custom errors which are not expected to be reported on client
@@ -89,18 +117,34 @@ export function onCaughtError(
     // Log and report the error with location but without modifying the error stack
     devToolErrorMod.originConsoleError('%o\n\n%s', thrownValue, errorLocation)
 
-    devToolErrorMod.handleClientError(error)
+    if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+      devToolErrorMod.handleClientError(error, { fatal: false, boundary })
+    } else {
+      devToolErrorMod.handleClientError(error)
+    }
   } else {
     devToolErrorMod.originConsoleError(thrownValue)
   }
 }
 
 export function onUncaughtError(thrownValue: unknown) {
+  reportUncaughtError(thrownValue)
+}
+
+function reportUncaughtError(
+  thrownValue: unknown,
+  boundary: RuntimeErrorBoundary | undefined = undefined
+) {
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(thrownValue) || isNextRouterError(thrownValue)) return
 
   if (process.env.NODE_ENV !== 'production') {
     const error = devToolErrorMod.decorateDevError(thrownValue)
+    if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+      const { setRuntimeErrorMetadata } =
+        require('../../next-devtools/userspace/app/errors/runtime-error-metadata') as typeof import('../../next-devtools/userspace/app/errors/runtime-error-metadata')
+      setRuntimeErrorMetadata(error, { fatal: true, boundary })
+    }
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
     reportGlobalError(error)

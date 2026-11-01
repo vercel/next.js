@@ -1,7 +1,6 @@
 import { execSync, spawn } from 'child_process'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
-import fetch from 'node-fetch'
 import {
   existsSync,
   readFileSync,
@@ -176,7 +175,7 @@ for (const testCase of [
   'server-and-client-components',
   'server-components-only',
 ]) {
-  await fs.rm('.next', { recursive: true }).catch(() => {})
+  await fs.rm(join(CWD, '.next'), { recursive: true }).catch(() => {})
   const file = new File(join(CWD, `app/page77/${testCase}/page.js`))
   const results = []
 
@@ -238,16 +237,21 @@ for (const testCase of [
     }
     if (command === 'build' || command === 'all') {
       // ignore error
-      await fs.rm('.next', { recursive: true, force: true }).catch(() => {})
+      await fs
+        .rm(join(CWD, '.next'), { recursive: true, force: true })
+        .catch(() => {})
 
-      execSync(`node ${NEXT_BIN} build ./bench/nested-deps-app-router`, {
-        cwd: ROOT_DIR,
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          TRACE_TARGET: 'jaeger',
-        },
-      })
+      execSync(
+        `node ${NEXT_BIN} build ./bench/nested-deps-app-router-many-pages`,
+        {
+          cwd: ROOT_DIR,
+          stdio: 'inherit',
+          env: {
+            ...process.env,
+            TRACE_TARGET: 'jaeger',
+          },
+        }
+      )
       const traceString = await fs.readFile(join(CWD, '.next', 'trace'), 'utf8')
       const traces = traceString
         .split('\n')

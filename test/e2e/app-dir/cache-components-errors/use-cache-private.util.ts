@@ -22,36 +22,36 @@ export function registerUseCachePrivateTests(
 
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
-               {
-                 "code": "E1016",
-                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                 "environmentLabel": "Server",
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
-               > 21 | const getCachedData = unstable_cache(async () => {
-                    |                                      ^",
-                 "stack": [
-                   "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
-                 ],
-               }
-              `)
+             {
+               "description": "Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+             Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
+               "environmentLabel": "Server",
+               "label": "Runtime Error",
+               "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
+             > 21 | const getCachedData = unstable_cache(async () => {
+                  |                                      ^",
+               "stack": [
+                 "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                 "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+               ],
+             }
+            `)
           } else {
             await expect(browser).toDisplayRedbox(`
-               {
-                 "code": "E1016",
-                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                 "environmentLabel": "Server",
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
-               > 21 | const getCachedData = unstable_cache(async () => {
-                    |                                      ^",
-                 "stack": [
-                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
-                 ],
-               }
-              `)
+             {
+               "description": "Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+             Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
+               "environmentLabel": "Server",
+               "label": "Runtime Error",
+               "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+             > 21 | const getCachedData = unstable_cache(async () => {
+                  |                                      ^",
+               "stack": [
+                 "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                 "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+               ],
+             }
+            `)
           }
         })
       } else {
@@ -70,7 +70,8 @@ export function registerUseCachePrivateTests(
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                 "Error: Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -88,7 +89,8 @@ export function registerUseCachePrivateTests(
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+               "Error: Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                    at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                    at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                  19 | }
@@ -108,7 +110,8 @@ export function registerUseCachePrivateTests(
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                 "Error: Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -126,16 +129,17 @@ export function registerUseCachePrivateTests(
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
-                `)
+               "Error: Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
+               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+              `)
             }
           }
         })
@@ -149,8 +153,8 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1001",
-             "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+             "description": "Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+           Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
              "environmentLabel": "Cache",
              "label": "Runtime Error",
              "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
@@ -179,7 +183,8 @@ export function registerUseCachePrivateTests(
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "Error: Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -198,27 +203,29 @@ export function registerUseCachePrivateTests(
                 `)
             } else
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                   13 | }
-                   14 |
-                 > 15 | async function Private() {
-                      | ^
-                   16 |   'use cache: private'
-                   17 |
-                   18 |   return <p>Private</p> {
-                   digest: '<error-digest>'
-                 }
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
+                   at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                 13 | }
+                 14 |
+               > 15 | async function Private() {
+                    | ^
+                 16 |   'use cache: private'
+                 17 |
+                 18 |   return <p>Private</p> {
+                 digest: '<error-digest>'
+               }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
-                `)
+               > Export encountered errors on 1 path:
+               \t/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+              `)
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "⨯ Error: Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -229,7 +236,8 @@ export function registerUseCachePrivateTests(
                    18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 Error: Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -248,20 +256,22 @@ export function registerUseCachePrivateTests(
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at a (<next-dist-dir>) {
-                   digest: '<error-digest>'
-                 }
-                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at b (<next-dist-dir>) {
-                   digest: '<error-digest>'
-                 }
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
-                `)
+               "⨯ Error: Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
+                   at a (<next-dist-dir>) {
+                 digest: '<error-digest>'
+               }
+               Error: Route "/use-cache-private-in-use-cache": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.
+               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
+                   at b (<next-dist-dir>) {
+                 digest: '<error-digest>'
+               }
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+              `)
             }
           }
         })
@@ -277,7 +287,6 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1427",
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -432,7 +441,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
           await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "description": "Route /use-cache-private-connection used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route "/use-cache-private-connection": \`connection()\` can't be called inside \`"use cache: private"\` because private cached functions may run during prefetching, without a navigation request. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-connection/page.tsx (25:21) @ Private

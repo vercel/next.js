@@ -9,7 +9,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
@@ -25,7 +25,7 @@ use crate::{
 
 /// A per-section source map: either an opaque serialized map or a structured one whose
 /// `sourcesContent` is shared rather than copied when the section is embedded.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub enum SectionMap {
     Raw(Rope),
     Structured(Box<StructuredSourceMap>),
@@ -354,6 +354,11 @@ impl Code {
 
 impl Code {
     /// Generates a source map from the code's mappings.
+    ///
+    /// Section offsets are computed in UTF-16 code units by scanning the code's rope one chunk at
+    /// a time, so every chunk must be self-contained text: rope chunks (and mapping positions)
+    /// must not split a UTF-8 sequence or a "\r\n". Splitting them is a bug in the code that built
+    /// the rope, and can result in incorrect offsets for the sections after it.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
     pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
         // A debug id should be passed only if the code should generate a debug id, it is however
@@ -407,5 +412,49 @@ impl Code {
         } else {
             SourceMap::sections_to_rope(sections, debug_id)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+    use turbo_tasks_fs::rope::Rope;
+
+    use super::CodeBuilder;
+
+    const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
+
+    fn section_offsets(code: &super::Code) -> Vec<(u64, u64)> {
+        let map = code.generate_source_map_ref(None);
+        let map: Value = serde_json::from_str(&map.to_str().unwrap()).unwrap();
+        map["sections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|section| {
+                let offset = &section["offset"];
+                (
+                    offset["line"].as_u64().unwrap(),
+                    offset["column"].as_u64().unwrap(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn section_offsets_count_utf16_code_units() {
+        let mut builder = CodeBuilder::default();
+        // `🦀` is a 4-byte UTF-8 sequence and two UTF-16 code units, `é` is a single unit.
+        let prefix = "line0\n\"🦀é\"; ";
+        builder += prefix;
+        builder.push_source(
+            &Rope::from("mapped();".to_string()),
+            Some(Rope::from(SECTION_MAP.to_string())),
+        );
+        let code = builder.build();
+
+        let expected_column = "\"🦀é\"; ".encode_utf16().count() as u64;
+        assert_eq!(expected_column, 7);
+        assert_eq!(section_offsets(&code), vec![(1, expected_column)]);
     }
 }

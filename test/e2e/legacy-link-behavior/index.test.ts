@@ -6,14 +6,9 @@ import {
 } from '../../lib/add-redbox-matchers'
 
 describe('Link with legacyBehavior', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return it('should skip', () => {})
-  }
 
   describe('if the child is an <a> tag', () => {
     it('forwards the href attribute', async () => {
@@ -123,7 +118,6 @@ describe('Link with legacyBehavior', () => {
           const browser = await next.browser('/passHref/default')
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E863",
              "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
              "environmentLabel": null,
              "label": "Runtime Error",
@@ -154,7 +148,6 @@ describe('Link with legacyBehavior', () => {
           const browser = await next.browser('/passHref/runtime')
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E863",
              "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
              "environmentLabel": null,
              "label": "Runtime Error",

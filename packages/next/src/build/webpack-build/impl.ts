@@ -110,6 +110,7 @@ export async function webpackBuildImpl(
         appDir: NextBuildContext.appDir!,
         pages: NextBuildContext.mappedPages!,
         appPaths: NextBuildContext.mappedAppPages!,
+        appDefaultPaths: NextBuildContext.mappedAppDefaults,
         previewMode: NextBuildContext.previewProps!,
         rootPaths: NextBuildContext.mappedRootPaths!,
         hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
@@ -133,6 +134,7 @@ export async function webpackBuildImpl(
             appDir: NextBuildContext.appDir!,
             pages: NextBuildContext.mappedPages!,
             appPaths: NextBuildContext.mappedAppPages!,
+            appDefaultPaths: NextBuildContext.mappedAppDefaults,
             previewMode: NextBuildContext.previewProps!,
             rootPaths: NextBuildContext.mappedRootPaths!,
             hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
@@ -150,8 +152,6 @@ export async function webpackBuildImpl(
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
-    originalRewrites: NextBuildContext.originalRewrites,
-    originalRedirects: NextBuildContext.originalRedirects,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
     previewProps: NextBuildContext.previewProps!,
@@ -413,7 +413,7 @@ export async function workerMain(workerData: {
 > {
   // Clone the telemetry for worker
   const telemetry = new Telemetry({
-    distDir: workerData.buildContext.config!.distDir,
+    distDir: workerData.buildContext.distDir!,
   })
   setGlobal('telemetry', telemetry)
   // setup new build context from the serialized data passed from the parent

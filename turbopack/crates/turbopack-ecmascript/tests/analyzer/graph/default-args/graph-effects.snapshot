@@ -1,9 +1,24 @@
 [
+    DestructuredMember {
+        obj: Argument(
+            105,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "value2",
+                ),
+            ),
+        ),
+        span: 108..114,
+    },
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
             "named",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -91,10 +106,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -104,11 +119,26 @@
             ),
         ],
     },
+    DestructuredMember {
+        obj: Argument(
+            39,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "value",
+                ),
+            ),
+        ),
+        span: 54..59,
+    },
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
             "named",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -183,7 +213,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

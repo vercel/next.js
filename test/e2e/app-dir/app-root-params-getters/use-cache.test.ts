@@ -1,10 +1,99 @@
 import { nextTestSetup } from 'e2e-utils'
+import { randomUUID } from 'crypto'
+import escapeStringRegexp from 'escape-string-regexp'
+import stripAnsi from 'strip-ansi'
 import { join } from 'path'
 import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
 
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-runtime'),
+  })
+
+  async function readSWR(key: string, roots: string) {
+    const $ = await next.render$(`/${roots}/swr?key=${key}`)
+    expect(`${$('#lang').text()}/${$('#country-code').text()}`).toBe(roots)
+    const value = $('#value').text()
+    expect(value).toBeDateString()
+    return value
+  }
+
+  async function revalidateSWR(key: string, roots: string) {
+    const response = await next.fetch(`/${roots}/swr/revalidate?key=${key}`, {
+      method: 'POST',
+    })
+    expect(response.status).toBe(204)
+  }
+
+  it('should revalidate only the tagged root params', async () => {
+    const key = randomUUID()
+    const enValue = await readSWR(key, 'en/us')
+    const frValue = await readSWR(key, 'fr/ca')
+    expect(enValue).not.toBe(frValue)
+
+    await revalidateSWR(key, 'en/us')
+    // TODO: Restore this assertion on deploy when tag revalidation supports
+    // stale-while-revalidate for remote cache entries.
+    if (!isNextDeploy) {
+      expect(await readSWR(key, 'en/us')).toBe(enValue)
+    }
+    expect(await readSWR(key, 'fr/ca')).toBe(frValue)
+    await retry(async () => {
+      expect(new Date(await readSWR(key, 'en/us'))).toBeAfter(new Date(enValue))
+    })
+    expect(await readSWR(key, 'fr/ca')).toBe(frValue)
+  })
+
+  // @force-gate !deploy
+  it('should deduplicate background revalidation separately for each root pair', async () => {
+    const key = randomUUID()
+    const roots = ['en/us', 'fr/ca']
+    const values = await Promise.all(roots.map((root) => readSWR(key, root)))
+    await Promise.all(roots.map((root) => revalidateSWR(key, root)))
+    const outputIndex = next.cliOutput.length
+    const getOutput = () =>
+      stripAnsi(next.cliOutput.slice(outputIndex))
+        .split('\n')
+        .filter((line) => !line.includes(' Cache '))
+        .join('\n')
+
+    // Complete the triggering responses before more requests read the stale
+    // entries.
+    expect(await Promise.all(roots.map((root) => readSWR(key, root)))).toEqual(
+      values
+    )
+    expect(await Promise.all(roots.map((root) => readSWR(key, root)))).toEqual(
+      values
+    )
+
+    await retry(() => {
+      const output = getOutput()
+      for (const root of roots) {
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`swr start ${key} ${root}`),
+          1
+        )
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`swr finish ${key} ${root}`),
+          1
+        )
+      }
+    })
+    for (const [index, root] of roots.entries()) {
+      await retry(async () => {
+        expect(new Date(await readSWR(key, root))).toBeAfter(
+          new Date(values[index])
+        )
+      })
+      expect(getOutput()).toIncludeRepeated(
+        escapeStringRegexp(`swr start ${key} ${root}`),
+        1
+      )
+      expect(getOutput()).toIncludeRepeated(
+        escapeStringRegexp(`swr finish ${key} ${root}`),
+        1
+      )
+    }
   })
 
   if (isNextDev) {
@@ -18,7 +107,6 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1141",
          "description": "Route /[lang]/[countryCode]/unstable_cache used \`import('next/root-params').lang()\` inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.",
          "environmentLabel": "Server",
          "label": "Runtime Error",
@@ -37,7 +125,6 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/nested-in-unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1140",
          "description": "Route /[lang]/[countryCode]/nested-in-unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
@@ -294,14 +381,90 @@ describe('app-root-param-getters - cache - at build', () => {
 })
 
 describe('app-root-param-getters - cache dedup with root params', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
-    // In deploy mode, concurrent requests could hit different lambdas.
-    skipDeployment: true,
   })
 
-  if (skipped) return
+  beforeAll(async () => {
+    if (isNextDev) {
+      // Compile the page before the concurrent test requests. Without an `id`,
+      // the page skips `readCachedValue()`, so its root parameter dependencies
+      // remain unknown.
+      await next.render('/ca/en/write-failure')
+    }
+  })
 
+  // The control route and cache handler share process-local test state.
+  // @force-gate !deploy
+  it('persists a joining root value after the shared producer cache write fails', async () => {
+    const id = `write-failure-${randomUUID()}`
+    const control = (action: string) =>
+      next.fetch(`/write-failure-control?id=${id}`, {
+        method: 'POST',
+        body: action,
+      })
+    const readState = () =>
+      next.fetch('/write-failure-control').then(
+        (response) =>
+          response.json() as Promise<{
+            requestedLanguages: string[]
+            generatedLanguages: string[]
+            failedWriteLanguages: string[]
+            writtenLanguages: string[]
+          }>
+      )
+    // Keep the English cached call pending until the French request starts.
+    // Both calls initially use the key without root parameters because the
+    // wrapper has not collected the English call's `lang` dependency yet.
+    await control('hold-fill')
+    const english = next.render$(`/ca/en/write-failure?id=${id}`)
+    let french: ReturnType<typeof next.render$> | undefined
+    try {
+      await retry(async () => {
+        expect((await readState()).generatedLanguages).toEqual(['en'])
+      })
+      french = next.render$(`/ca/fr/write-failure?id=${id}`)
+      await retry(async () => {
+        const state = await readState()
+        expect(state.requestedLanguages).toEqual(['en', 'fr'])
+        expect(state.generatedLanguages).toEqual(['en'])
+      })
+      // The English `set()` calls reject. The French request must still retry
+      // the lookup with its own `lang` value and return French data.
+      await control('release-fill')
+      const [englishPage, frenchPage] = await Promise.all([english, french])
+      expect(englishPage('#value').text()).toStartWith('en:')
+      const frenchValue = frenchPage('#value').text()
+      expect(frenchValue).toStartWith('fr:')
+      await retry(async () => {
+        const state = await readState()
+        expect(state.failedWriteLanguages).toContain('en')
+        expect(state.writtenLanguages).toContain('fr')
+      })
+      // The next request must reuse the stored French entry. Another execution
+      // of `readCachedValue()` would generate a new UUID.
+      expect(
+        (await next.render$(`/ca/fr/write-failure?id=${id}`))('#value').text()
+      ).toBe(frenchValue)
+    } finally {
+      await control('release-fill')
+      await Promise.allSettled([english, french])
+    }
+  })
+
+  it('should key a joining outer cache by the root params read by its inner cache', async () => {
+    const english = await next.render$('/ca/en/nested?prime=1')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/nested')
+    expect(french('#first')).toHaveLength(0)
+    expect(french('#second').text()).toBe('fr')
+  })
+
+  // Cross-request deduplication requires a shared server process. Deployed
+  // requests can reach different function instances.
+  // @force-gate !deploy
   it('should dedupe same root params and isolate different root params', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
@@ -324,6 +487,9 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     expect(randomFr1).toBe(randomFr2)
   })
 
+  // These cross-request cache checks require a shared server process. Deployed
+  // requests can reach different function instances.
+  // @force-gate !deploy
   it('should dedupe same root params and isolate different root params for private caches', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([

@@ -9,8 +9,8 @@ const defaultCacheHandler =
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
  */
 const cacheHandler = {
-  async get(cacheKey) {
-    return defaultCacheHandler.get(cacheKey)
+  async get(cacheKey, softTags) {
+    return defaultCacheHandler.get(cacheKey, softTags)
   },
 
   async set(cacheKey, pendingEntry) {

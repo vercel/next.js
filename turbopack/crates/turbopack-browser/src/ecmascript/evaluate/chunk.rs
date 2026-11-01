@@ -4,7 +4,7 @@ use anyhow::Result;
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -15,6 +15,7 @@ use turbopack_core::{
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
+    json::RcJsonRawValue,
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -83,7 +84,7 @@ impl EcmascriptBrowserEvaluateChunk {
     /// The emitted evaluate-chunk file ([`Self::code`]) reuses these same params,
     /// wrapping them as `push([selfPath, params])`. Next.js inlines them in production.
     #[turbo_tasks::function]
-    pub(crate) async fn chunk_group_bootstrap_params(self: Vc<Self>) -> Result<Vc<RcStr>> {
+    pub(crate) async fn chunk_group_bootstrap_params(self: Vc<Self>) -> Result<Vc<RcJsonRawValue>> {
         let this = self.await?;
 
         let other_chunks_data = self.chunks_data().await?;
@@ -124,7 +125,7 @@ impl EcmascriptBrowserEvaluateChunk {
             runtime_module_ids,
         };
 
-        Ok(Vc::cell(serde_json::to_string(&params)?.into()))
+        Ok(RcJsonRawValue::from_serialize(&params)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -174,7 +175,7 @@ impl EcmascriptBrowserEvaluateChunk {
             "#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
             script_or_path = script_or_path,
-            params = &**params,
+            params = params.get(),
         }?;
 
         // When the runtime is not shared across routes, inline the full browser runtime into this

@@ -1,8 +1,6 @@
 /* eslint-env jest */
-import {
-  getPreviouslyCachedImageOrNull,
-  getImageEtag,
-} from 'next/dist/server/image-optimizer'
+import { getPreviouslyCachedImageOrNull } from 'next/dist/server/image-optimizer/get-previously-cached-image-or-null'
+import { getImageEtag } from 'next/dist/server/image-optimizer/extract-etag'
 import {
   CachedRouteKind,
   IncrementalCacheEntry,

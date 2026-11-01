@@ -1,41 +1,76 @@
 import { notFound } from "next/navigation";
+import { cacheLife, cacheTag } from "next/cache";
 import { CacheStateWatcher } from "../cache-state-watcher";
 import { Suspense } from "react";
 import { RevalidateFrom } from "../revalidate-from";
 import Link from "next/link";
 
 type TimeData = {
-  unixtime: number;
-  datetime: string;
-  timezone: string;
+  dateTime: string;
+  timeZone: string;
 };
 
-const timeZones = ["cet", "gmt"];
+type CachedTime = {
+  time: TimeData;
+  generatedAt: number;
+};
 
-export const revalidate = 500;
+// Map the friendly route segment to an IANA timezone for the time API.
+const timeZones = {
+  cet: "Europe/Amsterdam",
+  gmt: "Etc/UTC",
+} as const;
 
-export async function generateStaticParams() {
-  return timeZones.map((timezone) => ({ timezone }));
-}
+// How long the cached time stays fresh (seconds). Shared with the countdown UI.
+const REVALIDATE_SECONDS = 500;
 
-export default async function Page({ params: { timezone } }) {
-  const data = await fetch(
-    `https://worldtimeapi.org/api/timezone/${timezone}`,
-    {
-      next: { tags: ["time-data"] },
-    },
+// Cache the upstream time in the `remote` cache handler (Redis) rather than the
+// default in-memory cache, so it's shared across instances and survives
+// restarts. `updateTag("time-data")` invalidates it on demand.
+async function getCurrentTime(
+  ianaTimeZone: string,
+): Promise<CachedTime | null> {
+  "use cache: remote";
+  cacheTag("time-data");
+  cacheLife({ stale: 60, revalidate: REVALIDATE_SECONDS, expire: 3600 });
+
+  const response = await fetch(
+    `https://timeapi.io/api/time/current/zone?timeZone=${ianaTimeZone}`,
   );
 
-  if (!data.ok) {
+  if (!response.ok) {
+    return null;
+  }
+
+  // `Date.now()` is allowed here because this is a cached function: the value
+  // is baked into the remote cache entry and refreshes when it revalidates.
+  return { time: await response.json(), generatedAt: Date.now() };
+}
+
+export function generateStaticParams() {
+  return Object.keys(timeZones).map((timezone) => ({ timezone }));
+}
+
+export default async function Page({ params }: PageProps<"/[timezone]">) {
+  const { timezone } = await params;
+  const ianaTimeZone = timeZones[timezone as keyof typeof timeZones];
+
+  if (!ianaTimeZone) {
     notFound();
   }
 
-  const timeData: TimeData = await data.json();
+  const cached = await getCurrentTime(ianaTimeZone);
+
+  if (!cached) {
+    notFound();
+  }
+
+  const { time: timeData, generatedAt } = cached;
 
   return (
     <>
       <header className="header">
-        {timeZones.map((timeZone) => (
+        {Object.keys(timeZones).map((timeZone) => (
           <Link key={timeZone} className="link" href={`/${timeZone}`}>
             {timeZone.toUpperCase()} Time
           </Link>
@@ -43,12 +78,12 @@ export default async function Page({ params: { timezone } }) {
       </header>
       <main className="widget">
         <div className="pre-rendered-at">
-          {timeData.timezone} Time {timeData.datetime}
+          {timezone.toUpperCase()} Time {timeData.dateTime}
         </div>
         <Suspense fallback={null}>
           <CacheStateWatcher
-            revalidateAfter={revalidate * 1000}
-            time={timeData.unixtime * 1000}
+            revalidateAfter={REVALIDATE_SECONDS * 1000}
+            time={generatedAt}
           />
         </Suspense>
         <RevalidateFrom />

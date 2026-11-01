@@ -22,7 +22,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1425",
            "description": "Next.js encountered uncached data in generateMetadata().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -94,7 +93,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1440",
            "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -257,7 +255,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1425",
            "description": "Next.js encountered uncached data in generateMetadata().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -329,7 +326,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1425",
            "description": "Next.js encountered uncached data in generateMetadata().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -401,7 +397,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1425",
            "description": "Next.js encountered uncached data in generateMetadata().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -498,7 +493,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1438",
            "description": "Next.js encountered uncached data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -608,7 +602,6 @@ export function registerMetadataAndViewportTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1438",
            "description": "Next.js encountered uncached data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",

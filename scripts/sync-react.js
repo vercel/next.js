@@ -105,6 +105,35 @@ function getPackageVersion(packageName, versionStr) {
   return `npm:${packageName}@${versionStr}`
 }
 
+/**
+ * Replaces an existing entry of the top-level `overrides` map in
+ * `pnpm-workspace.yaml`, leaving the rest of the file (comments, ordering,
+ * quoting) untouched.
+ *
+ * @param {string} workspaceYaml
+ * @param {string} packageName
+ * @param {string} version
+ * @returns {string}
+ */
+function setPnpmWorkspaceOverride(workspaceYaml, packageName, version) {
+  const overridesMatch = /^overrides:\n((?:[ #].*\n|\n)*)/m.exec(workspaceYaml)
+  if (overridesMatch === null) {
+    throw new Error('Expected an `overrides` map in pnpm-workspace.yaml')
+  }
+  const entry = new RegExp(`^  '?${packageName}'?:.*$`, 'm')
+  if (!entry.test(overridesMatch[1])) {
+    throw new Error(
+      `Expected an override for "${packageName}" in pnpm-workspace.yaml`
+    )
+  }
+  const overridesStart = overridesMatch.index + 'overrides:\n'.length
+  return (
+    workspaceYaml.slice(0, overridesStart) +
+    overridesMatch[1].replace(entry, `  ${packageName}: '${version}'`) +
+    workspaceYaml.slice(overridesStart + overridesMatch[1].length)
+  )
+}
+
 async function sync({ channel, newVersionStr, noInstall }) {
   const useExperimental = channel === 'experimental'
   const cwd = process.cwd()
@@ -112,7 +141,8 @@ async function sync({ channel, newVersionStr, noInstall }) {
     await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
   )
   const devDependencies = pkgJson.devDependencies
-  const pnpmOverrides = pkgJson.pnpm.overrides
+  /** @type {Record<string, string>} */
+  const pnpmOverrides = {}
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
@@ -172,6 +202,17 @@ async function sync({ channel, newVersionStr, noInstall }) {
       // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
       '\n'
   )
+
+  const pnpmWorkspacePath = path.join(cwd, 'pnpm-workspace.yaml')
+  let pnpmWorkspace = await fsp.readFile(pnpmWorkspacePath, 'utf-8')
+  for (const [packageName, version] of Object.entries(pnpmOverrides)) {
+    pnpmWorkspace = setPnpmWorkspaceOverride(
+      pnpmWorkspace,
+      packageName,
+      version
+    )
+  }
+  await fsp.writeFile(pnpmWorkspacePath, pnpmWorkspace)
 }
 
 /**
@@ -299,6 +340,43 @@ async function findHighestNPMReactVersion(versionLike) {
     : result.sort((a, b) => {
         return SemVer.compare(b, a)
       })[0]
+}
+
+/**
+ * Assigns `actor` to the given Pull Request if they can be assigned.
+ * On scheduled runs `github.actor` often resolves to a bot like
+ * `github-actions[bot]`, which cannot be assigned. User tokens silently
+ * ignore non-assignable assignees but GitHub App tokens fail the whole
+ * request with 403, so check assignability first and skip instead.
+ * @param {InstanceType<typeof Octokit>} octokit
+ * @param {string | undefined} actor
+ * @param {number} pullRequestNumber
+ */
+async function assignActorIfAssignable(octokit, actor, pullRequestNumber) {
+  if (actor === undefined) {
+    return null
+  }
+  try {
+    await octokit.rest.issues.checkUserCanBeAssigned({
+      owner: repoOwner,
+      repo: repoName,
+      assignee: actor,
+    })
+  } catch (error) {
+    if (error instanceof Error && 'status' in error && error.status === 404) {
+      console.warn(
+        `'${actor}' cannot be assigned in ${repoOwner}/${repoName}. Skipping assignment.`
+      )
+      return null
+    }
+    throw error
+  }
+  return octokit.rest.issues.addAssignees({
+    owner: repoOwner,
+    repo: repoName,
+    issue_number: pullRequestNumber,
+    assignees: [actor],
+  })
 }
 
 async function main() {
@@ -733,15 +811,8 @@ Or run this command again without the --no-install flag to do both automatically
       { pullRequestId: pullRequest.data.node_id }
     )
 
-    await Promise.all([
-      actor
-        ? octokit.rest.issues.addAssignees({
-            owner: repoOwner,
-            repo: repoName,
-            issue_number: pullRequest.data.number,
-            assignees: [actor],
-          })
-        : Promise.resolve(),
+    const finalizeResults = await Promise.allSettled([
+      assignActorIfAssignable(octokit, actor, pullRequest.data.number),
       octokit.rest.pulls.requestReviewers({
         owner: repoOwner,
         repo: repoName,
@@ -755,6 +826,16 @@ Or run this command again without the --no-install flag to do both automatically
         labels: pullRequestLabels,
       }),
     ])
+    const failures = finalizeResults.filter(
+      (result) => result.status === 'rejected'
+    )
+    if (failures.length > 0) {
+      // eslint-disable-next-line no-undef -- Defined in Node.js
+      throw new AggregateError(
+        failures.map((failure) => failure.reason),
+        `${failures.length} of ${finalizeResults.length} requests to finalize the Pull Request failed.`
+      )
+    }
   }
 
   console.log(prDescription)

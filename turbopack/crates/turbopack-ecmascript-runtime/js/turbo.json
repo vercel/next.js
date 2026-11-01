@@ -1,0 +1,9 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "typescript": {
+      "dependsOn": ["^build"]
+    }
+  }
+}

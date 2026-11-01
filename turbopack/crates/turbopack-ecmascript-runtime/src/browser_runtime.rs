@@ -14,6 +14,23 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{RuntimeType, embed_js::embed_static_code};
 
+pub fn chunk_update_listeners_global_name(chunk_loading_global: &str) -> String {
+    format!("{chunk_loading_global}_CHUNK_UPDATE_LISTENERS")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::chunk_update_listeners_global_name;
+
+    #[test]
+    fn scopes_chunk_update_listeners_to_chunk_loading_global() {
+        assert_eq!(
+            chunk_update_listeners_global_name("TURBOPACK_APP"),
+            "TURBOPACK_APP_CHUNK_UPDATE_LISTENERS"
+        );
+    }
+}
+
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
@@ -94,6 +111,8 @@ pub async fn get_browser_runtime_code(
     let chunk_loading_global = chunk_loading_global.await?;
     let cross_origin = *cross_origin.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", chunk_loading_global);
+    let chunk_update_listeners_global =
+        chunk_update_listeners_global_name(chunk_loading_global.as_str());
 
     if *environment
         .runtime_versions()
@@ -129,6 +148,19 @@ pub async fn get_browser_runtime_code(
         StringifyJs(chunk_base_path),
         support_component_chunks,
     )?;
+
+    if matches!(runtime_type, RuntimeType::Development) {
+        writedoc!(
+            code,
+            r#"
+                globalThis[{chunk_update_listeners_global}] ||= [];
+                var CHUNK_UPDATE_LISTENERS = {{
+                    push: (registration) => globalThis[{chunk_update_listeners_global}].push(registration),
+                }};
+            "#,
+            chunk_update_listeners_global = StringifyJs(&chunk_update_listeners_global),
+        )?;
+    }
 
     match &*asset_suffix {
         AssetSuffix::None => {

@@ -8,6 +8,7 @@ import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
 import { hrtimeDurationToString } from './duration-to-string'
+import { getBuildDistDir } from '../export/utils'
 
 /**
  * TypeScript setup and type checking run in a worker so the compiler's memory
@@ -137,7 +138,7 @@ export async function startTypeChecking({
       .traceAsyncFn(() =>
         verifyAndRunTypeScript(
           dir,
-          config.distDir,
+          getBuildDistDir(config),
           Boolean(config.experimental.strictRouteTypes),
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,

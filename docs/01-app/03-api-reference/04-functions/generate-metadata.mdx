@@ -1243,7 +1243,7 @@ Streaming metadata allows Next.js to render and send the initial UI to the brows
 
 When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>` tag. We have verified that metadata is interpreted correctly by bots that execute JavaScript and inspect the full DOM (e.g. `Googlebot`).
 
-For **HTML-limited bots** that can’t execute JavaScript (e.g. `facebookexternalhit`), metadata continues to block page rendering. The resulting metadata will be available in the `<head>` tag.
+For **HTML-limited bots** that can’t execute JavaScript (e.g. `facebookexternalhit`), Next.js waits for `generateMetadata` before starting the response. The resulting metadata is available in the `<head>` tag. After `generateMetadata` resolves, Next.js can start the response and stream the remaining page content.
 
 Next.js automatically detects **HTML-limited bots** by looking at the User Agent header. You can use the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) option in your Next.js config file to override the default [User Agent list](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
 

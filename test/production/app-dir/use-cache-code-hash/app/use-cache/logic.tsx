@@ -4,5 +4,5 @@ import { external } from 'external-dep'
 
 export async function logic() {
   'use cache'
-  return `${foo()}:${external()}`
+  return `${foo()}:${external()}:${process.env.BUNDLED_NON_INLINED_ENVVAR}`
 }

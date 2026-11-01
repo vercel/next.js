@@ -55,6 +55,16 @@ impl SideEffectsModule {
     }
 }
 
+fn side_effect_reference(
+    side_effect: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Vc<SingleChunkableModuleReference> {
+    SingleChunkableModuleReference::new(
+        *ResolvedVc::upcast(side_effect),
+        rcstr!("side effect"),
+        ExportUsage::evaluation(),
+    )
+}
+
 #[turbo_tasks::value_impl]
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
@@ -93,15 +103,9 @@ impl Module for SideEffectsModule {
         references.extend(
             self.side_effects
                 .iter()
-                .map(|side_effect| async move {
+                .map(async |side_effect| {
                     Ok(ResolvedVc::upcast(
-                        SingleChunkableModuleReference::new(
-                            *ResolvedVc::upcast(*side_effect),
-                            rcstr!("side effect"),
-                            ExportUsage::evaluation(),
-                        )
-                        .to_resolved()
-                        .await?,
+                        side_effect_reference(*side_effect).to_resolved().await?,
                     ))
                 })
                 .try_join()
@@ -134,7 +138,8 @@ impl Module for SideEffectsModule {
 impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        self.resolved_as.get_exports()
+        // Borrowed from another module identity, so it must not carry a mangling decision.
+        self.resolved_as.get_exports().borrowed()
     }
 
     #[turbo_tasks::function]
@@ -149,7 +154,17 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         let mut code = RopeBuilder::default();
         let mut has_top_level_await = false;
 
+        let unused_references = chunking_context.unused_references();
+
         for &side_effect in module.side_effects.iter() {
+            let reference = side_effect_reference(side_effect).to_resolved().await?;
+            if unused_references
+                .contains_key(&ResolvedVc::upcast(reference))
+                .await?
+            {
+                continue;
+            }
+
             let need_await = 'need_await: {
                 let async_module = *side_effect.get_async_module().await?;
                 if let Some(async_module) = async_module

@@ -429,7 +429,7 @@ async function handleDefaultConsole(
   const withStackEntry = await withLocation(
     {
       original: consoleArgs,
-      stack: (entry as any).consoleMethodStack || null,
+      stack: entry.consoleMethodStack || null,
     },
     ctx,
     distDir,

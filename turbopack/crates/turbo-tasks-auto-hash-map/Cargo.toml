@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 bincode = { workspace = true }
-hashbrown = { workspace = true, features = ["serde"]}
+hashbrown = { workspace = true, features = ["raw-entry", "serde"]}
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 shrink-to-fit = { workspace = true, features = ["hashbrown"] }

@@ -71,7 +71,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -123,7 +122,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -175,7 +173,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -238,7 +235,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",
@@ -306,7 +302,6 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "missingVar is not defined",
          "environmentLabel": null,
          "label": "Runtime ReferenceError",

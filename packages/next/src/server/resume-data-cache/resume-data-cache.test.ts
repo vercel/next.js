@@ -4,12 +4,18 @@ import {
   createRenderResumeDataCache,
 } from './resume-data-cache'
 import { createPrerenderResumeDataCache } from './resume-data-cache'
+import { FALLBACK_PARAMS, RUNTIME_DATA, SESSION_DATA } from './cache-store'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 function createMockedCache() {
   const cache = createPrerenderResumeDataCache()
+  // Omission reasons are only carried between passes of this prerender, never
+  // into the persisted cache used by a later request.
+  cache.cache.set('fallback-hole', FALLBACK_PARAMS)
+  cache.cache.set('runtime-hole', RUNTIME_DATA)
+  cache.cache.set('session-hole', SESSION_DATA)
 
   // Should be included during serialization.
   cache.cache.set(
@@ -78,6 +84,32 @@ function createMockedCacheWithEntryThatFails() {
   return cache
 }
 
+describe('createPrerenderResumeDataCache', () => {
+  it('copies entries and hole markers without changing the seed', () => {
+    const seed = createMockedCache()
+    const clone = createPrerenderResumeDataCache(seed)
+
+    expect(clone.cache).not.toBe(seed.cache)
+    expect(clone.cache).toEqual(seed.cache)
+    clone.cache.set('success', FALLBACK_PARAMS)
+    clone.cache.set('fallback-hole', RUNTIME_DATA)
+    expect(seed.cache.get('success')).toBeInstanceOf(Promise)
+    expect(seed.cache.get('fallback-hole')).toBe(FALLBACK_PARAMS)
+    expect(clone.cache.get('runtime-hole')).toBe(RUNTIME_DATA)
+    expect(clone.cache.get('session-hole')).toBe(SESSION_DATA)
+  })
+
+  it('keeps hole markers when converting to a read-only in-memory cache', () => {
+    const cache = createMockedCache()
+    const renderCache = createRenderResumeDataCache(cache)
+
+    expect(renderCache.mutable).toBe(false)
+    expect(renderCache.cache.get('fallback-hole')).toBe(FALLBACK_PARAMS)
+    expect(renderCache.cache.get('runtime-hole')).toBe(RUNTIME_DATA)
+    expect(renderCache.cache.get('session-hole')).toBe(SESSION_DATA)
+  })
+})
+
 describe('stringifyResumeDataCache', () => {
   it('throws in the edge runtime before serializing an empty cache', async () => {
     const nextRuntime = process.env.NEXT_RUNTIME
@@ -106,6 +138,22 @@ describe('stringifyResumeDataCache', () => {
     expect(
       await stringifyResumeDataCache(cache, isCacheComponentsEnabled)
     ).toBe('null')
+  })
+
+  it('serializes a successful fill that replaced a hole marker', async () => {
+    const cache = createMockedCache()
+    const successfulEntry = cache.cache.get('success')!
+    cache.cache.set('fallback-hole', successfulEntry)
+    cache.cache.set('runtime-hole', successfulEntry)
+
+    const serialized = await stringifyResumeDataCache(
+      cache,
+      isCacheComponentsEnabled
+    )
+    const parsed = createRenderResumeDataCache(serialized, undefined, true)
+
+    expect(parsed.cache.get('fallback-hole')).toBeInstanceOf(Promise)
+    expect(parsed.cache.get('runtime-hole')).toBeInstanceOf(Promise)
   })
 
   it('only serializes cache entries that were not excluded from the prerender result', async () => {
@@ -175,7 +223,6 @@ describe('parseResumeDataCache', () => {
     expect(parsed.fetch).toEqual(new Map())
     expect(parsed.encryptedBoundArgs).toEqual(new Map())
     expect(parsed.decryptedBoundArgs).toEqual(new Map())
-    expect(parsed.dynamicCacheKeys).toBeUndefined()
   })
 
   it.each([false, true])(
@@ -198,6 +245,37 @@ describe('parseResumeDataCache', () => {
 
       expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
       expect(parsed.fetch.size).toBe(0)
+      expect(parsed.cache.has('fallback-hole')).toBe(false)
+      expect(parsed.cache.has('runtime-hole')).toBe(false)
+      expect(parsed.cache.has('session-hole')).toBe(false)
+    }
+  )
+
+  it.each([false, true])(
+    'omits all hole markers with compression disabled: %s',
+    async (disableResumeDataCacheCompression) => {
+      const cache = createPrerenderResumeDataCache()
+      cache.cache.set('fallback-hole', FALLBACK_PARAMS)
+      cache.cache.set('runtime-hole', RUNTIME_DATA)
+      cache.cache.set('session-hole', SESSION_DATA)
+
+      const serialized = await stringifyResumeDataCache(
+        cache,
+        isCacheComponentsEnabled
+      )
+      const persisted = disableResumeDataCacheCompression
+        ? serialized
+        : deflateResumeDataCache(serialized)
+      const parsed = createRenderResumeDataCache(
+        persisted,
+        undefined,
+        disableResumeDataCacheCompression
+      )
+
+      expect(parsed.cache.size).toBe(0)
+      expect(cache.cache.get('fallback-hole')).toBe(FALLBACK_PARAMS)
+      expect(cache.cache.get('runtime-hole')).toBe(RUNTIME_DATA)
+      expect(cache.cache.get('session-hole')).toBe(SESSION_DATA)
     }
   )
 })

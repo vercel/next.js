@@ -103,10 +103,9 @@ import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
-import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
+import { getScriptNonceFromHeaders } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -424,7 +423,6 @@ export function errorToJSON(err: Error) {
     message: stripAnsi(err.message),
     stack: err.stack,
     digest: (err as any).digest,
-    __NEXT_ERROR_CODE: extractNextErrorCode(err),
   }
 }
 
@@ -467,7 +465,7 @@ export async function renderToHTMLImpl(
   renderContext: PagesRenderContext
 ): Promise<RenderResult> {
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
-  setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+  setLazyProp({ req: req }, 'cookies', getCookieParser(req.headers))
 
   // cssCacheBuster is a workaround for a Safari bug
   // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
@@ -740,12 +738,7 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
-  const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
-
-  const nonce =
-    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+  const nonce = getScriptNonceFromHeaders(req.headers)
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
@@ -1408,7 +1401,7 @@ export async function renderToHTMLImpl(
     }
 
     // @ts-ignore: documentInitialPropsRes is set
-    const { docProps } = (documentInitialPropsRes as any) || {}
+    const { docProps } = documentInitialPropsRes || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {
         return (Document as any)()
@@ -1489,6 +1482,9 @@ export async function renderToHTMLImpl(
     locales,
   } = renderOpts
   const htmlProps: HtmlProps = {
+    initialHmrVersion: process.env.__NEXT_DEV_SERVER
+      ? getRequestMeta(req, 'initialHmrVersion')
+      : undefined,
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page

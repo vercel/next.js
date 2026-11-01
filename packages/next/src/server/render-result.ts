@@ -3,12 +3,14 @@ import type { Readable } from 'stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
+import type { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 import {
   chainStreams,
   streamFromBuffer,
   streamFromString,
   streamToString,
+  nodeToWebByteStream,
 } from './stream-utils/node-web-streams-helper'
 import {
   isAbortError,
@@ -31,6 +33,8 @@ type ContentTypeOption =
   | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
 
 export type AppPageRenderResultMetadata = {
+  /** Request-local metrics for the first response write. Never cache this. */
+  clientComponentLoadTracker?: ClientComponentLoadTracker
   flightData?: Buffer
   cacheControl?: CacheControl
   staticBailoutInfo?: {
@@ -75,6 +79,20 @@ export type AppPageRenderResultMetadata = {
    */
   renderResumeDataCache?: RenderResumeDataCache
 }
+
+export type PrerenderFailure = {
+  readonly error: Error
+  readonly result: RenderResult<
+    Pick<
+      AppPageRenderResultMetadata,
+      'headers' | 'flightData' | 'fetchMetrics' | 'postponed'
+    >
+  >
+}
+
+export type PrerenderResult =
+  | RenderResult<AppPageRenderResultMetadata>
+  | PrerenderFailure
 
 export type PagesRenderResultMetadata = {
   pageData?: any
@@ -253,24 +271,7 @@ export default class RenderResult<
     }
 
     if (isNodeReadable(this.response)) {
-      if (process.env.NEXT_RUNTIME === 'edge') {
-        throw new InvariantError(
-          'Node.js Readable cannot be converted to a web stream in the edge runtime'
-        )
-      } else {
-        let Readable: typeof import('node:stream').Readable
-        if (process.env.TURBOPACK) {
-          Readable = (require('node:stream') as typeof import('node:stream'))
-            .Readable
-        } else {
-          Readable = (
-            __non_webpack_require__(
-              'node:stream'
-            ) as typeof import('node:stream')
-          ).Readable
-        }
-        return Readable.toWeb(this.response) as ReadableStream<Uint8Array>
-      }
+      return nodeToWebByteStream(this.response)
     }
 
     return this.response
@@ -296,24 +297,7 @@ export default class RenderResult<
     } else if (Buffer.isBuffer(this.response)) {
       return [streamFromBuffer(this.response)]
     } else if (isNodeReadable(this.response)) {
-      if (process.env.NEXT_RUNTIME === 'edge') {
-        throw new InvariantError(
-          'Node.js Readable cannot be converted to a web stream in the edge runtime'
-        )
-      } else {
-        let Readable: typeof import('node:stream').Readable
-        if (process.env.TURBOPACK) {
-          Readable = (require('node:stream') as typeof import('node:stream'))
-            .Readable
-        } else {
-          Readable = (
-            __non_webpack_require__(
-              'node:stream'
-            ) as typeof import('node:stream')
-          ).Readable
-        }
-        return [Readable.toWeb(this.response) as ReadableStream<Uint8Array>]
-      }
+      return [nodeToWebByteStream(this.response)]
     } else {
       return [this.response]
     }
@@ -417,9 +401,19 @@ export default class RenderResult<
       !Array.isArray(this.response) &&
       isNodeReadable(this.response)
     ) {
-      await pipeNodeReadableToNodeResponse(this.response, res, this.waitUntil)
+      await pipeNodeReadableToNodeResponse(
+        this.response,
+        res,
+        this.waitUntil,
+        this.metadata.clientComponentLoadTracker
+      )
       return
     }
-    await pipeToNodeResponse(this.readable, res, this.waitUntil)
+    await pipeToNodeResponse(
+      this.readable,
+      res,
+      this.waitUntil,
+      this.metadata.clientComponentLoadTracker
+    )
   }
 }

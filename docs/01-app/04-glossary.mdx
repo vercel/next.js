@@ -4,6 +4,8 @@ nav_title: Glossary
 description: A glossary of common terms used in Next.js.
 ---
 
+This glossary defines common terms used throughout the Next.js documentation, including terms related to routing, rendering, and caching.
+
 # A
 
 ## App Router
@@ -141,6 +143,10 @@ For non-`fetch` operations, use the React [`cache`](https://react.dev/reference/
 See [Proxy](#proxy).
 
 # N
+
+## Navigation stages
+
+The points at which server-rendered work becomes available during a client navigation. With [Partial Prefetching](#partial-prefetching), the stages are the [App Shell](#app-shell), a per-link prefetch, and the navigation. Learn more in the [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic), [`prefetch()`](/docs/app/api-reference/functions/prefetch), and [`navigation()`](/docs/app/api-reference/functions/navigation) API references.
 
 ## Not Found
 

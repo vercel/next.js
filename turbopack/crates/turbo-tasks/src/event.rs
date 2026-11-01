@@ -11,9 +11,25 @@ use std::{
     time::Duration,
 };
 
-use event_listener::Listener as _;
 #[cfg(feature = "hanging_detection")]
 use tokio::time::{Timeout, timeout};
+
+/// Blocks the current thread until `listener` is notified.
+///
+/// `event-listener` gates its own blocking `wait()` behind `not(target_family = "wasm")`, which
+/// excludes every wasm target even though `wasm32-wasip1-threads` has real threads that can park.
+/// Its native implementation is just "register a waker, then park in a loop", so on wasm we drive
+/// the listener's `Future` to completion with a parking executor, which is the same mechanism.
+fn block_on_listener(listener: event_listener::EventListener) {
+    #[cfg(not(target_family = "wasm"))]
+    {
+        use event_listener::Listener as _;
+
+        listener.wait();
+    }
+    #[cfg(target_family = "wasm")]
+    futures::executor::block_on(listener);
+}
 
 pub trait EventDescriptor {
     #[cfg(feature = "hanging_detection")]
@@ -209,7 +225,7 @@ impl EventListener {
     /// This is the synchronous equivalent of `.await`-ing the `EventListener`.
     /// Only valid in synchronous contexts (e.g. backend operations).
     pub fn wait(self) {
-        self.listener.wait();
+        block_on_listener(self.listener);
     }
 }
 
@@ -294,16 +310,21 @@ impl EventListener {
     pub fn wait(mut self) {
         if let Some(future) = self.future.take() {
             // SAFETY: EventListener is Unpin, so it's safe to move out of the Pin.
-            unsafe { std::pin::Pin::into_inner_unchecked(future) }
-                .into_inner()
-                .wait();
+            block_on_listener(unsafe { std::pin::Pin::into_inner_unchecked(future) }.into_inner());
         }
     }
 }
 
 #[cfg(all(test, not(feature = "hanging_detection")))]
 mod tests {
-    use std::hint::black_box;
+    use std::{
+        hint::black_box,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Instant,
+    };
 
     use tokio::time::{Duration, timeout};
 
@@ -340,5 +361,47 @@ mod tests {
         }));
 
         let _ = black_box(timeout(Duration::from_millis(10), listener)).await;
+    }
+
+    /// `EventListener::wait` has to actually block until another thread notifies the event.
+    ///
+    /// The notification is sent only after a delay, so the waiter is registered and parked first —
+    /// this exercises the parking path rather than the already-notified fast path. The assertions
+    /// are written so that a `wait()` which returned early (or did nothing at all) fails rather
+    /// than silently passing, and a `wait()` which never woke up would hang the test.
+    #[test]
+    fn wait_blocks_until_notified_by_another_thread() {
+        const DELAY: Duration = Duration::from_millis(300);
+        // Allow for timer granularity: assert on a slightly shorter span than we sleep for.
+        const MIN_BLOCKED: Duration = Duration::from_millis(200);
+
+        let event = Arc::new(Event::new(|| || "test event".to_string()));
+        let listener = event.listen();
+
+        let notified = Arc::new(AtomicBool::new(false));
+        let notifier = {
+            let event = event.clone();
+            let notified = notified.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(DELAY);
+                notified.store(true, Ordering::SeqCst);
+                event.notify(1);
+            })
+        };
+
+        let start = Instant::now();
+        listener.wait();
+        let blocked_for = start.elapsed();
+
+        assert!(
+            notified.load(Ordering::SeqCst),
+            "wait() returned before the notifying thread ran"
+        );
+        assert!(
+            blocked_for >= MIN_BLOCKED,
+            "wait() did not block; it returned after {blocked_for:?}"
+        );
+
+        notifier.join().unwrap();
     }
 }

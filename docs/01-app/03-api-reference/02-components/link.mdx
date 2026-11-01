@@ -70,14 +70,14 @@ The following props can be passed to the `<Link>` component:
 
 <AppOnly>
 
-| Prop                                  | Example                          | Type             | Required |
-| ------------------------------------- | -------------------------------- | ---------------- | -------- |
-| [`href`](#href-required)              | `href="/dashboard"`              | String or Object | Yes      |
-| [`replace`](#replace)                 | `replace={false}`                | Boolean          | -        |
-| [`scroll`](#scroll)                   | `scroll={false}`                 | Boolean          | -        |
-| [`prefetch`](#prefetch)               | `prefetch={false}`               | Boolean or null  | -        |
-| [`onNavigate`](#onnavigate)           | `onNavigate={(e) => {}}`         | Function         | -        |
-| [`transitionTypes`](#transitiontypes) | `transitionTypes={['slide-in']}` | `string[]`       | -        |
+| Prop                                  | Example                          | Type                       | Required |
+| ------------------------------------- | -------------------------------- | -------------------------- | -------- |
+| [`href`](#href-required)              | `href="/dashboard"`              | String or Object           | Yes      |
+| [`replace`](#replace)                 | `replace={false}`                | Boolean                    | -        |
+| [`scroll`](#scroll)                   | `scroll={false}`                 | Boolean                    | -        |
+| [`prefetch`](#prefetch)               | `prefetch={false}`               | Boolean, `"auto"`, or null | -        |
+| [`onNavigate`](#onnavigate)           | `onNavigate={(e) => {}}`         | Function                   | -        |
+| [`transitionTypes`](#transitiontypes) | `transitionTypes={['slide-in']}` | `string[]`                 | -        |
 
 </AppOnly>
 
@@ -979,11 +979,12 @@ For example, if you want to serve a `/dashboard` route that has authenticated an
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl
   if (nextUrl.pathname === '/dashboard') {
-    if (request.cookies.authToken) {
+    if (request.cookies.has('authToken')) {
       return NextResponse.rewrite(new URL('/auth/dashboard', request.url))
     } else {
       return NextResponse.rewrite(new URL('/public/dashboard', request.url))
@@ -998,7 +999,7 @@ import { NextResponse } from 'next/server'
 export function proxy(request) {
   const nextUrl = request.nextUrl
   if (nextUrl.pathname === '/dashboard') {
-    if (request.cookies.authToken) {
+    if (request.cookies.has('authToken')) {
       return NextResponse.rewrite(new URL('/auth/dashboard', request.url))
     } else {
       return NextResponse.rewrite(new URL('/public/dashboard', request.url))

@@ -5,12 +5,12 @@
 use anyhow::Result;
 use serde_json::json;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
-use turbopack_analyze::split_chunk::{ChunkPartRange, ChunkParts, split_output_asset_into_parts};
+use turbopack_analyze::split_chunk::{ChunkPart, ChunkPartRange, split_output_asset_into_parts};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
@@ -22,7 +22,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let mut code = CodeBuilder::new(true, false);
         code += "Hello world!\n";
         code += "This is a test file.\n";
@@ -55,13 +55,10 @@ async fn split_chunk() {
         }
         .resolved_cell();
 
-        #[turbo_tasks::function(operation, root)]
-        fn split_parts_operation(asset: ResolvedVc<TestAsset>) -> Vc<ChunkParts> {
-            split_output_asset_into_parts(Vc::upcast(*asset))
-        }
-
-        let parts_op = split_parts_operation(asset);
-        let parts = parts_op.read_strongly_consistent().await?;
+        let result = split_parts_operation(asset)
+            .read_strongly_consistent()
+            .await?;
+        let parts = &result.parts;
 
         assert_eq!(parts.len(), 2);
 
@@ -96,32 +93,32 @@ async fn split_chunk() {
             }]
         );
 
-        #[turbo_tasks::function(operation, root)]
-        async fn compressed_size_operation(
-            parts: OperationVc<ChunkParts>,
-            index: usize,
-        ) -> Result<Vc<u32>> {
-            Ok(Vc::cell(
-                parts.connect().await?[index]
-                    .get_compressed_size()
-                    .await?
-                    .unwrap(),
-            ))
-        }
-
-        let compressed_size_0 = compressed_size_operation(parts_op, 0)
-            .read_strongly_consistent()
-            .await?;
-        let compressed_size_1 = compressed_size_operation(parts_op, 1)
-            .read_strongly_consistent()
-            .await?;
-        assert_eq!(*compressed_size_0, 43);
-        assert_eq!(*compressed_size_1, 28);
+        assert_eq!(result.compressed_sizes, [Some(43), Some(28)]);
 
         anyhow::Ok(())
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::value]
+struct SplitResult {
+    parts: Vec<ChunkPart>,
+    compressed_sizes: Vec<Option<u32>>,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn split_parts_operation(asset: ResolvedVc<TestAsset>) -> Result<Vc<SplitResult>> {
+    let parts = split_output_asset_into_parts(Vc::upcast(*asset)).await?;
+    let mut compressed_sizes = Vec::with_capacity(parts.len());
+    for part in &parts {
+        compressed_sizes.push(part.get_compressed_size().await?);
+    }
+    Ok(SplitResult {
+        parts,
+        compressed_sizes,
+    }
+    .cell())
 }
 
 #[turbo_tasks::value]

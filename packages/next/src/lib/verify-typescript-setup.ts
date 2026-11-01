@@ -31,7 +31,9 @@ const typescriptApiPackage: MissingDependency = {
 }
 
 const typescriptCliPackage: MissingDependency = {
-  file: 'typescript/bin/tsc',
+  // The CLI path is resolved from the package's bin metadata after this initial
+  // package-presence check, since aliased TypeScript packages may rename it.
+  file: 'typescript/package.json',
   pkg: 'typescript',
   exportsRestrict: true,
 }
@@ -195,7 +197,7 @@ export async function verifyAndRunTypeScript({
         if (err && typeof err === 'object' && 'command' in err) {
           console.error(
             `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
-              (err as any).command +
+              err.command +
               '\n'
           )
         }

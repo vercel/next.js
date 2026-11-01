@@ -1,0 +1,1 @@
+Enable Partial Prefetching across this music catalog. Navigating from the home page through any of the three eager Aurora links must still have the track title and artist ready immediately. Recommendations can stream after navigation. Preserve this behavior with regression coverage.

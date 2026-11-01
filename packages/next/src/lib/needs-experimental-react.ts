@@ -1,10 +1,19 @@
 import type { NextConfig } from '../server/config-shared'
 
-// Keep in sync with Turbopack's experimental React switch: file://./../../../../crates/next-core/src/next_import_map.rs
+// Keep in sync with Turbopack's experimental React switch: file://./../../../../crates/next-core/src/next_config.rs
 export function needsExperimentalReact(config: NextConfig) {
-  const { blockingSSR, taint, transitionIndicator, gestureTransition } =
-    config.experimental || {}
+  const {
+    blockingSSR,
+    taint,
+    transitionIndicator,
+    gestureTransition,
+    hydrationChangeEvent,
+  } = config.experimental || {}
   return Boolean(
-    blockingSSR || taint || transitionIndicator || gestureTransition
+    blockingSSR ||
+      taint ||
+      transitionIndicator ||
+      gestureTransition ||
+      hydrationChangeEvent
   )
 }

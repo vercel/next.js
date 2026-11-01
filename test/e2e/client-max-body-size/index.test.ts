@@ -2,14 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('client-max-body-size', () => {
+  // These 5, 10, and 11 MiB requests exceed the Vercel test deployment's
+  // 4.5 MB payload limit and receive 413 instead of 200. Next.js's 10 MiB
+  // buffering limit does not configure Vercel's separate acceptance limit.
+  // @force-gate !deploy
   describe('default 10MB limit', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      // Deployed environment has it's own configured limits.
-      skipDeployment: true,
     })
-
-    if (skipped) return
 
     it('should accept request body over 10MB but only buffer up to limit', async () => {
       const bodySize = 11 * 1024 * 1024 // 11MB
@@ -78,9 +78,8 @@ describe('client-max-body-size', () => {
   })
 
   describe('custom limit with string format', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: '5mb',
@@ -88,8 +87,9 @@ describe('client-max-body-size', () => {
       },
     })
 
-    if (skipped) return
-
+    // The 6 MiB request exceeds Vercel's 4.5 MB payload limit and receives 413.
+    // Next.js's 5 MiB buffering limit does not raise that platform limit.
+    // @force-gate !deploy
     it('should accept request body over custom 5MB limit but only buffer up to limit', async () => {
       const bodySize = 6 * 1024 * 1024 // 6MB
       const body = 'a'.repeat(bodySize)
@@ -137,9 +137,8 @@ describe('client-max-body-size', () => {
   })
 
   describe('custom limit with number format', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
@@ -147,8 +146,9 @@ describe('client-max-body-size', () => {
       },
     })
 
-    if (skipped) return
-
+    // Vercel accepts all 3 MiB without applying Next.js's 2 MiB local
+    // middleware buffering limit, so the truncation assertion fails.
+    // @force-gate !deploy
     it('should accept request body over custom 2MB limit but only buffer up to limit', async () => {
       const bodySize = 3 * 1024 * 1024 // 3MB
       const body = 'c'.repeat(bodySize)
@@ -195,18 +195,19 @@ describe('client-max-body-size', () => {
     })
   })
 
+  // These 20 and 51 MiB requests exceed the Vercel test deployment's
+  // 4.5 MB payload limit and receive 413 instead of 200. Setting Next.js's
+  // buffer to 50 MiB does not raise Vercel's separate acceptance limit.
+  // @force-gate !deploy
   describe('large custom limit', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       nextConfig: {
         experimental: {
           proxyClientMaxBodySize: '50mb',
         },
       },
     })
-
-    if (skipped) return
 
     it('should accept request body up to 50MB with custom limit', async () => {
       const bodySize = 20 * 1024 * 1024 // 20MB
