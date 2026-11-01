@@ -1,6 +1,6 @@
 # Native Go file compilation
 
-`turbopack-go` compiles explicit `.go` input files into one native host executable.
+`turbopack-go` compiles selected `.go` input files into one native executable.
 Go owns dependency resolution, package compilation and linking through `go list`
 and `go build`. Turbopack tracks the inputs Go reports and validates them around
 compiler execution.
@@ -24,20 +24,21 @@ through the same output writer, and owns watching and shutdown.
    Input files must have the same parent directory, either the project root or one
    subdirectory, and form a single executable `package main`.
 3. Read `go_bundle` strongly consistently within Turbo Tasks. Inspect the
-   `GoBundleResult` outcome and call `is_current()` before consuming it. If live inputs
-   have changed, invalidate the source and module-cache filesystems and read again.
+   `GoBundleResult` outcome and call `validate().await` at the publication boundary.
+   It checks live inputs and invalidates source/module-cache observations before a retry.
 4. Before writing output, check `is_input(output_path)` to protect tracked files and
    potential embed matches. Validate inputs again immediately before publication.
-5. For watching, register watchers on both the project and module-cache filesystems.
+5. For watching, register the application project watcher and call
+   `start_module_cache_watching()` on the context.
    Cancel the context with `cancel()` when stopping, interrupt pending graph reads,
-   stop the watchers, and await task shutdown. `cancelled()` supports waiting for
+   stop the project watcher, call `stop_module_cache_watching()`, and await task shutdown. `cancelled()` supports waiting for
    cancellation; a cancelled context cannot be reused for another session.
 
 The module cache is a second input filesystem root. The tracker maps dependency
 paths reported by Go into `filesystem(context.module_cache)`, while project paths
-use the filesystem passed to `go_bundle`. For watch sessions, library consumers must
-start and stop watching that same module-cache filesystem alongside the project
-filesystem; the CLI does this automatically. These roots are selected explicitly
+use the filesystem passed to `go_bundle`. The context watcher methods lease that same module-cache filesystem, so independent
+consumers can stop without releasing another consumer's watcher. The CLI uses these
+methods alongside its application-owned project watcher. These roots are selected explicitly
 from Go's resolved paths. They do not need a cross-root `DiskFileSystemMap`, since
 source symlinks and traversal between roots are unsupported.
 
@@ -85,6 +86,37 @@ the same path and interval for module-cache watching and invalidation.
 Session owners must cancel compilation and stop module-cache watchers at shutdown.
 `GoBuildSession::new` remains available for transient consumers. The application
 integration lives outside this crate.
+
+## Source analysis and managed sessions
+
+`go_source_set(boundary, directory, selection, session)` returns a tracked source set.
+It finds the nearest ancestor `go.mod` within the supplied boundary, falling back to
+the source directory. Missing module files are observed too, so creating a nearer
+module invalidates selection. `GoSourceSelection::Files` accepts explicit names;
+`Directory` selects regular `.go` siblings except `_test.go`. Both use named-file
+semantics: platform suffixes and build tags do not filter the selected entry files.
+
+`go_declarations(sources, host_session)` reports top-level function names and syntax
+errors using Go's parser. The parser tool is cached independently of application
+modules, and queries are cached by source content. It never loads application code.
+Consumers interpret names and generate their own entrypoints. Syntax errors remain
+available while allowing the compiler to emit its usual diagnostics.
+
+Pass the same source set to `go_bundle_from_sources(sources, target_session, generated)`.
+It rejects stale analysis inputs and returns a validity token covering source selection
+and transitive compiler inputs. Source names, bytes and directory membership must agree
+with analysis before the resulting executable is published. This remains best effort
+against concurrent writers, not a transactional filesystem snapshot.
+
+`GoSessionPool` lazily probes `GoToolchainOptions`, constructs persistent host or target
+sessions, retains their restored cancellation handles, and leases module-cache watchers.
+Acquire sessions from a session-dependent task. Pass `None` for a host analysis tool,
+or a `GoTarget` for compilation; the target keeps OS/architecture and executable suffix
+consistent. Go validates target availability for the installed SDK. The library supports
+configured targets with CGO disabled; the CLI currently exposes host compilation only.
+Call `shutdown().await` before stopping the task engine. The pool cancels all its sessions
+and releases its watcher leases; the application still owns its project filesystem,
+publication effects and request retry limits. A shut-down pool cannot be reused.
 
 ## How it works
 

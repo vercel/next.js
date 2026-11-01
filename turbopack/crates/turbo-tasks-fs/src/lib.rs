@@ -20,8 +20,6 @@ mod content;
 mod disk;
 pub mod embed;
 mod error;
-#[cfg(any(unix, windows))]
-mod executable_output;
 mod fs_map;
 pub mod glob;
 mod globset;

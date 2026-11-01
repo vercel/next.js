@@ -12,8 +12,7 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_native_file_systems_operation, endpoint_server_changed_operation,
-        endpoint_write_to_disk_operation,
+        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
@@ -191,24 +190,15 @@ pub async fn endpoint_write_to_disk(
                     written, issues, ..
                 } = &*read;
 
-                if let Some(
-                    EndpointOutputPaths::Native { build, .. }
-                    | EndpointOutputPaths::NativeFailed { build },
-                ) = written.as_deref()
-                    && !build.is_current()?
+                if let Some(written) = written.as_deref()
+                    && !written.validate().await?
                 {
-                    let systems = endpoint_native_file_systems_operation(endpoint_op)
-                        .read_strongly_consistent()
-                        .await?;
-                    for fs in systems.iter() {
-                        fs.await?.invalidate();
-                    }
                     continue;
                 }
                 return Ok((written.clone(), issues.clone()));
             }
             anyhow::bail!(
-                "Go route sources changed repeatedly during compilation; retry the request"
+                "External inputs changed repeatedly during endpoint compilation; retry the request"
             )
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))

@@ -3,9 +3,12 @@
 
 //! Native Go file inputs. Discovery and compilation run in the original project; Turbo Tasks
 //! records their filesystem dependencies and validates inputs across each external command.
+mod analysis;
 mod inputs;
 mod paths;
 mod process;
+mod session;
+mod sources;
 
 use std::{
     collections::BTreeMap,
@@ -34,7 +37,12 @@ use turbo_tasks_fs::{
     Permissions, to_sys_path,
 };
 
-pub use crate::paths::{paths_refer_to_same_file, validate_source_path};
+pub use crate::{
+    analysis::{GoDeclarations, go_declarations},
+    paths::{paths_refer_to_same_file, validate_source_path},
+    session::{GoSessionPool, GoTarget, GoToolchainOptions},
+    sources::{GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_source_set},
+};
 use crate::{
     inputs::{CompilerInputs, FileInput, Inputs, Tracker},
     process::Command,
@@ -43,6 +51,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Cancellation {
     token: CancellationToken,
+
+    module_cache_watching: tokio::sync::Mutex<bool>,
 
     lists: AtomicUsize,
 
@@ -88,6 +98,7 @@ pub struct GoBuildContext {
 fn fresh_cancellation() -> TransientInstance<Cancellation> {
     TransientInstance::new(Cancellation {
         token: CancellationToken::new(),
+        module_cache_watching: Default::default(),
         lists: AtomicUsize::new(0),
         builds: AtomicUsize::new(0),
         module_configs: AtomicUsize::new(0),
@@ -450,7 +461,7 @@ fn shared_session(go_context: GoBuildContext) -> Vc<GoBuildSession> {
 
 #[turbo_tasks::function(operation, root)]
 pub fn filesystem(path: RcStr) -> Vc<DiskFileSystem> {
-    filesystem_with_poll_interval(path, None).connect()
+    disk_filesystem(path, None)
 }
 
 /// Use one configured filesystem identity for module-cache reads, watching and invalidation.
@@ -459,6 +470,11 @@ pub fn filesystem_with_poll_interval(
     path: RcStr,
     poll_interval_ms: Option<u64>,
 ) -> Vc<DiskFileSystem> {
+    disk_filesystem(path, poll_interval_ms)
+}
+
+#[turbo_tasks::function]
+fn disk_filesystem(path: RcStr, poll_interval_ms: Option<u64>) -> Vc<DiskFileSystem> {
     DiskFileSystem::new_with_options(
         rcstr!("go"),
         Vc::cell(path),
@@ -1198,6 +1214,8 @@ async fn executable_content(file: ResolvedVc<File>) -> Result<Vc<FileContent>> {
 pub struct GoBundleResult {
     pub outcome: GoBuildOutcome,
     inputs: Inputs,
+    root: FileSystemPath,
+    session: ResolvedVc<GoBuildSession>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -1216,6 +1234,22 @@ impl GoBundleResult {
 
     pub fn is_current(&self) -> Result<bool> {
         self.inputs.is_current()
+    }
+
+    /// Live publication-boundary check. Invalidate compiler observations before the caller
+    /// retries its graph read. This must run outside a memoized task at that boundary.
+    pub async fn validate(&self) -> Result<bool> {
+        let context = &self.session.await?.go_context;
+        if !context.is_cancelled() && self.is_current()? {
+            return Ok(true);
+        }
+        let project = to_sys_path(self.root.clone())
+            .await?
+            .context("Go inputs require a disk filesystem")?;
+        Tracker::new(&self.root, &project, context)
+            .invalidate()
+            .await?;
+        Ok(false)
     }
 }
 
@@ -1269,6 +1303,8 @@ async fn bundle(
     Ok(GoBundleResult {
         outcome,
         inputs: discovery.inputs.clone(),
+        root,
+        session: go_session,
     }
     .cell())
 }
@@ -1295,7 +1331,7 @@ pub fn go_bundle_with_generated_files(
     bundle(root, files, shared_session(go_context), generated)
 }
 
-/// Session-valued entrypoint for Next-specific persistent endpoint tasks. Generated source
+/// Session-valued entrypoint for persistent compiler consumers. Generated source
 /// content is task input; the resolved toolchain stays a value dependency of compiler tasks.
 #[turbo_tasks::function]
 pub fn go_bundle_with_session(

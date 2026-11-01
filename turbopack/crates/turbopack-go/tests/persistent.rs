@@ -11,8 +11,8 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_go::{
-    GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, filesystem,
-    go_bundle_with_session,
+    GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult,
+    GoSourceSelection, filesystem, go_bundle_from_sources, go_declarations, go_source_set,
 };
 
 #[turbo_tasks::function(operation, root)]
@@ -21,18 +21,27 @@ fn session_operation(scope: RcStr, options: GoBuildOptions) -> Vc<GoBuildSession
 }
 
 #[turbo_tasks::function(operation, root)]
-fn persistent_bundle(
+async fn persistent_bundle(
     root: FileSystemPath,
     scope: RcStr,
     options: GoBuildOptions,
+    host_options: GoBuildOptions,
     generated: BTreeMap<RcStr, RcStr>,
-) -> Vc<GoBundleResult> {
-    go_bundle_with_session(
+) -> Result<Vc<GoBundleResult>> {
+    let host = GoBuildSession::persistent(format!("{scope}:analysis").into(), host_options);
+    let session = GoBuildSession::persistent(scope, options);
+    let sources = go_source_set(
+        root.clone(),
         root,
-        vec![rcstr!("main.go")],
-        GoBuildSession::persistent(scope, options),
-        generated,
-    )
+        GoSourceSelection::Files(vec![rcstr!("main.go")]),
+        session,
+    );
+    let declarations = go_declarations(sources, host).await?;
+    ensure!(
+        declarations.functions.contains(&rcstr!("main")) || !declarations.syntax_errors.is_empty(),
+        "missing function declarations"
+    );
+    Ok(go_bundle_from_sources(sources, session, generated))
 }
 
 // Each invocation is a fresh OS process, including Turbo Tasks registration and all Rust
@@ -46,6 +55,7 @@ async fn persistent_child() -> Result<()> {
     let mode = std::env::var("GO_PERSISTENT_TEST_MODE")?;
     let tool = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
     let mut probe = GoBuildContext::host(Path::new(&tool), None, "").await?;
+    let host_options = probe.options.clone();
     if mode == "toolchain" {
         probe.options.toolchain_fingerprint.push(1);
     }
@@ -95,6 +105,12 @@ async fn persistent_child() -> Result<()> {
                 .strongly_consistent()
                 .await?;
             let go_context = session.await?.go_context.clone();
+            let analysis_context =
+                session_operation(format!("{scope}:analysis").into(), host_options.clone())
+                    .read_strongly_consistent()
+                    .await?
+                    .go_context
+                    .clone();
             ensure!(
                 !go_context.is_cancelled(),
                 "restored a previous process's cancellation"
@@ -124,6 +140,7 @@ async fn persistent_child() -> Result<()> {
                 },
                 scope,
                 options,
+                host_options,
                 generated,
             )
             .read_strongly_consistent()
@@ -163,6 +180,11 @@ async fn persistent_child() -> Result<()> {
                 go_context.invocation_counts().1,
                 expected_builds,
                 "Go build invocations"
+            );
+            assert_eq!(
+                analysis_context.invocation_counts().1,
+                usize::from(mode == "cold"),
+                "host parser compilation must persist across processes and target changes"
             );
             go_context.cancel();
             ensure!(

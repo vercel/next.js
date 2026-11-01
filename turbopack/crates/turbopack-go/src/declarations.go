@@ -1,4 +1,4 @@
-// This build-time tool parses tracked source bytes; it never loads or executes a route.
+// This build-time tool only parses source bytes. It never loads application code.
 package main
 
 import (
@@ -12,13 +12,13 @@ import (
 )
 
 func main() {
-	if err := discover(); err != nil {
+	if err := analyze(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func discover() error {
+func analyze() error {
 	input, err := os.Open(os.Args[1])
 	if err != nil {
 		return err
@@ -33,28 +33,27 @@ func discover() error {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	methods := map[string]bool{}
+	functions := map[string]bool{}
+	errors := []string{}
 	for _, name := range names {
 		file, err := parser.ParseFile(token.NewFileSet(), name, sources[name], parser.SkipObjectResolution)
 		if err != nil {
-			// Let the route compiler report syntax errors with its normal diagnostics.
+			errors = append(errors, err.Error())
 			continue
 		}
 		for _, declaration := range file.Decls {
-			function, ok := declaration.(*ast.FuncDecl)
-			if !ok || function.Recv != nil {
-				continue
-			}
-			switch function.Name.Name {
-			case "GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS":
-				methods[function.Name.Name] = true
+			if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil {
+				functions[function.Name.Name] = true
 			}
 		}
 	}
-	declared := make([]string, 0, len(methods))
-	for method := range methods {
-		declared = append(declared, method)
+	declared := make([]string, 0, len(functions))
+	for name := range functions {
+		declared = append(declared, name)
 	}
 	sort.Strings(declared)
-	return json.NewEncoder(os.Stdout).Encode(declared)
+	return json.NewEncoder(os.Stdout).Encode(struct {
+		Functions    []string `json:"functions"`
+		SyntaxErrors []string `json:"syntax_errors"`
+	}{declared, errors})
 }

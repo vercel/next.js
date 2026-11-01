@@ -1014,23 +1014,7 @@ impl ProjectContainer {
     #[turbo_tasks::function(session_dependent)]
     pub async fn shutdown_go(self: Vc<Self>) -> Result<Vc<Completion>> {
         let this = self.await?;
-        let sessions = this.go_sessions.await?;
-        let target = sessions.go_context.lock().await.take();
-        let host = sessions.host_context.lock().await.take();
-        for go_context in [&target, &host].into_iter().flatten() {
-            go_context.cancel();
-        }
-        // Both contexts share the same module-cache filesystem and watcher.
-        if let Some(go_context) = host.or(target) {
-            turbopack_go::filesystem_with_poll_interval(
-                go_context.module_cache.clone(),
-                go_context.poll_interval_ms,
-            )
-            .connect()
-            .await?
-            .stop_watching()
-            .await;
-        }
+        this.go_sessions.await?.shutdown().await?;
         Ok(Completion::new())
     }
 

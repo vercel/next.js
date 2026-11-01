@@ -429,7 +429,9 @@ impl<'a> Tracker<'a> {
             self.go_context.module_cache.clone(),
             self.go_context.poll_interval_ms,
         )
-        .connect()
+        .resolve()
+        .strongly_consistent()
+        .await?
         .await?
         .invalidate();
         Ok(())
