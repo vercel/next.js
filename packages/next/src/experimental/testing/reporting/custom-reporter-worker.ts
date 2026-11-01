@@ -1,3 +1,7 @@
+import type {
+  CustomReporterCompletionFailure,
+  CustomReporterCompletionPrefix,
+} from './custom-reporter'
 import {
   isRunErrorDiagnostic,
   reportedRunError,
@@ -197,10 +201,7 @@ async function finishCallbacks(
   modules: unknown[],
   errors: unknown[],
   reason: string,
-  onInvoked?: (
-    count: number,
-    synchronousThrow?: { reporterIndex: number }
-  ) => Promise<void>
+  onPrefix?: (receipt: CustomReporterCompletionPrefix) => Promise<void>
 ) {
   await Promise.all([
     ...queuedCallbacks,
@@ -210,21 +211,34 @@ async function finishCallbacks(
   let completionError: unknown
   let invokedCount = 0
   let synchronousThrow: { reporterIndex: number } | undefined
+  let completionFailure: CustomReporterCompletionFailure | undefined
   let synchronousFailure: { error: unknown } | undefined
   const returned: Promise<unknown>[] = []
   await settle(
     reporters.map((reporter, reporterIndex) => () => {
-      if (onInvoked && synchronousThrow !== undefined) return
-      if (!onInvoked)
+      if (
+        onPrefix &&
+        (synchronousThrow !== undefined || completionFailure !== undefined)
+      )
+        return
+      if (!onPrefix)
         return reporter.onTestRunEnd?.(
           modules,
           [...errors, ...consoleErrors],
           reason
         )
-      const callback = reporter.onTestRunEnd
+      let callback: Reporter['onTestRunEnd']
+      try {
+        callback = reporter.onTestRunEnd
+      } catch (error) {
+        completionFailure = { reporterIndex, kind: 'access' }
+        throw error
+      }
       if (callback === undefined || callback === null) return
-      if (typeof callback !== 'function')
+      if (typeof callback !== 'function') {
+        completionFailure = { reporterIndex, kind: 'noncallable' }
         throw new TypeError('Custom reporter onTestRunEnd is not a function.')
+      }
       invokedCount++
       let value: unknown
       try {
@@ -243,20 +257,30 @@ async function finishCallbacks(
       returned.push(owned)
       return owned
     }),
-    onInvoked
+    onPrefix
       ? async () => {
           // Every actual callback's synchronous prefix has returned or thrown.
           // A reporter without this hook produces no invocation receipt.
           if (synchronousFailure)
             retainedFinishCallbacks.push(Promise.allSettled(returned))
-          if (invokedCount) await onInvoked(invokedCount, synchronousThrow)
+          if (completionFailure)
+            await onPrefix({
+              completionFailure,
+              ...(invokedCount ? { invocation: { count: invokedCount } } : {}),
+            })
+          else if (invokedCount)
+            await onPrefix({
+              count: invokedCount,
+              ...(synchronousThrow ? { synchronousThrow } : {}),
+            })
           if (synchronousFailure) throw synchronousFailure.error
         }
       : undefined
   ).catch((error) => {
     completionError = error
   })
-  if (completionError || synchronousFailure) consoleErrors.push(completionError)
+  if (completionError || synchronousFailure || completionFailure)
+    consoleErrors.push(completionError)
   if (consoleErrors.length === 1) throw consoleErrors[0]
   if (consoleErrors.length)
     throw new AggregateError(
@@ -717,13 +741,13 @@ async function handle(message: any) {
               ? 'passed'
               : completion.status,
           message.type === 'finish-begin'
-            ? async (count, synchronousThrow) =>
+            ? async (receipt) =>
                 send({
-                  type: 'custom-reporter-invoked',
-                  count,
-                  ...(synchronousThrow === undefined
-                    ? {}
-                    : { synchronousThrow }),
+                  type:
+                    'completionFailure' in receipt
+                      ? 'custom-reporter-completion-failure'
+                      : 'custom-reporter-invoked',
+                  ...receipt,
                 })
             : undefined
         )

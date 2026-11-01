@@ -1448,7 +1448,14 @@ export async function nextTestRunner(
             pendingCustomCoverage.status,
             pendingCustomCoverage.allTestsRun
           )
-          await machine.beginCustomCompletion()
+          if (
+            reporters.every(
+              (name) => name === 'json' || isCustomResultReporter(name)
+            ) &&
+            typeof machine.beginCustomCompletionPrefix === 'function'
+          )
+            await machine.beginCustomCompletionPrefix()
+          else await machine.beginCustomCompletion()
         }
       }
       try {

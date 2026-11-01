@@ -48,6 +48,7 @@ import {
   isCustomResultReporter,
   openCustomReporters,
   type CustomReporterInvocation,
+  type CustomReporterCompletionPrefix,
 } from './custom-reporter'
 import { tryMergeVitestBlobReports } from './vitest-blob'
 import type { ResultOutputFile } from './options'
@@ -327,6 +328,15 @@ export function createMachineReporter(options: {
   let begunCustomInvocation:
     | Promise<CustomReporterInvocation | undefined>
     | undefined
+  let begunCustomPrefix:
+    | Promise<CustomReporterCompletionPrefix | undefined>
+    | undefined
+  let useCustomPrefix = false
+  function beginCustomCompletionPrefix() {
+    beginCustomCompletion()
+    useCustomPrefix = true
+    return begunCustomPrefix
+  }
   function beginCustomCompletion() {
     if (!initialized)
       throw new Error('Custom reporters must initialize before completion.')
@@ -355,11 +365,14 @@ export function createMachineReporter(options: {
       })
       completion = operation.completed
       begunCustomInvocation = operation.invoked
+      begunCustomPrefix = operation.prefix ?? operation.invoked
     } catch (error) {
       completion = Promise.reject(error)
       begunCustomInvocation = Promise.reject(error)
+      begunCustomPrefix = Promise.reject(error)
     }
     void begunCustomInvocation!.catch(() => {})
+    void begunCustomPrefix!.catch(() => {})
     // Own the actual rejection immediately; finish awaits this same operation.
     begunCustomCompletion = completion.then(
       () => ({ status: 'fulfilled' as const }),
@@ -1381,6 +1394,7 @@ export function createMachineReporter(options: {
     getJson: () => json(),
     getJUnit: junit,
     beginCustomCompletion,
+    beginCustomCompletionPrefix,
     async finish({
       signal,
       preparedCoverageMap,
@@ -1405,15 +1419,41 @@ export function createMachineReporter(options: {
       let publicationFailure: { error: unknown } | undefined
       try {
         signal?.throwIfAborted()
-        const invocation = begunCustomInvocation
-          ? await begunCustomInvocation
-          : undefined
+        const prefix = useCustomPrefix
+          ? begunCustomPrefix
+            ? await begunCustomPrefix
+            : undefined
+          : begunCustomInvocation
+            ? await begunCustomInvocation
+            : undefined
+        const completionFailure =
+          prefix && 'completionFailure' in prefix
+            ? prefix.completionFailure
+            : undefined
+        const failingOrdinal =
+          prefix && 'completionFailure' in prefix
+            ? prefix.completionFailure.reporterIndex
+            : prefix?.synchronousThrow?.reporterIndex
         const synchronousCustomPosition =
-          invocation?.synchronousThrow === undefined
+          failingOrdinal === undefined
             ? undefined
             : options.reporters.flatMap((name, index) =>
                 isCustomResultReporter(name) ? [index] : []
-              )[invocation.synchronousThrow.reporterIndex]
+              )[failingOrdinal]
+        // JSON-before remains the existing failure-before-write path. Real
+        // declaration-position writer interleaving is a separate contract.
+        if (
+          completionFailure &&
+          synchronousCustomPosition !== undefined &&
+          options.reporters.some(
+            (name, index) =>
+              name === 'json' && index < synchronousCustomPosition
+          )
+        ) {
+          const completion = await begunCustomCompletion!
+          if (completion.status === 'rejected') throw completion.reason
+          throw new Error('Completion-failure prefix had no final failure.')
+        }
         if (!events.some((event) => event.type === 'run-end'))
           throw new Error(
             'Cannot publish a completed report before authoritative run cleanup.'

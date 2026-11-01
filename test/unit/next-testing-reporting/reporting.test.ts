@@ -9724,3 +9724,303 @@ describe('actual getter planning provider lifecycle', () => {
     130000
   )
 })
+
+describe('actual completion failure prefix ownership', () => {
+  const models = require('./fixtures/custom-completion-failure-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'maps actual failure and true invocation count for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const row = models.rows.find(
+        (value: { name: string }) => value.name === name
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-failure119-'))
+      for (const [file, value] of Object.entries(row.sourceFiles) as [
+        string,
+        { source: string },
+      ][])
+        await writeFile(join(root, file), value.source)
+      const names = row.reporters.filter((value: string) => value !== 'json')
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: names,
+        write() {},
+      })
+      const begin = session.beginFinish.bind(session)
+      let operation: ReturnType<typeof begin> | undefined
+      session.beginFinish = (completion) => {
+        operation = begin(completion)
+        return operation
+      }
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(row.reporters),
+        outputFile: join(root, 'cases.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        const prefix = await machine.beginCustomCompletionPrefix()
+        expect(prefix).toEqual({
+          completionFailure: {
+            reporterIndex: row.failingIndex,
+            kind: row.kind,
+          },
+          ...(row.actualInvocationCount
+            ? { invocation: { count: row.actualInvocationCount } }
+            : {}),
+        })
+        failure = await machine.finish().catch((error) => error)
+        const completion = await operation!.completed.catch((error) => error)
+        expect(failure).toBe(completion)
+        if (row.actualInvocationCount)
+          expect(await operation!.invoked).toEqual({
+            count: row.actualInvocationCount,
+          })
+        else
+          expect(await operation!.invoked.catch((error) => error)).toBe(
+            completion
+          )
+        expect(failure).toMatchObject({
+          message:
+            row.kind === 'access'
+              ? name.startsWith('zero')
+                ? 'actual113 reporter failure'
+                : 'actual access failure118'
+              : 'Custom reporter onTestRunEnd is not a function.',
+        })
+        await expect(readFile(join(root, 'cases.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        const trace = await readFile(
+          join(root, 'provider-trace.jsonl'),
+          'utf8'
+        ).catch((error) => {
+          if (error.code === 'ENOENT') return ''
+          throw error
+        })
+        expect(trace).not.toContain('third-enter')
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+  it('owns honest no-hook absence for both waiters', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-prefix-absent119-'))
+    await writeFile(join(root, 'observer.mjs'), 'export default class{}')
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./observer.mjs'],
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      customReporterSession: session,
+      write() {},
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      expect(await machine.beginCustomCompletionPrefix()).toBeUndefined()
+      expect(await machine.beginCustomCompletion()).toBeUndefined()
+      await machine.finish()
+    } finally {
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('keeps abort before dispatch owned without a receipt', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-prefix-abort119-'))
+    await writeFile(
+      join(root, 'observer.mjs'),
+      'export default class{get onTestRunEnd(){throw new Error("must not access after abort")}}'
+    )
+    const controller = new AbortController(),
+      reason = new Error('actual119 abort')
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./observer.mjs'],
+      signal: controller.signal,
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      customReporterSession: session,
+      write() {},
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      controller.abort(reason)
+      expect(
+        await machine.beginCustomCompletionPrefix()!.catch((error) => error)
+      ).toBe(reason)
+      expect(
+        await machine.beginCustomCompletion()!.catch((error) => error)
+      ).toBe(reason)
+    } finally {
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('owns actual worker death before a failure receipt', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-prefix-death119-'))
+    await writeFile(
+      join(root, 'observer.mjs'),
+      'export default class{get onTestRunEnd(){process.exit(23)}}'
+    )
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./observer.mjs'],
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      customReporterSession: session,
+      write() {},
+    })
+    let failure: unknown
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      failure = await machine
+        .beginCustomCompletionPrefix()!
+        .catch((error) => error)
+      expect(failure).toMatchObject({
+        message: 'Custom reporter process ended unexpectedly (exit, code 23).',
+      })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it.each(['zero-count', 'bad-kind', 'duplicate'])(
+    'rejects actual producer receipt damage: %s',
+    async (mutation) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-prefix-fault119-'))
+      await writeFile(
+        join(root, 'observer.mjs'),
+        `export default class{onInit(){const send=process.send.bind(process);process.send=(message,...rest)=>{if(message?.type==='custom-reporter-completion-failure'){${mutation === 'zero-count' ? 'message.invocation={count:0};' : mutation === 'bad-kind' ? "message.completionFailure.kind='invalid';" : 'send(message,()=>{});'}}return send(message,...rest)}}get onTestRunEnd(){throw new Error('actual119 access')}}`
+      )
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./observer.mjs'],
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: ['json'],
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        const start = machine.beginCustomCompletionPrefix()!
+        await start.catch(() => {})
+        failure = await machine.finish().catch((error) => error)
+        expect(failure).toMatchObject({
+          message: expect.stringContaining(
+            'Invalid custom reporter completion-failure receipt.'
+          ),
+        })
+        await expect(readFile(join(root, 'cases.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure }).catch(() => {})
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual completion failure mapping publication', () => {
+  const models = require('./fixtures/custom-completion-failure-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches JSON-after failure dispatch for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-failure-public119-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-completion-failure.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_FAILURE_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_FAILURE_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
