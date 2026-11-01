@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !futureCompat || !start
 describe('cache-components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

@@ -61,7 +61,10 @@ const REPRODUCE_UNNECESSARY_RUNTIME_PREFETCH =
 // requests (including the route tree prefetch), 'runtime' matches dynamic
 // prefetch requests (e.g. the runtime shell request).
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate prefetching
+// @force-gate !futureCompat
 describe('static App Shell prefetch attempt', () => {
   const { next } = nextTestSetup({
     files: __dirname,

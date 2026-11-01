@@ -14,7 +14,10 @@ import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 // For exhaustive coverage of explicit levels and per-segment overrides,
 // see the sibling `instant-validation-level-{warning,manual-warning,error,
 // manual-error}` fixtures.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('instant validation - default level', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,

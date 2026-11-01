@@ -1,7 +1,10 @@
 import { nextTestSetup, Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !dev
+// @force-gate !futureCompat
 describe('ensureStatic = "navigation" - runtime behavior', () => {
   const { next } = nextTestSetup({
     files: __dirname,

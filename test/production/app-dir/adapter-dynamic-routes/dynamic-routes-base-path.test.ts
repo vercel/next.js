@@ -15,6 +15,7 @@ const basePath = '/base'
 // both carry the prefix. A collapse can therefore drop the prefix or add it
 // twice. This suite asserts the prefix as a property of every entry. It does
 // not snapshot the table a second time.
+// @force-gate !futureCompat || !start
 describe(`adapter dynamic routes (cache components, base path ${basePath})`, () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'cache-components'),

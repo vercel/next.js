@@ -1,6 +1,9 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
 import { gate } from 'next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('param-matching-root-params', () => {
   const { next } = nextTestSetup({
     files: __dirname,

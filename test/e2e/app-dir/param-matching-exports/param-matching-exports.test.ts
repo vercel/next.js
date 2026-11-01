@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 // These exports deliberately fail validation and cannot produce a deployment.
 // @force-gate !deploy
@@ -14,10 +14,19 @@ describe('param-matching-exports', () => {
 
   beforeAll(async () => {
     layout = await next.readFile(layoutFile)
-    if (isNextDev) await next.start()
+    if (isNextDev && !(await gate((c) => c.futureCompat))) {
+      await next.start()
+    }
   })
 
   async function expectValidationError(outputStart: number, message: string) {
+    if (await gate((c) => c.futureCompat)) {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
     if (isNextDev) {
       await next.fetch('/en/t1')
       await retry(() => {
@@ -80,7 +89,9 @@ describe('param-matching-exports', () => {
       )
 
       await expectValidationError(outputStart, message)
-      expect(next.cliOutput.slice(outputStart)).toContain(exportName)
+      if (!(await gate((c) => c.futureCompat))) {
+        expect(next.cliOutput.slice(outputStart)).toContain(exportName)
+      }
     }
   )
 

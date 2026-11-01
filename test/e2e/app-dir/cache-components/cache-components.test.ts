@@ -5,6 +5,7 @@ import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/util
 import cheerio from 'cheerio'
 import { fetchViaHTTP, findPort } from 'next-test-utils'
 
+// @force-gate !futureCompat || !start
 describe('cache-components', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,

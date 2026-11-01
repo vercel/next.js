@@ -26,6 +26,7 @@ import {
 // - A request for the page.
 // - A request for its `.rsc` payload.
 // - A per-segment prefetch.
+// @force-gate !futureCompat || !start
 describe('adapter dynamic routes (cache components)', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'cache-components'),

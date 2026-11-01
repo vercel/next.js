@@ -99,7 +99,7 @@ There are two tiers:
   skip only Vercel.
 
 - **lazy** — a predicate over the fixture's _resolved_ `next.config`
-  (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
+  (`cacheComponents`, `ppr`, `prefetchInlining`, `sassEmbedded`, `output`, …), read the first
   time a gate asks for it.
 
 Lazy conditions read the resolved config and never `process.env`, because
@@ -208,8 +208,9 @@ var is not what the fixture actually resolved.
    and every other line keeps its byte offsets — `toMatchInlineSnapshot()` is
    written back by line/column.
 2. `jest-transformer.js` chains that rewrite in front of the SWC transformer
-   `next/jest` configures. `jest.config.js` wires it up with
-   `withGateTransformer()`.
+   `next/jest` configures for `*.test.{js,jsx,ts,tsx,mjs}` and shared
+   `*.util.{js,jsx,ts,tsx,mjs}` helpers. Ordinary fixture source is not rewritten.
+   `jest.config.js` wires it up with `withGateTransformer()`.
 3. `runtime.ts` installs `_test_gate` and evaluates conditions. A false
    _static_ `@gate` is known while tests are collected, so the test registers
    through Jest's native `test.failing` and the inversion is Jest's own. A

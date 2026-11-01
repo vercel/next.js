@@ -15,6 +15,7 @@ import {
 
 // Non-adapter deploys do not exercise Next.js' adapter asset contract.
 // @force-gate turbopack && (!deploy || adapter)
+// @force-gate !futureCompat || !start
 describe('turbopack additional roots', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

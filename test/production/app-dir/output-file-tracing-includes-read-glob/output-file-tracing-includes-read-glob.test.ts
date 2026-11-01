@@ -1,5 +1,6 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 // Runs a local build and reads its page.js.nft.json file to verify traced files.
 // Deployment mode does not expose those local build artifacts.
@@ -19,10 +20,18 @@ describe('outputFileTracingIncludes read glob', () => {
       { paths: [next.testDir] }
     )
 
-    const { exitCode } = await next.runCommand(['build'], {
+    const result = await next.runCommand(['build'], {
       cwd: path.join(next.testDir, 'app'),
     })
-    expect(exitCode).toBe(0)
+    if (await gate((conditions) => conditions.futureCompat)) {
+      expect(result).toMatchObject({ exitCode: 1 })
+      expect(result.stderr).toContain(
+        'DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.'
+      )
+      expect(result.stderr).toContain("code: 'DEP0144'")
+      return
+    }
+    expect(result).toMatchObject({ exitCode: 0 })
 
     const traceDirectory = path.join(next.testDir, 'app/.next/server/app')
     const toTracePath = (filePath: string) =>

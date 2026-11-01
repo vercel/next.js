@@ -3,6 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('dynamicParams: false with an empty cache', () => {
   const { next } = nextTestSetup({ files: __dirname })
   const owner = {

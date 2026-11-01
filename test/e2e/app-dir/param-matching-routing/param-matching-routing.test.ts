@@ -4,7 +4,10 @@ import { gate, retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 // The legacy Vercel builder does not support these parameter-matching outputs.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy || adapter
+// @force-gate !futureCompat
 describe('param-matching-routing', () => {
   const { next } = nextTestSetup({
     files: __dirname,

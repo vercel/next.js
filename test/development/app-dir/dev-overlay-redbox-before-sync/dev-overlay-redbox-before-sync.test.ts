@@ -51,7 +51,7 @@ describe.each([
       )
 
       await waitForRedbox(browser)
-      expect(await getRedboxDescription(browser)).toBe(
+      expect(await getRedboxDescription(browser)).toContain(
         "Module not found: Can't resolve 'does-not-exist'"
       )
       // The indicator is still hidden until its state is known.

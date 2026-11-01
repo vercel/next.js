@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('turbopack-module-graph-cycle', () => {
@@ -8,6 +9,12 @@ describe('turbopack-module-graph-cycle', () => {
 
   it('reports compilation issues for a module cycle without panicking', async () => {
     const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
 
     expect(exitCode).toBe(1)
     expect(cliOutput).toContain("Can't resolve './missing.css'")

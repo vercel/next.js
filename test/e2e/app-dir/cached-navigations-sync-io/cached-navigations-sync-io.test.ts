@@ -3,7 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { gate } from '../../../lib/next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate prod
+// @force-gate !futureCompat
 describe('cached-navigations-sync-io', () => {
   const { next } = nextTestSetup({
     files: __dirname,

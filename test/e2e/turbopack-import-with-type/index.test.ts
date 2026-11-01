@@ -6,7 +6,10 @@ throw new Error('please dont execute me')
 `
 
 // Import attributes for text/bytes require Turbopack.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate turbopack
+// @force-gate !futureCompat
 describe('turbopack-import-with-type', () => {
   const { next } = nextTestSetup({
     files: __dirname,

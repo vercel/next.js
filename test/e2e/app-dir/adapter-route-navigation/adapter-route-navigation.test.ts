@@ -21,6 +21,9 @@ const parameters = {
   ninth: 'nine',
 }
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe.each([false, true])(
   'adapter route navigation, collapseAdapterRoutes: %s',
   (collapseAdapterRoutes) => {

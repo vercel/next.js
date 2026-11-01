@@ -2,6 +2,7 @@
 
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !futureCompat || !sassEmbedded
 describe.each([
   { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
   {

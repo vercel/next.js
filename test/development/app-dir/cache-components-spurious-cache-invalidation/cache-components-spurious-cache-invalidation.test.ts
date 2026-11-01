@@ -31,6 +31,9 @@ async function waitForStableCachedValue(
   return stableValue
 }
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('cache-components-spurious-cache-invalidation', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: nodePath.join(__dirname, 'fixtures/default'),

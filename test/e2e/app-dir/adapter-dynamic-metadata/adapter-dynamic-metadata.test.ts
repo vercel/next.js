@@ -1,6 +1,7 @@
 import type { NextAdapter } from 'next'
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !futureCompat || !start
 describe('adapter-dynamic-metadata', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,

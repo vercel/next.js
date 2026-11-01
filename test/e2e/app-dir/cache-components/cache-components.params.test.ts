@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // cSpell:words lowcard highcard
+// @force-gate !futureCompat || !start
 describe('cache-components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

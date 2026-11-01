@@ -6,7 +6,10 @@ import {
 import { retry, waitForRedbox } from '../../../lib/next-test-utils'
 import { createRedboxSnapshot } from '../../../lib/add-redbox-matchers'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('instant validation - server errors', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,

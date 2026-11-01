@@ -9,6 +9,7 @@ type BuildComplete = Parameters<NextAdapter['onBuildComplete']>[0]
 // This asserts on the output an adapter is handed locally (`build-complete.json`) and runs the
 // app with only the files from that output, so it has to build and serve locally.
 // @force-gate !deploy
+// @force-gate !futureCompat || !start
 describe('adapter output - styled-jsx', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),

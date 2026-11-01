@@ -1,5 +1,8 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('specified tsconfig', () => {
   const { next } = nextTestSetup({
     files: new FileRef(__dirname),

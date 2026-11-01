@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 // This suite only asserts `next build` output, so it is start-mode only.
@@ -11,9 +12,18 @@ describe('build output - truncated generated paths', () => {
     },
   })
 
-  beforeAll(() => next.build())
+  let result: Awaited<ReturnType<typeof next.build>>
+  beforeAll(async () => {
+    result = await next.build()
+  })
 
   it('marks the collapsed generated paths as static', async () => {
+    if (await gate((c) => c.futureCompat)) {
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain("code: 'DEP0144'")
+      expect(result.cliOutput).toContain('at requireFromString')
+      return
+    }
     expect(getTreeView(next.cliOutput)).toContain(
       `└   /blog/[...slug]
   ├ ◐ /blog/[...slug]
@@ -24,6 +34,12 @@ describe('build output - truncated generated paths', () => {
   })
 
   it('writes complete static HTML for every generated path', async () => {
+    if (await gate((c) => c.futureCompat)) {
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain("code: 'DEP0144'")
+      expect(result.cliOutput).toContain('at requireFromString')
+      return
+    }
     for (let index = 1; index <= 12; index++) {
       const slug = `post-${index}`
       const html = await next.readFile(`.next/server/app/blog/${slug}.html`)

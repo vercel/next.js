@@ -139,6 +139,9 @@ const isNonAdapterDeploy =
 // Without the adapter, deployed renders have their own snapshots too (see
 // `isNonAdapterDeploy`). With Cache Components, deployed pages are rendered in
 // a `POST` resume request.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe.each(VARIANTS)(
   'otel-middleware-trace - $name',
   ({ file, exportName }) => {

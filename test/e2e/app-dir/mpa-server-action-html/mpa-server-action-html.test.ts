@@ -3,6 +3,9 @@ import type { Page, Response } from 'playwright'
 import { load } from 'cheerio'
 import { retry } from 'next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('mpa-server-action-html', () => {
   const { next } = nextTestSetup({ files: __dirname })
 

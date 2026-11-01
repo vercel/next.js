@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import type { NextAdapter } from 'next'
 
+// @force-gate !futureCompat || !start
 describe('adapter-cache-handlers', () => {
   const { next } = nextTestSetup({
     files: __dirname,

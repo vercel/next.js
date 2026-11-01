@@ -7,6 +7,9 @@ const stylesheet = 'app/globals.css'
 // Regression coverage for https://github.com/vercel/next.js/pull/99893.
 // These repeated App/Pages races are complemented by a fresh Pages-only fixture
 // so an already ensured App route cannot mask missing global Pages observation.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('css-hmr-initial-load-race', () => {
   const { next } = nextTestSetup({ files: __dirname })
 

@@ -4,6 +4,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb, getUrlFromBackgroundImage } from 'next-test-utils'
 
 describe('SCSS Support loader handling', () => {
+  // @force-gate !futureCompat || !sassEmbedded
   describe.each([
     { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
     {

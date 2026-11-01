@@ -1,6 +1,6 @@
 import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({
@@ -48,10 +48,16 @@ describe('Cache Components Errors', () => {
 
           await next.browser('/')
 
+          const futureCompat = await gate(
+            (conditions) => conditions.futureCompat && !conditions.turbopack
+          )
           // trim off any logs after the HTTP request finished
           let output = next.cliOutput.slice(from)
           // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
-          if (process.env.IS_WEBPACK_TEST) {
+          if (
+            !futureCompat &&
+            (await gate((conditions) => !conditions.turbopack))
+          ) {
             expect(output).toContain(
               '[DEP0144] DeprecationWarning: module.parent'
             )
@@ -63,9 +69,43 @@ describe('Cache Components Errors', () => {
           expect(output).toContain('GET / 200')
           const snapshot = output.slice(0, output.indexOf('GET / 200')).trim()
 
-          expect(snapshot).toMatchInlineSnapshot(
-            `"[<timestamp>] This is a console log from a server component page"`
-          )
+          if (futureCompat && (await gate((conditions) => conditions.rspack))) {
+            expect(snapshot).toMatchInlineSnapshot(`
+              "DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at new Promise (<anonymous>) {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException: DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at new Promise (<anonymous>) {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException:  DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at new Promise (<anonymous>) {
+                code: 'DEP0144'
+              }
+              [<timestamp>] This is a console log from a server component page"
+            `)
+          } else if (futureCompat) {
+            expect(snapshot).toMatchInlineSnapshot(`
+              "DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at ignore-listed frames {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException: DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at ignore-listed frames {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException:  DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at ignore-listed frames {
+                code: 'DEP0144'
+              }
+              [<timestamp>] This is a console log from a server component page"
+            `)
+          } else {
+            expect(snapshot).toMatchInlineSnapshot(
+              `"[<timestamp>] This is a console log from a server component page"`
+            )
+          }
         })
       } else {
         it('does not fail the build for Sync IO if console.log is patched to call new Date() internally', async () => {

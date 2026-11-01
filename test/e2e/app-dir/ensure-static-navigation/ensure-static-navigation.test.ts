@@ -122,7 +122,10 @@ function expectErrorSnapshotToMatchPattern(
 // We skip webpack because the stack traces vary across bundlers.
 // We skip deploy, because build-time tests rely on CLI output and
 // manually prerendering pages, which is not supported in deploy mode.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate turbopack && !deploy
+// @force-gate !futureCompat
 describe('ensureStatic = "navigation"', () => {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -759,7 +759,13 @@ jobs:
       futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
-      afterBuild: node run-tests.js --type unit
+      afterBuild: |
+        # JSDOM throws DEP0040 before Jest can register suite gates on Node 21+.
+        # future-compat-jsdom.test.ts asserts the environment's startup behavior.
+        if [[ "${NEXT_TEST_FUTURE_COMPAT:-}" == "1" && "$(node --print 'process.versions.node.split(".")[0]')" -ge 21 ]]; then
+          export NEXT_EXTERNAL_TESTS_FILTERS="test/future-compat-tests-manifest.json"
+        fi
+        node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
@@ -839,7 +845,13 @@ jobs:
       futureCompat: ${{ inputs.futureCompat || github.event_name == 'schedule' }}
       needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
-      afterBuild: node run-tests.js --type unit
+      afterBuild: |
+        # JSDOM throws DEP0040 before Jest can register suite gates on Node 21+.
+        # future-compat-jsdom.test.ts asserts the environment's startup behavior.
+        if [[ "${NEXT_TEST_FUTURE_COMPAT:-}" == "1" && "$(node --print 'process.versions.node.split(".")[0]')" -ge 21 ]]; then
+          export NEXT_EXTERNAL_TESTS_FILTERS="test/future-compat-tests-manifest.json"
+        fi
+        node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
       runs_on_labels: '["windows-latest-8-core-oss"]'
 

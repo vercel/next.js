@@ -1,6 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 // Invalid exports must fail before a deployment can be produced.
 // @force-gate !deploy
@@ -17,6 +17,14 @@ describe.each([
   })
 
   it('requires an explicit not-found policy for every preceding parameter', async () => {
+    if (await gate((c) => c.futureCompat)) {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
+
     const message = `Parameter "${missing}" must explicitly configure "not-found" before parameter "${closed}"`
     if (isNextDev) {
       await next.start()

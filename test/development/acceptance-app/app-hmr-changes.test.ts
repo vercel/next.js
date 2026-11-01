@@ -1,5 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { createSandbox } from 'development-sandbox'
+import { gate } from 'next-test-utils'
 import path from 'path'
 
 jest.setTimeout(240 * 1000)
@@ -32,6 +33,13 @@ describe('Error overlay - RSC build errors', () => {
           '/2020/develop-preview-test'
         )
         const { session } = sandbox
+        if (await gate((conditions) => conditions.futureCompat)) {
+          await session.waitForRedbox()
+          expect(await session.getRedboxSource()).toContain(
+            'DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead.'
+          )
+          return
+        }
         expect(
           await session.evaluate('document.documentElement.innerHTML')
         ).toContain('A few years ago I tweeted')

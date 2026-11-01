@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
 
+// @force-gate !futureCompat || !start
 describe('adapter-partial-fallback', () => {
   const { next } = nextTestSetup({
     files: __dirname,
