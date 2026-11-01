@@ -36,7 +36,10 @@ pub type AutoIndexSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
 
 // Values based on data from https://github.com/yegor256/micromap#benchmark
 
-/// Maximum size of list variant. Must convert to HashMap when bigger.
-pub(crate) const MAX_USEFUL_LINEAR_SCAN: usize = 32;
-/// Minimum size of HashMap variant. Must convert to List when smaller.
+/// Maximum number of entries in the list variant of a [`RawAutoMap`]. It converts to the map
+/// variant when it grows beyond this. A [`BackingListStorage`] never holds more items than this.
+pub const MAX_USEFUL_LINEAR_SCAN: usize = 32;
+/// Size threshold for converting the map variant of a [`RawAutoMap`] back into the list variant.
+/// Some shrinking operations (e.g. `shrink_amortized`) and `extend`/`collect` with an overstated
+/// size hint convert maps of about this size or smaller back. Removals don't convert back.
 pub(crate) const MIN_HASH_SIZE: usize = 16;

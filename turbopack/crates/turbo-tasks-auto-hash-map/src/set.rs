@@ -10,8 +10,6 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use hashbrown::HashMap;
-use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
@@ -50,36 +48,26 @@ impl<K: Debug, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> Debu
     }
 }
 
-macro_rules! impl_new {
-    ($map:ident) => {
-        impl<K>
-            RawAutoSet<
-                K,
-                $map<K, (), BuildHasherDefault<FxHasher>>,
-                TinyVec<(K, ()), 0, MAX_USEFUL_LINEAR_SCAN>,
-            >
-        {
-            /// see [HashSet::new](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.new)
-            pub const fn new() -> Self {
-                Self {
-                    map: RawAutoMap::<K, (), $map<K, (), BuildHasherDefault<FxHasher>>, _>::new(),
-                }
-            }
-
-            /// see [HashSet::with_capacity](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_capacity)
-            pub fn with_capacity(capacity: usize) -> Self {
-                Self {
-                    map: RawAutoMap::<K, (), $map<K, (), BuildHasherDefault<FxHasher>>, _>::with_capacity(
-                        capacity,
-                    ),
-                }
-            }
+/// The constructors with the default [`FxHasher`] based hasher and the default list storage, for
+/// any map storage. See [`RawAutoMap::new`].
+impl<K, M> RawAutoSet<K, M, TinyVec<(K, ()), 0, MAX_USEFUL_LINEAR_SCAN>>
+where
+    M: BackingMapStorage<K, (), Hasher = BuildHasherDefault<FxHasher>>,
+{
+    /// see [HashSet::new](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.new)
+    pub const fn new() -> Self {
+        Self {
+            map: RawAutoMap::new(),
         }
-    };
-}
+    }
 
-impl_new!(HashMap);
-impl_new!(IndexMap);
+    /// see [HashSet::with_capacity](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_capacity)
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            map: RawAutoMap::with_capacity(capacity),
+        }
+    }
+}
 
 impl<K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> RawAutoSet<K, M, L> {
     /// see [HashSet::with_hasher](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_hasher)

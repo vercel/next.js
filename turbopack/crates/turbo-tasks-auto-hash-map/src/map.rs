@@ -11,8 +11,6 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use hashbrown::hash_map::HashMap;
-use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -55,38 +53,33 @@ impl<K: Debug, V: Debug, M: BackingMapStorage<K, V>, L: BackingListStorage<(K, V
     }
 }
 
-macro_rules! impl_new {
-    ($map:ident) => {
-        impl<K, V>
-            RawAutoMap<
-                K,
-                V,
-                $map<K, V, BuildHasherDefault<FxHasher>>,
-                TinyVec<(K, V), 0, MAX_USEFUL_LINEAR_SCAN>,
-            >
-        {
-            /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
-            pub const fn new() -> Self {
-                RawAutoMap::List(TinyVec::new(), PhantomData)
-            }
+/// The constructors with the default [`FxHasher`] based hasher and the default list storage, for
+/// any map storage.
+///
+/// The list storage is fixed here, so that e.g. `AutoMap::new()` infers the alias' default inline
+/// capacity. Use [`Default`], [`Self::with_hasher`] or [`Self::with_capacity_and_hasher`] for
+/// other list storages.
+impl<K, V, M> RawAutoMap<K, V, M, TinyVec<(K, V), 0, MAX_USEFUL_LINEAR_SCAN>>
+where
+    M: BackingMapStorage<K, V, Hasher = BuildHasherDefault<FxHasher>>,
+{
+    /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
+    pub const fn new() -> Self {
+        RawAutoMap::List(TinyVec::new(), PhantomData)
+    }
 
-            /// see [HashMap::with_capacity](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.with_capacity)
-            pub fn with_capacity(capacity: usize) -> Self {
-                if capacity < MAX_USEFUL_LINEAR_SCAN {
-                    RawAutoMap::List(TinyVec::with_capacity(capacity), PhantomData)
-                } else {
-                    RawAutoMap::Map(Box::new($map::with_capacity_and_hasher(
-                        capacity,
-                        Default::default(),
-                    )))
-                }
-            }
+    /// see [HashMap::with_capacity](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.with_capacity)
+    pub fn with_capacity(capacity: usize) -> Self {
+        if capacity < MAX_USEFUL_LINEAR_SCAN {
+            RawAutoMap::List(TinyVec::with_capacity(capacity), PhantomData)
+        } else {
+            RawAutoMap::Map(Box::new(M::with_capacity_and_hasher(
+                capacity,
+                Default::default(),
+            )))
         }
-    };
+    }
 }
-
-impl_new!(HashMap);
-impl_new!(IndexMap);
 
 impl<K, V, M: BackingMapStorage<K, V>, L: BackingListStorage<(K, V)>> RawAutoMap<K, V, M, L> {
     /// see [HashMap::with_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_hasher)
@@ -348,7 +341,11 @@ where
         }
     }
 
-    pub fn extract_if<'l, F>(&'l mut self, f: F) -> ExtractIfIter<'l, K, V, L, F>
+    /// Removes and yields the entries for which `f` returns `true`, like
+    /// [HashMap::extract_if](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html#method.extract_if).
+    /// Entries that aren't yielded because the iterator is dropped early stay in the map. Ordered
+    /// storages preserve the order of the remaining entries.
+    pub fn extract_if<'l, F>(&'l mut self, f: F) -> ExtractIfIter<'l, L, F, M::ExtractIf<'l, F>>
     where
         F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
     {
@@ -359,7 +356,7 @@ where
                 f,
                 unordered: M::UNORDERED,
             },
-            RawAutoMap::Map(map) => map.extract_if(f),
+            RawAutoMap::Map(map) => ExtractIfIter::Map(map.extract_if(f)),
         }
     }
 
@@ -1221,7 +1218,11 @@ where
 }
 
 /// Iterator returned by [`RawAutoMap::extract_if`].
-pub enum ExtractIfIter<'l, K, V, L, F> {
+///
+/// `MI` is the map storage's extraction iterator ([`BackingMapStorage::ExtractIf`]). Like the
+/// owned iterators, this type takes it as a type parameter instead of naming a concrete map type,
+/// so any [`BackingMapStorage`] can be used.
+pub enum ExtractIfIter<'l, L, F, MI> {
     List {
         list: &'l mut L,
         index: usize,
@@ -1229,14 +1230,14 @@ pub enum ExtractIfIter<'l, K, V, L, F> {
         /// [`BackingMapStorage::UNORDERED`] of the map storage.
         unordered: bool,
     },
-    HashMap(hashbrown::hash_map::ExtractIf<'l, K, V, F>),
-    IndexMap(indexmap::map::ExtractIf<'l, K, V, F>),
+    Map(MI),
 }
 
-impl<K, V, L, F> Iterator for ExtractIfIter<'_, K, V, L, F>
+impl<K, V, L, F, MI> Iterator for ExtractIfIter<'_, L, F, MI>
 where
     L: BackingListStorage<(K, V)>,
     F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
+    MI: Iterator<Item = (K, V)>,
 {
     type Item = (K, V);
 
@@ -1263,8 +1264,7 @@ where
                 }
                 None
             }
-            ExtractIfIter::HashMap(extract_if) => extract_if.next(),
-            ExtractIfIter::IndexMap(extract_if) => extract_if.next(),
+            ExtractIfIter::Map(extract_if) => extract_if.next(),
         }
     }
 }
@@ -1291,6 +1291,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use hashbrown::HashMap;
+    use indexmap::IndexMap;
+
     use super::*;
 
     #[test]
@@ -1697,6 +1700,9 @@ mod tests {
             for _x in index_maps.iter_mut().flat_map(|m| m.values_mut()) {
                 yield_now().await;
             }
+            // `extract_if` isn't covered here: inside a closure it hits rust-lang/rust#100013
+            // through the `F: FnMut(&K, &mut V) -> bool` bound of the backing maps' own
+            // `ExtractIf` iterators (plain `hashbrown`/`indexmap` fail the same way).
             for _x in sets.iter().flat_map(|s| s.iter()) {
                 yield_now().await;
             }
@@ -1715,6 +1721,9 @@ mod tests {
                 yield_now().await;
             }
             for _x in map.values_mut() {
+                yield_now().await;
+            }
+            for _x in map.extract_if(|_, _| true) {
                 yield_now().await;
             }
             for _x in map {

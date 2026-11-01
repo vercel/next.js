@@ -8,8 +8,11 @@
 //! * [`BackingMapStorage`] is implemented for [`hashbrown::HashMap`] (unordered) and
 //!   [`indexmap::IndexMap`] (insertion ordered). It also decides whether iteration order is
 //!   meaningful ([`BackingMapStorage::UNORDERED`]) and provides the equality implementation of the
-//!   whole [`RawAutoMap`].
-//! * [`BackingListStorage`] is implemented for [`TinyVec`], [`Vec`] and [`ArrayVec`].
+//!   whole [`RawAutoMap`]. Other map types can implement it too: all its iterator, entry and
+//!   extraction types are associated types, so [`RawAutoMap`] doesn't depend on the concrete map
+//!   type. Their borrowed iterators also implement [`BackingMapIter`].
+//! * [`BackingListStorage`] is implemented for [`TinyVec`], [`Vec`] and [`ArrayVec`]. A list holds
+//!   at most [`MAX_USEFUL_LINEAR_SCAN`] items.
 
 use std::{
     borrow::Borrow,
@@ -23,7 +26,7 @@ use indexmap::{IndexMap, map as indexmap_map, map::RawEntryApiV1};
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, RawAutoMap, TinyVec,
-    map::{ExtractIfIter, ListIter, ListIterMut, ListValues, ListValuesMut},
+    map::{ListIter, ListIterMut, ListValues, ListValuesMut},
     tiny_vec,
 };
 
@@ -252,6 +255,13 @@ pub trait BackingMapStorage<K, V>: Sized {
     type Drain<'a>: Iterator<Item = (K, V)>
     where
         Self: 'a;
+    /// Iterator returned by [`Self::extract_if`].
+    type ExtractIf<'a, F>: Iterator<Item = (K, V)>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a,
+        F: FnMut(&K, &mut V) -> bool;
     type Occupied<'a>
     where
         Self: 'a;
@@ -281,13 +291,13 @@ pub trait BackingMapStorage<K, V>: Sized {
     /// Removes and yields all entries (in order for ordered storages).
     fn drain(&mut self) -> Self::Drain<'_>;
     fn retain<F: FnMut(&K, &mut V) -> bool>(&mut self, f: F);
-    fn extract_if<'a, L, F: FnMut(&K, &mut V) -> bool>(
-        &'a mut self,
-        f: F,
-    ) -> ExtractIfIter<'a, K, V, L, F>
+    /// Removes and yields the entries for which `f` returns `true`. Ordered storages preserve the
+    /// order of the remaining entries.
+    fn extract_if<'a, F>(&'a mut self, f: F) -> Self::ExtractIf<'a, F>
     where
         K: 'a,
-        V: 'a;
+        V: 'a,
+        F: FnMut(&K, &mut V) -> bool;
 
     fn insert(&mut self, key: K, value: V) -> Option<V>
     where
@@ -330,23 +340,32 @@ pub trait BackingMapStorage<K, V>: Sized {
     where
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
-    fn occupied_get_mut<'e>(entry: &'e mut Self::Occupied<'_>) -> &'e mut V;
-    fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V;
-    /// Removes the entry. Ordered storages preserve the order of the other entries.
-    fn occupied_remove(entry: Self::Occupied<'_>) -> V
+    // The entry methods below bound `Self: 'a`, like the entry GATs. Implementations whose entry
+    // types don't mention every type parameter of `Self` (e.g. the hasher) rely on it.
+    fn occupied_get_mut<'e, 'a>(entry: &'e mut Self::Occupied<'a>) -> &'e mut V
     where
+        Self: 'a;
+    fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V
+    where
+        Self: 'a;
+    /// Removes the entry. Ordered storages preserve the order of the other entries.
+    fn occupied_remove<'a>(entry: Self::Occupied<'a>) -> V
+    where
+        Self: 'a,
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
     /// Replaces the entry's value with the result of `func`, or removes the entry when `func`
     /// returns `None`. Ordered storages keep the entry at its position.
-    fn occupied_replace_entry_with(
-        entry: Self::Occupied<'_>,
+    fn occupied_replace_entry_with<'a>(
+        entry: Self::Occupied<'a>,
         func: impl FnOnce(&K, V) -> Option<V>,
     ) where
+        Self: 'a,
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
     fn vacant_insert<'a>(entry: Self::Vacant<'a>, value: V) -> &'a mut V
     where
+        Self: 'a,
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
 
@@ -355,12 +374,19 @@ pub trait BackingMapStorage<K, V>: Sized {
         K: Eq + Hash + Borrow<Q>,
         Q: Hash + Eq + ?Sized,
         Self::Hasher: BuildHasher;
-    fn raw_occupied_get_mut<'e>(entry: &'e mut Self::RawOccupied<'_>) -> &'e mut V;
-    fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V;
+    fn raw_occupied_get_mut<'e, 'a>(entry: &'e mut Self::RawOccupied<'a>) -> &'e mut V
+    where
+        Self: 'a;
+    fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V
+    where
+        Self: 'a;
     /// Removes the entry. Ordered storages preserve the order of the other entries.
-    fn raw_occupied_remove(entry: Self::RawOccupied<'_>) -> V;
+    fn raw_occupied_remove<'a>(entry: Self::RawOccupied<'a>) -> V
+    where
+        Self: 'a;
     fn raw_vacant_insert<'a>(entry: Self::RawVacant<'a>, key: K, value: V) -> &'a mut V
     where
+        Self: 'a,
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
 
@@ -409,6 +435,13 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         = hashbrown::hash_map::Drain<'a, K, V>
     where
         Self: 'a;
+    type ExtractIf<'a, F>
+        = hashbrown::hash_map::ExtractIf<'a, K, V, F>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a,
+        F: FnMut(&K, &mut V) -> bool;
     type Occupied<'a>
         = hashbrown::hash_map::OccupiedEntry<'a, K, V, H>
     where
@@ -475,15 +508,13 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         HashMap::retain(self, f)
     }
     #[inline]
-    fn extract_if<'a, L, F: FnMut(&K, &mut V) -> bool>(
-        &'a mut self,
-        f: F,
-    ) -> ExtractIfIter<'a, K, V, L, F>
+    fn extract_if<'a, F>(&'a mut self, f: F) -> Self::ExtractIf<'a, F>
     where
         K: 'a,
         V: 'a,
+        F: FnMut(&K, &mut V) -> bool,
     {
-        ExtractIfIter::HashMap(HashMap::extract_if(self, f))
+        HashMap::extract_if(self, f)
     }
 
     #[inline]
@@ -564,24 +595,34 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         }
     }
     #[inline]
-    fn occupied_get_mut<'e>(entry: &'e mut Self::Occupied<'_>) -> &'e mut V {
+    fn occupied_get_mut<'e, 'a>(entry: &'e mut Self::Occupied<'a>) -> &'e mut V
+    where
+        Self: 'a,
+    {
         entry.get_mut()
     }
     #[inline]
-    fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V {
+    fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V
+    where
+        Self: 'a,
+    {
         entry.into_mut()
     }
     #[inline]
-    fn occupied_remove(entry: Self::Occupied<'_>) -> V
+    fn occupied_remove<'a>(entry: Self::Occupied<'a>) -> V
     where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
         entry.remove()
     }
     #[inline]
-    fn occupied_replace_entry_with(entry: Self::Occupied<'_>, func: impl FnOnce(&K, V) -> Option<V>)
-    where
+    fn occupied_replace_entry_with<'a>(
+        entry: Self::Occupied<'a>,
+        func: impl FnOnce(&K, V) -> Option<V>,
+    ) where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
@@ -590,6 +631,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     #[inline]
     fn vacant_insert<'a>(entry: Self::Vacant<'a>, value: V) -> &'a mut V
     where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
@@ -609,20 +651,30 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         }
     }
     #[inline]
-    fn raw_occupied_get_mut<'e>(entry: &'e mut Self::RawOccupied<'_>) -> &'e mut V {
+    fn raw_occupied_get_mut<'e, 'a>(entry: &'e mut Self::RawOccupied<'a>) -> &'e mut V
+    where
+        Self: 'a,
+    {
         entry.get_mut()
     }
     #[inline]
-    fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V {
+    fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V
+    where
+        Self: 'a,
+    {
         entry.into_mut()
     }
     #[inline]
-    fn raw_occupied_remove(entry: Self::RawOccupied<'_>) -> V {
+    fn raw_occupied_remove<'a>(entry: Self::RawOccupied<'a>) -> V
+    where
+        Self: 'a,
+    {
         entry.remove()
     }
     #[inline]
     fn raw_vacant_insert<'a>(entry: Self::RawVacant<'a>, key: K, value: V) -> &'a mut V
     where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
@@ -702,6 +754,13 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         = indexmap::map::Drain<'a, K, V>
     where
         Self: 'a;
+    type ExtractIf<'a, F>
+        = indexmap::map::ExtractIf<'a, K, V, F>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a,
+        F: FnMut(&K, &mut V) -> bool;
     type Occupied<'a>
         = IndexMapOccupiedEntry<'a, K, V, H>
     where
@@ -768,15 +827,13 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         IndexMap::retain(self, |k, v| f(k, v))
     }
     #[inline]
-    fn extract_if<'a, L, F: FnMut(&K, &mut V) -> bool>(
-        &'a mut self,
-        f: F,
-    ) -> ExtractIfIter<'a, K, V, L, F>
+    fn extract_if<'a, F>(&'a mut self, f: F) -> Self::ExtractIf<'a, F>
     where
         K: 'a,
         V: 'a,
+        F: FnMut(&K, &mut V) -> bool,
     {
-        ExtractIfIter::IndexMap(IndexMap::extract_if(self, .., f))
+        IndexMap::extract_if(self, .., f)
     }
 
     #[inline]
@@ -857,16 +914,23 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         }
     }
     #[inline]
-    fn occupied_get_mut<'e>(entry: &'e mut Self::Occupied<'_>) -> &'e mut V {
-        &mut entry.map[entry.index]
-    }
-    #[inline]
-    fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V {
-        &mut entry.map[entry.index]
-    }
-    #[inline]
-    fn occupied_remove(entry: Self::Occupied<'_>) -> V
+    fn occupied_get_mut<'e, 'a>(entry: &'e mut Self::Occupied<'a>) -> &'e mut V
     where
+        Self: 'a,
+    {
+        &mut entry.map[entry.index]
+    }
+    #[inline]
+    fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V
+    where
+        Self: 'a,
+    {
+        &mut entry.map[entry.index]
+    }
+    #[inline]
+    fn occupied_remove<'a>(entry: Self::Occupied<'a>) -> V
+    where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
@@ -877,8 +941,11 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
             .1
     }
     #[inline]
-    fn occupied_replace_entry_with(entry: Self::Occupied<'_>, func: impl FnOnce(&K, V) -> Option<V>)
-    where
+    fn occupied_replace_entry_with<'a>(
+        entry: Self::Occupied<'a>,
+        func: impl FnOnce(&K, V) -> Option<V>,
+    ) where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
@@ -893,6 +960,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     #[inline]
     fn vacant_insert<'a>(entry: Self::Vacant<'a>, value: V) -> &'a mut V
     where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
@@ -914,20 +982,30 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         }
     }
     #[inline]
-    fn raw_occupied_get_mut<'e>(entry: &'e mut Self::RawOccupied<'_>) -> &'e mut V {
+    fn raw_occupied_get_mut<'e, 'a>(entry: &'e mut Self::RawOccupied<'a>) -> &'e mut V
+    where
+        Self: 'a,
+    {
         entry.get_mut()
     }
     #[inline]
-    fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V {
+    fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V
+    where
+        Self: 'a,
+    {
         entry.into_mut()
     }
     #[inline]
-    fn raw_occupied_remove(entry: Self::RawOccupied<'_>) -> V {
+    fn raw_occupied_remove<'a>(entry: Self::RawOccupied<'a>) -> V
+    where
+        Self: 'a,
+    {
         entry.shift_remove()
     }
     #[inline]
     fn raw_vacant_insert<'a>(entry: Self::RawVacant<'a>, key: K, value: V) -> &'a mut V
     where
+        Self: 'a,
         K: Eq + Hash,
         H: BuildHasher,
     {
