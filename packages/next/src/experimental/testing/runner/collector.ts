@@ -597,8 +597,24 @@ export function validateOptions(
             )
           continue
         }
-        if (field !== 'count' && field !== 'delay')
+        if (field !== 'count' && field !== 'delay') {
+          const descriptor = Object.getOwnPropertyDescriptor(
+            options.retry,
+            field
+          )
+          if (descriptor && Object.hasOwn(descriptor, 'value')) {
+            const metadata = descriptor.value
+            if (
+              metadata === null ||
+              metadata === undefined ||
+              typeof metadata === 'string' ||
+              typeof metadata === 'number' ||
+              typeof metadata === 'boolean'
+            )
+              continue
+          }
           unsupported(`test retry option "${field}"`)
+        }
         const value = options.retry[field]
         if (
           value !== undefined &&

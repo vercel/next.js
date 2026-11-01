@@ -1,0 +1,3 @@
+import { test, describe, expect } from 'vitest'
+const row = (...event) => console.log('RETRY_OBJECT_ROW ' + JSON.stringify({ contract: "boolean", event }))
+let count = 0; const retry = { count: 1, metadata: true }; test('primitive metadata', { retry }, () => { row('body', ++count); if (count === 1) throw new Error('first'); expect(count).toBe(2) })

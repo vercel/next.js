@@ -1610,7 +1610,7 @@ describe('Next-owned Vitest lifecycle', () => {
     expect(cleaned).toBe(true)
   })
 
-  it('rejects malformed structured retry options before collection', () => {
+  it('validates known retry fields while ignoring extra metadata', () => {
     for (const retry of [
       null,
       [],
@@ -1620,7 +1620,12 @@ describe('Next-owned Vitest lifecycle', () => {
       { extra: 1 },
     ]) {
       const c = createCollector('file')
-      expect(() => c.api.test('invalid', { retry } as any, () => {})).toThrow()
+      // eslint-disable-next-line jest/valid-expect -- Both branches below apply the matcher.
+      const assertion = expect(() =>
+        c.api.test('invalid', { retry } as any, () => {})
+      )
+      if (retry && 'extra' in retry) assertion.not.toThrow()
+      else assertion.toThrow()
     }
   })
 
