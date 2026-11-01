@@ -560,7 +560,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn client_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    pub(crate) async fn client_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 rcstr!("next-dynamic"),
