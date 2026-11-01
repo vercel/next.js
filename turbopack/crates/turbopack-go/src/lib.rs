@@ -614,11 +614,11 @@ enum DiscoveryOutcome {
 
 static GO_ACTIONS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
 
-fn validate_build_cache(project: &Path, context: &GoBuildContext) -> Result<()> {
-    let cache = Path::new(context.cache.as_str());
+fn validate_build_cache(project: &Path, go_context: &GoBuildContext) -> Result<()> {
+    let cache = Path::new(go_context.cache.as_str());
     ensure!(
         !paths::directories_overlap(cache, project)?
-            && !paths::directories_overlap(cache, Path::new(context.module_cache.as_str()))?,
+            && !paths::directories_overlap(cache, Path::new(go_context.module_cache.as_str()))?,
         "Go build cache must be outside the source project and module cache; choose another \
          --go-cache path"
     );
@@ -1241,14 +1241,14 @@ impl GoBundleResult {
     /// Live publication-boundary check. Invalidate compiler observations before the caller
     /// retries its graph read. This must run outside a memoized task at that boundary.
     pub async fn validate(&self) -> Result<bool> {
-        let context = &self.session.await?.go_context;
-        if !context.is_cancelled() && self.is_current()? {
+        let go_context = &self.session.await?.go_context;
+        if !go_context.is_cancelled() && self.is_current()? {
             return Ok(true);
         }
         let project = to_sys_path(self.root.clone())
             .await?
             .context("Go inputs require a disk filesystem")?;
-        Tracker::new(&self.root, &project, context)
+        Tracker::new(&self.root, &project, go_context)
             .invalidate()
             .await?;
         Ok(false)

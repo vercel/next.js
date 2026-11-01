@@ -99,11 +99,14 @@ semantics: platform suffixes and build tags do not filter the selected entry fil
 `go_declarations(sources, host_session)` reports top-level function names and syntax
 errors using Go's parser. The parser tool is cached independently of application
 modules, and queries are cached by source content. It never loads application code.
-Consumers interpret names and generate their own entrypoints. Syntax errors remain
+Consumers interpret names and generate their own entrypoints. Syntax errors are
 available while allowing the compiler to emit its usual diagnostics.
 
-Pass the same source set to `go_bundle_from_sources(sources, target_session, generated)`.
-It rejects stale analysis inputs and returns a validity token covering source selection
+Resolve `go_source_set(...).to_resolved().await?` once to capture an immutable source
+generation. Share that resolved handle with declaration analysis and
+`go_bundle_from_sources(*sources, target_session, generated)`. A later discovery read
+can select a new generation without changing the captured one.
+It detects stale analysis inputs and returns a validity token covering source selection
 and transitive compiler inputs. Source names, bytes and directory membership must agree
 with analysis before the resulting executable is published. This remains best effort
 against concurrent writers, not a transactional filesystem snapshot.

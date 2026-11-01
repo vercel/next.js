@@ -50,8 +50,8 @@ pub async fn go_source_set(
     let project = to_sys_path(boundary.clone())
         .await?
         .context("Go sources require a disk filesystem")?;
-    let context = &session.await?.go_context;
-    let mut tracker = Tracker::new(&boundary, &project, context);
+    let go_context = &session.await?.go_context;
+    let mut tracker = Tracker::new(&boundary, &project, go_context);
     let mut root = directory.clone();
     loop {
         let module = root.join("go.mod")?;
@@ -77,7 +77,7 @@ pub async fn go_source_set(
         &to_sys_path(root.clone())
             .await?
             .context("Go module requires a disk filesystem")?,
-        context,
+        go_context,
     )?;
     let names = match selection {
         GoSourceSelection::Files(names) => names,
@@ -130,14 +130,34 @@ pub async fn go_source_set(
             source.into(),
         );
     }
-    Ok(GoSourceSet {
+    Ok(source_generation(
         root,
         files,
-        inputs: tracker.inputs,
-        dirty: tracker.dirty,
+        tracker.inputs,
+        tracker.dirty,
+        boundary,
+    ))
+}
+
+// Discovery can rerun and redirect its output, but a captured generation must keep its
+// original bytes and observations. Key this cell by those values instead of overwriting
+// the discovery task's cell when files change.
+#[turbo_tasks::function]
+fn source_generation(
+    root: FileSystemPath,
+    files: BTreeMap<RcStr, RcStr>,
+    inputs: Inputs,
+    dirty: bool,
+    boundary: FileSystemPath,
+) -> Vc<GoSourceSet> {
+    GoSourceSet {
+        root,
+        files,
+        inputs,
+        dirty,
         boundary,
     }
-    .cell())
+    .cell()
 }
 
 /// Compile the source identity that was used for analysis. The validity token includes
@@ -149,7 +169,7 @@ pub async fn go_bundle_from_sources(
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
     let sources = sources.await?;
-    let context = &session.await?.go_context;
+    let go_context = &session.await?.go_context;
     let mut stale = sources.dirty || !sources.inputs.is_current()?;
     let mut result = if stale {
         GoBundleResult {
@@ -173,7 +193,7 @@ pub async fn go_bundle_from_sources(
         let project = to_sys_path(sources.boundary.clone())
             .await?
             .context("Go sources require a disk filesystem")?;
-        Tracker::new(&sources.boundary, &project, context)
+        Tracker::new(&sources.boundary, &project, go_context)
             .invalidate()
             .await?;
         result.outcome = GoBuildOutcome::Retry;

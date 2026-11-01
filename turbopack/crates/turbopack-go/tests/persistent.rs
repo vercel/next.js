@@ -35,13 +35,15 @@ async fn persistent_bundle(
         root,
         GoSourceSelection::Files(vec![rcstr!("main.go")]),
         session,
-    );
-    let declarations = go_declarations(sources, host).await?;
+    )
+    .to_resolved()
+    .await?;
+    let declarations = go_declarations(*sources, host).await?;
     ensure!(
         declarations.functions.contains(&rcstr!("main")) || !declarations.syntax_errors.is_empty(),
         "missing function declarations"
     );
-    Ok(go_bundle_from_sources(sources, session, generated))
+    Ok(go_bundle_from_sources(*sources, session, generated))
 }
 
 // Each invocation is a fresh OS process, including Turbo Tasks registration and all Rust
