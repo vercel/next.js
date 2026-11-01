@@ -1326,9 +1326,15 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
             "package main\nfunc GET() string { return \"v2\" }\n",
         )
         .await?;
+    // Refresh discovery before consuming the captured handle. This makes cell reuse
+    // deterministic instead of depending on the scheduler's invalidation timing.
+    let current = capture().await?;
     let stale = build(sources, generated.clone()).await?;
     assert!(matches!(stale.outcome, GoBuildOutcome::Retry));
-    let current = capture().await?;
+    assert_ne!(
+        sources, current,
+        "source generations must have distinct identities"
+    );
     let result = build(current, generated.clone()).await?;
     let executable_result = result.clone();
     let bytes = session

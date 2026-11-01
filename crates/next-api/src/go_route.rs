@@ -125,9 +125,11 @@ impl Endpoint for GoRouteEndpoint {
             directory.clone(),
             GoSourceSelection::Directory,
             host,
-        );
+        )
+        .to_resolved()
+        .await?;
         let module_root = sources.await?.root.clone();
-        let analysis = go_declarations(sources, host).await?;
+        let analysis = go_declarations(*sources, host).await?;
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -173,7 +175,7 @@ impl Endpoint for GoRouteEndpoint {
                 RcStr::from(dispatch),
             ),
         ]);
-        let result = go_bundle_from_sources(sources, session, generated).await?;
+        let result = go_bundle_from_sources(*sources, session, generated).await?;
         ensure!(
             result.is_current()?,
             "Go route inputs changed during compilation; retry the request"

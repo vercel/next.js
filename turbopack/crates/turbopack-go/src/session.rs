@@ -35,11 +35,11 @@ impl GoTarget {
 }
 impl GoBuildContext {
     pub fn for_target(&self, target: &GoTarget) -> Self {
-        let mut context = self.clone();
-        context.goos = target.os.clone();
-        context.goarch = target.arch.clone();
-        context.exe_suffix = target.executable_suffix();
-        context
+        let mut go_context = self.clone();
+        go_context.goos = target.os.clone();
+        go_context.goarch = target.arch.clone();
+        go_context.exe_suffix = target.executable_suffix();
+        go_context
     }
     pub async fn module_cache_filesystem(
         &self,
@@ -174,10 +174,10 @@ impl GoSessionPool {
         let session = GoBuildSession::persistent(scope.clone(), selected.clone())
             .to_resolved()
             .await?;
-        let context = session.await?.go_context.clone();
-        state.contexts.insert((scope, selected), context.clone());
+        let go_context = session.await?.go_context.clone();
+        state.contexts.insert((scope, selected), go_context.clone());
         if watch {
-            context.start_module_cache_watching().await?;
+            go_context.start_module_cache_watching().await?;
         }
         Ok(session)
     }
@@ -187,12 +187,12 @@ impl GoSessionPool {
     pub async fn shutdown(&self) -> Result<()> {
         let mut state = self.state.lock().await;
         state.closed = true;
-        for context in state.contexts.values() {
-            context.cancel();
+        for go_context in state.contexts.values() {
+            go_context.cancel();
         }
         let mut failure = None;
-        for context in state.contexts.values() {
-            let release = context.stop_module_cache_watching().await;
+        for go_context in state.contexts.values() {
+            let release = go_context.stop_module_cache_watching().await;
             if let Err(error) = release {
                 failure = Some(error);
             }

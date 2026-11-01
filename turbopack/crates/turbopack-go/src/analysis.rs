@@ -33,11 +33,11 @@ async fn declarations(
     host_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<GoDeclarations>> {
     let executable = parser(*host_session).await?;
-    let context = &host_session.await?.go_context;
+    let go_context = &host_session.await?.go_context;
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-analysis-")
         .tempdir()?;
-    let path = temp.path().join(format!("parser{}", context.exe_suffix));
+    let path = temp.path().join(format!("parser{}", go_context.exe_suffix));
     std::io::copy(&mut executable.read(), &mut std::fs::File::create(&path)?)?;
     #[cfg(unix)]
     {
@@ -46,7 +46,7 @@ async fn declarations(
     }
     let input = temp.path().join("sources.json");
     std::fs::write(&input, serde_json::to_vec(&sources)?)?;
-    let report = match context.run_executable(&path, &[&input]).await {
+    let report = match go_context.run_executable(&path, &[&input]).await {
         Ok(report) => report,
         Err(error) => {
             Completion::session_dependent().await?;
@@ -65,25 +65,28 @@ async fn declarations(
 // source set for this host session, independently of its project/module configuration.
 #[turbo_tasks::function]
 async fn parser(host_session: ResolvedVc<GoBuildSession>) -> Result<Vc<File>> {
-    let context = &host_session.await?.go_context;
+    let go_context = &host_session.await?.go_context;
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
-        _ = context.cancelled() => anyhow::bail!("Go analysis cancelled"),
+        _ = go_context.cancelled() => anyhow::bail!("Go analysis cancelled"),
     };
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-parser-")
         .tempdir()?;
     let source = temp.path().join("main.go");
-    let executable = temp.path().join(format!("parser{}", context.exe_suffix));
+    let executable = temp.path().join(format!("parser{}", go_context.exe_suffix));
     std::fs::write(&source, include_str!("declarations.go"))?;
-    let mut command = context.command(temp.path());
+    let mut command = go_context.command(temp.path());
     command
         .env("GO111MODULE", "off")
         .args(["build", "-trimpath", "-o"])
         .arg(&executable)
         .arg(&source);
-    context.cancellation.builds.fetch_add(1, Ordering::Relaxed);
-    let report = match process::output(command, &context.cancellation.token).await {
+    go_context
+        .cancellation
+        .builds
+        .fetch_add(1, Ordering::Relaxed);
+    let report = match process::output(command, &go_context.cancellation.token).await {
         Ok(report) => report,
         Err(error) => {
             Completion::session_dependent().await?;
