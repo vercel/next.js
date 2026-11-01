@@ -10,10 +10,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{
     FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
 };
@@ -147,6 +144,50 @@ impl Pattern {
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_dynamic_parts())
             }
+        }
+    }
+
+    /// Returns the alternatives that contain no dynamic parts.
+    ///
+    /// The pattern is expected to be normalized so that alternatives are at the top level.
+    pub fn filter_static(&self) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let mut static_alternatives = list
+                .iter()
+                .filter(|alternative| !alternative.has_dynamic_parts())
+                .cloned()
+                .collect::<Vec<_>>();
+            match static_alternatives.len() {
+                0 => None,
+                1 => static_alternatives.pop(),
+                _ => Some(Pattern::Alternatives(static_alternatives)),
+            }
+        } else if self.has_dynamic_parts() {
+            None
+        } else {
+            Some(self.clone())
+        }
+    }
+
+    /// Returns the alternatives that contain significant constant parts (everything except `/`).
+    ///
+    /// The pattern is expected to be normalized so that alternatives are at the top level.
+    pub fn filter_non_dynamic(&self) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let mut non_dynamic_alternatives = list
+                .iter()
+                .filter(|alternative| alternative.has_constant_parts())
+                .cloned()
+                .collect::<Vec<_>>();
+            match non_dynamic_alternatives.len() {
+                0 => None,
+                1 => non_dynamic_alternatives.pop(),
+                _ => Some(Pattern::Alternatives(non_dynamic_alternatives)),
+            }
+        } else if self.has_constant_parts() {
+            Some(self.clone())
+        } else {
+            None
         }
     }
 
@@ -1484,9 +1525,7 @@ impl Pattern {
     }
 }
 
-#[derive(
-    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
     Directory(RcStr, FileSystemPath),
@@ -1860,9 +1899,14 @@ pub async fn read_matches(
                                             FileSystemEntryType::Directory
                                         )
                                     {
-                                        results.push((
+                                        nested.push((
                                             pos,
-                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                            read_matches(
+                                                target.file_system_path().clone(),
+                                                prefix.clone().into(),
+                                                true,
+                                                pattern,
+                                            ),
                                         ));
                                     }
                                 }
@@ -2022,6 +2066,83 @@ mod tests {
 
             assert_eq!(p, Pattern::Dynamic);
         }
+    }
+
+    #[test]
+    fn filter_static() {
+        let static_a = Pattern::Constant(rcstr!("./next-i18next.config.js"));
+        let static_b = Pattern::Constant(rcstr!("./i18next.config.js"));
+
+        assert_eq!(static_a.filter_static(), Some(static_a.clone()));
+        assert_eq!(Pattern::Dynamic.filter_static(), None);
+        assert_eq!(Pattern::DynamicNoSlash.filter_static(), None);
+
+        let pattern = Pattern::Alternatives(vec![
+            static_a.clone(),
+            static_b.clone(),
+            Pattern::Dynamic,
+            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!("/suffix"))]),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("/prefix/")),
+                Pattern::Dynamic,
+            ]),
+        ]);
+        assert_eq!(
+            pattern.filter_static(),
+            Some(Pattern::Alternatives(vec![static_a, static_b]))
+        );
+
+        assert_eq!(
+            Pattern::Alternatives(vec![
+                Pattern::Dynamic,
+                Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("/prefix/")),
+                    Pattern::Dynamic,
+                ]),
+            ])
+            .filter_static(),
+            None
+        );
+    }
+
+    #[test]
+    fn filter_non_dynamic() {
+        let constant = Pattern::Constant(rcstr!("./file.json"));
+        let partial = Pattern::Concatenation(vec![
+            Pattern::Constant(rcstr!("./prefix/")),
+            Pattern::Dynamic,
+        ]);
+        let dynamic = Pattern::Concatenation(vec![
+            Pattern::Dynamic,
+            Pattern::Constant(rcstr!("/")),
+            Pattern::DynamicNoSlash,
+        ]);
+
+        assert_eq!(constant.filter_non_dynamic(), Some(constant.clone()));
+        assert_eq!(partial.filter_non_dynamic(), Some(partial.clone()));
+        assert_eq!(Pattern::Dynamic.filter_non_dynamic(), None);
+        assert_eq!(Pattern::DynamicNoSlash.filter_non_dynamic(), None);
+        assert_eq!(Pattern::Constant(rcstr!("/")).filter_non_dynamic(), None);
+        assert_eq!(dynamic.filter_non_dynamic(), None);
+        assert_eq!(Pattern::Alternatives(vec![]).filter_non_dynamic(), None);
+        assert_eq!(
+            Pattern::Alternatives(vec![Pattern::Dynamic, dynamic.clone()]).filter_non_dynamic(),
+            None
+        );
+        assert_eq!(
+            Pattern::Alternatives(vec![Pattern::Dynamic, constant.clone()]).filter_non_dynamic(),
+            Some(constant.clone())
+        );
+        assert_eq!(
+            Pattern::Alternatives(vec![
+                Pattern::Dynamic,
+                constant.clone(),
+                dynamic,
+                partial.clone(),
+            ])
+            .filter_non_dynamic(),
+            Some(Pattern::Alternatives(vec![constant, partial]))
+        );
     }
 
     #[test]

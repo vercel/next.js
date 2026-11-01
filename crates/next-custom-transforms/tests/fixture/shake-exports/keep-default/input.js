@@ -3,7 +3,7 @@ export function removeFunction() {
   console.log(shouldBeRemoved)
 }
 
-let shouldBeKept = 'should be kept'
+let usedByShouldBeKept = 'should be kept'
 export default function shouldBeKept() {
-  console.log(shouldBeKept)
+  console.log(usedByShouldBeKept)
 }

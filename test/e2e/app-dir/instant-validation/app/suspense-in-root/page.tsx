@@ -300,6 +300,13 @@ export default async function Page() {
         </li>
       </ul>
 
+      <h2>Excluded caches</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache" />
+        </li>
+      </ul>
+
       <h2>Without partialPrefetching</h2>
       <ul>
         <li>
@@ -310,6 +317,12 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-prefetch" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-non-shell-cache" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache" />
         </li>
       </ul>
 

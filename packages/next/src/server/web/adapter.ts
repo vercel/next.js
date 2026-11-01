@@ -13,6 +13,7 @@ import {
   getRelativeURL,
 } from '../../shared/lib/router/utils/relativize-url'
 import { NextURL } from './next-url'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -30,10 +31,18 @@ import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
-import { getTracer } from '../lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  type TraceContextHeaders,
+} from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
-import { MiddlewareSpan } from '../lib/trace/constants'
+import { MiddlewareSpan, NextSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import {
+  forwardTraceContextToRequest,
+  getSharedParentTraceContext,
+} from './forward-trace-context'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
@@ -93,6 +102,16 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /**
+   * When the Node.js middleware entrypoint registered `instrumentation.ts` for
+   * this request: emits its lifecycle spans, inside the middleware span.
+   */
+  emitInstrumentationSpans?: () => void
+  /**
+   * When the request was received (epoch milliseconds), if before the
+   * adapter ran (e.g. while registering `instrumentation.ts`).
+   */
+  requestStartTime?: number
 }
 
 // This has to be compatible with what the Vercel builder does as well:
@@ -101,12 +120,24 @@ export type EdgeHandler = (opts: {
   request: AdapterOptions['request']
 }) => Promise<FetchEventResult>
 
+function isMiddlewarePage(page: string) {
+  return (
+    page === '/middleware' ||
+    page === '/src/middleware' ||
+    page === '/proxy' ||
+    page === '/src/proxy'
+  )
+}
+
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
   fn
 ) => {
-  const tracer = getTracer()
-  return tracer.withPropagatedContext(request.headers, fn, headersGetter)
+  // An active (host) span wins over a `traceparent` the request carries: the
+  // header can't be trusted to override, e.g., an APM's or the platform's
+  // server span. The middleware forwards the context it continues to the
+  // downstream request (the render), so both stay in one trace.
+  return getTracer().withPropagatedContext(request.headers, fn, headersGetter)
 }
 
 let testApisIntercepted = false
@@ -230,7 +261,7 @@ export async function adapter(
     // leverage the shared instance if not we need
     // to create a fresh cache instance each time
     !(globalThis as any).__incrementalCacheShared &&
-    (params as any).IncrementalCache
+    params.IncrementalCache
   ) {
     ;(globalThis as any).__incrementalCache = new (
       params as {
@@ -266,14 +297,16 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  // The trace context of the span the middleware span and the downstream
+  // request share as their parent, to forward to the downstream request (see
+  // `forwardTraceContextToRequest`), and the request headers as the
+  // middleware received them.
+  let forwardedTraceContext: TraceContextHeaders | undefined
+  let forwardedRequestHeaders: Headers | undefined
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
-    const isMiddleware =
-      params.page === '/middleware' ||
-      params.page === '/src/middleware' ||
-      params.page === '/proxy' ||
-      params.page === '/src/proxy'
+    const isMiddleware = isMiddlewarePage(params.page)
 
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
@@ -282,97 +315,146 @@ export async function adapter(
 
       const waitUntil = event.waitUntil.bind(event)
       const closeController = new CloseController()
+      const tracer = getTracer()
 
-      return getTracer().trace(
-        MiddlewareSpan.execute,
-        {
-          spanName: `middleware ${request.method}`,
-          attributes: {
-            'http.target': request.nextUrl.pathname,
-            'http.method': request.method,
-          },
-        },
-        async () => {
-          try {
-            const onUpdateCookies = (cookies: Array<string>) => {
-              cookiesFromResponse = cookies
-            }
-            const previewProps = getEdgePreviewProps()
-            const page = '/' // Fake Work
-            const fallbackRouteParams = null
-
-            const implicitTags = await getImplicitTags(
-              page,
-              request.nextUrl.pathname,
-              fallbackRouteParams
-            )
-
-            const requestStore = createRequestStoreForAPI(
-              request,
-              request.nextUrl,
-              implicitTags,
-              onUpdateCookies,
-              previewProps,
-              // Edge route handlers can't use `"use cache"`, so there's no HMR
-              // refresh hash to thread through here.
-              undefined
-            )
-
-            const workStore = createWorkStore({
-              page,
-              renderOpts: {
-                cacheLifeProfiles: proxyCacheLifeProfiles,
-                // Proxy doesn't do static generation, so this value does not
-                // apply here. 0 is a sentinel: if something ever reads it,
-                // it'll surface loudly instead of silently using a misleading
-                // default.
-                staticPageGenerationTimeout: 0,
-                cacheComponents: false,
-                // Proxy doesn't run instant validation; the level value is
-                // irrelevant here.
-                // TODO: remove validationLevel and other global config from renderOpts
-                validationLevel: 'warning',
-                experimental: {
-                  isRoutePPREnabled: false,
-                  authInterrupts:
-                    !!params.request.nextConfig?.experimental?.authInterrupts,
-                  // Proxy doesn't fill Cache Components entries, so this value
-                  // is never read. 0 is a sentinel: if something ever reads it,
-                  // the cache fill will time out immediately and surface the
-                  // bug.
-                  useCacheTimeout: 0,
-                  durableUseCacheEntries: false,
-                },
-                waitUntil,
-                onClose: closeController.onClose.bind(closeController),
-                onAfterTaskError: undefined,
-              },
-              isPrefetchRequest:
-                request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
-              buildId: buildId ?? '',
-              deploymentId: deploymentId ?? '',
-              previouslyRevalidatedTags: [],
-            })
-
-            return await workAsyncStorage.run(workStore, () =>
-              workUnitAsyncStorage.run(
-                requestStore,
-                params.handler,
-                request,
-                event
-              )
-            )
-          } finally {
-            // middleware cannot stream, so we can consider the response closed
-            // as soon as the handler returns.
-            // we can delay running it until a bit later --
-            // if it's needed, we'll have a `waitUntil` lock anyway.
-            setTimeout(() => {
-              closeController.dispatchClose()
-            }, 0)
-          }
+      const executeMiddleware = () => {
+        // The middleware span and the downstream request (the render) are
+        // siblings: they share the currently active context as their parent.
+        // That is an active host span, otherwise the request's `traceparent`
+        // (incoming, or written by next-server's middleware-invoke pass), or
+        // the root span inserted below. When this request registered
+        // `instrumentation.ts`, its lifecycle spans are children of the
+        // middleware span, which is backdated to cover registration.
+        const receivedHeaders = new Headers(request.headers)
+        forwardedTraceContext = getSharedParentTraceContext(
+          receivedHeaders,
+          tracer.getTraceContextHeaders()
+        )
+        if (forwardedTraceContext) {
+          // Snapshot before the handler can mutate `request.headers`.
+          forwardedRequestHeaders = receivedHeaders
         }
-      )
+
+        return tracer.trace(
+          MiddlewareSpan.execute,
+          {
+            spanName: `middleware ${request.method}`,
+            startTime: params.emitInstrumentationSpans
+              ? params.requestStartTime
+              : undefined,
+            attributes: {
+              'http.target': request.nextUrl.pathname,
+              'http.method': request.method,
+            },
+          },
+          async () => {
+            params.emitInstrumentationSpans?.()
+            try {
+              const onUpdateCookies = (cookies: Array<string>) => {
+                cookiesFromResponse = cookies
+              }
+              const previewProps = getEdgePreviewProps()
+              const page = '/' // Fake Work
+              const fallbackRouteParams = null
+
+              const implicitTags = await getImplicitTags(
+                page,
+                request.nextUrl.pathname,
+                fallbackRouteParams
+              )
+
+              const requestStore = createRequestStoreForAPI(
+                request,
+                request.nextUrl,
+                implicitTags,
+                onUpdateCookies,
+                previewProps,
+                // Edge route handlers can't use `"use cache"`, so there's no HMR
+                // refresh hash to thread through here.
+                undefined
+              )
+
+              const workStore = createWorkStore({
+                page,
+                renderOpts: {
+                  cacheLifeProfiles: proxyCacheLifeProfiles,
+                  // Proxy doesn't do static generation, so this value does not
+                  // apply here. 0 is a sentinel: if something ever reads it,
+                  // it'll surface loudly instead of silently using a misleading
+                  // default.
+                  staticPageGenerationTimeout: 0,
+                  cacheComponents: false,
+                  // Proxy doesn't run instant validation; the level value is
+                  // irrelevant here.
+                  // TODO: remove validationLevel and other global config from renderOpts
+                  validationLevel: 'warning',
+                  experimental: {
+                    isRoutePPREnabled: false,
+                    authInterrupts:
+                      !!params.request.nextConfig?.experimental?.authInterrupts,
+                    // Proxy doesn't fill Cache Components entries, so this value
+                    // is never read. 0 is a sentinel: if something ever reads it,
+                    // the cache fill will time out immediately and surface the
+                    // bug.
+                    useCacheTimeout: 0,
+                    durableUseCacheEntries: false,
+                  },
+                  waitUntil,
+                  onClose: closeController.onClose.bind(closeController),
+                  onAfterTaskError: undefined,
+                },
+                isPrefetchRequest:
+                  request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
+                buildId: buildId ?? '',
+                deploymentId: deploymentId ?? '',
+                previouslyRevalidatedTags: [],
+              })
+
+              return await workAsyncStorage.run(workStore, () =>
+                workUnitAsyncStorage.run(
+                  requestStore,
+                  params.handler,
+                  request,
+                  event
+                )
+              )
+            } finally {
+              // middleware cannot stream, so we can consider the response closed
+              // as soon as the handler returns.
+              // we can delay running it until a bit later --
+              // if it's needed, we'll have a `waitUntil` lock anyway.
+              setTimeout(() => {
+                closeController.dispatchClose()
+              }, 0)
+            }
+          }
+        )
+      }
+
+      if (tracer.isOpenTelemetryEnabled() && !tracer.hasActiveSpanContext()) {
+        // Middleware invoked separately from the render without any trace
+        // context (no incoming `traceparent`, no host span): insert a root
+        // span for the request. Its context is forwarded to the render, so the
+        // middleware and the render are siblings in one trace instead of two
+        // independent root spans. It's named after the method only (like
+        // next-server's request span before its route is known): the path
+        // would make the span name high-cardinality. It is backdated to when
+        // the request was received, to cover registering `instrumentation.ts`.
+        return tracer.trace(
+          NextSpan.request,
+          {
+            spanName: request.method,
+            kind: SpanKind.SERVER,
+            startTime: params.requestStartTime,
+            attributes: {
+              'http.target': request.nextUrl.pathname,
+              'http.method': request.method,
+            },
+          },
+          executeMiddleware
+        )
+      }
+      return executeMiddleware()
     }
     return params.handler(request, event)
   })
@@ -393,6 +475,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
+  let rewriteLocaleWasInferred = false
   if (response && rewrite && (isRSCRequest || !isEdgeRendering)) {
     const destination = new NextURL(rewrite, {
       forceLocale: true,
@@ -403,6 +486,15 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE && !isEdgeRendering) {
       if (destination.host === request.nextUrl.host) {
         destination.buildId = buildId || destination.buildId
+        // App routes must distinguish an adapter-added locale from an
+        // explicit locale in the Proxy's rewrite destination.
+        rewriteLocaleWasInferred = Boolean(
+          destination.locale &&
+            !getNextPathnameInfo(new URL(rewrite).pathname, {
+              nextConfig: params.request.nextConfig,
+              parseData: true,
+            }).locale
+        )
         response.headers.set('x-middleware-rewrite', String(destination))
       }
     }
@@ -472,6 +564,7 @@ export async function adapter(
     if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
       rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
       response.headers.set('x-middleware-rewrite', rewriteURL.toString())
+      rewriteLocaleWasInferred = false
     }
   }
 
@@ -520,6 +613,19 @@ export async function adapter(
 
   const finalResponse = response ? response : NextResponse.next()
 
+  if (forwardedRequestHeaders) {
+    // Make the downstream request (render) a sibling of the middleware span
+    // in the same trace. Every host applies these request-header overrides to
+    // the render, including next-server's router server, so this works
+    // whether or not the host invokes the middleware separately from the
+    // render.
+    forwardTraceContextToRequest(
+      finalResponse.headers,
+      forwardedRequestHeaders,
+      forwardedTraceContext
+    )
+  }
+
   // Flight headers are not overridable / removable so they are applied at the end.
   const middlewareOverrideHeaders = finalResponse.headers.get(
     'x-middleware-override-headers'
@@ -543,5 +649,6 @@ export async function adapter(
     response: finalResponse,
     waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
+    rewriteLocaleWasInferred,
   }
 }

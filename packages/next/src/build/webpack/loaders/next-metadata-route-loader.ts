@@ -26,10 +26,7 @@ async function createReExportsCode(
   )
   // Re-export configs but avoid conflicted exports
   const reExportNames = exportNames.filter(
-    (name) =>
-      name !== 'default' &&
-      name !== 'generateSitemaps' &&
-      name !== 'dynamicParams'
+    (name) => name !== 'default' && name !== 'generateSitemaps'
   )
 
   return reExportNames.length > 0

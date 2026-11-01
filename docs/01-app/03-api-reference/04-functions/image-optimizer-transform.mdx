@@ -1,0 +1,397 @@
+---
+title: next/image-optimizer-transform
+description: API Reference for the next/image-optimizer-transform module, the standalone sharp-based image resizing and format conversion pipeline behind Next.js Image Optimization.
+---
+
+The `next/image-optimizer-transform` module exposes the transformation step of Next.js [Image Optimization](/docs/app/api-reference/components/image) as a standalone Node.js module with a small dependency graph, so image resizing and format conversion (powered by [sharp](https://sharp.pixelplumbing.com/)) can run outside the main server process.
+
+```ts filename="optimize.ts" highlight={1,3} switcher
+import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+
+const result = await imageOptimizerTransform(
+  {
+    buffer: upstreamBuffer, // Buffer of the source image
+    contentType: null,
+    cacheControl: 'public, max-age=120',
+    etag: 'source-etag',
+  },
+  { href: '/me.png', width: 64, quality: 75, mimeType: 'image/webp' },
+  {
+    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
+    experimental: {
+      imgOptConcurrency: null,
+      imgOptOperationCache: null,
+      imgOptMaxInputPixels: 268402689,
+      imgOptSequentialRead: null,
+      imgOptTimeoutInSeconds: 7,
+      imgOptMozjpeg: true,
+    },
+  }
+)
+// result.contentType === 'image/webp'
+```
+
+```js filename="optimize.js" highlight={1,3} switcher
+import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+
+const result = await imageOptimizerTransform(
+  {
+    buffer: upstreamBuffer, // Buffer of the source image
+    contentType: null,
+    cacheControl: 'public, max-age=120',
+    etag: 'source-etag',
+  },
+  { href: '/me.png', width: 64, quality: 75, mimeType: 'image/webp' },
+  {
+    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
+    experimental: {
+      imgOptConcurrency: null,
+      imgOptOperationCache: null,
+      imgOptMaxInputPixels: 268402689,
+      imgOptSequentialRead: null,
+      imgOptTimeoutInSeconds: 7,
+      imgOptMozjpeg: true,
+    },
+  }
+)
+// result.contentType === 'image/webp'
+```
+
+## Reference
+
+### imageOptimizerTransform
+
+```ts
+async function imageOptimizerTransform(
+  imageUpstream: ImageUpstream,
+  paramsResult: ImageOptimizerTransformParams,
+  nextConfig: ImageOptimizerTransformConfig,
+  opts?: ImageOptimizerTransformOptions
+): Promise<ImageOptimizerResult>
+```
+
+Validates an upstream image, optimizes it with sharp, and returns the result with caching metadata.
+
+#### imageUpstream
+
+| Field          | Type                          | Description                                                                                |
+| -------------- | ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `buffer`       | `Buffer`                      | The source image bytes.                                                                    |
+| `contentType`  | `string \| null \| undefined` | The content type reported upstream. Not trusted; the type is detected from the buffer.     |
+| `cacheControl` | `string \| null \| undefined` | The upstream `Cache-Control` header. Used to compute `maxAge`.                             |
+| `etag`         | `string`                      | The upstream ETag. Returned as `upstreamEtag`, and as `etag` when optimization is skipped. |
+
+#### paramsResult
+
+| Field      | Type     | Description                                                          |
+| ---------- | -------- | -------------------------------------------------------------------- |
+| `href`     | `string` | The source URL of the image. Used in log and error messages.         |
+| `width`    | `number` | The target width in pixels.                                          |
+| `quality`  | `number` | The target quality, an integer between 1 and 100.                    |
+| `mimeType` | `string` | The requested output MIME type. An empty string means no preference. |
+
+#### nextConfig
+
+| Field                                 | Type              | Description                                                               |
+| ------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
+| `images.dangerouslyAllowSVG`          | `boolean`         | Allows SVG sources. When `false`, an SVG source throws an `ImageError`.   |
+| `images.minimumCacheTTL`              | `number`          | The minimum `maxAge` of the result, in seconds.                           |
+| `experimental.imgOptConcurrency`      | `number \| null`  | The sharp thread pool size. `null` selects a default based on `NODE_ENV`. |
+| `experimental.imgOptOperationCache`   | `boolean \| null` | Enables or disables the libvips operation cache.                          |
+| `experimental.imgOptMaxInputPixels`   | `number`          | Passed to sharp as `limitInputPixels`. Default `268402689`.               |
+| `experimental.imgOptSequentialRead`   | `boolean \| null` | Passed to sharp as `sequentialRead`.                                      |
+| `experimental.imgOptTimeoutInSeconds` | `number`          | Per-image processing timeout. Default `7`.                                |
+| `experimental.imgOptMozjpeg`          | `boolean`         | Encodes JPEG output with mozjpeg. Default `true`.                         |
+
+See [`images` configuration](/docs/app/api-reference/config/next-config-js/images) for the `images` options.
+
+#### opts
+
+| Field             | Type       | Description                                                                                                 |
+| ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `previousOutput`  | `object`   | A previously cached result (`{ buffer, maxAge?, etag, upstreamEtag }`). Returned instead of optimizing.     |
+| `logger`          | `object`   | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                    |
+| `handleDevOutput` | `function` | An async hook `(buffer, contentType) => ({ buffer, contentType })` that post-processes the optimized image. |
+
+#### Returns
+
+`Promise<ImageOptimizerResult>` with the following fields:
+
+| Field          | Type      | Description                                                                        |
+| -------------- | --------- | ---------------------------------------------------------------------------------- |
+| `buffer`       | `Buffer`  | The optimized image, or the upstream image when optimization is skipped or failed. |
+| `contentType`  | `string`  | The MIME type of `buffer`.                                                         |
+| `maxAge`       | `number`  | The cache lifetime in seconds.                                                     |
+| `etag`         | `string`  | The ETag for the returned buffer.                                                  |
+| `upstreamEtag` | `string`  | The ETag of the upstream image.                                                    |
+| `error`        | `unknown` | Present only when optimization failed and the upstream image was returned instead. |
+
+The function runs the following steps in order:
+
+1. Computes `maxAge` as the greater of `images.minimumCacheTTL` and the upstream `Cache-Control` `s-maxage` or `max-age` directive.
+2. Detects the content type from the magic bytes of `imageUpstream.buffer`.
+3. Throws an `ImageError` with `statusCode` 400 when the buffer is not a recognized image, or when the image is SVG and `images.dangerouslyAllowSVG` is `false`.
+4. Returns animated WebP, PNG, and GIF sources unoptimized, and calls `logger.warnOnce`.
+5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
+6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
+7. Returns `opts.previousOutput` without optimizing when it is provided.
+8. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values, then applies `opts.handleDevOutput` when provided.
+9. On failure, returns the upstream buffer and content type with `maxAge` set to `images.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
+
+### optimizeImage
+
+```ts
+async function optimizeImage(options: {
+  buffer: Buffer
+  contentType: string
+  quality: number
+  width: number
+  height?: number
+  concurrency?: number | null
+  operationCache?: boolean | null
+  limitInputPixels?: number
+  sequentialRead?: boolean | null
+  timeoutInSeconds?: number
+  mozjpeg?: boolean
+}): Promise<Buffer>
+```
+
+Resizes and re-encodes an image buffer with sharp and returns the optimized buffer.
+
+| Option             | Type              | Default     | Description                                                                                                                          |
+| ------------------ | ----------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `buffer`           | `Buffer`          | Required    | The source image bytes.                                                                                                              |
+| `contentType`      | `string`          | Required    | Selects the output encoder: `image/avif`, `image/webp`, `image/png`, or `image/jpeg`. For other values sharp keeps the input format. |
+| `quality`          | `number`          | Required    | An integer between 1 and 100. AVIF quality is scaled by 50/80 to approximate WebP quality.                                           |
+| `width`            | `number`          | Required    | The target width in pixels.                                                                                                          |
+| `height`           | `number`          | `undefined` | The target height. When omitted, the aspect ratio is preserved and the image is never enlarged.                                      |
+| `concurrency`      | `number \| null`  | `undefined` | Forwarded to [`getSharp`](#getsharp).                                                                                                |
+| `operationCache`   | `boolean \| null` | `undefined` | Forwarded to [`getSharp`](#getsharp).                                                                                                |
+| `limitInputPixels` | `number`          | `undefined` | Passed to sharp. Limits the input pixel count.                                                                                       |
+| `sequentialRead`   | `boolean \| null` | `undefined` | Passed to sharp.                                                                                                                     |
+| `timeoutInSeconds` | `number`          | `7`         | The processing timeout passed to `sharp.timeout`.                                                                                    |
+| `mozjpeg`          | `boolean`         | `true`      | Encodes JPEG output with mozjpeg, which produces progressive JPEGs.                                                                  |
+
+The output is auto-rotated according to the EXIF orientation of the source image.
+
+### getMaxAge
+
+```ts
+function getMaxAge(cacheControl: string | null | undefined): number
+```
+
+Parses a `Cache-Control` header value and returns the `s-maxage` directive, or the `max-age` directive when `s-maxage` is absent, as an integer number of seconds. Returns `0` when neither directive is present or its value is not a number. This is the same parsing the image optimizer applies to upstream responses when computing `maxAge`.
+
+```ts
+const maxAge = getMaxAge('public, max-age=120') // 120
+```
+
+### getSharp
+
+```ts
+function getSharp(
+  concurrency: number | null | undefined,
+  operationCache: boolean | null | undefined
+): typeof import('sharp').default
+```
+
+Loads the `sharp` module once, applies configuration, and returns the memoized instance.
+
+| Parameter        | Type                           | Description                                                                                                                                                  |
+| ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `concurrency`    | `number \| null \| undefined`  | The libvips thread pool size. When not a number, the default is the current concurrency divided by 4 in development or 2 in production, with a minimum of 1. |
+| `operationCache` | `boolean \| null \| undefined` | When a boolean, passed to `sharp.cache()` to enable or disable the libvips operation cache.                                                                  |
+
+On first load, `getSharp` restricts libvips image loaders to HEIF (AVIF), JPEG, GIF, PNG, SVG, TIFF, and WebP. If `sharp` is not installed, it throws an error that suggests running `npm install --cpu=wasm32 sharp`.
+
+### ImageError
+
+```ts
+class ImageError extends Error {
+  statusCode: number
+  constructor(statusCode: number, message: string)
+}
+```
+
+The error type thrown by `imageOptimizerTransform` for invalid input. `statusCode` is preserved when it is 400 or greater. Any lower value is replaced with 500.
+
+## Good to know
+
+- `sharp` is required and is loaded lazily on the first call to `getSharp` or `optimizeImage`. The same instance is reused afterwards.
+- The module intentionally imports very little so it loads quickly in a separate process, such as a worker or child process. Its file location and exports are a stable public contract.
+- The `contentType` field of `imageUpstream` is not used for detection. The content type is detected from the first bytes of the buffer.
+- Optimization failures do not throw. `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.
+- Passing `previousOutput` skips sharp entirely, but the upstream buffer is still validated first.
+- Animated WebP, PNG, and GIF images are returned unoptimized. SVG, ICO, ICNS, BMP, JXL, and HEIC images are always passed through without optimization.
+
+## Examples
+
+### Optimizing a fetched image
+
+Fetch an upstream image and convert it to WebP, using the response headers as the upstream metadata.
+
+```ts filename="optimize.ts" switcher
+import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+
+const logger = {
+  error: (...args: unknown[]) => console.error(...args),
+  warnOnce: (message: string) => console.warn(message),
+}
+
+const upstream = await fetch('https://example.com/me.png')
+
+const result = await imageOptimizerTransform(
+  {
+    buffer: Buffer.from(await upstream.arrayBuffer()),
+    contentType: upstream.headers.get('content-type'),
+    cacheControl: upstream.headers.get('cache-control'),
+    etag: upstream.headers.get('etag') ?? 'unknown',
+  },
+  {
+    href: 'https://example.com/me.png',
+    width: 64,
+    quality: 75,
+    mimeType: 'image/webp',
+  },
+  {
+    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
+    experimental: {
+      imgOptConcurrency: null,
+      imgOptOperationCache: null,
+      imgOptMaxInputPixels: 268402689,
+      imgOptSequentialRead: null,
+      imgOptTimeoutInSeconds: 7,
+      imgOptMozjpeg: true,
+    },
+  },
+  { logger }
+)
+
+if (result.error) {
+  // Optimization failed. result.buffer contains the upstream image.
+}
+```
+
+```js filename="optimize.js" switcher
+import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+
+const logger = {
+  error: (...args) => console.error(...args),
+  warnOnce: (message) => console.warn(message),
+}
+
+const upstream = await fetch('https://example.com/me.png')
+
+const result = await imageOptimizerTransform(
+  {
+    buffer: Buffer.from(await upstream.arrayBuffer()),
+    contentType: upstream.headers.get('content-type'),
+    cacheControl: upstream.headers.get('cache-control'),
+    etag: upstream.headers.get('etag') ?? 'unknown',
+  },
+  {
+    href: 'https://example.com/me.png',
+    width: 64,
+    quality: 75,
+    mimeType: 'image/webp',
+  },
+  {
+    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
+    experimental: {
+      imgOptConcurrency: null,
+      imgOptOperationCache: null,
+      imgOptMaxInputPixels: 268402689,
+      imgOptSequentialRead: null,
+      imgOptTimeoutInSeconds: 7,
+      imgOptMozjpeg: true,
+    },
+  },
+  { logger }
+)
+
+if (result.error) {
+  // Optimization failed. result.buffer contains the upstream image.
+}
+```
+
+### Reusing a previously cached result
+
+Pass `previousOutput` to skip optimization when a cached result already exists.
+
+```ts filename="optimize.ts" switcher
+const result = await imageOptimizerTransform(
+  imageUpstream,
+  params,
+  nextConfig,
+  {
+    previousOutput: {
+      buffer: cachedBuffer,
+      maxAge: 90,
+      etag: 'optimized-etag',
+      upstreamEtag: 'source-etag',
+    },
+  }
+)
+// result.buffer === cachedBuffer, sharp is not invoked.
+```
+
+```js filename="optimize.js" switcher
+const result = await imageOptimizerTransform(
+  imageUpstream,
+  params,
+  nextConfig,
+  {
+    previousOutput: {
+      buffer: cachedBuffer,
+      maxAge: 90,
+      etag: 'optimized-etag',
+      upstreamEtag: 'source-etag',
+    },
+  }
+)
+// result.buffer === cachedBuffer, sharp is not invoked.
+```
+
+### Resizing directly with optimizeImage
+
+Use `optimizeImage` when you only need a resize without validation or caching metadata. Next.js uses the same function at build time to generate blur placeholders for static imports.
+
+```ts filename="blur.ts" switcher
+import { optimizeImage } from 'next/image-optimizer-transform'
+
+const placeholder = await optimizeImage({
+  buffer: sourceBuffer,
+  contentType: 'image/webp',
+  width: 8,
+  quality: 70,
+})
+```
+
+```js filename="blur.js" switcher
+import { optimizeImage } from 'next/image-optimizer-transform'
+
+const placeholder = await optimizeImage({
+  buffer: sourceBuffer,
+  contentType: 'image/webp',
+  width: 8,
+  quality: 70,
+})
+```
+
+### Configuring sharp with getSharp
+
+Use `getSharp` to load sharp with the same loader restrictions and concurrency limits as the Next.js image optimizer.
+
+```ts filename="metadata.ts" switcher
+import { getSharp } from 'next/image-optimizer-transform'
+
+const sharp = getSharp(1, false)
+const metadata = await sharp(buffer).metadata()
+```
+
+```js filename="metadata.js" switcher
+import { getSharp } from 'next/image-optimizer-transform'
+
+const sharp = getSharp(1, false)
+const metadata = await sharp(buffer).metadata()
+```

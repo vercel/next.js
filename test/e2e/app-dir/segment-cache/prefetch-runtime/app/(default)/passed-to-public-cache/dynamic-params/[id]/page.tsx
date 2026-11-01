@@ -6,7 +6,6 @@ import { cookies } from 'next/headers'
 export const instant = {
   unstable_samples: [{ params: { id: 'test' } }],
 }
-export const prefetch = 'partial'
 
 type Params = { id: string }
 

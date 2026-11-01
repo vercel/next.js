@@ -1,4 +1,3 @@
-import type { Response } from 'node-fetch'
 import { join } from 'path'
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'

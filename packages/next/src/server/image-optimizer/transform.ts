@@ -1,6 +1,8 @@
-// WARNING: Please keep this module lightweight with very few imports since
-// we intend to run it in a child process in the future. Please do NOT
-// add new imports without considering their impact on its dependency graph.
+// WARNING: This module is publicly exposed as `next/image-optimizer-transform`
+// and consumed outside this repo, so its location and export surface are a
+// stable contract. Please keep this module lightweight with very few imports
+// since it runs in a child process. Please do NOT add new imports without
+// considering their impact on its dependency graph.
 import isAnimated from 'next/dist/compiled/is-animated'
 import type { NextConfigComplete } from '../config-shared'
 import isError from '../../lib/is-error'
@@ -21,6 +23,9 @@ import {
 import { getImageEtag } from './extract-etag'
 import { getMaxAge } from './get-max-age'
 import { ImageError } from './image-error'
+
+export { ImageError }
+export { getMaxAge }
 
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
@@ -49,6 +54,7 @@ export type ImageOptimizerTransformConfig = {
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
   >
   images: Pick<
     NextConfigComplete['images'],
@@ -139,6 +145,7 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
+  mozjpeg = true,
 }: {
   buffer: Buffer
   contentType: string
@@ -150,6 +157,7 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
+  mozjpeg?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
@@ -182,7 +190,7 @@ export async function optimizeImage({
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg: true })
+    transformer.jpeg({ quality, mozjpeg })
   }
 
   const optimizedBuffer = await transformer.toBuffer()
@@ -283,6 +291,7 @@ export async function imageOptimizerTransform(
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+      mozjpeg: nextConfig.experimental.imgOptMozjpeg,
     })
     if (opts.handleDevOutput) {
       const output = await opts.handleDevOutput(optimizedBuffer, contentType)

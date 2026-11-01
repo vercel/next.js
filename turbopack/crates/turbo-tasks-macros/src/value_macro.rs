@@ -319,7 +319,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut struct_attributes = vec![quote! {
         #[derive(
             turbo_tasks::ShrinkToFit,
-            turbo_tasks::trace::TraceRawVcs,
             turbo_tasks::NonLocalValue
         )]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]

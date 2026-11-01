@@ -3,6 +3,7 @@ import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -12,6 +13,7 @@ import {
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
   PHASE_INFO,
+  PHASE_TEST,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import {
@@ -56,10 +58,12 @@ import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
-import type { MemoryEvictionMode } from '../build/swc/types'
+import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
+import { verifyDistDir } from '../lib/dist-dir'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -454,6 +458,9 @@ function assignDefaultsAndValidate(
     },
   }
 
+  result.experimental.strictRouteMatching =
+    !result.deprecated.looseRouteMatching
+
   // Pruning assumes that children only exists when it is backed by an
   // ordinary route branch. Restoring the legacy implicit children slot must
   // therefore also restore the legacy matcher behavior.
@@ -505,6 +512,24 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
     turbopackMemoryEvictionMode as MemoryEvictionMode
 
+  // Normalize the user-facing `turbopackGc` (`boolean | { minProgressMs?,
+  // rootTtlMs? } | undefined`) into the object napi expects
+  const turbopackGc = result.experimental.turbopackGc
+  let turbopackGcOptions: TurbopackGcOptions | undefined
+  if (typeof turbopackGc === 'boolean') {
+    turbopackGcOptions = turbopackGc ? {} : undefined
+  } else if (typeof turbopackGc === 'object' && turbopackGc !== null) {
+    turbopackGcOptions = {
+      minProgressMs: turbopackGc.minProgressMs,
+      rootTtlMs: turbopackGc.rootTtlMs,
+    }
+  } else {
+    // Enable by default on canary releases.
+    turbopackGcOptions = isStableBuild() ? undefined : {}
+  }
+  ;(result as NextConfigComplete).experimental.turbopackGcOptions =
+    turbopackGcOptions
+
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
     result.logging !== false &&
@@ -550,14 +575,27 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
-  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
+  // Build and development phases validate bundler-specific options. Server,
+  // info, and test phases do not select a bundler. They must accept
+  // configuration from either bundler.
+  if (
+    phase !== PHASE_PRODUCTION_SERVER &&
+    phase !== PHASE_INFO &&
+    phase !== PHASE_TEST
+  ) {
     if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
       throw new Error(
         `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.useCacheStaticRootParamTracking &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.useCacheStaticRootParamTracking: true\` is only supported with Turbopack. ` +
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
       )
     }
@@ -615,6 +653,23 @@ function assignDefaultsAndValidate(
   if (result.partialPrefetching && !result.cacheComponents) {
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
+  // so apps can migrate before both features are enabled together by default.
+  if (
+    result.cacheComponents &&
+    result.partialPrefetching === undefined &&
+    !silent
+  ) {
+    Log.warnOnce(
+      [
+        '`cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+        "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+        'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+        'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+      ].join('\n\n')
     )
   }
 
@@ -1239,6 +1294,8 @@ function assignDefaultsAndValidate(
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
 
+  verifyDistDir(resolve(dir, result.distDir), dir, repoRoot)
+
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
@@ -1685,6 +1742,49 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
+  const pluginRuntimeStrategy =
+    result.experimental.turbopackPluginRuntimeStrategy
+  if (
+    pluginRuntimeStrategy === 'workerThreads' ||
+    pluginRuntimeStrategy === 'forceWorkerThreads'
+  ) {
+    result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
+
+    if (!process.versions.bun && !process.versions.deno) {
+      const nodeVersion = process.versions.node
+      const affectedNodeRange = '>=24.13.1'
+      if (
+        semver.satisfies(nodeVersion, affectedNodeRange, {
+          includePrerelease: true,
+        })
+      ) {
+        if (pluginRuntimeStrategy === 'forceWorkerThreads') {
+          Log.warn(
+            `\`experimental.turbopackPluginRuntimeStrategy = ` +
+              `'forceWorkerThreads'\` is enabled, bypassing protection ` +
+              `against a known potential crash in Node.js ${affectedNodeRange}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.`
+          )
+        } else {
+          Log.warn(
+            `\`experimental.turbopackPluginRuntimeStrategy = ` +
+              `'workerThreads'\` is disabled on Node.js ${nodeVersion}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.\n` +
+              `Falling back to 'childProcesses'. To override at your own ` +
+              `risk, use 'forceWorkerThreads'.`
+          )
+          result.experimental.turbopackPluginRuntimeStrategy = 'childProcesses'
+        }
+      }
+    }
+  }
+
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
 
@@ -1927,7 +2027,7 @@ async function loadConfigImpl(
   // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
-      loadWebpackHook()
+      loadWebpackHook(dir)
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included

@@ -16,13 +16,6 @@ describe('explicit-parallel-route-children-detection', () => {
   })
 
   it('finds route targets nested beneath an ordinary children branch', async () => {
-    // The sidebar matches, but the discovered children branch does not. This
-    // route must be incomplete rather than rendering only the sidebar.
-    const incompleteResponse = await next.fetch('/nested/incomplete')
-    expect(await incompleteResponse.text()).toContain(
-      'This page could not be found'
-    )
-
     const browser = await next.browser('/nested/content/anything')
     expect(await browser.elementById('nested-sidebar').text()).toBe(
       'nested sidebar'

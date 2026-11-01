@@ -1,6 +1,5 @@
 use std::cmp::max;
 
-use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
 };
@@ -16,21 +15,33 @@ pub enum SnapshotItem {
     Put {
         task_id: TaskId,
         /// Serialized task meta data, if modified
-        meta: Option<TurboBincodeBuffer>,
+        meta: Option<Box<[u8]>>,
         /// Serialized task data, if modified
-        data: Option<TurboBincodeBuffer>,
+        data: Option<Box<[u8]>>,
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
+        /// Cache size statistics captured when the item was encoded.
+        #[cfg(feature = "print_cache_item_size")]
+        stats: Box<SnapshotItemStats>,
     },
-    // Constructed by the GC pass that emits `Delete` for soft-deleted tasks, which lands in a
-    // later PR in the stack.
-    #[allow(dead_code)]
     Delete {
         task_id: TaskId,
         /// The deleted task's `TaskCache` key. Always present: only persistent tasks are
         /// collected, and those always have a task type.
         task_type_hash: TaskTypeHash,
     },
+}
+
+/// Per-task cache size statistics, captured by `encode_snapshot_item` from the same task state
+/// that was encoded, so pre-encoded (copy-on-write) items report what was actually persisted.
+#[cfg(feature = "print_cache_item_size")]
+#[derive(Default)]
+pub struct SnapshotItemStats {
+    /// The task name, used as the stats grouping key.
+    pub task_name: String,
+    pub counts: crate::backend::storage_schema::MetaCounts,
+    /// Size of the encoded task output, if any.
+    pub output_size: usize,
 }
 
 impl SnapshotItem {

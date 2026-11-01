@@ -33,10 +33,18 @@
 
 import { expect, test } from 'vitest'
 import { environment } from '@vercel/agent-eval/eval'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
-test('Page does not await all data before rendering', async () => {
+const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
+
+test('keeps Cache Components enabled', () => {
+  expect(config).toMatch(/cacheComponents\s*:\s*true/)
+})
+
+test('renders the dashboard shell while sections stream independently', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The dashboard page must produce a static PPR shell: the default-exported Page component in app/page.tsx returns its JSX frame without blocking on dashboard data, and the data-driven sections suspend independently of one another rather than collapsing into a single all-or-nothing loading state. Judge where the boundaries sit in the rendered tree, not how many there are or which file the <Suspense> tag is written in. Docs for the exact Next.js version installed here ship at node_modules/next/dist/docs — see 01-app/03-api-reference/05-config/01-next-config-js/cacheComponents.md and 01-app/03-api-reference/03-file-conventions/loading.md.
+    `The dashboard produces a useful static shell: the Dashboard heading renders without waiting for dashboard data, while the summary cards, Revenue section, and Latest Invoices section suspend and reveal independently with section-appropriate fallbacks rather than collapsing into one all-or-nothing loading state. Judge the rendered component tree, not how many <Suspense> strings appear in one file. Docs for the exact Next.js version installed here ship at node_modules/next/dist/docs — see 01-app/03-api-reference/05-config/01-next-config-js/cacheComponents.md and 01-app/03-api-reference/03-file-conventions/loading.md.
 
 For reference, one correct solution keeps Page synchronous and moves each await into a Suspense-wrapped child:
 

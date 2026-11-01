@@ -450,7 +450,7 @@ export class TurbopackManifestLoader {
     sortedPageKeys: string[]
   ): ClientBuildManifest {
     const manifest = {
-      __rewrites: rewrites as any,
+      __rewrites: rewrites,
       sortedPages: sortedPageKeys,
     }
     for (const m of manifests) {

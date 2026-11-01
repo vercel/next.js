@@ -34,7 +34,7 @@ Next.js can start as a static site or even a strict SPA where everything is rend
 
 ## Build common SPA patterns
 
-The following examples cover common patterns for building an SPA with Next.js. The companion [demo](https://next-spa-patterns.labs.vercel.dev) ([source](https://github.com/vercel-labs/next-spa-patterns)) shows each pattern in action.
+The following examples cover common patterns for building an SPA with Next.js. The companion [demo](https://next-spa-patterns.labs.vercel.dev) ([source](https://github.com/nextjs/next-spa-patterns)) shows each pattern in action.
 
 ### Using React's `use` within a Context Provider
 
@@ -200,7 +200,7 @@ export default function Page() {
 
 The component that consumes the Promise (e.g. `Profile` above) suspends while the Promise resolves, so you see the streamed, prerendered HTML before JavaScript has finished loading.
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/use-context).
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and its [source code](https://github.com/nextjs/next-spa-patterns/tree/main/app/use-context).
 
 ### Rendering components only in the browser
 
@@ -216,7 +216,51 @@ const ClientOnlyComponent = dynamic(() => import('./component'), {
 
 This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
+React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
+
+During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary.
+
+For example, this editor reads a saved draft from `localStorage`:
+
+```jsx filename="app/browser-only-editor.jsx"
+'use client'
+
+import { use, useState } from 'react'
+import { browser } from 'react-dom'
+
+export default function BrowserOnlyEditor() {
+  use(browser('The saved draft is stored in localStorage.'))
+
+  const [draft, setDraft] = useState(() => localStorage.getItem('draft') ?? '')
+
+  function handleChange(event) {
+    const nextDraft = event.target.value
+    setDraft(nextDraft)
+    localStorage.setItem('draft', nextDraft)
+  }
+
+  return <textarea value={draft} onChange={handleChange} />
+}
+```
+
+Then wrap it in a Suspense boundary:
+
+```jsx filename="app/page.jsx"
+import { Suspense } from 'react'
+import BrowserOnlyEditor from './browser-only-editor'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading editor…</p>}>
+      <BrowserOnlyEditor />
+    </Suspense>
+  )
+}
+```
+
+In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft.
+
+See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
 ### Shallow routing on the client
 
@@ -274,7 +318,7 @@ export default function SortProducts() {
 
 Learn more about how [routing and navigation](/docs/app/getting-started/linking-and-navigating#how-navigation-works) work in Next.js.
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/shallow-routing) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/shallow-routing).
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/shallow-routing) and its [source code](https://github.com/nextjs/next-spa-patterns/tree/main/app/shallow-routing).
 
 ### Mutating data with Server Actions
 
@@ -525,7 +569,7 @@ export function TodoList({ initialTodos }) {
 
 The optimistic update shows instantly, while `useActionState`'s pending flag lets you display a subtle indicator (such as `Syncing to server…`) until the Server Action resolves.
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/mutations) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/mutations).
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/mutations) and its [source code](https://github.com/nextjs/next-spa-patterns/tree/main/app/mutations).
 
 To learn more about adding interactivity on top of server-rendered apps so they feel like SPAs, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide and its runnable demo.
 

@@ -27,7 +27,7 @@ use swc_core::{
     ecma::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
-        utils::{ExprFactory, private_ident, quote_ident},
+        utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
         visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
@@ -167,6 +167,7 @@ pub fn server_actions<C: Comments>(
         file_directive: None,
         current_export_name: None,
         fn_decl_ident: None,
+        fn_expr_ident: None,
         in_callee: false,
         has_action: false,
         has_cache: false,
@@ -236,6 +237,8 @@ struct ServerActions<C: Comments> {
     file_directive: Option<Directive>,
     current_export_name: Option<ModuleExportName>,
     fn_decl_ident: Option<Ident>,
+    /// The explicit name of a function expression, not its enclosing binding.
+    fn_expr_ident: Option<Ident>,
     in_callee: bool,
     has_action: bool,
     has_cache: bool,
@@ -267,6 +270,7 @@ struct ServerActions<C: Comments> {
     private_ctxt: SyntaxContext,
     unresolved_ctxt: SyntaxContext,
 
+    /// The inferred name from an enclosing variable, assignment, or property.
     arrow_or_fn_expr_ident: Option<Ident>,
     export_name_by_local_id: FxIndexMap<Id, ModuleExportName>,
 
@@ -414,7 +418,7 @@ impl<C: Comments> ServerActions<C> {
     // and remove any server function directive.
     fn get_directive_for_function(
         &mut self,
-        maybe_body: Option<&mut BlockStmt>,
+        maybe_body: Option<&mut FunctionBody>,
     ) -> Option<Directive> {
         let mut directive: Option<Directive> = None;
 
@@ -520,14 +524,14 @@ impl<C: Comments> ServerActions<C> {
                 .swap_remove(&arrow_ident.to_id());
         }
 
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+        if let ArrowFunctionBody::FunctionBody(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
             });
         }
 
-        let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
+        let mut new_body: ArrowFunctionBody = *arrow.body.clone();
 
         if !ids_from_closure.is_empty() {
             // Prepend the decryption declaration to the body.
@@ -555,11 +559,12 @@ impl<C: Comments> ServerActions<C> {
             };
 
             match &mut new_body {
-                BlockStmtOrExpr::BlockStmt(body) => {
-                    body.stmts.insert(0, decryption_decl.into());
+                ArrowFunctionBody::FunctionBody(body) => {
+                    // Insert after the body's leading directives, never before them.
+                    prepend_stmts(&mut body.stmts, std::iter::once(decryption_decl.into()));
                 }
-                BlockStmtOrExpr::Expr(body_expr) => {
-                    new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
+                ArrowFunctionBody::Expr(body_expr) => {
+                    new_body = ArrowFunctionBody::FunctionBody(FunctionBody {
                         span: DUMMY_SP,
                         stmts: vec![
                             decryption_decl.into(),
@@ -568,7 +573,6 @@ impl<C: Comments> ServerActions<C> {
                                 arg: Some(body_expr.take()),
                             }),
                         ],
-                        ..Default::default()
                     });
                 }
             }
@@ -586,40 +590,34 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP,
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(Box::new(Expr::Fn(FnExpr {
-                            ident: self.arrow_or_fn_expr_ident.clone(),
-                            function: Box::new(Function {
-                                params: new_params,
-                                body: match new_body {
-                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
-                                        span: DUMMY_SP,
-                                        stmts: vec![Stmt::Return(ReturnStmt {
+                        init: Some(Box::new(annotate_as_server_reference(
+                            Expr::Fn(FnExpr {
+                                ident: self.arrow_or_fn_expr_ident.clone(),
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: match new_body {
+                                        ArrowFunctionBody::FunctionBody(body) => Some(body),
+                                        ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                                             span: DUMMY_SP,
-                                            arg: Some(expr),
-                                        })],
-                                        ..Default::default()
-                                    }),
-                                },
-                                is_async: true,
-                                ..Default::default()
+                                            stmts: vec![Stmt::Return(ReturnStmt {
+                                                span: DUMMY_SP,
+                                                arg: Some(expr),
+                                            })],
+                                        }),
+                                    },
+                                    is_async: true,
+                                    ..Default::default()
+                                }),
                             }),
-                        }))),
+                            action_id.clone(),
+                            arrow.span,
+                            true,
+                        ))),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
                 }
                 .into(),
-            })));
-
-        self.hoisted_extra_items
-            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(annotate_ident_as_server_reference(
-                    action_ident.clone(),
-                    action_id.clone(),
-                    arrow.span,
-                )),
             })));
 
         if ids_from_closure.is_empty() {
@@ -691,7 +689,7 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        let mut new_body: Option<BlockStmt> = function.body.clone();
+        let mut new_body: Option<FunctionBody> = function.body.clone();
 
         if !ids_from_closure.is_empty() {
             // Prepend the decryption declaration to the body.
@@ -718,18 +716,19 @@ impl<C: Comments> ServerActions<C> {
             };
 
             if let Some(body) = &mut new_body {
-                body.stmts.insert(0, decryption_decl.into());
+                // Insert after the body's leading directives, never before them.
+                prepend_stmts(&mut body.stmts, std::iter::once(decryption_decl.into()));
             } else {
-                new_body = Some(BlockStmt {
+                new_body = Some(FunctionBody {
                     span: DUMMY_SP,
                     stmts: vec![decryption_decl.into()],
-                    ..Default::default()
                 });
             }
         }
 
         // Create the action export decl from the function
         // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
+        let original_span = function.span;
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
@@ -740,29 +739,24 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP, // TODO: need to map it to the original span?
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(Box::new(Expr::Fn(FnExpr {
-                            ident: fn_name,
-                            function: Box::new(Function {
-                                params: new_params,
-                                body: new_body,
-                                ..function.take()
+                        init: Some(Box::new(annotate_as_server_reference(
+                            Expr::Fn(FnExpr {
+                                ident: fn_name,
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: new_body,
+                                    ..function.take()
+                                }),
                             }),
-                        }))),
+                            action_id.clone(),
+                            original_span,
+                            true,
+                        ))),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
                 }
                 .into(),
-            })));
-
-        self.hoisted_extra_items
-            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(annotate_ident_as_server_reference(
-                    action_ident.clone(),
-                    action_id.clone(),
-                    function.span,
-                )),
             })));
 
         if ids_from_closure.is_empty() {
@@ -828,7 +822,7 @@ impl<C: Comments> ServerActions<C> {
                 .swap_remove(&arrow_ident.to_id());
         }
 
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+        if let ArrowFunctionBody::FunctionBody(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
@@ -836,8 +830,8 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let inner_fn_body = match *arrow.body.take() {
-            BlockStmtOrExpr::BlockStmt(body) => Some(body),
-            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+            ArrowFunctionBody::FunctionBody(body) => Some(body),
+            ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                 stmts: vec![Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(expr),
@@ -852,21 +846,15 @@ impl<C: Comments> ServerActions<C> {
             ids_from_closure.len(),
             cache_name,
             self.arrow_or_fn_expr_ident.clone(),
+            self.arrow_or_fn_expr_ident
+                .as_ref()
+                .map(|ident| ident.sym.as_str()),
             new_params.clone(),
             inner_fn_body,
             arrow.span,
             &mut self.hoisted_extra_items,
             self.unresolved_ctxt,
         );
-
-        if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
-            self.hoisted_extra_items
-                .push(ModuleItem::Stmt(assign_name_to_ident(
-                    &cache_ident,
-                    sym.as_str(),
-                    self.unresolved_ctxt,
-                )));
-        }
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -946,28 +934,16 @@ impl<C: Comments> ServerActions<C> {
             ids_from_closure.len(),
             cache_name,
             fn_name.clone(),
+            fn_name
+                .as_ref()
+                .map(|ident| ident.sym.as_str())
+                .or_else(|| self.is_default_export().then_some("default")),
             new_params.clone(),
             function_body,
             function_span,
             &mut self.hoisted_extra_items,
             self.unresolved_ctxt,
         );
-
-        if let Some(Ident { ref sym, .. }) = fn_name {
-            self.hoisted_extra_items
-                .push(ModuleItem::Stmt(assign_name_to_ident(
-                    &cache_ident,
-                    sym.as_str(),
-                    self.unresolved_ctxt,
-                )));
-        } else if self.is_default_export() {
-            self.hoisted_extra_items
-                .push(ModuleItem::Stmt(assign_name_to_ident(
-                    &cache_ident,
-                    "default",
-                    self.unresolved_ctxt,
-                )));
-        }
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -1052,18 +1028,15 @@ impl<C: Comments> ServerActions<C> {
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
                             name: Pat::Ident(action_ident.clone().into()),
-                            init: Some(take_fn_or_arrow_expr()),
+                            init: Some(Box::new(assign_name_to_expr(
+                                *take_fn_or_arrow_expr(),
+                                "default",
+                                self.unresolved_ctxt,
+                            ))),
                             definite: false,
                         }],
                         ..Default::default()
                     })))));
-
-                self.hoisted_extra_items
-                    .push(ModuleItem::Stmt(assign_name_to_ident(
-                        &action_ident,
-                        "default",
-                        self.unresolved_ctxt,
-                    )));
 
                 self.rewrite_default_fn_expr_to_proxy_expr =
                     Some(Box::new(Expr::Ident(action_ident)));
@@ -1197,13 +1170,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
         let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
-        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
-        if let Some(ident) = &f.ident {
-            self.arrow_or_fn_expr_ident = Some(ident.clone());
-        }
+        let old_fn_expr_ident = replace(&mut self.fn_expr_ident, f.ident.clone());
         f.visit_mut_children_with(self);
         self.this_status = old_this_status;
-        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
+        self.fn_expr_ident = old_fn_expr_ident;
     }
 
     fn visit_mut_function(&mut self, f: &mut Function) {
@@ -1224,11 +1194,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
             let old_current_export_name = self.current_export_name.take();
             let old_fn_decl_ident = self.fn_decl_ident.take();
+            let old_fn_expr_ident = self.fn_expr_ident.take();
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
             self.fn_decl_ident = old_fn_decl_ident;
+            self.fn_expr_ident = old_fn_expr_ident;
         }
 
         let mut child_names = take(&mut self.names);
@@ -1241,16 +1213,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let fn_name = self
                 .fn_decl_ident
                 .as_ref()
+                .or(self.fn_expr_ident.as_ref())
                 .or(self.arrow_or_fn_expr_ident.as_ref())
+                .cloned();
+            let export_ident = self
+                .fn_decl_ident
+                .as_ref()
+                .or(self.arrow_or_fn_expr_ident.as_ref())
+                .or(self.fn_expr_ident.as_ref())
                 .cloned();
 
             if !self.validate_async_function(f.is_async, f.span, fn_name.as_ref(), &directive) {
                 // If this is an exported function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
                 if self.current_export_name.is_some()
-                    && let Some(fn_name) = fn_name
+                    && let Some(export_ident) = export_ident
                 {
-                    self.export_name_by_local_id.swap_remove(&fn_name.to_id());
+                    self.export_name_by_local_id
+                        .swap_remove(&export_ident.to_id());
                 }
 
                 return;
@@ -1273,7 +1253,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 self.register_server_action_export(
                     &export_name,
-                    fn_name.as_ref(),
+                    export_ident.as_ref(),
                     Some(&params),
                     span,
                     &mut || {
@@ -1294,7 +1274,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 {
                     self.register_cache_export_on_client(
                         &export_name,
-                        fn_name.as_ref(),
+                        export_ident.as_ref(),
                         Some(&f.params),
                         f.span,
                     );
@@ -1313,10 +1293,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                     child_names.clone(),
-                    self.fn_decl_ident
-                        .as_ref()
-                        .or(self.arrow_or_fn_expr_ident.as_ref())
-                        .cloned(),
+                    fn_name,
                     cache_kind,
                     f,
                 );
@@ -1414,7 +1391,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
         let directive = self.get_directive_for_function(
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+            if let ArrowFunctionBody::FunctionBody(block) = &mut *a.body {
                 Some(block)
             } else {
                 None
@@ -2414,8 +2391,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         })))));
 
                     let wrapper_stmts = {
-                        let mut stmts = vec![
-                            // $$RSC_SERVER_CACHE_exportName = $$reactCache__(...);
+                        let wrapper = create_cache_wrapper(
+                            "default",
+                            ref_id.clone(),
+                            0,
+                            // Don't use the same name as the original to avoid shadowing.
+                            None,
+                            Expr::Ident(ident.clone()),
+                            ident.span,
+                            None,
+                            self.unresolved_ctxt,
+                        );
+                        let mut wrapper =
+                            annotate_as_server_reference(wrapper, ref_id.clone(), ident.span, true);
+
+                        // Only assign a name if the original ident is not a generated one.
+                        if !ident.sym.starts_with("$$RSC_SERVER_") {
+                            wrapper =
+                                assign_name_to_expr(wrapper, &ident.sym, self.unresolved_ctxt);
+                        }
+
+                        vec![
+                            // $$RSC_SERVER_CACHE_exportName =
+                            // registerServerReference($$reactCache__(...), ...);
                             Stmt::Expr(ExprStmt {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Assign(AssignExpr {
@@ -2424,42 +2422,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     left: AssignTarget::Simple(SimpleAssignTarget::Ident(
                                         wrapper_ident.clone().into(),
                                     )),
-                                    right: Box::new(create_cache_wrapper(
-                                        "default",
-                                        ref_id.clone(),
-                                        0,
-                                        // Don't use the same name as the original to avoid
-                                        // shadowing. We don't need it here for call stacks.
-                                        None,
-                                        Expr::Ident(ident.clone()),
-                                        ident.span,
-                                        None,
-                                        self.unresolved_ctxt,
-                                    )),
+                                    right: Box::new(wrapper),
                                 })),
                             }),
-                            // registerServerReference($$RSC_SERVER_CACHE_exportName, ...);
-                            Stmt::Expr(ExprStmt {
-                                span: DUMMY_SP,
-                                expr: Box::new(annotate_ident_as_server_reference(
-                                    wrapper_ident.clone(),
-                                    ref_id.clone(),
-                                    ident.span,
-                                )),
-                            }),
-                        ];
-
-                        // Only assign a name if the original ident is not a generated one.
-                        if !ident.sym.starts_with("$$RSC_SERVER_") {
-                            // Object.defineProperty($$RSC_SERVER_CACHE_exportName, "name", {...});
-                            stmts.push(assign_name_to_ident(
-                                &wrapper_ident,
-                                &ident.sym,
-                                self.unresolved_ctxt,
-                            ));
-                        }
-
-                        stmts
+                        ]
                     };
 
                     // if (typeof ident === "function") { $$RSC_SERVER_CACHE_exportName = wrapper }
@@ -2513,12 +2479,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             )));
                     }
                 } else {
+                    // Registration of existing exports is a side effect, not a pure initializer.
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
-                        expr: Box::new(annotate_ident_as_server_reference(
-                            ident.clone(),
+                        expr: Box::new(annotate_as_server_reference(
+                            Expr::Ident(ident.clone()),
                             ref_id.clone(),
                             ident.span,
+                            false,
                         )),
                     }));
                 }
@@ -2587,103 +2555,104 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
         // import { cache as $$reactCache__ } from "react";
         if self.has_cache && self.config.is_react_server_layer {
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+            let cache_imports = vec![
+                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    local: quote_ident!("$$cache__").into(),
-                    imported: Some(quote_ident!("cache").into()),
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("private-next-rsc-cache-wrapper").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("$$reactCache__").into(),
-                    imported: Some(quote_ident!("cache").into()),
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("react").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            // Make them the first items
-            new.rotate_right(2);
-        }
-
-        if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
-            // Inlined actions are only allowed on the server layer.
-            // import { registerServerReference } from 'private-next-rsc-server-reference'
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("registerServerReference").into(),
-                    imported: None,
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("private-next-rsc-server-reference").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            let mut import_count = 1;
-
-            // Encryption and decryption only happens when there are bound arguments.
-            if self.has_server_reference_with_bound_args {
-                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
-                // 'private-next-rsc-action-encryption'
-                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    span: DUMMY_SP,
-                    specifiers: vec![
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: quote_ident!("encryptActionBoundArgs").into(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: quote_ident!("decryptActionBoundArgs").into(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                    ],
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("$$cache__").into(),
+                        imported: Some(quote_ident!("cache").into()),
+                        is_type_only: false,
+                    })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: atom!("private-next-rsc-action-encryption").into(),
+                        value: atom!("private-next-rsc-cache-wrapper").into(),
                         raw: None,
                     }),
                     type_only: false,
                     with: None,
                     phase: Default::default(),
-                })));
-                import_count += 1;
+                })),
+                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("$$reactCache__").into(),
+                        imported: Some(quote_ident!("cache").into()),
+                        is_type_only: false,
+                    })],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: atom!("react").into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                })),
+            ];
+
+            // Insert after the leading directives, never before them.
+            prepend_stmts(&mut new, cache_imports.into_iter());
+        }
+
+        if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
+            // Inlined actions are only allowed on the server layer.
+            // import { registerServerReference } from 'private-next-rsc-server-reference'
+            let mut server_reference_imports =
+                vec![ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("registerServerReference").into(),
+                        imported: None,
+                        is_type_only: false,
+                    })],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: atom!("private-next-rsc-server-reference").into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                }))];
+
+            // Encryption and decryption only happens when there are bound arguments.
+            if self.has_server_reference_with_bound_args {
+                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
+                // 'private-next-rsc-action-encryption'
+                server_reference_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                    ImportDecl {
+                        span: DUMMY_SP,
+                        specifiers: vec![
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                span: DUMMY_SP,
+                                local: quote_ident!("encryptActionBoundArgs").into(),
+                                imported: None,
+                                is_type_only: false,
+                            }),
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                span: DUMMY_SP,
+                                local: quote_ident!("decryptActionBoundArgs").into(),
+                                imported: None,
+                                is_type_only: false,
+                            }),
+                        ],
+                        src: Box::new(Str {
+                            span: DUMMY_SP,
+                            value: atom!("private-next-rsc-action-encryption").into(),
+                            raw: None,
+                        }),
+                        type_only: false,
+                        with: None,
+                        phase: Default::default(),
+                    },
+                )));
             }
 
-            // Make them the first items
-            new.rotate_right(import_count);
+            // Insert after the leading directives, never before them.
+            prepend_stmts(&mut new, server_reference_imports.into_iter());
         }
 
         if self.has_action || self.has_cache {
@@ -2732,8 +2701,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 .into(),
                             },
                         );
-                        new.push(client_layer_import.unwrap());
-                        new.rotate_right(1);
+                        // Insert after the leading directives, never before them.
+                        prepend_stmts(&mut new, std::iter::once(client_layer_import.unwrap()));
                         new.extend(
                             client_layer_exports
                                 .into_iter()
@@ -3046,7 +3015,7 @@ fn create_cache_wrapper(
     let wrapper_fn_expr = Box::new(Expr::Fn(FnExpr {
         ident: fn_ident,
         function: Box::new(Function {
-            body: Some(BlockStmt {
+            body: Some(FunctionBody {
                 stmts: vec![Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(Box::new(Expr::Call(cache_call))),
@@ -3059,6 +3028,7 @@ fn create_cache_wrapper(
     }));
 
     Expr::Call(CallExpr {
+        span: PURE_SP,
         callee: quote_ident!("$$reactCache__").as_callee(),
         args: vec![wrapper_fn_expr.as_arg()],
         ..Default::default()
@@ -3072,8 +3042,9 @@ fn create_and_hoist_cache_function(
     bound_args_length: usize,
     cache_name: Atom,
     fn_ident: Option<Ident>,
+    name: Option<&str>,
     params: Vec<Param>,
-    body: Option<BlockStmt>,
+    body: Option<FunctionBody>,
     original_span: Span,
     hoisted_extra_items: &mut Vec<ModuleItem>,
     unresolved_ctxt: SyntaxContext,
@@ -3082,7 +3053,7 @@ fn create_and_hoist_cache_function(
     let inner_fn_name: Atom = format!("{}_INNER", cache_name).into();
     let inner_fn_ident = private_ident!(Span::dummy_with_cmt(), inner_fn_name);
 
-    let wrapper_fn = Box::new(create_cache_wrapper(
+    let wrapper_fn = create_cache_wrapper(
         cache_kind,
         reference_id.clone(),
         bound_args_length,
@@ -3091,7 +3062,12 @@ fn create_and_hoist_cache_function(
         original_span,
         Some(&params),
         unresolved_ctxt,
-    ));
+    );
+    let mut wrapper_fn =
+        annotate_as_server_reference(wrapper_fn, reference_id, original_span, true);
+    if let Some(name) = name {
+        wrapper_fn = assign_name_to_expr(wrapper_fn, name, unresolved_ctxt);
+    }
 
     let inner_fn_expr = FnExpr {
         ident: fn_ident.clone(),
@@ -3104,6 +3080,13 @@ fn create_and_hoist_cache_function(
         }),
     };
 
+    // Avoid leaking the internal variable name in anonymous function stack traces.
+    let inner_fn_expr = if fn_ident.is_none() {
+        assign_name_to_expr(Expr::Fn(inner_fn_expr), "", unresolved_ctxt)
+    } else {
+        Expr::Fn(inner_fn_expr)
+    };
+
     hoisted_extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: original_span,
         kind: VarDeclKind::Const,
@@ -3113,21 +3096,11 @@ fn create_and_hoist_cache_function(
                 id: inner_fn_ident.clone(),
                 type_ann: None,
             }),
-            init: Some(Box::new(Expr::Fn(inner_fn_expr))),
+            init: Some(Box::new(inner_fn_expr)),
             definite: false,
         }],
         ..Default::default()
     })))));
-
-    // For anonymous functions, set the name property to an empty string to
-    // avoid leaking the internal variable name in stack traces.
-    if fn_ident.is_none() {
-        hoisted_extra_items.push(ModuleItem::Stmt(assign_name_to_ident(
-            &inner_fn_ident,
-            "",
-            unresolved_ctxt,
-        )));
-    }
 
     hoisted_extra_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
         span: DUMMY_SP,
@@ -3136,7 +3109,7 @@ fn create_and_hoist_cache_function(
             decls: vec![VarDeclarator {
                 span: original_span,
                 name: Pat::Ident(cache_ident.clone().into()),
-                init: Some(wrapper_fn),
+                init: Some(Box::new(wrapper_fn)),
                 definite: false,
             }],
             ..Default::default()
@@ -3144,19 +3117,10 @@ fn create_and_hoist_cache_function(
         .into(),
     })));
 
-    hoisted_extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id,
-            original_span,
-        )),
-    })));
-
     cache_ident
 }
 
-fn assign_name_to_ident(ident: &Ident, name: &str, unresolved_ctxt: SyntaxContext) -> Stmt {
+fn assign_name_to_expr(expr: Expr, name: &str, unresolved_ctxt: SyntaxContext) -> Expr {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     quote!(
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
@@ -3166,23 +3130,30 @@ fn assign_name_to_ident(ident: &Ident, name: &str, unresolved_ctxt: SyntaxContex
         //
         // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
         // in js files, and it can cause false positives when typechecking our fixture files.
-        "$object[\"defineProperty\"]($action, \"name\", { value: $name });"
-            as Stmt,
+        "$object[\"defineProperty\"]($action, \"name\", { value: $name })"
+            as Expr,
         object = quote_ident!(unresolved_ctxt, "Object"),
-        action: Ident = ident.clone(),
+        action: Expr = expr,
         name: Expr = name.into(),
     )
+    .with_span(PURE_SP)
 }
 
-fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_span: Span) -> Expr {
+fn annotate_as_server_reference(expr: Expr, action_id: Atom, span: Span, pure: bool) -> Expr {
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
-        span: original_span,
-        callee: quote_ident!("registerServerReference").as_callee(),
+        span: if pure { PURE_SP } else { span },
+        // Preserve the definition location independently of the call's PURE annotation.
+        callee: Ident::new(
+            atom!("registerServerReference"),
+            span,
+            SyntaxContext::empty(),
+        )
+        .as_callee(),
         args: vec![
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(Expr::Ident(ident)),
+                expr: Box::new(expr),
             },
             ExprOrSpread {
                 spread: None,
@@ -3293,7 +3264,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 // without mutating the function body or erroring out.
 // This is used to quickly determine if we need to use the module-level
 // directives for this function or not.
-fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
+fn has_body_directive(maybe_body: &Option<FunctionBody>) -> (bool, bool) {
     let mut is_action_fn = false;
     let mut is_cache_fn = false;
 

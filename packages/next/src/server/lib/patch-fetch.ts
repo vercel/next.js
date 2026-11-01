@@ -9,7 +9,7 @@ import {
   recordRequestInsightFetch,
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -20,6 +20,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import {
   getCacheSignal,
   type RevalidateStore,
@@ -72,7 +73,7 @@ function shouldProcessFetchConfigForWorkUnit(
       )
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -86,8 +87,6 @@ type PatchedFetcher = Fetcher & {
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
 }
-
-export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
 
 function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
@@ -186,6 +185,11 @@ function trackFetchMetric(
     'next.fetch.cache_reason': metric.cacheReason,
   })
 
+  if (span && metric.status >= 400) {
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', String(metric.status))
+  }
+
   if (isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()
     const requestInsightsRequestId =
@@ -221,6 +225,28 @@ function trackFetchMetric(
   workStore.fetchMetrics ??= []
 
   workStore.fetchMetrics.push(metric)
+}
+
+type BufferedResponse = {
+  body: ArrayBuffer | null
+  headers: Headers
+  status: number
+  statusText: string
+}
+
+/**
+ * Buffers a response so it can be shared with deduped fetches through
+ * `workStore.pendingRevalidates`. Responses without a body (e.g. 204) are kept
+ * without one, as the Response constructor rejects even an empty buffer for
+ * them.
+ */
+async function bufferResponse(response: Response): Promise<BufferedResponse> {
+  return {
+    body: response.body === null ? null : await response.arrayBuffer(),
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  }
 }
 
 async function createCachedPrerenderResponse(
@@ -473,7 +499,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -512,7 +538,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -683,7 +709,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -815,7 +841,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -859,7 +885,7 @@ export function createPatchedFetcher(
             case 'prerender-runtime':
             case 'prerender-legacy':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -1013,7 +1039,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -1096,7 +1122,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1121,12 +1147,7 @@ export function createPatchedFetcher(
                   workStore.pendingRevalidates ??= {}
                   if (!workStore.pendingRevalidates[cacheKey]) {
                     const pendingRevalidate = doOriginalFetch(true)
-                      .then(async (response) => ({
-                        body: await response.arrayBuffer(),
-                        headers: response.headers,
-                        status: response.status,
-                        statusText: response.statusText,
-                      }))
+                      .then(bufferResponse)
                       .finally(() => {
                         workStore.pendingRevalidates ??= {}
                         delete workStore.pendingRevalidates[cacheKey || '']
@@ -1219,7 +1240,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1266,7 +1287,7 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                     break
                   default:
                     workUnitStore satisfies never
@@ -1296,12 +1317,7 @@ export function createPatchedFetcher(
             workStore.pendingRevalidates[pendingRevalidateKey]
 
           if (pendingRevalidate) {
-            const revalidatedResult: {
-              body: ArrayBuffer
-              headers: Headers
-              status: number
-              statusText: string
-            } = await pendingRevalidate
+            const revalidatedResult: BufferedResponse = await pendingRevalidate
             return new Response(revalidatedResult.body, {
               headers: revalidatedResult.headers,
               status: revalidatedResult.status,
@@ -1325,15 +1341,7 @@ export function createPatchedFetcher(
             .then(cloneResponse)
 
           pendingRevalidate = pendingResponse
-            .then(async (responses) => {
-              const response = responses[0]
-              return {
-                body: await response.arrayBuffer(),
-                headers: response.headers,
-                status: response.status,
-                statusText: response.statusText,
-              }
-            })
+            .then((responses) => bufferResponse(responses[0]))
             .finally(() => {
               // If the pending revalidate is not present in the store, then
               // we have nothing to delete.

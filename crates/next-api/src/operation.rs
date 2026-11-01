@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
-    debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
+    debug::ValueDebugFormat, take_effects,
 };
 use turbopack_core::issue::CollectibleIssuesExt;
 
@@ -37,10 +37,23 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve().strongly_consistent().await?;
-    entrypoints.drop_issues();
-    let _ = take_effects(entrypoints).await?;
-    Ok(entrypoints.connect())
+    // Dropping and taking the collectibles leaves the task that does it with a negative count for
+    // each of them. Many `pick_*` root operations connect to this operation, so doing it in this
+    // task would copy all of those collectibles into each of them. Doing it in an inner operation
+    // isolates the dropped collectibles, so this task has no (or very few) collectibles.
+    //
+    // The inner operation keeps its long name so it is easy to identify in traces.
+    #[turbo_tasks::function(operation, root)]
+    async fn inner_entrypoints_without_collectibles_operation(
+        entrypoints: OperationVc<Entrypoints>,
+    ) -> Result<Vc<Entrypoints>> {
+        let _ = entrypoints.resolve().strongly_consistent().await?;
+        entrypoints.drop_issues();
+        let _ = take_effects(entrypoints).await?;
+        Ok(entrypoints.connect())
+    }
+
+    Ok(inner_entrypoints_without_collectibles_operation(entrypoints).connect())
 }
 
 #[turbo_tasks::value_impl]
@@ -114,9 +127,7 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Debug, Clone, TraceRawVcs, PartialEq, Eq, Hash, ValueDebugFormat, OperationValue, Encode, Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, ValueDebugFormat, OperationValue, Encode, Decode)]
 enum EndpointSelector {
     RoutePageHtml(RcStr),
     RoutePageData(RcStr),
@@ -199,13 +210,13 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
@@ -230,9 +241,7 @@ pub enum RouteOperation {
     Conflict,
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,
     pub html_endpoint: OperationVc<OptionEndpoint>,

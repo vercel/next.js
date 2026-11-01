@@ -8,16 +8,16 @@ import {
   getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('Prefetching Links in viewport', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       'http-proxy': '1.18.1',
     },
   })
-  if (skipped) return
 
   let proxyChild: ChildProcess
   let proxyPort: number

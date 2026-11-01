@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_intermediate-tree-shake_tree-shake-test-1_input_1mlxku40v_-py._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_intermediate-tree-shake_tree-shake-test-1_input_1mlxku40v_-py._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -27,6 +27,6 @@ __turbopack_context__.s([
     getCat
 ]);
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_intermediate-tree-shake_tree-shake-test-1_input_1mlxku40v_-py._.js.map

@@ -1,3 +1,4 @@
+import type { RootRouteTree } from './segment-cache/cache'
 import type {
   FlightRouterState,
   ScrollRef,
@@ -12,6 +13,7 @@ import {
   beginLockedNavigation,
   type NavigationLock,
   type NavigationRequestAccumulation,
+  type RootNavigationTask,
 } from './render-tree'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -20,9 +22,9 @@ import {
   type SegmentCacheEntry,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
+  createRootRouteTree,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
 import {
@@ -31,7 +33,7 @@ import {
 } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
-import { PrefetchPriority, FetchStrategy } from './segment-cache/types'
+import { PrefetchPriority, AppStage } from './segment-cache/types'
 import { getLinkForCurrentNavigation } from './links'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { ScrollBehavior } from './router-reducer/router-reducer-types'
@@ -60,7 +62,7 @@ export function navigate(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
+  currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
@@ -89,7 +91,7 @@ export function navigate(
         url,
         currentUrl,
         currentRenderedSearch,
-        currentCacheNode,
+        currentRoot,
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
@@ -105,7 +107,7 @@ export function navigate(
     url,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
+    currentRoot,
     currentFlightRouterState,
     nextUrl,
     freshnessPolicy,
@@ -122,7 +124,7 @@ function navigateImpl(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
+  currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
@@ -147,8 +149,7 @@ function navigateImpl(
       currentUrl,
       currentRenderedSearch,
       nextUrl,
-      currentCacheNode,
-      currentFlightRouterState,
+      currentRoot,
       freshnessPolicy,
       scrollBehavior,
       navigateType,
@@ -185,8 +186,7 @@ function navigateImpl(
           currentUrl,
           currentRenderedSearch,
           nextUrl,
-          currentCacheNode,
-          currentFlightRouterState,
+          currentRoot,
           freshnessPolicy,
           scrollBehavior,
           navigateType,
@@ -210,7 +210,7 @@ function navigateImpl(
     currentUrl,
     currentRenderedSearch,
     nextUrl,
-    currentCacheNode,
+    currentRoot,
     currentFlightRouterState,
     freshnessPolicy,
     scrollBehavior,
@@ -231,8 +231,7 @@ export function navigateToKnownRoute(
   navigationSeed: NavigationSeed,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
+  currentRoot: RootRouteTree<CacheNode>,
   freshnessPolicy: FreshnessPolicy,
   nextUrl: string | null,
   scrollBehavior: ScrollBehavior,
@@ -262,10 +261,11 @@ export function navigateToKnownRoute(
     process.env.NODE_ENV !== 'production' &&
     process.env.__NEXT_CACHE_COMPONENTS
   ) {
-    // Warn when navigating via a `<Link prefetch={true}>` to a route that has
-    // not opted into Partial Prefetching. Such a link does a legacy "full"
-    // prefetch that includes the route's dynamic data, defeating the
-    // static/dynamic split that Cache Components provides.
+    // Warn when navigating via a link that asks for more than the shell, like
+    // `<Link prefetch={true}>`, to a route that has not opted into Partial
+    // Prefetching. Such a link does a legacy "full" prefetch that includes the
+    // route's dynamic data, defeating the static/dynamic split that Cache
+    // Components provides.
     //
     // This runs at navigation time (rather than prefetch time) so that, in dev
     // where we don't prefetch, the warning only appears when you actually
@@ -278,8 +278,8 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
-      link.fetchStrategy === FetchStrategy.Full &&
-      (navigationSeed.routeTree.prefetchHints &
+      link.prefetchStage !== AppStage.Shell &&
+      (navigationSeed.root.tree.prefetchHints &
         (PrefetchHint.SubtreeHasPartialPrefetching |
           PrefetchHint.SubtreeHasInstantFalse)) ===
         0
@@ -289,7 +289,7 @@ export function navigateToKnownRoute(
       if (ownerStack === undefined) {
         console.error(
           '' +
-            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
+            'Cannot associate the prefetch warning with a specific <Link> making it harder to find the cause of the following warning. ' +
             'This is a bug in Next.js.'
         )
       } else if (ownerStack !== null) {
@@ -313,8 +313,8 @@ export function navigateToKnownRoute(
       require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
     const link = getLinkForCurrentNavigation()
     restrictToShell = shouldRestrictNavigationToShell(
-      navigationSeed.routeTree.prefetchHints,
-      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+      navigationSeed.root.tree.prefetchHints,
+      link !== null ? link.prefetchStage : AppStage.Shell
     )
   }
 
@@ -341,26 +341,23 @@ export function navigateToKnownRoute(
   // data. If the page segment is fully static and prefetched, the request is
   // skipped. (This is also how refresh() works.)
   const isSamePageNavigation = url.href === currentUrl.href
-  const task = startPPRNavigation(
+  const navigation = startPPRNavigation(
     now,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
-    navigationSeed.routeTree,
-    navigationSeed.metadataVaryPath,
+    currentRoot,
+    navigationSeed.root,
     freshnessPolicy,
-    navigationSeed.head,
     navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
     accumulation,
     map,
     restrictToShell
   )
-  if (task !== null) {
+  if (navigation !== null) {
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
       spawnDynamicRequests(
-        task,
+        navigation,
         url,
         nextUrl,
         freshnessPolicy,
@@ -376,8 +373,7 @@ export function navigateToKnownRoute(
       state,
       url,
       nextUrl,
-      task.route,
-      task.node,
+      navigation,
       navigationSeed.renderedSearch,
       canonicalUrl,
       navigateType,
@@ -397,8 +393,7 @@ function navigateUsingPrefetchedRouteTree(
   currentUrl: URL,
   currentRenderedSearch: string,
   nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
+  currentRoot: RootRouteTree<CacheNode>,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
@@ -406,17 +401,11 @@ function navigateUsingPrefetchedRouteTree(
   navigationLock: NavigationLock | null,
   map: CacheMap<SegmentCacheEntry>
 ): AppRouterState {
-  const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
   const renderedSearch = route.renderedSearch
   const prefetchSeed: NavigationSeed = {
     renderedSearch,
-    routeTree,
-    metadataVaryPath: route.metadata.varyPath as any,
-    head: null,
-    isHeadPartial: true,
-    headVaryParams: null,
-    headStaleTimeSeconds: null,
+    root: route.root,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
     // Not derived from a server response; no base to diverge from.
     treeDivergedFromBase: false,
@@ -429,8 +418,7 @@ function navigateUsingPrefetchedRouteTree(
     prefetchSeed,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
+    currentRoot,
     freshnessPolicy,
     nextUrl,
     scrollBehavior,
@@ -463,7 +451,7 @@ async function navigateToUnknownRoute(
   currentUrl: URL,
   currentRenderedSearch: string,
   nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
+  currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
@@ -479,7 +467,7 @@ async function navigateToUnknownRoute(
   //
   // To avoid duplication of logic, we're going to pretend that the tree
   // returned by the dynamic request is, in fact, a prefetch tree. Then we can
-  // use the same server response to write the actual data into the CacheNode
+  // use the same server response to write the actual data into the render
   // tree. So it's the same flow as the "happy path" (prefetch, then
   // navigation), except we use a single server response for both stages.
 
@@ -520,9 +508,8 @@ async function navigateToUnknownRoute(
     supportsPerSegmentPrefetching,
     dynamicStaleTime,
     isResponsePartial,
-    staticStageResponse,
-    runtimePrefetchStream,
-    responseHeaders,
+    flightResponse,
+    responseChunks,
     debugInfo,
   } = result
 
@@ -543,6 +530,7 @@ async function navigateToUnknownRoute(
     // there's no pathname to parse them from (nor a need to).
     null,
     renderedSearch,
+    null,
     dynamicStaleTime
   )
 
@@ -551,49 +539,34 @@ async function navigateToUnknownRoute(
   // unknown route - any rewrite detection happens during the traversal inside
   // discoverKnownRoute. The hasDynamicRewrite param is only set to true when
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
-  const metadataVaryPath = navigationSeed.metadataVaryPath
-  if (metadataVaryPath !== null) {
-    discoverKnownRoute(
-      now,
-      url.pathname,
-      url.search as NormalizedSearch,
-      nextUrl,
-      null, // No pending entry
-      navigationSeed.routeTree,
-      metadataVaryPath,
-      couldBeIntercepted,
-      // Store a hashless canonical URL: the entry is shared across hashes, and
-      // a later same-route hash nav appends `url.hash` to it.
-      createHrefFromUrl(canonicalUrl, false),
-      supportsPerSegmentPrefetching,
-      false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
-    )
+  discoverKnownRoute(
+    now,
+    url.pathname,
+    url.search as NormalizedSearch,
+    nextUrl,
+    null, // No pending entry
+    navigationSeed.root,
+    couldBeIntercepted,
+    // Store a hashless canonical URL: the entry is shared across hashes, and
+    // a later same-route hash nav appends `url.hash` to it.
+    createHrefFromUrl(canonicalUrl, false),
+    navigationSeed.renderedSearch,
+    supportsPerSegmentPrefetching,
+    false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+  )
 
-    if (staticStageResponse !== null) {
-      spawnStaticStageCacheWrite(
-        now,
-        staticStageResponse,
-        isResponsePartial,
-        responseHeaders,
-        currentFlightRouterState,
-        renderedSearch,
-        map
-      )
-    }
-
-    if (runtimePrefetchStream !== null) {
-      writeRuntimePrefetchStreamIntoCache(
-        now,
-        runtimePrefetchStream,
-        currentFlightRouterState,
-        renderedSearch,
-        map
-      ).catch(() => {
-        // The runtime prefetch cache write failed. Not fatal — the
-        // navigation completed normally, we just won't cache runtime data.
-      })
-    }
-  }
+  bufferAndWriteNavigationResponse(
+    now,
+    flightResponse,
+    isResponsePartial,
+    responseChunks,
+    currentFlightRouterState,
+    renderedSearch,
+    map
+  ).catch(() => {
+    // The cache write failed. Not fatal — the navigation completed normally,
+    // we just won't write into the cache.
+  })
 
   // In the streaming dev render, this single response's seed content may still
   // be streaming when we build the tree below. An unknown-route navigation
@@ -618,8 +591,7 @@ async function navigateToUnknownRoute(
     navigationSeed,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
-    currentFlightRouterState,
+    currentRoot,
     freshnessPolicy,
     nextUrl,
     scrollBehavior,
@@ -663,7 +635,7 @@ export function completeHardNavigation(
     // router updates without updating React.
     renderedSearch: state.renderedSearch,
     scrollRef: state.scrollRef,
-    cache: state.cache,
+    root: state.root,
     tree: state.tree,
     nextUrl: state.nextUrl,
     previousNextUrl: state.previousNextUrl,
@@ -676,8 +648,7 @@ export function completeSoftNavigation(
   oldState: AppRouterState,
   url: URL,
   referringNextUrl: string | null,
-  tree: FlightRouterState,
-  cache: CacheNode,
+  navigation: RootNavigationTask,
   renderedSearch: string,
   canonicalUrl: string,
   navigateType: 'push' | 'replace',
@@ -691,6 +662,7 @@ export function completeSoftNavigation(
   // same traversal that computes the tree itself. We should also figure out
   // what is the minimum information needed for the server to correctly
   // intercept the route.
+  const tree = navigation.tree.route
   const changedPath = computeChangedPath(oldState.tree, tree)
   const nextUrlForNewRoute = changedPath ? changedPath : oldState.nextUrl
 
@@ -737,7 +709,7 @@ export function completeSoftNavigation(
     //
     // If this navigation created new scroll targets (scrollRef !== null),
     // neutralize them. If it didn't, any prior scroll targets carried
-    // forward on the cache nodes via reuseSharedCacheNode remain active.
+    // forward on reused cache nodes remain active.
     if (scrollRef !== null) {
       scrollRef.current = false
     }
@@ -801,7 +773,7 @@ export function completeSoftNavigation(
           ? decodeURIComponent(url.hash.slice(1))
           : oldState.scrollRef.hashFragment,
     },
-    cache,
+    root: createRootRouteTree(navigation.tree.node, navigation.head.node),
     tree,
     nextUrl: nextUrlForNewRoute,
     previousNextUrl,
@@ -814,8 +786,7 @@ export function completeTraverseNavigation(
   state: AppRouterState,
   url: URL,
   renderedSearch: string,
-  cache: CacheNode,
-  tree: FlightRouterState,
+  navigation: RootNavigationTask,
   nextUrl: string | null
 ) {
   return {
@@ -829,9 +800,9 @@ export function completeTraverseNavigation(
       preserveCustomHistoryState: true,
     },
     scrollRef: state.scrollRef,
-    cache,
+    root: createRootRouteTree(navigation.tree.node, navigation.head.node),
     // Restore provided tree
-    tree,
+    tree: navigation.tree.route,
     nextUrl,
     // TODO: We need to restore previousNextUrl, too, which represents the
     // Next-Url that was used to fetch the data. Anywhere we fetch using the
@@ -854,7 +825,7 @@ async function ensurePrefetchThenNavigate(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  currentCacheNode: CacheNode | null,
+  currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
@@ -863,7 +834,7 @@ async function ensurePrefetchThenNavigate(
   navigationLock: NavigationLock | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
-  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+  const prefetchStage = link !== null ? link.prefetchStage : AppStage.Shell
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
@@ -877,8 +848,8 @@ async function ensurePrefetchThenNavigate(
   const navigationLockPrefetch = beginNavigationLockPrefetch()
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
-    currentFlightRouterState,
-    fetchStrategy,
+    currentRoot,
+    prefetchStage,
     PrefetchPriority.Default,
     null, // onInvalidate
     navigationLockPrefetch
@@ -897,7 +868,7 @@ async function ensurePrefetchThenNavigate(
     url,
     currentUrl,
     currentRenderedSearch,
-    currentCacheNode,
+    currentRoot,
     currentFlightRouterState,
     nextUrl,
     freshnessPolicy,

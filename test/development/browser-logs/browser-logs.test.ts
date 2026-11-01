@@ -377,14 +377,14 @@ describe(`Terminal Logging (${bundlerName})`, () => {
        https://react.dev/link/hydration-mismatch
 
          ...
-           <ScrollHandler cacheNode={{rsc:{...}, ...}}>
-             <InnerScrollHandler scrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
+           <ScrollHandler renderTree={{...}}>
+             <InnerScrollHandler scrollRef={{scrollRef:null, ...}} renderTree={{...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary name="hydration-..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
+                         <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} renderTree={{...}} segmentPath={[...]} ...>
                            <SegmentViewNode type="page" pagePath="hydration-...">
                              <SegmentTrieNode>
                              <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>

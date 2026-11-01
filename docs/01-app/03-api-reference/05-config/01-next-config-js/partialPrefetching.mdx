@@ -37,10 +37,12 @@ module.exports = {
 
 ## Reference
 
-| Value   | Description                                 |
-| ------- | ------------------------------------------- |
-| `true`  | Enables Partial Prefetching across the app. |
-| `false` | Default. No change to prefetch behavior.    |
+| Value   | Description                                                                                                            |
+| ------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `true`  | Enables Partial Prefetching across the app.                                                                            |
+| `false` | Keeps the previous prefetch behavior, for apps that adopted Cache Components before Partial Prefetching was available. |
+
+Leaving the option unset behaves like `false` and logs a warning when `cacheComponents` is enabled. Both features will be enabled everywhere in the next major release, and the options will be removed.
 
 ## How prefetches resolve
 

@@ -1,16 +1,14 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Cache Components Errors - Client Hook Abort Reasons', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/client-hook-abort-reasons',
     skipStart: !isNextDev,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliOutputLength: number
 
@@ -304,7 +302,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at useSearchParams (webpack:///<next-src>)
+                     at useSearchParams (<next-dist-dir>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
                    54 | // Client components API
@@ -593,7 +591,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at usePathname (webpack:///<next-src>)
+                     at usePathname (<next-dist-dir>)
                      at UsePathname (webpack:///app/client-hook-abort-reasons/client.tsx:22:14)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:7:7)
                    111 | // Client components API
@@ -882,7 +880,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at useParams (webpack:///<next-src>)
+                     at useParams (<next-dist-dir>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
                    214 | // Client components API
@@ -1171,7 +1169,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at useSelectedLayoutSegments (webpack:///<next-src>)
+                     at useSelectedLayoutSegments (<next-dist-dir>)
                      at UseSelectedLayoutSegments (webpack:///app/client-hook-abort-reasons/client.tsx:37:28)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
                    268 |   parallelRouteKey: string = 'children'
@@ -1460,7 +1458,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at useSelectedLayoutSegment (webpack:///<next-src>)
+                     at useSelectedLayoutSegment (<next-dist-dir>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
                    323 |   parallelRouteKey: string = 'children'
@@ -2170,7 +2168,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at useParams (webpack:///<next-src>)
+                     at useParams (<next-dist-dir>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
                    214 | // Client components API
@@ -2668,7 +2666,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                     at useSelectedLayoutSegment (webpack:///<next-src>)
+                     at useSelectedLayoutSegment (<next-dist-dir>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
                    323 |   parallelRouteKey: string = 'children'

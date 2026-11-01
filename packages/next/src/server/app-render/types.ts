@@ -79,7 +79,8 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
       ])
     )
   ),
-  s.optional(s.number()),
+  s.optional(s.nullable(s.number())),
+  s.optional(s.string()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -114,7 +115,6 @@ export interface RenderOptsPartial {
   cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
-  isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
@@ -128,7 +128,11 @@ export interface RenderOptsPartial {
   ) => void
   isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
+  onInstrumentationRequestError?: (
+    error: unknown,
+    errorContext: Parameters<InstrumentationOnRequestError>[2],
+    silenceLog: boolean
+  ) => void | Promise<void>
   isDraftMode?: boolean
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
@@ -163,6 +167,7 @@ export interface RenderOptsPartial {
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     optimisticRouting: boolean
+    parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
@@ -219,6 +224,9 @@ export interface RenderOptsPartial {
    * Loaded at server startup from the build output.
    */
   prefetchHints?: Record<string, PrefetchHints>
+
+  /** Parameters whose novel values are rejected by routing. */
+  notFoundParams?: readonly string[]
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any

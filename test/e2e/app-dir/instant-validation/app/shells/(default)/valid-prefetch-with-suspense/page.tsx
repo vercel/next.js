@@ -1,5 +1,5 @@
 import { Instant } from 'next'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch as prefetchStage } from 'next/cache'
 import { Suspense } from 'react'
 
 export const instant: Instant = {
@@ -23,6 +23,6 @@ export default async function Page() {
 }
 
 async function PrefetchContent() {
-  await unstable_prefetch()
+  await prefetchStage()
   return <div>{`Prefetch content`}</div>
 }

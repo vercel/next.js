@@ -35,13 +35,5 @@ jobs:
           check-latest: true
           package-manager-cache: false
 
-      - name: Setup pnpm
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
-
-      - name: Install dependencies
-        run: pnpm install
-
       - name: Reset test project
         run: node scripts/run-e2e-test-project-reset.mjs

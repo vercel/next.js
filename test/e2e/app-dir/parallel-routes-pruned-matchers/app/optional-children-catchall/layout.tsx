@@ -1,7 +1,6 @@
 /**
- * The optional children catch-all can match the segment root or any suffix,
- * while @slot only matches /specific. The broad optional matcher is pruned,
- * but /specific remains because both slots have an exact page for that URL.
+ * /specific has an exact page in both children and @slot, so it remains a
+ * complete matcher regardless of catch-all pruning elsewhere in the app.
  */
 export default function OptionalChildrenCatchallLayout({
   children,

@@ -41,7 +41,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
     case undefined:
       throw createCacheLifeOutsideUseCacheError(
         workAsyncStorage.getStore()?.route

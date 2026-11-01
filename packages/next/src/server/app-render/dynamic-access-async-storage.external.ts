@@ -5,7 +5,25 @@ import { dynamicAccessAsyncStorageInstance } from './dynamic-access-async-storag
 
 export interface DynamicAccessAsyncStore {
   readonly abortController: AbortController
+  reason: DynamicAccessReason | null
 }
+
+export type DynamicAccessReason = 'fallback-params' | 'runtime'
 
 export type DynamicAccessStorage = AsyncLocalStorage<DynamicAccessAsyncStore>
 export { dynamicAccessAsyncStorageInstance as dynamicAccessAsyncStorage }
+
+export function abortOnDynamicAccess(
+  reason: DynamicAccessReason,
+  error: Error
+) {
+  const store = dynamicAccessAsyncStorageInstance.getStore()
+  if (store !== undefined) {
+    // A cache may read both kinds of data before cancellation finishes. Only
+    // fallback-only dependencies can become static when the params are known.
+    if (store.reason !== 'runtime') {
+      store.reason = reason
+    }
+    store.abortController.abort(error)
+  }
+}

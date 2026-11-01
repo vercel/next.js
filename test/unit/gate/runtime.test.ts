@@ -1,7 +1,12 @@
 // Imported through the same specifier tests use, so this also covers the
 // re-export from next-test-utils.
 import { gate } from 'next-test-utils'
-import { __testing, _test_gate, expectTestToFail } from '../../lib/gate/runtime'
+import {
+  __testing,
+  _test_gate,
+  _test_gate_describe_each,
+  expectTestToFail,
+} from '../../lib/gate/runtime'
 import {
   clearGateTestContext,
   setGateTestContext,
@@ -32,17 +37,21 @@ const runGated = (sources: string[], body: () => unknown) => {
 }
 
 type FakeTestFn = jest.Mock & {
-  skip: jest.Mock
+  skip: jest.Mock & { each: jest.Mock }
   only: jest.Mock & { failing: jest.Mock }
   failing: jest.Mock
+  each: jest.Mock
 }
 
-const makeFakeTestFn = (): FakeTestFn =>
-  Object.assign(jest.fn(), {
-    skip: jest.fn(),
+const makeFakeTestFn = (): FakeTestFn => {
+  const skip = Object.assign(jest.fn(), { each: jest.fn(() => jest.fn()) })
+  return Object.assign(jest.fn(), {
+    skip,
     only: Object.assign(jest.fn(), { failing: jest.fn() }),
     failing: jest.fn(),
+    each: jest.fn(() => jest.fn()),
   }) as FakeTestFn
+}
 
 /**
  * Swaps `global.it` / `global.test` / `global.describe` for spies while `fn`
@@ -142,6 +151,14 @@ describe('@gate runtime', () => {
   })
 
   describe('lazy conditions', () => {
+    it('reads strict route types from the resolved config', async () => {
+      fixtureWith({ experimental: { strictRouteTypes: true } })
+      await expect(gate('strictRouteTypes')).resolves.toBe(true)
+
+      fixtureWith({ experimental: { strictRouteTypes: false } })
+      await expect(gate('strictRouteTypes')).resolves.toBe(false)
+    })
+
     it('reads the running fixture’s resolved config', async () => {
       const getResolvedConfig = fixtureWith({ cacheComponents: true })
       // cacheComponents is on, so `!cacheComponents` is false: a passing body
@@ -185,6 +202,12 @@ describe('@gate runtime', () => {
       expect(await gate((c) => !c.dev)).toBe(true)
       expect(await gate((c) => c.dev)).toBe(false)
       expect(await gate((c) => c.mode === 'start' && c.webpack)).toBe(true)
+    })
+
+    it('reports the host platform', async () => {
+      expect(await gate((c) => c.linux)).toBe(process.platform === 'linux')
+      expect(await gate((c) => c.macos)).toBe(process.platform === 'darwin')
+      expect(await gate((c) => c.windows)).toBe(process.platform === 'win32')
     })
 
     it('reads a lazy condition from the running fixture', async () => {
@@ -248,6 +271,30 @@ describe('@gate runtime', () => {
   })
 
   describe('@force-gate', () => {
+    it('recognizes prerelease and stable Next.js versions at collection', async () => {
+      const nextPackage = require('next/package.json')
+      const original = nextPackage.version
+      const prerelease = parseGate('prerelease', true)
+      expect(prerelease.needsResolvedConfig).toBe(false)
+
+      try {
+        nextPackage.version = '16.0.0-canary.1'
+        await expect(
+          __testing.decideGates([prerelease])
+        ).resolves.toMatchObject({
+          type: 'run',
+        })
+        nextPackage.version = '16.0.0'
+        await expect(
+          __testing.decideGates([prerelease])
+        ).resolves.toMatchObject({
+          type: 'force-pass',
+        })
+      } finally {
+        nextPackage.version = original
+      }
+    })
+
     it('accepts a lazy condition, classified for runtime resolution', () => {
       const gate = parseGate('!cacheComponents', true)
       expect(gate.force).toBe(true)
@@ -258,6 +305,89 @@ describe('@gate runtime', () => {
       const gate = parseGate('!dev', true)
       expect(gate.force).toBe(true)
       expect(gate.needsResolvedConfig).toBe(false)
+    })
+
+    it('skips only the deployed Node.js middleware variant', async () => {
+      const original = process.env.TEST_NODE_MIDDLEWARE
+      const gate = parseGate('!deploy || !nodeMiddleware', true)
+
+      try {
+        for (const [mode, nodeMiddleware, type] of [
+          ['deploy', true, 'force-pass'],
+          ['start', true, 'run'],
+          ['deploy', false, 'run'],
+        ] as const) {
+          if (nodeMiddleware) {
+            process.env.TEST_NODE_MIDDLEWARE = '1'
+          } else {
+            delete process.env.TEST_NODE_MIDDLEWARE
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'webpack',
+            react18: false,
+            wasm: false,
+          })
+          await expect(__testing.decideGates([gate])).resolves.toMatchObject({
+            type,
+          })
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.TEST_NODE_MIDDLEWARE
+        } else {
+          process.env.TEST_NODE_MIDDLEWARE = original
+        }
+      }
+    })
+
+    it('runs `vercel` only for a deploy declared as Vercel', async () => {
+      const original = process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+      const vercelOnly = parseGate('vercel', true)
+      const notOtherHosts = parseGate('!deploy || vercel', true)
+
+      const results: [string, string, string][] = []
+      try {
+        for (const [mode, target] of [
+          ['deploy', '1'],
+          ['deploy', undefined],
+          ['deploy', '0'],
+          ['start', '1'],
+          ['start', undefined],
+        ] as const) {
+          if (target === undefined) {
+            delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+          } else {
+            process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = target
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'turbopack',
+            react18: false,
+            wasm: false,
+          })
+          results.push([
+            `${mode}, ${target ?? 'unset'}`,
+            (await __testing.decideGates([vercelOnly])).type,
+            (await __testing.decideGates([notOtherHosts])).type,
+          ])
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+        } else {
+          process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = original
+        }
+      }
+
+      // [mode + NEXT_TEST_DEPLOY_TARGET_VERCEL, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      expect(results).toEqual([
+        ['deploy, 1', 'run', 'run'],
+        ['deploy, unset', 'force-pass', 'force-pass'],
+        ['deploy, 0', 'force-pass', 'force-pass'],
+        ['start, 1', 'force-pass', 'run'],
+        ['start, unset', 'force-pass', 'run'],
+      ])
     })
 
     it('skips the test for real when the condition is false', () => {
@@ -290,6 +420,45 @@ describe('@gate runtime', () => {
         undefined
       )
       expect(fakes.describe).not.toHaveBeenCalled()
+    })
+
+    it('skips every row of describe.each with describe.skip.each', () => {
+      const table = [{ name: 'one' }, { name: 'two' }]
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_describe_each([{ force: true, source: 'dev' }], table)(
+          'suite: $name',
+          () => {}
+        )
+      })
+      expect(fakes.describe.skip.each).toHaveBeenCalledWith(table)
+      expect(fakes.describe.each).not.toHaveBeenCalled()
+    })
+
+    it('registers describe.each normally when a force-gate holds', () => {
+      const table = [{ name: 'one' }]
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_describe_each([{ force: true, source: '!dev' }], table)(
+          'suite: $name',
+          () => {}
+        )
+      })
+      expect(fakes.describe.each).toHaveBeenCalledWith(table)
+      expect(fakes.describe.skip.each).not.toHaveBeenCalled()
+    })
+
+    it('forwards describe.each row arguments to the suite callback', () => {
+      const table = [{ name: 'one' }]
+      const callback = jest.fn()
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_describe_each([{ force: true, source: '!dev' }], table)(
+          'suite: $name',
+          callback
+        )
+      })
+      const boundDescribe = fakes.describe.each.mock.results[0].value
+      const registeredCallback = boundDescribe.mock.calls[0][1]
+      registeredCallback(table[0])
+      expect(callback).toHaveBeenCalledWith(table[0])
     })
 
     it('leaves a `@gate` on the same test in charge when it holds', async () => {
@@ -413,6 +582,49 @@ describe('@gate runtime', () => {
           throw new Error('boom')
         }, new Error('unused'))
       ).resolves.toBeUndefined()
+    })
+  })
+
+  // A lazy `@force-gate` on a describe force-passes the tests and skips the
+  // fixture build, so hooks registered inside such a describe must not run:
+  // they would touch a fixture that was never booted. These describes go
+  // through the real pragma path like the ones above. The wrapper describe
+  // carries no pragma, so its `beforeEach` is not gated and re-pins a config
+  // with cacheComponents on before each test (the file-level `afterEach`
+  // clears it again).
+  describe('a lazy @force-gate on a describe', () => {
+    beforeEach(() => {
+      registerFixture({
+        getResolvedConfig: async () => ({ cacheComponents: true }),
+      })
+    })
+
+    // @force-gate !cacheComponents
+    describe('skipped suite', () => {
+      beforeEach(() => {
+        throw new Error('beforeEach must be skipped')
+      })
+
+      afterEach(() => {
+        throw new Error('afterEach must be skipped')
+      })
+
+      it('force-passes without running its hooks or body', () => {
+        throw new Error('body must not run')
+      })
+    })
+
+    // @force-gate cacheComponents
+    describe('held suite', () => {
+      let hookRan = false
+
+      beforeEach(() => {
+        hookRan = true
+      })
+
+      it('runs hooks when the gate holds', () => {
+        expect(hookRan).toBe(true)
+      })
     })
   })
 })
