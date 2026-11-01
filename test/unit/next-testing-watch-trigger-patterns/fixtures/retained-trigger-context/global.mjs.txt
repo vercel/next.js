@@ -1,0 +1,1 @@
+import fs from 'node:fs';export default function({provide}){fs.appendFileSync(process.env.NEXT_TEST_TRIGGER_SETUP_TRACE,'setup\n');provide('actualSetup',42);return()=>fs.appendFileSync(process.env.NEXT_TEST_TRIGGER_SETUP_TRACE,'teardown\n')};

@@ -1,0 +1,9 @@
+import fs from 'node:fs';
+const log=value=>fs.appendFileSync(process.env.NEXT_TEST_TRIGGER_TRACE,JSON.stringify({time:Date.now(),pid:process.pid,...value})+'\n');
+let calls=0;
+const rootRule={pattern:/(?:trigger\/(?<kind>[^/]+)\.payload\.mjs|(?<shared>shared)\.mjs)$/,testsToRun(id,match){
+  const result=match.groups.kind==='alpha'?'alpha.test.mjs':match.groups.kind==='both'?['alpha.test.mjs','beta.test.mjs','alpha.test.mjs']:match.groups.kind==='suppress'?[]:match.groups.kind==='empty'?'':null;
+  log({event:'mapper',owner:'root',calls:++calls,id,match:[...match],index:match.index,input:match.input,groups:match.groups,groupsNullPrototype:Object.getPrototypeOf(match.groups)===null,receiverIsDefinition:this===rootRule,lastIndex:this.pattern.lastIndex,result});return result;
+}};
+const childRule={pattern:/alpha\.payload\.mjs$/,testsToRun(id,match){log({event:'mapper',owner:'child',id,match:[...match]});return 'beta.test.mjs'}};
+export default {test:{watch:true,maxWorkers:1,fileParallelism:false,watchTriggerPatterns:[rootRule],projects:[{test:{name:'alpha-project',include:['alpha.test.mjs']}},{test:{name:'beta-project',include:['beta.test.mjs'],watchTriggerPatterns:[childRule]}}]}};

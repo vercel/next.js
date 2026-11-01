@@ -1069,6 +1069,8 @@ export async function openTestConfiguration(
   let retainedTransforms = false
   let globalSetupLifetime: AbortSignal | undefined
   let retainedSetupContexts: Record<string, Record<string, unknown>> | undefined
+  let watchTriggerLifetime: AbortSignal | undefined
+  let triggerSetupRequested = false
   let globalSetupRetentionInvalid = false
   function dispose() {
     return (disposing ??= (async () => {
@@ -1123,6 +1125,12 @@ export async function openTestConfiguration(
       signal
     )
     const config = projectModules?.config ?? normalize(value)
+    const watchTriggerBytes = new Map<string, Buffer>()
+    if (realm?.hasWatchTriggers) {
+      for (const file of realm.watchTriggerInputs)
+        watchTriggerBytes.set(file, await readFile(file))
+    }
+
     if (realm?.compilerAliases) {
       for (const project of config.projects)
         if (
@@ -1145,8 +1153,64 @@ export async function openTestConfiguration(
         ]),
       ]
     }
+    async function retainWatchTriggerRealm(
+      lifetime: AbortSignal,
+      requireCurrent = false
+    ): Promise<boolean> {
+      if (!realm?.hasWatchTriggers) return false
+      if (projectModules)
+        throw new Error(
+          'Watch trigger patterns with external project configuration owners are not implemented.'
+        )
+      let current = (await testConfigSource(projectDir)) === filename
+      for (const [file, bytes] of watchTriggerBytes) {
+        try {
+          if (!(await readFile(file)).equals(bytes)) current = false
+        } catch (error) {
+          if (
+            (error as NodeJS.ErrnoException).code === 'ENOENT' ||
+            (error as NodeJS.ErrnoException).code === 'ENOTDIR'
+          )
+            current = false
+          else throw error
+        }
+      }
+      if (!current) {
+        if (requireCurrent)
+          throw new Error(
+            'Watch trigger configuration changed during evaluation.'
+          )
+        return false
+      }
+      realm.retainForWatch(lifetime)
+      watchTriggerLifetime = lifetime
+      return true
+    }
     return {
       config,
+      hasWatchTriggers: realm?.hasWatchTriggers === true,
+      async evaluateWatchTriggers(
+        files: readonly string[],
+        observationSignal?: AbortSignal
+      ) {
+        if (!realm?.hasWatchTriggers)
+          throw new Error('No watch trigger configuration owner is available.')
+        return realm.evaluateWatchTriggers(files, observationSignal)
+      },
+      retainWatchTriggersForWatch: retainWatchTriggerRealm,
+      async certifyWatchTriggerSelection(
+        lifetime: AbortSignal
+      ): Promise<boolean> {
+        if (
+          !realm?.hasWatchTriggers ||
+          !realm.watchTriggerInputsCurrent ||
+          projectModules ||
+          realm.compilerTransformNames.length ||
+          config.projects.some((project) => project.compilerAliases)
+        )
+          return false
+        return retainWatchTriggerRealm(lifetime)
+      },
       /** The root configuration selected for this invocation. */
       coverageConfigurationFile: filename,
       ...(realm?.prepareCoverageThresholdUpdate
@@ -1272,6 +1336,7 @@ export async function openTestConfiguration(
         return [
           ...(filename ? [filename] : []),
           ...(realm?.compilerTransformInputs ?? []),
+          ...(realm?.watchTriggerInputs ?? []),
           ...(realm?.compilerAliases?.inputs ?? []),
           ...(projectModules?.watchInputs ?? []),
           ...(projectModules?.rootProject.globalSetup ?? []).map((file) =>
@@ -1338,6 +1403,32 @@ export async function openTestConfiguration(
           }
           return
         }
+        if (
+          watchTriggerLifetime &&
+          !triggerSetupRequested &&
+          !projectModules &&
+          config.projects.every((project) => !project.globalSetup?.length) &&
+          projects.every((project) => !project.globalSetup?.length)
+        ) {
+          watchTriggerLifetime.throwIfAborted()
+          if (disposing)
+            throw new Error(
+              'The retained watch trigger configuration is unavailable.'
+            )
+          // This actual owner has no global setup. Keep its mapper realm, but
+          // provide each selected project a fresh declared context per run.
+          for (const project of projects) {
+            const declared = config.projects.find(
+              (candidate) => candidate.profile.id === project.profile.id
+            )
+            if (!declared)
+              throw new Error(
+                'Unknown project in retained watch trigger configuration.'
+              )
+            project.provide = structuredClone(declared.provide ?? {})
+          }
+          return
+        }
         if (retainedTransforms) {
           // This owner admits no global setup or external project realm. Provide
           // fresh cloned context per run without repeating the worker setup RPC.
@@ -1353,6 +1444,8 @@ export async function openTestConfiguration(
           }
           return
         }
+        if (watchTriggerLifetime && projects.length)
+          triggerSetupRequested = true
         try {
           const initialSetupSignal = generationSignal ?? signal
           if (globalSetupLifetime) initialSetupSignal?.throwIfAborted()

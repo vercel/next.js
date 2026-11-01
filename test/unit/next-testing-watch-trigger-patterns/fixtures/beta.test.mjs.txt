@@ -1,0 +1,1 @@
+import {test,expect} from 'vitest';import {payload} from './trigger/alpha.payload.mjs';test('beta',()=>{console.log('beta',payload);expect(payload).toMatch(/^payload-/)})

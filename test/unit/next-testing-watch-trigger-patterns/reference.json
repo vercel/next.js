@@ -1,0 +1,298 @@
+{
+  "reference": {
+    "package": "vitest",
+    "version": "5.0.4",
+    "nodes": [
+      "v20.20.0",
+      "v22.12.0",
+      "v24.0.0",
+      "v26.12.1"
+    ],
+    "generations": 5,
+    "semantics": "String override; array deduplication; null dependency fallback; root-only mapping across inline projects. Private Vite polling transport is reference-only. Full raw reports/mapper rows remain in handoff.",
+    "suppression": "Actual fourth mapper returns []; no fifth generation or changed report over full 30-second observation in all four Nodes.",
+    "emptySelection": "Actual fifth mapper returns an empty string, resolving to the real fixture root; five actual terminal callbacks, zero-test failed JSON with no errors, within the unchanged 30s phase bound in all four Nodes."
+  },
+  "fixtureSHA256": {
+    "alpha.test.mjs": "bc69188d5e36efc7034f055ed8c2cc222730a96e995f64638effccd44c3b2690",
+    "vitest.config.mjs": "5211dec009ca6008f921299e1027ad0717d7c6e6eabaef104631963adcae54ed",
+    "beta.test.mjs": "2bc291d20b3ea0ab94c7485377e267af29d572b1b1b5393005739c43aa0cea91",
+    "shared.mjs": "532de291371cc2c0f58180edad11396654ee32ad736033bece4cdf2e967c25da",
+    "trigger/alpha.payload.mjs": "6aea95a021f1e8657de8766d0d8b832ee53fffeefdcc0cd209e60097ff97e5f5",
+    "trigger/suppress.payload.mjs": "b8504ff3ce394c98d4eb3066adea5cac62d063f5f8f561bd3f7efc00e8ff8563",
+    "trigger/both.payload.mjs": "3d2a4bd303af194f37683286b840e03e83a506c7a86409e8450fe6e3ded0ab01",
+    "trigger/empty.payload.mjs": "823d982fc4233d6ac859f54d8a34aad65659f39feaac9e1defa4bc1c4b0ee2ab"
+  },
+  "reports": [
+    {
+      "numTotalTestSuites": 2,
+      "numPassedTestSuites": 2,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "success": true,
+      "testResults": [
+        {
+          "status": "passed",
+          "message": "",
+          "name": "alpha.test.mjs",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "alpha",
+              "status": "passed",
+              "title": "alpha",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "status": "passed",
+          "message": "",
+          "name": "beta.test.mjs",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "beta",
+              "status": "passed",
+              "title": "beta",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "numTotalTestSuites": 1,
+      "numPassedTestSuites": 1,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "success": true,
+      "testResults": [
+        {
+          "status": "passed",
+          "message": "",
+          "name": "alpha.test.mjs",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "alpha",
+              "status": "passed",
+              "title": "alpha",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "numTotalTestSuites": 2,
+      "numPassedTestSuites": 2,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "success": true,
+      "testResults": [
+        {
+          "status": "passed",
+          "message": "",
+          "name": "alpha.test.mjs",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "alpha",
+              "status": "passed",
+              "title": "alpha",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        },
+        {
+          "status": "passed",
+          "message": "",
+          "name": "beta.test.mjs",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "beta",
+              "status": "passed",
+              "title": "beta",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "numTotalTestSuites": 1,
+      "numPassedTestSuites": 1,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "success": true,
+      "testResults": [
+        {
+          "status": "passed",
+          "message": "",
+          "name": "alpha.test.mjs",
+          "assertionResults": [
+            {
+              "ancestorTitles": [],
+              "fullName": "alpha",
+              "status": "passed",
+              "title": "alpha",
+              "failureMessages": [],
+              "meta": {},
+              "tags": [],
+              "benchmarks": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "numTotalTestSuites": 0,
+      "numPassedTestSuites": 0,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 0,
+      "numPassedTests": 0,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "success": false,
+      "testResults": []
+    }
+  ],
+  "console": [
+    "alpha shared-0\n",
+    "beta payload-0\n",
+    "alpha shared-0\n",
+    "alpha shared-0\n",
+    "beta payload-1\n",
+    "alpha shared-1\n"
+  ],
+  "mapperResults": [
+    "alpha.test.mjs",
+    [
+      "alpha.test.mjs",
+      "beta.test.mjs",
+      "alpha.test.mjs"
+    ],
+    null,
+    [],
+    ""
+  ]
+}

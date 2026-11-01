@@ -1,3 +1,4 @@
+import type { WatchTriggerMatch } from './config-watch-triggers'
 import type { CompilerAliases } from './compiler/aliases'
 import { runTestProcess } from './execution/process'
 import { readFile, readdir, realpath, stat } from 'node:fs/promises'
@@ -52,6 +53,7 @@ export async function openTestConfigModule(
         resolve(value: any): void
         reject(error: unknown): void
         timer?: ReturnType<typeof setTimeout>
+        watchTriggers?: true
       }
     | undefined
   let closing = false
@@ -77,6 +79,14 @@ export async function openTestConfigModule(
     }
     transforms.clear()
   }
+  let requestIdle: Promise<void> = Promise.resolve()
+  let watchTriggerQueue: Promise<void> = Promise.resolve()
+  let watchTriggersRevoked = false
+  let watchTriggerInputsCurrent: boolean | undefined
+  let revokeWatchTriggers!: () => void
+  const watchTriggersClosed = new Promise<void>((resolve) => {
+    revokeWatchTriggers = resolve
+  })
   let ownerSignal = signal
   const controller = new AbortController()
   const cancel = () => controller.abort(ownerSignal?.reason)
@@ -87,10 +97,13 @@ export async function openTestConfigModule(
       return Promise.reject(
         terminalError ?? new Error('Test configuration session is unavailable.')
       )
-    return new Promise((resolve, reject) => {
+    const result = new Promise<any>((resolve, reject) => {
       pending = {
         resolve,
         reject,
+        ...('type' in message && message.type === 'watch-triggers'
+          ? { watchTriggers: true as const }
+          : {}),
         timer: setTimeout(
           () =>
             controller.abort(
@@ -106,6 +119,13 @@ export async function openTestConfigModule(
         controller.abort(error)
       })
     })
+    // Evaluator requests wait for the actual ordinary request to settle. The
+    // original caller retains its result/rejection and existing busy behavior.
+    requestIdle = result.then(
+      () => {},
+      () => {}
+    )
+    return result
   }
   // The initial response arrives asynchronously, after onReady has installed send.
   const loaded = new Promise<unknown>((resolve, reject) => {
@@ -150,6 +170,11 @@ export async function openTestConfigModule(
         throw new Error('Unexpected test configuration response.')
       }
       const response = pending
+      if (response.watchTriggers)
+        watchTriggerInputsCurrent =
+          watchTriggerInputsCurrent === false
+            ? false
+            : message.watchTriggerInputsCurrent === true
       clearTimeout(response.timer)
       pending = undefined
       if (message?.type === 'test-config-failed') {
@@ -165,6 +190,7 @@ export async function openTestConfigModule(
                 compilerTransforms: message.compilerTransforms,
                 compilerAliases: message.compilerAliases,
                 coverageThresholdFormatter: message.coverageThresholdFormatter,
+                watchTriggers: message.watchTriggers,
               }
             : message.value
         )
@@ -209,6 +235,8 @@ export async function openTestConfigModule(
     }
   )
   async function dispose() {
+    watchTriggersRevoked = true
+    revokeWatchTriggers()
     transformsRevoked = true
     try {
       await transformBroker?.dispose()
@@ -220,6 +248,7 @@ export async function openTestConfigModule(
       closing = true
       controller.abort(ownerSignal.reason)
     }
+    await watchTriggerQueue
     if (!closing && !closed) {
       try {
         await request({ type: 'shutdown' }, 10000)
@@ -245,6 +274,7 @@ export async function openTestConfigModule(
       value: unknown
       compilerAliases?: CompilerAliases
       coverageThresholdFormatter?: true
+      watchTriggers?: { inputs: string[] }
       compilerTransforms?: {
         realm: string
         names: string[]
@@ -302,6 +332,90 @@ export async function openTestConfigModule(
     clearTimeout(deadline)
     return {
       value: result.value,
+      hasWatchTriggers: result.watchTriggers !== undefined,
+      get watchTriggerInputsCurrent() {
+        return watchTriggerInputsCurrent === true
+      },
+      get watchTriggerInputs() {
+        return [...(result.watchTriggers?.inputs ?? [])]
+      },
+      evaluateWatchTriggers(
+        files: readonly string[],
+        observationSignal?: AbortSignal
+      ): Promise<WatchTriggerMatch[]> {
+        const inputs = [...files]
+        const operation = watchTriggerQueue.then(async () => {
+          let onAbort: (() => void) | undefined
+          const aborted = observationSignal
+            ? new Promise<void>((resolve) => {
+                onAbort = resolve
+                observationSignal.addEventListener('abort', onAbort, {
+                  once: true,
+                })
+              })
+            : undefined
+          try {
+            while (
+              pending &&
+              !watchTriggersRevoked &&
+              !observationSignal?.aborted &&
+              !closing &&
+              !closed &&
+              !controller.signal.aborted
+            )
+              await Promise.race([
+                requestIdle,
+                watchTriggersClosed,
+                ...(aborted ? [aborted] : []),
+              ])
+            observationSignal?.throwIfAborted()
+            if (
+              !result.watchTriggers ||
+              watchTriggersRevoked ||
+              closing ||
+              closed ||
+              controller.signal.aborted
+            )
+              throw (
+                terminalError ??
+                controller.signal.reason ??
+                new Error('Watch trigger configuration owner is closed.')
+              )
+            const matches = (await request({
+              type: 'watch-triggers',
+              files: inputs,
+            })) as WatchTriggerMatch[]
+            if (
+              !Array.isArray(matches) ||
+              matches.length !== inputs.length ||
+              matches.some(
+                (match, index) =>
+                  !match ||
+                  match.source !== inputs[index] ||
+                  typeof match.matched !== 'boolean' ||
+                  (match.matched &&
+                    (!Array.isArray(match.tests) ||
+                      match.tests.some(
+                        (testFile) =>
+                          typeof testFile !== 'string' ||
+                          !path.isAbsolute(testFile)
+                      )))
+              )
+            )
+              throw new Error('Invalid watch trigger configuration response.')
+            observationSignal?.throwIfAborted()
+            return matches
+          } finally {
+            if (onAbort)
+              observationSignal!.removeEventListener('abort', onAbort)
+          }
+        })
+        watchTriggerQueue = operation.then(
+          () => {},
+          () => {}
+        )
+        return operation
+      },
       compilerAliases: result.compilerAliases,
       compilerTransform: transformBroker?.descriptor,
       compilerTransformNames: result.compilerTransforms?.names ?? [],

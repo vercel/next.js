@@ -1,4 +1,10 @@
 import {
+  classifyWatchTriggerSources,
+  createOrderedWatchTriggerEvaluator,
+  resolveWatchTriggerSelection,
+} from './incremental/watch-trigger-selection'
+import type { WatchTriggerMatch } from './config-watch-triggers'
+import {
   createRuntimeConfigurationPlan,
   type RuntimeConfigurationReceipt,
 } from './coverage/runtime-configuration'
@@ -193,8 +199,86 @@ export async function watchTests(
     | Awaited<ReturnType<typeof openTestConfiguration>>
     | undefined
 
+  const evaluateWatchTriggerInOrder = createOrderedWatchTriggerEvaluator()
+  let watchTriggerSequence = 0
+  const watchTriggerObservations: {
+    sequence: number
+    owner: NonNullable<typeof configuration>
+    work: Promise<WatchTriggerMatch[]>
+  }[] = []
+  const watchTriggerWork = new Set<Promise<WatchTriggerMatch[]>>()
+  const watchTriggerCutoffs = new WeakMap<Discovery, number>()
+
+  function consumeWatchTriggerObservations(discovery: Discovery) {
+    const cutoff = watchTriggerCutoffs.get(discovery)
+    if (cutoff === undefined) return
+    for (let index = watchTriggerObservations.length - 1; index >= 0; index--)
+      if (watchTriggerObservations[index].sequence <= cutoff)
+        watchTriggerObservations.splice(index, 1)
+    watchTriggerCutoffs.delete(discovery)
+  }
+
+  function observeWatchTriggers(paths: readonly string[]) {
+    const owner = configuration
+    if (!owner?.hasWatchTriggers) return
+    const sequence = ++watchTriggerSequence
+    const work = evaluateWatchTriggerInOrder(
+      classifyWatchTriggerSources(paths, controller.signal),
+      controller.signal,
+      async (files) => {
+        if (
+          !files.length ||
+          owner !== configuration ||
+          controller.signal.aborted
+        )
+          return []
+        if (
+          !(await owner.retainWatchTriggersForWatch(
+            configurationLifetime.signal
+          ))
+        )
+          return []
+        if (owner !== configuration || controller.signal.aborted) return []
+        return owner.evaluateWatchTriggers(files, controller.signal)
+      }
+    )
+    watchTriggerObservations.push({ sequence, owner, work })
+    watchTriggerWork.add(work)
+    void work.then(
+      (matches) => {
+        watchTriggerWork.delete(work)
+        if (!matches.length) {
+          const index = watchTriggerObservations.findIndex(
+            (observation) => observation.sequence === sequence
+          )
+          if (index !== -1) watchTriggerObservations.splice(index, 1)
+        }
+      },
+      (error) => {
+        watchTriggerWork.delete(work)
+        if (controller.signal.aborted && error === controller.signal.reason)
+          return
+        fatal = true
+        controller.abort(error)
+        try {
+          report(error)
+        } catch (reporterError) {
+          failures.push(error, reporterError)
+        }
+      }
+    )
+  }
+
   async function retainConfigurationForWatch(requireCurrent = false) {
     if (!configuration) return false
+    if (
+      configuration.hasWatchTriggers &&
+      (await configuration.retainWatchTriggersForWatch(
+        configurationLifetime.signal,
+        requireCurrent
+      ))
+    )
+      return true
     if (
       await configuration.retainCompilerTransformsForWatch(
         controller.signal,
@@ -218,6 +302,8 @@ export async function watchTests(
   async function discover(signal: AbortSignal): Promise<Discovery> {
     signal.throwIfAborted()
     if (!configuration || !(await retainConfigurationForWatch())) {
+      await Promise.allSettled([...watchTriggerWork])
+      signal.throwIfAborted()
       await configuration?.dispose()
       configuration = undefined
       configuration =
@@ -370,6 +456,7 @@ export async function watchTests(
       throw new Error('Invalid watch metadata result.')
     const directories = metadata.directories
     if (
+      configuration.hasWatchTriggers ||
       configuration.compilerTransformNames.length ||
       projects.some((project) => project.compilerAliases)
     ) {
@@ -699,7 +786,9 @@ export async function watchTests(
             closedFileHistory.clear()
         }
         if (committingSnapshots) changedDuringCommit = true
-        else
+        else {
+          // Cancel the active generation synchronously. Classification and the
+          // real configuration callback remain owned asynchronous work.
           session?.invalidate({
             registryPaths:
               change.removed.length && !customReporters
@@ -708,6 +797,9 @@ export async function watchTests(
             invalidateAll:
               activeConfigReload || browserCoverageConfigurationReload,
           })
+          if (!activeConfigReload && !browserCoverageConfigurationReload)
+            observeWatchTriggers(change.changed)
+        }
       },
       onError(error) {
         fatal = true
@@ -775,13 +867,47 @@ export async function watchTests(
       >[0]) {
         // Related paths constrain the initial settled generation only.
         // Later filesystem edits use their own actual compiler consumers.
-        const sources =
+        let sources =
           initialRelatedPending && initialRelatedSources
             ? [...initialRelatedSources, ...(changedPaths ?? [])]
             : !invalidateAll && changedPaths?.length
               ? changedPaths
               : undefined
+        const owner = configuration
+        const observations = watchTriggerObservations.filter(
+          (observation) => observation.owner === owner
+        )
+        watchTriggerCutoffs.set(discovery, watchTriggerSequence)
         if (!sources) return undefined
+        let triggered:
+          | ReturnType<typeof resolveWatchTriggerSelection>
+          | undefined
+        if (!invalidateAll && owner?.hasWatchTriggers) {
+          const matches = (
+            await Promise.all(
+              observations.map((observation) => observation.work)
+            )
+          ).flat()
+          signal.throwIfAborted()
+          if (owner !== configuration) return undefined
+          if (matches.some((match) => match.matched)) {
+            triggered = resolveWatchTriggerSelection(
+              discovery.projects.flatMap((project) => project.entries),
+              sources,
+              matches
+            )
+            sources = triggered.fallbackPaths
+            if (!sources.length)
+              return {
+                entryIds: triggered.entryIds,
+                reason: 'watch-trigger-patterns' as const,
+                ...(!triggered.entryIds.length &&
+                triggered.requestedFiles.length
+                  ? { runEmpty: true as const }
+                  : {}),
+              }
+          }
+        }
         const defaultSelection = initialRelatedSources === undefined
         if (
           defaultSelection &&
@@ -800,15 +926,23 @@ export async function watchTests(
             sourceIdentities.push({ file, ...identity })
           }
         }
+        const triggerConfigurationCurrent =
+          owner?.hasWatchTriggers === true &&
+          (await owner.certifyWatchTriggerSelection(
+            configurationLifetime.signal
+          ))
+        signal.throwIfAborted()
         const result = await runWatchProcess(
           {
             operation: 'plan',
             projectDir,
             projects: discovery.projects,
             certifiedTestConfig:
-              configuration?.watchInputs.every((file) =>
+              triggerConfigurationCurrent ||
+              (configuration?.watchInputs.every((file) =>
                 file.endsWith('.json')
-              ) ?? false,
+              ) ??
+                false),
           },
           { signal, write: options.write, reporter: options.reporter }
         ).catch((error) => {
@@ -827,17 +961,36 @@ export async function watchTests(
           if (!after || after.dev !== before.dev || after.ino !== before.ino)
             return undefined
         }
+        if (
+          triggerConfigurationCurrent &&
+          (owner !== configuration ||
+            !(await owner!.certifyWatchTriggerSelection(
+              configurationLifetime.signal
+            )))
+        )
+          return undefined
+        signal.throwIfAborted()
         const selected = await selectSourceRelatedProjects(
           discovery.projects,
           sources,
           result.plan
         )
         signal.throwIfAborted()
-        return {
-          entryIds: selected.flatMap((project) =>
+        const selectedIds = new Set(
+          selected.flatMap((project) =>
             project.entries.map((entry) => entry.id)
-          ),
-          reason: 'compiler-dependencies' as const,
+          )
+        )
+        for (const id of triggered?.entryIds ?? []) selectedIds.add(id)
+        const entryIds = discovery.entryIds.filter((id) => selectedIds.has(id))
+        return {
+          entryIds,
+          reason: triggered
+            ? ('watch-trigger-patterns' as const)
+            : ('compiler-dependencies' as const),
+          ...(!entryIds.length && triggered?.requestedFiles.length
+            ? { runEmpty: true as const }
+            : {}),
         }
       },
       async canSkipUnchangedRun({
@@ -847,6 +1000,7 @@ export async function watchTests(
         signal,
       }) {
         const owner = configuration
+        if (owner?.hasWatchTriggers) return false
         if (
           discovery.coverage.options ||
           !owner ||
@@ -923,6 +1077,7 @@ export async function watchTests(
         }
       },
       async onRunSettled(status, discovery, retainedCancellation) {
+        consumeWatchTriggerObservations(discovery)
         if (
           status === 'passed' ||
           status === 'failed' ||
@@ -1008,6 +1163,7 @@ export async function watchTests(
         }
       },
       async run({ discovery, selection, signal, changedPaths }) {
+        consumeWatchTriggerObservations(discovery)
         running = true
         const requestedEditorFile = editorFileRerun
         editorFileRerun = undefined
@@ -1521,7 +1677,8 @@ export async function watchTests(
           )
           if (
             configuration &&
-            (configuration.compilerTransformNames.length ||
+            (configuration.hasWatchTriggers ||
+              configuration.compilerTransformNames.length ||
               projects.some((project) => project.compilerAliases))
           ) {
             try {
@@ -1773,6 +1930,9 @@ export async function watchTests(
       },
       onError: report,
     })
+    // Changes observed during source acquisition remain real scheduling input.
+    if (watchTriggerObservations.length)
+      session.invalidate({ registryPaths: undefined })
     await session.closed
     await session.waitForIdle()
   } catch (error) {
@@ -1805,6 +1965,7 @@ export async function watchTests(
         failures.push(error)
       } finally {
         configurationLifetime.abort()
+        await Promise.allSettled([...watchTriggerWork])
       }
       try {
         await customReporters?.dispose()

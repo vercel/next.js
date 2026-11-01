@@ -244,6 +244,7 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
             selection = refined
             unchanged =
               refined.entryIds.length === 0 &&
+              refined.runEmpty !== true &&
               discovery.entryIds.length > 0 &&
               (previousDiscoveryRevision !== undefined ||
                 options.publishInitialEmptySelection?.(discovery) !== true)
@@ -252,9 +253,10 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
         // Empty discovery is a valid watch state (e.g. the last test deleted).
         // Do not ask the one-shot runner to report "No test files selected".
         const runEmpty =
-          typeof options.runEmpty === 'function'
+          selection.runEmpty === true ||
+          (typeof options.runEmpty === 'function'
             ? options.runEmpty(discovery)
-            : options.runEmpty
+            : options.runEmpty)
         const result: WatchRunResult =
           !unchanged && (selection.entryIds.length || runEmpty)
             ? await options.run({

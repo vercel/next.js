@@ -20,6 +20,8 @@ export interface SelectionInput {
 
 export interface AffectedSelection {
   entryIds: string[]
+  /** An actual nonempty authored request resolved to no current specifications. */
+  runEmpty?: true
   reason:
     | 'global-invalidation'
     | 'missing-dependencies'
@@ -28,6 +30,7 @@ export interface AffectedSelection {
     | 'unknown-entry'
     | 'compiler-dependencies'
     | 'test-registry-addition'
+    | 'watch-trigger-patterns'
 }
 
 /**

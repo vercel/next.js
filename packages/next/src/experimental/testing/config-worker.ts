@@ -1,3 +1,8 @@
+import {
+  retainWatchTriggers,
+  evaluateWatchTriggers,
+  type RetainedWatchTriggers,
+} from './config-watch-triggers'
 import { prepareCompilerAliases } from './compiler/aliases'
 import { prepareProjectFakeTimers } from './config-fake-timers'
 import { MessageChannel } from 'node:worker_threads'
@@ -36,6 +41,8 @@ let coverageThresholdFormatter: ReturnType<
   typeof retainCoverageThresholdFormatter
 >['formatter']
 let configurationFile: string | undefined
+let watchTriggers: RetainedWatchTriggers | undefined
+let issuedWatchTriggerInputs: Set<string> | undefined
 async function shutdown() {
   const errors: unknown[] = []
   for (const teardown of teardowns.splice(0).reverse()) {
@@ -52,6 +59,46 @@ process.on('message', (message: any) => {
   queue = queue.then(() => handle(message))
 })
 async function handle(message: any) {
+  if (message?.type === 'watch-triggers') {
+    try {
+      if (!watchTriggers)
+        throw new Error(
+          'No watch trigger definitions belong to this configuration.'
+        )
+      if (
+        !Array.isArray(message.files) ||
+        message.files.some(
+          (file: unknown) => typeof file !== 'string' || !path.isAbsolute(file)
+        )
+      )
+        throw new TypeError('Invalid watch trigger source paths.')
+      const value = evaluateWatchTriggers(
+        watchTriggers,
+        process.cwd(),
+        message.files
+      )
+      const currentInputs = new Set([
+        ...(configurationFile ? [configurationFile] : []),
+        ...(await compilerDependencies()),
+      ])
+      const watchTriggerInputsCurrent =
+        issuedWatchTriggerInputs !== undefined &&
+        currentInputs.size === issuedWatchTriggerInputs.size &&
+        [...currentInputs].every((file) => issuedWatchTriggerInputs!.has(file))
+      await send({
+        type: 'test-config-result',
+        value,
+        watchTriggerInputsCurrent,
+      })
+    } catch (error) {
+      await send({
+        type: 'test-config-failed',
+        error: serializeDiagnostic(error, { phase: 'configuration' }),
+      })
+    }
+    return
+  }
+
   if (message?.type === 'coverage-threshold-prepare') {
     try {
       if (!coverageThresholdFormatter)
@@ -323,14 +370,26 @@ async function handle(message: any) {
     )
     coverageThresholdFormatter = coverage.formatter
     const mapped = prepareCompilerAliases(coverage.value)
+    const triggers = retainWatchTriggers(mapped.value, projectConfig === true)
+    watchTriggers = triggers.retained
     validateTestConfigCompilerOptions(
-      mapped.value,
+      triggers.value,
       projectConfig === true ? { projectConfig: true } : undefined
     )
     compilerTransforms = prepared.retained
+    issuedWatchTriggerInputs = watchTriggers
+      ? new Set([...(file ? [file] : []), ...(await compilerDependencies())])
+      : undefined
     const loadedConfiguration = {
       type: 'test-config-loaded',
-      value: mapped.value,
+      value: triggers.value,
+      ...(watchTriggers
+        ? {
+            watchTriggers: {
+              inputs: [...issuedWatchTriggerInputs!],
+            },
+          }
+        : {}),
       ...(coverageThresholdFormatter
         ? { coverageThresholdFormatter: true }
         : {}),

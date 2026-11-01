@@ -14,6 +14,14 @@ export interface ConfigEnv {
 export interface UserConfig extends Record<string, unknown> {
   test?: Record<string, unknown>
 }
+export interface TestWatchTriggerPattern {
+  pattern: RegExp
+  testsToRun: (
+    file: string,
+    match: RegExpMatchArray
+  ) => string[] | string | null | undefined | void
+}
+
 /** Public test settings modeled by the configuration facade. */
 export interface TestUserConfig {
   reporters?: string | string[]
@@ -57,6 +65,7 @@ export interface TestUserConfig {
   sequence?: ConfigurationSequence
   projects?: TestProjectConfiguration[]
   watch?: boolean
+  watchTriggerPatterns?: TestWatchTriggerPattern[]
   shard?: string
   testNamePattern?: string | RegExp
   passWithNoTests?: boolean
@@ -77,6 +86,7 @@ type ProjectTestSettings = Omit<
   | 'outputFile'
   | 'sequence'
   | 'watch'
+  | 'watchTriggerPatterns'
   | 'shard'
   | 'testNamePattern'
   | 'passWithNoTests'
