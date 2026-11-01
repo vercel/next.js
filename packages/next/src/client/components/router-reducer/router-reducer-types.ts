@@ -129,6 +129,12 @@ export interface ServerPatchAction {
   mpa: boolean
   navigateType: 'push' | 'replace'
   /**
+   * The scroll behavior of the navigation that triggered the retry. Preserves
+   * `scroll: false` across an async retry. Defaults to `ScrollBehavior.Default`
+   * when omitted.
+   */
+  scrollBehavior?: ScrollBehavior
+  /**
    * Freshness policy for the retry navigation. `RefreshAll` re-fetches the
    * tree's dynamic data (genuine tree mismatch). `HistoryTraversal` reuses the
    * data already in the tree (when only the URL needs correcting after a
