@@ -614,6 +614,18 @@ enum DiscoveryOutcome {
 
 static GO_ACTIONS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
 
+fn validate_build_cache(project: &Path, context: &GoBuildContext) -> Result<()> {
+    let cache = Path::new(context.cache.as_str());
+    ensure!(
+        !paths::directories_overlap(cache, project)?
+            && !paths::directories_overlap(cache, Path::new(context.module_cache.as_str()))?,
+        "Go build cache must be outside the source project and module cache; choose another \
+         --go-cache path"
+    );
+    std::fs::create_dir_all(cache)?;
+    Ok(())
+}
+
 /// Go parses module configuration. Key the subprocess by go.mod's recorded fingerprint so
 /// unrelated source edits reuse its result. Including live stamps also lets discovery retry
 /// this query if go.mod changes while the command runs, even if its contents are restored.
@@ -970,17 +982,7 @@ async fn discover(
         .context("Go inputs require a disk filesystem")?;
     let mut tracker = Tracker::new(&root, &project, &go_context);
     let run = async {
-        let build_cache = Path::new(go_context.cache.as_str());
-        ensure!(
-            !paths::directories_overlap(build_cache, &project)?
-                && !paths::directories_overlap(
-                    build_cache,
-                    Path::new(go_context.module_cache.as_str())
-                )?,
-            "Go build cache must be outside the source project and module cache; choose another \
-             --go-cache path"
-        );
-        std::fs::create_dir_all(build_cache)?;
+        validate_build_cache(&project, &go_context)?;
         let directory = entry_directory(&project, &files)?;
         tracker.parents(&directory).await?;
         for file in &files {

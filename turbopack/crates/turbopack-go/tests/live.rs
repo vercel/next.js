@@ -1385,6 +1385,29 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         )
         .await?;
     let nearest = capture().await?;
+    let invalid_cache = session.project.join(directory).join("compiler-cache");
+    let mut invalid_options = options.clone();
+    invalid_options.cache = invalid_cache.to_str().unwrap().into();
+    let invalid_root = root.clone();
+    let error = session
+        .tt
+        .run_once(async move {
+            selected_sources(
+                invalid_root.clone(),
+                invalid_root.join(directory)?,
+                GoSourceSelection::Directory,
+                invalid_options,
+            )
+            .read_strongly_consistent()
+            .await
+        })
+        .await
+        .unwrap_err();
+    assert!(format!("{error:#}").contains("Go build cache must be outside"));
+    assert!(
+        !invalid_cache.exists(),
+        "source analysis must reject the cache before creating it"
+    );
     session
         .tt
         .run_once(async move {
