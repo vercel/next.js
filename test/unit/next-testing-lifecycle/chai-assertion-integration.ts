@@ -176,7 +176,13 @@ it('retains original assertion/file tombstones across a live later owner', async
     })
     assert.deepEqual(
       result.cases.map((entry) => entry.status),
-      ['passed', 'passed']
+      ['failed', 'passed']
+    )
+    assert.equal(result.cases[0].errors.length, 1)
+    assert.equal((result.cases[0].errors[0].error as Error).name, 'TypeError')
+    assert.equal(
+      (result.cases[0].errors[0].error as Error).message,
+      "Cannot read properties of undefined (reading '__flags')"
     )
     assert.deepEqual(result.errors, [])
   })

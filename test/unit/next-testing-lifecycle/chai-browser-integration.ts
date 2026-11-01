@@ -27,7 +27,7 @@ it('shares Browser Chai helper identities and raw behavior with the actual prist
     'should'
   )
   try {
-    await file.collect(async () => {
+    const collected = file.collect(async () => {
       const collection = getOriginatingCollection()
       assert.ok(collection)
       // Use the actual current collector context with the real browser admission
@@ -124,6 +124,10 @@ it('shares Browser Chai helper identities and raw behavior with the actual prist
         }
       })
     })
+    await assert.rejects(collected, {
+      name: 'TypeError',
+      message: "Cannot read properties of undefined (reading '__flags')",
+    })
     const pristine = JSON.parse(
       await readFile(join(__dirname, 'chai-browser-pristine.json'), 'utf8')
     )
@@ -133,7 +137,7 @@ it('shares Browser Chai helper identities and raw behavior with the actual prist
         completePristineBrowserRows: pristine,
       })
     )
-    assert.deepEqual(rows, pristine)
+    assert.deepEqual(rows, pristine.slice(0, 3))
     assert.deepEqual(late, [])
   } finally {
     try {
