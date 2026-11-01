@@ -71,6 +71,14 @@ pub async fn go_source_set(
         }
         root = root.parent();
     }
+    // Analysis may compile a host helper before the application's build reaches discovery.
+    // Enforce the same cache-placement contract before that helper can write its cache.
+    crate::validate_build_cache(
+        &to_sys_path(root.clone())
+            .await?
+            .context("Go module requires a disk filesystem")?,
+        context,
+    )?;
     let names = match selection {
         GoSourceSelection::Files(names) => names,
         GoSourceSelection::Directory => {
