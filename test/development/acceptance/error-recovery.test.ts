@@ -267,33 +267,6 @@ describe('pages/ error recovery', () => {
          },
        ]
       `)
-    } else if (isReact18 && isRspack) {
-      await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "oops",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "child.js (3:9) @ Child
-       > 3 |   throw new Error('oops')
-           |         ^",
-           "stack": [
-             "Child child.js (3:9)",
-           ],
-         },
-         {
-           "description": "oops",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "child.js (3:9) @ Child
-       > 3 |   throw new Error('oops')
-           |         ^",
-           "stack": [
-             "Child child.js (3:9)",
-           ],
-         },
-       ]
-      `)
     } else {
       if (isRspack) {
         await expect(browser).toDisplayRedbox(`
@@ -646,7 +619,7 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    if (isReact18 && (isRspack || isTurbopack)) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {

@@ -362,14 +362,22 @@ describe('app-dir - logging', () => {
 
       it('should not contain metadata internal segments for dynamic metadata routes', async () => {
         const logLength = next.cliOutput.length
-        await next.fetch('/dynamic/big/icon')
+        const response = await next.fetch('/dynamic/big/icon')
+        expect(response.status).toBe(200)
 
         await retry(() => {
           const output = stripAnsi(next.cliOutput.slice(logLength))
-          expect(output).toContain('/dynamic/big/icon')
-          expect(output).not.toContain('/(group)')
-          expect(output).not.toContain('[__metadata_id__]')
-          expect(output).not.toContain('/route')
+          expect(output).toMatch(/^\s*GET \/dynamic\/big\/icon 200\b/m)
+          // Request logs expose public paths. Compilation logs use internal identifiers.
+          const requestLogs = output
+            .split('\n')
+            .filter((line) =>
+              /^\s*(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /.test(line)
+            )
+            .join('\n')
+          expect(requestLogs).not.toContain('/(group)')
+          expect(requestLogs).not.toContain('[__metadata_id__]')
+          expect(requestLogs).not.toContain('/route')
         })
       })
     }

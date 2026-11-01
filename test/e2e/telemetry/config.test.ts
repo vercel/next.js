@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import fs from 'fs-extra'
 import path from 'path'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import {
   findAllTelemetryEvents,
   findPort,
@@ -10,10 +10,22 @@ import {
 } from 'next-test-utils'
 
 describe('config telemetry', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
+
+  function isExpectedReact18BuildFailure(
+    result: Awaited<ReturnType<typeof next.build>>
+  ): boolean {
+    if (!(isRspack && isReact18 && isNextStart)) return false
+
+    expect(result.exitCode).toBe(1)
+    expect(result.cliOutput).toContain(
+      "Attempted import error: 'use' is not exported from 'react'"
+    )
+    return true
+  }
 
   async function launchDevServer(
     port: number,
@@ -68,7 +80,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -76,6 +88,9 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.custom-routes')
       )
+
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       try {
         const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
@@ -212,9 +227,11 @@ describe('config telemetry', () => {
     })
 
     it('emits telemery for usage of image, script & dynamic', async () => {
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
         'NEXT_BUILD_FEATURE_USAGE'
@@ -252,7 +269,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'jsconfig.swc'),
         path.join(next.testDir, 'jsconfig.json')
       )
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
       await fs.rename(
@@ -263,6 +280,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'jsconfig.json'),
         path.join(next.testDir, 'jsconfig.swc')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
         'NEXT_BUILD_FEATURE_USAGE'
@@ -307,7 +326,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -315,6 +334,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.cache-components')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const events = findAllTelemetryEvents(
         cliOutput,
@@ -335,7 +356,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -343,6 +364,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.optimize-css')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const events = findAllTelemetryEvents(
         cliOutput,
@@ -360,7 +383,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -368,6 +391,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.next-script-workers')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
@@ -412,11 +437,13 @@ describe('config telemetry', () => {
         `export function middleware () { }`
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
       await fs.remove(path.join(next.testDir, 'middleware.js'))
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const buildOptimizedEvents = findAllTelemetryEvents(
         cliOutput,
@@ -485,9 +512,11 @@ describe('config telemetry', () => {
     // Turbopack intentionally does not support these events
     // @force-gate !turbopack
     it('emits telemetry for usage of next/legacy/image', async () => {
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
         'NEXT_BUILD_FEATURE_USAGE'
@@ -526,7 +555,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -534,6 +563,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.transpile-packages')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
@@ -553,7 +584,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -561,6 +592,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.middleware-options')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
@@ -675,7 +708,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'app')
       )
 
-      const { cliOutput } = await next.build({
+      const buildResult = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -692,6 +725,8 @@ describe('config telemetry', () => {
         path.join(next.testDir, '~app'),
         path.join(next.testDir, 'app')
       )
+      if (isExpectedReact18BuildFailure(buildResult)) return
+      const { cliOutput } = buildResult
 
       const featureUsageEvents = findAllTelemetryEvents(
         cliOutput,
@@ -716,9 +751,11 @@ describe('config telemetry', () => {
       )
 
       try {
-        const { cliOutput } = await next.build({
+        const buildResult = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        if (isExpectedReact18BuildFailure(buildResult)) return
+        const { cliOutput } = buildResult
 
         try {
           const featureUsageEvents = findAllTelemetryEvents(

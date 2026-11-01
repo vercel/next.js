@@ -30,7 +30,7 @@ describe('future-compat-jsdom', () => {
     ) {
       expect(result.status).toBe(1)
       expect(result.stdout).not.toContain('JSDOM initialized')
-      expect(result.stderr).toContain(
+      expect(result.stderr.replace(/\r\n/g, '\n')).toContain(
         'DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n' +
           '    at node:punycode:'
       )

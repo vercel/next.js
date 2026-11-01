@@ -8,7 +8,7 @@ import { findPort, killApp, renderViaHTTP, retry } from 'next-test-utils'
 // Calls `next.build()` directly which is not supported on `NextDeployInstance`.
 // @force-gate !deploy
 describe('page features telemetry', () => {
-  const { next, isTurbopack, isRspack, isNextStart } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -176,7 +176,10 @@ describe('page features telemetry', () => {
         await fs.pathExists(path.join(next.testDir, '.next/_events.json'))
       ).toBe(false)
     })
-    ;(isNextStart ? describe : describe.skip)('production mode', () => {
+    // The edge image fixture imports React.use, which React 18 does not export.
+    // @force-gate start
+    // @force-gate !(rspack && react18 && start)
+    describe('production mode', () => {
       it('should detect app page counts', async () => {
         await fs.ensureFile(path.join(next.testDir, 'app/ssr/page.js'))
         await fs.writeFile(

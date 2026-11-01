@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
@@ -7,11 +7,10 @@ import {
 import type { Page, Request as PlaywrightRequest } from 'playwright'
 import { retry } from 'next-test-utils'
 
-const _describe =
-  // prefetching is disabled in dev.
-  isNextDev ? describe.skip : describe
-
-_describe('app dir - form prefetching', () => {
+// Rspack cannot build the React 19 action fixtures against React 18.
+// @force-gate prefetching
+// @force-gate !(rspack && react18 && start)
+describe('app dir - form prefetching', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig: {

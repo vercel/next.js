@@ -18,32 +18,39 @@ function normalizeCodeLocInfo(str) {
 
 // TODO(deploy-test-completion): Remove this suite from the deploy manifest.
 // It was excluded as a known deploy failure without a documented root cause.
-describe.each(['default', 'babelrc', 'rust'] as const)(
-  'react-compiler %s',
-  (variant) => {
-    if (variant === 'rust' && !shouldUseTurbopack()) {
-      it.skip('rust react-compiler requires Turbopack', () => {})
-      return
-    }
+describe.each(['default', 'rust'] as const)('react-compiler %s', (variant) => {
+  runTests(variant)
+})
 
-    const dependencies = isNextDeploy
-      ? // `link` is incompatible with the npm version used when this test is deployed
-        {
-          'reference-library': 'file:./reference-library',
-        }
-      : {
-          'reference-library': 'link:./reference-library',
-        }
-    const { next, isNextDev, isTurbopack } = nextTestSetup({
-      files:
-        variant === 'babelrc'
-          ? __dirname
-          : {
-              app: new FileRef(join(__dirname, 'app')),
-              pages: new FileRef(join(__dirname, 'pages')),
-              'next.config.js':
-                variant === 'rust'
-                  ? `
+// @force-gate !futureCompat || turbopack || (!start && (!dev || !rspack))
+describe('react-compiler babelrc', () => {
+  runTests('babelrc')
+})
+
+function runTests(variant: 'default' | 'babelrc' | 'rust') {
+  if (variant === 'rust' && !shouldUseTurbopack()) {
+    it.skip('rust react-compiler requires Turbopack', () => {})
+    return
+  }
+
+  const dependencies = isNextDeploy
+    ? // `link` is incompatible with the npm version used when this test is deployed
+      {
+        'reference-library': 'file:./reference-library',
+      }
+    : {
+        'reference-library': 'link:./reference-library',
+      }
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
+    files:
+      variant === 'babelrc'
+        ? __dirname
+        : {
+            app: new FileRef(join(__dirname, 'app')),
+            pages: new FileRef(join(__dirname, 'pages')),
+            'next.config.js':
+              variant === 'rust'
+                ? `
                       /** @type {import('next').NextConfig} */
                       module.exports = {
                         reactCompiler: true,
@@ -51,101 +58,101 @@ describe.each(['default', 'babelrc', 'rust'] as const)(
                         reactProductionProfiling: true,
                       }
                     `
-                  : new FileRef(join(__dirname, 'next.config.js')),
-              'reference-library': new FileRef(
-                join(__dirname, 'reference-library')
-              ),
-            },
-      // TODO: set only config instead once bundlers are consistent
-      buildArgs: ['--profile'],
-      dependencies: {
-        'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
-        // For React versions below 19, need to install react-compiler-runtime.
-        // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
-        ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
-        ...dependencies,
-      },
-    })
+                : new FileRef(join(__dirname, 'next.config.js')),
+            'reference-library': new FileRef(
+              join(__dirname, 'reference-library')
+            ),
+          },
+    // TODO: set only config instead once bundlers are consistent
+    buildArgs: ['--profile'],
+    dependencies: {
+      'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
+      // For React versions below 19, need to install react-compiler-runtime.
+      // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
+      ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
+      ...dependencies,
+    },
+  })
 
-    it('should memoize Components', async () => {
-      const browser = await next.browser('/')
+  it('should memoize Components', async () => {
+    const browser = await next.browser('/')
 
-      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
-      expect(
-        await browser.elementByCss('[data-testid="parent-commits"]').text()
-      ).toEqual('Parent commits: 1')
+    expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+    expect(
+      await browser.elementByCss('[data-testid="parent-commits"]').text()
+    ).toEqual('Parent commits: 1')
 
-      await browser.elementByCss('button').click()
-      await browser.elementByCss('button').click()
-      await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
 
-      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
-      expect(
-        await browser.elementByCss('[data-testid="parent-commits"]').text()
-      ).toEqual('Parent commits: 4')
-    })
+    expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+    expect(
+      await browser.elementByCss('[data-testid="parent-commits"]').text()
+    ).toEqual('Parent commits: 4')
+  })
 
-    it('should memoize Pages Router Components', async () => {
-      const browser = await next.browser('/pages-router')
+  it('should memoize Pages Router Components', async () => {
+    const browser = await next.browser('/pages-router')
 
-      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
-      expect(
-        await browser.elementByCss('[data-testid="parent-commits"]').text()
-      ).toEqual('Parent commits: 1')
+    expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+    expect(
+      await browser.elementByCss('[data-testid="parent-commits"]').text()
+    ).toEqual('Parent commits: 1')
 
-      await browser.elementByCss('button').click()
-      await browser.elementByCss('button').click()
-      await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
 
-      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
-      expect(
-        await browser.elementByCss('[data-testid="parent-commits"]').text()
-      ).toEqual('Parent commits: 4')
-    })
+    expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+    expect(
+      await browser.elementByCss('[data-testid="parent-commits"]').text()
+    ).toEqual('Parent commits: 4')
+  })
 
-    it('should work with a library that uses the react-server condition', async () => {
-      const outputIndex = next.cliOutput.length
-      await next.render('/library-react-server')
+  it('should work with a library that uses the react-server condition', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/library-react-server')
 
-      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(cliOutput).not.toMatch(/error/)
-    })
+    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    expect(cliOutput).not.toMatch(/error/)
+  })
 
-    it('should work with a library using use client', async () => {
-      const outputIndex = next.cliOutput.length
-      await next.render('/library-client')
+  it('should work with a library using use client', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/library-client')
 
-      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(cliOutput).not.toMatch(/error/)
-    })
+    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    expect(cliOutput).not.toMatch(/error/)
+  })
 
-    // TODO: The Rust port of the React Compiler does not yet implement the
-    // `Page[useEffect()]` naming heuristic that the Babel plugin applies, so the
-    // memoized temporaries surface as `t0`, `t1`, … in stack frames.
-    //
-    // Re-enable once `nextjs_react_compiler` learns to set debug names on generated
-    // expressions.
-    const it_ = variant === 'rust' ? it.skip : it
-    it_('should name functions in dev', async () => {
-      const browser = await next.browser('/function-naming')
-      await browser.waitForElementByCss(
-        '[data-testid="call-frame"][aria-busy="false"]',
-        5000
-      )
+  // TODO: The Rust port of the React Compiler does not yet implement the
+  // `Page[useEffect()]` naming heuristic that the Babel plugin applies, so the
+  // memoized temporaries surface as `t0`, `t1`, … in stack frames.
+  //
+  // Re-enable once `nextjs_react_compiler` learns to set debug names on generated
+  // expressions.
+  const it_ = variant === 'rust' ? it.skip : it
+  it_('should name functions in dev', async () => {
+    const browser = await next.browser('/function-naming')
+    await browser.waitForElementByCss(
+      '[data-testid="call-frame"][aria-busy="false"]',
+      5000
+    )
 
-      const callFrame = await browser
-        .elementByCss('[data-testid="call-frame"]')
-        .text()
-      const devFunctionName =
-        variant === 'babelrc' && !isTurbopack
-          ? // next/babel transpiles away arrow functions defeating the React Compiler naming
-            // TODO: Does Webpack or Turbopack get the Babel config right?
-            'PageUseEffect'
-          : // expected naming heuristic from React Compiler. This may change in future.
-            // Just make sure this is the heuristic from the React Compiler not something else.
-            'Page[useEffect()]'
-      if (isNextDev) {
-        await expect(browser).toDisplayCollapsedRedbox(`
+    const callFrame = await browser
+      .elementByCss('[data-testid="call-frame"]')
+      .text()
+    const devFunctionName =
+      variant === 'babelrc' && !isTurbopack
+        ? // next/babel transpiles away arrow functions defeating the React Compiler naming
+          // TODO: Does Webpack or Turbopack get the Babel config right?
+          'PageUseEffect'
+        : // expected naming heuristic from React Compiler. This may change in future.
+          // Just make sure this is the heuristic from the React Compiler not something else.
+          'Page[useEffect()]'
+    if (isNextDev) {
+      await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "test-top-frame",
            "environmentLabel": null,
@@ -158,39 +165,38 @@ describe.each(['default', 'babelrc', 'rust'] as const)(
            ],
          }
         `)
-        // We care more about the sourcemapped frame in the Redbox.
-        // This assertion is only here to show that the negative assertion below is valid.
-        expect(normalizeCodeLocInfo(callFrame)).toEqual(
-          `    at ${devFunctionName} (**)`
-        )
-      } else {
-        expect(normalizeCodeLocInfo(callFrame)).not.toEqual(
-          `    at ${devFunctionName} (**)`
-        )
-      }
-    })
-
-    it('throws if the React Compiler is used in a React Server environment', async () => {
-      const outputIndex = next.cliOutput.length
-      const browser = await next.browser('/library-missing-react-server')
-
-      const cliOutput = normalizeCodeLocInfo(
-        stripAnsi(next.cliOutput.slice(outputIndex))
+      // We care more about the sourcemapped frame in the Redbox.
+      // This assertion is only here to show that the negative assertion below is valid.
+      expect(normalizeCodeLocInfo(callFrame)).toEqual(
+        `    at ${devFunctionName} (**)`
       )
-      if (isNextDev) {
-        // TODO(NDX-663): Unhelpful error message.
-        // Should say that the library should have a react-server entrypoint that doesn't use the React Compiler.
-        expect(cliOutput).toContain(
-          "⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
-            // location not important. Just that this is the only frame.
-            // TODO: Stack should start at product code. Possible React limitation.
-            '\n    at Container (**)' +
-            // Will just point to original file location
-            '\n  2 |'
-        )
+    } else {
+      expect(normalizeCodeLocInfo(callFrame)).not.toEqual(
+        `    at ${devFunctionName} (**)`
+      )
+    }
+  })
 
-        await waitForRedbox(browser)
-      }
-    })
-  }
-)
+  it('throws if the React Compiler is used in a React Server environment', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/library-missing-react-server')
+
+    const cliOutput = normalizeCodeLocInfo(
+      stripAnsi(next.cliOutput.slice(outputIndex))
+    )
+    if (isNextDev) {
+      // TODO(NDX-663): Unhelpful error message.
+      // Should say that the library should have a react-server entrypoint that doesn't use the React Compiler.
+      expect(cliOutput).toContain(
+        "⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
+          // location not important. Just that this is the only frame.
+          // TODO: Stack should start at product code. Possible React limitation.
+          '\n    at Container (**)' +
+          // Will just point to original file location
+          '\n  2 |'
+      )
+
+      await waitForRedbox(browser)
+    }
+  })
+}
