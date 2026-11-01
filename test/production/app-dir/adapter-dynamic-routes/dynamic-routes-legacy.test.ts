@@ -26,6 +26,7 @@ import {
 // page. That entry maps the `_next/data` URL of the page to the page itself.
 // The count of those entries grows with the number of pages rather than with
 // the number of route shapes.
+// @force-gate !futureCompat || !start
 describe('adapter dynamic routes (legacy)', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'legacy'),

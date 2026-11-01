@@ -1,36 +1,48 @@
 import { nextTestSetup } from 'e2e-utils'
-import { renderViaHTTP } from 'next-test-utils'
+import { gate, renderViaHTTP, retry } from 'next-test-utils'
 
 // Tests Babel, not needed for Turbopack
 // Deploy mode exclusion: This suite asserts warning output from the local
 // Next.js CLI, which is not available from a deployed runtime.
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'swc warnings by default',
-  () => {
-    const { next } = nextTestSetup({
-      files: {
-        'pages/index.js': `
+// @force-gate !turbopack
+// @force-gate !futureCompat || !start
+describe('swc warnings by default', () => {
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
           export default function Page() { 
             return <p>hello world</p>
           } 
         `,
-        '.babelrc': `
+      '.babelrc': `
           {
             "presets": ["next/babel"]
           }
         `,
-      },
-      dependencies: {},
-    })
+    },
+    dependencies: {},
+  })
 
-    it('should have warning', async () => {
-      await renderViaHTTP(next.url, '/')
-      expect(next.cliOutput).toContain(
-        'Disabled SWC as replacement for Babel because of custom Babel configuration'
+  it('should have warning', async () => {
+    if (
+      await gate(
+        (conditions) =>
+          conditions.futureCompat && conditions.dev && conditions.rspack
       )
-    })
-  }
-)
+    ) {
+      await expect(next.fetch('/')).rejects.toThrow('fetch failed')
+      await retry(() => {
+        expect(next.cliOutput).toContain('DEP0111')
+        expect(next.cliOutput).toContain('process.binding()')
+      })
+    } else {
+      await renderViaHTTP(next.url, '/')
+    }
+    expect(next.cliOutput).toContain(
+      'Disabled SWC as replacement for Babel because of custom Babel configuration'
+    )
+  })
+})
 
 // Tests Babel, not needed for Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(

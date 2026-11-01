@@ -8,7 +8,10 @@ import {
 } from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('instant validation - parallel slot configs', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,

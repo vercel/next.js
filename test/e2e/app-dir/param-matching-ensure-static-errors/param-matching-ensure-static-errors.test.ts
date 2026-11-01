@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  gate,
   openRedbox,
   waitForRedbox,
   getRedboxDescription,
@@ -15,7 +16,7 @@ describe('param-matching-ensure-static-errors', () => {
   })
 
   beforeAll(async () => {
-    if (isNextDev) {
+    if (isNextDev && !(await gate((c) => c.futureCompat))) {
       await next.start()
     }
   })
@@ -26,6 +27,13 @@ describe('param-matching-ensure-static-errors', () => {
     message: string,
     redboxState: 'open' | 'collapsed' = 'open'
   ) {
+    if (await gate((c) => c.futureCompat)) {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
     if (isNextDev) {
       const browser = await next.browser(pathname)
       if (redboxState === 'collapsed') {

@@ -5,6 +5,9 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 import { createRequestTracker } from '../../../lib/e2e-utils/request-tracker'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - simple', () => {
   let currentCliOutputIndex = 0
   beforeEach(() => {

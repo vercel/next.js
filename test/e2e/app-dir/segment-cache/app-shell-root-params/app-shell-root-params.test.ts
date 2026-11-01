@@ -18,6 +18,9 @@ import { retry } from 'next-test-utils'
 // requests at all. We pass `{ includeAppShellRequests: true }` so router-act
 // asserts on App Shell requests (next-router-prefetch: '3') instead of ignoring
 // them.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('App Shell varies only on the root params it reads', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,

@@ -42,13 +42,13 @@ describe('future-compat', () => {
             expect(output).toContain(
               'uncaughtException: DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.' +
                 '\n    at GET (app/deprecated/route.ts:<line>:<col>)' +
-                '\n  4 |   await connection()' +
-                '\n  5 |   return Response.json({' +
-                "\n> 6 |     value: new Buffer('future-compat').toString()," +
-                '\n    |            ^' +
-                '\n  7 |     throwDeprecation: process.throwDeprecation ?? false,' +
-                '\n  8 |   })' +
-                '\n  9 | } {' +
+                '\n   6 |     // Pick any deprecated API. Manually emitting a deprecation warning may also' +
+                '\n   7 |     // work. Just make sure we can assert on the stack of a thrown deprecation.' +
+                "\n>  8 |     value: new Buffer('future-compat').toString()," +
+                '\n     |            ^' +
+                '\n   9 |     throwDeprecation: process.throwDeprecation ?? false,' +
+                '\n  10 |   })' +
+                '\n  11 | } {' +
                 "\n  code: 'DEP0005'" +
                 '\n}'
             )

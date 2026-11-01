@@ -10,7 +10,10 @@ import { retry } from 'next-test-utils'
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // the file-patching strategy we use for synchronizing the test doesn't work
 // on deployments
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('PPR - partial hydration', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

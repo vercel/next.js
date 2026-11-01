@@ -6,6 +6,9 @@ import { createRouterAct } from 'router-act'
 // The `global-runtime` fixture sets `partialPrefetching: true`, which makes
 // every route runtime-cache its navigations regardless of whether a segment
 // opted in via a `prefetch` config.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('cached navigations - global partial prefetching', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'global-runtime'),

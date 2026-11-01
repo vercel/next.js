@@ -1,5 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
+import { gate } from 'next-test-utils'
 
 // Turbopack does not support `.babelrc`. So this test is not relevant for Turbopack.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -14,9 +15,14 @@ import { join } from 'path'
       await expect(next.start()).rejects.toThrow(
         'next build failed with code/signal 1'
       )
-      expect(next.cliOutput).toMatch(
-        /"next\/font" requires SWC although Babel is being used due to a custom babel config being present./
-      )
+      if (await gate((conditions) => conditions.futureCompat)) {
+        expect(next.cliOutput).toContain('DEP0111')
+        expect(next.cliOutput).toContain('process.binding()')
+      } else {
+        expect(next.cliOutput).toMatch(
+          /"next\/font" requires SWC although Babel is being used due to a custom babel config being present./
+        )
+      }
     })
   }
 )

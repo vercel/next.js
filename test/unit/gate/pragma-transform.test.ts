@@ -1,11 +1,101 @@
 /* eslint-env jest */
 const { rewrite } = require('../../lib/gate/pragma-transform')
+const { createTransformer } = require('../../lib/gate/jest-transformer')
+
+jest.mock('gate-inner-transformer', () => ({ createTransformer: jest.fn() }), {
+  virtual: true,
+})
 
 // NOTE: fixtures are built by joining arrays of lines instead of using template
 // literals. A template literal containing a `// @gate` line directly above an
 // `it(` line would itself be rewritten when *this* file is transformed, since
 // the rewrite is intentionally a line-oriented regex over the raw source.
 const src = (...lines: string[]) => lines.join('\n') + '\n'
+
+describe('@gate Jest transformer', () => {
+  const inner = {
+    process: jest.fn((source: string) => ({ code: source })),
+    getCacheKey: jest.fn(() => 'inner-cache-key'),
+  }
+  const innerOptions = { swc: true }
+  const jestOptions = { instrument: false }
+  let transformer: ReturnType<typeof createTransformer>
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    require('gate-inner-transformer').createTransformer.mockReturnValue(inner)
+    transformer = createTransformer({
+      innerTransformer: 'gate-inner-transformer',
+      innerOptions,
+    })
+  })
+
+  it.each(
+    ['js', 'jsx', 'ts', 'tsx', 'mjs'].flatMap((extension) => [
+      `suite.test.${extension}`,
+      `shared-tests.util.${extension}`,
+    ])
+  )(
+    'rewrites %s before the inner transform, preserving source locations',
+    (filename) => {
+      const input = src(
+        '// @force-gate !futureCompat',
+        "describe('shared suite', () => {",
+        "  it('snapshot', () => {",
+        '    expect(1).toMatchInlineSnapshot(`1`)',
+        '  })',
+        '})'
+      )
+      const expected = src(
+        '// @force-gate !futureCompat',
+        `_test_gate([{"force":true,"source":"!futureCompat"}],"describe")('shared suite', () => {`,
+        "  it('snapshot', () => {",
+        '    expect(1).toMatchInlineSnapshot(`1`)',
+        '  })',
+        '})'
+      )
+
+      expect(transformer.process(input, filename, jestOptions)).toEqual({
+        code: expected,
+      })
+      expect(inner.process).toHaveBeenCalledWith(
+        expected,
+        filename,
+        jestOptions
+      )
+      expect(
+        require('gate-inner-transformer').createTransformer
+      ).toHaveBeenCalledWith(innerOptions)
+      expect(expected.split('\n')).toHaveLength(input.split('\n').length)
+      expect(expected.split('\n').slice(2)).toEqual(input.split('\n').slice(2))
+    }
+  )
+
+  it.each(['page.tsx', 'next.config.ts', 'ordinary.js', 'suite.test.ts.map'])(
+    'passes ordinary source %s through unchanged',
+    (filename) => {
+      const input = src(
+        '// @force-gate !futureCompat',
+        "describe('fixture', () => {})"
+      )
+      expect(transformer.process(input, filename, jestOptions)).toEqual({
+        code: input,
+      })
+      expect(inner.process).toHaveBeenCalledWith(input, filename, jestOptions)
+    }
+  )
+
+  it('includes the transformer version in the inner cache key', () => {
+    expect(
+      transformer.getCacheKey('source', 'shared-tests.util.ts', jestOptions)
+    ).toMatch(/^inner-cache-key:gate-[a-f0-9]{16}$/)
+    expect(inner.getCacheKey).toHaveBeenCalledWith(
+      'source',
+      'shared-tests.util.ts',
+      jestOptions
+    )
+  })
+})
 
 describe('@gate pragma transform', () => {
   it('leaves files without a pragma untouched (identity, not a copy)', () => {

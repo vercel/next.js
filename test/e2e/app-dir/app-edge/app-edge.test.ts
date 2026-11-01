@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, gate } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely mutates files in the isolated local fixture after setup.
@@ -54,8 +54,48 @@ describe('app-dir edge SSR', () => {
       const html = await next.render('/with-client')
       expect(html).toContain('My Button')
       let output = logs.join('')
+      if (
+        await gate((conditions) => conditions.futureCompat && conditions.rspack)
+      ) {
+        expect(output.trim()).toMatchInlineSnapshot(`
+          "DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+              at new Promise (<anonymous>) {
+            code: 'DEP0144'
+          }
+          ⨯ uncaughtException: DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+              at new Promise (<anonymous>) {
+            code: 'DEP0144'
+          }
+          ⨯ uncaughtException:  DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+              at new Promise (<anonymous>) {
+            code: 'DEP0144'
+          }"
+        `)
+        return
+      }
+      if (
+        await gate(
+          (conditions) => conditions.futureCompat && conditions.webpack
+        )
+      ) {
+        expect(output.trim()).toMatchInlineSnapshot(`
+          "DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+              at ignore-listed frames {
+            code: 'DEP0144'
+          }
+          ⨯ uncaughtException: DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+              at ignore-listed frames {
+            code: 'DEP0144'
+          }
+          ⨯ uncaughtException:  DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+              at ignore-listed frames {
+            code: 'DEP0144'
+          }"
+        `)
+        return
+      }
       // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
-      if (process.env.IS_WEBPACK_TEST) {
+      if (await gate((conditions) => !conditions.turbopack)) {
         expect(output).toContain('[DEP0144] DeprecationWarning: module.parent')
         output = output.replace(
           /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,

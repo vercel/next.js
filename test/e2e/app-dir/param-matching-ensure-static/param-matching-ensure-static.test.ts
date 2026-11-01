@@ -3,6 +3,9 @@ import { waitForNoRedbox } from 'next-test-utils'
 import type { PrerenderManifest } from 'next/dist/build'
 import * as cheerio from 'cheerio'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('param-matching-ensure-static', () => {
   const { next, isNextDev } = nextTestSetup({ files: __dirname })
 

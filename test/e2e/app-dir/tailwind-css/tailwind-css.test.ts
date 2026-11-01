@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { gate, getRedboxSource, waitForRedbox } from 'next-test-utils'
 
+// Tailwind's jiti config loader throws DEP0144 before the fixture can build.
+// @force-gate !futureCompat || !start
 describe('tailwind-css', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -13,6 +16,18 @@ describe('tailwind-css', () => {
   it('works when importing tailwind/tailwind.css', async () => {
     const browser = await next.browser('/')
     try {
+      if (
+        await gate(
+          (conditions) =>
+            conditions.futureCompat && conditions.dev && conditions.turbopack
+        )
+      ) {
+        await waitForRedbox(browser)
+        expect(await getRedboxSource(browser)).toContain(
+          'DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.'
+        )
+        return
+      }
       const text = await browser.elementByCss('.text-6xl').text()
       expect(text).toMatch(/Welcome to/)
       const cssBlue = await browser

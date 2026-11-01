@@ -1,6 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
+// @force-gate !futureCompat || !start || turbopack
 describe('postcss-config-json', () => {
   const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),

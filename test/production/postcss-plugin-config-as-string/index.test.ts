@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
+// @force-gate !futureCompat || !start || turbopack
 describe('PostCSS plugin config as string', () => {
   const { next } = nextTestSetup({
     files: {

@@ -1,7 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForNoRedbox } from 'next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate dev && turbopack
+// @force-gate !futureCompat
 describe('lazy-dynamic-chunk-list-collision', () => {
   const { next } = nextTestSetup({
     files: __dirname,

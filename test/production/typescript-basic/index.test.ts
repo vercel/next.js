@@ -1,6 +1,6 @@
 import path from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { renderViaHTTP } from 'next-test-utils'
+import { gate, renderViaHTTP } from 'next-test-utils'
 
 describe('TypeScript basic', () => {
   const { next } = nextTestSetup({
@@ -24,19 +24,24 @@ describe('TypeScript basic', () => {
   })
 
   // Turbopack doesn't support Babel built-in.
-  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should work with babel',
-    async () => {
-      await next.stop()
-      await next.patchFile(
-        '.babelrc',
-        JSON.stringify({ presets: ['next/babel'] })
+  // @force-gate !turbopack
+  it('should work with babel', async () => {
+    await next.stop()
+    await next.patchFile(
+      '.babelrc',
+      JSON.stringify({ presets: ['next/babel'] })
+    )
+    if (await gate((conditions) => conditions.futureCompat)) {
+      await expect(next.start()).rejects.toThrow(
+        'next build failed with code/signal 1'
       )
-      await next.start()
-
-      const html = await renderViaHTTP(next.url, '/')
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(html).toContain('hello world')
+      expect(next.cliOutput).toContain('DEP0111')
+      expect(next.cliOutput).toContain('process.binding()')
+      return
     }
-  )
+    await next.start()
+
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('hello world')
+  })
 })

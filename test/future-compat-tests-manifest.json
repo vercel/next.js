@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "rules": {
+    "include": ["**/*"],
+    "exclude": [
+      "packages/next/src/next-devtools/dev-overlay/hooks/use-debounced-value.test.ts",
+      "packages/next/src/next-devtools/dev-overlay/segment-explorer-trie.test.tsx",
+      "test/unit/css-hmr-runtime/css-hmr-runtime.test.ts",
+      "test/unit/is-equal-node.unit.test.ts",
+      "test/unit/link-warnings.test.tsx",
+      "test/unit/link-without-router/link-without-router.test.tsx",
+      "test/unit/next-dynamic.test.tsx"
+    ]
+  },
+  "suites": {}
+}

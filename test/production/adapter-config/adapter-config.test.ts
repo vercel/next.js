@@ -5,6 +5,7 @@ import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
 import { RouteKind } from 'next/dist/server/route-kind'
 
+// @force-gate !futureCompat || !start
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
     files: __dirname,

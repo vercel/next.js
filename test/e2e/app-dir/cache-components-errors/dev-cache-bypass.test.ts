@@ -1,4 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 describe('Cache Components Errors', () => {
   const { next } = nextTestSetup({
@@ -27,16 +28,62 @@ describe('Cache Components Errors', () => {
           headers: { 'cache-control': 'no-cache' },
         })
 
-        if (process.env.IS_WEBPACK_TEST) {
-          expect(next.cliOutput.slice(from)).toContain(
-            '[DEP0144] DeprecationWarning: module.parent'
+        if (
+          await gate(
+            (conditions) => conditions.futureCompat && conditions.rspack
           )
+        ) {
+          expect(stripGetLines(next.cliOutput.slice(from)))
+            .toMatchInlineSnapshot(`
+              "DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at new Promise (<anonymous>) {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException: DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at new Promise (<anonymous>) {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException:  DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at new Promise (<anonymous>) {
+                code: 'DEP0144'
+              }
+              Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+              "
+            `)
+        } else if (
+          await gate(
+            (conditions) => conditions.futureCompat && conditions.webpack
+          )
+        ) {
+          expect(stripGetLines(next.cliOutput.slice(from)))
+            .toMatchInlineSnapshot(`
+              "DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at ignore-listed frames {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException: DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at ignore-listed frames {
+                code: 'DEP0144'
+              }
+              ⨯ uncaughtException:  DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.
+                  at ignore-listed frames {
+                code: 'DEP0144'
+              }
+              Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+              "
+            `)
+        } else {
+          if (await gate((conditions) => !conditions.turbopack)) {
+            expect(next.cliOutput.slice(from)).toContain(
+              '[DEP0144] DeprecationWarning: module.parent'
+            )
+          }
+          expect(stripGetLines(next.cliOutput.slice(from)))
+            .toMatchInlineSnapshot(`
+              "Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+              "
+            `)
         }
-        expect(stripGetLines(next.cliOutput.slice(from)))
-          .toMatchInlineSnapshot(`
-         "Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
-         "
-        `)
       })
 
       it('warns if you render with cache-control: no-cache in dev on client navigation', async () => {

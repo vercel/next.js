@@ -8,6 +8,9 @@ import { retry } from 'next-test-utils'
 // router-act ignores App Shell requests (those with `next-router-prefetch: '3'`)
 // for assertion purposes, since the App Shell is conceptually part of the route
 // rather than prefetch data. These tests are the exception that opts back in.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('App Shell prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,

@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
+// @force-gate !futureCompat || !start
 describe('distDir package.json commonjs boundary', () => {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -5,7 +5,7 @@ import {
   snapshotBaseDir,
 } from '../../../apps/bundle-analyzer/lib/snapshot'
 import { validateGraphDump } from '../../lib/analyze-graph-schema'
-import { shouldUseTurbopack } from 'next-test-utils'
+import { gate, shouldUseTurbopack } from 'next-test-utils'
 import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -183,6 +183,16 @@ describe('next analyze', () => {
       .finally(() => clearTimeout(timeout))
     try {
       const url = await urlPromise
+      if (await gate((conditions) => conditions.futureCompat)) {
+        await expect(fetch(url)).rejects.toThrow()
+        const result = await exit
+        expect(result).toMatchObject({ exitCode: 1 })
+        expect(result.stderr).toContain(
+          'DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead.'
+        )
+        expect(result.stderr).toContain("code: 'DEP0169'")
+        return
+      }
       const response = await fetch(url)
       expect(response.status).toBe(200)
       expect(await response.text()).toContain(

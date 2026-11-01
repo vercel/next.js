@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe.each([false, true])(
   'adapter query parameters, collapseAdapterRoutes: %s',
   (collapseAdapterRoutes) => {

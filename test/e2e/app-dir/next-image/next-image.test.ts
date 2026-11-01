@@ -2,6 +2,9 @@ import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import path from 'path'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app dir - next-image', () => {
   const { next } = nextTestSetup({
     files: __dirname,

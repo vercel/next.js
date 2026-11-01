@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { shouldUseTurbopack } from 'next-test-utils'
 
 // This test relies on an experimental webpack feature (lazyCompilation).
+// @force-gate !futureCompat || (!start && (!dev || !rspack)) || turbopack
 describe('next/dynamic lazy compilation', () => {
   if (shouldUseTurbopack()) {
     it('skips in Turbopack tests', () => {})

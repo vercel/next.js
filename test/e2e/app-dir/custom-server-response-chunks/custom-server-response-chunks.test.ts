@@ -9,7 +9,10 @@ type RecordedRequest = {
 }
 
 // A custom server (server.js) is not supported in deploy mode.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('custom-server-response-chunks', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

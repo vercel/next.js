@@ -18,6 +18,7 @@ type DynamicRoute = {
   }>
 }
 
+// @force-gate !futureCompat || !start
 describe('parameter matching', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,

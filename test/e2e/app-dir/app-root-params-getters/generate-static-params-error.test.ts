@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
@@ -8,9 +9,18 @@ describe('app-root-param-getters - generateStaticParams error', () => {
   })
 
   if (isNextDev) {
-    beforeAll(() => next.start())
+    beforeAll(async () => {
+      if (!(await gate((c) => c.futureCompat))) await next.start()
+    })
 
     it('should error when reading a root param inside the generateStaticParams that defines it - dev', async () => {
+      if (await gate((c) => c.futureCompat)) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain("code: 'DEP0144'")
+        expect(cliOutput).toContain('at requireFromString')
+        return
+      }
       const browser = await next.browser('/en/us')
 
       // TODO: This is not the correct error code.
@@ -30,6 +40,13 @@ describe('app-root-param-getters - generateStaticParams error', () => {
     })
   } else {
     it('should error when reading a root param inside the generateStaticParams that defines it - build', async () => {
+      if (await gate((c) => c.futureCompat)) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain("code: 'DEP0144'")
+        expect(cliOutput).toContain('at requireFromString')
+        return
+      }
       await expect(next.start()).rejects.toThrow()
       expect(next.cliOutput).toContain(
         "Route /[lang]/[locale] used `import('next/root-params').lang()` inside `generateStaticParams`, but the `lang` parameter was not provided by a parent `generateStaticParams`. In `generateStaticParams`, root params are only available for segments nested below the segment that provides them."

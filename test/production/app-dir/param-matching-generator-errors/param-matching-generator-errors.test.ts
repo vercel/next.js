@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('param-matching-generator-errors', () => {
@@ -29,6 +30,11 @@ describe('param-matching-generator-errors', () => {
     'names the matching generator when %s is unavailable',
     async (route, api) => {
       const output = await buildRoute(route)
+      if (await gate((c) => c.futureCompat)) {
+        expect(output).toContain("code: 'DEP0144'")
+        expect(output).toContain('at requireFromString')
+        return
+      }
       expect(output).toContain(
         `Route /[lang]/${route}/[slug] used \`${api}\` inside \`unstable_generateParamMatching\`. This is not supported because \`unstable_generateParamMatching\` runs at build time`
       )
@@ -37,6 +43,11 @@ describe('param-matching-generator-errors', () => {
 
   it('names the matching generator when private caching needs a request', async () => {
     const output = await buildRoute('private-cache')
+    if (await gate((c) => c.futureCompat)) {
+      expect(output).toContain("code: 'DEP0144'")
+      expect(output).toContain('at requireFromString')
+      return
+    }
     expect(output).toContain(
       '`"use cache: private"` needs an active request, so it can\'t be used during `unstable_generateParamMatching`'
     )
@@ -44,6 +55,11 @@ describe('param-matching-generator-errors', () => {
 
   it('names the matching generator before the general render-phase revalidation error', async () => {
     const output = await buildRoute('revalidate')
+    if (await gate((c) => c.futureCompat)) {
+      expect(output).toContain("code: 'DEP0144'")
+      expect(output).toContain('at requireFromString')
+      return
+    }
     expect(output).toContain(
       '`revalidatePath("/")` can\'t be called inside `unstable_generateParamMatching`. Call it from a Server Action or Route Handler instead.'
     )
@@ -51,6 +67,11 @@ describe('param-matching-generator-errors', () => {
 
   it('does not suggest that the matching generator receives parent gSP values', async () => {
     const output = await buildRoute('root-params')
+    if (await gate((c) => c.futureCompat)) {
+      expect(output).toContain("code: 'DEP0144'")
+      expect(output).toContain('at requireFromString')
+      return
+    }
     expect(output).toContain(
       "Route /[lang]/root-params/[slug] used `import('next/root-params').lang()` inside `unstable_generateParamMatching`, but the `lang` parameter is not available in this build-time generator."
     )

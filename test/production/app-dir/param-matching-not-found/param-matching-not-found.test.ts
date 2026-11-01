@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
 
@@ -24,6 +25,12 @@ describe.each([
 
     it('rejects a parameter that is not explicitly closed in every route', async () => {
       const { exitCode, cliOutput } = await next.build()
+      if (await gate((c) => c.futureCompat)) {
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain("code: 'DEP0144'")
+        expect(cliOutput).toContain('at requireFromString')
+        return
+      }
       expect(exitCode).toBe(1)
       expect(cliOutput).toContain('Parameter "lang"')
       expect(cliOutput).toContain('must explicitly configure "not-found"')
@@ -49,6 +56,12 @@ describe('coherent not-found parameter configurations', () => {
 
   it('accepts inheritance, explicit agreement, and unrelated parameter definitions', async () => {
     const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
     expect(cliOutput).not.toContain('must explicitly configure "not-found"')
     expect(exitCode).toBe(0)
 

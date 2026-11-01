@@ -6,7 +6,10 @@ import { retry } from 'next-test-utils'
 // A prefetch up to a loading boundary doesn't deliver the segments below the
 // boundary. A navigation that starts during that prefetch still shows the
 // boundary, and gets those segments itself.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate prefetching
+// @force-gate !futureCompat
 describe('navigating while a loading boundary prefetch is in flight', () => {
   const { next } = nextTestSetup({
     files: __dirname,

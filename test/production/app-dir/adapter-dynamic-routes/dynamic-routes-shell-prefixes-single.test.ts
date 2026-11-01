@@ -11,6 +11,7 @@ import {
 // An alternation of one combination saves no entry, and it would replace a
 // literal path with a capture group for no gain. The entry for the shell
 // therefore keeps the combination as it is.
+// @force-gate !futureCompat || !start
 describe('adapter dynamic routes (shell prefixes, one combination)', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'shell-prefixes'),

@@ -6,7 +6,10 @@ import { retry } from '../../../lib/next-test-utils'
 
 // Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
 // reads cli logs
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('use cache called after tasky uncached IO', () => {
   const { next } = nextTestSetup({
     files: __dirname,

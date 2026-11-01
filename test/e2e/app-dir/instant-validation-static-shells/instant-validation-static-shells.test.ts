@@ -1,8 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createGetInstantInsight } from 'e2e-utils/instant-validation'
-import { waitForNoErrorToast } from 'next-test-utils'
+import { gate, waitForNoErrorToast } from 'next-test-utils'
 import { join } from 'node:path'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('instant validation - opting out of static shells', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'valid'),
@@ -56,8 +59,17 @@ describe('instant validation', () => {
     )
 
     if (isNextDev) {
-      beforeAll(() => next.start())
+      beforeAll(async () => {
+        if (!(await gate((c) => c.futureCompat))) await next.start()
+      })
       it('errors in dev', async () => {
+        if (await gate((c) => c.futureCompat)) {
+          const { exitCode, cliOutput } = await next.build()
+          expect(exitCode).toBe(1)
+          expect(cliOutput).toContain("code: 'DEP0144'")
+          expect(cliOutput).toContain('at requireFromString')
+          return
+        }
         const browser = await next.browser('/blocking-page-below-static')
         await browser.elementByCss('main')
         expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
@@ -76,6 +88,13 @@ describe('instant validation', () => {
       })
     } else {
       it('errors during build', async () => {
+        if (await gate((c) => c.futureCompat)) {
+          const { exitCode, cliOutput } = await next.build()
+          expect(exitCode).toBe(1)
+          expect(cliOutput).toContain("code: 'DEP0144'")
+          expect(cliOutput).toContain('at requireFromString')
+          return
+        }
         await expect(next.start()).rejects.toThrow()
         expect(next.cliOutput).toContain('during prerendering')
       }, 240_000)

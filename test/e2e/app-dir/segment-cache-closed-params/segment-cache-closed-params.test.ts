@@ -3,7 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
 import { createRouterAct } from 'router-act'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate prefetching
+// @force-gate !futureCompat
 describe('segment cache closed params (paramMatching: not-found)', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,

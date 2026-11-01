@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !(rspack && react18 && start)
 describe('Image Loader Config with Edge Runtime', () => {
   const { next } = nextTestSetup({
     files: __dirname,

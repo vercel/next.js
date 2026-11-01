@@ -39,6 +39,9 @@ type QuerySpansResult = {
   totalCount: number
 }
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('layout-segment-chunk-sharing', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,

@@ -197,6 +197,12 @@ export const conditions: Record<string, Condition> = {
 
   // --- lazy: the fixture's resolved next.config ------------------------------
 
+  sassEmbedded: lazyCondition(
+    'the fixture uses the sass-embedded implementation',
+    (config) =>
+      (config.sassOptions as { implementation?: string } | undefined)
+        ?.implementation === 'sass-embedded'
+  ),
   cacheComponents: lazyCondition(
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents

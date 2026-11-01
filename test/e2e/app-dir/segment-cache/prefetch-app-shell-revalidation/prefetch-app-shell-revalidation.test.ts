@@ -16,7 +16,10 @@ const REPRODUCE_STATIC_PAGE_UPGRADE_BUG =
 
 // The fixture rewrites value.json during requests; deployments do not provide
 // a writable, shared application filesystem.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('App Shell revalidation', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

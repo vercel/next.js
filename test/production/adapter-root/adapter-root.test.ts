@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
+import { gate } from 'next-test-utils'
 
 describe('adapter-root', () => {
   describe.each([
@@ -38,7 +39,14 @@ describe('adapter-root', () => {
       if (setEnvVar) {
         next.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT = expectedRepoRoot
       }
-      await next.build()
+      const { exitCode, cliOutput } = await next.build()
+      if (await gate((conditions) => conditions.futureCompat)) {
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain('DEP0169')
+        expect(cliOutput).toContain('url.parse()')
+        return
+      }
+      expect(exitCode).toBe(0)
 
       expect(next.cliOutput).not.toContain(
         'We detected multiple lockfiles and selected the directory'
