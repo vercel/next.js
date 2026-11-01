@@ -267,6 +267,26 @@ export async function prepareCoverageThresholdUpdate(
   return prepareCoverageThresholdEdits({ ...options, configFile, source })
 }
 
+/** Publish in the formatter realm before its native queued jobs resume. */
+export async function publishCoverageThresholdUpdate(
+  options: ThresholdUpdateOptions & {
+    formatter: (value: number, previous: number) => number
+  }
+): Promise<string | undefined> {
+  const { configFile, signal } = options
+  signal?.throwIfAborted()
+  if (!configFile) throw new Error(missingConfiguration)
+  const source = await readFile(configFile, 'utf8')
+  signal?.throwIfAborted()
+  const rewritten = prepareCoverageThresholdEdits({
+    ...options,
+    configFile,
+    source,
+  })
+  commitCoverageThresholdUpdate({ configFile, source: rewritten, signal })
+  return rewritten
+}
+
 /** Only the caller commits its selected configuration, after cancellation checks. */
 export function commitCoverageThresholdUpdate(options: {
   configFile: string | undefined

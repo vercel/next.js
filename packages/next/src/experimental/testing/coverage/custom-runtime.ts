@@ -1,3 +1,4 @@
+import { supportsCustomCoverageMode } from './custom-options'
 import { createHash } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -143,7 +144,7 @@ export function assertCustomCoverageRequest(
     options.collectOnly ||
     artifact.kind !== 'node' ||
     artifact.profile.environment !== 'node' ||
-    artifact.profile.mode !== 'development' ||
+    !supportsCustomCoverageMode(artifact.profile.mode, [options.entry.file]) ||
     artifact.profile.route !== undefined ||
     artifact.moduleMocking ||
     artifact.moduleCache ||
@@ -156,7 +157,7 @@ export function assertCustomCoverageRequest(
     typeof options.onCustomCoverage !== 'function'
   )
     throw new Error(
-      'Custom coverage requires an isolated unmocked development Node file and an awaited parent consumer.'
+      'Custom coverage requires an isolated unmocked Node file in development or plain JavaScript production and an awaited parent consumer.'
     )
 }
 export function assertCustomCoverageCompletion(

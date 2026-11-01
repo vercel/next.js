@@ -13109,3 +13109,299 @@ describe('project filter patterns before shard assignment', () => {
     }
   )
 })
+
+describe('failed settled coverage keeps its original result diagnostics', () => {
+  it.each([
+    'failed',
+    'finish-failed',
+    'undefined',
+    'opaque',
+    'passed',
+    'aborted',
+    'unsafe',
+    'cancelled',
+    'running',
+  ] as const)(
+    'preserves the actual preparation and result completion boundary for %s',
+    async (scenario) => {
+      const directory = await mkdtemp(
+        path.join(os.tmpdir(), 'next-failed-coverage-json-')
+      )
+      const file = path.join(directory, 'contract.test.mjs')
+      await writeFile(file, "import {test} from 'vitest';test('body',()=>{})\n")
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [{ name: 'release', include: ['contract.test.mjs'] }],
+        })
+      )
+      const preparationError = Object.assign(
+        new Error('actual rejected coverage preparation'),
+        {
+          code: 'ACTUAL_COVERAGE_REJECTION',
+          cause: new Error('actual original input failure'),
+        }
+      )
+      const preparationValue: unknown =
+        scenario === 'undefined'
+          ? undefined
+          : scenario === 'opaque'
+            ? Object.freeze({ actual: 'opaque preparation value' })
+            : preparationError
+      const finishError = new Error('actual result completion failure')
+      const primary = {
+        phase: 'runtime' as const,
+        severity: 'error' as const,
+        name: 'Error',
+        message: 'actual original compiler input mutation',
+        code: 'ACTUAL_INPUT_CHANGED',
+        stack: 'actual original input stack',
+        cause: {
+          phase: 'runtime' as const,
+          severity: 'error' as const,
+          name: 'Error',
+          message: 'actual nested compiler reason',
+        },
+      }
+      const finishCalls: unknown[][] = []
+      const publish = jest.fn(async (_options: unknown) => {
+        throw preparationValue
+      })
+      const owners = [...new Set([process, jest.requireActual('node:process')])]
+      const previous = owners.map((owner) => ({
+        owner,
+        exitCode: owner.exitCode,
+        interrupts: owner.listeners('SIGINT'),
+      }))
+      let rejected = false
+      let thrown: unknown
+      jest.doMock(
+        'next/dist/experimental/testing/coverage/report-standard',
+        () => ({
+          ...jest.requireActual(
+            'next/dist/experimental/testing/coverage/report-standard'
+          ),
+          prepareStandardCoverageDirectory: jest.fn(async () => {}),
+          publishStandardCoverage: publish,
+        })
+      )
+      jest.doMock('next/dist/experimental/testing/reporting/machine', () => {
+        const actual = jest.requireActual(
+          'next/dist/experimental/testing/reporting/machine'
+        )
+        return {
+          ...actual,
+          createMachineReporter(options: unknown) {
+            const machine = actual.createMachineReporter(options),
+              finish = machine.finish
+            machine.finish = async function (...args: unknown[]) {
+              finishCalls.push(args)
+              if (scenario === 'finish-failed') throw finishError
+              return Reflect.apply(finish, this, args)
+            }
+            return machine
+          },
+        }
+      })
+      jest.doMock('next/dist/experimental/testing/orchestrator', () => ({
+        ...jest.requireActual('next/dist/experimental/testing/orchestrator'),
+        runTests: async (
+          _directory: string,
+          projects: DiscoveredTestProject[],
+          options: any
+        ) => {
+          const entry = projects[0].entries[0],
+            envelope = {
+              version: 1,
+              runId: 'actual-coverage-run',
+              timestamp: 1,
+            }
+          const status =
+            scenario === 'passed'
+              ? 'passed'
+              : scenario === 'cancelled'
+                ? 'cancelled'
+                : scenario === 'running'
+                  ? 'running'
+                  : 'failed'
+          options.onEvent({ ...envelope, type: 'run-start' })
+          options.onEvent({ ...envelope, type: 'file-start', entry })
+          for (const index of [0, 1]) {
+            const task = {
+              entryId: entry.id,
+              caseId: entry.id + '/' + index,
+              name: 'actual body ' + index,
+              testName: 'actual body ' + index,
+              ancestors: [],
+              attempt: { id: 'actual-attempt-' + index, retry: 0, repeat: 0 },
+              mode: 'run',
+            }
+            options.onEvent({ ...envelope, type: 'case-start', ...task })
+            options.onEvent({
+              ...envelope,
+              type: 'case-end',
+              ...task,
+              status: 'passed',
+              durationMs: 0,
+              errors: [],
+              meta: {},
+              tags: [],
+              annotations: [],
+            })
+          }
+          options.onEvent({
+            ...envelope,
+            type: 'file-end',
+            entryId: entry.id,
+            status: 'passed',
+            durationMs: 0,
+          })
+          if (status === 'failed')
+            options.onEvent({
+              ...envelope,
+              type: 'diagnostic',
+              entryId: entry.id,
+              diagnostic: primary,
+            })
+          options.onEvent({
+            ...envelope,
+            type: 'run-end',
+            status,
+            durationMs: 0,
+          })
+          if (scenario === 'aborted') {
+            const registrations = previous.flatMap((prior) =>
+              prior.owner
+                .listeners('SIGINT')
+                .filter(
+                  (listener: (...args: any[]) => void) =>
+                    !prior.interrupts.includes(listener)
+                )
+            )
+            expect(registrations).toHaveLength(1)
+            registrations[0]()
+            expect(options.signal.aborted).toBe(true)
+          }
+          return {
+            status,
+            unsafeCleanup: scenario === 'unsafe',
+            standardCoverage: [],
+            compilerSourceCoverage: [],
+            coverageSourcePlan: { version: 1, requests: [], inputs: [] },
+            runtimeConfigurationPlan: { version: 1, requests: [] },
+            runtimeConfigurationReceipts: [],
+          }
+        },
+      }))
+      try {
+        for (const prior of previous) prior.owner.exitCode = undefined
+        await jest.isolateModulesAsync(async () => {
+          const { nextTestRunner: runner } = await import(
+            'next/dist/cli/next-test-runner'
+          )
+          try {
+            await runner(directory, {
+              run: true,
+              coverage: true,
+              'coverage.reporter': ['json'],
+              reporter: ['json'],
+              outputFile: 'result.json',
+            })
+          } catch (error) {
+            rejected = true
+            thrown = error
+          }
+        })
+        const report = await readFile(
+          path.join(directory, 'result.json'),
+          'utf8'
+        )
+          .then(JSON.parse)
+          .catch((error) => {
+            if (error.code === 'ENOENT') return undefined
+            throw error
+          })
+        if (
+          scenario === 'failed' ||
+          scenario === 'undefined' ||
+          scenario === 'opaque'
+        ) {
+          expect(rejected).toBe(true)
+          expect(thrown).toBe(preparationValue)
+          expect(finishCalls).toEqual([[undefined]])
+          expect(report).toMatchObject({
+            success: false,
+            numTotalTests: 2,
+            numPassedTests: 2,
+            numFailedTests: 0,
+          })
+          expect(report.coverageMap).toBeUndefined()
+          expect(
+            report.next.events
+              .filter((event: ResultEvent) => event.type === 'diagnostic')
+              .map((event: any) => event.diagnostic)
+          ).toContainEqual(primary)
+        } else if (scenario === 'finish-failed') {
+          expect(thrown).toBeInstanceOf(AggregateError)
+          expect((thrown as AggregateError).errors).toEqual([
+            preparationError,
+            finishError,
+          ])
+          expect((thrown as AggregateError).errors[0]).toBe(preparationError)
+          expect((thrown as AggregateError).errors[1]).toBe(finishError)
+          expect(finishCalls).toEqual([[undefined]])
+          expect(report).toBeUndefined()
+        } else if (scenario === 'passed' || scenario === 'aborted') {
+          expect(thrown).toBe(preparationError)
+          expect(finishCalls).toEqual([])
+          expect(report).toBeUndefined()
+        } else {
+          expect(publish).not.toHaveBeenCalled()
+          expect(finishCalls).toHaveLength(1)
+          if (scenario === 'unsafe')
+            expect((thrown as Error).message).toBe(
+              'Standard coverage did not complete after clean execution.'
+            )
+          else if (scenario === 'running')
+            expect((thrown as Error).message).toBe(
+              'Standard coverage requires a terminal run result.'
+            )
+          else expect(thrown).toBeUndefined()
+        }
+        if (
+          [
+            'failed',
+            'finish-failed',
+            'undefined',
+            'opaque',
+            'passed',
+            'aborted',
+          ].includes(scenario)
+        ) {
+          expect(publish).toHaveBeenCalledTimes(1)
+          expect(publish.mock.calls[0][0]).toMatchObject({ prepareOnly: true })
+          expect(preparationError.cause?.message).toBe(
+            'actual original input failure'
+          )
+          expect(preparationError.code).toBe('ACTUAL_COVERAGE_REJECTION')
+        }
+        await expect(
+          readFile(path.join(directory, 'coverage/coverage-final.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        await expect(
+          readFile(path.join(directory, 'coverage/lcov.info'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        for (const prior of previous) prior.owner.exitCode = prior.exitCode
+        for (const id of [
+          'next/dist/experimental/testing/coverage/report-standard',
+          'next/dist/experimental/testing/reporting/machine',
+          'next/dist/experimental/testing/orchestrator',
+        ])
+          jest.dontMock(id)
+        jest.restoreAllMocks()
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  )
+})

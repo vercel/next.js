@@ -8,6 +8,11 @@ import type { ResultEvent, SerializedDiagnostic } from './events'
 import type { CustomReporterCompletion } from './custom-reporter-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
 
+export interface CustomReporterInvocation {
+  count: number
+  synchronousThrow?: { reporterIndex: number }
+}
+
 const builtinReporters = new Set([
   'default',
   'agent',
@@ -95,6 +100,7 @@ export async function openCustomReporters(options: {
         resolve(): void
         reject(error: unknown): void
         requestType?: string
+        invoked?(receipt: CustomReporterInvocation): void
         timer?: ReturnType<typeof setTimeout>
       }
     | undefined
@@ -163,12 +169,16 @@ export async function openCustomReporters(options: {
     if (errors.length)
       throw new AggregateError(errors, 'Custom reporter cancellation failed.')
   }
-  function response(requestType?: string): Promise<void> {
+  function response(
+    requestType?: string,
+    invoked?: (receipt: CustomReporterInvocation) => void
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       pending = {
         resolve,
         reject,
         requestType,
+        invoked,
         timer: setTimeout(() => {
           const error = new Error('Custom reporter request timed out.')
           failure ??= error
@@ -194,6 +204,31 @@ export async function openCustomReporters(options: {
       send = value
     },
     onMessage(message: any) {
+      if (message?.type === 'custom-reporter-invoked') {
+        if (
+          pending?.requestType !== 'finish-begin' ||
+          !pending.invoked ||
+          !Number.isSafeInteger(message.count) ||
+          message.count < 1 ||
+          message.count > files.length ||
+          (message.synchronousThrow !== undefined &&
+            (!message.synchronousThrow ||
+              typeof message.synchronousThrow !== 'object' ||
+              Object.keys(message.synchronousThrow).length !== 1 ||
+              !Object.hasOwn(message.synchronousThrow, 'reporterIndex') ||
+              !Number.isSafeInteger(message.synchronousThrow.reporterIndex) ||
+              message.synchronousThrow.reporterIndex < 0 ||
+              message.synchronousThrow.reporterIndex >= files.length))
+        )
+          throw new Error('Invalid custom reporter invocation receipt.')
+        pending.invoked({
+          count: message.count,
+          ...(message.synchronousThrow === undefined
+            ? {}
+            : { synchronousThrow: message.synchronousThrow }),
+        })
+        return
+      }
       if (
         message?.type !== 'custom-reporter-result' &&
         message?.type !== 'custom-reporter-failed'
@@ -241,7 +276,7 @@ export async function openCustomReporters(options: {
         shutdownResponseFailure = error
       if (
         error &&
-        current?.requestType === 'finish' &&
+        ['finish', 'finish-begin'].includes(current?.requestType ?? '') &&
         message.reporterErrors !== undefined
       )
         terminalReporterFailure = { error, reporterErrors }
@@ -301,13 +336,14 @@ export async function openCustomReporters(options: {
   )
   async function request(
     message: { type: string; [key: string]: unknown },
-    shutdown = false
+    shutdown = false,
+    invoked?: (receipt: CustomReporterInvocation) => void
   ) {
     if (options.signal?.aborted) throw failure ?? options.signal.reason
     if (pending || closed || (closing && !shutdown))
       throw failure ?? new Error('Custom reporter session is unavailable.')
     if (failure && !shutdown) throw failure
-    const result = response(message.type)
+    const result = response(message.type, invoked)
     void send(message).catch((error) => {
       failure ??= error
       retainCancellationFailure(error)
@@ -597,6 +633,40 @@ export async function openCustomReporters(options: {
         consoleQueue = consoleQueue
           .then(() => request({ type: 'console', log }))
           .catch(retainConsoleFailure)
+      },
+      beginFinish(completion: CustomReporterCompletion) {
+        let resolveInvoked!: (receipt?: CustomReporterInvocation) => void
+        let rejectInvoked!: (error: unknown) => void
+        const invoked = new Promise<CustomReporterInvocation | undefined>(
+          (resolve, reject) => {
+            resolveInvoked = resolve
+            rejectInvoked = reject
+          }
+        )
+        // This waiter may reject during flush before its owner starts awaiting it.
+        void invoked.catch(() => {})
+        const completed = (async () => {
+          await Promise.all([
+            ...queuedWrites,
+            ...collectedWrites,
+            ...preparationWrites,
+          ])
+          await consoleQueue
+          if (options.signal?.aborted) {
+            await settleCancellation()
+            throw options.signal.reason
+          }
+          if (consoleFailure) throw consoleFailure
+          await request(
+            { type: 'finish-begin', completion },
+            false,
+            resolveInvoked
+          )
+        })()
+        // A completed operation with no end hook is honest absence, not a call receipt.
+        // Flush, transport, worker-exit and abort failures wake both owned waiters.
+        void completed.then(() => resolveInvoked(), rejectInvoked)
+        return { invoked, completed }
       },
       async finish(completion: CustomReporterCompletion) {
         await Promise.all([

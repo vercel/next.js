@@ -101,6 +101,9 @@ async function launch(
   const watcher = fs.watch(fixture, { recursive: true }, () =>
     events.emit('change')
   )
+  const resultFile = path.join(fixture, 'result.json')
+  const resultChanged = () => events.emit('change')
+  fs.watchFile(resultFile, { interval: 10 }, resultChanged)
   const ready = () =>
     human
       ? (
@@ -153,6 +156,7 @@ async function launch(
     }
   }
   async function close() {
+    fs.unwatchFile(resultFile, resultChanged)
     watcher.close()
     if (!closed) {
       const exit = new Promise((resolve) => child.once('exit', resolve))

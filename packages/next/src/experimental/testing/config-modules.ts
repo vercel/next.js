@@ -307,6 +307,7 @@ export async function openTestConfigModule(
       compilerTransformNames: result.compilerTransforms?.names ?? [],
       ...(result.coverageThresholdFormatter
         ? {
+            /** Existing request name; the result is the exact already-written source. */
             prepareCoverageThresholdUpdate(
               updates: readonly StandardCoverageThresholdUpdate[]
             ): Promise<string | undefined> {

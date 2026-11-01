@@ -54,5 +54,8 @@ export function writeReports(
   >,
   directory: string,
   reporters: string[],
-  options?: Record<string, object>
+  options?: Record<string, object>,
+  watermarks?: Partial<
+    Record<'statements' | 'functions' | 'branches' | 'lines', [number, number]>
+  >
 ): Promise<string>

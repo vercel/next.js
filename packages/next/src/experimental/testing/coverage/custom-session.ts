@@ -7,6 +7,7 @@ import type {
   CustomCoverageConfig,
   CustomCoverageFact,
   CustomCoverageRequest,
+  CustomCoverageResult,
 } from './custom-types'
 
 /** Provider hooks run in a real owned realm, separate from compiler and files. */
@@ -163,6 +164,26 @@ export async function openCustomCoverageSession(options: {
             fact,
           }
         )
+      },
+      async generate(
+        facts: CustomCoverageFact[],
+        status: 'passed' | 'failed',
+        allTestsRun: boolean
+      ): Promise<CustomCoverageResult> {
+        const result = await command(
+          'custom-coverage-generate',
+          'custom-coverage-generated',
+          {
+            facts,
+            status,
+            allTestsRun,
+          }
+        )
+        if (!Object.hasOwn(result, 'coverage'))
+          throw new Error(
+            'Custom coverage host omitted its actual generated value.'
+          )
+        return { coverage: result.coverage }
       },
       async finish(
         facts: CustomCoverageFact[],

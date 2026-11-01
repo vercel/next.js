@@ -1,0 +1,702 @@
+{
+  "referenceVersion": "5.0.4",
+  "fullAuthoredErrorStackParityQualified": false,
+  "rows": [
+    {
+      "name": "cli-sync-before",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "fcae7bb800f07547076aadadaa27cb3760fba64485d500b1aa79fdcb7f7fdb9e"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["observer.mjs", "json"],
+      "priorJSONBytes": null,
+      "expected": {
+        "name": "cli-sync-before",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": false
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": false
+          }
+        ],
+        "hasJSON": false,
+        "hasProviderReport": false,
+        "publication": "none"
+      }
+    },
+    {
+      "name": "cli-sync-after",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "fcae7bb800f07547076aadadaa27cb3760fba64485d500b1aa79fdcb7f7fdb9e"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["json", "observer.mjs"],
+      "priorJSONBytes": null,
+      "expected": {
+        "name": "cli-sync-after",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": false
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": false
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli-async-before",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{async onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "27977f68ddfd0c3533da90af96d81def562f644e76a6cf01dd3d809f28392a37"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["observer.mjs", "json"],
+      "priorJSONBytes": null,
+      "expected": {
+        "name": "cli-async-before",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": false
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": false
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli-async-after",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{async onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "27977f68ddfd0c3533da90af96d81def562f644e76a6cf01dd3d809f28392a37"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["json", "observer.mjs"],
+      "priorJSONBytes": null,
+      "expected": {
+        "name": "cli-async-after",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": false
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": false
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli-promise-before",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{onTestRunEnd(){record('modern-enter');return Promise.reject(new Error('actual113 reporter failure'))}}\n",
+          "sha256": "24834f86c49b8349105194a002b3d8d8c74462134c88280df18045f5aad3c601"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["observer.mjs", "json"],
+      "priorJSONBytes": null,
+      "expected": {
+        "name": "cli-promise-before",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": false
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": false
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli-promise-after",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{onTestRunEnd(){record('modern-enter');return Promise.reject(new Error('actual113 reporter failure'))}}\n",
+          "sha256": "24834f86c49b8349105194a002b3d8d8c74462134c88280df18045f5aad3c601"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["json", "observer.mjs"],
+      "priorJSONBytes": null,
+      "expected": {
+        "name": "cli-promise-after",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": false
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": false
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli-sync-before-prior",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "fcae7bb800f07547076aadadaa27cb3760fba64485d500b1aa79fdcb7f7fdb9e"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["observer.mjs", "json"],
+      "priorJSONBytes": "{\"prior\":115}\n",
+      "expected": {
+        "name": "cli-sync-before-prior",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": true
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": true
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "preserved"
+      }
+    },
+    {
+      "name": "cli-sync-after-prior",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "fcae7bb800f07547076aadadaa27cb3760fba64485d500b1aa79fdcb7f7fdb9e"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["json", "observer.mjs"],
+      "priorJSONBytes": "{\"prior\":115}\n",
+      "expected": {
+        "name": "cli-sync-after-prior",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": true
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": true
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli-async-before-prior",
+      "sourceFiles": {
+        "coverage-provider.mjs": {
+          "source": "import { appendFileSync, writeFileSync } from 'node:fs'\nconst record = (name, data = {}) =>\n  appendFileSync(\n    'provider-trace.jsonl',\n    JSON.stringify({ name, ...data }) + '\\n'\n  )\nclass ReleaseProvider {\n  name = 'release-provider'\n  payloads = []\n  initialize(ctx) {\n    record('initialize')\n    this.options = { ...ctx.config.coverage, provider: 'custom', enabled: true }\n  }\n  resolveOptions() {\n    record('resolve')\n    return this.options\n  }\n  clean() {\n    record('clean')\n  }\n  onTestRunStart() {\n    record('run-start')\n  }\n  onAfterSuiteRun(meta) {\n    record('suite', { coverage: meta.coverage, testFiles: meta.testFiles })\n    this.payloads.push(meta.coverage)\n  }\n  generateCoverage() {\n    record('generate')\n    return { payloads: this.payloads }\n  }\n  reportCoverage(coverage) {\n    record('report')\n    writeFileSync('custom-coverage.json', JSON.stringify(coverage))\n  }\n}\nexport default {\n  getProvider() {\n    record('get-provider')\n    return new ReleaseProvider()\n  },\n  startCoverage() {\n    record('start')\n  },\n  takeCoverage() {\n    record('take')\n    return { releasePayload: 42 }\n  },\n  stopCoverage() {\n    record('stop')\n  },\n}\n\nimport{existsSync,readFileSync}from'node:fs';let generatedValue;const mapSnapshot=()=>existsSync('cases.json')?JSON.parse(readFileSync('cases.json','utf8')).coverageMap:null;ReleaseProvider.prototype.generateCoverage=function(){record('generate',{jsonExists:existsSync('cases.json')});generatedValue={stage:'generated',payloads:this.payloads};return generatedValue};ReleaseProvider.prototype.onTestFailure=function(){record('failure-enter',{jsonExists:existsSync('cases.json'),mapSnapshot:mapSnapshot()});if(generatedValue&&typeof generatedValue==='object')generatedValue.stage='mutated';record('failure-leave',{mapSnapshot:mapSnapshot(),generatedStage:generatedValue?.stage??null});};ReleaseProvider.prototype.reportCoverage=function(value){const detail={same:value===generatedValue,coverage:value,mapSnapshot:mapSnapshot()};record('report',detail);writeFileSync('custom-coverage.json',JSON.stringify(detail))}\n",
+          "sha256": "f5a82cd4fb2fdd3cf046e92944e9a45f38788267e688b9de902fdc1570b614ec"
+        },
+        "contract.case.mjs": {
+          "source": "import { test, expect } from 'vitest'\ntest('custom provider owns coverage collection', () => expect(42).toBe(42))\ntest('actual failed body113',()=>expect(1).toBe(2))\n",
+          "sha256": "ab25ef78ac274e813408a91271f67e838bdac5fffab542565812cb0a51ebe505"
+        },
+        "observer.mjs": {
+          "source": "import fs from'node:fs';const record=(name)=>fs.appendFileSync('provider-trace.jsonl',JSON.stringify({name,jsonExists:fs.existsSync('cases.json')})+'\\n');export default class{async onTestRunEnd(){record('modern-enter');throw new Error('actual113 reporter failure')}}\n",
+          "sha256": "27977f68ddfd0c3533da90af96d81def562f644e76a6cf01dd3d809f28392a37"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.case.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"custom\",\"customProviderModule\":\"./coverage-provider.mjs\",\"reportOnFailure\":true}}}\n",
+      "reporters": ["observer.mjs", "json"],
+      "priorJSONBytes": "{\"prior\":115}\n",
+      "expected": {
+        "name": "cli-async-before-prior",
+        "exit": 1,
+        "trace": [
+          {
+            "name": "get-provider"
+          },
+          {
+            "name": "initialize"
+          },
+          {
+            "name": "resolve"
+          },
+          {
+            "name": "clean"
+          },
+          {
+            "name": "run-start"
+          },
+          {
+            "name": "start"
+          },
+          {
+            "name": "take"
+          },
+          {
+            "name": "suite",
+            "coverage": {
+              "releasePayload": 42
+            },
+            "testFiles": ["contract.case.mjs"]
+          },
+          {
+            "name": "stop"
+          },
+          {
+            "name": "generate",
+            "jsonExists": true
+          },
+          {
+            "name": "modern-enter",
+            "jsonExists": true
+          }
+        ],
+        "hasJSON": true,
+        "hasProviderReport": false,
+        "publication": "written",
+        "caseCounts": {
+          "passed": 1,
+          "failed": 1
+        },
+        "actualJSONCoverageMap": {
+          "stage": "generated",
+          "payloads": [
+            {
+              "releasePayload": 42
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

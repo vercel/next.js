@@ -150,8 +150,9 @@ async function main() {
   const user = new AbortController()
   const events = []
   let session
-  let watcher
-  let traceWatcher
+  let observeGate
+  let observeTrace
+  let traceObservationTimer
   let observedExecution = false
   let published = false
   let captureAttempts = 0
@@ -224,7 +225,7 @@ async function main() {
       )
       fs.writeFileSync(path.join(root, gate + '-release'), 'release')
     }
-    watcher = fs.watch(root, () => {
+    observeGate = () => {
       if (
         !fs.existsSync(path.join(root, gate + '-started')) ||
         user.signal.aborted
@@ -235,10 +236,22 @@ async function main() {
         true
       )
       observedExecution = true
-      if (hook)
-        traceWatcher = fs.watch(path.join(root, traceDirectory), releaseHook)
+      if (hook) {
+        observeTrace = releaseHook
+        fs.watchFile(
+          path.join(root, traceDirectory, 'trace.jsonl'),
+          { interval: 10 },
+          observeTrace
+        )
+        traceObservationTimer = setInterval(releaseHook, 10)
+      }
       user.abort()
-    })
+    }
+    fs.watchFile(
+      path.join(root, gate + '-started'),
+      { interval: 10 },
+      observeGate
+    )
     const completion = await executeWithEnvironment(
       artifact,
       {
@@ -384,8 +397,14 @@ async function main() {
         '\n'
     )
   } finally {
-    watcher?.close()
-    traceWatcher?.close()
+    clearInterval(traceObservationTimer)
+    if (observeGate)
+      fs.unwatchFile(path.join(root, gate + '-started'), observeGate)
+    if (observeTrace)
+      fs.unwatchFile(
+        path.join(root, traceDirectory, 'trace.jsonl'),
+        observeTrace
+      )
     await session?.dispose()
     fs.promises.mkdtemp = createDirectory
     fs.rmSync(root, { recursive: true, force: true })

@@ -1,3 +1,5 @@
+import type { DiscoveredTestProject } from '../discovery'
+import type { TestProfile } from '../contracts'
 import type { StandardCoverageThresholdUpdate } from './types'
 
 type Formatter = (value: number, previous: number) => number
@@ -42,17 +44,26 @@ export function retainCoverageThresholdFormatter(
     : []
   const callbacks = [test, ...settings].filter(record).filter(callback)
   if (!callbacks.length) return { value }
+  // One root closure can own the combined coverage of inheriting inline projects.
+  const inheritedRootFormatter =
+    Array.isArray(projects) &&
+    projects.length > 1 &&
+    settings.every((setting) => record(setting) && !('coverage' in setting))
+      ? callback(test)
+      : undefined
   if (
     projectConfig ||
-    (Array.isArray(projects) && (projects.length !== 1 || !record(settings[0])))
+    (Array.isArray(projects) &&
+      (projects.length !== 1 || !record(settings[0])) &&
+      !inheritedRootFormatter)
   )
     throw new Error(
       'Coverage threshold formatters currently require one inline project in the root configuration.'
     )
   const selected = record(settings[0]) ? settings[0] : undefined
-  const formatter = callback(
-    selected && 'coverage' in selected ? selected : test
-  )
+  const formatter =
+    inheritedRootFormatter ??
+    callback(selected && 'coverage' in selected ? selected : test)
   const normalizedProjects = Array.isArray(projects)
     ? projects.map((project) =>
         record(project) && record(project.test)
@@ -93,4 +104,38 @@ export function formatCoverageThresholdUpdates(
       )
     return { ...update, value }
   })
+}
+
+/** The existing retained closure can publish one homogeneous ordinary Node run. */
+export function canUpdateMultipleRootProjectThresholds(
+  projects: readonly Pick<
+    DiscoveredTestProject,
+    'profile' | 'entries' | 'isolate' | 'executionEnvironment' | 'typecheck'
+  >[],
+  prepare: unknown
+): boolean {
+  if (typeof prepare !== 'function' || projects.length < 2) return false
+  const mode = projects[0].profile.mode
+  const ordinaryNode = (profile: TestProfile) =>
+    (mode === 'development' || mode === 'production') &&
+    profile.mode === mode &&
+    profile.environment === 'node' &&
+    profile.runtime === 'nodejs' &&
+    profile.bundler === 'turbopack' &&
+    profile.browserClient !== true &&
+    profile.route === undefined
+  return projects.every(
+    (project) =>
+      project.isolate !== false &&
+      project.executionEnvironment === undefined &&
+      !project.typecheck?.enabled &&
+      ordinaryNode(project.profile) &&
+      project.entries.length > 0 &&
+      project.entries.every(
+        (entry) =>
+          entry.executionEnvironment === undefined &&
+          !entry.typecheck &&
+          ordinaryNode(entry.profile)
+      )
+  )
 }

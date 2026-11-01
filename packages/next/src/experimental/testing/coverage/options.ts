@@ -202,12 +202,23 @@ export function parseProjectStandardCoverage(
         'clean',
         'cleanOnRerun',
         'thresholds',
+        'watermarks',
       ].includes(key)
     )
       throw new Error(`Unsupported V8 coverage option: ${key}`)
   for (const key of ['enabled', 'reportOnFailure', 'clean', 'cleanOnRerun'])
     if (config[key] !== undefined && typeof config[key] !== 'boolean')
       throw new Error(`V8 coverage ${key} must be a boolean.`)
+  let watermarks: StandardCoverageOptions['watermarks']
+  if (config.watermarks !== undefined) {
+    if (!config.watermarks || typeof config.watermarks !== 'object')
+      throw new Error('Coverage watermarks require a metric object.')
+    // The pinned context owns its default filling and numeric coercion.
+    // Keep the resolved configuration independent of those mutations.
+    watermarks = structuredClone(config.watermarks) as NonNullable<
+      StandardCoverageOptions['watermarks']
+    >
+  }
   const names =
     config.reporter === undefined
       ? ['text', 'html', 'clover', 'json']
@@ -248,8 +259,13 @@ export function parseProjectStandardCoverage(
     for (const key of Object.keys(options))
       if (
         name !== 'text' ||
-        key !== 'skipFull' ||
-        typeof options[key] !== 'boolean'
+        !(
+          ((key === 'skipFull' || key === 'skipEmpty') &&
+            typeof options[key] === 'boolean') ||
+          (key === 'maxCols' &&
+            typeof options[key] === 'number' &&
+            Number.isFinite(options[key]))
+        )
       )
         throw new Error(`Unsupported V8 coverage reporter option: ${key}`)
     if (!reporter.includes(name)) reporter.push(name)
@@ -348,6 +364,7 @@ export function parseProjectStandardCoverage(
     options: {
       ...parseStandardCoverageOptions(flags)!,
       ...(thresholdGroups.length ? { thresholdGroups } : {}),
+      ...(watermarks === undefined ? {} : { watermarks }),
       ...(Array.isArray(config.include) && !config.include.length
         ? { include: [] }
         : {}),

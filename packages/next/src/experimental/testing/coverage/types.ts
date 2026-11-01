@@ -179,7 +179,11 @@ export interface StandardCoverageOptions {
   )[]
   /** Configured providers use the pinned formatter's complete report contracts. */
   formatterReports?: true
-  reporterOptions?: { text?: { skipFull?: boolean } }
+  reporterOptions?: {
+    text?: { skipFull?: boolean; skipEmpty?: boolean; maxCols?: number }
+  }
+  /** Configured report color boundaries; absent metrics use formatter defaults. */
+  watermarks?: Partial<Record<StandardCoverageMetric, [number, number]>>
   /** Undefined retains the existing CLI report-publication behavior. */
   clean?: boolean
   include?: string[]

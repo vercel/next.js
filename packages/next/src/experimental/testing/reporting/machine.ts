@@ -31,6 +31,7 @@ import type {
 } from './events'
 import type { TestEntry } from '../contracts'
 import type { PreparedCoverageMap } from '../coverage/report-standard'
+import type { CustomCoverageResult } from '../coverage/custom-types'
 import {
   isReportedSuiteError,
   type CustomReporterCompletion,
@@ -42,8 +43,13 @@ import {
 } from './reporter'
 import { renderTapReport, writeGithubActionsReport } from './builtin-reporters'
 import { orderTestDeclarations, orderTestSpecifications } from './task-order'
-import { isCustomResultReporter, openCustomReporters } from './custom-reporter'
+import {
+  isCustomResultReporter,
+  openCustomReporters,
+  type CustomReporterInvocation,
+} from './custom-reporter'
 import { tryMergeVitestBlobReports } from './vitest-blob'
+import type { ResultOutputFile } from './options'
 export { isCustomResultReporter } from './custom-reporter'
 
 type CustomResultReporter = string & {
@@ -280,7 +286,7 @@ export function createMachineReporter(options: {
   captureJUnitSuiteTasks?: true
   projectDir: string
   reporters: readonly ResultReporter[]
-  outputFile?: string
+  outputFile?: ResultOutputFile
   write?: (text: string) => void
   writeError?: (text: string) => void
   presentation?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'style'>
@@ -314,6 +320,52 @@ export function createMachineReporter(options: {
   const customNames = options.reporters.filter(isCustomResultReporter)
   let custom = options.customReporterSession
   let initialized = custom !== undefined || customNames.length === 0
+  let begunCustomCompletion:
+    | Promise<{ status: 'fulfilled' } | { status: 'rejected'; reason: unknown }>
+    | undefined
+  let begunCustomInvocation:
+    | Promise<CustomReporterInvocation | undefined>
+    | undefined
+  function beginCustomCompletion() {
+    if (!initialized)
+      throw new Error('Custom reporters must initialize before completion.')
+    if (begunCustomCompletion) return begunCustomInvocation
+    if (!enabled || !custom) return
+    const events = collector!.getEvents()
+    if (!events.some((event) => event.type === 'run-end'))
+      throw new Error(
+        'Cannot publish a completed report before authoritative run cleanup.'
+      )
+    const status = collector!.getSummary().status
+    if (status === 'running')
+      throw new Error(
+        'Custom reporters require an authoritative terminal result.'
+      )
+    let completion: Promise<void>
+    try {
+      const operation = custom.beginFinish({
+        ...collector!.getResults(),
+        events,
+        status,
+        recordedReporterErrors: options.recordedReporterErrors,
+        ...(snapshotPreparationFailures.size
+          ? { snapshotPreparationFailures: preparationCompletion() }
+          : {}),
+      })
+      completion = operation.completed
+      begunCustomInvocation = operation.invoked
+    } catch (error) {
+      completion = Promise.reject(error)
+      begunCustomInvocation = Promise.reject(error)
+    }
+    void begunCustomInvocation!.catch(() => {})
+    // Own the actual rejection immediately; finish awaits this same operation.
+    begunCustomCompletion = completion.then(
+      () => ({ status: 'fulfilled' as const }),
+      (reason) => ({ status: 'rejected' as const, reason })
+    )
+    return begunCustomInvocation
+  }
   let initialization: Promise<void> | undefined
   function initialize({ signal }: { signal?: AbortSignal } = {}) {
     if (initialized) return Promise.resolve()
@@ -987,12 +1039,20 @@ export function createMachineReporter(options: {
       )
     return `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>${suites.join('')}</testsuites>\n`
   }
-  async function publishContent(content: string, signal?: AbortSignal) {
-    if (!options.outputFile) {
+  async function publishContent(
+    reporter: ResultReporter,
+    content: string,
+    signal?: AbortSignal
+  ) {
+    const outputFile =
+      typeof options.outputFile === 'string'
+        ? options.outputFile
+        : options.outputFile?.[reporter]
+    if (!outputFile) {
       write(content)
       return
     }
-    const target = resolve(options.projectDir, options.outputFile)
+    const target = resolve(options.projectDir, outputFile)
     const temporary = `${target}.${randomUUID()}.tmp`
     await mkdir(dirname(target), { recursive: true })
     try {
@@ -1319,83 +1379,132 @@ export function createMachineReporter(options: {
     },
     getJson: () => json(),
     getJUnit: junit,
+    beginCustomCompletion,
     async finish({
       signal,
       preparedCoverageMap,
+      customCoverageResult,
       omitInterruptedExecutionJson,
     }: {
       signal?: AbortSignal
       preparedCoverageMap?: PreparedCoverageMap
+      customCoverageResult?: CustomCoverageResult
       omitInterruptedExecutionJson?: true
     } = {}) {
-      signal?.throwIfAborted()
-      if (!enabled) return
+      if (!enabled) {
+        signal?.throwIfAborted()
+        return
+      }
       const events = collector!.getEvents()
-      if (!events.some((event) => event.type === 'run-end'))
-        throw new Error(
-          'Cannot publish a completed report before authoritative run cleanup.'
-        )
       const pendingBlobs: ((
         errors: SerializedDiagnostic[]
       ) => Promise<void>)[] = []
       let recordedReporterErrors: SerializedDiagnostic[] =
         options.recordedReporterErrors ?? []
-      for (const reporter of options.reporters) {
+      let publicationFailure: { error: unknown } | undefined
+      try {
         signal?.throwIfAborted()
-        if (reporter === 'default' || isCustomResultReporter(reporter)) continue
-        if (reporter === 'verbose' || reporter === 'dot') continue
-        if (reporter === 'tap' || reporter === 'tap-flat') {
-          write(
-            renderTapReport(collector!.getResults(), collector!.getEvents(), {
-              projectDir: options.projectDir,
-              flat: reporter === 'tap-flat',
-            })
+        const invocation = begunCustomInvocation
+          ? await begunCustomInvocation
+          : undefined
+        const synchronousCustomPosition =
+          invocation?.synchronousThrow === undefined
+            ? undefined
+            : options.reporters.flatMap((name, index) =>
+                isCustomResultReporter(name) ? [index] : []
+              )[invocation.synchronousThrow.reporterIndex]
+        if (!events.some((event) => event.type === 'run-end'))
+          throw new Error(
+            'Cannot publish a completed report before authoritative run cleanup.'
           )
-          continue
-        }
-        if (reporter === 'github-actions') {
-          await writeGithubActionsReport(
-            collector!.getResults(),
-            collector!.getEvents(),
-            { write, signal }
+        for (const [
+          reporterPosition,
+          reporter,
+        ] of options.reporters.entries()) {
+          signal?.throwIfAborted()
+          if (reporter === 'default' || isCustomResultReporter(reporter))
+            continue
+          if (reporter === 'verbose' || reporter === 'dot') continue
+          if (reporter === 'tap' || reporter === 'tap-flat') {
+            write(
+              renderTapReport(collector!.getResults(), collector!.getEvents(), {
+                projectDir: options.projectDir,
+                flat: reporter === 'tap-flat',
+              })
+            )
+            continue
+          }
+          if (reporter === 'github-actions') {
+            await writeGithubActionsReport(
+              collector!.getResults(),
+              collector!.getEvents(),
+              { write, signal }
+            )
+            continue
+          }
+          if (reporter === 'json' && omitInterruptedExecutionJson === true)
+            continue
+          if (
+            reporter === 'json' &&
+            synchronousCustomPosition !== undefined &&
+            synchronousCustomPosition < reporterPosition
           )
-          continue
+            continue
+          const publish = async (errorsForBlob: SerializedDiagnostic[]) => {
+            const content =
+              reporter === 'junit'
+                ? junit()
+                : `${JSON.stringify(
+                    reporter === 'blob'
+                      ? {
+                          version: 1,
+                          kind: 'next-test-results',
+                          projectDir: options.projectDir,
+                          referenceVersion: '5.0.4',
+                          events,
+                          ...(errorsForBlob.length
+                            ? { reporterErrors: errorsForBlob }
+                            : {}),
+                        }
+                      : {
+                          ...json(),
+                          ...(customCoverageResult !== undefined
+                            ? customCoverageResult.coverage
+                              ? { coverageMap: customCoverageResult.coverage }
+                              : {}
+                            : preparedCoverageMap === undefined
+                              ? {}
+                              : { coverageMap: preparedCoverageMap }),
+                        },
+                    null,
+                    2
+                  )}\n`
+            await publishContent(reporter, content, signal)
+          }
+          if (reporter === 'blob' && custom?.captureTaskResults)
+            pendingBlobs.push(publish)
+          else await publish(recordedReporterErrors)
         }
-        if (reporter === 'json' && omitInterruptedExecutionJson === true)
-          continue
-        const publish = async (errorsForBlob: SerializedDiagnostic[]) => {
-          const content =
-            reporter === 'junit'
-              ? junit()
-              : `${JSON.stringify(
-                  reporter === 'blob'
-                    ? {
-                        version: 1,
-                        kind: 'next-test-results',
-                        projectDir: options.projectDir,
-                        referenceVersion: '5.0.4',
-                        events,
-                        ...(errorsForBlob.length
-                          ? { reporterErrors: errorsForBlob }
-                          : {}),
-                      }
-                    : {
-                        ...json(),
-                        ...(preparedCoverageMap === undefined
-                          ? {}
-                          : { coverageMap: preparedCoverageMap }),
-                      },
-                  null,
-                  2
-                )}\n`
-          await publishContent(content, signal)
-        }
-        if (reporter === 'blob' && custom?.captureTaskResults)
-          pendingBlobs.push(publish)
-        else await publish(recordedReporterErrors)
+      } catch (error) {
+        if (!begunCustomCompletion) throw error
+        publicationFailure = { error }
       }
       let customError: unknown
-      if (custom) {
+      if (begunCustomCompletion) {
+        const completed = await begunCustomCompletion
+        if (publicationFailure) {
+          if (
+            completed.status === 'rejected' &&
+            completed.reason !== publicationFailure.error
+          )
+            throw new AggregateError(
+              [publicationFailure.error, completed.reason],
+              'Result publication and custom completion failed.'
+            )
+          throw publicationFailure.error
+        }
+        if (completed.status === 'rejected') throw completed.reason
+      } else if (custom) {
         const status = collector!.getSummary().status
         if (status === 'running')
           throw new Error(

@@ -8698,3 +8698,851 @@ it('reports genuine authored falsy stacks while preserving execution error ident
       )
   }
 }, 30000)
+
+describe('owned custom completion generation barrier', () => {
+  const make = (root: string, finish?: () => Promise<void> | void) => {
+    const session = finish
+      ? {
+          finish: jest.fn(finish),
+          beginFinish() {
+            let completed: Promise<void>
+            try {
+              completed = Promise.resolve(this.finish())
+            } catch (error) {
+              completed = Promise.reject(error)
+            }
+            return { invoked: Promise.resolve(), completed }
+          },
+          onEvent() {},
+          captureTaskResults: false,
+          async collectErrors() {
+            return []
+          },
+        }
+      : undefined
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile: join(root, 'result.json'),
+      ...(session ? { customReporterSession: session as any } : {}),
+      write() {},
+    })
+    const complete = () => {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+    }
+    return { machine, session, complete }
+  }
+  it('requires authoritative terminal cleanup before starting the actual callback', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-begin-'))
+    const { machine, session, complete } = make(root, async () => {})
+    try {
+      expect(() => machine.beginCustomCompletion()).toThrow(
+        'authoritative run cleanup'
+      )
+      expect(session!.finish).not.toHaveBeenCalled()
+      complete()
+      await machine.beginCustomCompletion()
+      await machine.finish()
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('dispatches once and publishes JSON while the same actual callback remains held', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-held-'))
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { machine, session, complete } = make(root, () => held)
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      await machine.beginCustomCompletion()
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+      const pending = machine.finish({
+        customCoverageResult: { coverage: { actual: [1, 2] } },
+      })
+      await retry(async () =>
+        expect(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+            .coverageMap
+        ).toEqual({ actual: [1, 2] })
+      )
+      release()
+      await pending
+      await machine.finish({
+        customCoverageResult: { coverage: { actual: [1, 2] } },
+      })
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('owns an immediate callback rejection before the caller reaches finish', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-rejection-'))
+    const reason = new Error('actual completion rejection')
+    const { machine, session, complete } = make(root, () =>
+      Promise.reject(reason)
+    )
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      await expect(
+        machine.finish({ customCoverageResult: { coverage: { value: 1 } } })
+      ).rejects.toBe(reason)
+      expect(
+        JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+          .coverageMap
+      ).toEqual({ value: 1 })
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('awaits the retained real callback even after native JSON serialization fails', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-serialization-'))
+    let release!: () => void,
+      settled = false
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { machine, session, complete } = make(root, () => held)
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      const pending = machine
+        .finish({ customCoverageResult: { coverage: 1n } })
+        .catch((error) => {
+          settled = true
+          return error
+        })
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      expect(settled).toBe(false)
+      release()
+      expect(await pending).toBeInstanceOf(TypeError)
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains both actual errors when serialization and the callback independently fail', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-both-fail-'))
+    const callback = new Error('actual callback failure')
+    const { machine, complete } = make(root, () => Promise.reject(callback))
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      const error = await machine
+        .finish({ customCoverageResult: { coverage: 1n } })
+        .catch((error) => error)
+      expect(error).toBeInstanceOf(AggregateError)
+      expect(error.errors).toHaveLength(2)
+      expect(error.errors[0]).toBeInstanceOf(TypeError)
+      expect(error.errors[1]).toBe(callback)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains the exact supplied abort and joins an already begun callback without publication', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-abort-'))
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const reason = new Error('actual supplied publication abort')
+    const controller = new AbortController()
+    const { machine, complete } = make(root, () => held)
+    try {
+      await writeFile(join(root, 'result.json'), 'previous actual report')
+      complete()
+      await machine.beginCustomCompletion()
+      controller.abort(reason)
+      const pending = machine.finish({
+        signal: controller.signal,
+        customCoverageResult: { coverage: { value: 1 } },
+      })
+      const observed = pending.catch((error) => error)
+      release()
+      expect(await observed).toBe(reason)
+      expect(await readFile(join(root, 'result.json'), 'utf8')).toBe(
+        'previous actual report'
+      )
+    } finally {
+      release()
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('preserves unchanged callers that finish without explicitly beginning', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-legacy-finish-'))
+    let observed = false
+    const { machine, session, complete } = make(root, async () => {
+      observed = !!JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+    })
+    try {
+      complete()
+      await machine.finish()
+      expect(observed).toBe(true)
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('keeps begin inert when there is no actual custom completion owner', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-no-owner-'))
+    const { machine, complete } = make(root)
+    try {
+      await machine.beginCustomCompletion()
+      complete()
+      await machine.finish()
+      expect(
+        Object.hasOwn(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8')),
+          'coverageMap'
+        )
+      ).toBe(false)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    [undefined, false, undefined],
+    [null, false, undefined],
+    [false, false, undefined],
+    [0, false, undefined],
+    [NaN, false, undefined],
+    [{}, true, {}],
+    [[], true, []],
+    [Infinity, true, null],
+    ['opaque-custom-data', true, 'opaque-custom-data'],
+  ])(
+    'renders the actual custom value %j with the genuine own-field rule',
+    async (coverage, present, expected) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-custom-json-value-'))
+      const { machine, complete } = make(root)
+      try {
+        complete()
+        await machine.finish({ customCoverageResult: { coverage } })
+        const report = JSON.parse(
+          await readFile(join(root, 'result.json'), 'utf8')
+        )
+        expect(Object.hasOwn(report, 'coverageMap')).toBe(present)
+        expect(report.coverageMap).toEqual(expected)
+      } finally {
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('actual custom completion invocation ownership', () => {
+  const open = async (mode: string, signal?: AbortSignal) => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-actual-custom-invocation-'))
+    await cp(
+      join(
+        __dirname,
+        'fixtures/custom-invocation112',
+        mode === 'no-hook' ? 'no-hook.mjs' : 'reporter.mjs'
+      ),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(join(root, 'options.json'), JSON.stringify({ mode }))
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./reporter.mjs'],
+      signal,
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile: join(root, 'result.json'),
+      customReporterSession: session,
+      write() {},
+    })
+    machine.onEvent({ ...envelope, type: 'run-start' })
+    machine.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 1,
+    })
+    return { root, session, machine }
+  }
+  it('waits for the real synchronous prefix while its returned promise stays held', async () => {
+    const { root, session, machine } = await open('held')
+    try {
+      await machine.beginCustomCompletion()
+      expect(
+        JSON.parse(await readFile(join(root, 'entered.json'), 'utf8'))
+          .jsonExists
+      ).toBe(false)
+      const pending = machine.finish({
+        customCoverageResult: { coverage: { actual: 42 } },
+      })
+      await retry(async () =>
+        expect(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+            .coverageMap
+        ).toEqual({ actual: 42 })
+      )
+      await writeFile(join(root, 'release'), 'release real callback')
+      await pending
+    } finally {
+      await writeFile(join(root, 'release'), 'final release')
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('acknowledges an actual synchronous throw and retains its eventual rejection after JSON', async () => {
+    const { root, session, machine } = await open('sync-throw')
+    let failure: unknown
+    try {
+      await machine.beginCustomCompletion()
+      expect(
+        JSON.parse(await readFile(join(root, 'entered.json'), 'utf8'))
+          .jsonExists
+      ).toBe(false)
+      failure = await machine
+        .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+        .catch((error) => error)
+      expect(failure).toMatchObject({
+        message: 'actual sync invocation failure112',
+      })
+      expect(
+        JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+          .coverageMap
+      ).toEqual({ actual: 42 })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('settles a completed operation without inventing a hook invocation', async () => {
+    const { root, session, machine } = await open('no-hook')
+    try {
+      await machine.beginCustomCompletion()
+      await machine.finish({
+        customCoverageResult: { coverage: { actual: 42 } },
+      })
+      await expect(
+        readFile(join(root, 'entered.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+          .coverageMap
+      ).toEqual({ actual: 42 })
+    } finally {
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('rejects invocation and completion honestly when the worker dies before returning its prefix', async () => {
+    const { root, session, machine } = await open('worker-death')
+    let failure: unknown
+    try {
+      failure = await machine.beginCustomCompletion()!.catch((error) => error)
+      expect(failure).toBeInstanceOf(Error)
+      await expect(
+        machine.finish({ customCoverageResult: { coverage: { actual: 42 } } })
+      ).rejects.toBe(failure)
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('wakes both waiters on an actual queued console flush failure without calling the end hook', async () => {
+    const { root, session, machine } = await open('flush-death')
+    let failure: unknown
+    try {
+      session.onEvent({
+        ...envelope,
+        type: 'output',
+        stream: 'stdout',
+        text: 'actual queued console\n',
+        console: { size: 1 },
+      })
+      failure = await machine.beginCustomCompletion()!.catch((error) => error)
+      expect(failure).toBeInstanceOf(Error)
+      await expect(
+        machine.finish({ customCoverageResult: { coverage: { actual: 42 } } })
+      ).rejects.toBe(failure)
+      await expect(
+        readFile(join(root, 'entered.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('wakes both waiters with the supplied abort before any end hook is called', async () => {
+    const controller = new AbortController(),
+      reason = new Error('actual invocation owner abort112')
+    const { root, session, machine } = await open('held', controller.signal)
+    try {
+      controller.abort(reason)
+      await expect(machine.beginCustomCompletion()).rejects.toBe(reason)
+      await expect(
+        machine.finish({
+          signal: controller.signal,
+          customCoverageResult: { coverage: { actual: 42 } },
+        })
+      ).rejects.toBe(reason)
+      await expect(
+        readFile(join(root, 'entered.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await writeFile(join(root, 'release'), 'final abort release')
+      await machine.dispose()
+      await session.dispose({ handledFailure: reason })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+})
+
+describe('actual synchronous custom JSON ordering', () => {
+  it.each([
+    ['sync-before', 'sync', false],
+    ['sync-after', 'sync', true],
+    ['async-before', 'async', true],
+    ['promise-before', 'promise', true],
+  ] as const)(
+    'preserves actual throw kind and JSON position for %s',
+    async (name, kind, published) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-sync-json115-'))
+      let source = await readFile(
+        join(__dirname, 'fixtures/custom-invocation112/reporter.mjs'),
+        'utf8'
+      )
+      if (kind === 'async')
+        source = source.replace(
+          '  onTestRunEnd() {',
+          '  async onTestRunEnd() {'
+        )
+      if (kind === 'promise')
+        source = source.replace(
+          "throw new Error('actual sync invocation failure112')",
+          "return Promise.reject(new Error('actual sync invocation failure112'))"
+        )
+      await writeFile(join(root, 'reporter.mjs'), source)
+      await writeFile(
+        join(root, 'options.json'),
+        JSON.stringify({ mode: 'sync-throw' })
+      )
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(
+          name === 'sync-after'
+            ? ['json', './reporter.mjs']
+            : ['./reporter.mjs', 'json']
+        ),
+        outputFile: join(root, 'result.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        const receipt = await machine.beginCustomCompletion()
+        expect(receipt).toEqual(
+          kind === 'sync'
+            ? { count: 1, synchronousThrow: { reporterIndex: 0 } }
+            : { count: 1 }
+        )
+        failure = await machine
+          .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+          .catch((error) => error)
+        expect(failure).toMatchObject({
+          message: 'actual sync invocation failure112',
+        })
+        if (published)
+          expect(
+            JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+              .coverageMap
+          ).toEqual({ actual: 42 })
+        else
+          await expect(
+            readFile(join(root, 'result.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual custom synchronous JSON publication', () => {
+  const models = require('./fixtures/custom-sync-json-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches genuine publication and retained errors for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-sync-json-public-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-sync-json.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_SYNC_JSON_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_SYNC_JSON_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual mixed custom completion dispatch', () => {
+  it.each([
+    [
+      'first-sync',
+      ['sync', 'plain', 'plain'],
+      ['first'],
+      { count: 1, synchronousThrow: { reporterIndex: 0 } },
+      false,
+      'first failure',
+    ],
+    [
+      'second-sync',
+      ['plain', 'sync', 'plain'],
+      ['first', 'second'],
+      { count: 2, synchronousThrow: { reporterIndex: 1 } },
+      false,
+      'second failure',
+    ],
+    [
+      'first-async',
+      ['async', 'plain', 'plain'],
+      ['first', 'second', 'third'],
+      { count: 3 },
+      true,
+      'first failure',
+    ],
+  ] as const)(
+    'preserves real dispatch and completion for %s',
+    async (_name, kinds, calls, receipt, published, message) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-dispatch116-'))
+      const names = ['first', 'second', 'third']
+      for (let i = 0; i < names.length; i++)
+        await writeFile(
+          join(root, names[i] + '.mjs'),
+          `import fs from 'node:fs';export default class{${kinds[i] === 'async' ? 'async ' : ''}onTestRunEnd(){fs.appendFileSync(new URL('./calls',import.meta.url),${JSON.stringify(names[i] + '\n')});${kinds[i] === 'plain' ? '' : `throw new Error('${names[i]} failure')`}}}\n`
+        )
+      const reporters = names.map((value) => './' + value + '.mjs')
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters,
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters([...reporters, 'json']),
+        outputFile: join(root, 'result.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        expect(await machine.beginCustomCompletion()).toEqual(receipt)
+        failure = await machine
+          .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+          .catch((error) => error)
+        expect(failure).toMatchObject({ message })
+        expect(
+          (await readFile(join(root, 'calls'), 'utf8')).trim().split('\n')
+        ).toEqual(calls)
+        if (published)
+          expect(
+            JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+              .coverageMap
+          ).toEqual({ actual: 42 })
+        else
+          await expect(
+            readFile(join(root, 'result.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual mixed custom reporter publication', () => {
+  const models = require('./fixtures/custom-dispatch-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches genuine dispatch and publication for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-dispatch-public116-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-dispatch-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_DISPATCH_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_DISPATCH_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual prior custom completion ownership through close', () => {
+  const models = require('./fixtures/custom-pending-pristine.json')
+  const leaves = (error: unknown): Error[] =>
+    error instanceof AggregateError
+      ? error.errors.flatMap(leaves)
+      : error instanceof Error
+        ? [error]
+        : []
+  it.each([
+    'resolve',
+    'reject',
+    'close-throw',
+    'reject-close-throw',
+    'abort',
+    'worker-death',
+  ])(
+    'retains actual callback ownership for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const row = models.rows.find(
+        (value: { name: string }) =>
+          value.name ===
+          (['abort', 'worker-death'].includes(name) ? 'resolve' : name)
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-pending117-'))
+      for (const [file, value] of Object.entries(row.sourceFiles) as [
+        string,
+        { source: string },
+      ][]) {
+        let source = value.source
+        if (name === 'worker-death' && file === 'first.mjs')
+          source = source.replace(
+            "trace('first-close');this.release?.()",
+            "trace('first-close');process.exit(23)"
+          )
+        await writeFile(join(root, file), source)
+      }
+      const controller = new AbortController()
+      const reporters = ['./first.mjs', './second.mjs', './third.mjs']
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters,
+        signal: controller.signal,
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters([...reporters, 'json']),
+        outputFile: join(root, 'result.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown,
+        disposed = false
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        expect(await machine.beginCustomCompletion()).toEqual({
+          count: 2,
+          synchronousThrow: { reporterIndex: 1 },
+        })
+        failure = await machine
+          .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+          .catch((error) => error)
+        expect(failure).toMatchObject({ message: 'actual113 reporter failure' })
+        const trace = async () =>
+          (await readFile(join(root, 'provider-trace.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line: string) => JSON.parse(line).name)
+        expect(await trace()).toEqual(['first-enter', 'second-enter'])
+        await expect(readFile(join(root, 'result.json'))).rejects.toMatchObject(
+          { code: 'ENOENT' }
+        )
+        if (name === 'abort') {
+          const reason = new Error('actual117 owned cancellation')
+          controller.abort(reason)
+          expect(controller.signal.reason).toBe(reason)
+        }
+        const cleanup = await session
+          .dispose({ handledFailure: failure })
+          .catch((error) => error)
+        disposed = true
+        const messages = leaves(cleanup).map((error) => error.message)
+        if (name === 'resolve' || name === 'abort')
+          expect(cleanup).toBeUndefined()
+        else if (name === 'worker-death')
+          expect(messages).toEqual([
+            'Custom reporter process ended unexpectedly (exit, code 23).',
+          ])
+        else
+          expect(messages).toEqual([
+            ...(name.includes('close-throw')
+              ? ['actual close failure116']
+              : []),
+            ...(name.includes('reject') ? ['prior async rejection116'] : []),
+          ])
+        expect(await trace()).toEqual([
+          'first-enter',
+          'second-enter',
+          'first-close',
+          ...(name === 'worker-death'
+            ? []
+            : [name.includes('reject') ? 'first-rejected' : 'first-settled']),
+        ])
+      } finally {
+        await machine.dispose()
+        if (!disposed) {
+          controller.abort(new Error('actual117 failed control cleanup'))
+          await session.dispose({ handledFailure: failure }).catch(() => {})
+        }
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual custom pending completion lifecycle publication', () => {
+  const models = require('./fixtures/custom-pending-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches actual close and retained completion lifecycle for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-pending-public117-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-pending-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_PENDING_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_PENDING_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})

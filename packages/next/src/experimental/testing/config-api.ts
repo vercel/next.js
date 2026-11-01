@@ -2,6 +2,7 @@ import { isTestCI as isCI } from './config-environment'
 import { availableParallelism } from 'node:os'
 import { basename, extname } from 'node:path'
 import type { FakeTimerConfig } from '../../compiled/next-test-primitives/timers'
+import type { ResultOutputFile } from './reporting/options'
 
 /** Inert configuration helpers. This module never imports Vitest or Vite. */
 export interface ConfigEnv {
@@ -15,6 +16,8 @@ export interface UserConfig extends Record<string, unknown> {
 }
 /** Public test settings modeled by the configuration facade. */
 export interface TestUserConfig {
+  reporters?: string | string[]
+  outputFile?: ResultOutputFile
   mode?: string
   name?:
     | string
@@ -70,6 +73,8 @@ interface ConfigurationSequence {
 type ProjectTestSettings = Omit<
   TestUserConfig,
   | 'projects'
+  | 'reporters'
+  | 'outputFile'
   | 'sequence'
   | 'watch'
   | 'shard'

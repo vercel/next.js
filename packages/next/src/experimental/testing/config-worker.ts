@@ -17,7 +17,7 @@ import {
   formatCoverageThresholdUpdates,
 } from './coverage/threshold-format'
 import { serializeDiagnostic } from './reporting/diagnostics'
-import { prepareCoverageThresholdUpdate } from './coverage/threshold-update'
+import { publishCoverageThresholdUpdate } from './coverage/threshold-update'
 
 async function send(message: object) {
   return new Promise<void>((resolve, reject) =>
@@ -58,7 +58,7 @@ async function handle(message: any) {
         throw new Error(
           'No coverage threshold formatter belongs to this configuration.'
         )
-      const value = await prepareCoverageThresholdUpdate({
+      const value = await publishCoverageThresholdUpdate({
         configFile: configurationFile,
         updates: message.updates,
         formatter: coverageThresholdFormatter,

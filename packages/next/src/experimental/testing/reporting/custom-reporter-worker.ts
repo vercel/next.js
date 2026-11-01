@@ -34,6 +34,7 @@ type Reporter = {
 }
 let reporters: Reporter[] = []
 const closeCallbacks: (() => unknown)[] = []
+const retainedFinishCallbacks: Promise<PromiseSettledResult<unknown>[]>[] = []
 let live: ReturnType<typeof createLiveReporterTaskStore>
 let root: string
 let queuedProjectRoot: string
@@ -123,10 +124,15 @@ function prepareReportedModules<T>(modules: T[]): T[] {
   return modules
 }
 
-async function settle(callbacks: (() => unknown)[]) {
-  const results = await Promise.allSettled(
+async function settle(
+  callbacks: (() => unknown)[],
+  invoked?: () => Promise<void>
+) {
+  const completion = Promise.allSettled(
     callbacks.map(async (callback) => callback())
   )
+  if (invoked) await invoked()
+  const results = await completion
   const errors = results.flatMap((result) =>
     result.status === 'rejected' ? [result.reason] : []
   )
@@ -140,7 +146,22 @@ async function shutdown() {
     ...collectedCallbacks,
     ...startedCallbacks,
   ])
-  await settle(closeCallbacks.splice(0))
+  const closeErrors: unknown[] = []
+  try {
+    await settle(closeCallbacks.splice(0))
+  } catch (error) {
+    closeErrors.push(error)
+  }
+  const retained = await Promise.all(retainedFinishCallbacks.splice(0))
+  for (const results of retained)
+    for (const result of results)
+      if (result.status === 'rejected') closeErrors.push(result.reason)
+  if (closeErrors.length === 1) throw closeErrors[0]
+  if (closeErrors.length)
+    throw new AggregateError(
+      closeErrors,
+      'Custom reporter close and retained completions failed.'
+    )
 }
 async function replayCases(tree: ReporterTaskSnapshot) {
   async function visit(suite: ReporterTaskSnapshot): Promise<void> {
@@ -159,7 +180,11 @@ async function replayCases(tree: ReporterTaskSnapshot) {
 async function finishCallbacks(
   modules: unknown[],
   errors: unknown[],
-  reason: string
+  reason: string,
+  onInvoked?: (
+    count: number,
+    synchronousThrow?: { reporterIndex: number }
+  ) => Promise<void>
 ) {
   await Promise.all([
     ...queuedCallbacks,
@@ -167,15 +192,55 @@ async function finishCallbacks(
     ...startedCallbacks,
   ])
   let completionError: unknown
+  let invokedCount = 0
+  let synchronousThrow: { reporterIndex: number } | undefined
+  let synchronousFailure: { error: unknown } | undefined
+  const returned: Promise<unknown>[] = []
   await settle(
-    reporters.map(
-      (reporter) => () =>
-        reporter.onTestRunEnd?.(modules, [...errors, ...consoleErrors], reason)
-    )
+    reporters.map((reporter, reporterIndex) => () => {
+      if (onInvoked && synchronousThrow !== undefined) return
+      if (!onInvoked)
+        return reporter.onTestRunEnd?.(
+          modules,
+          [...errors, ...consoleErrors],
+          reason
+        )
+      const callback = reporter.onTestRunEnd
+      if (callback === undefined || callback === null) return
+      if (typeof callback !== 'function')
+        throw new TypeError('Custom reporter onTestRunEnd is not a function.')
+      invokedCount++
+      let value: unknown
+      try {
+        value = Reflect.apply(callback, reporter, [
+          modules,
+          [...errors, ...consoleErrors],
+          reason,
+        ])
+      } catch (error) {
+        synchronousThrow ??= { reporterIndex }
+        synchronousFailure ??= { error }
+        throw error
+      }
+      const owned = Promise.resolve(value)
+      void owned.catch(() => {})
+      returned.push(owned)
+      return owned
+    }),
+    onInvoked
+      ? async () => {
+          // Every actual callback's synchronous prefix has returned or thrown.
+          // A reporter without this hook produces no invocation receipt.
+          if (synchronousFailure)
+            retainedFinishCallbacks.push(Promise.allSettled(returned))
+          if (invokedCount) await onInvoked(invokedCount, synchronousThrow)
+          if (synchronousFailure) throw synchronousFailure.error
+        }
+      : undefined
   ).catch((error) => {
     completionError = error
   })
-  if (completionError) consoleErrors.push(completionError)
+  if (completionError || synchronousFailure) consoleErrors.push(completionError)
   if (consoleErrors.length === 1) throw consoleErrors[0]
   if (consoleErrors.length)
     throw new AggregateError(
@@ -590,7 +655,11 @@ async function handle(message: any) {
       await send({ type: 'custom-reporter-result' })
       return
     }
-    if (message.type === 'finish' && initialized && !finished) {
+    if (
+      (message.type === 'finish' || message.type === 'finish-begin') &&
+      initialized &&
+      !finished
+    ) {
       finished = true
       const completion: CustomReporterCompletion = message.completion
       if (watching) watchEntryIds = completion.files.map((file) => file.entryId)
@@ -630,7 +699,17 @@ async function handle(message: any) {
             : hasOnlyBrowserCleanupRunFailures(completion) ||
                 hasOnlySnapshotPreparationRunFailures(completion)
               ? 'passed'
-              : completion.status
+              : completion.status,
+          message.type === 'finish-begin'
+            ? async (count, synchronousThrow) =>
+                send({
+                  type: 'custom-reporter-invoked',
+                  count,
+                  ...(synchronousThrow === undefined
+                    ? {}
+                    : { synchronousThrow }),
+                })
+            : undefined
         )
       } catch (error) {
         await send({

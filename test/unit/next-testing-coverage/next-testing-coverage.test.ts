@@ -3634,6 +3634,195 @@ ${mode === 'stop-failure' ? "import self from './provider.mjs'; const originalSt
       await rm(f.root, { recursive: true, force: true })
     }
   })
+
+  it.each([
+    'mutation',
+    'failure-reject',
+    'generation-reject',
+    'legacy-function',
+  ])('settles failure hooks after generated results for %s', async (mode) => {
+    const extra = `
+let actual;
+ReleaseProvider.prototype.generateCoverage = function() {
+  record('generate');
+  if (${JSON.stringify(mode)} === 'generation-reject') throw new Error('actual113 generation rejection');
+  actual = ${JSON.stringify(mode)} === 'legacy-function' ? () => 42 : { value: 1 };
+  return actual;
+};
+ReleaseProvider.prototype.onTestFailure = async function() {
+  record('failure-enter');
+  if (${JSON.stringify(mode)} === 'failure-reject') throw new Error('actual113 failure rejection');
+  await Promise.resolve();
+  actual.value = 2;
+  record('failure-leave');
+};
+ReleaseProvider.prototype.reportCoverage = function(value) {
+  record('report');
+  writeFileSync('custom-coverage.json', JSON.stringify({
+    same: value === actual,
+    kind: typeof value,
+    value: typeof value === 'function' ? value() : value.value,
+    changed: value.value,
+  }));
+};
+`
+    const f = await customFixture('body-failure', extra)
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    let rejected = false
+    const trace = async () =>
+      (await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line).name)
+    try {
+      session = await openSession(f.root, undefined, { reportOnFailure: true })
+      const { result, facts } = await runFile(f, session)
+      expect(result.status).toBe('failed')
+      if (mode === 'legacy-function') {
+        await session.finish(facts, 'failed', true)
+        expect((await trace()).slice(-4)).toEqual([
+          'generate',
+          'failure-enter',
+          'failure-leave',
+          'report',
+        ])
+        expect(
+          JSON.parse(
+            await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+          )
+        ).toEqual({
+          same: true,
+          kind: 'function',
+          value: 42,
+          changed: 2,
+        })
+      } else if (mode === 'generation-reject') {
+        rejected = true
+        await expect(session.generate(facts, 'failed', true)).rejects.toThrow(
+          'actual113 generation rejection'
+        )
+        expect((await trace()).slice(-1)).toEqual(['generate'])
+        expect(await trace()).not.toContain('failure-enter')
+      } else {
+        const receipt = await session.generate(facts, 'failed', true)
+        expect(receipt.coverage).toEqual({ value: 1 })
+        expect((await trace()).slice(-1)).toEqual(['generate'])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        if (mode === 'failure-reject') {
+          rejected = true
+          await expect(session.finish(facts, 'failed', true)).rejects.toThrow(
+            'actual113 failure rejection'
+          )
+          expect((await trace()).slice(-2)).toEqual([
+            'generate',
+            'failure-enter',
+          ])
+        } else {
+          await session.finish(facts, 'failed', true)
+          expect(receipt.coverage).toEqual({ value: 1 })
+          expect((await trace()).slice(-4)).toEqual([
+            'generate',
+            'failure-enter',
+            'failure-leave',
+            'report',
+          ])
+          expect(
+            JSON.parse(
+              await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+            )
+          ).toEqual({ same: true, kind: 'object', value: 2, changed: 2 })
+        }
+      }
+      if (rejected)
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      if (rejected)
+        await expect(session?.dispose()).rejects.toThrow(/actual113/)
+      else await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    'typescript',
+    'jsx',
+    'route',
+    'browser',
+    'mocking',
+    'cache',
+    'cohort',
+    'dom',
+    'collection',
+    'snapshot-all',
+    'missing-consumer',
+  ])(
+    'preserves production custom capture boundaries for %s',
+    async (change) => {
+      const f = await customFixture()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root)
+        const { assertCustomCoverageRequest } = await import(
+          'next/dist/experimental/testing/coverage/custom-runtime'
+        )
+        const artifact = {
+          ...f.artifact,
+          profile: { ...f.artifact.profile, mode: 'production' as const },
+        }
+        const entry = { ...f.entry, profile: artifact.profile }
+        const options: any = {
+          entry,
+          customCoverage: session.request,
+          snapshotUpdateMode: 'none',
+          onCustomCoverage: async () => {},
+        }
+        expect(() =>
+          assertCustomCoverageRequest(artifact, options)
+        ).not.toThrow()
+        if (change === 'typescript')
+          options.entry = {
+            ...entry,
+            file: entry.file.replace(/\.mjs$/, '.ts'),
+          }
+        if (change === 'jsx')
+          options.entry = {
+            ...entry,
+            file: entry.file.replace(/\.mjs$/, '.jsx'),
+          }
+        if (change === 'route')
+          artifact.profile = {
+            ...artifact.profile,
+            route: '/unsupported',
+          } as any
+        if (change === 'browser')
+          artifact.profile = {
+            ...artifact.profile,
+            environment: 'browser',
+          } as any
+        if (change === 'mocking')
+          Object.assign(artifact, { moduleMocking: { version: 1 } })
+        if (change === 'cache')
+          Object.assign(artifact, { moduleCache: { version: 1 } })
+        if (change === 'cohort')
+          Object.assign(artifact, { cohort: { version: 1 } })
+        if (change === 'dom')
+          options.entry = { ...entry, executionEnvironment: { name: 'jsdom' } }
+        if (change === 'collection') options.collectOnly = true
+        if (change === 'snapshot-all') options.snapshotUpdateMode = 'all'
+        if (change === 'missing-consumer') delete options.onCustomCoverage
+        expect(() => assertCustomCoverageRequest(artifact, options)).toThrow(
+          'Custom coverage requires'
+        )
+      } finally {
+        await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
 })
 
 it.each([
@@ -16967,7 +17156,7 @@ describe('formatter current AST preparation before caller-owned commit', () => {
     }
   )
 
-  it('keeps callback preparation synchronous and defers every write to the cancellable caller', async () => {
+  it('publishes synchronous callbacks before returning the receipt and preserves late-abort errors', async () => {
     const { openTestConfigModule } = await import(
       'next/dist/experimental/testing/config-modules'
     )
@@ -16998,7 +17187,7 @@ describe('formatter current AST preparation before caller-owned commit', () => {
         [10, 0, 0, true],
         [20, 0, 0, true],
       ])
-      expect(await readFile(file, 'utf8')).toBe(original)
+      expect(await readFile(file, 'utf8')).toBe(source)
       const controller = new AbortController()
       controller.abort(new Error('actual abort before prepared commit'))
       expect(() =>
@@ -17008,7 +17197,7 @@ describe('formatter current AST preparation before caller-owned commit', () => {
           signal: controller.signal,
         })
       ).toThrow('actual abort before prepared commit')
-      expect(await readFile(file, 'utf8')).toBe(original)
+      expect(await readFile(file, 'utf8')).toBe(source)
       expect(commitCoverageThresholdUpdate({ configFile: file, source })).toBe(
         true
       )
@@ -17024,12 +17213,9 @@ describe('formatter current AST preparation before caller-owned commit', () => {
     }
   })
 
-  it('retains the complete preparation and original selected bytes when the caller cannot write', async () => {
+  it('retains complete callback execution and original selected bytes when the formatter realm cannot write', async () => {
     const { openTestConfigModule } = await import(
       'next/dist/experimental/testing/config-modules'
-    )
-    const { commitCoverageThresholdUpdate } = await import(
-      'next/dist/experimental/testing/coverage/threshold-update'
     )
     const { chmod } = await import('fs/promises')
     const root = await mkdtemp(join(tmpdir(), 'next-formatter-write-error-')),
@@ -17039,12 +17225,12 @@ describe('formatter current AST preparation before caller-owned commit', () => {
     await writeFile(file, original)
     const realm = await openTestConfigModule(file, root)
     try {
-      const source = await realm.prepareCoverageThresholdUpdate!([
-        { metric: 'lines', previous: 0, value: 10 },
-        { metric: 'functions', previous: 0, value: 20 },
-      ])
-      expect(source).toContain('lines:10')
-      expect(source).toContain('functions:20')
+      await expect(
+        realm.prepareCoverageThresholdUpdate!([
+          { metric: 'lines', previous: 0, value: 10 },
+          { metric: 'functions', previous: 0, value: 20 },
+        ])
+      ).rejects.toThrow(/EACCES/)
       expect(
         (await readFile(trace, 'utf8'))
           .trim()
@@ -17054,9 +17240,6 @@ describe('formatter current AST preparation before caller-owned commit', () => {
         [10, 0],
         [20, 0],
       ])
-      expect(() =>
-        commitCoverageThresholdUpdate({ configFile: file, source })
-      ).toThrow(/EACCES/)
       expect(await readFile(file, 'utf8')).toBe(original)
     } finally {
       await realm.dispose()
@@ -24876,4 +25059,956 @@ describe('production ordinary TypeScript/MTS Istanbul complete public reports', 
       await rm(output, { recursive: true, force: true })
     }
   }, 250000)
+})
+
+describe('configured coverage text skipEmpty and maxCols', () => {
+  it.each(['v8', 'istanbul'] as const)(
+    'preserves exact configured %s options without mutating authored input',
+    async (provider) => {
+      const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+        await import('next/dist/experimental/testing/coverage/options')
+      for (const options of [
+        { skipEmpty: true, skipFull: false, maxCols: 65 },
+        { skipEmpty: false, maxCols: 0 },
+        { maxCols: -1 },
+        { maxCols: 80.5 },
+        { skipFull: true, skipEmpty: true, maxCols: 120 },
+      ]) {
+        const authored = {
+          enabled: true,
+          provider,
+          reporter: [['text', options], 'json'],
+        }
+        const before = structuredClone(authored)
+        const configured = parseProjectStandardCoverage(authored)!
+        expect(configured.options.reporterOptions?.text).toMatchObject(options)
+        const resolved = resolveProjectStandardCoverage(
+          [{ standardCoverage: configured }],
+          {},
+          undefined
+        )
+        expect(resolved.options?.reporterOptions?.text).toEqual(
+          configured.options.reporterOptions?.text
+        )
+        expect(resolved.options?.reporterOptions?.text).not.toBe(
+          configured.options.reporterOptions?.text
+        )
+        expect(authored).toEqual(before)
+      }
+    }
+  )
+  it.each([
+    ['skipEmpty', 'true'],
+    ['skipEmpty', 1],
+    ['skipFull', null],
+    ['maxCols', '80'],
+    ['maxCols', null],
+    ['maxCols', NaN],
+    ['maxCols', Infinity],
+    ['file', 'coverage.txt'],
+    ['unknown', true],
+  ])('keeps unqualified configured text %s=%j closed', async (key, value) => {
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    expect(() =>
+      parseProjectStandardCoverage({ reporter: [['text', { [key]: value }]] })
+    ).toThrow('Unsupported V8 coverage reporter option: ' + key)
+  })
+  it('does not forward text-only options into another reporter', async () => {
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    for (const reporter of [
+      'json',
+      'json-summary',
+      'lcovonly',
+      'text-summary',
+      'html',
+    ])
+      expect(() =>
+        parseProjectStandardCoverage({
+          reporter: [[reporter, { skipEmpty: true, maxCols: 65 }]],
+        })
+      ).toThrow('Unsupported V8 coverage reporter option')
+  })
+  const models = require('./fixtures/coverage-text-options-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches complete genuine coverage text, cases, maps and reports for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-coverage-text-options-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'coverage-text-options-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('root coverage formatter inherited by multiple inline projects', () => {
+  it.each([2, 3, 6])(
+    'retains one real root closure for %i inheriting inline projects',
+    async (length) => {
+      const {
+        retainCoverageThresholdFormatter,
+        formatCoverageThresholdUpdates,
+      } = await import(
+        'next/dist/experimental/testing/coverage/threshold-format'
+      )
+      const receivers: unknown[] = []
+      let calls = 0
+      const formatter = function (
+        this: unknown,
+        value: number,
+        previous: number
+      ) {
+        receivers.push(this)
+        calls++
+        return value - previous - calls / 10
+      }
+      const projects = Array.from({ length }, (_, i) => ({
+        test: { name: 'project-' + i, include: ['contract.test.mjs'] },
+      }))
+      const authored = {
+        test: {
+          projects,
+          coverage: { thresholds: { lines: 0, autoUpdate: formatter } },
+        },
+      }
+      const retained = retainCoverageThresholdFormatter(authored)
+      expect(retained.formatter).toBe(formatter)
+      expect(retained.value).toEqual({
+        test: {
+          projects,
+          coverage: { thresholds: { lines: 0, autoUpdate: true } },
+        },
+      })
+      expect(structuredClone(retained.value)).toEqual(retained.value)
+      expect(authored.test.coverage.thresholds.autoUpdate).toBe(formatter)
+      expect(
+        formatCoverageThresholdUpdates(retained.formatter, [
+          { metric: 'lines', value: 80, previous: 0 },
+          { metric: 'functions', value: 60, previous: 0 },
+        ])
+      ).toEqual([
+        { metric: 'lines', value: 79.9, previous: 0 },
+        { metric: 'functions', value: 59.8, previous: 0 },
+      ])
+      expect(calls).toBe(2)
+      expect(receivers).toEqual([undefined, undefined])
+    }
+  )
+  it.each([
+    undefined,
+    false,
+    {},
+    { enabled: false },
+    { thresholds: { autoUpdate: false } },
+    { thresholds: { autoUpdate: () => 2 } },
+  ])('keeps an explicit child coverage owner closed: %j', async (coverage) => {
+    const { retainCoverageThresholdFormatter } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: { thresholds: { autoUpdate: () => 1 } },
+          projects: [
+            { test: { name: 'a' } },
+            { test: { name: 'b', coverage } },
+          ],
+        },
+      })
+    ).toThrow('one inline project')
+  })
+  it('keeps mixed external project ownership closed', async () => {
+    const { retainCoverageThresholdFormatter } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: { thresholds: { autoUpdate: () => 1 } },
+          projects: [{ test: { name: 'a' } }, './external-project.mjs'],
+        },
+      })
+    ).toThrow('one inline project')
+  })
+  it('preserves the original thrown value from the one inherited closure', async () => {
+    const { retainCoverageThresholdFormatter, formatCoverageThresholdUpdates } =
+      await import('next/dist/experimental/testing/coverage/threshold-format')
+    const error = new Error('original inherited root formatter failure'),
+      formatter = () => {
+        throw error
+      }
+    const retained = retainCoverageThresholdFormatter({
+      test: {
+        coverage: { thresholds: { autoUpdate: formatter } },
+        projects: [{}, {}],
+      },
+    })
+    expect(() =>
+      formatCoverageThresholdUpdates(retained.formatter, [
+        { metric: 'lines', value: 100, previous: 0 },
+      ])
+    ).toThrow(error)
+  })
+  it('keeps ordinary multiple-project configuration by identity when there is no callback', async () => {
+    const { retainCoverageThresholdFormatter } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    const config = {
+      test: {
+        coverage: { thresholds: { autoUpdate: true } },
+        projects: [{}, {}],
+      },
+    }
+    expect(retainCoverageThresholdFormatter(config).value).toBe(config)
+  })
+  const models = require('./fixtures/threshold-formatter-multiproject-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches complete genuine cases, maps, reports, callback trace and final config for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-root-formatter-projects-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'threshold-formatter-multiproject-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('root coverage formatter inherited by multiple inline projects admission facts', () => {
+  const projects = () =>
+    ['a', 'b'].map((id) => {
+      const profile = {
+        id,
+        mode: 'development' as const,
+        environment: 'node' as const,
+        runtime: 'nodejs' as const,
+        bundler: 'turbopack' as const,
+      }
+      return {
+        profile,
+        isolate: true,
+        entries: [
+          {
+            id: id + ':contract.test.mjs',
+            file: '/project/contract.test.mjs',
+            profile,
+          },
+        ],
+      }
+    })
+  it('requires the real existing prepare callback rather than metadata presence', async () => {
+    const { canUpdateMultipleRootProjectThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    for (const value of [undefined, null, false, true, {}, 'function'])
+      expect(canUpdateMultipleRootProjectThresholds(projects(), value)).toBe(
+        false
+      )
+    expect(
+      canUpdateMultipleRootProjectThresholds(projects(), async () => undefined)
+    ).toBe(true)
+    const defaults = projects().map(({ isolate: _isolate, ...value }) => value)
+    expect(
+      canUpdateMultipleRootProjectThresholds(defaults, async () => undefined)
+    ).toBe(true)
+  })
+  it('keeps empty/single-project selection on the original path', async () => {
+    const { canUpdateMultipleRootProjectThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    expect(
+      canUpdateMultipleRootProjectThresholds([], async () => undefined)
+    ).toBe(false)
+    expect(
+      canUpdateMultipleRootProjectThresholds(
+        projects().slice(0, 1),
+        async () => undefined
+      )
+    ).toBe(false)
+  })
+  it.each([
+    [
+      'shared execution',
+      (p: any[]) => {
+        p[1].isolate = false
+      },
+    ],
+    [
+      'project realm',
+      (p: any[]) => {
+        p[1].executionEnvironment = {}
+      },
+    ],
+    [
+      'entry realm',
+      (p: any[]) => {
+        p[1].entries[0].executionEnvironment = {}
+      },
+    ],
+    [
+      'project typecheck',
+      (p: any[]) => {
+        p[1].typecheck = { enabled: true }
+      },
+    ],
+    [
+      'entry typecheck',
+      (p: any[]) => {
+        p[1].entries[0].typecheck = true
+      },
+    ],
+    [
+      'empty entries',
+      (p: any[]) => {
+        p[1].entries = []
+      },
+    ],
+    [
+      'mixed mode',
+      (p: any[]) => {
+        p[1].profile = { ...p[1].profile, mode: 'production' }
+      },
+    ],
+    [
+      'project RSC',
+      (p: any[]) => {
+        p[1].profile = { ...p[1].profile, environment: 'rsc' }
+      },
+    ],
+    [
+      'entry RSC',
+      (p: any[]) => {
+        p[1].entries[0].profile = { ...p[1].profile, environment: 'rsc' }
+      },
+    ],
+    [
+      'project route',
+      (p: any[]) => {
+        p[1].profile = { ...p[1].profile, route: '/' }
+      },
+    ],
+    [
+      'entry route',
+      (p: any[]) => {
+        p[1].entries[0].profile = { ...p[1].profile, route: '/' }
+      },
+    ],
+    [
+      'Browser client',
+      (p: any[]) => {
+        p[1].profile = { ...p[1].profile, browserClient: true }
+      },
+    ],
+    [
+      'edge runtime',
+      (p: any[]) => {
+        p[1].profile = { ...p[1].profile, runtime: 'edge' }
+      },
+    ],
+    [
+      'webpack',
+      (p: any[]) => {
+        p[1].profile = { ...p[1].profile, bundler: 'webpack' }
+      },
+    ],
+  ] as const)(
+    'keeps %s closed for the actual selected graph',
+    async (_label, change) => {
+      const { canUpdateMultipleRootProjectThresholds } = await import(
+        'next/dist/experimental/testing/coverage/threshold-format'
+      )
+      const selected = projects()
+      change(selected)
+      expect(
+        canUpdateMultipleRootProjectThresholds(selected, async () => undefined)
+      ).toBe(false)
+    }
+  )
+})
+
+describe('root coverage formatter inherited by multiple inline projects actual CLI refusals', () => {
+  it.each(['watch', 'shared', 'realm', 'mixed-mode'])(
+    'retains %s refusal before any callback, report or edit',
+    async (policy) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-root-formatter-refusal-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'threshold-formatter-multiproject-admission.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            policy,
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('formatter same-stack configuration publication', () => {
+  const original =
+    'export default {test:{coverage:{thresholds:{lines:0,functions:0}}}}\n'
+  const updates = [
+    { metric: 'lines' as const, value: 10, previous: 0 },
+    { metric: 'functions' as const, value: 20, previous: 0 },
+  ]
+  it('publishes before native queued edits and returns the exact written receipt', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-stack-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      let calls = 0
+      const { appendFileSync, readFileSync } = await import('node:fs')
+      let atJob = ''
+      const source = await publishCoverageThresholdUpdate({
+        configFile: file,
+        updates,
+        formatter: (value) => {
+          if (++calls === 1)
+            queueMicrotask(() => {
+              atJob = readFileSync(file, 'utf8')
+              appendFileSync(file, '// actual queued edit\n')
+            })
+          return value
+        },
+      })
+      expect(calls).toBe(2)
+      expect(atJob).toBe(source)
+      expect(await readFile(file, 'utf8')).toBe(
+        source + '// actual queued edit\n'
+      )
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('keeps synchronous edits before the provider write on their genuine earlier boundary', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-sync-edit-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const { appendFileSync } = await import('node:fs')
+      let calls = 0
+      const source = await publishCoverageThresholdUpdate({
+        configFile: file,
+        updates,
+        formatter: (value) => {
+          if (++calls === 1)
+            appendFileSync(file, '// earlier synchronous edit\n')
+          return value
+        },
+      })
+      expect(await readFile(file, 'utf8')).toBe(source)
+      expect(source).not.toContain('earlier synchronous edit')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('preserves a real abort before dispatch without calling the formatter', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-abort-before-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const controller = new AbortController(),
+        reason = new Error('actual abort before formatter operation'),
+        formatter = jest.fn((value) => value)
+      controller.abort(reason)
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          formatter,
+          signal: controller.signal,
+        })
+      ).rejects.toBe(reason)
+      expect(formatter).not.toHaveBeenCalled()
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains an actual supplied abort raised by a callback before any write', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-abort-callback-')
+      ),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const controller = new AbortController(),
+        reason = new Error('actual callback abort')
+      let calls = 0
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          signal: controller.signal,
+          formatter: (value) => {
+            calls++
+            controller.abort(reason)
+            return value
+          },
+        })
+      ).rejects.toBe(reason)
+      expect(calls).toBe(2)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('leaves no partial thresholds when the second actual callback throws', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-throw-before-write-')
+      ),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const reason = new Error('second original formatter error')
+      let calls = 0
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          formatter: (value) => {
+            if (++calls === 2) throw reason
+            return value
+          },
+        })
+      ).rejects.toBe(reason)
+      expect(calls).toBe(2)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('keeps the direct readonly preparation helper available with no write', async () => {
+    const { prepareCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-readonly-helper-')
+      ),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const source = await prepareCoverageThresholdUpdate({
+        configFile: file,
+        updates,
+        formatter: (value) => value,
+      })
+      expect(source).toContain('lines:10')
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('does not publish or invoke a formatter when no improvement exists', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-no-update-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const formatter = jest.fn((value) => value)
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates: [],
+          formatter,
+        })
+      ).resolves.toBeUndefined()
+      expect(formatter).not.toHaveBeenCalled()
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains native write errors after all callbacks and preserves original bytes', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const { chmodSync } = await import('node:fs')
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-write-error-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      let calls = 0
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          formatter: (value) => {
+            calls++
+            chmodSync(file, 0o444)
+            return value
+          },
+        })
+      ).rejects.toMatchObject({ code: 'EACCES' })
+      expect(calls).toBe(2)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      chmodSync(file, 0o644)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  const models = require('./fixtures/threshold-user-edits-pristine.json')
+  it.each(models.rows.map((row: { variant: string }) => row.variant))(
+    'matches complete genuine reports, actual edit snapshots and final config for %s',
+    async (variant) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-formatter-user-edits-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'threshold-user-edits-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            variant,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('configured coverage watermarks', () => {
+  it.each(['v8', 'istanbul'] as const)(
+    'retains %s serializable metric values for the actual formatter fallback',
+    async (provider) => {
+      const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+        await import('next/dist/experimental/testing/coverage/options')
+      const maps = [
+        {},
+        { lines: [0, 0], functions: [40, 60] },
+        { lines: [NaN, Infinity] },
+        { lines: [Infinity, Infinity] },
+        { lines: [10] },
+        { lines: [10, 20, 30] },
+        { lines: ['10', '20'] },
+        { extra: [0, 100] },
+        { lines: undefined },
+        [],
+        { lines: [undefined, undefined] },
+        { lines: null },
+      ]
+      for (const watermarks of maps) {
+        const authored = { enabled: true, provider, watermarks }
+        const before = structuredClone(authored)
+        const config = parseProjectStandardCoverage(authored)!
+        expect(config.options.watermarks).toEqual(watermarks)
+        expect(config.options.watermarks).not.toBe(watermarks)
+        const selected = resolveProjectStandardCoverage(
+          [{ standardCoverage: config }],
+          {},
+          undefined
+        )
+        expect(selected.options!.watermarks).toEqual(watermarks)
+        expect(selected.options!.watermarks).not.toBe(config.options.watermarks)
+        expect(authored).toEqual(before)
+      }
+    }
+  )
+  it('preserves the absent option footprint and configured activation semantics', async () => {
+    const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/options')
+    for (const authored of [{}, { watermarks: undefined }])
+      expect(
+        Object.hasOwn(
+          parseProjectStandardCoverage(authored)!.options,
+          'watermarks'
+        )
+      ).toBe(false)
+    const config = parseProjectStandardCoverage({
+      watermarks: { lines: [0, 0] },
+    })!
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: config }],
+        {},
+        undefined
+      )
+    ).toEqual({ enabled: false, configured: true })
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: config }],
+        { coverage: true },
+        undefined
+      ).options!.watermarks
+    ).toEqual({ lines: [0, 0] })
+  })
+  it('preserves actual report context defaults without mutating a frozen partial map', async () => {
+    const { writeReports } = await import(
+      'next/dist/compiled/next-test-coverage'
+    )
+    const models = require('./fixtures/coverage-watermarks-pristine.json')
+    const row = models.rows.find(
+      (row: { name: string }) => row.name === 'v8-development-partial'
+    )
+    const watermarks = Object.freeze({
+      lines: Object.freeze([0, 0]),
+      functions: Object.freeze([40, 60]),
+    })
+    const root = await mkdtemp(join(tmpdir(), 'next-watermarks-context-'))
+    const relocate = (value: any): any =>
+      typeof value === 'string'
+        ? value.replaceAll('<fixture>', root)
+        : Array.isArray(value)
+          ? value.map(relocate)
+          : value && typeof value === 'object'
+            ? Object.fromEntries(
+                Object.entries(value).map(([key, value]) => [
+                  key.replaceAll('<fixture>', root),
+                  relocate(value),
+                ])
+              )
+            : value
+    const saved = process.env.FORCE_COLOR
+    process.env.FORCE_COLOR = '1'
+    try {
+      const text = await writeReports(
+        relocate(row.coverageFiles['coverage-final.json']),
+        root,
+        ['text', 'text-summary'],
+        { text: { maxCols: 90, skipFull: true } },
+        watermarks as any
+      )
+      expect(text).toBe(row.text + row.textSummary)
+      expect(Object.keys(watermarks)).toEqual(['lines', 'functions'])
+    } finally {
+      if (saved === undefined) delete process.env.FORCE_COLOR
+      else process.env.FORCE_COLOR = saved
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  const models = require('./fixtures/coverage-watermarks-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches genuine complete maps, reports and exact ANSI output for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-coverage-watermarks-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'coverage-watermarks-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_WATERMARK_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_WATERMARK_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual custom provider generated JSON results', () => {
+  const models = require('./fixtures/custom-generated-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'preserves whole genuine JSON, provider identity and callback traces for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-custom-generated-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-generated-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_CUSTOM_GENERATED_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_CUSTOM_GENERATED_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual failed custom coverage hook publication', () => {
+  const models = require('./fixtures/custom-failure-hooks-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'retains genuine custom maps, hook order and report identity for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-failed-custom-hooks-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-failure-hooks.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_FAILED_CUSTOM_HOOK_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_FAILED_CUSTOM_HOOK_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual production custom coverage', () => {
+  const models = require('./fixtures/custom-production-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'retains genuine cases, custom maps, lifecycle and report identity for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-production-custom-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-production-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_PRODUCTION_CUSTOM_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_PRODUCTION_CUSTOM_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
 })

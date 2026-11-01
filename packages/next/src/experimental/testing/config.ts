@@ -1,5 +1,10 @@
 import type { CompilerAliases } from './compiler/aliases'
 import { parseCustomCoverageConfig } from './coverage/custom-options'
+import {
+  parseConfiguredReporters,
+  parseConfiguredOutputFile,
+  type ResultOutputFile,
+} from './reporting/options'
 import type { CustomCoverageConfig } from './coverage/custom-types'
 import { parseProjectStandardCoverage } from './coverage/options'
 import { applyCoverageProviderOverride } from './coverage/provider-override'
@@ -80,6 +85,8 @@ export interface TestProjectConfig {
 }
 
 export interface TestConfig {
+  reporters?: string[]
+  outputFile?: ResultOutputFile
   compatibility: 'vitest'
   maxWorkers: number
   fileParallelism?: boolean
@@ -238,6 +245,8 @@ export function parseTestConfig(
     config,
     [
       'compatibility',
+      'reporters',
+      'outputFile',
       'projects',
       'maxWorkers',
       'fileParallelism',
@@ -296,6 +305,8 @@ export function parseTestConfig(
     { browser: TestBrowserEngine; name?: string }[]
   >()
   const normalized: TestConfig = {
+    ...parseConfiguredReporters(config.reporters),
+    ...parseConfiguredOutputFile(config.outputFile),
     compatibility: 'vitest',
     ...(cache === undefined ? {} : { cache }),
     ...(config.fileParallelism === undefined
@@ -900,8 +911,16 @@ export function normalizeTestConfig(value: unknown): TestConfig {
   if (!('test' in config)) return parseTestConfig(config)
   validateTestConfigCompilerOptions(config)
   const test = object(config.test, 'test')
-  const { projects, maxWorkers, fileParallelism, name, cache, ...defaults } =
-    test
+  const {
+    projects,
+    maxWorkers,
+    fileParallelism,
+    name,
+    cache,
+    reporters,
+    outputFile,
+    ...defaults
+  } = test
   const rootSequence = object(test.sequence ?? {}, 'test.sequence')
   const sequenceSeed = rootSequence.seed ?? Date.now()
   defaults.sequence = { ...rootSequence, seed: sequenceSeed }
@@ -911,6 +930,8 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         maxWorkers,
         fileParallelism,
         cache,
+        reporters,
+        outputFile,
         projects: [{ name: name ?? 'default', ...defaults }],
       },
       [name as string | undefined]
@@ -926,6 +947,8 @@ export function normalizeTestConfig(value: unknown): TestConfig {
       maxWorkers,
       fileParallelism,
       cache,
+      reporters,
+      outputFile,
       projects: projects.map((projectValue, index) => {
         const project = object(projectValue, `test.projects[${index}]`)
         const settings =

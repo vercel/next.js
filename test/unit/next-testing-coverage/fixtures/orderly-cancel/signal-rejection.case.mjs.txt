@@ -1,5 +1,5 @@
 import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'
-import { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { watchFile, unwatchFile, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { threadId } from 'node:worker_threads'
 import { choose } from './subject.mjs'
 mkdirSync('cancel-settlement', { recursive: true })
@@ -17,9 +17,10 @@ test('controlled cancellation body', async (context) => {
       choose(false)
       reject(new Error('body rejected from its actual signal'))
     }, { once: true })
-    const watcher = watch('.', () => {
-      if (existsSync('gate-release')) { watcher.close(); resolve() }
-    })
+    const release = () => {
+      if (existsSync('gate-release')) { unwatchFile('gate-release', release); resolve() }
+    }
+    watchFile('gate-release', { interval: 10 }, release)
     writeFileSync('gate-started', 'ready')
   })
   record('body-finished')

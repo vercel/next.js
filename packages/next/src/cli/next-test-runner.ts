@@ -1,3 +1,4 @@
+import { supportsCustomCoverageMode } from '../experimental/testing/coverage/custom-options'
 import type {
   TestResultCache,
   TestResultCacheUpdate,
@@ -7,6 +8,7 @@ import type {
   RuntimeConfigurationReceipt,
 } from '../experimental/testing/coverage/runtime-configuration'
 import type { CoverageSourcePlan } from '../experimental/testing/coverage/source-analysis-plan'
+import { canUpdateMultipleRootProjectThresholds } from '../experimental/testing/coverage/threshold-format'
 import type { PreparedCoverageMap } from '../experimental/testing/coverage/report-standard'
 import {
   isProductionBrowserCoverageProject,
@@ -21,6 +23,7 @@ import { assertCustomCoverageFacts } from '../experimental/testing/coverage/cust
 import type {
   CustomCoverageFact,
   CustomCoverageRequest,
+  CustomCoverageResult,
 } from '../experimental/testing/coverage/custom-types'
 import { realpath } from 'fs/promises'
 import {
@@ -40,6 +43,7 @@ import {
   isCustomResultReporter,
 } from '../experimental/testing/reporting/machine'
 import path from 'path'
+import type { ResultOutputFile } from '../experimental/testing/reporting/options'
 import {
   applyTestConfigOverrides,
   openTestConfiguration,
@@ -302,23 +306,28 @@ export async function nextTestRunner(
       )
     }
   }
-  const reporters = parseResultReporters(options.reporter)
-  if (options.watch && reporters.some(isCustomResultReporter))
-    throw new Error(
-      'Custom reporter watch lifecycle adapters remain unimplemented; completion adapters require a one-shot run.'
-    )
-  if (options.list && reporters.some((name) => name !== 'default')) {
-    throw new Error('Machine collection reports remain unimplemented.')
+  let reporters = parseResultReporters(options.reporter)
+  function validateReporting(outputFile: ResultOutputFile | undefined) {
+    if (options.watch && reporters.some(isCustomResultReporter))
+      throw new Error(
+        'Custom reporter watch lifecycle adapters remain unimplemented; completion adapters require a one-shot run.'
+      )
+    if (options.list && reporters.some((name) => name !== 'default')) {
+      throw new Error('Machine collection reports remain unimplemented.')
+    }
+    if (outputFile && !reporters.some(isMachineResultReporter)) {
+      throw new Error('--outputFile requires a machine reporter.')
+    }
+    if (
+      typeof outputFile === 'string' &&
+      outputFile &&
+      reporters.filter(isMachineResultReporter).length !== 1
+    ) {
+      throw new Error('--outputFile requires exactly one machine reporter.')
+    }
   }
-  if (options.outputFile && !reporters.some(isMachineResultReporter)) {
-    throw new Error('--outputFile requires a machine reporter.')
-  }
-  if (
-    options.outputFile &&
-    reporters.filter(isMachineResultReporter).length !== 1
-  ) {
-    throw new Error('--outputFile requires exactly one machine reporter.')
-  }
+  if (options.mergeReports !== undefined || options.reporter !== undefined)
+    validateReporting(options.outputFile)
   const projectDir = await realpath(path.resolve(directory ?? '.'))
   if (options.mergeReports !== undefined) {
     if (
@@ -458,6 +467,20 @@ export async function nextTestRunner(
             options['coverage.provider']
           )
         : await openTestConfiguration(projectDir, controller.signal)
+    if (
+      options.watch &&
+      (configuration.config.reporters !== undefined ||
+        configuration.config.outputFile !== undefined)
+    ) {
+      throw new Error(
+        'Configured result reporters and output files currently require a one-shot run.'
+      )
+    }
+    reporters = parseResultReporters(
+      options.reporter ?? configuration.config.reporters
+    )
+    const outputFile = options.outputFile ?? configuration.config.outputFile
+    validateReporting(outputFile)
     const authoredCache = configuration.config.cache
     const selectedCache =
       options.cache ??
@@ -516,7 +539,12 @@ export async function nextTestRunner(
     )
     if (
       configuredCoverage.options?.thresholds.autoUpdate &&
-      (options.watch || projects.length !== 1)
+      (options.watch ||
+        (projects.length !== 1 &&
+          !canUpdateMultipleRootProjectThresholds(
+            projects,
+            configuration?.prepareCoverageThresholdUpdate
+          )))
     )
       throw new Error(
         'Coverage threshold autoUpdate currently requires one one-shot project.'
@@ -732,13 +760,16 @@ export async function nextTestRunner(
             project.isolate === false ||
             project.executionEnvironment ||
             project.profile.environment !== 'node' ||
-            project.profile.mode !== 'development' ||
+            !supportsCustomCoverageMode(
+              project.profile.mode,
+              project.entries.map((entry) => entry.file)
+            ) ||
             project.profile.route ||
             project.entries.some((entry) => entry.executionEnvironment)
         ))
     )
       throw new Error(
-        'Custom coverage currently requires one-shot isolated development Node execution without V8, DOM, type tests, debugging or snapshot updates.'
+        'Custom coverage requires one-shot isolated Node execution in development or plain JavaScript production without V8, DOM, type tests, debugging or snapshot updates.'
       )
     if (
       projects.some(
@@ -993,7 +1024,7 @@ export async function nextTestRunner(
       collect: preparePublicSnapshots,
       projectDir,
       reporters,
-      outputFile: options.outputFile,
+      outputFile,
       presentation: { ...reporter, isTTY, terminal },
       write: (text) => terminal.write(text),
       writeError: (text) => terminal.write(text, 'stderr'),
@@ -1334,16 +1365,74 @@ export async function nextTestRunner(
         deferredResultReporterDisposal = () =>
           machine.dispose({ handledCustomFailure: resultCompletionError })
       let preparedCoverageMap: PreparedCoverageMap | undefined
+      let coveragePreparationFailed = false
+      let coveragePreparationError: unknown
       if (pendingCoverage && reporters.includes('json')) {
-        configuration?.assertReadyForCoverage()
-        await publishPendingCoverage({
-          prepareOnly: true,
-          onCoverageMap(map) {
-            preparedCoverageMap = map
-          },
-        })
-        if (preparedCoverageMap === undefined)
-          throw new Error('Standard coverage did not produce its actual map.')
+        try {
+          configuration?.assertReadyForCoverage()
+          await publishPendingCoverage({
+            prepareOnly: true,
+            onCoverageMap(map) {
+              preparedCoverageMap = map
+            },
+          })
+          if (preparedCoverageMap === undefined)
+            throw new Error('Standard coverage did not produce its actual map.')
+        } catch (error) {
+          if (
+            summary.status !== 'failed' ||
+            summary.unsafeCleanup ||
+            controller.signal.aborted
+          )
+            throw error
+          // The settled run already owns its failure diagnostics. Preserve that
+          // actual JSON without claiming a map from rejected coverage facts.
+          // Rethrow after normal result completion, before publication/retry.
+          preparedCoverageMap = undefined
+          coveragePreparationFailed = true
+          coveragePreparationError = error
+        }
+      }
+      const createPendingCustomCoverage = () => {
+        if (customProjects.length && summary.status !== 'cancelled') {
+          if (summary.unsafeCleanup || summary.status === 'running')
+            throw new Error(
+              'Custom coverage did not complete after clean execution.'
+            )
+          const facts = assertCustomCoverageFacts(
+            summary.customCoverage,
+            projectDir,
+            projects,
+            customCoverageRequests
+          )
+          return {
+            facts,
+            status: summary.status,
+            allTestsRun:
+              !options.filter?.length &&
+              !options.testNamePattern &&
+              !shard &&
+              !projects.some((project) => project.testNamePattern),
+          }
+        }
+      }
+      let customCoverageResult: CustomCoverageResult | undefined
+      const customCoverageJson =
+        customSessions.size === 1 && reporters.includes('json')
+      if (customCoverageJson) {
+        pendingCustomCoverage = createPendingCustomCoverage()
+        if (pendingCustomCoverage) {
+          const [id, session] = customSessions.entries().next().value!
+          const entriesForProject = new Set(projectsForCustomCoverage.get(id))
+          customCoverageResult = await session.generate(
+            pendingCustomCoverage.facts.filter((fact) =>
+              entriesForProject.has(fact.completion.entryId)
+            ),
+            pendingCustomCoverage.status,
+            pendingCustomCoverage.allTestsRun
+          )
+          await machine.beginCustomCompletion()
+        }
       }
       try {
         await machine.finish(
@@ -1352,37 +1441,36 @@ export async function nextTestRunner(
                 ...(preparedCoverageMap === undefined
                   ? {}
                   : { preparedCoverageMap }),
+                ...(customCoverageResult === undefined
+                  ? {}
+                  : { customCoverageResult }),
                 omitInterruptedExecutionJson: true,
               }
-            : preparedCoverageMap === undefined
+            : preparedCoverageMap === undefined &&
+                customCoverageResult === undefined
               ? undefined
-              : { preparedCoverageMap }
+              : {
+                  ...(preparedCoverageMap === undefined
+                    ? {}
+                    : { preparedCoverageMap }),
+                  ...(customCoverageResult === undefined
+                    ? {}
+                    : { customCoverageResult }),
+                }
         )
       } catch (error) {
-        if (pendingCoverage) resultCompletionError = error
-        throw error
+        const failure = coveragePreparationFailed
+          ? new AggregateError(
+              [coveragePreparationError, error],
+              'Coverage preparation and result reporting failed.'
+            )
+          : error
+        if (pendingCoverage) resultCompletionError = failure
+        throw failure
       }
-      if (customProjects.length && summary.status !== 'cancelled') {
-        if (summary.unsafeCleanup || summary.status === 'running')
-          throw new Error(
-            'Custom coverage did not complete after clean execution.'
-          )
-        const facts = assertCustomCoverageFacts(
-          summary.customCoverage,
-          projectDir,
-          projects,
-          customCoverageRequests
-        )
-        pendingCustomCoverage = {
-          facts,
-          status: summary.status,
-          allTestsRun:
-            !options.filter?.length &&
-            !options.testNamePattern &&
-            !shard &&
-            !projects.some((project) => project.testNamePattern),
-        }
-      }
+      if (coveragePreparationFailed) throw coveragePreparationError
+      if (!customCoverageJson)
+        pendingCustomCoverage = createPendingCustomCoverage()
       if (standardCoverageOptions && summary.status !== 'cancelled') {
         if (summary.status === 'running')
           throw new Error('Standard coverage requires a terminal run result.')
@@ -1469,25 +1557,26 @@ export async function nextTestRunner(
             result.published &&
             pendingCoverage.config.thresholds.autoUpdate
           ) {
-            const { updateCoverageThresholds, commitCoverageThresholdUpdate } =
-              await import(
-                '../experimental/testing/coverage/threshold-update.js'
-              )
-            if (
-              configuration?.prepareCoverageThresholdUpdate
-                ? commitCoverageThresholdUpdate({
-                    configFile: configuration.coverageConfigurationFile,
-                    source: await configuration.prepareCoverageThresholdUpdate(
-                      result.thresholdUpdates ?? []
-                    ),
-                    signal: controller.signal,
-                  })
-                : await updateCoverageThresholds({
-                    configFile: configuration?.coverageConfigurationFile,
-                    updates: result.thresholdUpdates ?? [],
-                    signal: controller.signal,
-                  })
+            const { updateCoverageThresholds } = await import(
+              '../experimental/testing/coverage/threshold-update.js'
             )
+            let updated: boolean
+            if (configuration?.prepareCoverageThresholdUpdate) {
+              controller.signal.throwIfAborted()
+              const writtenSource =
+                await configuration.prepareCoverageThresholdUpdate(
+                  result.thresholdUpdates ?? []
+                )
+              controller.signal.throwIfAborted()
+              updated = writtenSource !== undefined
+            } else {
+              updated = await updateCoverageThresholds({
+                configFile: configuration?.coverageConfigurationFile,
+                updates: result.thresholdUpdates ?? [],
+                signal: controller.signal,
+              })
+            }
+            if (updated)
               console.log(
                 'Updating thresholds to configuration file. You may want to push with updated coverage thresholds.'
               )

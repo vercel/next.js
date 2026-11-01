@@ -9,6 +9,10 @@ export interface CustomCoverageConfig {
   reportsDirectory: string
   reportOnFailure: boolean
 }
+/** Actual generated custom-provider value; never a standard coverage map. */
+export interface CustomCoverageResult {
+  coverage: unknown
+}
 export interface CustomCoverageIdentity {
   file: string
   sha256: string

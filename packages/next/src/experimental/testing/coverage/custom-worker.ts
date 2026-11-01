@@ -22,6 +22,14 @@ let input: Input | undefined
 let provider: CustomCoverageProvider | undefined
 let started = false
 let finished = false
+let generated:
+  | {
+      facts: CustomCoverageFact[]
+      status: 'passed' | 'failed'
+      allTestsRun: boolean
+      coverage: unknown
+    }
+  | undefined
 let failed = false
 let queue = Promise.resolve()
 const suites = new Map<string, CustomCoverageFact>()
@@ -110,7 +118,7 @@ async function initialize(value: Input) {
   })
 }
 async function afterSuite(fact: CustomCoverageFact) {
-  if (!input || !provider || finished || failed)
+  if (!input || !provider || finished || generated || failed)
     throw new Error('Custom coverage host cannot receive a suite.')
   if (
     !fact?.completion?.complete ||
@@ -133,12 +141,12 @@ async function afterSuite(fact: CustomCoverageFact) {
   })
   await assertCustomProviderIdentity(input.provider)
 }
-async function finish(
+async function generate(
   facts: CustomCoverageFact[],
   status: 'passed' | 'failed',
   allTestsRun: boolean
 ) {
-  if (!input || !provider || finished || failed)
+  if (!input || !provider || finished || generated || failed)
     throw new Error('Custom coverage host cannot finish.')
   if (suites.size) {
     if (
@@ -155,13 +163,34 @@ async function finish(
   } else {
     for (const fact of facts) await afterSuite(fact)
   }
+  await assertCustomProviderIdentity(input.provider)
+  const coverage = await provider.generateCoverage({ allTestsRun })
+  await assertCustomProviderIdentity(input.provider)
+  generated = { facts: structuredClone(facts), status, allTestsRun, coverage }
+  return coverage
+}
+async function finish(
+  facts: CustomCoverageFact[],
+  status: 'passed' | 'failed',
+  allTestsRun: boolean
+) {
+  if (!input || !provider || finished || failed)
+    throw new Error('Custom coverage host cannot finish.')
+  if (!generated) await generate(facts, status, allTestsRun)
+  if (
+    !generated ||
+    !isDeepStrictEqual(generated.facts, facts) ||
+    generated.status !== status ||
+    generated.allTestsRun !== allTestsRun
+  )
+    throw new Error(
+      'Custom coverage reporting lacks its actual generated value.'
+    )
   finished = true
   await assertCustomProviderIdentity(input.provider)
   if (status === 'failed') await provider.onTestFailure?.()
-  const coverage = await provider.generateCoverage({ allTestsRun })
-  await assertCustomProviderIdentity(input.provider)
   if (status === 'passed' || input.config.reportOnFailure)
-    await provider.reportCoverage(coverage, { allTestsRun })
+    await provider.reportCoverage(generated.coverage, { allTestsRun })
   await assertCustomProviderIdentity(input.provider)
   await new Promise<void>((resolveTurn) => setImmediate(resolveTurn))
   if (failed) throw new Error('Custom coverage host reported a late failure.')
@@ -181,6 +210,13 @@ process.on('message', (message: any) => {
       else if (message?.type === 'custom-coverage-suite') {
         await afterSuite(message.fact)
         await send({ type: 'custom-coverage-suite-received' })
+      } else if (message?.type === 'custom-coverage-generate') {
+        const coverage = await generate(
+          message.facts,
+          message.status,
+          message.allTestsRun
+        )
+        await send({ type: 'custom-coverage-generated', coverage })
       } else if (message?.type === 'custom-coverage-finish')
         await finish(message.facts, message.status, message.allTestsRun)
       else if (message?.type === 'shutdown') {

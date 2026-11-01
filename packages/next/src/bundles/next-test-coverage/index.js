@@ -8,10 +8,17 @@ import {
 } from '@vitest/istanbul-lib-report'
 
 /** Pure reports over the already validated coverage map; no runner is loaded. */
-export async function writeReports(data, directory, reporters, options = {}) {
+export async function writeReports(
+  data,
+  directory,
+  reporters,
+  options = {},
+  watermarks
+) {
   const context = createContext({
     dir: directory,
     coverageMap: createCoverageMap(data),
+    ...(watermarks === undefined ? {} : { watermarks: { ...watermarks } }),
   })
   // Load report implementations before starting the synchronous writer capture.
   const reports = await Promise.all(

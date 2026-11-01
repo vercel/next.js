@@ -1,3 +1,4 @@
+import { supportsCustomCoverageMode } from './coverage/custom-options'
 import {
   type SnapshotPreparationFailure,
   assertSnapshotPreparationFailure,
@@ -493,7 +494,10 @@ export async function runTests(
         !options.customCoverageRequests?.[project.profile.id] ||
         project.isolate === false ||
         project.profile.environment !== 'node' ||
-        project.profile.mode !== 'development' ||
+        !supportsCustomCoverageMode(
+          project.profile.mode,
+          project.entries.map((entry) => entry.file)
+        ) ||
         project.profile.route ||
         project.executionEnvironment ||
         project.typecheck?.enabled ||
@@ -502,7 +506,7 @@ export async function runTests(
         )
       )
         throw new Error(
-          'Custom coverage requires a parent-owned provider session and isolated development Node files.'
+          'Custom coverage requires a parent-owned provider session and isolated Node files in development or plain JavaScript production.'
         )
     }
   const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)

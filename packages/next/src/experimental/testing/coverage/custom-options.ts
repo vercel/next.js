@@ -1,3 +1,4 @@
+import type { TestProfile } from '../contracts'
 import type { CustomCoverageConfig } from './custom-types'
 
 /** Project-configured coverage is deliberately distinct from existing CLI V8 modes. */
@@ -50,4 +51,17 @@ export function parseCustomCoverageConfig(
       (options.reportsDirectory as string | undefined) ?? './coverage',
     reportOnFailure: options.reportOnFailure === true,
   }
+}
+
+/** Custom capture uses the actual Node compiler artifact, independently of standard maps. */
+export function supportsCustomCoverageMode(
+  mode: TestProfile['mode'],
+  files: readonly string[]
+): boolean {
+  return (
+    mode === 'development' ||
+    (mode === 'production' &&
+      files.length > 0 &&
+      files.every((file) => /\.(?:mjs|js)$/.test(file)))
+  )
 }

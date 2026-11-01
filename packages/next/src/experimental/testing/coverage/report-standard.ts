@@ -1020,12 +1020,15 @@ export async function publishPreparedStandardCoverage(options: {
   try {
     if (config.formatterReports) {
       if (existed) await cp(output, staging, { recursive: true })
-      formatterText = await writeReports(
+      const reportArguments: Parameters<typeof writeReports> = [
         data,
         staging,
         config.reporter,
-        config.reporterOptions
-      )
+        config.reporterOptions,
+      ]
+      if (config.watermarks !== undefined)
+        reportArguments.push(config.watermarks)
+      formatterText = await writeReports(...reportArguments)
       reportFiles = []
       async function collect(directory: string) {
         for (const item of await readdir(directory, { withFileTypes: true })) {

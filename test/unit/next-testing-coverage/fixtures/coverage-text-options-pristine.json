@@ -1,0 +1,6235 @@
+{
+  "referenceVersion": "5.0.4",
+  "profiles": 12,
+  "canonicalization": "Temporary fixture root and elapsed/start times only; complete JSON coverageMap retained. Original raw reports held.",
+  "rows": [
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "07ae5392ae2bb4e2d16ccda1cc715e1c33c77592d2a2f462a6116d770bf2defe",
+      "provider": "v8",
+      "mode": "development",
+      "options": {
+        "skipEmpty": false,
+        "skipFull": false,
+        "maxCols": 80
+      },
+      "name": "v8-development-visible",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "lines": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/empty.js\nFNF:0\nFNH:0\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  empty.js         |       0 |        0 |       0 |       0 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "83737e9ac39e4cc692bd75d7c43067f30ec20b354e6d9cc94c1f455dc2968d86",
+      "provider": "v8",
+      "mode": "development",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": false,
+        "maxCols": 65
+      },
+      "name": "v8-development-compact",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "lines": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/empty.js\nFNF:0\nFNH:0\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "f389dc4b0704d37b2d131b15271638796e10810da496f30d8267dfe008fb38e3",
+      "provider": "v8",
+      "mode": "development",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": true,
+        "maxCols": 0
+      },
+      "name": "v8-development-unlimited",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "lines": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/empty.js\nFNF:0\nFNH:0\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "82bb33b0e5832722abcb9d30ff3b310e9480c36062423aec091348007e8ff7ba",
+      "provider": "v8",
+      "mode": "production",
+      "options": {
+        "skipEmpty": false,
+        "skipFull": false,
+        "maxCols": 80
+      },
+      "name": "v8-production-visible",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "lines": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/empty.js\nFNF:0\nFNH:0\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  empty.js         |       0 |        0 |       0 |       0 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "b22096d2551360cb685e275e8f814c95d68ec7ff6edfe5225039d0f68fb425a2",
+      "provider": "v8",
+      "mode": "production",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": false,
+        "maxCols": 65
+      },
+      "name": "v8-production-compact",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "lines": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/empty.js\nFNF:0\nFNH:0\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "7b8ebbd53d263a9b0ac498f6e6412d2fd3aefd76d352eccf217f9bc2dc7eb64d",
+      "provider": "v8",
+      "mode": "production",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": true,
+        "maxCols": 0
+      },
+      "name": "v8-production-unlimited",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/empty.js": {
+            "path": "<fixture>/subjects/empty.js",
+            "statementMap": {},
+            "fnMap": {},
+            "branchMap": {},
+            "s": {},
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 0,
+              "seen": {},
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {},
+            "meta": {
+              "lastBranch": 0,
+              "lastFunction": 0,
+              "lastStatement": 1,
+              "seen": {
+                "s:1:20:1:Infinity": 0
+              },
+              "fnNames": {}
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                },
+                "line": 1
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 3,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2
+              },
+              "fnNames": {}
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/empty.js": {
+            "lines": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/empty.js\nFNF:0\nFNH:0\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "e25eca40a7a420a548308540ad94b78005cff34cce334df456833f6f29eba038",
+      "provider": "istanbul",
+      "mode": "development",
+      "options": {
+        "skipEmpty": false,
+        "skipFull": false,
+        "maxCols": 80
+      },
+      "name": "istanbul-development-visible",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "2b5a1140fc42d9b28b1c87cf6d322dce230b27ade1b2380abe2a62ff0e4d4e61",
+      "provider": "istanbul",
+      "mode": "development",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": false,
+        "maxCols": 65
+      },
+      "name": "istanbul-development-compact",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "29e6fbad05c810388e81f21146cdf4c3ae375d071eaf95d62d2f3d621ec446f3",
+      "provider": "istanbul",
+      "mode": "development",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": true,
+        "maxCols": 0
+      },
+      "name": "istanbul-development-unlimited",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "1d2c566025db15f86db1aa24518a634a0aca0d61d94ed4ebaab5729864773bf9",
+      "provider": "istanbul",
+      "mode": "production",
+      "options": {
+        "skipEmpty": false,
+        "skipFull": false,
+        "maxCols": 80
+      },
+      "name": "istanbul-production-visible",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "1a4baed277b6efaecf8656fe5d9fa92e8ec91db8d0984d65de1968e4ad282717",
+      "provider": "istanbul",
+      "mode": "production",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": false,
+        "maxCols": 65
+      },
+      "name": "istanbul-production-compact",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    },
+    {
+      "sourceFiles": {
+        "subjects/empty.js": {
+          "source": "export {}\n",
+          "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249"
+        },
+        "subjects/full.js": {
+          "source": "export const full = 1\n",
+          "sha256": "7eeed69315ff9fe4262a5101384c7b4a1ab13756656280ac2f1c9e7d462ff45f"
+        },
+        "subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+          "source": "export function choose(value) {\n  if (value) return 'hit'\n  return 'miss'\n}\n",
+          "sha256": "4b1df61d2f0c21042fc3d032202c0eb1083c51cfd587bfbea9eb459182313ce1"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {full} from './subjects/full.js'\nimport {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'\ntest('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })\n",
+          "sha256": "3d9435e65a28dc15566c4896a22922dbf4219019ce8fc2b886f4774a8285afe5"
+        }
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "configSHA256": "c2f8976c3580166c0fce3c0827468c4984b4dfc620a75085180b4acb0706f1d0",
+      "provider": "istanbul",
+      "mode": "production",
+      "options": {
+        "skipEmpty": true,
+        "skipFull": true,
+        "maxCols": 0
+      },
+      "name": "istanbul-production-unlimited",
+      "exitCode": 0,
+      "passedCases": 1,
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "coverage text options",
+                "status": "passed",
+                "title": "coverage text options",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "status": "passed",
+            "message": "",
+            "name": "<fixture>/suite.test.mjs"
+          }
+        ],
+        "coverageMap": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        }
+      },
+      "moduleTrace": [
+        {
+          "event": "module-end",
+          "tree": {
+            "type": "module",
+            "name": "suite.test.mjs",
+            "state": "passed",
+            "errors": [],
+            "children": [
+              {
+                "type": "test",
+                "name": "coverage text options",
+                "state": "passed",
+                "mode": "run",
+                "errors": []
+              }
+            ]
+          }
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "type": "module",
+              "name": "suite.test.mjs",
+              "state": "passed",
+              "errors": [],
+              "children": [
+                {
+                  "type": "test",
+                  "name": "coverage text options",
+                  "state": "passed",
+                  "mode": "run",
+                  "errors": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "coverageFiles": {
+        "coverage-final.json": {
+          "<fixture>/subjects/full.js": {
+            "path": "<fixture>/subjects/full.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {},
+            "branchMap": {},
+            "s": {
+              "0": 1
+            },
+            "f": {},
+            "b": {}
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+            "statementMap": {
+              "0": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "1": {
+                "start": {
+                  "line": 2,
+                  "column": 13
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "2": {
+                "start": {
+                  "line": 3,
+                  "column": 2
+                },
+                "end": {
+                  "line": 3,
+                  "column": null
+                }
+              }
+            },
+            "fnMap": {
+              "0": {
+                "name": "choose",
+                "decl": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 22
+                  }
+                },
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": null
+                  }
+                }
+              }
+            },
+            "branchMap": {
+              "0": {
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                "type": "if",
+                "locations": [
+                  {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": null
+                    }
+                  },
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 1,
+              "2": 0
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            }
+          }
+        },
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "statements": {
+              "total": 4,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 75
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/full.js": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          },
+          "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+            "lines": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 3,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 66.66
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subjects/full.js\nFNF:0\nFNH:0\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subjects/a-directory-name-long-enough-to-exercise-width/partial.js\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:2,1\nDA:3,0\nLF:2\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\n"
+      },
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n",
+      "snapshots": {},
+      "node": "v26.12.1",
+      "physicallyJoined": true
+    }
+  ]
+}
