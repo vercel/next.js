@@ -139,9 +139,12 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  replaceProcessEnv(initialEnv)
-  previousLoadedEnvFiles = cachedLoadedEnvFiles
-  cachedLoadedEnvFiles = []
+  // Read the files before touching process.env: a forced reload that
+  // reads nothing must not wipe what a previous load populated. This
+  // happens with FIFO-mounted .env files from secret managers, which
+  // serve their contents once and read empty thereafter, and with any
+  // transient read failure on reload.
+  const nextLoadedEnvFiles: LoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -168,7 +171,7 @@ export function loadEnvConfig(
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      cachedLoadedEnvFiles.push({
+      nextLoadedEnvFiles.push({
         path: envFile,
         contents,
         env: {}, // This will be populated in processEnv
@@ -179,6 +182,19 @@ export function loadEnvConfig(
       }
     }
   }
+
+  if (
+    forceReload &&
+    combinedEnv &&
+    cachedLoadedEnvFiles.some((file) => file.contents.length > 0) &&
+    !nextLoadedEnvFiles.some((file) => file.contents.length > 0)
+  ) {
+    return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  }
+
+  replaceProcessEnv(initialEnv)
+  previousLoadedEnvFiles = cachedLoadedEnvFiles
+  cachedLoadedEnvFiles = nextLoadedEnvFiles
   ;[combinedEnv, parsedEnv] = processEnv(
     cachedLoadedEnvFiles,
     dir,
