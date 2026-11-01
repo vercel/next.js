@@ -2,7 +2,10 @@ import type { ComponentType } from 'react'
 import type { ClientReferenceManifest } from '../../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { CompiledTestRequestContext, TestProfile } from '../contracts'
-import { createCompiledFileCache } from '../request/compiled-file-cache'
+import {
+  createCompiledFileCache,
+  type CompiledFileCacheRealm,
+} from '../request/compiled-file-cache'
 import { createCompiledRequestResources } from '../request/compiled-request'
 import { createRequestLifecycle } from '../request/request-lifecycle'
 import { runWithRenderRequest } from '../request/request-context'
@@ -58,6 +61,7 @@ export interface RscTestingBindings {
   manifestPage: string
   route?: CompiledRscTestArtifact['route']
   cacheScope?: { type: 'file'; directory: string }
+  cacheRealm?: CompiledFileCacheRealm
   previewPropsPath?: string
   prerenderManifestPath?: string
   /** Live compiler-owned module identity; never reconstructed from route JSON. */
@@ -186,7 +190,8 @@ async function render<Props extends {}>(
       cacheScope: bindings.cacheScope,
       previewPropsPath: bindings.previewPropsPath,
       prerenderManifestPath: bindings.prerenderManifestPath,
-    }
+    },
+    bindings.cacheRealm
   ))
   const references = (state.references ??=
     bindings.ConsumerMod.createClientReferenceObserver(
@@ -306,7 +311,8 @@ function routeInvocation() {
           cacheScope: bindings.cacheScope,
           previewPropsPath: bindings.previewPropsPath,
           prerenderManifestPath: bindings.prerenderManifestPath,
-        }
+        },
+        bindings.cacheRealm
       ))
     },
     validateOwner: () => {

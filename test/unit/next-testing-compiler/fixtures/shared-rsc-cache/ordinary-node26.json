@@ -1,0 +1,91 @@
+{
+  "rows": [
+    {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "layout": "actual-layout",
+      "layoutLanguage": "en",
+      "subject": {
+        "count": 1,
+        "id": "one",
+        "label": "first",
+        "language": "en",
+        "cookie": "one",
+        "first": {
+          "value": 1,
+          "createdAt": 1793485999497
+        },
+        "second": {
+          "value": 1,
+          "createdAt": 1793485999497
+        },
+        "fromAfter": null,
+        "expiration": 0,
+        "state": {
+          "renders": 1,
+          "mainCalls": 1,
+          "afterCalls": 0,
+          "completedAfter": 0
+        }
+      }
+    },
+    {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "layout": "actual-layout",
+      "layoutLanguage": "en",
+      "subject": {
+        "count": 2,
+        "id": "one",
+        "label": "first",
+        "language": "en",
+        "cookie": "one",
+        "first": {
+          "value": 1,
+          "createdAt": 1793485999497
+        },
+        "second": {
+          "value": 1,
+          "createdAt": 1793485999497
+        },
+        "fromAfter": null,
+        "expiration": 0,
+        "state": {
+          "renders": 2,
+          "mainCalls": 1,
+          "afterCalls": 0,
+          "completedAfter": 0
+        }
+      }
+    },
+    {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "layout": "actual-layout",
+      "layoutLanguage": "en",
+      "subject": {
+        "count": 3,
+        "id": "one",
+        "label": "first",
+        "language": "en",
+        "cookie": "one",
+        "first": {
+          "value": 2,
+          "createdAt": 1793485999631
+        },
+        "second": {
+          "value": 2,
+          "createdAt": 1793485999631
+        },
+        "fromAfter": 1,
+        "expiration": 1793485999613,
+        "state": {
+          "renders": 3,
+          "mainCalls": 2,
+          "afterCalls": 1,
+          "completedAfter": 1
+        }
+      }
+    }
+  ]
+}

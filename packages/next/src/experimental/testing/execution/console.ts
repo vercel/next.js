@@ -101,14 +101,27 @@ export function installTestConsole(options: {
       process.platform === 'win32' ||
       (process.env.FORCE_TTY !== 'false' && process.env.TERM !== 'dumb') ||
       'CI' in process.env)
+  const capturedConsole = new Console({
+    stdout: stream('stdout'),
+    stderr: stream('stderr'),
+    colorMode,
+    groupIndentation: 2,
+  })
+  // The host Console can expose real inspector tasks that a new instance lacks.
+  // Preserve that actual callable; rendering must not receive a replacement shim.
+  const createTask = Object.getOwnPropertyDescriptor(
+    descriptor.value,
+    'createTask'
+  )
+  if (
+    createTask &&
+    'value' in createTask &&
+    typeof createTask.value === 'function'
+  )
+    Object.defineProperty(capturedConsole, 'createTask', createTask)
   Object.defineProperty(globalThis, 'console', {
     ...descriptor,
-    value: new Console({
-      stdout: stream('stdout'),
-      stderr: stream('stderr'),
-      colorMode,
-      groupIndentation: 2,
-    }),
+    value: capturedConsole,
   })
   async function flush() {
     for (const key of buffers.keys()) flushTask(key)

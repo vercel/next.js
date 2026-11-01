@@ -1,0 +1,4 @@
+let count = 0
+export function nextSharedState() {
+  return { version: 'A', count: ++count }
+}

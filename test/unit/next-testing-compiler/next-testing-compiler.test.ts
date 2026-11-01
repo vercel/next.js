@@ -1852,6 +1852,107 @@ describe('test compiler artifact publication', () => {
     ).rejects.toThrow('requires NODE_ENV=production')
     expect(createDevTurbopackProject).not.toHaveBeenCalled()
   })
+  async function sharedRscInputs() {
+    mockCacheComponents = false
+    const rscProfile = { ...profile, route: '/reference/[slug]' }
+    await writeFile(
+      join(dir, 'second.test.ts'),
+      '// second RSC compiler fixture'
+    )
+    session = await createTestCompilerSession(dir, rscProfile)
+    return [
+      { ...entry(), id: 'rsc:first', profile: rscProfile },
+      {
+        id: 'rsc:second',
+        file: join(dir, 'second.test.ts'),
+        profile: rscProfile,
+      },
+    ]
+  }
+
+  it('shared RSC compiler contract retains one actual native route closure with distinct dispatch identities', async () => {
+    const entries = await sharedRscInputs()
+    const result = await session!.compileCohort(entries, {
+      signal: new AbortController().signal,
+    })
+    expect(cohortRequests).toEqual([['subject.test.ts', 'second.test.ts']])
+    expect(routeRequests).toEqual(['/reference/[slug]'])
+    const [first, second] = result.artifacts
+    expect(first.kind).toBe('rsc')
+    expect(second.kind).toBe('rsc')
+    if (first.kind !== 'rsc' || second.kind !== 'rsc')
+      throw new Error('Expected RSC cohort')
+    expect(first.rootDir).toBe(second.rootDir)
+    expect(first.entryPath).toBe(second.entryPath)
+    expect(first.manifestPage).toBe(second.manifestPage)
+    expect(first.manifests).toEqual(second.manifests)
+    expect(first.route).toEqual(second.route)
+    expect(second.route!.entry.file).toBe('subject.test.ts')
+    expect(first.cohort!.index).toBe(0)
+    expect(second.cohort!.index).toBe(1)
+    expect(second.entryId).toBe(entries[1].id)
+    expect(second.sourceHash).toBe(first.cohort!.entries[1].sourceHash)
+    expect(second.sourceHash).not.toBe(first.sourceHash)
+    expect(first.cohort!.outputs).toEqual(
+      await Promise.all(
+        first.files.map(async (file) => ({
+          path: file,
+          sha256: createHash('sha256')
+            .update(await readFile(join(first.rootDir, file)))
+            .digest('hex'),
+        }))
+      )
+    )
+    await session!.shutdownCompilation()
+    expect(await readFile(join(first.rootDir, first.entryPath), 'utf8')).toBe(
+      'first revision'
+    )
+  })
+
+  it.each([
+    ['missing', null],
+    [
+      'wrong version',
+      { cohort: { version: 2, files: ['subject.test.ts', 'second.test.ts'] } },
+    ],
+    [
+      'wrong order',
+      { cohort: { version: 1, files: ['second.test.ts', 'subject.test.ts'] } },
+    ],
+  ])(
+    'shared RSC compiler contract rejects %s native cohort evidence',
+    async (_, metadata) => {
+      const entries = await sharedRscInputs()
+      cohortMetadata = metadata
+      await expect(
+        session!.compileCohort(entries, {
+          signal: new AbortController().signal,
+        })
+      ).rejects.toThrow(/cohort (metadata|order)/)
+    }
+  )
+
+  it('shared RSC compiler contract rejects actual later-root mutation', async () => {
+    const entries = await sharedRscInputs()
+    beforeEmit = () => writeFile(entries[1].file, '// actual later-root edit')
+    await expect(
+      session!.compileCohort(entries, { signal: new AbortController().signal })
+    ).rejects.toThrow('cohort source changed')
+  })
+
+  it('shared RSC compiler contract keeps route-less cohorts closed', async () => {
+    const entries = await sharedRscInputs()
+    await session!.dispose()
+    session = await createTestCompilerSession(dir, profile)
+    await expect(
+      session.compileCohort(
+        entries.map((value) => ({ ...value, profile })),
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow(/cohort/)
+    expect(cohortRequests).toHaveLength(0)
+  })
+
   async function sharedInputs() {
     const nodeProfile = {
       ...profile,
@@ -9955,4 +10056,117 @@ if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
     },
     130000
   )
+}
+
+it('pins the ordinary AppPage shared RSC HTTP authority and unchanged two-spec corpus', () => {
+  const { execFileSync } = require('node:child_process')
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'shared-rsc.mjs'), '--check-corpus'],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    models: 4,
+    bodies: 6,
+    wholeHttpRows: 8,
+    authority: 'ordinary Next.js AppPage HTTP; no Vitest RSC substitution',
+    strictOrdinaryOwnershipQualified: false,
+    rawModelsAndSourceBytesExact: true,
+  })
+})
+
+if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
+  it('retains one actual AppPage module graph across two independent RSC files', () => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-public-'))
+    const output = join(parent, 'run')
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'shared-rsc.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
+      ).toEqual({
+        kind: 'source',
+        engine: process.versions.node.split('.')[0],
+        actualNodeVersion: process.version,
+        completeHttpRowsEqual: true,
+        cases: 2,
+        files: 2,
+        sharedCounts: [1, 2],
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+        ordinaryStrictOwnershipQualified: false,
+        watchQualified: false,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(parent, { recursive: true, force: true })
+    }
+  }, 130000)
+}
+
+it('pins the actual ordinary cache and after behavior without claiming shared AppPage qualification', () => {
+  const { execFileSync } = require('node:child_process')
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'shared-rsc-cache.mjs'), '--check-corpus'],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    bodies: 6,
+    ordinaryHttpRows: 3,
+    ordinaryStrictOwnerJoined: false,
+    ordinaryAllOwnedPidsPhysicallyGone: true,
+    actualSharedAppPageQualificationClaimed: false,
+    rawModelsAndSourceBytesExact: true,
+  })
+})
+
+if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
+  it('owns real AppPage handlers cache tags and after work independently for shared RSC files', () => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-cache-public-'))
+    const output = join(parent, 'run')
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'shared-rsc-cache.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
+      ).toEqual({
+        kind: 'source',
+        actualNodeVersion: process.version,
+        cases: 2,
+        actualAppPageRows: 6,
+        withinFileActualCacheHits: true,
+        crossFileActualCacheMiss: true,
+        freshActualTags: true,
+        actualAfterAndRevalidationDrained: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+        ordinaryWholeReferenceEqualityClaimed: false,
+        watchQualified: false,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(parent, { recursive: true, force: true })
+    }
+  }, 130000)
 }

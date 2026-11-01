@@ -92,7 +92,8 @@ export async function renderCompiledRoute(
     )
   }
   if (
-    route.config.dynamic !== 'force-dynamic' ||
+    (route.config.dynamic !== 'force-dynamic' &&
+      !(profile.mode === 'development' && route.config.dynamic === 'auto')) ||
     requestContext.renderOpts.cacheComponents
   ) {
     throw new Error(

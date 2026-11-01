@@ -86,6 +86,7 @@ import type {
   CompiledTestRoute,
   CompiledTestCohort,
   CompiledNodeTestArtifact,
+  CompiledRscTestArtifact,
   CompileTestOptions,
   TestEntry,
   TestProfile,
@@ -1419,7 +1420,13 @@ export async function createTestCompilerSession(
     if (cohortEntries) {
       if (
         !inputs.length ||
-        profile.environment !== 'node' ||
+        !(
+          (profile.environment === 'node' && profile.route === undefined) ||
+          (profile.environment === 'rsc' &&
+            profile.runtime === 'nodejs' &&
+            profile.bundler === 'turbopack' &&
+            profile.route !== undefined)
+        ) ||
         profile.mode !== 'development' ||
         setupFiles.length ||
         snapshotSerializers.length ||
@@ -2340,6 +2347,17 @@ export async function createTestCompilerSession(
               ...common,
               kind: 'rsc',
               profile: { ...profile, environment: 'rsc' },
+              ...(cohortInputs
+                ? {
+                    cohort: {
+                      version: 1 as const,
+                      index: 0,
+                      metadataPath: cohortMetadataPath,
+                      outputs: cohortOutputs!,
+                      entries: cohortInputs,
+                    },
+                  }
+                : {}),
               manifestPage,
               ...(route ? { route } : {}),
               manifests: manifests!,
@@ -2940,7 +2958,10 @@ export async function createTestCompilerSession(
           coverage,
           inputs
         )
-        if (artifact.kind !== 'node' || !artifact.cohort) {
+        if (
+          (artifact.kind !== 'node' && artifact.kind !== 'rsc') ||
+          !artifact.cohort
+        ) {
           throw new Error(
             'Shared test cohort compilation did not produce Node cohort identity'
           )
@@ -2949,7 +2970,10 @@ export async function createTestCompilerSession(
         return {
           version: 1 as const,
           artifacts: cohort.entries.map(
-            (input, index): CompiledNodeTestArtifact => ({
+            (
+              input,
+              index
+            ): CompiledNodeTestArtifact | CompiledRscTestArtifact => ({
               ...artifact,
               entryId: input.entryId,
               sourceHash: input.sourceHash,

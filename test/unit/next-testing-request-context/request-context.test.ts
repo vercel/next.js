@@ -906,3 +906,45 @@ it.each(['auto', 'force-dynamic', 'force-static', 'error'] as const)(
     )
   }
 )
+
+describe('owned shared AppPage cache realms', () => {
+  const { execFileSync } =
+    require('child_process') as typeof import('child_process')
+  it.each([
+    'isolation',
+    'lifecycle',
+    'ownership',
+    'isolated',
+    'zero-memory',
+    'refusals',
+  ])('uses real caches for %s without crossing file leases', (scenario) => {
+    for (const mode of ['development', 'production']) {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'compiled-cache-realm.cjs'),
+          join(__dirname, '../../..'),
+          scenario,
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toMatchObject({ scenario, mode })
+    }
+  })
+})
+
+it('keeps actual route lifetimes shared within one file and fresh across AppPage files', () => {
+  const { execFileSync } =
+    require('child_process') as typeof import('child_process')
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'cache-controls-realm.cjs'), join(__dirname, '../../..')],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toMatchObject({
+    withinFileLifetimeShared: true,
+    crossFileLifetimeMiss: true,
+    realIncrementalCacheAndFileHandler: true,
+  })
+})

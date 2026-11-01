@@ -9,9 +9,13 @@ export interface TagManifestEntry {
 // file-system cache.
 export const tagsManifest = new Map<string, TagManifestEntry>()
 
-export const areTagsExpired = (tags: string[], timestamp: Timestamp) => {
+export const areTagsExpired = (
+  tags: string[],
+  timestamp: Timestamp,
+  manifest = tagsManifest
+) => {
   for (const tag of tags) {
-    const entry = tagsManifest.get(tag)
+    const entry = manifest.get(tag)
     const expiredAt = entry?.expired
 
     if (typeof expiredAt === 'number') {
@@ -29,9 +33,13 @@ export const areTagsExpired = (tags: string[], timestamp: Timestamp) => {
   return false
 }
 
-export const areTagsStale = (tags: string[], timestamp: Timestamp) => {
+export const areTagsStale = (
+  tags: string[],
+  timestamp: Timestamp,
+  manifest = tagsManifest
+) => {
   for (const tag of tags) {
-    const entry = tagsManifest.get(tag)
+    const entry = manifest.get(tag)
     const staleAt = entry?.stale ?? 0
 
     if (typeof staleAt === 'number' && staleAt > timestamp) {

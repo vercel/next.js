@@ -1,0 +1,21 @@
+import { test, expect } from 'next/experimental/testing/vitest'
+import { rsc } from 'next/experimental/testing/rsc'
+import { actualState } from './cache-state.mjs'
+import { readCacheRow } from './row.mjs'
+
+test('first shared AppPage file reuses real cache entries and drains after revalidation', async () => {
+  const rows = []
+  for (const [index, suffix] of ['', '&invalidate=yes', '&observeAfter=yes'].entries()) {
+    const row = readCacheRow(await rsc.renderRoute({ cacheScope: 'file', format: 'html', url: 'http://localhost/cache/one?label=first' + suffix, headers: { 'accept-language': 'en', cookie: 'scope=one' } }))
+    rows.push(row)
+    const cached = index === 2 ? 2 : 1
+    expect(row).toMatchObject({ status: 200, contentType: 'text/html; charset=utf-8', layout: 'actual-layout', layoutLanguage: 'en', subject: { count: index + 1, id: 'one', label: 'first', language: 'en', cookie: 'one', first: { value: cached }, second: { value: cached }, fromAfter: index === 2 ? 1 : null } })
+    expect(row.subject.first).toEqual(row.subject.second)
+    expect(Number.isInteger(row.subject.first.createdAt)).toBe(true)
+    if (index < 2) expect(row.subject.expiration).toBe(0)
+    else expect(row.subject.expiration).toBeGreaterThan(0)
+    if (index === 1) expect(actualState()).toEqual({ renders: 2, mainCalls: 1, afterCalls: 1, completedAfter: 1 })
+  }
+  expect(actualState()).toEqual({ renders: 3, mainCalls: 2, afterCalls: 1, completedAfter: 1 })
+  console.log('SHARED_CACHE_ROWS ' + JSON.stringify({ file: 'first', rows, state: actualState() }))
+})

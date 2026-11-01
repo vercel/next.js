@@ -64,11 +64,21 @@ export function createRouteEntrypoint(page: string, pathname: string) {
 // INJECT_RAW:__next_test_mock_runtime__
 
 // The worker installs the collector and manifests before evaluating the spec.
-export async function loadTestModule() {
+export async function loadTestModule(index?: number) {
   // INJECT_RAW:__next_test_mock_load__
   // The compiler replaces this internal asset; it has no source-level TS module.
-  // eslint-disable-next-line @next/internal/typechecked-require
-  return require(/*turbopackChunkingType: shared*/ 'VAR_TEST_MODULE')
+  if (index === undefined) {
+    // The single-entry compiler contract retains the original module result.
+    // eslint-disable-next-line @next/internal/typechecked-require
+    return require(/*turbopackChunkingType: shared*/ 'VAR_TEST_MODULE')
+  }
+  // The compiler-generated dispatcher owns the ordered lazy RSC roots.
+  const dispatcher =
+    await // eslint-disable-next-line @next/internal/typechecked-require
+    (require(/*turbopackChunkingType: shared*/ 'VAR_TEST_MODULE') as {
+      loadTestModule(index: number): Promise<unknown>
+    })
+  return dispatcher.loadTestModule(index)
 }
 
 // These imports are compiled in the spec context and evaluated after collection starts.

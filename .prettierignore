@@ -118,3 +118,6 @@ test/e2e/app-dir/next-testing-package/browser-component-cleanup-native/**/report
 
 # Exact authored bodies shared by native parser and public regression controls.
 /crates/next-api/tests/fixtures/native-multi-target/*.mjs
+
+# Exact ordinary AppPage shared RSC reference source bytes.
+test/unit/next-testing-compiler/fixtures/shared-rsc/sources/

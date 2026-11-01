@@ -317,6 +317,8 @@ export interface CompiledTestRoute {
 export interface CompiledRscTestArtifact
   extends CompiledTestArtifactBase<'rsc'> {
   kind: 'rsc'
+  /** Ordered native roots may retain one actual AppPage graph. */
+  cohort?: CompiledTestCohortIdentity
   /** Native sidecar retained in the immutable output closure. */
   route?: CompiledTestRoute & { metadataPath: string }
   manifestPage: string
@@ -355,7 +357,7 @@ export interface CompiledTestCohortIdentity {
 
 export interface CompiledTestCohort {
   version: 1
-  artifacts: readonly CompiledNodeTestArtifact[]
+  artifacts: readonly (CompiledNodeTestArtifact | CompiledRscTestArtifact)[]
 }
 
 /** Node units and Node browser-e2e drivers have no RSC manifests or request state. */

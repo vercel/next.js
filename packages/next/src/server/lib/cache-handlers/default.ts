@@ -47,7 +47,10 @@ type PrivateCacheEntry = {
   size: number
 }
 
-export function createDefaultCacheHandler(maxSize: number): CacheHandler {
+export function createDefaultCacheHandler(
+  maxSize: number,
+  manifest = tagsManifest
+): CacheHandler {
   // If the max size is 0, return a cache handler that doesn't cache anything,
   // this avoids an unnecessary LRUCache instance and potential memory
   // allocation.
@@ -126,12 +129,12 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
       let revalidate = entry.revalidate
 
-      if (areTagsExpired(entry.tags, entry.timestamp)) {
+      if (areTagsExpired(entry.tags, entry.timestamp, manifest)) {
         debug?.('get', cacheKey, 'had expired tag')
         return undefined
       }
 
-      if (areTagsStale(entry.tags, entry.timestamp)) {
+      if (areTagsStale(entry.tags, entry.timestamp, manifest)) {
         debug?.('get', cacheKey, 'had stale tag')
         revalidate = -1
       }
@@ -202,7 +205,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
     async getExpiration(tags) {
       const expirations = tags.map((tag) => {
-        const entry = tagsManifest.get(tag)
+        const entry = manifest.get(tag)
         if (!entry) return 0
         // Return the most recent timestamp (either expired or stale)
         return entry.expired || 0
@@ -221,7 +224,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
       for (const tag of tags) {
         // TODO: update file-system-cache?
-        const existingEntry = tagsManifest.get(tag) || {}
+        const existingEntry = manifest.get(tag) || {}
 
         if (durations) {
           // Use provided durations directly
@@ -234,10 +237,10 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
             updates.expired = now + durations.expire * 1000 // Convert seconds to ms
           }
 
-          tagsManifest.set(tag, updates)
+          manifest.set(tag, updates)
         } else {
           // Update expired field for immediate expiration (default behavior when no durations provided)
-          tagsManifest.set(tag, { ...existingEntry, expired: now })
+          manifest.set(tag, { ...existingEntry, expired: now })
         }
       }
     },

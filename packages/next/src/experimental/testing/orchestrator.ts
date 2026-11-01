@@ -527,9 +527,15 @@ export async function runTests(
       options.coverage ||
       options.inspect ||
       (options.execute && !options.executeCohort) ||
-      project.profile.environment !== 'node' ||
+      !(
+        (project.profile.environment === 'node' &&
+          project.profile.route === undefined) ||
+        (project.profile.environment === 'rsc' &&
+          project.profile.runtime === 'nodejs' &&
+          project.profile.bundler === 'turbopack' &&
+          project.profile.route !== undefined)
+      ) ||
       project.profile.mode !== 'development' ||
-      project.profile.route !== undefined ||
       project.setupFiles.length ||
       project.snapshotSerializers?.length ||
       project.globalSetup?.length ||

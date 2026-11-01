@@ -3,14 +3,20 @@ import { lstat, readFile, realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type {
   CompiledNodeTestArtifact,
+  CompiledRscTestArtifact,
   CompiledTestArtifact,
   CompiledTestCohortIdentity,
   TestEntry,
 } from '../contracts'
 import { assertArtifactProfile } from './artifact-profile'
+import { validateCompiledTestRoute } from '../rsc/route'
+import { validateRscEntryArtifact } from './rsc-entry'
 import type { WorkerLeaseInput } from './protocol'
 
-export type CohortArtifact = CompiledNodeTestArtifact & {
+export type CohortArtifact = (
+  | CompiledNodeTestArtifact
+  | CompiledRscTestArtifact
+) & {
   cohort: CompiledTestCohortIdentity
 }
 
@@ -41,10 +47,17 @@ export function assertCohortArtifact(
 ): asserts artifact is CohortArtifact {
   assertArtifactProfile(artifact, entry)
   if (
-    artifact.kind !== 'node' ||
-    artifact.profile.environment !== 'node' ||
+    !(
+      (artifact.kind === 'node' &&
+        artifact.profile.environment === 'node' &&
+        artifact.profile.route === undefined) ||
+      (artifact.kind === 'rsc' &&
+        artifact.profile.environment === 'rsc' &&
+        artifact.profile.runtime === 'nodejs' &&
+        artifact.profile.bundler === 'turbopack' &&
+        artifact.profile.route !== undefined)
+    ) ||
     artifact.profile.mode !== 'development' ||
-    artifact.profile.route !== undefined ||
     artifact.moduleMocking ||
     (artifact.kind === 'node' &&
       (artifact.moduleCache || artifact.dynamicModuleMocking)) ||
@@ -112,6 +125,32 @@ export function assertCohortArtifact(
     ids.add(input.entryId)
     files.add(input.file)
   }
+  if (artifact.kind === 'rsc') {
+    validateCompiledTestRoute(artifact.route, artifact.profile)
+    const primary = cohort.entries[0]
+    if (
+      artifact.route!.entry.file !== primary.file ||
+      artifact.route!.entry.sha256 !== primary.sourceHash
+    )
+      throw new Error(
+        'Shared RSC route entry does not match its actual primary root.'
+      )
+    const manifests = artifact.manifests
+    if (
+      !artifact.requestContext ||
+      artifact.requestContext.mode !== artifact.profile.mode ||
+      !artifact.requestContext.routeRenderOpts ||
+      !manifests.previewProps ||
+      !manifests.prerender ||
+      !manifests.routeBuild ||
+      !manifests.routeFont ||
+      !manifests.routeLoadable ||
+      Object.values(manifests).some((file) => !artifact.files.includes(file))
+    )
+      throw new Error(
+        'Shared RSC execution requires actual request and manifest facts.'
+      )
+  }
   const own = cohort.entries[cohort.index]
   const projectFile = relative(projectDir, entry.file).split(sep).join('/')
   if (
@@ -140,6 +179,15 @@ export function cohortClosureIdentity(artifact: CohortArtifact): string {
     metadataPath: artifact.cohort.metadataPath,
     entries: artifact.cohort.entries,
     outputs: artifact.cohort.outputs,
+    ...(artifact.kind === 'rsc'
+      ? {
+          kind: artifact.kind,
+          manifestPage: artifact.manifestPage,
+          manifests: artifact.manifests,
+          route: artifact.route,
+          requestContext: artifact.requestContext,
+        }
+      : {}),
   })
 }
 
@@ -167,6 +215,8 @@ export async function validateCohortFiles(
         'Shared cohort emitted file bytes changed after compilation.'
       )
   }
+  if (artifact.kind === 'rsc')
+    await validateRscEntryArtifact(artifact, cohortArtifactPath)
   const metadata = JSON.parse(
     await readFile(
       cohortArtifactPath(root, artifact.cohort.metadataPath),

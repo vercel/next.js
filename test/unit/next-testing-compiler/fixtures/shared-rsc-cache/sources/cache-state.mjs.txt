@@ -1,0 +1,12 @@
+import { unstable_cache } from 'next/cache'
+
+export const sharedTag = 'actual-shared-file-tag'
+let renders = 0
+let mainCalls = 0
+let afterCalls = 0
+let completedAfter = 0
+export const mainValue = unstable_cache(async () => ({ value: ++mainCalls, createdAt: Date.now() }), ['actual-shared-file-key'], { tags: [sharedTag], revalidate: 3600 })
+export const afterValue = unstable_cache(async () => ++afterCalls, ['actual-shared-after-key'], { revalidate: 3600 })
+export function nextRender() { return ++renders }
+export function finishAfter() { return ++completedAfter }
+export function actualState() { return { renders, mainCalls, afterCalls, completedAfter } }

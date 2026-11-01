@@ -218,7 +218,8 @@ export async function createTestWorkerLease(
           }
           for (const [requestId, origin] of completed) {
             if (
-              origin.artifact.kind === 'node' &&
+              (origin.artifact.kind === 'node' ||
+                origin.artifact.kind === 'rsc') &&
               origin.artifact.cohort &&
               origin.options.updateSnapshots &&
               completionByRequest.get(requestId)!.result.status === 'passed' &&
@@ -280,7 +281,9 @@ export async function createTestWorkerLease(
           throw new Error('Invalid persistent worker file result.')
         if (payload.snapshotUpdates !== undefined) {
           if (
-            (origin.artifact.kind === 'node' && origin.artifact.cohort) ||
+            ((origin.artifact.kind === 'node' ||
+              origin.artifact.kind === 'rsc') &&
+              origin.artifact.cohort) ||
             !origin.options.updateSnapshots ||
             !Array.isArray(payload.snapshotUpdates)
           )

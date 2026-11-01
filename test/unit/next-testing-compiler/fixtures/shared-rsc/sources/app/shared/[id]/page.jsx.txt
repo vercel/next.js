@@ -1,0 +1,17 @@
+import { headers, cookies } from 'next/headers'
+import { nextSharedState } from '../../../shared-state.mjs'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+export default async function Page({ params, searchParams }) {
+  const [path, query, request, cookie] = await Promise.all([params, searchParams, headers(), cookies()])
+  const row = {
+    ...nextSharedState(),
+    id: path.id,
+    label: query.label,
+    language: request.get('accept-language'),
+    cookie: cookie.get('scope')?.value ?? null,
+  }
+  return <pre id="shared-route-values">{JSON.stringify(row)}</pre>
+}

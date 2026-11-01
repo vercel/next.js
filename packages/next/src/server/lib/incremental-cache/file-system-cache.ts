@@ -25,7 +25,10 @@ import {
 } from '../../../lib/constants'
 import { areTagsExpired, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
-import { getMemoryCache } from './memory-cache.external'
+import {
+  getMemoryCache,
+  type IncrementalCacheState,
+} from './memory-cache.external'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -40,6 +43,8 @@ export default class FileSystemCache implements CacheHandler {
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private revalidatedTags: string[]
+  private readonly cacheHandlerState: IncrementalCacheState | undefined
+  private readonly tagsManifest: Map<string, TagManifestEntry>
   private static debug: boolean = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
   private static memoryCache: LRUCache<CacheHandlerValue> | undefined
   private static readonly seedReads = new Map<
@@ -53,7 +58,7 @@ export default class FileSystemCache implements CacheHandler {
     this.serverDistDir = ctx.serverDistDir
     this.revalidatedTags = ctx.revalidatedTags
 
-    if (ctx.maxMemoryCacheSize) {
+    if (!ctx.cacheHandlerState && ctx.maxMemoryCacheSize) {
       if (!FileSystemCache.memoryCache) {
         if (FileSystemCache.debug) {
           console.log('FileSystemCache: using memory store for fetch cache')
@@ -66,6 +71,14 @@ export default class FileSystemCache implements CacheHandler {
     } else if (FileSystemCache.debug) {
       console.log('FileSystemCache: not using memory store for fetch cache')
     }
+    this.cacheHandlerState = ctx.cacheHandlerState
+    this.tagsManifest = ctx.cacheHandlerState?.tagsManifest ?? tagsManifest
+  }
+
+  private get memoryCache() {
+    return this.cacheHandlerState
+      ? this.cacheHandlerState.memoryCache
+      : FileSystemCache.memoryCache
   }
 
   public resetRequestCache(): void {}
@@ -112,7 +125,7 @@ export default class FileSystemCache implements CacheHandler {
     const now = Date.now()
 
     for (const tag of tags) {
-      const existingEntry = tagsManifest.get(tag) || {}
+      const existingEntry = this.tagsManifest.get(tag) || {}
 
       if (durations) {
         // Use provided durations directly
@@ -125,10 +138,10 @@ export default class FileSystemCache implements CacheHandler {
           updates.expired = now + durations.expire * 1000 // Convert seconds to ms
         }
 
-        tagsManifest.set(tag, updates)
+        this.tagsManifest.set(tag, updates)
       } else {
         // Update expired field for immediate expiration (default behavior when no durations provided)
-        tagsManifest.set(tag, { ...existingEntry, expired: now })
+        this.tagsManifest.set(tag, { ...existingEntry, expired: now })
       }
     }
   }
@@ -139,12 +152,12 @@ export default class FileSystemCache implements CacheHandler {
     let readKey = key
     let seedRead: ReturnType<FileSystemCache['beginSeedRead']> | undefined
 
-    let data = FileSystemCache.memoryCache?.get(key)
+    let data = this.memoryCache?.get(key)
 
     const activePromotion = this.getSeedReadState(key)?.promotion
     if (!data && activePromotion) {
       await activePromotion
-      data = FileSystemCache.memoryCache?.get(key)
+      data = this.memoryCache?.get(key)
     }
 
     if (FileSystemCache.debug) {
@@ -384,7 +397,7 @@ export default class FileSystemCache implements CacheHandler {
 
         if (data) {
           if (!seedRead) {
-            FileSystemCache.memoryCache?.set(key, data)
+            this.memoryCache?.set(key, data)
           }
         }
       } catch {
@@ -409,7 +422,7 @@ export default class FileSystemCache implements CacheHandler {
         // revalidation instead we return data.lastModified = -1
         if (
           cacheTags.length > 0 &&
-          areTagsExpired(cacheTags, data.lastModified)
+          areTagsExpired(cacheTags, data.lastModified, this.tagsManifest)
         ) {
           if (FileSystemCache.debug) {
             console.log('FileSystemCache: expired tags', cacheTags)
@@ -437,7 +450,7 @@ export default class FileSystemCache implements CacheHandler {
         return null
       }
 
-      if (areTagsExpired(combinedTags, data.lastModified)) {
+      if (areTagsExpired(combinedTags, data.lastModified, this.tagsManifest)) {
         if (FileSystemCache.debug) {
           console.log('FileSystemCache: expired tags', combinedTags)
         }
@@ -459,11 +472,8 @@ export default class FileSystemCache implements CacheHandler {
             state,
             version
           )
-          if (
-            state.version === version &&
-            !FileSystemCache.memoryCache?.get(key)
-          ) {
-            FileSystemCache.memoryCache?.set(key, data)
+          if (state.version === version && !this.memoryCache?.get(key)) {
+            this.memoryCache?.set(key, data)
           }
         }
       } finally {
@@ -617,7 +627,7 @@ export default class FileSystemCache implements CacheHandler {
     const seedState = this.getSeedReadState(key)
     if (seedState) seedState.version++
 
-    FileSystemCache.memoryCache?.set(key, {
+    this.memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
       cacheControl,

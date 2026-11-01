@@ -22,6 +22,7 @@ import { mapTestArtifactLocation } from '../reporting/artifact-location'
 import { mapTestDeclarationLocation } from '../reporting/declaration-location'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import { installTestConsole } from './console'
+import { prepareCompiledRscEntry, type CompiledRscEntry } from './rsc-entry'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
 import { createArtifactRegistrationOriginMapper } from './registration-origin'
@@ -58,6 +59,12 @@ const byFile = new Map<string, OwnedFile>()
 const pendingMessages: Promise<void>[] = []
 let lease: WorkerLeaseInput | undefined
 let entry: Entry | undefined
+let initializeRsc: ReturnType<typeof prepareCompiledRscEntry> | undefined
+let cacheRealm:
+  | ReturnType<
+      typeof import('../request/compiled-file-cache').createCompiledFileCacheRealm
+    >
+  | undefined
 let worker:
   | ReturnType<typeof import('../runner').initializeTestWorker>
   | undefined
@@ -203,6 +210,9 @@ async function runFile(requestId: number, input: WorkerInput) {
   const started = performance.now()
   let consoleCapture: ReturnType<typeof installTestConsole> | undefined
   let phase: 'collection' | 'runtime' = 'collection'
+  let rscBinding:
+    | ReturnType<ReturnType<typeof prepareCompiledRscEntry>>
+    | undefined
   let collection: TestFileCollection | undefined
   let registrationOrigin:
     | ReturnType<typeof createArtifactRegistrationOriginMapper>
@@ -250,6 +260,18 @@ async function runFile(requestId: number, input: WorkerInput) {
         throw new Error(
           'Compiled shared entry lacks the worker runtime dispatch contract.'
         )
+      if (artifact.kind === 'rsc') {
+        const { createCompiledFileCacheRealm } = await import(
+          '../request/compiled-file-cache.js'
+        )
+        cacheRealm = createCompiledFileCacheRealm()
+        initializeRsc = prepareCompiledRscEntry(
+          entry as Entry & CompiledRscEntry,
+          artifact,
+          cohortArtifactPath,
+          cacheRealm
+        )
+      }
       imports = entry.initializeModuleImportTracking?.()
       worker = entry.testRunner.initializeTestWorker({
         workerId: lease.leaseId,
@@ -305,6 +327,7 @@ async function runFile(requestId: number, input: WorkerInput) {
           timestamp
         ),
     })
+    rscBinding = initializeRsc?.(cacheScope)
     await file.collect(() => entry!.loadTestModule(artifact.cohort.index))
     controller.signal.throwIfAborted()
     if (options.collectOnly) {
@@ -476,6 +499,13 @@ async function runFile(requestId: number, input: WorkerInput) {
       await report(owner, error, 'cleanup')
     }
     try {
+      await rscBinding?.dispose()
+    } catch (error) {
+      failed = true
+      owner.status = 'failed'
+      await report(owner, error, 'cleanup')
+    }
+    try {
       const snapshot = owner.file?.getSnapshotSummary()
       if (snapshot)
         await event(owner, {
@@ -528,7 +558,11 @@ async function finish(finishToken: string) {
   try {
     await worker?.dispose()
   } finally {
-    imports?.dispose()
+    try {
+      imports?.dispose()
+    } finally {
+      cacheRealm?.dispose()
+    }
   }
   await turn()
   await flush()
@@ -572,8 +606,12 @@ process.on(
           try {
             await worker?.dispose()
           } finally {
-            imports?.dispose()
-            process.exit(1)
+            try {
+              imports?.dispose()
+              cacheRealm?.dispose()
+            } finally {
+              process.exit(1)
+            }
           }
         })
         .catch(fatal)

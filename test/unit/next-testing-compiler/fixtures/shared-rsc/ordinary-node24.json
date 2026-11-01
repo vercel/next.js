@@ -1,0 +1,32 @@
+{
+  "rows": [
+    {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "layout": "actual-layout",
+      "layoutLanguage": "en",
+      "subject": {
+        "version": "A",
+        "count": 1,
+        "id": "one",
+        "label": "first",
+        "language": "en",
+        "cookie": "one"
+      }
+    },
+    {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "layout": "actual-layout",
+      "layoutLanguage": "fr",
+      "subject": {
+        "version": "A",
+        "count": 2,
+        "id": "two",
+        "label": "second",
+        "language": "fr",
+        "cookie": "two"
+      }
+    }
+  ]
+}

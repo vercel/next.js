@@ -427,7 +427,7 @@ pub(crate) async fn test_endpoint(
         &environment,
         project.next_mode().await?.is_development(),
     )?;
-    if route.is_some() && (&*environment != "rsc" || !cohort_files.is_empty()) {
+    if route.is_some() && &*environment != "rsc" {
         bail!("Route-aware tests require one-shot Node RSC entries");
     }
     if id.is_empty()
@@ -452,7 +452,7 @@ pub(crate) async fn test_endpoint(
         }
     }
     if !cohort_files.is_empty() {
-        if &*environment != "node"
+        if (&*environment != "node" && (&*environment != "rsc" || route.is_none()))
             || project.next_mode().await?.is_production()
             || !setup_files.is_empty()
             || !snapshot_serializers.is_empty()
@@ -613,6 +613,7 @@ pub(crate) async fn test_endpoint(
         setup_paths,
         snapshot_serializers.clone(),
         route.clone(),
+        cohort_files.clone(),
     ))
 }
 

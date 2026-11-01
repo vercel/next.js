@@ -36,8 +36,8 @@ use next_core::{
     parse_segment_config_from_source,
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{
-        NextRuntime, app_function_name, load_next_js_template, module_styles_rule_condition,
-        styles_rule_condition,
+        NextRuntime, app_function_name, load_next_js_template, load_next_js_template_no_imports,
+        module_styles_rule_condition, styles_rule_condition,
     },
 };
 use smallvec::smallvec;
@@ -137,6 +137,7 @@ impl AppProject {
         setup_paths: Vec<FileSystemPath>,
         snapshot_serializers: Vec<RcStr>,
         route: Option<RcStr>,
+        cohort_files: Vec<RcStr>,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         if id.is_empty()
             || !id
@@ -145,14 +146,33 @@ impl AppProject {
         {
             bail!("Test entry IDs must contain only ASCII letters, digits, '-' and '_'");
         }
-        if file.is_empty()
-            || file
-                .split('/')
-                .any(|part| part.is_empty() || part == ".." || part == ".")
-            || file.contains('\\')
-            || file.contains(':')
+        for file in std::iter::once(&file).chain(cohort_files.iter()) {
+            if file.is_empty()
+                || file
+                    .split('/')
+                    .any(|part| part.is_empty() || part == ".." || part == ".")
+                || file.contains('\\')
+                || file.contains(':')
+            {
+                bail!("Test entry file must be a normalized project-relative path");
+            }
+        }
+        if !cohort_files.is_empty()
+            && (cohort_files.first() != Some(&file)
+                || cohort_files
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+                    != cohort_files.len()
+                || route.is_none()
+                || self.project().next_mode().await?.is_production()
+                || !setup_paths.is_empty()
+                || !snapshot_serializers.is_empty())
         {
-            bail!("Test entry file must be a normalized project-relative path");
+            bail!(
+                "Shared RSC tests require unique development route roots without setup or \
+                 serializers"
+            );
         }
         let route = if let Some(route) = route {
             Some(
@@ -163,11 +183,18 @@ impl AppProject {
         } else {
             None
         };
-        let path = self.project().project_path().owned().await?.join(&file)?;
+        let project_path = self.project().project_path().owned().await?;
+        let path = project_path.join(&file)?;
+        let cohort_paths = cohort_files
+            .iter()
+            .map(|file| project_path.join(file))
+            .collect::<Result<Vec<_>>>()?;
         Ok(Vc::upcast(
             AppEndpoint {
                 ty: AppEndpointType::Test {
                     path,
+                    cohort_paths,
+                    cohort_files,
                     setup_paths,
                     snapshot_serializers,
                     route,
@@ -1238,6 +1265,8 @@ enum AppPageEndpointType {
 enum AppEndpointType {
     Test {
         path: FileSystemPath,
+        cohort_paths: Vec<FileSystemPath>,
+        cohort_files: Vec<RcStr>,
         setup_paths: Vec<FileSystemPath>,
         snapshot_serializers: Vec<RcStr>,
         route: Option<ResolvedVc<crate::testing_route::TestRoute>>,
@@ -1268,6 +1297,7 @@ impl AppEndpoint {
     async fn test_entry(
         &self,
         path: FileSystemPath,
+        cohort_paths: Vec<FileSystemPath>,
         setup_paths: Vec<FileSystemPath>,
         snapshot_serializers: Vec<RcStr>,
         route: Option<ResolvedVc<crate::testing_route::TestRoute>>,
@@ -1278,30 +1308,75 @@ impl AppEndpoint {
             .strip_prefix("/__next_test__/")
             .and_then(|id| id.strip_suffix("/page"))
             .context("Invalid synthetic test manifest page")?;
-        let prepared = crate::testing::prepare_test_module(
-            self.app_project.project().to_resolved().await?,
-            &path,
-            &id.into(),
-            context,
-            false,
-        )
-        .await?;
-        if prepared.module_reset {
-            bail!("RSC module cache resets are not supported yet");
-        }
-        let registration = prepared.registration;
-        let context = *prepared.context;
-        // Use the same boundary marker as page/layout modules. Client references
-        // must retain both their SSR and browser transitions even for server tests.
-        let module = NextServerComponentTransition::new()
-            .process(
-                *prepared.source,
+        let (module, registration, context) = if cohort_paths.is_empty() {
+            let prepared = crate::testing::prepare_test_module(
+                self.app_project.project().to_resolved().await?,
+                &path,
+                &id.into(),
                 context,
-                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+                false,
             )
-            .module()
-            .to_resolved()
             .await?;
+            if prepared.module_reset {
+                bail!("RSC module cache resets are not supported yet");
+            }
+            let registration = prepared.registration;
+            let context = *prepared.context;
+            // Use the same boundary marker as page/layout modules. Client references
+            // must retain both their SSR and browser transitions even for server tests.
+            let module = NextServerComponentTransition::new()
+                .process(
+                    *prepared.source,
+                    context,
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            (module, registration, context)
+        } else {
+            let mut roots = fxindexmap! {};
+            let mut loads = String::new();
+            for (index, path) in cohort_paths.iter().enumerate() {
+                if !crate::testing::static_mock_plan(path).await?.is_empty() {
+                    bail!("Shared RSC test roots do not support module mock plans yet");
+                }
+                let request = format!("INNER_TEST_COHORT_{index}");
+                // Every root uses this same actual RSC transition and graph. The
+                // generated dispatcher defers evaluation until its collector exists.
+                let module = NextServerComponentTransition::new()
+                    .process(
+                        Vc::upcast(FileSource::new(path.clone())),
+                        *context,
+                        ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        ),
+                    )
+                    .module()
+                    .to_resolved()
+                    .await?;
+                roots.insert(request.clone().into(), module);
+                loads.push_str(&format!(
+                    "case {index}: return require(/*turbopackChunkingType: shared*/ \
+                     '{request}');\n"
+                ));
+            }
+            let source = load_next_js_template_no_imports(
+                "rsc-test-cohort.js",
+                self.app_project.project().project_path().owned().await?,
+                &[],
+                &[("__next_test_cohort_load__", &loads)],
+                &[],
+            )
+            .await?;
+            let source = crate::testing::test_entry_source(source).await?;
+            let module = context
+                .process(source, ReferenceType::Internal(ResolvedVc::cell(roots)))
+                .module()
+                .to_resolved()
+                .await?;
+            (module, None, *context)
+        };
         let mut internal_assets = fxindexmap! { rcstr!("INNER_TEST_MODULE") => module };
         let mut route_imports = String::new();
         let mut route_code = String::from("export const routeTree = undefined;");
@@ -1507,11 +1582,14 @@ impl AppEndpoint {
         let app_entry = match &this.ty {
             AppEndpointType::Test {
                 path,
+                cohort_paths,
                 setup_paths,
                 snapshot_serializers,
                 route,
+                ..
             } => self.test_entry(
                 path.clone(),
+                cohort_paths.clone(),
                 setup_paths.clone(),
                 snapshot_serializers.clone(),
                 route.map(|route| *route),
@@ -2557,6 +2635,26 @@ impl Endpoint for AppEndpoint {
                     project.next_config().base_path().owned().await?,
                 );
                 output_assets.concat_asset(Vc::upcast(metadata))
+            } else {
+                output_assets
+            };
+
+            let output_assets = if let AppEndpointType::Test { cohort_files, .. } = &this.ty
+                && !cohort_files.is_empty()
+            {
+                let id = this.page.to_string();
+                let id = id
+                    .strip_prefix("/__next_test__/")
+                    .and_then(|id| id.strip_suffix("/page"))
+                    .context("Invalid synthetic test manifest page")?;
+                let metadata = format!(
+                    "{{\"cohort\":{{\"version\":1,\"files\":{}}}}}",
+                    serde_json::to_string(cohort_files)?
+                );
+                output_assets.concat_asset(Vc::upcast(VirtualOutputAsset::new(
+                    node_root.join(&format!("server/next-test/{id}.cohort.json"))?,
+                    AssetContent::file(FileContent::Content(File::from(metadata)).cell()),
+                )))
             } else {
                 output_assets
             };

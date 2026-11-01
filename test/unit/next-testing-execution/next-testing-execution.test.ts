@@ -7468,6 +7468,56 @@ it('forwards the pinned keyboard grammar and distinct native release roles', () 
   })
 })
 
+// These pure contracts do not qualify native shared AppPage emission.
+describe('shared RSC compiler and per-file rendering contracts', () => {
+  it.each([
+    'dispatch',
+    'identity',
+    'refusals',
+    'route-bytes',
+    'source-bytes',
+    'file-bindings',
+  ])('validates %s without evaluating an application entry', (mode) => {
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'rsc-cohort-contract.cjs'),
+        path.join(__dirname, '../../..'),
+        mode,
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(stdout)).toMatchObject({
+      mode,
+      dataContractOnly: true,
+      nativeAppPageConformanceQualified: false,
+    })
+  })
+})
+
+describe('actual host console task preservation', () => {
+  it.each(['actual', 'absent'])(
+    'preserves %s task capability while capturing and restoring output',
+    (mode) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'console-create-task.cjs'),
+          path.join(__dirname, '../../..'),
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toMatchObject({
+        mode,
+        actualHostTaskPreserved: true,
+        originalConsoleRestored: true,
+        fakeTaskShim: false,
+      })
+    }
+  )
+})
+
 describe('pinned Edge environment ignored options', () => {
   it.each(['default', 'initial', 'codeGeneration', 'unknown'])(
     'executes the real provider and restores globals for %s',

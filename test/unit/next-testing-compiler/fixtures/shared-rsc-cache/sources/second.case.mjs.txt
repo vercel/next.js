@@ -1,0 +1,22 @@
+import { test, expect } from 'next/experimental/testing/vitest'
+import { rsc } from 'next/experimental/testing/rsc'
+import { actualState } from './cache-state.mjs'
+import { readCacheRow } from './row.mjs'
+
+test('second shared AppPage file retains the real graph with fresh handlers memory tags and after cache', async () => {
+  expect(actualState()).toEqual({ renders: 3, mainCalls: 2, afterCalls: 1, completedAfter: 1 })
+  const rows = []
+  for (const [index, suffix] of ['&observeAfter=yes', '&invalidate=yes', '&observeAfter=yes'].entries()) {
+    const row = readCacheRow(await rsc.renderRoute({ cacheScope: 'file', format: 'html', url: 'http://localhost/cache/two?label=second' + suffix, headers: { 'accept-language': 'fr', cookie: 'scope=two' } }))
+    rows.push(row)
+    const cached = index === 2 ? 4 : 3
+    expect(row).toMatchObject({ status: 200, contentType: 'text/html; charset=utf-8', layout: 'actual-layout', layoutLanguage: 'fr', subject: { count: index + 4, id: 'two', label: 'second', language: 'fr', cookie: 'two', first: { value: cached }, second: { value: cached }, fromAfter: index === 1 ? null : 2 } })
+    expect(row.subject.first).toEqual(row.subject.second)
+    expect(Number.isInteger(row.subject.first.createdAt)).toBe(true)
+    if (index < 2) expect(row.subject.expiration).toBe(0)
+    else expect(row.subject.expiration).toBeGreaterThan(0)
+    if (index === 1) expect(actualState()).toEqual({ renders: 5, mainCalls: 3, afterCalls: 2, completedAfter: 2 })
+  }
+  expect(actualState()).toEqual({ renders: 6, mainCalls: 4, afterCalls: 2, completedAfter: 2 })
+  console.log('SHARED_CACHE_ROWS ' + JSON.stringify({ file: 'second', rows, state: actualState() }))
+})
