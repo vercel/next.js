@@ -754,9 +754,11 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                     })
             })
         });
-    let native_static = !calls.runtime_calls.is_empty()
+    let native_static = allow_runtime
+        && !calls.runtime_calls.is_empty()
         && !calls.calls.is_empty()
-        && calls.hoisted_calls.is_empty()
+        && (calls.hoisted_calls.is_empty()
+            || (calls.actual_calls.is_empty() && calls.unmock_calls.is_empty()))
         && calls.actual_calls.iter().all(|call| {
             native_static_request(call).is_some_and(|request| {
                 calls
@@ -771,22 +773,25 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         })
         && calls.mock_import_calls.is_empty()
         && (calls.unmock_calls.is_empty() || native_unmock_sequence)
-        && calls.calls.iter().all(|call| {
-            native_static_request(call).is_some_and(|request| {
-                calls
-                    .runtime_calls
-                    .iter()
-                    .any(|(_, runtime)| native_static_request(runtime) == Some(request))
-            })
-        })
-        && calls.runtime_calls.iter().all(|(_, call)| {
-            native_static_request(call).is_some_and(|request| {
-                calls
-                    .calls
-                    .iter()
-                    .any(|declaration| native_static_request(declaration) == Some(request))
-            })
-        });
+        && calls
+            .calls
+            .iter()
+            .all(|call| native_static_request(call).is_some())
+        && calls
+            .runtime_calls
+            .iter()
+            .all(|(_, call)| native_static_request(call).is_some());
+    let native_hoisted_runtime = allow_runtime
+        && !calls.runtime_calls.is_empty()
+        && !calls.hoisted_calls.is_empty()
+        && calls.calls.is_empty()
+        && calls.actual_calls.is_empty()
+        && calls.mock_import_calls.is_empty()
+        && calls.unmock_calls.is_empty()
+        && calls
+            .runtime_calls
+            .iter()
+            .all(|(_, call)| native_static_request(call).is_some());
     // Compiler candidates still need actual CommonJS graph/namespace certificates.
     // The static-only extractor deliberately keeps its existing rejection below.
     let actual_reset = allow_runtime
@@ -798,6 +803,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         && calls.runtime_calls.is_empty();
     if !calls.reset_calls.is_empty()
         && !native_static
+        && !native_hoisted_runtime
         && !actual_reset
         && (!calls.calls.is_empty()
             || !calls.hoisted_calls.is_empty()
@@ -819,7 +825,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             bail!("Runtime mock imports require direct literals without attributes ({filename}).");
         }
         if (!calls.calls.is_empty() && !native_static)
-            || !calls.hoisted_calls.is_empty()
+            || (!native_static && !native_hoisted_runtime && !calls.hoisted_calls.is_empty())
             || (!native_static && !calls.actual_calls.is_empty())
             || !calls.mock_import_calls.is_empty()
             || (!native_static && !calls.unmock_calls.is_empty())
@@ -888,7 +894,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 runtime_requests.push(request.to_owned());
             }
         }
-        if !native_static {
+        if !native_static && !native_hoisted_runtime {
             return Ok(StaticMockPlan {
                 source: source.into(),
                 declarations: Vec::new(),
@@ -2194,10 +2200,7 @@ mod tests {
 
     #[test]
     fn keeps_compiled_and_unpaired_static_runtime_mixtures_rejected() {
-        for source in [
-            "vi.mock('./dep',()=>({value:5}));vi.doMock('./dep',()=>({value:73}))",
-            "vi.mock('package',()=>({value:5}));vi.doMock('other',()=>({value:73}))",
-        ] {
+        for source in ["vi.mock('./dep',()=>({value:5}));vi.doMock('./dep',()=>({value:73}))"] {
             assert!(
                 extract_test_mocks(
                     &format!("import {{vi}} from 'vitest';{source}"),

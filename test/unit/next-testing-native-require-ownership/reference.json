@@ -1,0 +1,596 @@
+{
+  "referenceVersion": "5.0.4",
+  "bodySHA256": "84b2d6da37a96ee695ce582278d3b61d48d5560664b2e358cf9fad65e200fd84",
+  "sourceUnchanged": true,
+  "allowedReportDifferences": [
+    "concrete fixture path",
+    "actual timing",
+    "additive Next envelope"
+  ],
+  "models": {
+    "20": {
+      "development": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "3c5faa7c3f803aca8f7ccc6d22725a35e2ee908aaa1fe8db02f89452b1a55686",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      },
+      "production": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "043185347496ff2d55ef7e973af3e0612e9c7491ffb4c9ed4180d217187e8f07",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      }
+    },
+    "22": {
+      "development": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "b15e6defb930d28049d292e9dde92ff5fa49af57d145a34cf10984ab1bfa3a01",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      },
+      "production": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "275d9b0dede334eb869719fd0e28fe5bc744cb3778dcf2d4de69b95b96a3c77f",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      }
+    },
+    "24": {
+      "development": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "2660336702a28ea221673295797af382927fe5687aec02c841f0e2e1ea70f1de",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      },
+      "production": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "7ce055a487e2e683369a08565db13b405ec171d940ae9c379d61b6c5800f7fec",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      }
+    },
+    "26": {
+      "development": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "f8ebfabc5c36090795302f60dc151eda5b6ba5ea73bd96e7f0e9bdd49ca7158d",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      },
+      "production": {
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "status": "passed",
+                  "title": "a static mock leaves a CommonJS builtin require original and lazy",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "status": "passed",
+                  "title": "runtime mocking changes ESM import while CommonJS require stays original",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "module reset retains the actual required builtin object",
+                  "status": "passed",
+                  "title": "module reset retains the actual required builtin object",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ],
+              "status": "passed",
+              "message": "",
+              "name": "<fixture>/require.test.mjs"
+            }
+          ]
+        },
+        "authoredRows": "{\"name\":\"unused-static-require\",\"value\":\"two\",\"factoryCalls\":0,\"stableAlias\":true}\n{\"name\":\"runtime-native-require\",\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"before\":0,\"factoryCalls\":1,\"stableAlias\":true}\n{\"name\":\"reset-native-require\",\"originalObjectHeld\":true,\"requireValue\":\"darwin\",\"importedValue\":\"runtime-platform\",\"factoryCalls\":1,\"unusedPathCalls\":0}\n",
+        "genuineRawReportSHA256": "635c1ff61ec3c4bbf88c40b7aaf0faa8dafe81ab2e4abab77715d1b531fc1d9b",
+        "genuineRowsSHA256": "8cd4b99f1ac6f52eac453b0b558459086df34aff979631fd1b905daba1e8ad92"
+      }
+    }
+  }
+}

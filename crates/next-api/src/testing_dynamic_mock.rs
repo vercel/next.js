@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Result, bail};
+use next_taskless::NODE_EXTERNALS;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
@@ -73,6 +74,12 @@ fn optional_graph_candidate(result: Result<CompiledGraph>) -> Result<Option<Comp
     }
 }
 
+// Bare builtin spellings still resolve to Node's original namespace. They are
+// not package targets and do not enter the resettable test module cache.
+pub(crate) fn original_builtin_external(request: &str) -> bool {
+    request.starts_with("node:") || NODE_EXTERNALS.binary_search(&request).is_ok()
+}
+
 async fn references(
     module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
@@ -81,7 +88,7 @@ async fn references(
         let resolved = reference.resolve_reference().await?;
         for (_, item) in resolved.primary.iter() {
             if let ModuleResolveResultItem::External { name, .. } = item
-                && !name.starts_with("node:")
+                && !original_builtin_external(name)
             {
                 return Err(test_input_error(
                     module.ident().await?.path.clone(),
@@ -1255,6 +1262,25 @@ pub(crate) async fn manifest(
             native_original_initial: false,
         });
     }
+    // Static-only targets in an independent group still own actual native
+    // providers. Retain their compiler IDs without evaluating lazy factories.
+    for pair in static_pairs {
+        let certificate = native_certificates
+            .iter()
+            .find(|known| known.module == pair.provider)
+            .ok_or_else(|| {
+                test_input_error(
+                    path.clone(),
+                    "Static provider lost its actual native target",
+                )
+            })?;
+        if !native_resettable
+            .iter()
+            .any(|known| known.module == certificate.module)
+        {
+            native_resettable.push(certificate.clone());
+        }
+    }
     let static_protected = static_pairs
         .iter()
         .flat_map(|pair| pair.protected.iter().copied())
@@ -1306,7 +1332,7 @@ pub(crate) async fn manifest(
             continue;
         }
         if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(module) {
-            if external.await?.request().starts_with("node:") {
+            if original_builtin_external(&external.await?.request()) {
                 continue;
             }
             return Err(test_input_error(

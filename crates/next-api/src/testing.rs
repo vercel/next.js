@@ -532,6 +532,7 @@ pub(crate) async fn test_endpoint(
                 production_factory_plan(&production_plan)
                     || production_reset_plan(&production_plan)
                     || production_paired_native_actual_plan(&production_plan)
+                    || production_native_runtime_plan(&production_plan)
             }))
     {
         return Err(test_input_error(
@@ -693,6 +694,32 @@ fn production_paired_native_actual_plan(plan: &StaticMockPlan) -> bool {
                     .declarations
                     .iter()
                     .any(|declaration| declaration.request == actual.request)
+        })
+}
+
+// Syntax admission only: production assembly still needs actual native certificates.
+fn production_native_runtime_plan(plan: &StaticMockPlan) -> bool {
+    let native_request = |request: &str| {
+        !request.is_empty()
+            && !request.starts_with(['.', '/', '#', '\\'])
+            && !request.contains('?')
+            && !request.contains('#')
+            && (!request.contains(':') || request.starts_with("node:"))
+    };
+    !plan.runtime_requests.is_empty()
+        && plan.actual_imports.is_empty()
+        && plan.mock_imports.is_empty()
+        && plan.unmocks.is_empty()
+        && plan
+            .runtime_requests
+            .iter()
+            .all(|request| native_request(request))
+        && plan.declarations.iter().all(|declaration| {
+            !declaration.automatic
+                && !declaration.spy
+                && declaration.has_object_return
+                && !declaration.has_spread
+                && native_request(&declaration.request)
         })
 }
 
@@ -1257,8 +1284,12 @@ async fn module_reset_manifest(
             || !native_modules.iter().any(|known| {
                 known.original == original.original
                     && known.module == original.provider
-                    && known.builtin.is_none()
-                    && known.kind == crate::testing_external_modules::NativeOriginalKind::CommonJs
+                    && ((known.kind
+                        == crate::testing_external_modules::NativeOriginalKind::CommonJs)
+                        || (known.builtin.is_some()
+                            && known.module == known.native
+                            && known.kind
+                                == crate::testing_external_modules::NativeOriginalKind::Esm))
             })
     }) {
         return Err(test_input_error(
@@ -1381,7 +1412,7 @@ async fn module_reset_manifest(
             continue;
         }
         if let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(module) {
-            if external.await?.request().starts_with("node:") {
+            if crate::testing_dynamic_mock::original_builtin_external(&external.await?.request()) {
                 protected.push(module);
                 continue;
             }
@@ -2205,7 +2236,8 @@ async fn prepare_test_module_with_loading(
         ));
     }
     let has_inherited = earlier_plans.iter().any(|(_, plan)| !plan.is_empty());
-    let static_runtime = !plan.declarations.is_empty() && !plan.runtime_requests.is_empty();
+    let static_runtime = (!plan.declarations.is_empty() || !plan.hoisted.is_empty())
+        && !plan.runtime_requests.is_empty();
     let context = if static_runtime {
         // Every captured replacement, registration and native-provider factory
         // retains the same actual runtime owner before any derived contexts.
@@ -3657,7 +3689,8 @@ async fn prepare_test_module_with_loading(
     )
     .to_resolved()
     .await?;
-    let has_native_registration = !external_originals.is_empty()
+    let has_native_registration = static_runtime
+        || !external_originals.is_empty()
         || !native_unmock_cuts.is_empty()
         || !builtin_unmock_cuts.is_empty();
     let context = if has_native_registration {
@@ -3948,7 +3981,9 @@ impl NodeTestEndpoint {
         };
         let native_runtime = if commonjs_runtime.is_none()
             && !prepared.runtime_requests.is_empty()
-            && (self.project.next_mode().await?.is_development() || prepared.paired_native_actuals)
+            && (self.project.next_mode().await?.is_development()
+                || prepared.paired_native_actuals
+                || production_native_runtime_plan(&plan))
             && let Some(entry) = self.project.await?.test_entry
         {
             let entry = entry.await?;
@@ -3994,6 +4029,13 @@ impl NodeTestEndpoint {
                     )
                     .await?;
                     let native = if native.certificates.is_empty() {
+                        if self.project.next_mode().await?.is_production() {
+                            return Err(test_input_error(
+                                self.path.clone(),
+                                "Production runtime factories require actual certified native \
+                                 targets",
+                            ));
+                        }
                         crate::testing_dynamic_mock::graph_native_external_context(
                             self.project.project_path().owned().await?,
                             native.context,
@@ -5762,5 +5804,96 @@ mod native_multi_target_assembly_tests {
                 valid
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod native_hoisted_runtime_composition_tests {
+    use crate::{testing::production_native_runtime_plan, testing_mock_source::extract_test_mocks};
+
+    #[test]
+    fn retains_measured_independent_native_factories_hoisting_and_reset() {
+        let source = r####"import { test, expect, vi } from 'vitest'
+import { createRequire } from 'node:module'
+import { appendFileSync } from 'node:fs'
+const require = createRequire(import.meta.url)
+const counts = vi.hoisted(() => ({ path: 0, os: 0 }))
+vi.mock('node:path', () => { counts.path++; return { basename: () => 'unused-path-mock' } })
+const row = (name, value) => appendFileSync(process.env.NEXT_MOCK_REQUIRE_ROWS, JSON.stringify({ name, ...value })+'\n')
+test('a static mock leaves a CommonJS builtin require original and lazy', () => {
+ const value = require('node:path')
+ expect(value.basename('/one/two')).toBe('two')
+ expect(counts.path).toBe(0)
+ row('unused-static-require', { value: value.basename('/one/two'), factoryCalls: counts.path, stableAlias: value === require('path') })
+})
+test('runtime mocking changes ESM import while CommonJS require stays original', async () => {
+ vi.doMock('node:os', () => { counts.os++; return { platform: () => 'runtime-platform' } })
+ const value = require('node:os'), before = counts.os
+ expect(value.platform()).toBe(process.platform)
+ const mocked = await import('node:os')
+ expect(mocked.platform()).toBe('runtime-platform')
+ row('runtime-native-require', { requireValue: value.platform(), importedValue: mocked.platform(), before, factoryCalls: counts.os, stableAlias: value === require('os') })
+})
+test('module reset retains the actual required builtin object', async () => {
+ const before = require('node:os')
+ vi.resetModules()
+ const after = require('node:os'), imported = await import('node:os')
+ expect(after).toBe(before)
+ expect(after.platform()).toBe(process.platform)
+ expect(imported.platform()).toBe('runtime-platform')
+ row('reset-native-require', { originalObjectHeld: before === after, requireValue: after.platform(), importedValue: imported.platform(), factoryCalls: counts.os, unusedPathCalls: counts.path })
+})
+"####;
+        let plan = extract_test_mocks(source, "require.test.mjs").unwrap();
+        assert_eq!(plan.declarations.len(), 1);
+        assert_eq!(plan.declarations[0].request, "node:path");
+        assert_eq!(plan.hoisted.len(), 1);
+        assert_eq!(plan.hoisted[0].bindings, ["counts"]);
+        assert_eq!(plan.runtime_requests, ["node:os"]);
+        assert!(plan.reset_modules);
+        assert!(production_native_runtime_plan(&plan));
+        let independent = extract_test_mocks(
+            "import {vi} from \
+             'vitest';vi.mock('package',()=>({value:5}));vi.doMock('other',()=>({value:73}))",
+            "independent.mjs",
+        )
+        .unwrap();
+        assert_eq!(independent.declarations.len(), 1);
+        assert_eq!(independent.declarations[0].request, "package");
+        assert_eq!(independent.runtime_requests, ["other"]);
+        assert!(production_native_runtime_plan(&independent));
+    }
+
+    #[test]
+    fn retains_a_real_hoisted_owner_for_a_native_runtime_only_target() {
+        let plan = extract_test_mocks(
+            "import {vi} from 'vitest'; const value = vi.hoisted(() => ({calls:0})); \
+             vi.doMock('node:os', () => ({platform: () => ++value.calls})); vi.resetModules()",
+            "entry.mjs",
+        )
+        .unwrap();
+        assert!(plan.declarations.is_empty());
+        assert_eq!(plan.hoisted.len(), 1);
+        assert_eq!(plan.hoisted[0].bindings, ["value"]);
+        assert_eq!(plan.runtime_requests, ["node:os"]);
+        assert!(production_native_runtime_plan(&plan));
+    }
+
+    #[test]
+    fn leaves_compiled_relative_runtime_requests_out_of_the_native_candidate() {
+        let plan = extract_test_mocks(
+            "import {vi} from 'vitest'; vi.doMock('./dependency.mjs', () => ({value:1})); \
+             vi.resetModules()",
+            "entry.mjs",
+        )
+        .unwrap();
+        assert!(!production_native_runtime_plan(&plan));
+        assert!(
+            extract_test_mocks(
+                "import {vi} from 'vitest'; const value=vi.hoisted(() => 42); vi.resetModules()",
+                "entry.mjs",
+            )
+            .is_err()
+        );
     }
 }

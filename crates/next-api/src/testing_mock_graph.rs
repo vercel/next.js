@@ -198,6 +198,14 @@ impl BeforeResolvePlugin for MockBuiltinResolvePlugin {
                     "Builtin factory mock consumers do not support queries or fragments",
                 ));
             }
+            // Factory mocks affect ESM consumers. Native CommonJS require keeps
+            // the actual builtin namespace and must reach the normal resolver.
+            if matches!(
+                reference_type,
+                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)
+            ) {
+                return Ok(Vc::cell(None));
+            }
             if !matches!(
                 reference_type,
                 ReferenceType::EcmaScriptModules(
@@ -1675,8 +1683,8 @@ mod builtin_resolve_tests {
                         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                         Request::parse(rcstr!("fs").into()),
                     )
-                    .await
-                    .is_err()
+                    .await?
+                    .is_none()
             );
             Ok(())
         }

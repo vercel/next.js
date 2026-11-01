@@ -213,19 +213,26 @@ pub(crate) async fn prepare(
     let plan = static_mock_plan(path).await?;
     let native_unmock_targets = plan.native_unmock_targets();
     let native_unmock = native_unmock_targets.is_some();
-    if plan.declarations.is_empty()
-        || !plan.hoisted.is_empty()
+    if (plan.declarations.is_empty() && plan.hoisted.is_empty())
         || (!plan.actual_imports.is_empty() && !paired_native_actuals)
         || !plan.mock_imports.is_empty()
         || (!plan.unmocks.is_empty() && !native_unmock)
-        || plan.declarations.iter().any(|declaration| {
-            declaration.automatic || declaration.spy || !requests.contains(&declaration.request)
-        })
+        || plan
+            .declarations
+            .iter()
+            .any(|declaration| declaration.automatic || declaration.spy)
     {
         return Err(test_input_error(
             path.clone(),
             "Static/runtime mixtures require paired explicit native factories",
         ));
+    }
+    // Resolve every independent static and runtime target through this actual origin.
+    let mut native_requests = requests.to_vec();
+    for declaration in &plan.declarations {
+        if !native_requests.contains(&declaration.request) {
+            native_requests.push(declaration.request.clone());
+        }
     }
     let raw_source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
     let native = runtime_native_external_context(
@@ -234,7 +241,7 @@ pub(crate) async fn prepare(
         raw_source,
         id,
         path,
-        requests,
+        &native_requests,
     )
     .await?;
     let original_module = origin_context
@@ -313,7 +320,7 @@ pub(crate) async fn prepare(
     let mut original_initials = Vec::new();
     let mut rules = Vec::new();
     let framework = get_next_package(root).await?;
-    for request in requests {
+    for request in &native_requests {
         let parsed = Request::parse(RcStr::from(request.clone()).into())
             .to_resolved()
             .await?;
@@ -368,7 +375,11 @@ pub(crate) async fn prepare(
             ));
         }
         let initial;
-        if cut_target.is_some_and(|target| !target.retained) {
+        let has_static_declaration = plan
+            .declarations
+            .iter()
+            .any(|declaration| declaration.request == *request);
+        if !has_static_declaration || cut_target.is_some_and(|target| !target.retained) {
             // Both actual entry references resolve to this very provider module.
             // Its cache record remains resettable; only the real helper closure
             // is retained across resets.
@@ -388,11 +399,18 @@ pub(crate) async fn prepare(
                     "Original-initial provider cannot be protected",
                 ));
             }
-            original_initials.push(NativeOriginalInitial {
-                original: certificate.original,
-                provider: certificate.module,
-                protected,
-            });
+            if !original_initials
+                .iter()
+                .any(|known: &NativeOriginalInitial| {
+                    known.original == certificate.original && known.provider == certificate.module
+                })
+            {
+                original_initials.push(NativeOriginalInitial {
+                    original: certificate.original,
+                    provider: certificate.module,
+                    protected,
+                });
+            }
         } else {
             let resolved = esm_resolve(
                 *initial_origin,
