@@ -18,6 +18,7 @@ import {
   type CustomReporterCompletion,
 } from './custom-reporter-tasks'
 import { serializeDiagnostic } from './diagnostics'
+import { types as nodeTypes } from 'node:util'
 
 type Reporter = {
   onInit?(context: unknown): unknown
@@ -124,6 +125,21 @@ function prepareReportedModules<T>(modules: T[]): T[] {
   return modules
 }
 
+function hasPotentialCompletionHook(reporter: Reporter): boolean {
+  let current: object | null = reporter
+  while (current !== null) {
+    // Preserve the existing Proxy read path without adding observable traps.
+    if (nodeTypes.isProxy(current))
+      return typeof reporter.onTestRunEnd === 'function'
+    const descriptor = Reflect.getOwnPropertyDescriptor(current, 'onTestRunEnd')
+    if (descriptor)
+      return 'value' in descriptor
+        ? descriptor.value !== undefined && descriptor.value !== null
+        : typeof descriptor.get === 'function'
+    current = Reflect.getPrototypeOf(current)
+  }
+  return false
+}
 async function settle(
   callbacks: (() => unknown)[],
   invoked?: () => Promise<void>
@@ -371,7 +387,7 @@ async function handle(message: any) {
             typeof reporter.onTestModuleStart === 'function' ||
             typeof reporter.onTestCaseResult === 'function' ||
             typeof reporter.onTestModuleEnd === 'function' ||
-            typeof reporter.onTestRunEnd === 'function' ||
+            hasPotentialCompletionHook(reporter) ||
             (watching && typeof reporter.onWatcherStart === 'function')
         ),
       })

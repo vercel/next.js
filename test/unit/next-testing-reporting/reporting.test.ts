@@ -9546,3 +9546,181 @@ describe('actual custom pending completion lifecycle publication', () => {
     130000
   )
 })
+
+describe('actual ordinary end hook descriptor planning', () => {
+  const models = require('./fixtures/custom-getter-planning-pristine.json')
+  it.each([
+    'function',
+    'undefined',
+    'null',
+    'inherited-function',
+    'shadow-undefined',
+    'throw-before',
+    'proxy-instance',
+    'proxy-prototype',
+  ])(
+    'preserves selected getter dispatch and request facts for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const row = models.rows.find(
+        (value: { name: string }) => value.name === name
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-getter118-'))
+      let source = row.sourceFiles['observer.mjs'].source
+      if (name.startsWith('proxy-'))
+        source = source.replace(
+          "record('proxy-descriptor-end')",
+          "(()=>{throw new Error('unexpected new end descriptor trap')})()"
+        )
+      await writeFile(join(root, 'observer.mjs'), source)
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./observer.mjs'],
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(['./observer.mjs', 'json']),
+        outputFile: join(root, 'cases.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        expect(session.captureTaskResults).toBe(name !== 'shadow-undefined')
+        if (!name.startsWith('proxy-'))
+          await expect(
+            readFile(join(root, 'provider-trace.jsonl'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        if (name === 'throw-before') {
+          failure = await machine
+            .beginCustomCompletion()
+            .catch((error) => error)
+          expect(failure).toMatchObject({
+            message: 'actual113 reporter failure',
+          })
+        } else {
+          const receipt = await machine.beginCustomCompletion()
+          expect(receipt).toEqual(
+            ['undefined', 'null', 'shadow-undefined'].includes(name)
+              ? undefined
+              : { count: 1 }
+          )
+          await machine.finish()
+        }
+        const trace = await readFile(
+          join(root, 'provider-trace.jsonl'),
+          'utf8'
+        ).catch((error) => {
+          if (error.code === 'ENOENT') return ''
+          throw error
+        })
+        const actual = trace.trim()
+          ? trace
+              .trim()
+              .split('\n')
+              .map((line) => JSON.parse(line))
+          : []
+        const getters = actual.filter((value) => value.name === 'modern-getter')
+        expect(getters).toHaveLength(
+          name === 'shadow-undefined' ? 0 : name.startsWith('proxy-') ? 2 : 1
+        )
+        if (
+          [
+            'function',
+            'inherited-function',
+            'proxy-instance',
+            'proxy-prototype',
+          ].includes(name)
+        )
+          expect(actual.at(-1)).toMatchObject({
+            name: 'modern-enter',
+            reads: name.startsWith('proxy-') ? 2 : 1,
+            selected: name.startsWith('proxy-') ? 2 : 1,
+            receiver: 42,
+            sameSelected: true,
+          })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+  it.each([
+    ['function', true],
+    ['absent', false],
+    ['null', false],
+    ['noncallable', true],
+  ] as const)(
+    'retains ordinary data planning footprint for %s',
+    async (name, potential) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-end-data118-'))
+      await writeFile(
+        join(root, 'observer.mjs'),
+        `export default class{${name === 'function' ? 'onTestRunEnd(){}' : name === 'null' ? 'onTestRunEnd=null;' : name === 'noncallable' ? 'onTestRunEnd=7;' : ''}}`
+      )
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./observer.mjs'],
+        write() {},
+      })
+      try {
+        expect(session.captureTaskResults).toBe(potential)
+      } finally {
+        await session.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual getter planning provider lifecycle', () => {
+  const models = require('./fixtures/custom-getter-planning-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'retains exact genuine or declared legacy preservation for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-getter-public118-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-getter-planning.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_GETTER_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_GETTER_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
