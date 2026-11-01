@@ -207,23 +207,9 @@ export async function nextTestRunner(
     process.stdout.isTTY === true &&
     !process.env.CI &&
     process.env.TERM !== 'dumb'
-  if (
-    options.watch === undefined &&
-    !options.related &&
-    !options.changed &&
-    options.api === undefined &&
-    configDefaults.watch &&
-    !options.run &&
-    !options.list &&
-    !options.update &&
-    !options.coverage &&
-    !options.typecheck &&
-    !options['typecheck.only'] &&
-    !options.capabilities &&
-    !options.mergeReports &&
-    !inspect
-  )
-    options = { ...options, watch: true }
+  // Explicit one-shot execution wins even when --watch is also supplied.
+  if (options.run && options.watch) options = { ...options, watch: false }
+  const explicitWatch = options.watch
   if (
     inspect &&
     (options.list || options.watch || options.coverage || options.mergeReports)
@@ -467,6 +453,37 @@ export async function nextTestRunner(
             options['coverage.provider']
           )
         : await openTestConfiguration(projectDir, controller.signal)
+    const configuredWatch = options.watch ?? configuration.config.watch
+    if (
+      options.watch === undefined &&
+      !options.run &&
+      !options.list &&
+      !options.update &&
+      !options.capabilities &&
+      !options.mergeReports
+    ) {
+      if (configuredWatch !== undefined) {
+        options = { ...options, watch: configuredWatch }
+      } else if (
+        !options.related &&
+        !options.changed &&
+        options.api === undefined &&
+        configDefaults.watch &&
+        !options.coverage &&
+        !options.typecheck &&
+        !options['typecheck.only'] &&
+        !inspect
+      ) {
+        options = { ...options, watch: true }
+      }
+    }
+    if (options.watch) {
+      if (explicitWatch !== true) requireTestCapability('watch')
+      if (inspect)
+        throw new Error(
+          '--inspect currently requires a one-shot execution without coverage.'
+        )
+    }
     if (
       options.watch &&
       (configuration.config.reporters !== undefined ||

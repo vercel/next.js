@@ -1,0 +1,4936 @@
+{
+  "reference": "Vitest 5.0.4 / Vite 8.3.4, private non-TTY fixtures and caches, original generated bodies, all actual cases/reports retained raw",
+  "bodySHA256": "03cfe081501bc982a13da04e58a5f9f773abb3831fddccb5b6248950e638dad0",
+  "profiles": [
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "default-local"
+      },
+      "observed": {
+        "time": 1793526157247,
+        "pid": 74218,
+        "event": "end",
+        "projects": [
+          {
+            "name": ""
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526157028,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.1056660000000136,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526157242,
+            "endTime": 1793526157243.1057,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/default-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "default-ci",
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526158156,
+        "pid": 74305,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526158043,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.5933750000000089,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526158150,
+            "endTime": 1793526158151.5933,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/default-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "false-local",
+        "watch": false
+      },
+      "observed": {
+        "time": 1793526158937,
+        "pid": 74375,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526158853,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.0603750000000076,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526158932,
+            "endTime": 1793526158933.0603,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/false-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "false-ci",
+        "watch": false,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526159843,
+        "pid": 74470,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526159734,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.29741700000001,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526159838,
+            "endTime": 1793526159839.2974,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/false-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "true-local",
+        "watch": true
+      },
+      "observed": {
+        "time": 1793526163482,
+        "pid": 74549,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526163285,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.075792000000007,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526163475,
+            "endTime": 1793526163476.0757,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/true-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "true-ci",
+        "watch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526169245,
+        "pid": 74662,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526169162,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.0594999999999999,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526169241,
+            "endTime": 1793526169242.0596,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "true-run",
+        "watch": true,
+        "flags": ["--run"]
+      },
+      "observed": {
+        "time": 1793526170032,
+        "pid": 74744,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526169947,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.0775410000000107,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526170028,
+            "endTime": 1793526170029.0776,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/true-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "false-watch",
+        "watch": false,
+        "flags": ["--watch"]
+      },
+      "observed": {
+        "time": 1793526180645,
+        "pid": 74817,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526180561,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9625409999999945,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526180641,
+            "endTime": 1793526180641.9626,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/false-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "run-watch",
+        "watch": true,
+        "flags": ["--run", "--watch"]
+      },
+      "observed": {
+        "time": 1793526181396,
+        "pid": 74964,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526181312,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.180583999999996,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526181391,
+            "endTime": 1793526181392.1807,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/run-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "watch-run",
+        "watch": true,
+        "flags": ["--watch", "--run"]
+      },
+      "observed": {
+        "time": 1793526182180,
+        "pid": 75047,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526182097,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.012208000000001,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526182176,
+            "endTime": 1793526182177.0122,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/watch-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "true-watch-false",
+        "watch": true,
+        "flags": ["--watch=false"]
+      },
+      "observed": {
+        "time": 1793526182981,
+        "pid": 75119,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526182904,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9498750000000058,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526182977,
+            "endTime": 1793526182977.95,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/true-watch-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "root-true-project-false",
+        "watch": true,
+        "projectWatch": false
+      },
+      "observed": {
+        "time": 1793526186018,
+        "pid": 75183,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "child",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526185935,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9571660000000008,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526186014,
+            "endTime": 1793526186014.9573,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/root-true-project-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "root-false-project-true",
+        "watch": false,
+        "projectWatch": true
+      },
+      "observed": {
+        "time": 1793526186818,
+        "pid": 75243,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526186727,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.0936659999999918,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526186814,
+            "endTime": 1793526186815.0938,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/root-false-project-true/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "20",
+      "scenario": {
+        "name": "root-default-project-true-ci",
+        "projectWatch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526187676,
+        "pid": 75291,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526187589,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9595839999999924,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526187673,
+            "endTime": 1793526187673.9595,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node20/root-default-project-true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "default-local"
+      },
+      "observed": {
+        "time": 1793526157271,
+        "pid": 74217,
+        "event": "end",
+        "projects": [
+          {
+            "name": ""
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526156842,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.8586250000000035,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526157266,
+            "endTime": 1793526157266.8586,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/default-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "default-ci",
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526158246,
+        "pid": 74309,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526158105,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.002750000000006,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526158240,
+            "endTime": 1793526158241.0027,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/default-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "false-local",
+        "watch": false
+      },
+      "observed": {
+        "time": 1793526159158,
+        "pid": 74396,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526159039,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.939542000000003,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526159153,
+            "endTime": 1793526159153.9395,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/false-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "false-ci",
+        "watch": false,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526160199,
+        "pid": 74504,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526160054,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9500840000000039,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526160194,
+            "endTime": 1793526160194.9502,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/false-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "true-local",
+        "watch": true
+      },
+      "observed": {
+        "time": 1793526163512,
+        "pid": 74567,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526163359,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7623329999999982,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526163508,
+            "endTime": 1793526163508.7625,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/true-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "true-ci",
+        "watch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526169463,
+        "pid": 74663,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526169365,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7313749999999999,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526169460,
+            "endTime": 1793526169460.7314,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "true-run",
+        "watch": true,
+        "flags": ["--run"]
+      },
+      "observed": {
+        "time": 1793526170304,
+        "pid": 74769,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526170197,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7844589999999982,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526170301,
+            "endTime": 1793526170301.7844,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/true-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "false-watch",
+        "watch": false,
+        "flags": ["--watch"]
+      },
+      "observed": {
+        "time": 1793526180874,
+        "pid": 74848,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526180776,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7084580000000003,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526180870,
+            "endTime": 1793526180870.7085,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/false-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "run-watch",
+        "watch": true,
+        "flags": ["--run", "--watch"]
+      },
+      "observed": {
+        "time": 1793526181757,
+        "pid": 75006,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526181655,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7947080000000071,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526181753,
+            "endTime": 1793526181753.7947,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/run-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "watch-run",
+        "watch": true,
+        "flags": ["--watch", "--run"]
+      },
+      "observed": {
+        "time": 1793526182613,
+        "pid": 75085,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526182515,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7010409999999965,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526182609,
+            "endTime": 1793526182609.701,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/watch-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "true-watch-false",
+        "watch": true,
+        "flags": ["--watch=false"]
+      },
+      "observed": {
+        "time": 1793526183510,
+        "pid": 75161,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526183415,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.718041999999997,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526183507,
+            "endTime": 1793526183507.718,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/true-watch-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "root-true-project-false",
+        "watch": true,
+        "projectWatch": false
+      },
+      "observed": {
+        "time": 1793526186239,
+        "pid": 75202,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "child",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526186138,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7917920000000009,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526186235,
+            "endTime": 1793526186235.7917,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/root-true-project-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "root-false-project-true",
+        "watch": false,
+        "projectWatch": true
+      },
+      "observed": {
+        "time": 1793526187087,
+        "pid": 75261,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526186994,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.6600000000000037,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526187084,
+            "endTime": 1793526187084.66,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/root-false-project-true/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "22",
+      "scenario": {
+        "name": "root-default-project-true-ci",
+        "projectWatch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526187972,
+        "pid": 75309,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526187875,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7516669999999976,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526187968,
+            "endTime": 1793526187968.7517,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node22/root-default-project-true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "default-local"
+      },
+      "observed": {
+        "time": 1793526156641,
+        "pid": 74215,
+        "event": "end",
+        "projects": [
+          {
+            "name": ""
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526156534,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7999170000000078,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526156637,
+            "endTime": 1793526156637.7998,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/default-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "default-ci",
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526157574,
+        "pid": 74250,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526157477,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9015839999999997,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526157570,
+            "endTime": 1793526157570.9016,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/default-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "false-local",
+        "watch": false
+      },
+      "observed": {
+        "time": 1793526158519,
+        "pid": 74332,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526158409,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9103339999999918,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526158515,
+            "endTime": 1793526158515.9104,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/false-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "false-ci",
+        "watch": false,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526159335,
+        "pid": 74425,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526159240,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.0555000000000092,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526159330,
+            "endTime": 1793526159331.0554,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/false-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "true-local",
+        "watch": true
+      },
+      "observed": {
+        "time": 1793526160531,
+        "pid": 74510,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526160394,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.1947920000000067,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526160526,
+            "endTime": 1793526160527.1948,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/true-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "true-ci",
+        "watch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526163498,
+        "pid": 74585,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526163359,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7777910000000077,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526163492,
+            "endTime": 1793526163492.7778,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "true-run",
+        "watch": true,
+        "flags": ["--run"]
+      },
+      "observed": {
+        "time": 1793526164335,
+        "pid": 74661,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526164221,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.8022079999999931,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526164327,
+            "endTime": 1793526164327.8022,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/true-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "false-watch",
+        "watch": false,
+        "flags": ["--watch"]
+      },
+      "observed": {
+        "time": 1793526169654,
+        "pid": 74699,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526169570,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9026250000000005,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526169650,
+            "endTime": 1793526169650.9026,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/false-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "run-watch",
+        "watch": true,
+        "flags": ["--run", "--watch"]
+      },
+      "observed": {
+        "time": 1793526170434,
+        "pid": 74783,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526170352,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.732959000000001,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526170430,
+            "endTime": 1793526170430.733,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/run-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "watch-run",
+        "watch": true,
+        "flags": ["--watch", "--run"]
+      },
+      "observed": {
+        "time": 1793526171217,
+        "pid": 74855,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526171140,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7512919999999994,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526171214,
+            "endTime": 1793526171214.7512,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/watch-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "true-watch-false",
+        "watch": true,
+        "flags": ["--watch=false"]
+      },
+      "observed": {
+        "time": 1793526172034,
+        "pid": 74882,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526171948,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.6943330000000003,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526172031,
+            "endTime": 1793526172031.6943,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/true-watch-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "root-true-project-false",
+        "watch": true,
+        "projectWatch": false
+      },
+      "observed": {
+        "time": 1793526181070,
+        "pid": 74907,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "child",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526180985,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.9080419999999947,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526181066,
+            "endTime": 1793526181066.908,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/root-true-project-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "root-false-project-true",
+        "watch": false,
+        "projectWatch": true
+      },
+      "observed": {
+        "time": 1793526181887,
+        "pid": 75020,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526181808,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.8034580000000062,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526181883,
+            "endTime": 1793526181883.8035,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/root-false-project-true/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "24",
+      "scenario": {
+        "name": "root-default-project-true-ci",
+        "projectWatch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793526182703,
+        "pid": 75094,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793526182625,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 0.7381249999999966,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793526182699,
+            "endTime": 1793526182699.738,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-node24/root-default-project-true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "default-local"
+      },
+      "observed": {
+        "time": 1793525604057,
+        "pid": 61762,
+        "event": "end",
+        "projects": [
+          {
+            "name": ""
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525603850,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.333582999999976,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525604048,
+            "endTime": 1793525604049.3335,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/default-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "default-ci",
+        "ci": true
+      },
+      "observed": {
+        "time": 1793525605202,
+        "pid": 61846,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525604986,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.352374999999995,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525605193,
+            "endTime": 1793525605194.3523,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/default-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "false-local",
+        "watch": false
+      },
+      "observed": {
+        "time": 1793525606427,
+        "pid": 61905,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525606251,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.9362920000000088,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525606418,
+            "endTime": 1793525606419.9363,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/false-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "false-ci",
+        "watch": false,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793525607461,
+        "pid": 61970,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525607326,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.1581669999999917,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525607455,
+            "endTime": 1793525607456.1582,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/false-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "true-local",
+        "watch": true
+      },
+      "observed": {
+        "time": 1793525618462,
+        "pid": 62035,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525618093,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 3.9199160000000006,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525618445,
+            "endTime": 1793525618448.92,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/true-local/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "true-ci",
+        "watch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793525620281,
+        "pid": 62485,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525620025,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.62745799999999,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525620264,
+            "endTime": 1793525620265.6274,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "true-run",
+        "watch": true,
+        "flags": ["--run"]
+      },
+      "observed": {
+        "time": 1793525622015,
+        "pid": 62547,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525621733,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.3146670000000142,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525622006,
+            "endTime": 1793525622007.3147,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/true-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "false-watch",
+        "watch": false,
+        "flags": ["--watch"]
+      },
+      "observed": {
+        "time": 1793525629518,
+        "pid": 62606,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525629237,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.3947499999999877,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525629508,
+            "endTime": 1793525629509.3948,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/false-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "run-watch",
+        "watch": true,
+        "flags": ["--run", "--watch"]
+      },
+      "observed": {
+        "time": 1793525631327,
+        "pid": 62730,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525630949,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.6505839999999807,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525631277,
+            "endTime": 1793525631278.6506,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/run-watch/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "watch-run",
+        "watch": true,
+        "flags": ["--watch", "--run"]
+      },
+      "observed": {
+        "time": 1793525632526,
+        "pid": 62767,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525632338,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.166749999999979,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525632517,
+            "endTime": 1793525632518.1667,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/watch-run/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "true-watch-false",
+        "watch": true,
+        "flags": ["--watch=false"]
+      },
+      "observed": {
+        "time": 1793525633681,
+        "pid": 62799,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525633500,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.0453329999999994,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525633674,
+            "endTime": 1793525633675.0454,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/true-watch-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "root-true-project-false",
+        "watch": true,
+        "projectWatch": false
+      },
+      "observed": {
+        "time": 1793525646153,
+        "pid": 62826,
+        "event": "end",
+        "watch": true,
+        "projects": [
+          {
+            "name": "child",
+            "watch": false
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 143,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525645817,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.4806250000000034,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525646144,
+            "endTime": 1793525646145.4807,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/root-true-project-false/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "root-false-project-true",
+        "watch": false,
+        "projectWatch": true
+      },
+      "observed": {
+        "time": 1793525647545,
+        "pid": 63013,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525647263,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.4995409999999936,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525647536,
+            "endTime": 1793525647537.4995,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/root-false-project-true/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "runtime": "26",
+      "scenario": {
+        "name": "root-default-project-true-ci",
+        "projectWatch": true,
+        "ci": true
+      },
+      "observed": {
+        "time": 1793525648749,
+        "pid": 63060,
+        "event": "end",
+        "watch": false,
+        "projects": [
+          {
+            "name": "child",
+            "watch": true
+          }
+        ],
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "state": "passed",
+            "cases": [
+              {
+                "name": "authored watch configuration executes the real case",
+                "state": "passed"
+              }
+            ]
+          }
+        ]
+      },
+      "ownerExit": 0,
+      "report": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "startTime": 1793525648540,
+        "success": true,
+        "testResults": [
+          {
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "authored watch configuration executes the real case",
+                "status": "passed",
+                "title": "authored watch configuration executes the real case",
+                "duration": 1.1103339999999946,
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ],
+            "startTime": 1793525648739,
+            "endTime": 1793525648740.1104,
+            "status": "passed",
+            "message": "",
+            "name": "/private/tmp/configured-watch405-final/root-default-project-true-ci/fixture/contract.case.mjs"
+          }
+        ]
+      }
+    }
+  ],
+  "parser": {
+    "runtime": "v26.12.1",
+    "entrySHA256": "6e7572671bc7ee0a7ddf75c0400dd6919b91ed4cc2fc29b96e381a3641e3e17d",
+    "rows": [
+      {
+        "flags": [],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true
+          }
+        }
+      },
+      {
+        "flags": ["--watch"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": true,
+            "w": true
+          }
+        }
+      },
+      {
+        "flags": ["-w"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "w": true,
+            "watch": true
+          }
+        }
+      },
+      {
+        "flags": ["--watch=true"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": true,
+            "w": true
+          }
+        }
+      },
+      {
+        "flags": ["--watch=false"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": false,
+            "w": false
+          }
+        }
+      },
+      {
+        "flags": ["--no-watch"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": false,
+            "w": false
+          }
+        }
+      },
+      {
+        "flags": ["--watch", "true"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": true,
+            "w": true
+          }
+        }
+      },
+      {
+        "flags": ["--watch", "false"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": false,
+            "w": false
+          }
+        }
+      },
+      {
+        "flags": ["--watch", "--watch=false"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [true, false]"
+        }
+      },
+      {
+        "flags": ["--watch=false", "--watch"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [false, true]"
+        }
+      },
+      {
+        "flags": ["--no-watch", "--watch=true"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [false, true]"
+        }
+      },
+      {
+        "flags": ["--watch=true", "--no-watch"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": false,
+            "w": false
+          }
+        }
+      },
+      {
+        "flags": ["--watch", "--watch"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [true, true]"
+        }
+      },
+      {
+        "flags": ["--watch=false", "--watch=false"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [false, false]"
+        }
+      },
+      {
+        "flags": ["--no-watch", "--no-watch"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": false,
+            "w": false
+          }
+        }
+      },
+      {
+        "flags": ["--watch=false", "--no-watch"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "watch": false,
+            "w": false
+          }
+        }
+      },
+      {
+        "flags": ["--no-watch", "--watch=false"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [false, false]"
+        }
+      },
+      {
+        "flags": ["--watch=false", "--watch=true", "--run"],
+        "error": {
+          "name": "Error",
+          "message": "Expected a single value for option \"-w, --watch\", received [false, true]"
+        }
+      },
+      {
+        "flags": ["--run", "--watch=true"],
+        "actual": {
+          "filter": [],
+          "options": {
+            "--": [],
+            "color": true,
+            "run": true,
+            "watch": true,
+            "w": true
+          }
+        }
+      }
+    ]
+  }
+}

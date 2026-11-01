@@ -2644,7 +2644,6 @@ describe('Next-owned test discovery and configuration', () => {
   })
 
   it.each([
-    [{ watch: true, run: true }, '--watch cannot be combined'],
     [{ watch: true, update: true }, '--watch cannot be combined'],
     [{ watch: true, list: true }, '--watch cannot be combined'],
     [{ list: true, update: true }, '--update cannot be combined'],

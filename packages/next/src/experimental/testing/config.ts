@@ -88,6 +88,8 @@ export interface TestConfig {
   reporters?: string[]
   outputFile?: ResultOutputFile
   compatibility: 'vitest'
+  /** Root session mode; project settings do not inherit this selection. */
+  watch?: boolean
   maxWorkers: number
   fileParallelism?: boolean
   cache?: boolean | { dir: string }
@@ -250,6 +252,7 @@ export function parseTestConfig(
       'projects',
       'maxWorkers',
       'fileParallelism',
+      'watch',
       'testNamePattern',
       'cache',
     ],
@@ -278,6 +281,8 @@ export function parseTestConfig(
     typeof config.fileParallelism !== 'boolean'
   )
     invalid('config.fileParallelism must be a boolean.')
+  if (config.watch !== undefined && typeof config.watch !== 'boolean')
+    invalid('config.watch must be a boolean.')
   let cache: TestConfig['cache']
   if (config.cache !== undefined) {
     if (typeof config.cache === 'boolean') cache = config.cache
@@ -308,6 +313,7 @@ export function parseTestConfig(
     ...parseConfiguredReporters(config.reporters),
     ...parseConfiguredOutputFile(config.outputFile),
     compatibility: 'vitest',
+    ...(config.watch === undefined ? {} : { watch: config.watch as boolean }),
     ...(cache === undefined ? {} : { cache }),
     ...(config.fileParallelism === undefined
       ? {}
@@ -915,6 +921,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     projects,
     maxWorkers,
     fileParallelism,
+    watch,
     name,
     cache,
     reporters,
@@ -929,6 +936,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
       {
         maxWorkers,
         fileParallelism,
+        watch,
         cache,
         reporters,
         outputFile,
@@ -946,6 +954,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     {
       maxWorkers,
       fileParallelism,
+      watch,
       cache,
       reporters,
       outputFile,

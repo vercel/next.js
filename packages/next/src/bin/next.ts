@@ -682,6 +682,18 @@ program
     )
   })
 
+let testWatchArgument: boolean | boolean[] | undefined
+function appendTestWatchArgument(value: boolean) {
+  testWatchArgument =
+    testWatchArgument === undefined
+      ? value
+      : [
+          ...(Array.isArray(testWatchArgument)
+            ? testWatchArgument
+            : [testWatchArgument]),
+          value,
+        ]
+}
 let testCoverageArgument: boolean | boolean[] | undefined
 let testFileParallelismArgument: boolean | boolean[] | undefined
 function appendTestFileParallelismArgument() {
@@ -728,7 +740,15 @@ program
     '--run',
     'Run selected tests once instead of watching an interactive terminal.'
   )
-  .option('--watch', 'Watch for changes (requires watch capability).')
+  .option('-w, --watch', 'Watch for changes (requires watch capability).')
+  .addOption(new Option('--watch=true').hideHelp())
+  .addOption(new Option('--watch=false').hideHelp())
+  .addOption(
+    new Option(
+      '--no-watch',
+      'Run selected tests once without watching.'
+    ).default(undefined)
+  )
   .option(
     '--includeTaskLocation [boolean]',
     'Collect actual test and suite declaration locations.'
@@ -903,6 +923,20 @@ program
     '--merge-reports <directory>',
     'Merge Next test result blobs without executing tests.'
   )
+  .on('option:watch', () => {
+    appendTestWatchArgument(true)
+  })
+  .on('option:no-watch', () => {
+    testWatchArgument = false
+  })
+  .on('option:watch=true', function (this: Command) {
+    this.setOptionValueWithSource('watch', true, 'cli')
+    appendTestWatchArgument(true)
+  })
+  .on('option:watch=false', function (this: Command) {
+    this.setOptionValueWithSource('watch', false, 'cli')
+    appendTestWatchArgument(false)
+  })
   .on('option:cache=true', function (this: Command) {
     this.setOptionValueWithSource('cache', true, 'cli')
   })
@@ -935,6 +969,10 @@ program
   })
   .action(async (directory, options, command: Command) => {
     try {
+      if (Array.isArray(testWatchArgument))
+        throw new Error(
+          `Expected a single value for option "-w, --watch", received [${testWatchArgument.join(', ')}]`
+        )
       if (Array.isArray(testFileParallelismArgument))
         throw new Error(
           `Expected a single value for option "--fileParallelism", received [${testFileParallelismArgument.join(', ')}]`
@@ -1255,10 +1293,14 @@ if (argv[2] === 'test') {
       break
     }
     if (
-      argument === '--coverage' &&
+      (argument === '--coverage' ||
+        argument === '--watch' ||
+        argument === '-w') &&
       (argv[index + 1] === 'true' || argv[index + 1] === 'false')
     ) {
-      testArgv.push(`--coverage=${argv[++index]}`)
+      testArgv.push(
+        `${argument === '-w' ? '--watch' : argument}=${argv[++index]}`
+      )
     } else {
       testArgv.push(argument)
     }
