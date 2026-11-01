@@ -43,22 +43,20 @@ impl<C> Decode<C> for GoBuild {
 impl GoBuild {
     /// Called by the compilation graph when a watch session first needs these inputs.
     pub async fn start_watching(&self) -> Result<()> {
-        for root in [&self.project, &self.go_context.module_cache] {
-            let fs = filesystem(root.clone())
-                .resolve()
-                .strongly_consistent()
-                .await?;
-            let fs = fs.await?;
-            if self.go_context.is_cancelled() {
-                break;
-            }
-            fs.start_watching().await?;
-            // Shutdown can overlap this initial task. A watcher that started after cleanup
-            // reached this root must stop itself before the compilation root settles.
-            if self.go_context.is_cancelled() {
-                fs.stop_watching().await;
-            }
+        let fs = filesystem(self.project.clone())
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        let fs = fs.await?;
+        if self.go_context.is_cancelled() {
+            return Ok(());
         }
+        fs.start_watching().await?;
+        // Shutdown can overlap startup; the project watcher remains caller-owned.
+        if self.go_context.is_cancelled() {
+            fs.stop_watching().await;
+        }
+        self.go_context.start_module_cache_watching().await?;
         Ok(())
     }
 
@@ -70,11 +68,7 @@ impl GoBuild {
             .strongly_consistent()
             .await?;
         fs.await?.stop_watching().await;
-        let cache_fs = filesystem(self.go_context.module_cache.clone())
-            .resolve()
-            .strongly_consistent()
-            .await?;
-        cache_fs.await?.stop_watching().await;
+        self.go_context.stop_module_cache_watching().await?;
 
         // A cancelled consumer can detach while compiler tasks are still unwinding. Drain
         // their operation before stopping the engine, while it can still schedule work.
@@ -223,14 +217,7 @@ pub async fn output_assets(
         if build.go_context.is_cancelled() {
             return Ok(OutputAssets::empty());
         }
-        if !result.is_current()? {
-            fs.await?.invalidate();
-            filesystem(build.go_context.module_cache.clone())
-                .resolve()
-                .strongly_consistent()
-                .await?
-                .await?
-                .invalidate();
+        if !result.validate().await? {
             continue;
         }
         match &result.outcome {

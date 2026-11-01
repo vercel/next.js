@@ -2,17 +2,23 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use std::{
+    collections::BTreeMap,
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TurboTasks};
+use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
-use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle};
+use turbopack_go::{
+    GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
+    GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
+    filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
+    go_declarations, go_source_set,
+};
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     std::fs::create_dir_all(target)?;
@@ -69,18 +75,26 @@ impl Session {
         })
     }
     async fn fetch(&self, files: &[&str]) -> Result<Vec<u8>> {
+        self.fetch_generated(files, BTreeMap::new()).await
+    }
+    async fn fetch_generated(
+        &self,
+        files: &[&str],
+        generated: BTreeMap<RcStr, RcStr>,
+    ) -> Result<Vec<u8>> {
         let files = files.iter().map(|file| RcStr::from(*file)).collect();
         let fs = self.fs;
         let go_context = self.go_context.clone();
         self.tt
             .run_once(async move {
-                let result = go_bundle(
+                let result = go_bundle_with_generated_files(
                     FileSystemPath {
                         fs: ResolvedVc::upcast(fs),
                         path: rcstr!(""),
                     },
                     files,
                     go_context,
+                    generated,
                 )
                 .read_strongly_consistent()
                 .await?;
@@ -172,6 +186,23 @@ impl Session {
         let json: serde_json::Value = serde_json::from_str(&self.run(FILES).await?)?;
         assert_eq!(json["body"], expected);
         Ok(())
+    }
+    async fn eventually_run(&self, files: &[&str], expected: &str) -> Result<()> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            let observed = self.run(files).await;
+            if observed
+                .as_ref()
+                .is_ok_and(|output| output.trim() == expected)
+            {
+                return Ok(());
+            }
+            ensure!(
+                std::time::Instant::now() < deadline,
+                "timed out waiting for {expected}: {observed:?}"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
     }
     async fn stop(self) {
         self.tt.stop_and_wait().await;
@@ -569,6 +600,71 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
     Ok(())
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn assembly_dependencies_track_sources_headers_and_recover_from_errors() -> Result<()> {
+    let session = Session::new().await?;
+    session
+        .write(
+            "main.go",
+            "package main\nimport (\"fmt\"; \
+             \"example.com/native-fixture/internal/assembly\")\nfunc main() { \
+             fmt.Println(assembly.Value()) }\n",
+        )
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "42");
+    let first = session.counts();
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "42");
+    assert_eq!(
+        session.counts(),
+        first,
+        "unchanged assembly must be memoized"
+    );
+
+    // This nested .inc file is absent from go list's HFiles. Its contents must still
+    // participate in the build plan, rather than depending only on directory inventories.
+    session
+        .replace("internal/assembly/values/constants.inc", "41", "51")
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "52");
+    assert_eq!(session.counts().1, first.1 + 1);
+
+    let assembly = format!("internal/assembly/value_{}.s", session.go_context.goarch);
+    session
+        .replace(&assembly, "ASSEMBLY_EXTRA 1", "ASSEMBLY_EXTRA 2")
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "53");
+    assert_eq!(session.counts().1, first.1 + 2);
+
+    session
+        .replace("internal/assembly/values/constants.inc", "51", "invalid")
+        .await?;
+    let failure = session.fetch(&["main.go"]).await.unwrap_err().to_string();
+    assert!(failure.contains("assembly"), "{failure}");
+    session
+        .replace("internal/assembly/values/constants.inc", "invalid", "61")
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "63");
+
+    // A missing nested include must retain dependencies that observe its later creation.
+    std::fs::remove_file(
+        session
+            .project
+            .join("internal/assembly/values/constants.inc"),
+    )?;
+    session.invalidate().await?;
+    assert!(session.fetch(&["main.go"]).await.is_err());
+    session
+        .write(
+            "internal/assembly/values/constants.inc",
+            "#define ASSEMBLY_VALUE 71\n",
+        )
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "73");
+    session.stop().await;
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn imported_build_tags_are_applied_consistently() -> Result<()> {
     let mut session = Session::new().await?;
@@ -627,11 +723,14 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
     let original_mod = std::fs::read(session.project.join("go.mod"))?;
     let original_sum = std::fs::read(session.project.join("go.sum"))?;
     let sum = std::fs::metadata(session.project.join("go.sum"))?.modified()?;
+    // Exercise actual automatic invalidation even where the host does not deliver native events.
+    session.go_context.poll_interval_ms = Some(20);
     let cache_path = session.go_context.module_cache.clone();
+    let poll_interval_ms = session.go_context.poll_interval_ms;
     let cache_fs = session
         .tt
         .run_once(async move {
-            let fs = filesystem(cache_path)
+            let fs = filesystem_with_poll_interval(cache_path, poll_interval_ms)
                 .resolve()
                 .strongly_consistent()
                 .await?;
@@ -676,18 +775,99 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
     );
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
-        if let Ok(bytes) = session.fetch(&["main.go"]).await {
-            assert_eq!(
-                session.run_bytes(bytes).await?.trim(),
-                "versioned-dependency"
-            );
-            break;
-        }
+        let error = match session.fetch(&["main.go"]).await {
+            Ok(bytes) => {
+                assert_eq!(
+                    session.run_bytes(bytes).await?.trim(),
+                    "versioned-dependency"
+                );
+                break;
+            }
+            Err(error) => error,
+        };
         ensure!(
             std::time::Instant::now() < deadline,
-            "module-cache watcher did not repair discovery"
+            "module-cache watcher did not repair discovery (invocations {:?}): {error:#}",
+            session.counts(),
         );
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    {
+        // Imported module-cache sources use a different Tasks filesystem from the project.
+        // Mutating real assembly and a nested header must rebuild through that watcher too.
+        // The module cache is immutable to Go's package index. Establish the added assembly
+        // fixture with a fresh build cache before asserting edits to existing assembly files.
+        let assembly_cache = session.temp.path().join("assembly-build-cache");
+        std::fs::create_dir_all(&assembly_cache)?;
+        session.go_context.cache = std::fs::canonicalize(assembly_cache)?
+            .to_string_lossy()
+            .into_owned()
+            .into();
+        let library = cache.join("example.com/library@v1.0.0");
+        let source = library.join("library.go");
+        let original = std::fs::read(&source)?;
+        // -modcacherw keeps module directories writable; extracted source files can still be
+        // read-only. Make this isolated fixture writable while exercising cache edits.
+        let original_permissions = std::fs::metadata(&source)?.permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(
+                &source,
+                std::fs::Permissions::from_mode(original_permissions.mode() | 0o200),
+            )?;
+        }
+        #[cfg(windows)]
+        {
+            let mut writable = original_permissions.clone();
+            writable.set_readonly(false);
+            std::fs::set_permissions(&source, writable)?;
+        }
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixture/internal/assembly");
+        for name in ["value_amd64.s", "value_arm64.s", "value.h"] {
+            let content =
+                std::fs::read_to_string(fixture.join(name))?.replace("·Value", "·assemblyValue");
+            std::fs::write(library.join(name), content)?;
+        }
+        copy_tree(&fixture.join("values"), &library.join("values"))?;
+        std::fs::write(
+            &source,
+            "package library\nfunc assemblyValue() uint64\nfunc Text() string { switch \
+             assemblyValue() { case 42: return \"external-42\"; case 44: return \"external-44\"; \
+             case 54: return \"external-54\"; default: return \"unexpected assembly value\" } }\n",
+        )
+        .context("editing the isolated module-cache Go source")?;
+        session.eventually_run(&["main.go"], "external-42").await?;
+        let before = session.counts().1;
+        let assembly = library.join(format!("value_{}.s", session.go_context.goarch));
+        let content = std::fs::read_to_string(&assembly)?;
+        std::fs::write(
+            &assembly,
+            content.replace("ASSEMBLY_EXTRA 1", "ASSEMBLY_EXTRA 3"),
+        )?;
+        session.eventually_run(&["main.go"], "external-44").await?;
+        assert!(
+            session.counts().1 > before,
+            "external assembly must rebuild"
+        );
+        let before = session.counts().1;
+        std::fs::write(
+            library.join("values/constants.inc"),
+            "#define ASSEMBLY_VALUE 51\n",
+        )?;
+        session.eventually_run(&["main.go"], "external-54").await?;
+        assert!(
+            session.counts().1 > before,
+            "external assembly headers must rebuild"
+        );
+
+        std::fs::write(&source, original)?;
+        std::fs::set_permissions(source, original_permissions)?;
+        // Keep the indexed assembly inventory intact until the temporary cache is removed.
+        session
+            .eventually_run(&["main.go"], "versioned-dependency")
+            .await?;
     }
     session
         .tt
@@ -994,4 +1174,287 @@ async fn edits_during_discovery_and_compilation_retry_before_publication() -> Re
         }
     }
     Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn generated_entry_reuses_original_inputs_and_compiler_cache() -> Result<()> {
+    let session = Session::new().await?;
+    session
+        .replace("cmd/files/main.go", "func main()", "func handle()")
+        .await?;
+    let generated = BTreeMap::from([(
+        rcstr!("cmd/files/zz_generated.go"),
+        rcstr!("package main\nfunc main() { handle() }\n"),
+    )]);
+    let files = ["cmd/files/main.go", "cmd/files/helper.go"];
+    let first = session.fetch_generated(&files, generated.clone()).await?;
+    let counts = session.counts();
+    assert_eq!(
+        first,
+        session.fetch_generated(&files, generated.clone()).await?
+    );
+    assert_eq!(counts, session.counts());
+    assert!(!session.project.join("cmd/files/zz_generated.go").exists());
+    assert!(session.run_bytes(first).await?.contains("embedded-v1"));
+    session
+        .write("cmd/files/assets/message.txt", "embedded-overlay-v2")
+        .await?;
+    let second = session.fetch_generated(&files, generated).await?;
+    assert!(
+        session
+            .run_bytes(second)
+            .await?
+            .contains("embedded-overlay-v2")
+    );
+    assert_eq!(session.counts().1, counts.1 + 1);
+    Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+fn selected_sources(
+    root: FileSystemPath,
+    directory: FileSystemPath,
+    selection: GoSourceSelection,
+    options: GoBuildOptions,
+) -> Vc<GoSourceSet> {
+    go_source_set(
+        root,
+        directory,
+        selection,
+        GoBuildSession::persistent("source-set-test".into(), options),
+    )
+}
+#[turbo_tasks::function(operation, root)]
+fn selected_declarations(
+    sources: ResolvedVc<GoSourceSet>,
+    options: GoBuildOptions,
+) -> Vc<GoDeclarations> {
+    go_declarations(
+        *sources,
+        GoBuildSession::persistent("source-set-test".into(), options),
+    )
+}
+#[turbo_tasks::function(operation, root)]
+fn selected_bundle(
+    sources: ResolvedVc<GoSourceSet>,
+    options: GoBuildOptions,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    go_bundle_from_sources(
+        *sources,
+        GoBuildSession::persistent("source-set-test".into(), options),
+        generated,
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/(group)/[id]";
+    std::fs::create_dir_all(session.project.join(directory))?;
+    session
+        .write(
+            &format!("{directory}/handler.go"),
+            "package main\nfunc GET() string { return \"v1\" }\ntype Handler struct{}\nfunc \
+             (Handler) POST() {}\n",
+        )
+        .await?;
+    session
+        .write(
+            &format!("{directory}/ignored_test.go"),
+            "invalid Go deliberately excluded",
+        )
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let capture = || {
+        let root = root.clone();
+        let options = options.clone();
+        let tt = session.tt.clone();
+        async move {
+            tt.run_once(async move {
+                selected_sources(
+                    root.clone(),
+                    root.join(directory)?,
+                    GoSourceSelection::Directory,
+                    options,
+                )
+                .resolve()
+                .strongly_consistent()
+                .await
+            })
+            .await
+        }
+    };
+    let sources = capture().await?;
+    let declarations = session
+        .tt
+        .run_once({
+            let options = options.clone();
+            async move {
+                selected_declarations(sources, options)
+                    .read_strongly_consistent()
+                    .await
+            }
+        })
+        .await?;
+    assert_eq!(declarations.functions, vec![rcstr!("GET")]);
+    assert!(declarations.syntax_errors.is_empty());
+    let generated = BTreeMap::from([(
+        RcStr::from(format!("{directory}/generated.go")),
+        rcstr!("package main\nimport \"fmt\"\nfunc main() { fmt.Print(GET()) }\n"),
+    )]);
+    let build = |sources: ResolvedVc<GoSourceSet>, generated| {
+        let options = options.clone();
+        let tt = session.tt.clone();
+        async move {
+            tt.run_once(async move {
+                selected_bundle(sources, options, generated)
+                    .read_strongly_consistent()
+                    .await
+            })
+            .await
+        }
+    };
+    // The dispatch was analyzed from v1. A new compiler snapshot must not publish v2 with it.
+    session
+        .write(
+            &format!("{directory}/handler.go"),
+            "package main\nfunc GET() string { return \"v2\" }\n",
+        )
+        .await?;
+    let stale = build(sources, generated.clone()).await?;
+    assert!(matches!(stale.outcome, GoBuildOutcome::Retry));
+    let current = capture().await?;
+    let result = build(current, generated.clone()).await?;
+    let executable_result = result.clone();
+    let bytes = session
+        .tt
+        .run_once(async move {
+            let GoBuildOutcome::Success(file) = &executable_result.outcome else {
+                anyhow::bail!("unexpected result: {:?}", executable_result.outcome);
+            };
+            let file = file.await?;
+            let FileContent::Content(file) = &*file else {
+                anyhow::bail!("missing executable");
+            };
+            let mut bytes = vec![];
+            file.read().read_to_end(&mut bytes)?;
+            anyhow::Ok(bytes)
+        })
+        .await?;
+    assert_eq!(session.run_bytes(bytes).await?, "v2");
+    // A newly selected sibling also invalidates the existing artifact's publication token.
+    session
+        .write(
+            &format!("{directory}/other_windows.go"),
+            "//go:build excluded\n\npackage main\nfunc DELETE() {}\n",
+        )
+        .await?;
+    session
+        .tt
+        .run_once(async move {
+            assert!(!result.validate().await?);
+            anyhow::Ok(())
+        })
+        .await?;
+    let current = capture().await?;
+    let declarations = session
+        .tt
+        .run_once({
+            let options = options.clone();
+            async move {
+                selected_declarations(current, options)
+                    .read_strongly_consistent()
+                    .await
+            }
+        })
+        .await?;
+    assert_eq!(
+        declarations.functions,
+        vec![rcstr!("DELETE"), rcstr!("GET")]
+    );
+    // Creating a nearer go.mod must reselect the module even though no source bytes changed.
+    session
+        .write(
+            &format!("{directory}/go.mod"),
+            "module example.com/nearer\ngo 1.24\n",
+        )
+        .await?;
+    let nearest = capture().await?;
+    session
+        .tt
+        .run_once(async move {
+            assert!(nearest.await?.files.contains_key("handler.go"));
+            anyhow::Ok(())
+        })
+        .await?;
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn host_tools_target_suffixes_and_shared_watcher_leases() -> Result<()> {
+    let session = Session::new().await?;
+    let tool = session.go_context.go.clone();
+    session
+        .tt
+        .run_once(async move {
+            shared_pool_operation(tool)
+                .resolve()
+                .strongly_consistent()
+                .await?;
+            anyhow::Ok(())
+        })
+        .await?;
+    session.stop().await;
+    Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn shared_pool_operation(tool: RcStr) -> Result<Vc<turbo_tasks::Completion>> {
+    let pool = GoSessionPool::new();
+    let other = GoSessionPool::new();
+    let options = GoToolchainOptions {
+        go: tool,
+        tags: rcstr!(""),
+        poll_interval_ms: Some(50),
+    };
+    let host = pool
+        .await?
+        .session(rcstr!("host-target-test"), options.clone(), None, true)
+        .await?;
+    let target = pool
+        .await?
+        .session(
+            rcstr!("host-target-test"),
+            options.clone(),
+            Some(GoTarget::new(rcstr!("windows"), rcstr!("arm64"))?),
+            true,
+        )
+        .await?;
+    let independent = other
+        .await?
+        .session(rcstr!("independent-owner"), options, None, true)
+        .await?;
+    assert_eq!(target.await?.go_context.exe_suffix, rcstr!(".exe"));
+    assert_eq!(
+        host.await?.go_context.goos,
+        std::env::consts::OS.replace("macos", "darwin").as_str()
+    );
+    pool.await?.shutdown().await?;
+    assert!(host.await?.go_context.is_cancelled());
+    assert!(target.await?.go_context.is_cancelled());
+    assert!(!independent.await?.go_context.is_cancelled());
+    // The remaining lease still owns a working filesystem watcher and can release it.
+    independent
+        .await?
+        .go_context
+        .start_module_cache_watching()
+        .await?;
+    other.await?.shutdown().await?;
+    Ok(turbo_tasks::Completion::new())
 }
