@@ -92,7 +92,7 @@ impl From<File> for FileContent {
 /// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
 /// When reading the file content back from the cache, the hash is compared to detect changes, but
 /// the actual data is not available. `PersistedFileContent` provides the full data so that
-/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
+/// `DiskFileSystem::write` can retrieve it without re-reading from disk.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum PersistedFileContent {
@@ -166,8 +166,8 @@ pub(crate) enum FileComparison {
 /// The target of a symbolic link, as read from a filesystem.
 ///
 /// Every variant carries the `resolved` path the link points at, computed once by
-/// [`crate::FileSystem::read_link`], which is also what guarantees the target stays inside the
-/// filesystem root — a link whose target leaves the root is [`LinkContent::Invalid`] instead.
+/// [`crate::FileSystem::read_link`]. A link whose target cannot be resolved into its filesystem
+/// or another configured filesystem is [`LinkContent::Invalid`] instead.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.
@@ -622,7 +622,7 @@ impl FileContent {
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
     ///
     /// Use this in contexts where the full file content must be serialized to the persistent
-    /// task cache (e.g., in [`DiskFileSystem::write`]).
+    /// task cache (e.g., in `DiskFileSystem::write`).
     #[turbo_tasks::function]
     pub fn persist(&self) -> Vc<PersistedFileContent> {
         match self {

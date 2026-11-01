@@ -34,7 +34,8 @@ Then edit three files:
 
 **`PROMPT.md`** — what you'd type into the agent. Write it like a real user would: describe the symptom or goal, not the API. "Navigating from `/a` to `/b` is slow, fix it" is a good prompt. "Use `instant`" is not — you're testing whether the agent understands the feature well enough to reach for it, not whether it can pattern-match a name you handed it.
 
-**`EVAL.ts`** — vitest assertions against files the agent wrote. Regex the source, don't run it.
+**`EVAL.ts`** — vitest assertions against the app the agent wrote. Check source
+for API contracts and use runtime assertions to verify rendered behavior.
 
 ```ts
 import { expect, test } from 'vitest'
@@ -47,6 +48,23 @@ test('exports instant', () => {
   expect(page).toMatch(/export const instant\b/)
 })
 ```
+
+Runtime assertions can import `buildNextApp` and `startNextServer` from
+`./__agent_eval__/next-test-utils.mjs`, which the runner copies into the sandbox.
+Assertions run before the configured build script, so call `buildNextApp()` before
+starting a production server. `startNextServer()` waits for a successful HTTP
+response and returns `{ url, stop }`; call `stop()` in a `finally` block. Fixture
+setup can use `{ mode: 'dev', port: 3100, detached: true, logFile: '/tmp/next-dev.log' }`
+to leave a development server running for the agent.
+
+Type-check the runner and assertions locally:
+
+```bash
+pnpm typescript --project evals/tsconfig.json
+```
+
+`evals/types` resolves sandbox-injected helpers to their source types. Each
+fixture's application is checked separately during its build.
 
 **`app/`** (or `pages/`) — the starting state. Give the agent something to edit, not a blank slate.
 
@@ -84,11 +102,69 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 
 The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. It does not also inject the `agents-md` instruction: the skill treatment measures whether the skill itself leads the agent to the canonical bundled guide. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Fixtures without an entry continue to run only `baseline` and `agents-md`.
 
+Browser-dependent fixtures declare `@playwright/test` in `dependencies` or
+`devDependencies` in their `package.json`. The runner detects that dependency
+and installs Chromium and its system libraries before the agent starts.
+
+Fixtures opt into before/after JavaScript measurements with `"browserJs": true`
+in `eval.config.json`. The runner adds measurement hooks only to experiments
+containing those fixtures.
+
+The dynamic-editor, Markdown, and Lodash bundle-optimizer fixtures measure cold
+Turbopack production loads in headless Chromium before and after the agent runs.
+Each uses plain `next build`, disabled browser caching, and fresh browser contexts.
+Passing
+requires fewer compressed JavaScript response-body bytes than the baseline and a
+rounded byte budget: 200,000 bytes for the editor, 150,000 bytes for Markdown,
+and 170,000 bytes for Lodash.
+
+The editor must stay unloaded until interaction, preload on pointer hover, and
+stay editable. CodeMirror responses are identified by its
+`cm-content` runtime class. Markdown must preserve the rendered headings, bulleted
+list, and highlighted JavaScript code block. Lodash must preserve both transformed
+status labels and consolidate the lockfile to one Lodash version. Both the app
+and legacy widget start with full Lodash imports so consolidating their versions
+removes a substantial duplicated runtime.
+
+`lib/next-test-utils.mjs` owns production builds and server cleanup.
+Shared utilities in `lib/bundle-optimizer/browser-js.ts` handle browser cleanup,
+cold-page measurement, byte summaries, and before/after eval results.
+Content and interaction checks stay in each fixture's
+`__eval__/measure-browser-js.ts`. `lib/bundle-optimizer/hooks.ts` runs the same assertions
+before the agent starts and records their outcomes under `analysis.browserJs.before.checks`.
+Expected optimization failures allow the agent run to proceed; build, browser,
+and content failures stop setup. Per-request compressed and decoded sizes,
+before/after totals, and bytes saved are recorded under `analysis.browserJs` in
+`result.json`.
+
+The SDK withholds `__eval__/` resources and `EVAL.ts` before creating the sandbox's
+initial Git commit. The runner bundles the eval and its measurement imports into
+one grader. Setup returns that grader and the baseline through validation-only
+files and environment values; neither reaches the coding agent. The SDK restores
+the grader after the agent completes, so app edits do not change validation.
+
 A run takes ~2–5 min. To validate a fixture without executing:
 
 ```bash
 pnpm eval agent-042-your-thing --dry
 ```
+
+Run a group from `eval.suites.json` with `--suite`:
+
+```bash
+pnpm eval --suite regression
+pnpm eval --suite competency --dry
+```
+
+- `audit` is the starting point for new or unverified evals.
+- `competency` contains verified evals that distinguish model capability.
+- `regression` contains evals that reach at least 90% valid pass@1 across
+  frontier and weaker models over multiple runs or versions.
+
+Every eval under active measurement must appear in exactly one suite. A suite
+still runs both `baseline` and `agents-md`. Set `publish: false` in
+`eval.config.json` while an eval is being audited, when its results should stay
+internal, or when it belongs in another measurement system.
 
 Use repeated runs when measuring behavior that may vary between agent runs:
 
@@ -137,6 +213,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 evals/
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
+├── lib/bundle-optimizer/ # optimizer measurement and transcript hooks
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored
 ├── .tarballs/       # packed next, gitignored

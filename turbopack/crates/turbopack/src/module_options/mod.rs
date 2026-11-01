@@ -247,6 +247,7 @@ impl ModuleOptions {
                     infer_module_side_effects,
                     cjs_tree_shaking,
                     mangle_export_names,
+                    mangle_via_materialized_namespace_object,
                     cjs_scope_hoisting,
                     cross_module_constants,
                     lazy_compilation,
@@ -308,9 +309,9 @@ impl ModuleOptions {
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
 
-        if let Some(compilation_mode) = enable_rust_react_compiler {
+        if let Some(options) = enable_rust_react_compiler {
             ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust {
-                compilation_mode,
+                options,
                 target: rust_react_compiler_target,
             });
         }
@@ -345,6 +346,7 @@ impl ModuleOptions {
             infer_module_side_effects,
             cjs_tree_shaking,
             mangle_export_names,
+            mangle_via_materialized_namespace_object,
             cjs_scope_hoisting,
             cross_module_constants,
             lazy_compilation,

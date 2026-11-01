@@ -8,12 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-image-webp = ["next-core/image-webp"]
 image-avif = ["next-core/image-avif"]
-# Enable all the available image codec support.
-# Currently this is identical to `image-webp`, as we are not able to build
-# other codecs easily yet.
-image-extended = ["image-webp"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -41,6 +36,8 @@ bincode = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 flate2 = { workspace = true }
+zstd = { workspace = true }
+fs-err = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
@@ -127,9 +124,12 @@ windows-sys = "0.60"
 # Dependencies for the wasm32 build.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
-iana-time-zone = { version = "*", features = ["fallback"] }
 # `turbo-tasks-malloc`'s `custom_allocator` feature uses mimalloc, which isn't compatible with wasm
 turbo-tasks-malloc = { workspace = true, default-features = false }
+
+# Dependencies for wasm32 builds other than WASI.
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+iana-time-zone = { version = "*", features = ["fallback"] }
 
 # wasi-only dependencies.
 [target.wasm32-wasip1-threads.dependencies]

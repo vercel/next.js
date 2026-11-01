@@ -6,7 +6,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(ptr_metadata)]
-#![feature(exclusive_wrapper)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
@@ -284,7 +283,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// - `unsafe impl NonLocalValue for X {}` (unless `contains_unresolved_vcs` is set).
 /// - `impl TaskInput for X` with a field-walking `is_transient`. By default `is_resolved` and
-///   `resolve_input` use the trait defaults (`true` and a [`CloneReady`] future — 8 bytes, no
+///   `resolve_input` use the trait defaults (`true` and a `CloneReady` future — 8 bytes, no
 ///   async-fn envelope); when `contains_unresolved_vcs` is set, both are emitted as
 ///   field-walking implementations as well.
 ///

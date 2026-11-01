@@ -200,7 +200,15 @@ export async function pipeNodeReadableToNodeResponse(
       finished.resolve()
     })
 
-    readable.on('data', (chunk: Buffer) => {
+    readable.on('data', (chunk: string | Uint8Array) => {
+      // Object-mode readables carry strings and raw views. Custom servers
+      // wrap `res.write` and may assume `Buffer.isBuffer(chunk)`.
+      if (typeof chunk === 'string') {
+        chunk = Buffer.from(chunk)
+      } else if (!Buffer.isBuffer(chunk)) {
+        chunk = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+      }
+
       if (!started) {
         started = true
 

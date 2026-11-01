@@ -359,6 +359,15 @@ export interface ReactCompilerOptions {
    * @see https://react.dev/reference/react-compiler/compilationMode
    */
   compilationMode?: 'infer' | 'annotation' | 'all'
+  environment?: {
+    /**
+     * Controls whether the React Compiler preserves existing memoization
+     * guarantees from `useMemo`, `useCallback`, and `React.memo`.
+     *
+     * When omitted, the installed React Compiler's default is used.
+     */
+    enablePreserveExistingMemoizationGuarantees?: boolean
+  }
   /**
    * Controls how the React Compiler handles errors during compilation.
    *
@@ -520,6 +529,12 @@ export interface ExperimentalConfig {
     string,
     { path: string; ignoreIfMissing?: boolean }
   >
+  /**
+   * Detect pnpm's global virtual store and add it as an additional root. Requires pnpm 11 or later.
+   *
+   * @default false
+   */
+  turbopackDetectGlobalVirtualStore?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -928,7 +943,7 @@ export interface ExperimentalConfig {
      */
     requestCost?: number
     /**
-     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
      * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
      */
     minChunkSize?: number
@@ -938,8 +953,9 @@ export interface ExperimentalConfig {
      */
     maxChunkCountPerGroup?: number
     /**
-     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
-     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
+     * (200 KB).
      */
     maxMergeChunkSize?: number
     /**
@@ -953,6 +969,18 @@ export interface ExperimentalConfig {
      * single remainder chunk. Defaults to `20000` (20 KB).
      */
     minComponentChunkSize?: number
+    /**
+     * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
+     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
+     * apply to Edge runtime chunks.
+     */
+    minServerChunkSize?: number
+    /**
+     * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
+     * (100 KB). Doesn't apply to Edge runtime chunks.
+     */
+    maxMergeServerChunkSize?: number
   }
 
   /**
@@ -1092,6 +1120,16 @@ export interface ExperimentalConfig {
    * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
+
+  /**
+   * Materialize namespace objects behind a facade so their local export keys can still be
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
+   *
+   * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
+   * defaults to `false`, including when export mangling is enabled by default.
+   */
+  turbopackMangleViaMaterializedNamespaceObject?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.
@@ -1263,6 +1301,18 @@ export interface ExperimentalConfig {
    * `transitionIndicator`, or `gestureTransition`) requires it.
    */
   blockingSSR?: boolean
+
+  /**
+   * Opts the `app` directory into React's experimental release channel
+   * (`react@experimental`), which ships React's internal
+   * `enableHydrationChangeEvent` feature flag. This lets teams try that flag
+   * before it lands in React's canary channel. The name mirrors React's
+   * underlying feature flag.
+   *
+   * This flag has no effect of its own beyond selecting the experimental
+   * React build.
+   */
+  hydrationChangeEvent?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -1467,6 +1517,13 @@ export interface ExperimentalConfig {
    * Turbopack.
    */
   durableUseCacheEntries?: boolean
+
+  /**
+   * Collects root param dependencies for `'use cache'` in Turbopack production
+   * builds. Defaults to `false`. When disabled, the server-reference manifest
+   * omits `rootParamDependencies`.
+   */
+  useCacheStaticRootParamTracking?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -2250,16 +2307,6 @@ export interface NextConfig {
    * @internal
    */
   configOrigin?: string | undefined
-
-  /**
-   * @internal
-   */
-  _originalRedirects?: any
-
-  /**
-   * @internal
-   */
-  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -2395,8 +2442,7 @@ export const defaultConfig = Object.freeze({
     manualClientBasePath: false,
     cpus: Math.max(
       1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
+      (Number(process.env.CIRCLE_NODE_TOTAL) || os.availableParallelism()) - 1
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
@@ -2451,8 +2497,10 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    hydrationChangeEvent: false,
     inlineCss: false,
     useCache: undefined,
+    useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,

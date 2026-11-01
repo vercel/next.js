@@ -76,12 +76,9 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  // When a previous test attempt was interrupted (typically by exceeding the
-  // per-test timeout) while `next build` was still running, the build process
-  // is still tracked here. Since `jest.retryTimes` re-runs the test body in the
-  // same process, stop the orphaned build so the caller can continue instead of
-  // failing the retry. If a server is genuinely running, throw
-  // `serverRunningError` instead.
+  // Stop a build left running after a test exceeded its timeout so subsequent
+  // tests can start or build the fixture. Throw `serverRunningError` if the
+  // process is serving requests instead.
   private async stopLeftoverBuildOrThrow(serverRunningError: string) {
     if (!this.childProcess) {
       return

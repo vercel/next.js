@@ -34,6 +34,14 @@ async function main() {
             pathname = pathname.replace(conf.basePath, '') || '/'
           }
 
+          if (pathname === '/asset-prefix' && parsedUrl.query.assetPrefix) {
+            app.setAssetPrefix(
+              parsedUrl.query.assetPrefix === 'reset'
+                ? ''
+                : 'https://cdn.example.com'
+            )
+          }
+
           parsedUrl.pathname =
             pathname === '/b'
               ? '/page-b'

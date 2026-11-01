@@ -608,6 +608,7 @@ pub trait Backend: Sized + Sync + Send {
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
+    /// Invalidates all `tasks`. `tasks` must not contain duplicates.
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>);
     fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &TurboTasks<Self>);
 
@@ -675,6 +676,22 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent>;
 
+    /// Hint that the content of the cell `cell` of task `task_id` is no longer needed, so the
+    /// backend may drop it to free memory. A later read of a dropped cell recomputes the owning
+    /// task, like after a `final_read_hint` read.
+    ///
+    /// The task must exist. The cell content doesn't need to be present (e.g. it was already
+    /// dropped); this never reads or recomputes it.
+    ///
+    /// This doesn't track any dependency. The default implementation does nothing.
+    fn drop_task_cell_content_hint(
+        &self,
+        _task_id: TaskId,
+        _cell: CellId,
+        _turbo_tasks: &TurboTasks<Self>,
+    ) {
+    }
+
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
     fn read_task_collectibles(
@@ -698,6 +715,17 @@ pub trait Backend: Sized + Sync + Send {
         trait_type: TraitTypeId,
         collectible: RawVc,
         count: u32,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    );
+
+    /// Unemits every collectible with a positive count in `collectibles` from `task`, as if
+    /// [`Backend::unemit_collectible`] was called for each of them, but applied as a single
+    /// operation.
+    fn unemit_collectibles(
+        &self,
+        trait_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
         task: TaskId,
         turbo_tasks: &TurboTasks<Self>,
     );

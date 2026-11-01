@@ -90,9 +90,10 @@ prefetch budget instead of creating another rig.
 
 If the project has no rig, use [`rig-template.md`](rig-template.md) to discover
 and record one. The measured run must be a production build or
-preview where `experimental.exposeTestingApiInProductionBuild` is enabled only
-for testing. Development can help diagnose a route, but automatic link
-prefetching is production-only.
+preview where
+[`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+is enabled only for testing. Development can help diagnose a route, but
+automatic link prefetching is production-only.
 
 ## Prove the current behavior
 

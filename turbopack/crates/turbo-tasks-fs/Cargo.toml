@@ -18,6 +18,8 @@ default = []
 # A binary built with this option **is not portable**, the directory
 # path will be embedded into the binary.
 dynamic_embed_contents = []
+# Set in CI to ignore timing-sensitive watcher tests that are flaky on CI runners.
+ci = []
 
 [lints]
 workspace = true
@@ -51,12 +53,12 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true }
 turbo-bincode = { workspace = true }
+turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
 url = { workspace = true }
-urlencoding = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 omnipath = "0.1.6"

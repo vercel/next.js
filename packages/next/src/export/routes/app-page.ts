@@ -18,6 +18,10 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
@@ -28,6 +32,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { RouteMatch } from '../../server/route-modules/app-page/module'
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import {
   deflateResumeDataCache,
@@ -44,6 +49,7 @@ import {
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
+  requestUrl: string,
   page: string,
   path: string,
   pathname: string,
@@ -81,16 +87,25 @@ export async function exportAppPage(
   }
 
   try {
+    const nextReq = new NodeNextRequest(req)
+    const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+      nextReq.headers,
+      {
+        isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+        previewModeId: renderOpts.previewProps?.previewModeId,
+      }
+    )
     const result = await lazyPrerenderAppPage(
-      new NodeNextRequest(req),
       new NodeNextResponse(res),
+      requestUrl,
       pathname,
       query,
       fallbackRouteParams,
       renderOpts,
-      undefined, // dev
       sharedContext,
-      routeMatch
+      routeMatch,
+      parsedRequestHeaders,
+      getServerActionRequestMetadata(nextReq)
     )
 
     if ('error' in result) {

@@ -7,6 +7,12 @@ import { updateInitialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { Telemetry } from '../../telemetry/storage'
+import {
+  eventAgentUpgradeNudgeDecision,
+  eventAgentUpgradeNudgeShown,
+  eventAgentUpgradePolicyDetected,
+} from '../../telemetry/events/agent-upgrade'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
@@ -135,10 +141,11 @@ export type UpgradeContext = Pick<
   NextConfigComplete,
   'distDir' | 'cacheComponents'
 > & {
+  configuredPolicy: NudgeKind | false | null
   experimental: { agentUpgrade: NudgeKind | false }
 }
 
-type UpgradeReminder = {
+export type UpgradeReminder = {
   policy: NudgeKind
   installedVersion: string
 } & (
@@ -155,6 +162,7 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
   return {
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    configuredPolicy: config.experimental.agentUpgrade ?? null,
     experimental: {
       agentUpgrade:
         getRequestedUpgrade() ?? config.experimental.agentUpgrade ?? false,
@@ -176,6 +184,16 @@ export async function assessUpgrade(
     policy !== 'experimental-future'
   ) {
     return null
+  }
+  if (isTerminalForcedForTesting()) {
+    // Offer a fixed reminder without querying advisories or past dismissals.
+    return {
+      policy,
+      installedVersion,
+      kind: 'security',
+      reference: null,
+      targetVersion: installedVersion,
+    }
   }
   if (stopBefore === 'security') {
     return null
@@ -271,7 +289,11 @@ export async function assessUpgrade(
 
 async function nudgeUpgradeForAgent(
   options: NudgeOptions,
-  reminder: UpgradeReminder
+  reminder: UpgradeReminder,
+  nudgeId: string,
+  agentProduct: string,
+  telemetry: Telemetry | null,
+  policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
 ): Promise<void> {
   let summary: string
   let recommendation: string
@@ -293,7 +315,8 @@ async function nudgeUpgradeForAgent(
       recommendation = 'We recommend you adopt these Future Defaults.'
       break
   }
-  const command = `next upgrade --ai=${reminder.policy}`
+  // Pass attribution on the invocation using the same command syntax on every platform.
+  const command = `next upgrade --agent=${reminder.policy} --internal-nudge-id=${nudgeId}`
   const message = `${summary}
 
 **${recommendation}**
@@ -322,10 +345,36 @@ ${reference ? `Reference: ${reference}` : ''}`
     )
   }
   if (retryAllowed) {
+    telemetry?.record(policyEvent)
     Log.warn(
       `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
     )
     return
+  }
+  // Queue the full nudge once, then send it outside the command that is about to stop.
+  if (telemetry) {
+    try {
+      if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+        telemetry.flushDetached({
+          mode: 'dev',
+          dir: options.directory,
+          distDir: resolve(options.directory, options.distDir),
+          events: [
+            policyEvent,
+            eventAgentUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'agent',
+              agentProduct,
+              sourceCommand: options.command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            }),
+          ],
+        })
+      }
+    } catch (error) {
+      Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
+    }
   }
   const error = new Error(message)
   error.name =
@@ -363,14 +412,19 @@ async function getUpgradePreferences(directory: string) {
   const hash = createHash('sha256').update(identity).digest('hex')
   // Conf treats dots as separators, including dots in directory names.
   const name = encodeURIComponent(projectName).replace(/\./g, '%2E')
-  const key = `ai-upgrade.${name}.${hash}`
+  const key = `agent-upgrade.${name}.${hash}`
   // Upgrade preferences share Next.js' global config location, not telemetry consent.
   return { key, preferences: new Conf({ projectName: 'nextjs' }) }
 }
 
+// The terminal test needs a menu in CI and under agents, without the network.
+function isTerminalForcedForTesting(): boolean {
+  return process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1'
+}
+
 function canPromptForUpgrade(): boolean {
   return (
-    !isCI &&
+    (!isCI || isTerminalForcedForTesting()) &&
     Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
     process.env.TERM !== 'dumb'
   )
@@ -397,7 +451,8 @@ async function getUpgradeDismissal(
 async function nudgeUpgradeForHuman(
   directory: string,
   reminder: UpgradeReminder,
-  signal: AbortSignal
+  signal: AbortSignal,
+  onShown: (() => void) | null
 ): Promise<UpgradeAction> {
   if (signal.aborted) {
     return 'skip'
@@ -425,7 +480,12 @@ async function nudgeUpgradeForHuman(
     return 'skip'
   }
   const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, true)
+  const action = await promptUpgrade({
+    message,
+    signal,
+    canUpdate: true,
+    onShown,
+  })
   if (signal.aborted) {
     return 'skip'
   }
@@ -445,29 +505,42 @@ async function nudgeUpgradeForHuman(
   return action
 }
 
-export async function runUpgrade(directory: string, policy: NudgeKind) {
+export async function runUpgrade(
+  directory: string,
+  policy: NudgeKind,
+  nudgeId: string | null
+) {
   // The agent's dev/build commands must not trigger this explicit request again.
   delete process.env.__NEXT_AGENT_UPGRADE
   updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
-  await spawnNextUpgrade(directory, {
-    revision: 'latest',
-    verbose: false,
-    ai: policy,
-  })
+
+  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
+  await spawnNextUpgrade(
+    directory,
+    { revision: 'latest', verbose: false, agent: policy },
+    nudgeId ? { id: nudgeId, recipient: 'human' } : null
+  )
   return process.exitCode ?? 0
 }
 
 export async function shouldPromptForUpgrade(): Promise<boolean> {
-  return canPromptForUpgrade() && !(await getAgentName())
+  return (
+    canPromptForUpgrade() &&
+    (isTerminalForcedForTesting() || !(await getAgentName()))
+  )
 }
 
 export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null,
-  initialAssessment: Promise<UpgradeReminder | null> | null = null
+  signal: AbortSignal | null,
+  initialAssessment: Promise<UpgradeReminder | null> | null,
+  telemetryOptions: {
+    telemetry: Telemetry
+    onNudgeId: ((nudgeId: string) => void) | null
+  } | null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agentUpgrade
@@ -478,10 +551,24 @@ export async function nudgeUpgrade(
   ) {
     return
   }
+  // Observe the effective policy even when assessment finds no upgrade to offer.
+  const telemetry = telemetryOptions?.telemetry ?? null
+  const policyEvent = eventAgentUpgradePolicyDetected({
+    configuredPolicy: config.configuredPolicy ?? null,
+    effectivePolicy: policy,
+    policySource: requested ? 'environment' : 'config',
+    sourceCommand: command,
+  })
   if (requested && isCI) {
+    telemetry?.record(policyEvent)
     return
   }
-  const agent = await getAgentName()
+
+  // An agent's stopped command sends policy and nudge together before synchronous exit.
+  const agent = isTerminalForcedForTesting() ? null : await getAgentName()
+  if (!agent) {
+    telemetry?.record(policyEvent)
+  }
   const installedVersion = process.env.__NEXT_VERSION || 'unknown'
   let stopBefore: NudgeKind | null = null
   if (!agent) {
@@ -502,24 +589,71 @@ export async function nudgeUpgrade(
       return
     }
   }
-  const reminder = await (stopBefore === null && initialAssessment
-    ? initialAssessment
-    : assessUpgrade(
-        directory,
-        { ...config, experimental: { agentUpgrade: policy } },
-        installedVersion,
-        stopBefore,
-        requested !== null
-      ))
+  const reminder = await (
+    stopBefore === null && initialAssessment && !isTerminalForcedForTesting()
+      ? initialAssessment
+      : assessUpgrade(
+          directory,
+          { ...config, experimental: { agentUpgrade: policy } },
+          installedVersion,
+          stopBefore,
+          requested !== null
+        )
+  ).catch((error) => {
+    if (agent) {
+      telemetry?.record(policyEvent)
+    }
+    throw error
+  })
   if (!reminder || signal?.aborted) {
+    if (agent) {
+      telemetry?.record(policyEvent)
+    }
     return
   }
+
+  // The nudge and any resulting upgrade run share this ID across processes.
+  const nudgeId = randomUUID()
   if (agent) {
     await nudgeUpgradeForAgent(
       { directory, distDir: config.distDir, command },
-      reminder
+      reminder,
+      nudgeId,
+      agent,
+      telemetry,
+      policyEvent
     )
   } else if (signal) {
-    return nudgeUpgradeForHuman(directory, reminder, signal)
+    // Count a human nudge only after the menu renders, including its selected action.
+    let shown = false
+    const onShown = telemetryOptions
+      ? () => {
+          shown = true
+          telemetryOptions.onNudgeId?.(nudgeId)
+          telemetryOptions.telemetry.record(
+            eventAgentUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'human',
+              agentProduct: null,
+              sourceCommand: command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            })
+          )
+        }
+      : null
+
+    const action = await nudgeUpgradeForHuman(
+      directory,
+      reminder,
+      signal,
+      onShown
+    )
+
+    // The caller flushes after it gives the terminal back.
+    if (shown && telemetry && !signal.aborted) {
+      telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
+    }
+    return action
   }
 }

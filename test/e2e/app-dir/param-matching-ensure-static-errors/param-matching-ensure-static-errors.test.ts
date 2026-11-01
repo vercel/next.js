@@ -59,7 +59,7 @@ describe('param-matching-ensure-static-errors', () => {
       await expectError(
         route,
         `/${route}/seed`,
-        `Route "/${route}/[slug]" cannot configure parameter "slug" as "${mode}" with \`unstable_ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
+        `Route "/${route}/[slug]" cannot configure parameter "slug" as "${mode}" with \`ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
       )
     }
   )
@@ -68,7 +68,7 @@ describe('param-matching-ensure-static-errors', () => {
     await expectError(
       'missing',
       '/missing/seed',
-      'Page "/missing/[slug]" is missing `generateStaticParams()`'
+      '`ensureStatic = "navigation"` requires an exported `generateStaticParams()` function'
     )
   })
 
@@ -76,7 +76,7 @@ describe('param-matching-ensure-static-errors', () => {
     await expectError(
       'incomplete',
       '/incomplete/t1/b1',
-      'Every params object must include all dynamic route parameters. Missing: "bottom".'
+      'Routes using `ensureStatic = "navigation"` must return every dynamic route parameter. Missing: "bottom"'
     )
   })
 

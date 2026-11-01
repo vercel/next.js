@@ -1,4 +1,4 @@
-/// <reference path="../../shared/runtime-types.d.ts" />
+/// <reference path="../../shared/runtime/runtime-types.d.ts" />
 
 /**
  * Global type definitions for Node.js Turbopack runtime.

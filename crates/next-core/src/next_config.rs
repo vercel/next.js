@@ -32,7 +32,8 @@ use turbopack_core::{
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::transform::{
-    OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
+    OptionReactCompilerTransformOptions, ReactCompilerCompilationMode, ReactCompilerTarget,
+    ReactCompilerTransformOptions,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -766,10 +767,20 @@ pub enum ReactCompilerPanicThreshold {
 pub struct ReactCompilerOptions {
     #[serde(default)]
     pub compilation_mode: ReactCompilerCompilationMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<ReactCompilerEnvironmentOptions>,
     #[serde(default)]
     pub panic_threshold: ReactCompilerPanicThreshold,
     #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
     pub target: Option<ReactCompilerTarget>,
+}
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactCompilerEnvironmentOptions {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enable_preserve_existing_memoization_guarantees: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
@@ -954,6 +965,12 @@ pub struct TurbopackChunkingConfig {
     /// Minimum size, in bytes (default `20000`), for a component chunk to be emitted on its
     /// own when `generate_component_chunks` is enabled.
     min_component_chunk_size: Option<usize>,
+    /// Avoid creating more than one Node.js server chunk smaller than this size, in bytes
+    /// (default `4000`). Doesn't apply to edge chunks.
+    min_server_chunk_size: Option<usize>,
+    /// Don't merge Node.js server chunks bigger than this size, in bytes, with other chunks
+    /// (default `100000`). Doesn't apply to edge chunks.
+    max_merge_server_chunk_size: Option<usize>,
 }
 
 #[turbo_tasks::value]
@@ -977,6 +994,10 @@ pub struct TurbopackChunking {
     pub max_merge_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
+    /// Override for the Node.js server JS `min_chunk_size`, or `None` to use the default.
+    pub min_server_chunk_size: Option<usize>,
+    /// Override for the Node.js server JS `max_merge_chunk_size`, or `None` to use the default.
+    pub max_merge_server_chunk_size: Option<usize>,
     /// Whether to emit component chunks alongside merged chunks (default `false`).
     pub generate_component_chunks: bool,
 }
@@ -1096,6 +1117,7 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
+    use_cache_static_root_param_tracking: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
 
@@ -1149,6 +1171,7 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    hydration_change_event: Option<bool>,
     /// Forks the client router's entry-point modules to the experimental
     /// concurrent router queue implementation via the import map.
     concurrent_router_queue: Option<bool>,
@@ -1227,6 +1250,8 @@ pub struct ExperimentalConfig {
     /// Shorten ("mangle") the export names modules expose to each other. Defaults to false in
     /// development mode, true in production mode.
     turbopack_mangle_export_names: Option<bool>,
+    /// Use a materialized namespace facade to mangle otherwise observable export names.
+    turbopack_mangle_via_materialized_namespace_object: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
@@ -1239,6 +1264,13 @@ pub struct ExperimentalConfig {
     // turbopack_file_system_cache_for_dev: Option<bool>,
     // turbopack_file_system_cache_for_build: Option<bool>,
     lightning_css_features: Option<LightningCssFeatures>,
+}
+
+impl ExperimentalConfig {
+    fn mangle_via_materialized_namespace_object(&self) -> bool {
+        self.turbopack_mangle_via_materialized_namespace_object
+            .unwrap_or(self.turbopack_mangle_export_names == Some(true))
+    }
 }
 
 #[derive(
@@ -1953,6 +1985,8 @@ impl NextConfig {
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
+            min_server_chunk_size: config.and_then(|c| c.min_server_chunk_size),
+            max_merge_server_chunk_size: config.and_then(|c| c.max_merge_server_chunk_size),
             generate_component_chunks: config
                 .and_then(|c| c.generate_component_chunks)
                 .unwrap_or(false),
@@ -2073,17 +2107,25 @@ impl NextConfig {
     /// Returns compilation mode when both `reactCompiler` and `turbopackRustReactCompiler` are set;
     /// `None` otherwise.
     #[turbo_tasks::function]
-    pub fn rust_react_compiler(&self) -> Vc<OptionReactCompilerCompilationMode> {
+    pub fn rust_react_compiler(&self) -> Vc<OptionReactCompilerTransformOptions> {
         let use_rust = self
             .experimental
             .turbopack_rust_react_compiler
             .unwrap_or(false);
         let mode = match (use_rust, &self.react_compiler) {
             (true, Some(ReactCompilerOptionsOrBoolean::Boolean(true))) => {
-                Some(ReactCompilerCompilationMode::Infer)
+                Some(ReactCompilerTransformOptions::default())
             }
             (true, Some(ReactCompilerOptionsOrBoolean::Option(opts))) => {
-                Some(opts.compilation_mode)
+                Some(ReactCompilerTransformOptions {
+                    compilation_mode: opts.compilation_mode,
+                    enable_preserve_existing_memoization_guarantees: opts
+                        .environment
+                        .as_ref()
+                        .and_then(|environment| {
+                            environment.enable_preserve_existing_memoization_guarantees
+                        }),
+                })
             }
             _ => None,
         };
@@ -2203,13 +2245,38 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn enable_use_cache_static_root_param_tracking(
+        self: Vc<Self>,
+        mode: Vc<NextMode>,
+    ) -> Result<Vc<bool>> {
+        Ok(match *mode.await? {
+            NextMode::Development => Vc::cell(false),
+            NextMode::Build => Vc::cell(
+                *self.enable_use_cache().await?
+                    && self
+                        .await?
+                        .experimental
+                        .use_cache_static_root_param_tracking
+                        .unwrap_or(false),
+            ),
+        })
+    }
+
+    #[turbo_tasks::function]
     pub fn use_react_experimental(&self) -> Vc<bool> {
         // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
         let blocking_ssr = self.experimental.blocking_ssr.unwrap_or(false);
         let taint = self.experimental.taint.unwrap_or(false);
         let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
         let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
-        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
+        let hydration_change_event = self.experimental.hydration_change_event.unwrap_or(false);
+        Vc::cell(
+            blocking_ssr
+                || taint
+                || transition_indicator
+                || gesture_transition
+                || hydration_change_event,
+        )
     }
 
     #[turbo_tasks::function]
@@ -2329,6 +2396,13 @@ impl NextConfig {
                 None => !mode.await?.is_development(),
             },
         ))
+    }
+
+    /// Opt into splitting local-only modules behind a namespace facade for export mangling.
+    /// Inferred from the explicitly configured mangling option, not its mode-dependent default.
+    #[turbo_tasks::function]
+    pub fn turbopack_mangle_via_materialized_namespace_object(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.mangle_via_materialized_namespace_object())
     }
 
     #[turbo_tasks::function]

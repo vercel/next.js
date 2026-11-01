@@ -1,0 +1,1 @@
+static-from-ext-rel-join

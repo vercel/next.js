@@ -81,7 +81,7 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) state: analyzer_state::AnalyzerState<'arena>,
 
     pub(super) effects: BumpVec<'arena, Effect<'arena>>,
-    /// Effects collected from hoisted declarations. See https://developer.mozilla.org/en-US/docs/Glossary/Hoisting
+    /// Effects collected from hoisted declarations. See <https://developer.mozilla.org/en-US/docs/Glossary/Hoisting>
     /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
     /// collect effects from the declaring context.
     pub(super) hoisted_effects: BumpVec<'arena, Effect<'arena>>,
@@ -809,7 +809,7 @@ pub fn as_parent_path_in<'a>(
     path.into_boxed_slice()
 }
 
-/// Like [`as_parent_path_with`], but freezes the path into an arena-allocated boxed slice.
+/// Like [`as_parent_path_in`], but appends `additional` to the frozen path.
 pub fn as_parent_path_with_in<'a>(
     arena: &'a Bump,
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
@@ -1717,6 +1717,16 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // A direct eval (`eval(…)` or `(eval)(…)` calling the global `eval`) can access
+        // bindings in its lexical scope by name. Only parentheses are stripped: `(0, eval)(…)`
+        // is an indirect eval.
+        if let Callee::Expr(callee) = &n.callee
+            && let Expr::Ident(ident) = callee.unwrap_parens()
+            && is_global(ident, "eval", self.eval_context.unresolved_mark)
+        {
+            self.data.has_direct_eval = true;
+        }
+
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
         // it so unused entries drop (its `exports` argument is guarded below).
         let is_cjs_define_property = if self.cjs_exports_enabled()

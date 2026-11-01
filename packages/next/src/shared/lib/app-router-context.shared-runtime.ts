@@ -2,10 +2,7 @@
 
 import type { RouteTree } from '../../client/components/segment-cache/cache'
 
-import type {
-  ScrollHandlerRef,
-  PrefetchKind,
-} from '../../client/components/router-reducer/router-reducer-types'
+import type { ScrollHandlerRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
@@ -28,7 +25,7 @@ export interface NavigateOptions {
 }
 
 export interface PrefetchOptions {
-  kind: PrefetchKind
+  kind?: 'auto' | 'full' | 'shell' | 'prefetch' | 'navigation'
   onInvalidate?: () => void
 }
 
@@ -112,7 +109,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
   previousNextUrl: string | null
 }>(null as any)
 
-export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+export const TemplateContext = React.createContext<React.ReactNode>(null)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'

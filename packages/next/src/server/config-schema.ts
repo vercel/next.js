@@ -213,6 +213,7 @@ export const experimentalSchema = {
       })
     )
     .optional(),
+  turbopackDetectGlobalVirtualStore: z.boolean().optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -392,6 +393,7 @@ export const experimentalSchema = {
     .optional(),
   transitionIndicator: z.boolean().optional(),
   gestureTransition: z.boolean().optional(),
+  hydrationChangeEvent: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
@@ -443,6 +445,8 @@ export const experimentalSchema = {
       maxMergeChunkSize: z.number().min(0).optional(),
       minComponentChunkSize: z.number().min(0).optional(),
       generateComponentChunks: z.boolean().optional(),
+      minServerChunkSize: z.number().min(0).optional(),
+      maxMergeServerChunkSize: z.number().min(0).optional(),
     })
     .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),
@@ -458,6 +462,7 @@ export const experimentalSchema = {
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
   turbopackMangleExportNames: z.boolean().optional(),
+  turbopackMangleViaMaterializedNamespaceObject: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
@@ -503,6 +508,7 @@ export const experimentalSchema = {
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),
+  useCacheStaticRootParamTracking: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),
   slowModuleDetection: z
     .object({
@@ -858,6 +864,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       z
         .object({
           compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          environment: z
+            .object({
+              enablePreserveExistingMemoizationGuarantees: z
+                .boolean()
+                .optional(),
+            })
+            .optional(),
           panicThreshold: z
             .enum(['none', 'critical_errors', 'all_errors'])
             .optional(),

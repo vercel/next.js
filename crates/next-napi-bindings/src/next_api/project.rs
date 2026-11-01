@@ -29,8 +29,9 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        AdditionalRootConfig, DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions,
-        Project, ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
+        AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
+        PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
+        activate_lazy_chunk_operation,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -78,7 +79,7 @@ use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, Resource
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
-    raw_trace::RawTraceLayer,
+    raw_trace::{RawTraceLayer, RawTraceLayerOptions},
     trace_writer::TraceWriter,
 };
 use url::Url;
@@ -327,7 +328,7 @@ impl NapiProjectOptions {
             additional_roots: additional_roots
                 .into_iter()
                 .map(|root| AdditionalRootConfig {
-                    key: root.key,
+                    name: AdditionalRootName::Configured(root.key),
                     path: root.path,
                     ignore_if_missing: root.ignore_if_missing.unwrap_or(false),
                 })
@@ -468,8 +469,11 @@ pub fn project_new<'env>(
         None,
         GzipFast,
         GzipBest,
+        /// zstd with the given compression level
+        Zstd(i32),
     }
     let mut compress = Compression::None;
+    let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
         let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
             .filter(|v| !v.is_empty())
@@ -515,6 +519,22 @@ pub fn project_new<'env>(
                         compress = Compression::GzipBest;
                         return None;
                     }
+                    "zstd" => {
+                        compress = Compression::Zstd(3);
+                        return None;
+                    }
+                    "zstd-fast" => {
+                        compress = Compression::Zstd(1);
+                        return None;
+                    }
+                    "zstd-best" => {
+                        compress = Compression::Zstd(19);
+                        return None;
+                    }
+                    "no-memory" => {
+                        raw_trace_options.memory = false;
+                        return None;
+                    }
                     _ => Cow::Borrowed(item),
                 })
             })
@@ -557,8 +577,17 @@ pub fn project_new<'env>(
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
             }
+            Compression::Zstd(level) => {
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                // `auto_finish` completes the zstd frame when the trace writer drops it on exit.
+                let trace_writer = zstd::Encoder::new(trace_writer, level)
+                    .unwrap()
+                    .auto_finish();
+                TraceWriter::new(trace_writer)
+            }
         };
-        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+        let subscriber =
+            subscriber.with(RawTraceLayer::with_options(trace_writer, raw_trace_options));
 
         exit.on_exit(async move {
             tokio::task::spawn_blocking(move || drop(trace_writer_guard))
@@ -715,8 +744,8 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// more than `SLOW_FILESYSTEM_THRESHOLD`.
 ///
 /// This idea is copied from Bun:
-/// - https://x.com/jarredsumner/status/1637549427677364224
-/// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+/// - <https://x.com/jarredsumner/status/1637549427677364224>
+/// - <https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038>
 async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<()> {
     let temp_path = dir.join(format!(
         "tmp_file_io_benchmark_{:x}",

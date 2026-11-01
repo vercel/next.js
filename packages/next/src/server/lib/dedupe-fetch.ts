@@ -1,7 +1,6 @@
 /**
  * Based on https://github.com/facebook/react/blob/d4e78c42a94be027b4dc7ed2659a5fddfbf9bd4e/packages/react/src/ReactFetch.js
  */
-import * as React from 'react'
 import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
@@ -42,6 +41,9 @@ type CacheEntry = [
 ]
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
+  // Importing the helper alone must not load the app-page runtime through
+  // the App Router's vendored React. Keep the same React instance when used.
+  const React = require('react') as typeof import('react')
   const getCacheEntries = React.cache(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
     (url: string): CacheEntry[] => []

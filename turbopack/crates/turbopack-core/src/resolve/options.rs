@@ -397,7 +397,13 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(FileSystemPath, ResolvedVc<Glob>, ResolvedVc<ImportMapping>)>,
+    /// Each glob is matched against the resolved path relative to its root. A root of `None`
+    /// matches resolved paths on any filesystem, relative to that filesystem's root.
+    pub by_glob: Vec<(
+        /* root */ Option<FileSystemPath>,
+        ResolvedVc<Glob>,
+        ResolvedVc<ImportMapping>,
+    )>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -609,7 +615,11 @@ impl ResolvedMap {
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         for (root, glob, mapping) in self.by_glob.iter() {
-            if let Some(path) = root.get_path_to(&resolved)
+            let path = match root {
+                Some(root) => root.get_path_to(&resolved),
+                None => Some(&*resolved.path),
+            };
+            if let Some(path) = path
                 && glob.await?.matches(path)
             {
                 return Ok(import_mapping_to_result(
