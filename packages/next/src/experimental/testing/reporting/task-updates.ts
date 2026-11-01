@@ -131,7 +131,9 @@ export function createReporterTaskUpdates<
           }
       pendingTasks.clear()
       caseResults = []
-      send = Promise.resolve(options.onUpdate(update))
+      const operation = options.onUpdate(update)
+      if (operation === undefined) return
+      send = operation
     } catch (error) {
       pendingTasks.clear()
       caseResults = []
@@ -139,13 +141,18 @@ export function createReporterTaskUpdates<
       return
     }
     sends.add(send)
-    void send.then(
-      () => sends.delete(send),
-      (error) => {
-        errors.push(error)
-        sends.delete(send)
-      }
-    )
+    try {
+      void send.then(
+        () => sends.delete(send),
+        (error) => {
+          errors.push(error)
+          sends.delete(send)
+        }
+      )
+    } catch (error) {
+      sends.delete(send)
+      throw error
+    }
   }
   function assertOwned(task: Task) {
     if (disposed || !file) throw new Error('Reporter task owner is not open.')
