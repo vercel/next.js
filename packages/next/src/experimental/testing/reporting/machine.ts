@@ -9,6 +9,7 @@ import {
 import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import { isRunErrorDiagnostic, isBrowserCleanupRunError } from './run-errors'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
+import { assertReporterTaskPacks } from './task-updates'
 import { randomUUID } from 'node:crypto'
 import {
   mkdir,
@@ -1753,7 +1754,17 @@ export async function mergeResultReports(
           throw new Error(`Invalid blob completion status: ${name}`)
       }
       if (event.type === 'file-collected' || event.type === 'task-update') {
-        assertReporterTaskTree(event.taskTree, event.entryId)
+        const failedCollectionPacks =
+          event.type === 'task-update' &&
+          event.kind === 'task-packs-after-collection-failure'
+        if (
+          event.type === 'task-update' &&
+          event.kind !== undefined &&
+          !failedCollectionPacks
+        )
+          throw new Error(`Invalid live task update kind in blob: ${name}`)
+        if (!failedCollectionPacks)
+          assertReporterTaskTree(event.taskTree, event.entryId)
         if (event.type === 'file-collected') {
           if (collectedFiles.has(event.entryId))
             throw new Error(`Duplicate collected task file in blob: ${name}`)
@@ -1764,9 +1775,22 @@ export async function mergeResultReports(
             ids.add(task.id)
             task.tasks?.forEach(visit)
           }
-          visit(event.taskTree)
+          if (failedCollectionPacks) {
+            assertReporterTaskPacks(event.taskPacks)
+            if (Object.hasOwn(event, 'taskTree'))
+              throw new Error(
+                `Result-only task packs contain declarations: ${name}`
+              )
+            for (const [id] of event.taskPacks) ids.add(id)
+          } else visit(event.taskTree)
           if (
-            !collectedFiles.has(event.entryId) ||
+            (!failedCollectionPacks && !collectedFiles.has(event.entryId)) ||
+            (failedCollectionPacks &&
+              (event.taskPacks.length !== event.taskUpdateIds?.length ||
+                event.taskPacks.some(
+                  ([id]: [string], packetIndex: number) =>
+                    event.taskUpdateIds[packetIndex] !== id
+                ))) ||
             !Array.isArray(event.taskUpdateIds) ||
             !event.taskUpdateIds.length ||
             new Set(event.taskUpdateIds).size !== event.taskUpdateIds.length ||
@@ -1777,7 +1801,12 @@ export async function mergeResultReports(
           )
             throw new Error(`Invalid live task update in blob: ${name}`)
           for (const result of event.caseResults) {
-            assertReporterTaskTree(event.taskTree, event.entryId, result.caseId)
+            if (!failedCollectionPacks)
+              assertReporterTaskTree(
+                event.taskTree,
+                event.entryId,
+                result.caseId
+              )
             const logical = JSON.stringify([event.entryId, result.caseId])
             const scope = JSON.stringify([
               event.entryId,
@@ -2058,7 +2087,11 @@ export async function mergeResultReports(
         status = 'cancelled'
       const terminalTrees = new Map<string, ReporterTaskSnapshot>()
       for (const event of blob.events) {
-        if (event.type === 'file-collected' || event.type === 'task-update')
+        if (
+          event.type === 'file-collected' ||
+          (event.type === 'task-update' &&
+            event.kind !== 'task-packs-after-collection-failure')
+        )
           terminalTrees.set(event.entryId, event.taskTree)
       }
       for (const event of blob.events.slice(1, -1)) {

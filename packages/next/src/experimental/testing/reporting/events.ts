@@ -1,4 +1,5 @@
 import type { ReporterTaskSnapshot } from './live-tasks'
+import type { ReporterTaskUpdate } from './task-updates'
 import type { TaskMeta, TestAnnotation, TestArtifact } from '../runner/tasks'
 import type { TestEntry } from '../contracts'
 import type { SnapshotUpdateMode } from '../assertions/snapshots'
@@ -138,14 +139,11 @@ type EventPayload =
       revision: string
       taskTree: ReporterTaskSnapshot
     }
-  | {
+  | ({
       type: 'task-update'
       entryId: string
       revision: string
-      taskTree: ReporterTaskSnapshot
-      taskUpdateIds: string[]
-      caseResults: CaseResult[]
-    }
+    } & ReporterTaskUpdate<CaseResult>)
   | ({ type: 'test-annotation'; annotation: TestAnnotation } & ResultScope & {
         caseId: string
         attempt: AttemptIdentity

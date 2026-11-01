@@ -285,6 +285,12 @@ export interface RunnerOptions {
   onFilePrepared?(file: File): void
   /** Actual task graph, before authored fixtures, hooks or bodies start. */
   onCollected?(file: File): void | Promise<void>
+  /** Actual rejected collection notification; synchronous callback throws stay fatal. */
+  onCollectedError?(
+    file: File,
+    operation: Promise<void>,
+    error: unknown
+  ): void | Promise<void>
   onCaseStart?(context: AttemptContext): void | Promise<void>
   onCaseEnd?(result: RunnerCaseResult): void | Promise<void>
   /** Once per logical case, after retries, repeats and owned attempt closure. */
@@ -3044,7 +3050,15 @@ export async function runCollected(
     } else await publishSuiteResult()
   }
   try {
-    if (options.onCollected) await options.onCollected(collectedFile)
+    if (options.onCollected) {
+      const operation = options.onCollected(collectedFile)
+      try {
+        await operation
+      } catch (error) {
+        if (!operation || !options.onCollectedError) throw error
+        await options.onCollectedError(collectedFile, operation, error)
+      }
+    }
     if (
       options.prepareEmptyPublicFile === true &&
       collectedFile.tasks.length === 0 &&

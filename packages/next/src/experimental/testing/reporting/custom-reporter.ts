@@ -560,23 +560,32 @@ export async function openCustomReporters(options: {
         }
         if (event.type === 'file-collected' || event.type === 'task-update') {
           // Producer facts stay live while owned reporter callbacks await work.
-          const notification = send({
-            type: 'task-state',
-            taskTree: event.taskTree,
-            ...(captureModuleStart
+          const notification = send(
+            event.type === 'task-update' &&
+              event.kind === 'task-packs-after-collection-failure'
               ? {
-                  runId: event.runId,
+                  type: 'task-packs',
                   entryId: event.entryId,
-                  revision: event.revision,
+                  taskPacks: event.taskPacks,
                 }
-              : {}),
-            ...(event.type === 'file-collected' && captureModuleCollected
-              ? { notifyCollected: true }
-              : {}),
-            ...(event.type === 'task-update'
-              ? { taskUpdateIds: event.taskUpdateIds }
-              : {}),
-          }).catch(retainConsoleFailure)
+              : {
+                  type: 'task-state',
+                  taskTree: event.taskTree,
+                  ...(captureModuleStart
+                    ? {
+                        runId: event.runId,
+                        entryId: event.entryId,
+                        revision: event.revision,
+                      }
+                    : {}),
+                  ...(event.type === 'file-collected' && captureModuleCollected
+                    ? { notifyCollected: true }
+                    : {}),
+                  ...(event.type === 'task-update'
+                    ? { taskUpdateIds: event.taskUpdateIds }
+                    : {}),
+                }
+          ).catch(retainConsoleFailure)
           if (event.type === 'file-collected' && captureModuleCollected)
             collectedWrites.push(notification)
           if (event.type === 'task-update')

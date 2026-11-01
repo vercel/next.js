@@ -10,10 +10,51 @@ const realDateNow = Date.now.bind(Date)
 const realSetTimeout = globalThis.setTimeout.bind(globalThis)
 const realClearTimeout = globalThis.clearTimeout.bind(globalThis)
 
-export interface ReporterTaskUpdate<Result = RunnerCaseResult> {
-  taskTree: ReporterTaskSnapshot
+export type ReporterTaskPack = [string, Pick<Task, 'result' | 'meta'>]
+
+export type ReporterTaskUpdate<Result = RunnerCaseResult> = {
   taskUpdateIds: string[]
   caseResults: Result[]
+} & (
+  | {
+      kind?: undefined
+      taskTree: ReporterTaskSnapshot
+      taskPacks?: never
+    }
+  | {
+      kind: 'task-packs-after-collection-failure'
+      taskTree?: never
+      taskPacks: ReporterTaskPack[]
+    }
+)
+
+export function assertReporterTaskPacks(
+  packs: unknown
+): asserts packs is ReporterTaskPack[] {
+  if (
+    !Array.isArray(packs) ||
+    new Set(packs.map((pack) => pack?.[0])).size !== packs.length ||
+    packs.some(
+      (pack) =>
+        !Array.isArray(pack) ||
+        pack.length !== 2 ||
+        typeof pack[0] !== 'string' ||
+        !pack[1] ||
+        typeof pack[1] !== 'object' ||
+        Object.keys(pack[1]).some(
+          (key) => key !== 'result' && key !== 'meta'
+        ) ||
+        !pack[1].meta ||
+        typeof pack[1].meta !== 'object' ||
+        (pack[1].result !== undefined &&
+          (!pack[1].result ||
+            typeof pack[1].result !== 'object' ||
+            !['run', 'pass', 'fail', 'skip', 'todo', 'only', 'queued'].includes(
+              pack[1].result.state
+            )))
+    )
+  )
+    throw new Error('Invalid live reporter task packs.')
 }
 
 /** Actual per-task packs share one point-in-time tree before logical callbacks. */
@@ -46,6 +87,9 @@ export function createReporterTaskUpdates<
   let disposed = false
   const sends = new Set<Promise<void>>()
   const errors: unknown[] = []
+  let collectionFailure:
+    | { operation: Promise<void>; error: unknown }
+    | undefined
 
   function getCarriedRetry(task: Test): Test['retry'] {
     const retained = tasks.get(task.id)
@@ -61,16 +105,30 @@ export function createReporterTaskUpdates<
     lastUpdate = realDateNow()
     let send: Promise<void>
     try {
-      const update = {
-        taskTree: captureReporterTaskTree(
-          file,
-          pendingTasks,
-          options.getTaskLocation,
-          options.carriedRetryOptions === true ? getCarriedRetry : undefined
-        ),
-        taskUpdateIds: [...pendingTasks.keys()],
-        caseResults,
-      }
+      const update: ReporterTaskUpdate<Result> = collectionFailure
+        ? {
+            kind: 'task-packs-after-collection-failure',
+            taskPacks: structuredClone(
+              [...pendingTasks].map(
+                ([id, pack]): ReporterTaskPack => [
+                  id,
+                  { result: pack.result, meta: pack.meta },
+                ]
+              )
+            ),
+            taskUpdateIds: [...pendingTasks.keys()],
+            caseResults,
+          }
+        : {
+            taskTree: captureReporterTaskTree(
+              file,
+              pendingTasks,
+              options.getTaskLocation,
+              options.carriedRetryOptions === true ? getCarriedRetry : undefined
+            ),
+            taskUpdateIds: [...pendingTasks.keys()],
+            caseResults,
+          }
       pendingTasks.clear()
       caseResults = []
       send = Promise.resolve(options.onUpdate(update))
@@ -102,39 +160,56 @@ export function createReporterTaskUpdates<
     if (elapsed > 100) flush()
     else if (timer === undefined) timer = realSetTimeout(flush, 100)
   }
-  return {
-    collected(actualFile: File, carriedTree?: ReporterTaskSnapshot) {
-      if (file || disposed)
-        throw new Error('Reporter task file already collected.')
-      file = actualFile
-      function visit(task: Task, carried?: ReporterTaskSnapshot) {
-        if (
+  function collectFile(actualFile: File, carriedTree?: ReporterTaskSnapshot) {
+    if (file || disposed)
+      throw new Error('Reporter task file already collected.')
+    file = actualFile
+    function visit(task: Task, carried?: ReporterTaskSnapshot) {
+      if (
+        options.carriedRetryOptions === true &&
+        !collectionFailure &&
+        (!carried ||
+          carried.id !== task.id ||
+          carried.type !== task.type ||
+          (task.type === 'suite' &&
+            carried.tasks?.length !== task.tasks.length))
+      )
+        throw new Error('Reporter retry requires its actual collected tree.')
+      if (tasks.has(task.id))
+        throw new Error('Duplicate reporter task identity.')
+      tasks.set(task.id, {
+        task,
+        retry:
           options.carriedRetryOptions === true &&
-          (!carried ||
-            carried.id !== task.id ||
-            carried.type !== task.type ||
-            (task.type === 'suite' &&
-              carried.tasks?.length !== task.tasks.length))
+          !collectionFailure &&
+          task.type === 'test'
+            ? carried!.retry
+            : undefined,
+      })
+      if (task.type === 'suite')
+        for (const [index, child] of task.tasks.entries())
+          visit(child, carried?.tasks?.[index])
+    }
+    visit(file, carriedTree)
+    if (options.captureModuleStart !== true) {
+      preparedSuites.add(file.id)
+      schedule(file)
+    }
+  }
+  return {
+    collected: collectFile,
+    collectionFailed(
+      actualFile: File,
+      operation: Promise<void>,
+      error: unknown
+    ) {
+      if (options.carriedRetryOptions !== true || collectionFailure)
+        throw new Error(
+          'Reporter collection failure requires its actual owner.'
         )
-          throw new Error('Reporter retry requires its actual collected tree.')
-        if (tasks.has(task.id))
-          throw new Error('Duplicate reporter task identity.')
-        tasks.set(task.id, {
-          task,
-          retry:
-            options.carriedRetryOptions === true && task.type === 'test'
-              ? carried!.retry
-              : undefined,
-        })
-        if (task.type === 'suite')
-          for (const [index, child] of task.tasks.entries())
-            visit(child, carried?.tasks?.[index])
-      }
-      visit(file, carriedTree)
-      if (options.captureModuleStart !== true) {
-        preparedSuites.add(file.id)
-        schedule(file)
-      }
+      collectionFailure = { operation, error }
+      errors.push(error)
+      collectFile(actualFile)
     },
     filePrepared(actualFile: File) {
       if (
@@ -183,6 +258,8 @@ export function createReporterTaskUpdates<
       schedule(task)
     },
     async finish() {
+      if (collectionFailure)
+        await Promise.allSettled([collectionFailure.operation])
       flush()
       while (sends.size) await Promise.allSettled([...sends])
       if (errors.length === 1) throw errors[0]
@@ -193,6 +270,7 @@ export function createReporterTaskUpdates<
       if (timer !== undefined) realClearTimeout(timer)
       timer = undefined
       disposed = true
+      collectionFailure = undefined
       file = undefined
       tasks.clear()
       pendingTasks.clear()

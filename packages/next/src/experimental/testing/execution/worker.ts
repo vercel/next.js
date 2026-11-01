@@ -261,7 +261,9 @@ async function run({
         ...payload,
         ...((options.captureModuleCollected === true ||
           options.preparePublicSnapshots === true) &&
-        (payload.type === 'file-collected' || payload.type === 'task-update')
+        (payload.type === 'file-collected' ||
+          (payload.type === 'task-update' &&
+            payload.kind !== 'task-packs-after-collection-failure'))
           ? {
               taskTree: {
                 ...payload.taskTree,
@@ -346,6 +348,7 @@ async function run({
             }),
         })
       : undefined
+  let collectedPublicationStage: 'capture' | 'send' | 'complete' | undefined
   const unhandledRejections = new Set<unknown>()
   const lateFailures = createLateFailureSink<unknown>((error) =>
     diagnostic(
@@ -1237,21 +1240,35 @@ async function run({
           : {}),
         onCollected: taskUpdates
           ? async (actualFile) => {
+              collectedPublicationStage = 'capture'
               const taskTree = captureReporterTaskTree(
                 actualFile,
                 undefined,
                 file!.getPublishedTaskLocation
               )
+              collectedPublicationStage = 'send'
               await event({
                 type: 'file-collected',
                 entryId: artifact.entryId,
                 revision: artifact.revision,
                 taskTree,
               })
+              collectedPublicationStage = 'complete'
               taskUpdates.collected(
                 actualFile,
                 carriedRetryOptions ? taskTree : undefined
               )
+            }
+          : undefined,
+        onCollectedError: carriedRetryOptions
+          ? (actualFile, operation, error) => {
+              if (
+                collectedPublicationStage !== 'capture' ||
+                controller.signal.aborted ||
+                process.connected !== true
+              )
+                throw error
+              taskUpdates!.collectionFailed(actualFile, operation, error)
             }
           : undefined,
         onSuiteEnd(suiteResult, task) {

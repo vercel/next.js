@@ -500,8 +500,8 @@ async function handle(message: any) {
       return
     }
     if (message.type === 'case-result' && initialized && !finished) {
-      const test = live.case(message.entryId, message.caseId)
       try {
+        const test = live.case(message.entryId, message.caseId)
         await settle(
           reporters.map((reporter) => () => reporter.onTestCaseResult?.(test))
         )
@@ -790,6 +790,14 @@ process.on('message', (message: any) => {
           consoleErrors.push(error)
         })
       )
+    } catch (error) {
+      consoleErrors.push(error)
+    }
+    return
+  }
+  if (message?.type === 'task-packs' && initialized && !finished) {
+    try {
+      live.updatePacks(message.entryId, message.taskPacks)
     } catch (error) {
       consoleErrors.push(error)
     }

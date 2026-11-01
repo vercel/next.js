@@ -5,6 +5,7 @@ import {
 import { relative, sep } from 'node:path'
 import type { TestEntry } from '../contracts'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
+import { assertReporterTaskPacks, type ReporterTaskPack } from './task-updates'
 import {
   isReportedSuiteError,
   getActualBrowserRootErrors,
@@ -330,6 +331,31 @@ export function createLiveReporterTaskStore(projectDir: string) {
   }
   return {
     update,
+    updatePacks(entryId: string, packs: ReporterTaskPack[]) {
+      if (!modules.has(entryId))
+        throw new Error(
+          'Live reporter updates require the actual collected file.'
+        )
+      assertReporterTaskPacks(packs)
+      for (const [id] of packs) {
+        const retained = tasks.get(id)
+        if (
+          !retained ||
+          (retained.view !== modules.get(entryId) &&
+            retained.view.module !== modules.get(entryId))
+        )
+          throw new Error('Live reporter update references an absent task.')
+      }
+      for (const [id, pack] of packs) {
+        const retained = tasks.get(id)!
+        retained.value = {
+          ...retained.value,
+          result: pack.result,
+          meta: pack.meta,
+        }
+        retained.meta = pack.meta
+      }
+    },
     get(entryId: string) {
       return modules.get(entryId)
     },

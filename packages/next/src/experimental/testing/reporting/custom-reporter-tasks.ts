@@ -155,6 +155,7 @@ export function getActualBrowserRootErrors(
   const actualRoot = completion.events.findLast(
     (event) =>
       event.type === 'task-update' &&
+      event.kind !== 'task-packs-after-collection-failure' &&
       event.runId === start.runId &&
       event.entryId === entryId &&
       event.revision === start.revision &&
@@ -163,7 +164,8 @@ export function getActualBrowserRootErrors(
       event.taskTree.result !== undefined &&
       ['pass', 'fail', 'skip', 'todo'].includes(event.taskTree.result.state)
   )
-  return actualRoot?.type === 'task-update'
+  return actualRoot?.type === 'task-update' &&
+    actualRoot.kind !== 'task-packs-after-collection-failure'
     ? (actualRoot.taskTree.result!.errors ?? [])
     : undefined
 }

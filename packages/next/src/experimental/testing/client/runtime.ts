@@ -90,6 +90,10 @@ export async function startClientTest(
   const taskUpdates = config.captureTaskResults
     ? createReporterTaskUpdates({
         onUpdate(update) {
+          if (update.kind === 'task-packs-after-collection-failure')
+            throw new Error(
+              'Browser task updates require the actual collected tree.'
+            )
           return send({
             type: 'task-update',
             ...update,
