@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, getRedboxSource } from 'next-test-utils'
+import { gate, waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 // Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -15,8 +15,15 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
     if (!isNextDev) {
       it('should fail to build', async () => {
-        await expect(next.start()).rejects.toThrow()
-        const cliOutput = next.cliOutput
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        if (await gate((c) => c.futureCompat && c.webpack)) {
+          expect(cliOutput).toContain("code: 'DEP_WEBPACK_MODULE_ISSUER'")
+          expect(cliOutput).toContain(
+            'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+          )
+          return
+        }
 
         expect(cliOutput).toContain('Failed to compile')
         expect(cliOutput).toContain('styles.module.scss')

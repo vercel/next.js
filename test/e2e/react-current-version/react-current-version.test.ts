@@ -129,59 +129,63 @@ describe('react-current-version', () => {
     })
   })
 
-  function describeConcurrentMode(runtime: string) {
-    describe(`Concurrent mode in the ${runtime} runtime`, () => {
-      const { next } = nextTestSetup({
-        files: join(__dirname, 'app'),
-        overrideFiles: {
-          'pages/index.js': makeIndexPage(runtime),
-        },
+  function runConcurrentModeTests(runtime: string) {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      overrideFiles: {
+        'pages/index.js': makeIndexPage(runtime),
+      },
+    })
+
+    it('flushes styled-jsx styles as the page renders', async () => {
+      const html = await next.render('/use-flush-effect/styled-jsx')
+      const stylesOccurrence = html.match(/color:(\s)*(?:blue|#00f)/g) || []
+      expect(stylesOccurrence.length).toBe(1)
+
+      const browser = await next.browser('/use-flush-effect/styled-jsx')
+      await retry(async () => {
+        const text = await browser
+          .waitForElementByCss('style#__jsx-900f996af369fc74', {
+            state: 'attached',
+          })
+          .text()
+        expect(text).toMatch(/(?:blue|#00f)/)
       })
-
-      it('flushes styled-jsx styles as the page renders', async () => {
-        const html = await next.render('/use-flush-effect/styled-jsx')
-        const stylesOccurrence = html.match(/color:(\s)*(?:blue|#00f)/g) || []
-        expect(stylesOccurrence.length).toBe(1)
-
-        const browser = await next.browser('/use-flush-effect/styled-jsx')
-        await retry(async () => {
-          const text = await browser
-            .waitForElementByCss('style#__jsx-900f996af369fc74', {
-              state: 'attached',
-            })
-            .text()
-          expect(text).toMatch(/(?:blue|#00f)/)
-        })
-        await retry(async () => {
-          const text = await browser
-            .waitForElementByCss('style#__jsx-8b0811664c4e575e', {
-              state: 'attached',
-            })
-            .text()
-          expect(text).toMatch(/red/)
-        })
+      await retry(async () => {
+        const text = await browser
+          .waitForElementByCss('style#__jsx-8b0811664c4e575e', {
+            state: 'attached',
+          })
+          .text()
+        expect(text).toMatch(/red/)
       })
+    })
 
-      describe('<RouteAnnouncer />', () => {
-        it('should not have the initial route announced', async () => {
-          const browser = await next.browser('/')
-          const title = await browser
-            .waitForElementByCss('#__next-route-announcer__', {
-              state: 'attached',
-            })
-            .text()
+    describe('<RouteAnnouncer />', () => {
+      it('should not have the initial route announced', async () => {
+        const browser = await next.browser('/')
+        const title = await browser
+          .waitForElementByCss('#__next-route-announcer__', {
+            state: 'attached',
+          })
+          .text()
 
-          expect(title).toBe('')
-        })
+        expect(title).toBe('')
       })
+    })
 
-      it('should not have invalid config warning', async () => {
-        await next.render('/')
-        expect(next.cliOutput).not.toContain('not exist in this version')
-      })
+    it('should not have invalid config warning', async () => {
+      await next.render('/')
+      expect(next.cliOutput).not.toContain('not exist in this version')
     })
   }
 
-  describeConcurrentMode('experimental-edge')
-  describeConcurrentMode('nodejs')
+  // The edge image fixture imports React.use, which React 18 does not export.
+  // @force-gate !(rspack && react18 && start)
+  describe('Concurrent mode in the experimental-edge runtime', () => {
+    runConcurrentModeTests('experimental-edge')
+  })
+  describe('Concurrent mode in the nodejs runtime', () => {
+    runConcurrentModeTests('nodejs')
+  })
 })
