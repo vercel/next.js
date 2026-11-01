@@ -213,6 +213,7 @@ async function finishCallbacks(
   let synchronousThrow: { reporterIndex: number } | undefined
   let completionFailure: CustomReporterCompletionFailure | undefined
   let synchronousFailure: { error: unknown } | undefined
+  let accessFailure: { error: unknown } | undefined
   const returned: Promise<unknown>[] = []
   await settle(
     reporters.map((reporter, reporterIndex) => () => {
@@ -232,12 +233,17 @@ async function finishCallbacks(
         callback = reporter.onTestRunEnd
       } catch (error) {
         completionFailure = { reporterIndex, kind: 'access' }
+        accessFailure = { error }
         throw error
       }
       if (callback === undefined || callback === null) return
       if (typeof callback !== 'function') {
         completionFailure = { reporterIndex, kind: 'noncallable' }
-        throw new TypeError('Custom reporter onTestRunEnd is not a function.')
+        const error = new TypeError(
+          'Custom reporter onTestRunEnd is not a function.'
+        )
+        accessFailure = { error }
+        throw error
       }
       invokedCount++
       let value: unknown
@@ -261,7 +267,7 @@ async function finishCallbacks(
       ? async () => {
           // Every actual callback's synchronous prefix has returned or thrown.
           // A reporter without this hook produces no invocation receipt.
-          if (synchronousFailure)
+          if (synchronousFailure || accessFailure)
             retainedFinishCallbacks.push(Promise.allSettled(returned))
           if (completionFailure)
             await onPrefix({
@@ -274,6 +280,7 @@ async function finishCallbacks(
               ...(synchronousThrow ? { synchronousThrow } : {}),
             })
           if (synchronousFailure) throw synchronousFailure.error
+          if (accessFailure) throw accessFailure.error
         }
       : undefined
   ).catch((error) => {

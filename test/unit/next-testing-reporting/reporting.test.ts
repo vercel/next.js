@@ -10024,3 +10024,148 @@ describe('actual completion failure mapping publication', () => {
     130000
   )
 })
+
+describe('actual pre-call completion failure owns earlier callbacks until close', () => {
+  const models = require('./fixtures/custom-access-pending-pristine.json')
+  const leaves = (error: unknown): Error[] =>
+    error instanceof AggregateError
+      ? error.errors.flatMap(leaves)
+      : error instanceof Error
+        ? [error]
+        : []
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'preserves actual access failure and physical ownership for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const row = models.rows.find(
+        (value: { name: string }) => value.name === name
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-access-pending416-'))
+      for (const [file, value] of Object.entries(row.sourceFiles) as [
+        string,
+        { source: string },
+      ][]) {
+        await writeFile(join(root, file), value.source)
+      }
+      const controller = new AbortController()
+      const reporters = ['./first.mjs', './second.mjs', './third.mjs']
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters,
+        signal: controller.signal,
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters([...reporters, 'json']),
+        outputFile: join(root, 'cases.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown,
+        disposed = false
+      const trace = async () =>
+        (await readFile(join(root, 'provider-trace.jsonl'), 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line: string) => JSON.parse(line))
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        expect(await machine.beginCustomCompletionPrefix()).toEqual({
+          completionFailure: {
+            reporterIndex: 1,
+            kind: row.kind === 'getter' ? 'access' : 'noncallable',
+          },
+          invocation: { count: 1 },
+        })
+        failure = await machine.finish().catch((error) => error)
+        expect(failure).toMatchObject({
+          message:
+            row.kind === 'getter'
+              ? 'actual access failure118'
+              : 'Custom reporter onTestRunEnd is not a function.',
+        })
+        expect(await trace()).toEqual([
+          { name: 'first-enter', jsonExists: false },
+          ...(row.kind === 'getter'
+            ? [{ name: 'second-getter', jsonExists: false }]
+            : []),
+        ])
+        await expect(readFile(join(root, 'cases.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        const cleanup = await session
+          .dispose({ handledFailure: failure })
+          .catch((error) => error)
+        disposed = true
+        expect(leaves(cleanup).map((error) => error.message)).toEqual([
+          ...(row.variant.includes('close-throw')
+            ? ['actual accessor close failure120']
+            : []),
+          ...(row.variant.includes('reject')
+            ? ['actual accessor prior rejection120']
+            : []),
+        ])
+        expect(await trace()).toEqual(
+          row.expected.trace.filter((value: { name: string }) =>
+            /^(first|second|third)-/.test(value.name)
+          )
+        )
+      } finally {
+        await machine.dispose()
+        if (!disposed) {
+          controller.abort(new Error('actual416 failed control cleanup'))
+          await session.dispose({ handledFailure: failure }).catch(() => {})
+        }
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual pre-call pending completion lifecycle publication', () => {
+  const models = require('./fixtures/custom-access-pending-pristine.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'matches actual close and retained completion lifecycle for %s',
+    async (name) => {
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-access-pending-public416-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-access-pending-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_ACCESS_PENDING_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_ACCESS_PENDING_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
