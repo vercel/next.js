@@ -360,6 +360,27 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it('reports conflicting Go and TS handlers from Rust and recovers', async () => {
+      const path = 'app/(group)/native/[id]/route.ts'
+      const outputStart = next.cliOutput.length
+      try {
+        await next.patchFile(
+          path,
+          'export function GET() { return new Response("conflict") }'
+        )
+        await retry(async () => {
+          expect((await next.fetch('/native/example')).status).toBe(500)
+          expect(next.cliOutput.slice(outputStart)).toContain(
+            'Conflicting App Router handlers'
+          )
+        }, 30_000)
+      } finally {
+        await next.deleteFile(path)
+      }
+      await retry(async () => {
+        expect((await data()).id).toBe('example')
+      }, 30_000)
+    })
     it('reports the disabled Go experiment from Rust and recovers when enabled', async () => {
       const config = await next.readFile('next.config.ts')
       try {
@@ -487,7 +508,7 @@ describe('native-route-go', () => {
         const output = next.cliOutput.slice(outputStart)
         expect(output).toContain('app/first-error/route.go')
         expect(output).toContain('syntax error')
-      })
+      }, 30_000)
       await next.patchFile(path, source)
       await retry(async () => {
         expect(await next.render('/first-error')).toBe('first-repaired')
