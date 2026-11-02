@@ -210,6 +210,11 @@ process.on('message', (message: any) => {
       else if (message?.type === 'custom-coverage-suite') {
         await afterSuite(message.fact)
         await send({ type: 'custom-coverage-suite-received' })
+      } else if (message?.type === 'custom-coverage-prepare') {
+        // The provider retains its exact generated value in this realm. Only
+        // actual generation completion crosses IPC for a no-JSON result run.
+        await generate(message.facts, message.status, message.allTestsRun)
+        await send({ type: 'custom-coverage-prepared' })
       } else if (message?.type === 'custom-coverage-generate') {
         const coverage = await generate(
           message.facts,

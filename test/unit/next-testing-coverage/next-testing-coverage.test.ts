@@ -2928,6 +2928,141 @@ describe('real custom coverage provider ownership', () => {
     })
     return { result, facts }
   }
+  it.each(['function', 'undefined'])(
+    'prepares an actual %s result without transferring it before reporting',
+    async (kind) => {
+      const f = await customFixture(
+        'normal',
+        `
+const actualNoJsonValue = ${kind === 'function' ? '() => 42' : 'undefined'};
+let actualNoJsonGenerations = 0;
+ReleaseProvider.prototype.generateCoverage = async function() {
+  actualNoJsonGenerations++;
+  record('prepare-enter');
+  await new Promise(resolve => setImmediate(resolve));
+  record('prepare-settled');
+  return actualNoJsonValue;
+};
+ReleaseProvider.prototype.reportCoverage = function(value) {
+  writeFileSync('custom-coverage.json', JSON.stringify({
+    same: value === actualNoJsonValue,
+    type: typeof value,
+    value: typeof value === 'function' ? value() : null,
+    generations: actualNoJsonGenerations
+  }));
+};
+`
+      )
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root)
+        const { result, facts } = await runFile(f, session)
+        expect(result.status).toBe('passed')
+        expect(facts).toHaveLength(1)
+        await expect(
+          session.prepare(facts, 'passed', true)
+        ).resolves.toBeUndefined()
+        const trace = (
+          await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line).name)
+        expect(trace.slice(-2)).toEqual(['prepare-enter', 'prepare-settled'])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        await session.finish(facts, 'passed', true)
+        expect(
+          JSON.parse(
+            await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+          )
+        ).toEqual({
+          same: true,
+          type: kind,
+          value: kind === 'function' ? 42 : null,
+          generations: 1,
+        })
+      } finally {
+        await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('rejects actual failed generation before no-JSON preparation completes', async () => {
+    const f = await customFixture(
+      'normal',
+      `
+ReleaseProvider.prototype.generateCoverage = async function() {
+  record('prepare-enter');
+  await new Promise(resolve => setImmediate(resolve));
+  throw new Error('actual no-JSON preparation failure');
+};
+`
+    )
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    let failed = false
+    try {
+      session = await openSession(f.root)
+      const { result, facts } = await runFile(f, session)
+      expect(result.status).toBe('passed')
+      await expect(session.prepare(facts, 'passed', true)).rejects.toThrow(
+        'actual no-JSON preparation failure'
+      )
+      failed = true
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      if (failed)
+        await expect(session?.dispose()).rejects.toThrow(
+          'actual no-JSON preparation failure'
+        )
+      else await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('joins a provider cancelled during actual no-JSON preparation without reporting', async () => {
+    const f = await customFixture(
+      'normal',
+      `
+ReleaseProvider.prototype.generateCoverage = async function() {
+  writeFileSync('prepare-pid.json', String(process.pid));
+  await new Promise(() => {});
+};
+`
+    )
+    const controller = new AbortController()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    try {
+      session = await openSession(f.root, controller.signal)
+      const { result, facts } = await runFile(f, session, controller.signal)
+      expect(result.status).toBe('passed')
+      const pending = session.prepare(facts, 'passed', true)
+      pending.catch(() => {})
+      const { retry } = await import('next-test-utils')
+      await retry(async () =>
+        expect(
+          await readFile(join(f.root, 'prepare-pid.json'), 'utf8')
+        ).toMatch(/^\d+$/)
+      )
+      controller.abort(new Error('actual preparation cancellation'))
+      await expect(pending).rejects.toThrow()
+      await expect(session.dispose()).resolves.toBeUndefined()
+      session = undefined
+      const pid = Number(
+        await readFile(join(f.root, 'prepare-pid.json'), 'utf8')
+      )
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      controller.abort(new Error('preparation control cleanup'))
+      await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
   it.each([
     'normal',
     'body-failure',

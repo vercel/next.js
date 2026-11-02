@@ -165,6 +165,17 @@ export async function openCustomCoverageSession(options: {
           }
         )
       },
+      async prepare(
+        facts: CustomCoverageFact[],
+        status: 'passed' | 'failed',
+        allTestsRun: boolean
+      ): Promise<void> {
+        await command('custom-coverage-prepare', 'custom-coverage-prepared', {
+          facts,
+          status,
+          allTestsRun,
+        })
+      },
       async generate(
         facts: CustomCoverageFact[],
         status: 'passed' | 'failed',

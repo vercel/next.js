@@ -1436,6 +1436,8 @@ export async function nextTestRunner(
       let customCoverageResult: CustomCoverageResult | undefined
       const customCoverageJson =
         customSessions.size === 1 && reporters.includes('json')
+      const customCoverageWithoutJson =
+        customSessions.size === 1 && !reporters.includes('json')
       if (customCoverageJson) {
         pendingCustomCoverage = createPendingCustomCoverage()
         if (pendingCustomCoverage) {
@@ -1456,6 +1458,19 @@ export async function nextTestRunner(
           )
             await machine.beginCustomCompletionPrefix()
           else await machine.beginCustomCompletion()
+        }
+      } else if (customCoverageWithoutJson) {
+        pendingCustomCoverage = createPendingCustomCoverage()
+        if (pendingCustomCoverage) {
+          const [id, session] = customSessions.entries().next().value!
+          const entriesForProject = new Set(projectsForCustomCoverage.get(id))
+          await session.prepare(
+            pendingCustomCoverage.facts.filter((fact) =>
+              entriesForProject.has(fact.completion.entryId)
+            ),
+            pendingCustomCoverage.status,
+            pendingCustomCoverage.allTestsRun
+          )
         }
       }
       try {
@@ -1493,7 +1508,7 @@ export async function nextTestRunner(
         throw failure
       }
       if (coveragePreparationFailed) throw coveragePreparationError
-      if (!customCoverageJson)
+      if (!customCoverageJson && !customCoverageWithoutJson)
         pendingCustomCoverage = createPendingCustomCoverage()
       if (standardCoverageOptions && summary.status !== 'cancelled') {
         if (summary.status === 'running')
