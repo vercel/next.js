@@ -4,6 +4,12 @@ import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import escapeStringRegexp from 'escape-string-regexp'
 
+// In production, handler frames are intentionally printed unsourcemapped
+// (the server has no source maps) with install-specific path prefixes that
+// we don't want to assert on.
+const normalizeCacheHandlerPaths = (output: string): string =>
+  output.replaceAll(/\([^()\s]*(?=throwing-cache-handler\.js)/g, '(')
+
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
@@ -34,8 +40,8 @@ describe('app-custom-cache-handler-errors - get throws', () => {
          }
         `)
       } else {
-        // TODO(veil): Webpack renders the cache handler frame as a file://
-        // URL, which the redbox matcher flags as unintended.
+        // TODO(veil): Webpack renders the cache handler frame as a file:// URL,
+        // which the redbox matcher flags as unintended.
         await expect(browser).toDisplayRedbox(`
          {
            "description": "CustomCacheHandler.get failed",
@@ -63,7 +69,9 @@ describe('app-custom-cache-handler-errors - get throws', () => {
     // asserting its absence.
     await waitFor(1000)
 
-    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    const cliOutput = normalizeCacheHandlerPaths(
+      stripAnsi(next.cliOutput.slice(outputIndex))
+    )
 
     const errorBlock = isNextDev
       ? 'Error: CustomCacheHandler.get failed' +
@@ -123,10 +131,14 @@ describe('app-custom-cache-handler-errors - set throws', () => {
       '\n    at Object.set (throwing-cache-handler.js:50:13)'
 
     await retry(async () => {
-      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(errorBlock)
+      expect(
+        normalizeCacheHandlerPaths(stripAnsi(next.cliOutput.slice(outputIndex)))
+      ).toContain(errorBlock)
     })
 
-    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+    const cliOutput = normalizeCacheHandlerPaths(
+      stripAnsi(next.cliOutput.slice(outputIndex))
+    )
     expect(cliOutput).not.toContain('unhandledRejection')
     expect(cliOutput).toIncludeRepeated(escapeStringRegexp(errorBlock), 1)
   })
@@ -139,6 +151,54 @@ describe('app-custom-cache-handler-errors - lookup recovery', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     env: { CACHE_HANDLER_THROW_ON: 'retry-get' },
+  })
+
+  // Development's front handler completes its write before the configured
+  // handler fails. This test requires the configured handler's write lifetime.
+  // @force-gate start
+  it('retains generated data in the producer request after its handler write fails', async () => {
+    const id = randomUUID()
+    const pathname = `/lookup-retry?id=${id}&retention`
+    const control = (action: string) =>
+      next.fetch(pathname, { method: 'POST', body: action })
+    const readState = () =>
+      next.fetch(`${pathname}&state`).then(
+        (response) =>
+          response.json() as Promise<{
+            lookupCount: number
+            generationCount: number
+            writeStarted: boolean
+            writeFailed: boolean
+          }>
+      )
+    await control('fail-write-and-hold-read')
+    const rendering = next.fetch(pathname)
+    try {
+      await retry(async () => {
+        expect((await readState()).writeStarted).toBe(true)
+      })
+      await control('release-write')
+      await retry(async () => {
+        expect((await readState()).writeFailed).toBe(true)
+      })
+      // The next call starts in a later task, after failed-write cleanup runs.
+      await control('release-read')
+      const response = await rendering
+      expect(response.status).toBe(200)
+      const { first, second } = await response.json()
+      expect(first).toEqual(expect.any(Number))
+      expect(second).toBe(first)
+      expect(await readState()).toEqual({
+        lookupCount: 1,
+        generationCount: 1,
+        writeStarted: true,
+        writeFailed: true,
+      })
+    } finally {
+      await control('release-write')
+      await control('release-read')
+      await Promise.allSettled([rendering])
+    }
   })
 
   it('retries a shared failed lookup and shares its successful fill while the write is pending', async () => {
@@ -225,7 +285,8 @@ describe('app-custom-cache-handler-errors - shared write failure', () => {
       .elementById('shared-write-render')
       .text()
 
-    // The held write keeps the producer's fill available for the action to join.
+    // The held write keeps the producer's fill available for the action to
+    // join.
     await control('hold-write')
     const producer = next.render$(`/shared-write-failure/producer?id=${id}`)
     try {

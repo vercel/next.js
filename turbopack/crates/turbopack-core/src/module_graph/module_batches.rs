@@ -117,11 +117,11 @@ impl ModuleBatchesGraph {
             .as_ref()
             .and_then(|o| o.as_ref())
         {
-            if let Some(chunk_group) = chunk_group_info.chunk_groups.get_index(idx) {
+            if let Some(chunk_group) = chunk_group_info.chunk_groups.get(idx) {
                 debug_assert_eq!(ordered_entries.len(), chunk_group.entries_count());
             }
             Either::Left(Either::Left(ordered_entries.iter().copied()))
-        } else if let Some(chunk_group) = chunk_group_info.chunk_groups.get_index(idx) {
+        } else if let Some(chunk_group) = chunk_group_info.chunk_groups.get(idx) {
             Either::Right(chunk_group.entries())
         } else {
             Either::Left(Either::Right(std::iter::empty()))

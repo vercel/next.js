@@ -37,7 +37,13 @@ module.exports = {
     }
   },
   async refreshTags() {},
-  async getExpiration() {
+  async getExpiration(tags) {
+    if (
+      process.env.TEST_HOLD_EXPIRATION === '1' &&
+      tags.includes('_N_T_/page')
+    ) {
+      await notify('expiration:root')
+    }
     return 0
   },
   async updateTags() {},

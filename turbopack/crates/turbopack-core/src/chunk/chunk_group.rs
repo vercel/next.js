@@ -148,10 +148,16 @@ pub async fn make_chunk_group(
     let async_loaders = async_modules
         .iter()
         .copied()
-        .map(|module| {
+        .map(async |module| {
+            // Only pass on what the async chunk group can observe. The full availability is
+            // specific to this chunk group, which would make every async loader unique to it.
+            let availability_info = async_availability_info
+                .canonicalize_for_async_loader(module_graph, ResolvedVc::upcast(module))
+                .await?;
             chunking_context
-                .async_loader_chunk_item(*module, *module_graph, async_availability_info)
+                .async_loader_chunk_item(*module, *module_graph, availability_info)
                 .to_resolved()
+                .await
         })
         .try_join()
         .await?;
@@ -320,13 +326,16 @@ async fn chunk_group_content_operation(
     let available_chunk_groups = match availability_info.available_chunk_groups() {
         Some(available_chunk_groups) => {
             let available_chunk_groups = available_chunk_groups.await?;
-            // The bitmap indexes this graph's `ChunkGroupInfo`; indices of another graph would
-            // resolve to unrelated chunk groups and silently drop modules.
-            available_chunk_groups.assert_module_graph(module_graph);
             Some(available_chunk_groups)
         }
         None => None,
     };
+    // The bitmap indexes this graph's `ChunkGroupInfo`; indices of another graph would resolve
+    // to unrelated chunk groups and silently drop modules.
+    let available_chunk_groups = available_chunk_groups
+        .as_ref()
+        .map(|available| available.chunk_groups(module_graph))
+        .transpose()?;
     let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
     let async_loader_chunk_groups = chunk_group_info.async_loader_chunk_groups.await?;
 
@@ -389,9 +398,8 @@ async fn chunk_group_content_operation(
                     .get_first_module(chunkable_node)
                     .and_then(|module| module_chunk_groups.get(&module))
                     .is_some_and(|groups| {
-                        available_chunk_groups.as_ref().is_some_and(|available| {
-                            !groups.is_disjoint(available.chunk_groups(module_graph))
-                        })
+                        available_chunk_groups
+                            .is_some_and(|available| !groups.is_disjoint(available))
                     });
 
                 let Some((_, edge)) = parent_info else {
@@ -433,9 +441,8 @@ async fn chunk_group_content_operation(
                             let is_async_loader_available = async_loader_chunk_groups
                                 .get(&ResolvedVc::upcast(chunkable_module))
                                 .is_some_and(|groups| {
-                                    available_chunk_groups.as_ref().is_some_and(|available| {
-                                        !groups.is_disjoint(available.chunk_groups(module_graph))
-                                    })
+                                    available_chunk_groups
+                                        .is_some_and(|available| !groups.is_disjoint(available))
                                 });
                             if !is_async_loader_available {
                                 state.async_modules.insert(chunkable_module);

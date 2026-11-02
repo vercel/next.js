@@ -676,6 +676,22 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent>;
 
+    /// Hint that the content of the cell `cell` of task `task_id` is no longer needed, so the
+    /// backend may drop it to free memory. A later read of a dropped cell recomputes the owning
+    /// task, like after a `final_read_hint` read.
+    ///
+    /// The task must exist. The cell content doesn't need to be present (e.g. it was already
+    /// dropped); this never reads or recomputes it.
+    ///
+    /// This doesn't track any dependency. The default implementation does nothing.
+    fn drop_task_cell_content_hint(
+        &self,
+        _task_id: TaskId,
+        _cell: CellId,
+        _turbo_tasks: &TurboTasks<Self>,
+    ) {
+    }
+
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
     fn read_task_collectibles(
