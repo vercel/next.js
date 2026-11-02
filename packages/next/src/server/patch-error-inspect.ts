@@ -13,6 +13,7 @@ import {
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import type { IgnorableStackFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { getErrorOwnerStack } from './error-owner-stack'
 import { dim, italic, stdoutIsTerminal } from '../lib/picocolors'
 
 type FindSourceMapPayload = (
@@ -91,6 +92,8 @@ type SourceMapCache = Map<
   string,
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
+
+const MAX_OWNER_STACK_FRAMES = 50
 
 // Constructing a consumer indexes the whole payload — expensive for large
 // chunk maps and previously paid per frame — so consumers are shared across
@@ -548,6 +551,73 @@ function parseAndSourceMap(
   }
 
   ignoreListAnonymousStackFramesIfSandwiched(sourceMappedFrames)
+
+  const hasLocatedFrame = sourceMappedFrames.some(
+    (frame) =>
+      !frame.stack.ignored &&
+      frame.stack.file !== null &&
+      frame.stack.line1 !== null
+  )
+  const ownerStack = getErrorOwnerStack(error)
+
+  if (!hasLocatedFrame && ownerStack) {
+    const ownerStackFrames: SourceMappedFrame[] = []
+
+    for (const frame of parseStack(ownerStack)) {
+      // This fallback exists to recover a source location. Anonymous owner
+      // frames would only obscure the first useful frame.
+      if (frame.file === null || frame.file === '<anonymous>') {
+        continue
+      }
+
+      const sourceMappedFrame = getSourcemappedFrameIfPossible(
+        frame as SourcemappableStackFrame,
+        sourceMapCache,
+        inspectOptions
+      )
+
+      // A recursive render can produce thousands of identical owner frames.
+      // Keep the component chain useful without flooding the terminal.
+      const previousFrame = ownerStackFrames.at(-1)
+      if (
+        previousFrame?.stack.methodName ===
+          sourceMappedFrame.stack.methodName &&
+        previousFrame.stack.file === sourceMappedFrame.stack.file &&
+        previousFrame.stack.line1 === sourceMappedFrame.stack.line1 &&
+        previousFrame.stack.column1 === sourceMappedFrame.stack.column1
+      ) {
+        continue
+      }
+
+      ownerStackFrames.push(sourceMappedFrame)
+      if (ownerStackFrames.length === MAX_OWNER_STACK_FRAMES) {
+        break
+      }
+    }
+
+    ignoreListAnonymousStackFramesIfSandwiched(ownerStackFrames)
+
+    // Once the owner stack provides a location, retain only located frames
+    // from the original stack. Otherwise an anonymous runtime frame can still
+    // appear before the component that identifies the application source.
+    for (let i = sourceMappedFrames.length - 1; i >= 0; i--) {
+      if (
+        sourceMappedFrames[i].stack.file === null ||
+        sourceMappedFrames[i].stack.file === '<anonymous>'
+      ) {
+        sourceMappedFrames.splice(i, 1)
+      }
+    }
+
+    sourceMappedFrames.unshift(...ownerStackFrames)
+
+    for (const frame of ownerStackFrames) {
+      if (!frame.stack.ignored && frame.code !== null) {
+        sourceFrame = frame.code
+        break
+      }
+    }
+  }
 
   let sourceMappedStack = ''
   for (let i = 0; i < sourceMappedFrames.length; i++) {
