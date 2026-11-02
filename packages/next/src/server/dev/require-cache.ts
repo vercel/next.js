@@ -45,16 +45,14 @@ function deleteFromRequireCache(filePaths: string[]): void {
     }
   }
 
-  // Phase 3: Clear legacy parent references and delete cache entries
-  if (Number.parseInt(process.versions.node, 10) <= 20) {
-    // Cached children can keep invalidated modules alive on Node.js 20.
-    // Newer versions retain a separate internal parent reference as well.
-    for (const mod of modsToDelete) {
-      const children = mod.children
-      for (let i = 0; i < children.length; i++) {
-        if (children[i].parent === mod) {
-          children[i].parent = null
-        }
+  // Phase 3: Clear parent references from children and delete cache entries
+  // TODO: Replace module.parent when Node.js supports detaching its internal
+  // parent references, including those retained on newer Node.js versions.
+  for (const mod of modsToDelete) {
+    const children = mod.children
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].parent === mod) {
+        children[i].parent = null
       }
     }
   }
