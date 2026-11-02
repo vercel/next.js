@@ -1048,6 +1048,19 @@ export default abstract class Server<
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      if (req.url === '*') {
+        if (req.method?.toUpperCase() === 'OPTIONS') {
+          res.statusCode = 200
+          res.setHeader('Allow', 'OPTIONS, GET, HEAD, POST')
+          res.setHeader('Content-Length', '0')
+          res.body('').send()
+          return
+        }
+        res.statusCode = 400
+        res.body('Bad Request').send()
+        return
+      }
+
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       patchSetHeaderWithCookieSupport(

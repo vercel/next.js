@@ -18,7 +18,7 @@ import {
   isUnhandledRejectionListenerRegistered,
   registerUnhandledRejectionListener,
 } from '../node-environment-extensions/process-error-handlers'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, NormalizeError } from '../../shared/lib/utils'
 import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -363,6 +363,19 @@ export async function initialize(opts: {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)
+    }
+
+    if (req.url === '*') {
+      if (req.method?.toUpperCase() === 'OPTIONS') {
+        res.statusCode = 200
+        res.setHeader('Allow', 'OPTIONS, GET, HEAD, POST')
+        res.setHeader('Content-Length', '0')
+        res.end()
+        return
+      }
+      res.statusCode = 400
+      res.end('Bad Request')
+      return
     }
 
     if (opts.dev && req.url) {
@@ -922,13 +935,19 @@ export async function initialize(opts: {
     try {
       await handleRequest(0)
     } catch (err) {
+      let invokeStatus = 500
       try {
         let invokePath = '/500'
-        let invokeStatus = '500'
 
-        if (err instanceof DecodeError) {
+        if (
+          (err &&
+            typeof err === 'object' &&
+            (err as any).code === 'ERR_INVALID_URL') ||
+          err instanceof DecodeError ||
+          err instanceof NormalizeError
+        ) {
           invokePath = '/400'
-          invokeStatus = '400'
+          invokeStatus = 400
         } else if (isModuleBuildError(err)) {
           // Webpack compilation failures may bubble out of invokeRender. Log
           // the readable diagnostic without printing the wrapper stack again.
@@ -936,15 +955,15 @@ export async function initialize(opts: {
         } else {
           console.error(err)
         }
-        res.statusCode = Number(invokeStatus)
+        res.statusCode = invokeStatus
         return await invokeRender(parseUrlUtil(invokePath), invokePath, 0, {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {
         console.error(err2)
       }
-      res.statusCode = 500
-      res.end('Internal Server Error')
+      res.statusCode = invokeStatus
+      res.end(res.statusCode === 400 ? 'Bad Request' : 'Internal Server Error')
     }
   }
 
