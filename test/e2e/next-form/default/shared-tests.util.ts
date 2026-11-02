@@ -3,8 +3,6 @@ import { isReact18, nextTestSetup, type Playwright } from 'e2e-utils'
 // These tests are defined here and used in `app-dir.test.ts` and
 // `pages-dir.test.ts` so that both test suites can be run in parallel.
 export function runSharedTests(type: 'app' | 'pages') {
-  // Rspack cannot build the React 19 action fixtures against React 18.
-  // @force-gate !(rspack && react18 && start)
   describe(`next-form - ${type} dir`, () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
