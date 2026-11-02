@@ -31,6 +31,8 @@ import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import { startRouterTransition } from './router-transition'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
+import { pushOptimisticHistoryEntry } from './router-reducer/reducers/committed-state'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 
@@ -71,6 +73,16 @@ export function navigate(
     const url = new URL(addBasePath(href), location.href)
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
       window.next.__pendingUrl = url
+    }
+
+    if (navigateType === 'push' && !isExternalURL(url)) {
+      // Push the history entry synchronously, while the originating user
+      // gesture is still active. Safari skips back/forward entries whose
+      // pushState wasn't associated with user interaction, which happened
+      // when the entry was only pushed after the navigation committed.
+      // HistoryUpdater reconciles this entry when the commit lands.
+      // See https://github.com/vercel/next.js/issues/100931
+      pushOptimisticHistoryEntry(createHrefFromUrl(url))
     }
 
     setLinkForCurrentNavigation(linkInstanceRef)
