@@ -30,6 +30,7 @@ pub async fn go_declarations(
     sources: ResolvedVc<GoSourceSet>,
     host_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<GoDeclarations>> {
+    let session_failure = Completion::session_dependent().to_resolved().await?;
     let executable = create_parser_operation(host_session)
         .read_strongly_consistent()
         .await?;
@@ -44,12 +45,12 @@ pub async fn go_declarations(
     {
         Ok(report) => report,
         Err(error) => {
-            Completion::session_dependent().await?;
+            session_failure.await?;
             return Err(error);
         }
     };
     if !report.status.success() {
-        Completion::session_dependent().await?;
+        session_failure.await?;
         anyhow::bail!("{}", String::from_utf8_lossy(&report.stderr));
     }
     Ok(serde_json::from_slice::<GoDeclarations>(&report.stdout)?.cell())
@@ -95,10 +96,14 @@ async fn create_parser_operation(
 // source set for this host session, independently of its project/module configuration.
 #[turbo_tasks::function]
 async fn parser(host_session: ResolvedVc<GoBuildSession>) -> Result<Vc<File>> {
+    let session_failure = Completion::session_dependent().to_resolved().await?;
     let go_context = &host_session.await?.go_context;
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
-        _ = go_context.cancelled() => anyhow::bail!("Go analysis cancelled"),
+        _ = go_context.cancelled() => {
+            session_failure.await?;
+            anyhow::bail!("Go analysis cancelled");
+        },
     };
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-parser-")
@@ -119,12 +124,12 @@ async fn parser(host_session: ResolvedVc<GoBuildSession>) -> Result<Vc<File>> {
     let report = match process::output(command, &go_context.cancellation.token).await {
         Ok(report) => report,
         Err(error) => {
-            Completion::session_dependent().await?;
+            session_failure.await?;
             return Err(error);
         }
     };
     if !report.status.success() {
-        Completion::session_dependent().await?;
+        session_failure.await?;
     }
     ensure!(
         report.status.success(),

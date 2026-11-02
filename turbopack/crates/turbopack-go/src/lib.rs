@@ -1144,11 +1144,16 @@ async fn compile(
     plan: BuildPlan,
     go_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<Compilation>> {
+    // Resolve only the marker's output now, without depending on its changing cell.
+    // Failed/cancelled attempts read the cell below. Preparing it before the process
+    // starts avoids scheduling a new task after engine shutdown has begun, while
+    // successful compiler results can still persist across sessions.
+    let session_failure = Completion::session_dependent().to_resolved().await?;
     let go_context = go_session.await?.go_context.clone();
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
         _ = go_context.cancellation.token.cancelled() => {
-            Completion::session_dependent().await?;
+            session_failure.await?;
             return Ok(Compilation::Cancelled.cell());
         },
     };
@@ -1187,11 +1192,11 @@ async fn compile(
     command.args(arguments(&plan.files));
     let report = match process::output(command, &go_context.cancellation.token).await {
         Err(_) if go_context.is_cancelled() => {
-            Completion::session_dependent().await?;
+            session_failure.await?;
             return Ok(Compilation::Cancelled.cell());
         }
         Err(error) => {
-            Completion::session_dependent().await?;
+            session_failure.await?;
             return Ok(Compilation::Failed(format!("{error:#}").into()).cell());
         }
         Ok(report) => report,
@@ -1210,7 +1215,7 @@ async fn compile(
     } else {
         // A nonzero exit may reflect transient host/cache failures as well as source errors.
         // Keep failure memoization within this process, and retry after a restart.
-        Completion::session_dependent().await?;
+        session_failure.await?;
         Compilation::Failed(diagnostic(&report.stderr, &directory).into())
     };
     Ok(outcome.cell())
