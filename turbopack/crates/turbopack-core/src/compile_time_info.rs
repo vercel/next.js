@@ -391,6 +391,7 @@ pub enum FreeVarReference {
     },
     Ident(RcStr),
     Member(RcStr, RcStr),
+    RuntimePublicPath(Option<RcStr>),
     Value(CompileTimeDefineValue),
     InputRelative(InputRelativeConstant),
     // Report the replacement of this free var with the given severity and message, and

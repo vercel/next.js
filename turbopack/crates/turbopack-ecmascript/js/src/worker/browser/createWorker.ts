@@ -1,9 +1,10 @@
 // Embedded worker-runtime helper. This file is bundled as a regular module and
 // `__turbopack_require__`d by the generated web-worker loader code.
 //
-// The chunk-URL builder, the chunk base path and the asset suffix are read from
-// the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`
-// / `__turbopack_chunk_asset_suffix__` runtime primitives. The worker base-path
+// The chunk-URL builder, the chunk base path, the public path and the asset
+// suffix are read from the shared `__turbopack_chunk_relative_url__` /
+// `__turbopack_chunk_base_path__` / `__turbopack_public_path__` /
+// `__turbopack_chunk_asset_suffix__` runtime primitives. The worker base-path
 // override and forwarded-global names are baked into this module at build time by
 // `turbopack-ecmascript` replacing the `_TURBOPACK_WORKER_BASE_PATH_` /
 // `_TURBOPACK_WORKER_FORWARDED_GLOBALS_` free variables, and the forwarded-global
@@ -14,6 +15,7 @@ declare const __turbopack_chunk_relative_url__: (
 ) => string
 
 declare const __turbopack_chunk_base_path__: string
+declare const __turbopack_public_path__: string
 declare const __turbopack_chunk_asset_suffix__: string
 
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
@@ -72,8 +74,13 @@ function createWorker(
     params.push((globalThis as Record<string, unknown>)[globals[i]])
   }
 
+  // Like webpack, only the entrypoint follows an assigned public path. The
+  // worker itself starts from the configured base path.
   const url = new URL(
-    __turbopack_chunk_relative_url__(entrypoint, workerBasePath),
+    __turbopack_chunk_relative_url__(
+      entrypoint,
+      _TURBOPACK_WORKER_BASE_PATH_ ?? __turbopack_public_path__
+    ),
     location.origin
   )
   const paramsJson = JSON.stringify(params)
