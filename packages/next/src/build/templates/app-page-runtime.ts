@@ -68,6 +68,7 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache' with { 'turbopack-transition': 'next-server-utility' }
+import { toResponseCacheEntry } from '../../server/response-cache/utils' with { 'turbopack-transition': 'next-server-utility' }
 import {
   FallbackMode,
   parseFallbackField,
@@ -1206,6 +1207,8 @@ export function createAppPageEntrypoint({
         } satisfies ResponseCacheEntry
       }
 
+      let isDynamicRSCResponse = isDynamicRSCRequest
+
       const responseGenerator: ResponseGenerator = async ({
         hasResolved,
         previousCacheEntry: previousIncrementalCacheEntry,
@@ -1527,6 +1530,27 @@ export function createAppPageEntrypoint({
               // here as we're using the RDC to resume the render.
               postponed = incrementalCacheEntry.value.postponed
               hasFullyStaticCacheEntry = postponed === undefined
+
+              // Serve the stored RSC payload of a fresh, fully static entry for
+              // navigations and runtime prefetches.
+              if (
+                hasFullyStaticCacheEntry &&
+                incrementalCacheEntry.value.rscData !== undefined &&
+                !incrementalCacheEntry.isStale &&
+                isSSG &&
+                !routeModule.isDev &&
+                method === 'GET' &&
+                !isOnDemandRevalidate &&
+                !isDebugPrerender &&
+                // A shared shell entry can be fully static and still contain
+                // placeholder values for its unresolved params in the router
+                // tree.
+                (shellCacheKey === null ||
+                  remainingFallbackRouteParams.length === 0)
+              ) {
+                isDynamicRSCResponse = false
+                return toResponseCacheEntry(incrementalCacheEntry)
+              }
 
               // If the cache entry is stale, we should trigger a background
               // revalidation so that subsequent requests will get a fresh response.
@@ -2047,10 +2071,9 @@ export function createAppPageEntrypoint({
 
         if (
           isSSG &&
-          // We don't want to send a cache header for requests that contain dynamic
-          // data. If this is a Dynamic RSC request or wasn't a Prefetch RSC
-          // request, then we should set the cache header.
-          !isDynamicRSCRequest &&
+          // If we served a static response, we should set the cache headers
+          // regardless of whether it was a prefetch or navigation request.
+          !isDynamicRSCResponse &&
           (!didPostpone || isPrefetchRSCRequest)
         ) {
           if (!isMinimalMode) {
@@ -2082,10 +2105,8 @@ export function createAppPageEntrypoint({
           cacheControl = { revalidate: 0, expire: undefined }
         }
 
-        // If this is in minimal mode and this is a flight request that isn't a
-        // prefetch request while PPR is enabled, it cannot be cached as it contains
-        // dynamic content.
-        else if (isDynamicRSCRequest) {
+        // Dynamic RSC responses contain request-time content.
+        else if (isDynamicRSCResponse) {
           cacheControl = { revalidate: 0, expire: undefined }
         } else if (!routeModule.isDev) {
           // If this is a preview mode request, we shouldn't cache it
@@ -2243,7 +2264,7 @@ export function createAppPageEntrypoint({
         }
 
         // Mark that the request did postpone.
-        if (didPostpone && !isDynamicRSCRequest) {
+        if (didPostpone && !isDynamicRSCResponse) {
           res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
         }
 
