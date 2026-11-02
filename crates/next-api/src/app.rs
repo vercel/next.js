@@ -1247,24 +1247,31 @@ impl Endpoint for GoRouteEndpoint {
             .join("\n");
         let dispatch = include_str!("templates/go_route_dispatch.go")
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
-        // Adapter builds emit an independent PORT-based HTTP server for one route, with
-        // URL matching and parameter extraction owned by that executable. Development
-        // and self-hosted builds emit a private worker: Next.js has already routed the
-        // request and supplies its parameters, authentication token, and lifetime pipe.
+        let pathname = AppPath::from(this.page.clone()).to_string();
+        let base_path = project.next_config().base_path().await?;
+        let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
+        let handler = include_str!("templates/go_route_handler.go").replace(
+            "\"__NEXT_GO_ROUTE_PATTERN__\"",
+            &serde_json::to_string(&route_pattern)?,
+        );
+        // All executables extract parameters from the selected destination URL.
+        // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
-            let pathname = AppPath::from(this.page.clone()).to_string();
-            let base_path = project.next_config().base_path().await?;
-            let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
-            include_str!("templates/go_route_adapter_main.go").replace(
-                "\"__NEXT_GO_ROUTE_PATTERN__\"",
-                &serde_json::to_string(&route_pattern)?,
-            )
+            include_str!("templates/go_route_adapter_main.go").to_owned()
         } else {
             include_str!("templates/go_route_main.go").to_owned()
         };
         let generated_path = directory.join("zz_next_route_main.go")?;
         let dispatch_path = directory.join("zz_next_route_dispatch.go")?;
+        let handler_path = directory.join("zz_next_route_handler.go")?;
         let generated = BTreeMap::from([
+            (
+                module_root
+                    .get_path_to(&handler_path)
+                    .context("Go handler outside module")?
+                    .into(),
+                RcStr::from(handler),
+            ),
             (
                 module_root
                     .get_path_to(&generated_path)

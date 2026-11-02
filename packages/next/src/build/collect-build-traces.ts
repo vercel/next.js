@@ -246,7 +246,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/lib/route-resolver*',
         ...(hasNativeRoutes
           ? []
-          : ['**/next/dist/server/lib/native-route.external.js']),
+          : ['**/next/dist/server/lib/native-route*.js']),
         // Upgrade workflows are CLI-only and are not needed by production servers.
         '**/next/dist/lib/upgrade/**/*',
         // The testmode interceptors bundle reads its HTTP parser WASM with a

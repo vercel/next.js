@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"example.com/native-route/internal/message"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -57,5 +58,7 @@ func serveNative(w http.ResponseWriter, r *http.Request) {
 		"proxy": r.Header.Get("X-Proxy-Count"), "pid": os.Getpid(),
 		"repeated": r.Header.Values("X-Repeated"),
 		"path":     r.URL.EscapedPath(), "requestURI": r.RequestURI,
+		"address":         r.Context().Value(http.LocalAddrContextKey).(net.Addr).String(),
+		"privateMetadata": r.Header.Get("X-Next-Go-Token") != "" || r.Header.Get("X-Next-Go-Params") != "",
 	})
 }

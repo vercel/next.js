@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, findPort, retry } from 'next-test-utils'
+import { fetchViaHTTP, fetchViaRawHttp, findPort, retry } from 'next-test-utils'
 import { request } from 'http'
 import { promises as fs } from 'fs'
 import { dirname, join, relative } from 'path'
@@ -7,6 +7,64 @@ import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { createHash } from 'crypto'
 import type { AdapterOutput, NextAdapter } from 'next'
+import { getRouteMatcher } from 'next/dist/shared/lib/router/utils/route-matcher'
+import { getRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
+
+async function expectParameterParity(
+  pattern: string,
+  fetchPath: (path: string) => ReturnType<typeof fetchViaHTTP>
+) {
+  const reference = getRouteMatcher(getRouteRegex(pattern))
+  const prefix = pattern.slice(0, pattern.indexOf('/['))
+  const single = pattern.endsWith('/[id]')
+  for (const encoded of [
+    'a%2Fb',
+    'a%252Fb',
+    'caf%C3%A9',
+    '%F0%9F%98%80',
+    'one+two',
+    '%255Bslug%255D',
+    '_NEXTSEP_first',
+    '_NEXTSEP__NEXTSEP_first',
+  ]) {
+    const path = `${prefix}/${encoded}${single ? '' : '/_NEXTSEP_tail%252Fend'}`
+    const params = reference(path)
+    if (params === false) throw new Error(`Reference did not match ${path}`)
+    const response = await fetchPath(path)
+    expect(response.status).toBe(single ? 201 : 200)
+    const body = await response.json()
+    if (single) {
+      expect(body.id).toEqual(params.id)
+      expect(body.privateMetadata).toBe(false)
+    } else if (Array.isArray(body)) {
+      expect(body).toEqual(params.slug)
+    } else {
+      expect(body.params).toEqual(params.slug)
+      expect(body.value).toEqual((params.slug as string[]).join('/'))
+    }
+    if (!Array.isArray(body)) {
+      expect(body.path).toBe(path)
+      expect(body.requestURI).toBe(path)
+    }
+  }
+  if (pattern.endsWith('/[[...slug]]')) {
+    expect(reference(prefix)).toEqual({})
+    const response = await fetchPath(prefix)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ params: null, value: '' })
+  }
+  for (const encoded of [
+    '%FF',
+    '%C0%AF',
+    '%ED%A0%80',
+    '%F0%80%80%80',
+    '%invalid',
+  ]) {
+    const path = `${prefix}/${encoded}`
+    expect(() => reference(path)).toThrow('failed to decode param')
+    expect((await fetchPath(path)).status).toBe(400)
+  }
+}
 
 async function expectAutomaticMethods(
   fetchMethod: (method: string) => ReturnType<typeof fetchViaHTTP>
@@ -150,10 +208,38 @@ describe('native-route-go', () => {
   it('reuses the process and ignores forged native metadata', async () => {
     const first = await data()
     expect((await data()).pid).toBe(first.pid)
-    const response = await next.fetch('/native/trusted', {
-      headers: { 'x-next-go-token': 'forged', 'x-next-go-params': 'forged' },
+    const response = await fetchViaRawHttp(next.url, '/native/trusted', {
+      headers: {
+        connection: 'x-next-go-token, x-next-go-params',
+        'x-next-go-token': 'forged',
+        'x-next-go-params': 'forged',
+      },
     })
-    expect((await response.json()).id).toBe('trusted')
+    expect(response.status).toBe(201)
+    const result = await response.json()
+    expect(result.id).toBe('trusted')
+    expect(result.privateMetadata).toBe(false)
+    for (const headers of [{}, { 'x-next-go-token': 'wrong' }] as Record<
+      string,
+      string
+    >[]) {
+      const direct = await fetchViaHTTP(
+        `http://${result.address}`,
+        '/native/trusted',
+        undefined,
+        { headers }
+      )
+      expect(direct.status).toBe(403)
+    }
+  })
+  it('matches Next parameter decoding and normalization', async () => {
+    for (const pattern of [
+      '/native/[id]',
+      '/catch/[...slug]',
+      '/adapter-optional/[[...slug]]',
+    ]) {
+      await expectParameterParity(pattern, (path) => next.fetch(path))
+    }
   })
   it('passes the rewritten destination URL and derives parameters from it', async () => {
     for (const [source, destination, id] of [
@@ -467,11 +553,16 @@ describe('native-route-go', () => {
   if (isNextStart) {
     it('retries a transient worker startup failure in production', async () => {
       const trace = await next.readJSON('.next/next-server.js.nft.json')
-      expect(
-        trace.files.some((file: string) =>
-          file.endsWith('native-route.external.js')
-        )
-      ).toBe(true)
+      for (const filename of [
+        'native-route.external.js',
+        'native-route-proxy.js',
+      ]) {
+        expect(
+          trace.files.some((file: string) =>
+            file.replace(/\\/g, '/').endsWith(filename)
+          )
+        ).toBe(true)
+      }
       await next.stop()
       try {
         await next.start({
@@ -705,9 +796,13 @@ describe('native-route-go', () => {
           dependency: 'transitive-v1',
           embedded: 'embedded-v1',
           proxy: '',
+          privateMetadata: false,
         })
         expect(response.headers.get('set-cookie')).toContain('first=1')
         expect(response.headers.get('set-cookie')).toContain('second=2')
+        await expectParameterParity('/adapter-base/native/[id]', (path) =>
+          fetchViaHTTP(`http://127.0.0.1:${port}`, path)
+        )
         const options = await fetchViaHTTP(
           `http://127.0.0.1:${port}`,
           '/adapter-base/native/options',
@@ -823,6 +918,9 @@ describe('native-route-go', () => {
           )
           expect(response.status).toBe(200)
           expect(await response.json()).toEqual(['one/two', 'three four'])
+          await expectParameterParity('/adapter-base/catch/[...slug]', (path) =>
+            fetchViaHTTP(`http://127.0.0.1:${port}`, path)
+          )
         }
       )
       await withStandaloneRoute(
@@ -831,6 +929,10 @@ describe('native-route-go', () => {
             output.pathname === '/adapter-base/adapter-optional/[[...slug]]'
         )!,
         async (port) => {
+          await expectParameterParity(
+            '/adapter-base/adapter-optional/[[...slug]]',
+            (path) => fetchViaHTTP(`http://127.0.0.1:${port}`, path)
+          )
           for (const [path, params] of [
             ['/adapter-base/adapter-optional', null],
             [
@@ -986,7 +1088,9 @@ describe('native route diagnostics', () => {
       const trace = await next.readJSON('.next/next-server.js.nft.json')
       expect(
         trace.files.some((file: string) =>
-          file.endsWith('native-route.external.js')
+          /native-route(?:\.external|-proxy)\.js$/.test(
+            file.replace(/\\/g, '/')
+          )
         )
       ).toBe(false)
     } finally {
