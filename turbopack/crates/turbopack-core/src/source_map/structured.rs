@@ -26,10 +26,13 @@ use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use turbo_tasks::{NonLocalValue, ResolvedVc};
-use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_fs::{
+    CellRope, CellRopeBuilder, FileContent, escape_json_string,
+    rope::{Rope, RopeBuilder},
+};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
-use crate::code_builder::SectionMap;
+use crate::code_builder::{SectionMap, SharedMapPart};
 
 /// A single source map in structured form. See the module documentation.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, NonLocalValue)]
@@ -112,9 +115,7 @@ fn into_rope(value: Option<Box<RawValue>>) -> Option<Rope> {
 /// JSON-escapes a source's content into the string-literal form stored in `sources_content`.
 fn escape_content(content: Option<&str>) -> Rope {
     match content {
-        Some(text) => {
-            Rope::from(serde_json::to_vec(text).expect("string serialization is infallible"))
-        }
+        Some(text) => escape_json_string(text),
         None => {
             static NULL: LazyLock<Rope> = LazyLock::new(|| Rope::from("null"));
             NULL.clone()
@@ -255,10 +256,33 @@ impl StructuredSourceMap {
     /// the map before serializing the (now small) remainder. This is the cheap constructor for
     /// all internally generated maps: the source text is escaped exactly once and never
     /// round-trips through JSON parsing.
-    pub fn from_swc_map(mut map: swc_sourcemap::SourceMap) -> Result<Self> {
+    pub fn from_swc_map(map: swc_sourcemap::SourceMap) -> Result<Self> {
+        Ok(Self::from_swc_map_with_sources(map, &[])?.0)
+    }
+
+    /// Like [`StructuredSourceMap::from_swc_map`], but also returns, for each `sourcesContent`
+    /// entry, the file in `sources` whose content is exactly that entry's text (if any).
+    ///
+    /// `sources` are the texts the map's mappings were generated from, each with the file content
+    /// cell holding the same text. An entry matching one can be stored as a reference to the file
+    /// instead of an escaped copy (see [`SplitSourceMap::new_with_source_contents`]).
+    pub fn from_swc_map_with_sources(
+        mut map: swc_sourcemap::SourceMap,
+        sources: &[(Rope, ResolvedVc<FileContent>)],
+    ) -> Result<(Self, Vec<Option<ResolvedVc<FileContent>>>)> {
+        let mut source_refs = Vec::new();
         let contents: Vec<Rope> = map
             .source_contents()
-            .map(|content| escape_content(content.map(|c| c.as_str())))
+            .map(|content| {
+                let content = content.map(|c| c.as_str());
+                source_refs.push(content.and_then(|text| {
+                    sources.iter().find_map(|(source, cell)| {
+                        (source.len() == text.len() && *source.to_bytes() == *text.as_bytes())
+                            .then_some(*cell)
+                    })
+                }));
+                escape_content(content)
+            })
             .collect();
         let has_contents = contents.iter().any(|c| c.to_bytes().as_ref() != b"null");
         for idx in 0..map.get_source_count() {
@@ -268,7 +292,10 @@ impl StructuredSourceMap {
         map.to_writer(&mut skeleton)?;
         let mut result = Self::from_json_slice(&skeleton)?;
         result.sources_content = has_contents.then_some(SourcesContentField::Escaped(contents));
-        Ok(result)
+        if !has_contents {
+            source_refs.clear();
+        }
+        Ok((result, source_refs))
     }
 
     /// Parses an arbitrary serialized source map, e.g. one shipped alongside external code.
@@ -384,6 +411,40 @@ impl StructuredSourceMap {
         self.version.is_some() || self.file.is_some() || self.sources.is_some()
     }
 
+    /// A copy of the map's head fields (`version`, `file`, `sources`) only.
+    fn head_fields(&self) -> StructuredSourceMap {
+        StructuredSourceMap {
+            version: self.version.clone(),
+            file: self.file.clone(),
+            sources: self.sources.clone(),
+            ..Default::default()
+        }
+    }
+
+    /// A `sourcesContent` value with a `null` entry for each of the map's sources (`None` if
+    /// `sources` can't be decoded), to stand in for shared contents left out of the map.
+    ///
+    /// Leaving the field out entirely would change how the map is read: flattening an index map
+    /// (`swc_sourcemap`'s `flatten`) drops the sources of sections without contents.
+    pub fn contents_placeholder(&self) -> Option<Rope> {
+        let count = match self.sources.as_ref()? {
+            SourcesField::Rewritten(sources) => sources.len(),
+            SourcesField::Raw(raw) => serde_json::from_slice::<Vec<&RawValue>>(&raw.to_bytes())
+                .ok()?
+                .len(),
+        };
+        let mut placeholder = String::with_capacity(2 + count * 5);
+        placeholder.push('[');
+        for i in 0..count {
+            if i > 0 {
+                placeholder.push(',');
+            }
+            placeholder.push_str("null");
+        }
+        placeholder.push(']');
+        Some(Rope::from(placeholder))
+    }
+
     /// Splits the map into its head (`version`, `file` and `sources`, the fields that come
     /// first in the serialized form) and the serialized bytes of everything after them (the
     /// tail, through the closing `}`).
@@ -453,7 +514,7 @@ impl StructuredSourceMap {
 
     /// Writes every field after the head fields, without the closing `}`.
     fn write_tail(&self, builder: &mut RopeBuilder, first: &mut bool) {
-        write_field(builder, first, "sourceRoot", self.source_root.as_ref());
+        self.write_before_contents(builder, first);
         match &self.sources_content {
             None => {}
             Some(SourcesContentField::Raw(raw)) => {
@@ -474,6 +535,48 @@ impl StructuredSourceMap {
                 *builder += "]";
             }
         }
+        self.write_after_contents(builder, first);
+    }
+
+    /// Like [`StructuredSourceMap::write_tail`], but into a [`CellRope`], with each escaped
+    /// `sourcesContent` entry that has a file in `source_refs` (by index) written as a reference
+    /// to that file's content instead of a copy.
+    fn write_tail_cells(
+        &self,
+        builder: &mut CellRopeBuilder,
+        first: &mut bool,
+        source_refs: &[Option<ResolvedVc<FileContent>>],
+    ) {
+        let mut before = RopeBuilder::default();
+        self.write_before_contents(&mut before, first);
+        builder.concat(&before.build());
+        match &self.sources_content {
+            Some(SourcesContentField::Escaped(contents)) => {
+                if !*first {
+                    *builder += ",";
+                }
+                *first = false;
+                write_contents_cells(builder, contents, source_refs);
+            }
+            Some(SourcesContentField::Raw(raw)) => {
+                let mut raw_field = RopeBuilder::default();
+                write_field(&mut raw_field, first, "sourcesContent", Some(raw));
+                builder.concat(&raw_field.build());
+            }
+            None => {}
+        }
+        let mut after = RopeBuilder::default();
+        self.write_after_contents(&mut after, first);
+        builder.concat(&after.build());
+    }
+
+    /// Writes `sourceRoot`, the only field between the head and `sourcesContent`.
+    fn write_before_contents(&self, builder: &mut RopeBuilder, first: &mut bool) {
+        write_field(builder, first, "sourceRoot", self.source_root.as_ref());
+    }
+
+    /// Writes every field after `sourcesContent`, without the closing `}`.
+    fn write_after_contents(&self, builder: &mut RopeBuilder, first: &mut bool) {
         write_field(builder, first, "sections", self.sections.as_ref());
         write_field(builder, first, "names", self.names.as_ref());
         write_field(builder, first, "scopes", self.scopes.as_ref());
@@ -506,6 +609,127 @@ impl StructuredSourceMap {
         write_field(builder, first, "debug_id", self.debug_id_old.as_ref());
         write_field(builder, first, "debugId", self.debug_id.as_ref());
     }
+
+    /// Whether [`StructuredSourceMap::write_tail_parts`] stores `sourcesContent` as its own part.
+    ///
+    /// That needs a head (so that the part, and the rest after it, start with a comma whether
+    /// or not `sourcesContent` is left out), no `sourceRoot` (the only field between them) and
+    /// escaped contents: those are exactly what a decoder re-serializes them to, so a map
+    /// computed from this one without its contents can take them back as they are (see
+    /// [`SectionMap::SharedContents`]).
+    fn has_shareable_contents(&self) -> bool {
+        self.has_head()
+            && self.source_root.is_none()
+            && matches!(self.sources_content, Some(SourcesContentField::Escaped(_)))
+    }
+
+    /// Serializes everything after the head fields (see [`StructuredSourceMap::split`]), as a
+    /// `sourcesContent` part (`,"sourcesContent":[...]`) and the rest (through the closing `}`),
+    /// or as just the rest (including any `sourcesContent`) if the contents can't be shared on
+    /// their own (see [`StructuredSourceMap::has_shareable_contents`]).
+    ///
+    /// Escaped `sourcesContent` entries with a file in `source_refs` (by index) reference that
+    /// file's content instead of copying it.
+    fn write_tail_parts(
+        &self,
+        source_refs: &[Option<ResolvedVc<FileContent>>],
+    ) -> (Option<CellRope>, CellRope) {
+        if let (true, Some(SourcesContentField::Escaped(contents))) =
+            (self.has_shareable_contents(), &self.sources_content)
+        {
+            let mut contents_builder = CellRopeBuilder::default();
+            contents_builder += ",";
+            write_contents_cells(&mut contents_builder, contents, source_refs);
+            let mut rest = RopeBuilder::default();
+            let mut first = false;
+            self.write_after_contents(&mut rest, &mut first);
+            rest += "}";
+            let mut rest_builder = CellRopeBuilder::default();
+            rest_builder.concat(&rest.build());
+            (Some(contents_builder.build()), rest_builder.build())
+        } else {
+            let mut rest = CellRopeBuilder::default();
+            let mut first = !self.has_head();
+            self.write_tail_cells(&mut rest, &mut first, source_refs);
+            rest += "}";
+            (None, rest.build())
+        }
+    }
+
+    /// Serializes everything after the head fields except `sourcesContent`, through the closing
+    /// `}`, for a map with shareable contents (or none): what follows [`SharedMapPart`] contents
+    /// taken from another map in a [`SectionMap::SharedContents`] map.
+    fn rest_without_contents(&self) -> Rope {
+        let mut rest = RopeBuilder::default();
+        let mut first = !self.has_head();
+        self.write_after_contents(&mut rest, &mut first);
+        rest += "}";
+        rest.build()
+    }
+
+    /// Converts this map, computed from a map whose `sourcesContent` was left out, into a
+    /// [`SectionMap::SharedContents`] map taking `contents` back from that map, if that results
+    /// in exactly the bytes this map would have had with the contents.
+    ///
+    /// That's the case if this map has the same head (`version`, `file`, `sources`, as
+    /// `expected_head`, see [`StructuredSourceMap::head_to_rope`]) as the map `contents` comes
+    /// from, no `sourceRoot` and no `sourcesContent` of its own other than the all-`null`
+    /// placeholder its input had instead (see [`StructuredSourceMap::contents_placeholder`]):
+    /// the contents belong to the same sources then, in the same order. Returns `None` otherwise.
+    pub fn with_shared_contents(
+        &self,
+        expected_head: &Rope,
+        contents: SharedMapPart,
+    ) -> Option<SectionMap> {
+        let prefix = self.shared_contents_prefix(expected_head)?;
+        Some(SectionMap::SharedContents {
+            prefix,
+            contents,
+            suffix: self.rest_without_contents(),
+        })
+    }
+
+    /// The opening `{` and head fields of this map, if it can take back the contents of a map
+    /// with `expected_head`, see [`StructuredSourceMap::with_shared_contents`].
+    fn shared_contents_prefix(&self, expected_head: &Rope) -> Option<Rope> {
+        if self.source_root.is_some() || !self.has_head() {
+            return None;
+        }
+        // The map's own contents can only be the placeholder its input had instead (see
+        // `StructuredSourceMap::contents_placeholder`).
+        match &self.sources_content {
+            None => {}
+            Some(SourcesContentField::Raw(raw))
+                if Some(raw) == self.contents_placeholder().as_ref() => {}
+            Some(_) => return None,
+        }
+        let mut prefix = RopeBuilder::default();
+        let mut first = true;
+        prefix += "{";
+        self.write_head(&mut prefix, &mut first);
+        let prefix = prefix.build();
+        (prefix == *expected_head).then_some(prefix)
+    }
+}
+
+/// Writes `"sourcesContent":[...]` (without a leading comma) into `builder`, with each entry that
+/// has a file in `source_refs` (by index) as a reference to the file's content.
+fn write_contents_cells(
+    builder: &mut CellRopeBuilder,
+    contents: &[Rope],
+    source_refs: &[Option<ResolvedVc<FileContent>>],
+) {
+    *builder += "\"sourcesContent\":[";
+    for (i, content) in contents.iter().enumerate() {
+        if i > 0 {
+            *builder += ",";
+        }
+        match source_refs.get(i).copied().flatten() {
+            Some(file) => builder.push_escaped_file_content(file),
+            None => builder.concat(content),
+        }
+    }
+    *builder += "]";
 }
 
 /// Writes `"key":value` (preceded by a comma unless it's the first field), if there is a value.
@@ -537,26 +761,51 @@ impl DeterministicHash for StructuredSourceMap {
     }
 }
 
-/// A [`StructuredSourceMap`] split by [`StructuredSourceMap::split`]: its head, and a [`Rope`]
-/// cell holding the serialized tail, owned by the task that created it.
+/// A [`StructuredSourceMap`] split by [`StructuredSourceMap::split`]: its head, and the
+/// serialized tail in [`CellRope`] cells owned by the task that created them.
 ///
 /// A module's map is stored like this so that the maps derived from it, which only rewrite
 /// `sources` (one per chunking context the module's factory is generated for), can reference
 /// the tail instead of each persisting a copy of it (see [`SectionMap::Split`]). The tail is most
 /// of a map's bytes: `sourcesContent`, `names` and `mappings`.
+///
+/// The tail is stored as two cells where possible: `contents` (`,"sourcesContent":[...]`) and
+/// `rest` (everything after it). Maps computed from this one that keep its sources but change
+/// everything else (e.g. a minified factory's map) can then reference the contents as well, see
+/// [`SectionMap::SharedContents`]. Contents entries can reference the source files' content
+/// instead of copying the (escaped) text, see [`SplitSourceMap::new_with_source_contents`].
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct SplitSourceMap {
     head: StructuredSourceMap,
-    tail: ResolvedVc<Rope>,
+    contents: Option<ResolvedVc<CellRope>>,
+    rest: ResolvedVc<CellRope>,
 }
 
 impl SplitSourceMap {
-    /// Splits `map`, storing its tail in a new cell of the current task.
+    /// Splits `map`, storing its tail in new cells of the current task.
     pub fn new(map: StructuredSourceMap) -> Self {
-        let (head, tail) = map.split();
+        Self::new_with_source_contents(map, &[])
+    }
+
+    /// Like [`SplitSourceMap::new`], but each `sourcesContent` entry that has a file in
+    /// `source_refs` (by index, see [`StructuredSourceMap::from_swc_map_with_sources`]) is stored
+    /// as a reference to that file's content, escaped when the map is read, instead of a copy.
+    ///
+    /// The file's content must be exactly the text the entry (and the map's mappings) were
+    /// generated from. Pass the file content cell the parsed source was read from: when the file
+    /// changes, the task that generated the map depends on that cell and is recomputed, so a
+    /// strongly consistent read never pairs the map with another version of the text. Sources
+    /// parsed from other bytes (e.g. a last successful source) must not be referenced.
+    pub fn new_with_source_contents(
+        map: StructuredSourceMap,
+        source_refs: &[Option<ResolvedVc<FileContent>>],
+    ) -> Self {
+        let (contents, rest) = map.write_tail_parts(source_refs);
+        let head = map.head_fields();
         SplitSourceMap {
             head,
-            tail: tail.resolved_cell(),
+            contents: contents.map(|contents| contents.resolved_cell()),
+            rest: rest.resolved_cell(),
         }
     }
 
@@ -565,19 +814,30 @@ impl SplitSourceMap {
         &self.head
     }
 
-    /// The cell holding the serialized tail.
-    pub fn tail(&self) -> ResolvedVc<Rope> {
-        self.tail
+    /// The cell holding the serialized `sourcesContent` (preceded by a comma), if it's stored
+    /// on its own.
+    pub fn contents(&self) -> Option<ResolvedVc<CellRope>> {
+        self.contents
+    }
+
+    /// The cell holding the rest of the serialized tail, after the contents (if stored on their
+    /// own), through the closing `}`.
+    pub fn rest(&self) -> ResolvedVc<CellRope> {
+        self.rest
     }
 
     /// A section map with `head` (this map's head, possibly with rewritten `sources`) followed
     /// by this map's tail. Reads the tail.
     pub async fn to_section_map(&self, head: StructuredSourceMap) -> Result<SectionMap> {
         debug_assert_eq!(head.has_head(), self.head.has_head());
+        let contents = match self.contents {
+            Some(contents) => Some(SharedMapPart::read(contents).await?),
+            None => None,
+        };
         Ok(SectionMap::Split {
             head: Box::new(head),
-            tail: self.tail,
-            tail_bytes: self.tail.owned().await?,
+            contents,
+            rest: SharedMapPart::read(self.rest).await?,
         })
     }
 }
@@ -637,14 +897,18 @@ mod tests {
             r#"{"version":3,"sources":["\ud800"],"names":[],"mappings":"AAAA"}"#,
             // No `sources`.
             r#"{"version":3,"file":"out.js","names":[],"mappings":""}"#,
-            // No head field at all: the tail starts the object.
-            r#"{"mappings":"AAAA","names":[]}"#,
+            // No head field at all: the tail starts the object (not in serialization order).
+            r#"{"names":[],"mappings":"AAAA"}"#,
             // Only head fields: the tail is just the closing brace.
             r#"{"version":3,"sources":["a.js"]}"#,
             // An index map.
             r#"{"version":3,"sections":[{"offset":{"line":0,"column":0},"map":{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}}]}"#,
+            // Every field, in serialization order.
+            r#"{"version":3,"file":"out.js","sources":["a.js"],"sourceRoot":"/root","sourcesContent":["x"],"sections":[],"names":["n"],"scopes":"s","rangeMappings":"r","mappings":"AAAA","ignoreList":[0],"x_facebook_offsets":[0],"x_metro_module_paths":["m"],"x_facebook_sources":[null],"debug_id":"old","debugId":"new"}"#,
         ] {
-            assert_split_reassembles(StructuredSourceMap::from_json(&Rope::from(input))?)?;
+            let map = StructuredSourceMap::from_json(&Rope::from(input))?;
+            assert_eq!(map.to_rope().to_bytes().as_ref(), input.as_bytes());
+            assert_split_reassembles(map)?;
         }
         Ok(())
     }
@@ -782,6 +1046,73 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&rewritten.to_rope().to_bytes())?;
         assert_eq!(json["sources"][0], "file:///root/a.js");
         assert_eq!(json["sourcesContent"][0], "text");
+        Ok(())
+    }
+
+    /// A map computed without its input's contents takes them back only if it has the input's
+    /// head (same `version`/`file`/`sources`), no `sourceRoot`, and no contents of its own other
+    /// than the all-`null` placeholder.
+    #[test]
+    fn shared_contents_reuse_condition() -> Result<()> {
+        let head = Rope::from(r#"{"version":3,"sources":["a.js","b.js"]"#);
+        let map = |json: &str| StructuredSourceMap::from_json(&Rope::from(json.to_string()));
+        let can =
+            |json: &str| -> Result<bool> { Ok(map(json)?.shared_contents_prefix(&head).is_some()) };
+        // Same head; no contents, or the placeholder.
+        assert!(can(
+            r#"{"version":3,"sources":["a.js","b.js"],"names":[],"mappings":"AAAA"}"#
+        )?);
+        assert!(can(
+            r#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":[null,null],"names":[],"mappings":"AAAA"}"#
+        )?);
+        // Different, reordered or fewer sources.
+        assert!(!can(
+            r#"{"version":3,"sources":["b.js","a.js"],"mappings":"AAAA"}"#
+        )?);
+        assert!(!can(
+            r#"{"version":3,"sources":["a.js"],"mappings":"AAAA"}"#
+        )?);
+        // A `file` the input didn't have.
+        assert!(!can(
+            r#"{"version":3,"file":"x.js","sources":["a.js","b.js"],"mappings":"AAAA"}"#
+        )?);
+        // A `sourceRoot`.
+        assert!(!can(
+            r#"{"version":3,"sources":["a.js","b.js"],"sourceRoot":"/","mappings":"AAAA"}"#
+        )?);
+        // Contents of its own (not the placeholder).
+        assert!(!can(
+            r#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":["x",null],"mappings":"AAAA"}"#
+        )?);
+        assert!(!can(
+            r#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":[null],"mappings":"AAAA"}"#
+        )?);
+        // No head at all (e.g. an index map).
+        assert!(!can(r#"{"sections":[]}"#)?);
+        Ok(())
+    }
+
+    /// The tail parts (the shareable `sourcesContent` part and the rest, or the rest alone)
+    /// complete the head into exactly `to_rope()`, for every field.
+    #[tokio::test]
+    async fn tail_parts_reassemble_every_field() -> Result<()> {
+        for source_root in ["", r#""sourceRoot":"/root","#] {
+            let input = format!(
+                r#"{{"version":3,"file":"out.js","sources":["a.js"],{source_root}"sections":[],"names":["n"],"scopes":"s","rangeMappings":"r","mappings":"AAAA","ignoreList":[0],"x_facebook_offsets":[0],"x_metro_module_paths":["m"],"x_facebook_sources":[null],"debug_id":"old","debugId":"new"}}"#
+            );
+            let mut map = StructuredSourceMap::from_json(&Rope::from(input))?;
+            map.sources_content = Some(SourcesContentField::Escaped(vec![escape_content(Some(
+                "x\u{0}\"",
+            ))]));
+            let (contents, rest) = map.write_tail_parts(&[]);
+            assert_eq!(contents.is_some(), source_root.is_empty());
+            let mut joined = map.head_fields().head_to_rope().to_bytes().to_vec();
+            if let Some(contents) = contents {
+                joined.extend_from_slice(&contents.read().await?.to_bytes());
+            }
+            joined.extend_from_slice(&rest.read().await?.to_bytes());
+            assert_eq!(joined, map.to_rope().to_bytes().to_vec());
+        }
         Ok(())
     }
 }

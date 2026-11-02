@@ -5,6 +5,10 @@
 //! Module factories' source maps reference their module's map tail (see `SplitSourceMap`) across
 //! persisted sessions: an edit to the tail only updates the composed map, without changing the
 //! factories' map cells or the composition, before and after a restore.
+//!
+//! The module map's `sourcesContent` references the module's source file instead of holding an
+//! escaped copy of its text. The file's content (and its escaped form) is only hashed in the
+//! persistent cache, so after a restore the escaped text is recomputed from the file.
 
 use std::{
     fs::read_to_string,
@@ -76,20 +80,43 @@ fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
     DiskFileSystem::new(rcstr!("out"), Vc::cell(root))
 }
 
-/// Like a module's content: the module's map, split, with its tail in this task's cell.
+/// Like a module's content: the module's map, split, with its tail in this task's cells and its
+/// `sourcesContent` referencing the source file.
 #[turbo_tasks::value(shared)]
 struct ModuleMap {
     map: SplitSourceMap,
 }
 
+/// The module's source file.
+#[turbo_tasks::function]
+async fn source_file(input: ResolvedVc<Input>) -> Result<Vc<FileContent>> {
+    let content = input.await?.content.get().clone();
+    Ok(FileContent::Content(File::from(content.to_string())).cell())
+}
+
 #[turbo_tasks::function]
 async fn module_map(input: ResolvedVc<Input>) -> Result<Vc<ModuleMap>> {
     let content = input.await?.content.get().clone();
-    let map = StructuredSourceMap::from_json(&Rope::from(format!(
-        r#"{{"version":3,"sources":["module.js"],"sourcesContent":["{content}"],"names":[],"mappings":"AAAA"}}"#
-    )))?;
+    let file = source_file(*input).to_resolved().await?;
+    let map = swc_sourcemap::SourceMap::from_slice(
+        serde_json::to_string(&serde_json::json!({
+            "version": 3,
+            "sources": ["module.js"],
+            "sourcesContent": [content],
+            "names": [],
+            "mappings": "AAAA",
+        }))?
+        .as_bytes(),
+    )?;
+    let (map, refs) = StructuredSourceMap::from_swc_map_with_sources(
+        map,
+        &[(Rope::from(content.to_string()), file)],
+    )?;
+    if refs != [Some(file)] {
+        bail!("the content isn't matched to the source file");
+    }
     Ok(ModuleMap {
-        map: SplitSourceMap::new(map),
+        map: SplitSourceMap::new_with_source_contents(map, &refs),
     }
     .cell())
 }
@@ -194,7 +221,18 @@ struct PieceMaps {
 /// The factories' section map cells, and checks that each references the module's tail.
 #[turbo_tasks::function(operation, root)]
 async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>> {
-    let tail = module_map(*input).await?.map.tail();
+    let module = module_map(*input).await?;
+    let contents = module.map.contents().expect("the contents are a part");
+    let file = source_file(*input).to_resolved().await?;
+    let references_file = |rope: &CellRope| {
+        rope.parts()
+            .any(|part| matches!(part, CellRopePart::EscapedFileContent(f) if f == file))
+    };
+    if !references_file(&*contents.await?) {
+        bail!("the module's contents don't reference the source file");
+    }
+    // The factories copy the contents' segments (the file reference) and reference the rest.
+    let tail = vec![module.map.rest()];
     let mut maps = Vec::new();
     for prefix in [rcstr!("a"), rcstr!("b")] {
         let cells = piece(*input, prefix).await?;
@@ -206,11 +244,11 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
         let referenced = map
             .parts()
             .filter_map(|part| match part {
-                CellRopePart::Cell { cell, skip: None } => Some(cell),
+                CellRopePart::Nested(rope) => Some(rope),
                 _ => None,
             })
             .collect::<Vec<_>>();
-        if referenced != [tail] {
+        if referenced != tail || !references_file(&map) {
             bail!("the factory's map doesn't reference the module's tail");
         }
         maps.push(map);
