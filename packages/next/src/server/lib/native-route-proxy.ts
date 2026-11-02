@@ -27,6 +27,16 @@ const MERGED_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
+function distinctHeaders(message: IncomingMessage): Record<string, string[]> {
+  // Node's headersDistinct getter throws for names inherited from Object.prototype.
+  const headers: Record<string, string[]> = Object.create(null)
+  for (let i = 0; i < message.rawHeaders.length; i += 2) {
+    const name = message.rawHeaders[i].toLowerCase()
+    ;(headers[name] ||= []).push(message.rawHeaders[i + 1])
+  }
+  return headers
+}
+
 /** Forwards an admitted request to an authenticated worker's HTTP listener. */
 export function proxyNativeRequest(
   req: IncomingMessage,
@@ -36,7 +46,7 @@ export function proxyNativeRequest(
 ): Promise<void> {
   // Public values cannot supply private metadata. Authentication is process scoped.
   // Use normalized headers so proxy.ts request-header mutations are respected.
-  const rawValues = req.headersDistinct
+  const rawValues = distinctHeaders(req)
   const connection = String(req.headers.connection || '').toLowerCase()
   const connectionHeaders = connection
     ? new Set(connection.split(',').map((name) => name.trim()))
@@ -90,8 +100,8 @@ export function proxyNativeRequest(
     upstream.once('error', done)
     upstream.once('response', (response) => {
       res.statusCode = response.statusCode || 502
-      // headersDistinct preserves repeated Set-Cookie and other response fields.
-      const responseHeaders = response.headersDistinct
+      // Preserve repeated Set-Cookie and other response fields.
+      const responseHeaders = distinctHeaders(response)
       for (const name in responseHeaders) {
         if (!Object.hasOwn(responseHeaders, name)) continue
         const value = responseHeaders[name]

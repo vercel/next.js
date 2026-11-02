@@ -61,16 +61,6 @@ export async function findPageFile(
     return null
   }
 
-  if (
-    others.length > 0 &&
-    [existingPath, ...others].some(
-      (p) => p.endsWith('/route.go') || p === 'route.go'
-    )
-  ) {
-    throw new Error(
-      `Conflicting App Router handlers: ${[existingPath, ...others].join(', ')}`
-    )
-  }
   if (others.length > 0) {
     warn(
       `Duplicate page detected. ${cyan(join('pages', existingPath))} and ${cyan(
