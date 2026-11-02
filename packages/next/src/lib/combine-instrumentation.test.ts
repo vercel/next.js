@@ -69,6 +69,35 @@ describe('combineInstrumentation', () => {
     expect(seen).toEqual([[error, request, context]])
   })
 
+  it('runs every onRequestError even when an earlier one never settles', async () => {
+    const calls: string[] = []
+    const combined = combineInstrumentation([
+      { onRequestError: () => new Promise<void>(() => {}) },
+      { onRequestError: () => void calls.push('project') },
+    ])
+    void combined.onRequestError(new Error('boom'), request, context)
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(calls).toEqual(['project'])
+  })
+
+  it('collects onRequestError failures from every module', async () => {
+    const first = new Error('a failed')
+    const second = new Error('b failed')
+    const combined = combineInstrumentation([
+      { onRequestError: () => Promise.reject(first) },
+      {
+        onRequestError: () => {
+          throw second
+        },
+      },
+    ])
+    const error = await combined
+      .onRequestError(new Error('boom'), request, context)
+      .catch((err: unknown) => err)
+    expect(error).toBeInstanceOf(AggregateError)
+    expect((error as AggregateError).errors).toEqual([first, second])
+  })
+
   it('awaits modules that require() returns as promises', async () => {
     const calls: string[] = []
     const combined = combineInstrumentation([
