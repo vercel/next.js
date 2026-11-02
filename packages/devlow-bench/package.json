@@ -1,6 +1,6 @@
 {
   "name": "@vercel/devlow-bench",
-  "version": "16.4.3",
+  "version": "16.4.4",
   "description": "Benchmarking tool for the developer workflow",
   "repository": {
     "type": "git",
