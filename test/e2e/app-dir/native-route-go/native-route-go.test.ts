@@ -518,7 +518,10 @@ describe('native-route-go', () => {
       const source =
         'package main\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
       await next.patchFile(path, source)
-      expect((await next.fetch('/startup')).status).toBe(500)
+      // Route-table discovery can lag behind creation of the source file.
+      await retry(async () => {
+        expect((await next.fetch('/startup')).status).toBe(500)
+      }, 30_000)
       const failures = () =>
         (next.cliOutput.match(/panic: startup-fixture-error/g) || []).length
       expect(failures()).toBe(1)
@@ -616,7 +619,7 @@ describe('native-route-go', () => {
       })
       expect((await data()).id).toBe('example')
     })
-    // This covers host/amd64/arm64 builds and startup checks for packaged servers.
+    // This exercises host builds and startup checks for packaged servers.
     it('emits standalone Go adapter outputs alongside existing Node outputs', async () => {
       await next.stop()
       await next.patchFile('next.config.ts', (config) =>
@@ -978,50 +981,6 @@ describe('native-route-go', () => {
           }
         )
       }
-
-      // Adapter targets are independent of provider and of the host analysis tool.
-      const capture = await next.readFile('capture-adapter.mjs')
-      for (const [arch, machine] of [
-        ['amd64', 62],
-        ['arm64', 183],
-      ] as const) {
-        await next.patchFile(
-          'capture-adapter.mjs',
-          capture.replace(
-            "  name: 'native-route-go-output-capture',",
-            `  name: 'native-route-go-output-capture',\n  goTarget: { os: 'linux', arch: '${arch}' },`
-          )
-        )
-        const targetBuild = await next.build()
-        expect(targetBuild.exitCode).toBe(0)
-        const targetContext: Parameters<NextAdapter['onBuildComplete']>[0] =
-          await next.readJSON('go-adapter-output.json')
-        const targetGoOutputs = targetContext.outputs.appRoutes.filter(
-          (output) => output.runtime === 'go'
-        )
-        expect(targetGoOutputs).toHaveLength(7)
-        for (const output of targetGoOutputs) {
-          expect(output).not.toHaveProperty('target')
-          expect(output.filePath).not.toMatch(/\.exe$/)
-          const executable = await fs.readFile(output.filePath)
-          expect(executable.subarray(0, 4)).toEqual(
-            Buffer.from([0x7f, 0x45, 0x4c, 0x46])
-          )
-          expect(executable[4]).toBe(2)
-          expect(executable[5]).toBe(1)
-          expect(executable.readUInt16LE(18)).toBe(machine)
-        }
-      }
-      await next.patchFile(
-        'capture-adapter.mjs',
-        capture.replace(
-          "  name: 'native-route-go-output-capture',",
-          "  name: 'native-route-go-output-capture',\n  goTarget: { os: 'invalid', arch: 'amd64' },"
-        )
-      )
-      const invalidTargetBuild = await next.build()
-      expect(invalidTargetBuild.exitCode).not.toBe(0)
-      expect(invalidTargetBuild.cliOutput).toContain('NextAdapter.goTarget')
     }, 180_000)
   }
 })

@@ -460,16 +460,16 @@ Go Route Handlers always execute dynamically. JavaScript exports such as `dynami
 
 For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export and `output: 'standalone'` are unsupported.
 
-Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging, target selection, and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
+Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
 
 ## Build and Runtime Limitations
 
 - WebSocket upgrades and HTTP trailers are unsupported.
 - Runtime file reads are not traced. Use `go:embed` for assets shipped with Go handlers.
 - Go handlers read the process environment. `next.config` environment inlining does not apply.
-- Self-hosted builds target the host operating system and architecture with CGO disabled. Adapters can select the target through [`NextAdapter.goTarget`](/docs/app/api-reference/adapters/api-reference#gotarget). Source analysis still runs on the build host.
+- Go builds target the build host operating system and architecture with CGO disabled. The build environment must match the deployment runtime.
 - Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` or `go.sum`.
-- Go workspaces, module replacements, vendoring, and source symlinks are unsupported. Cross-compilation is limited to the targets supported by `NextAdapter.goTarget`.
+- Go workspaces, module replacements, vendoring, source symlinks, and cross-compilation are unsupported.
 - The experiment does not add `proxy.go`, Go Pages API routes, `page.go`, or `layout.go`.
 
 Go routes support Turbopack's filesystem cache and Go's build cache. Unchanged executables can be reused across server or build processes. Source files, dependencies, embedded assets, generated wrappers, toolchain settings, and compilation targets participate in invalidation.
