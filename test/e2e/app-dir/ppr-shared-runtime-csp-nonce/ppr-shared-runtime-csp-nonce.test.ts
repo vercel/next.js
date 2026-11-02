@@ -56,7 +56,10 @@ async function expectNoUnexpectedCspViolations(browser: Playwright) {
 
 // The shared runtime (and thus the inlined bootstrap) only exists in Turbopack
 // production builds.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !dev && turbopack
+// @force-gate !futureCompat
 describe('ppr-shared-runtime-csp-nonce', () => {
   const { next } = nextTestSetup({
     files: __dirname,

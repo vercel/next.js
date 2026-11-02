@@ -7,7 +7,10 @@ import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cac
 
 // This inspects local build artifacts and uses a process-local data service. The
 // existing param-matching-root-params suite covers deployed root fallbacks.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate start
+// @force-gate !futureCompat
 describe('param-matching-root-cache-isolation', () => {
   let server: ReturnType<typeof createTestDataServer>
   const requests: string[] = []

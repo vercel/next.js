@@ -2,7 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { createRouterAct } from 'router-act'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !dev
+// @force-gate !futureCompat
 describe('cached navigations - root params', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'root-params'),

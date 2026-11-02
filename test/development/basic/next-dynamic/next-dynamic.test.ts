@@ -26,6 +26,8 @@ Document.getInitialProps = (ctx) => {
 const basePath = process.env.TEST_BASE_PATH || ''
 const srcPrefix = process.env.TEST_SRC_DIR ? 'src/' : ''
 
+// Babel throws DEP0111 before the Rspack dev fixture can start.
+// @force-gate !futureCompat || !dev || !rspack || !babel
 describe('next/dynamic', () => {
   const { next } = nextTestSetup({
     files: {

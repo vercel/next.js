@@ -3,6 +3,9 @@ import { createRequestTracker } from 'e2e-utils/request-tracker'
 import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('unrecognized server actions', () => {
   const unrecognizedActionId = '0'.repeat(42)
 

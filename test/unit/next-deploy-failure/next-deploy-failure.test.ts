@@ -209,6 +209,39 @@ describe('deployment lifecycle', () => {
     customLogs = logs
   }
 
+  it.each([false, true])(
+    'forwards future-compat=%s to deployment builds and functions',
+    async (futureCompat) => {
+      process.env.NEXT_TEST_FUTURE_COMPAT = futureCompat ? '1' : ''
+      successfulDeployment()
+      const next = new NextDeployInstance({
+        files: __dirname,
+        env: { NODE_OPTIONS: '--stack-trace-limit=42' },
+      })
+      await next.setup(trace('test'))
+      await next.start()
+
+      const [, args] = jest
+        .mocked(execa)
+        .mock.calls.find(
+          ([command, args]) =>
+            command === 'vercel' && Array.isArray(args) && args[0] === 'deploy'
+        )! as unknown as [string, string[]]
+      for (const flag of ['--env', '--build-env']) {
+        const index = args.findIndex(
+          (arg, index) =>
+            arg === flag && args[index + 1].startsWith('NODE_OPTIONS=')
+        )
+        expect(index).toBeGreaterThanOrEqual(0)
+        const options = args[index + 1]
+        expect(options).toContain('--stack-trace-limit=42')
+        expect(options).toContain('--trace-deprecation')
+        expect(options.includes('--throw-deprecation')).toBe(futureCompat)
+        expect(options).not.toContain('--pending-deprecation')
+      }
+    }
+  )
+
   it('skipStart leaves deployment to the test body, where failures can be asserted', async () => {
     const { next, setup, teardown } = setupHarness(true)
     try {
@@ -316,59 +349,76 @@ describe('deployment lifecycle', () => {
     expect(next.deploymentId).toBe('deployment-id')
   })
 
-  it('enables pending deprecations in the deployed runtime, not the installer', async () => {
-    successfulDeployment()
-    const next = new NextDeployInstance({
-      files: __dirname,
-      env: { NODE_OPTIONS: '--stack-trace-limit=30' },
-    })
-    await next.setup(trace('test'))
-    await next.start()
+  it.each([false, true])(
+    'enables pending deprecations in the deployed runtime, not the installer (futureCompat=%s)',
+    async (futureCompat) => {
+      process.env.NEXT_TEST_FUTURE_COMPAT = futureCompat ? '1' : ''
+      successfulDeployment()
+      const next = new NextDeployInstance({
+        files: __dirname,
+        env: { NODE_OPTIONS: '--stack-trace-limit=30' },
+      })
+      await next.setup(trace('test'))
+      await next.start()
 
-    const [, args] = jest
-      .mocked(execa)
-      .mock.calls.find(([, args]) => args?.[0] === 'deploy')! as unknown as [
-      string,
-      string[],
-    ]
-    for (const flag of ['--env', '--build-env']) {
-      const env = Object.fromEntries(
-        args!.flatMap((arg, index) => {
-          if (arg !== flag) return []
-          const pair = args![index + 1]
-          const separator = pair.indexOf('=')
-          return [[pair.slice(0, separator), pair.slice(separator + 1)]]
-        })
-      )
-      expect(env.NODE_OPTIONS).toBe(
-        '--stack-trace-limit=30 --trace-deprecation'
-      )
-      expect(env.NODE_PENDING_DEPRECATION).toBe(
-        flag === '--env' ? '1' : undefined
-      )
-      const result = spawnSync(
-        process.execPath,
-        ['--eval', 'void module.parent'],
-        {
-          env: { ...process.env, NODE_PENDING_DEPRECATION: '', ...env },
-          encoding: 'utf8',
-        }
-      )
-      expect(result.status).toBe(0)
-      if (flag === '--env') {
-        expect(result.stderr).toContain(
-          '[DEP0144] DeprecationWarning: module.parent'
+      const [, args] = jest
+        .mocked(execa)
+        .mock.calls.find(([, args]) => args?.[0] === 'deploy')! as unknown as [
+        string,
+        string[],
+      ]
+      for (const flag of ['--env', '--build-env']) {
+        const env = Object.fromEntries(
+          args!.flatMap((arg, index) => {
+            if (arg !== flag) return []
+            const pair = args![index + 1]
+            const separator = pair.indexOf('=')
+            return [[pair.slice(0, separator), pair.slice(separator + 1)]]
+          })
         )
-        expect(result.stderr).toContain('at [eval]:1:13')
-      } else {
-        expect(result.stderr).not.toContain('DEP0144')
+        expect(env.NODE_OPTIONS).toBe(
+          futureCompat
+            ? '--stack-trace-limit=30 --trace-deprecation --throw-deprecation'
+            : '--stack-trace-limit=30 --trace-deprecation'
+        )
+        expect(env.NODE_PENDING_DEPRECATION).toBe(
+          flag === '--env' ? '1' : undefined
+        )
+        const result = spawnSync(
+          process.execPath,
+          ['--eval', 'void module.parent'],
+          {
+            env: { ...process.env, NODE_PENDING_DEPRECATION: '', ...env },
+            encoding: 'utf8',
+          }
+        )
+        if (flag === '--env') {
+          expect(result.stderr).toContain('DeprecationWarning: module.parent')
+          expect(result.stderr).toContain('at [eval]:1:13')
+          if (futureCompat) {
+            expect(result.status).toBe(1)
+            expect(result.stderr).toContain("code: 'DEP0144'")
+          } else {
+            expect(result.status).toBe(0)
+            expect(result.stderr).toContain('[DEP0144]')
+          }
+        } else {
+          expect(result.status).toBe(0)
+          expect(result.stderr).not.toContain('DEP0144')
+        }
       }
     }
-  })
+  )
 
-  it.each(['package script', 'buildCommand'])(
-    'enables pending deprecations throughout a custom %s, but not post-build',
-    async (source) => {
+  it.each([
+    ['package script', false],
+    ['package script', true],
+    ['buildCommand', false],
+    ['buildCommand', true],
+  ])(
+    'enables pending deprecations throughout a custom %s, but not post-build (futureCompat=%s)',
+    async (source, futureCompat) => {
+      process.env.NEXT_TEST_FUTURE_COMPAT = futureCompat ? '1' : ''
       jest.mocked(NextInstance.prototype as any).createTestDir.mockRestore()
       const buildCommand =
         'node pending-deprecation.cjs first && node pending-deprecation.cjs'
@@ -392,16 +442,27 @@ describe('deployment lifecycle', () => {
           encoding: 'utf8',
         })
         expect(result.error).toBeUndefined()
-        if (result.status !== 0) {
-          throw new Error(result.stdout + result.stderr)
-        }
         expect(result.stdout).toContain('first: pending=1')
-        expect(result.stdout).toContain('second: pending=1')
-        expect(result.stdout).toContain('post-build: pending=0')
-        expect(result.stdout).toContain(
-          '--conditions="deploy fixture" --trace-deprecation'
-        )
-        expect(result.stderr.match(/\[DEP0144\]/g)).toHaveLength(2)
+        if (futureCompat) {
+          expect(result.status).toBe(1)
+          expect(result.stdout).not.toContain('second: pending=1')
+          expect(result.stdout).not.toContain('post-build: pending=0')
+          expect(result.stdout).toContain(
+            '--conditions="deploy fixture" --trace-deprecation --throw-deprecation'
+          )
+          expect(result.stderr).toContain('DeprecationWarning: module.parent')
+          expect(result.stderr).toContain("code: 'DEP0144'")
+        } else {
+          if (result.status !== 0) {
+            throw new Error(result.stdout + result.stderr)
+          }
+          expect(result.stdout).toContain('second: pending=1')
+          expect(result.stdout).toContain('post-build: pending=0')
+          expect(result.stdout).toContain(
+            '--conditions="deploy fixture" --trace-deprecation'
+          )
+          expect(result.stderr.match(/\[DEP0144\]/g)).toHaveLength(2)
+        }
       } finally {
         await fs.rm(next.testDir, { recursive: true, force: true })
       }

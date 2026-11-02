@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('param-matching-root-fallback', () => {
   const { next } = nextTestSetup({
     files: __dirname,

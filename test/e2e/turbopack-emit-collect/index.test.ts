@@ -4,9 +4,12 @@ import { nextTestSetup } from 'e2e-utils'
 // Fixture uses force-dynamic which doesn't work with cache components enabled
 // Deploy mode exclusion: This suite restarts the local server to inspect
 // process-global module state.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
 // @force-gate turbopack
 // @force-gate !cacheComponents
+// @force-gate !futureCompat
 describe('turbopack-emit-collect', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

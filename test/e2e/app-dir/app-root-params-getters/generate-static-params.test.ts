@@ -3,6 +3,9 @@ import cheerio from 'cheerio'
 import { join } from 'path'
 import { getCacheHeader } from 'next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - generateStaticParams', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'generate-static-params'),

@@ -509,7 +509,7 @@ async function main() {
       await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
         cwd: __dirname,
-        ignore: '**/node_modules/**',
+        ignore: ['**/node_modules/**', '**/test-template/**'],
       })
     )
       .filter((file) => {

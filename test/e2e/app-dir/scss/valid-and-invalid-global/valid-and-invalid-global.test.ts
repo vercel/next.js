@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { waitForRedbox, getRedboxSource } from 'next-test-utils'
+import { gate, waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('Valid and Invalid Global CSS with Custom App', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -12,8 +12,15 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
 
   if (!isNextDev) {
     it('should fail to build', async () => {
-      await expect(next.start()).rejects.toThrow()
-      const cliOutput = next.cliOutput
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      if (await gate((c) => c.futureCompat && c.webpack)) {
+        expect(cliOutput).toContain("code: 'DEP_WEBPACK_MODULE_ISSUER'")
+        expect(cliOutput).toContain(
+          'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+        )
+        return
+      }
 
       if (!isTurbopack) {
         expect(cliOutput).toContain('Failed to compile')

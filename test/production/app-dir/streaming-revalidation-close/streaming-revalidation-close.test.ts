@@ -4,7 +4,10 @@ import { retry } from 'next-test-utils'
 
 // The custom server exposes the platform's pending promises and gates cache
 // I/O. Deploy coverage uses the separate streaming revalidation e2e fixtures.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('streaming revalidation at response close', () => {
   const { next } = nextTestSetup({
     files: __dirname,

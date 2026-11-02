@@ -34,7 +34,10 @@ function extractPrerenderedRouteInfo(cliOutput: string) {
 
 // The legacy Vercel builder does not implement the Cache Components shell
 // eligibility and upgrade behavior asserted here.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate prefetching && (!deploy || adapter)
+// @force-gate !futureCompat
 describe('Partial prefetching with static params and ISR fallbacks', () => {
   const { next } = nextTestSetup({
     files: __dirname,

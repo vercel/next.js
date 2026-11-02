@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 import { join } from 'path'
 
 // Importing module CSS in _document is allowed in Turbopack
@@ -13,6 +14,12 @@ import { join } from 'path'
     it('should fail to build', async () => {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).not.toBe(0)
+      if (await gate((c) => c.futureCompat && c.webpack)) {
+        expect(cliOutput).toContain(
+          'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+        )
+        return
+      }
       expect(cliOutput).toContain('Failed to compile')
       expect(cliOutput).toContain('styles.module.css')
       expect(cliOutput).toMatch(
@@ -35,6 +42,12 @@ describe('Invalid Global CSS', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
+    if (await gate((c) => c.futureCompat && c.webpack)) {
+      expect(cliOutput).toContain(
+        'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+      )
+      return
+    }
     if (!isTurbopack) {
       expect(cliOutput).toContain('Failed to compile')
     }
@@ -78,6 +91,12 @@ describe('Invalid Global CSS with Custom App', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
+    if (await gate((c) => c.futureCompat && c.webpack)) {
+      expect(cliOutput).toContain(
+        'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+      )
+      return
+    }
     if (!isTurbopack) {
       expect(cliOutput).toContain('Failed to compile')
     }
@@ -101,6 +120,12 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
+    if (await gate((c) => c.futureCompat && c.webpack)) {
+      expect(cliOutput).toContain(
+        'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+      )
+      return
+    }
     if (!isTurbopack) {
       expect(cliOutput).toContain('Failed to compile')
     }

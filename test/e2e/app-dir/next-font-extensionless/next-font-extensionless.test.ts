@@ -5,7 +5,10 @@ import { createServer, type Server } from 'http'
 import type { AddressInfo } from 'net'
 
 // This fixture fetches fonts from a local server, which cannot be reached in deploy mode.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('next/font/google with an extensionless URL', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

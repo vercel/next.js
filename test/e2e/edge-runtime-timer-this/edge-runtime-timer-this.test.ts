@@ -4,7 +4,10 @@ const enableCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 // Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
 // This is testing the edge runtime sandbox, which is only used in `next start`.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('edge-runtime-timer-this', () => {
   const { next } = nextTestSetup({
     files: __dirname,

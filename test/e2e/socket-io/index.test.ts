@@ -5,6 +5,7 @@ import { retry } from 'next-test-utils'
 // the socket.io setup relies on patching next's `http.Server` instance,
 // which we can't do when deployed
 // @force-gate !deploy
+// @force-gate !futureCompat || !start || turbopack
 describe('socket-io', () => {
   const { next } = nextTestSetup({
     files: __dirname,

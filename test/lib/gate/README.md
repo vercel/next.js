@@ -83,13 +83,13 @@ fails the whole suite at collection time rather than silently disabling the gate
 There are two tiers:
 
 - **static** — the run's own shape (`dev`, `start`, `deploy`, `mode`,
-  `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`,
+  `turbopack`, `rspack`, `webpack`, `bundler`, `babel` (`TEST_BABEL=1`), `react18`, `wasm`, `linux`,
   `macos`, `windows`, `ci`), semantic aliases for `!dev` that state the reason
   rather than the mode (`prod`, `prefetching`), the deploy host (`vercel`: a
   deploy run declared as Vercel with `NEXT_TEST_DEPLOY_TARGET_VERCEL=1`, as
   opposed to another host that deploys through `NEXT_TEST_DEPLOY_SCRIPT_PATH`
   to test its adapter), specialized CI variants
-  (`adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,
+  (`futureCompat`, `adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,
   `turbopackBuild`), plus `FIXME` / `TODO`, which are always false.
 
   Gate on `vercel` rather than `deploy` when the reason is specific to Vercel
@@ -99,7 +99,7 @@ There are two tiers:
   skip only Vercel.
 
 - **lazy** — a predicate over the fixture's _resolved_ `next.config`
-  (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
+  (`cacheComponents`, `ppr`, `prefetchInlining`, `sassEmbedded`, `output`, …), read the first
   time a gate asks for it.
 
 Lazy conditions read the resolved config and never `process.env`, because
@@ -208,8 +208,9 @@ var is not what the fixture actually resolved.
    and every other line keeps its byte offsets — `toMatchInlineSnapshot()` is
    written back by line/column.
 2. `jest-transformer.js` chains that rewrite in front of the SWC transformer
-   `next/jest` configures. `jest.config.js` wires it up with
-   `withGateTransformer()`.
+   `next/jest` configures for `*.test.{js,jsx,ts,tsx,mjs}` and shared
+   `*.util.{js,jsx,ts,tsx,mjs}` helpers. Ordinary fixture source is not rewritten.
+   `jest.config.js` wires it up with `withGateTransformer()`.
 3. `runtime.ts` installs `_test_gate` and evaluates conditions. A false
    _static_ `@gate` is known while tests are collected, so the test registers
    through Jest's native `test.failing` and the inversion is Jest's own. A

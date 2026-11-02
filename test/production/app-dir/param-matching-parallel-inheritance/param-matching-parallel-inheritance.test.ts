@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('param-matching-parallel-inheritance', () => {
@@ -8,6 +9,12 @@ describe('param-matching-parallel-inheritance', () => {
 
   it('rejects an override that conflicts with a sibling inherited policy', async () => {
     const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
 
     // All slots match /[lang]. Opening @main must not also open @sidebar,
     // which still inherits lang: 'not-found' from their shared layout.
@@ -29,6 +36,12 @@ describe('param-matching-parallel-inheritance', () => {
     }
 
     const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
     expect(cliOutput).not.toContain(
       'conflicting parallel parameter matching modes'
     )

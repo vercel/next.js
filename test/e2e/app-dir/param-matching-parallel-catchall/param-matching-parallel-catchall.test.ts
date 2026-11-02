@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 // This policy deliberately fails validation, so the app cannot be deployed.
 // @force-gate !deploy
@@ -10,6 +10,14 @@ describe('param-matching-parallel-catchall', () => {
   })
 
   it('rejects a catch-all policy for a parameter outside the matched pathname', async () => {
+    if (await gate((c) => c.futureCompat)) {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
+
     if (isNextDev) {
       await next.start()
       expect((await next.fetch('/one')).status).toBe(500)

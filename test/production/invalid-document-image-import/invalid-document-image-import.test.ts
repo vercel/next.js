@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 // Skipped in Turbopack as Turbopack doesn't have this error as it can process these imports.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -12,6 +13,12 @@ import { nextTestSetup } from 'e2e-utils'
     it('Should fail to build when no next.config.js', async () => {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).not.toBe(0)
+      if (await gate((c) => c.futureCompat && c.webpack)) {
+        expect(cliOutput).toContain(
+          'DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+        )
+        return
+      }
       expect(cliOutput).toContain('Failed to compile')
       expect(cliOutput).toMatch(
         /Images.*cannot.*be imported within.*pages[\\/]_document\.js/

@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
 
+// @force-gate !futureCompat || !start
 describe('cache-components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

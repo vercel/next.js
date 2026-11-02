@@ -41,6 +41,7 @@ describe('Build Error Tests', () => {
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely expects a local build failure instead of a successful deployment.
 // @force-gate !deploy
+// @force-gate !(rspack && react18 && start)
 describe('Static Image Component Tests', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,

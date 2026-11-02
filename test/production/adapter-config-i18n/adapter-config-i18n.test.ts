@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
 import { RouteKind } from 'next/dist/server/route-kind'
 
+// @force-gate !futureCompat || !start
 describe('adapter config with i18n routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,

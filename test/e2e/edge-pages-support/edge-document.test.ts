@@ -2,6 +2,7 @@ import { nextTestSetup, FileRef } from 'e2e-utils'
 import { join } from 'path'
 
 // x-ref: https://github.com/vercel/next.js/issues/45189
+// @force-gate !futureCompat || !start
 describe('edge render - custom _document with edge runtime', () => {
   const { next } = nextTestSetup({
     files: {

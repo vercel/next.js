@@ -4,6 +4,8 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 import { retry } from '../../../lib/next-test-utils'
 
+// DEP0144 in the TypeScript config loader prevents the fixture from starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - multiple roots', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'multiple-roots'),

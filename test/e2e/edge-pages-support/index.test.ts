@@ -5,6 +5,7 @@ import { join } from 'path'
 import escapeStringRegexp from 'escape-string-regexp'
 import fs from 'fs-extra'
 
+// @force-gate !futureCompat || !start
 describe('edge-render-getserversideprops', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'app'),

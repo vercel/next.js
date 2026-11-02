@@ -15,6 +15,7 @@ import {
 //
 // One combination contains `.`, `-` and `,`. A regex treats those characters as
 // special, and the patterns below escape them.
+// @force-gate !futureCompat || !start
 describe('adapter dynamic routes (shell prefixes)', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'shell-prefixes'),

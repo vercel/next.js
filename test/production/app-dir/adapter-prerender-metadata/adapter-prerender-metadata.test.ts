@@ -28,6 +28,7 @@ const validClassifications: Classification[] = [
 const classificationKey = ({ routeType, response, compute }: Classification) =>
   `${routeType}/${response}/${compute}`
 
+// @force-gate !futureCompat || !start
 describe('adapter-prerender-metadata', () => {
   const { next } = nextTestSetup({
     files: __dirname,

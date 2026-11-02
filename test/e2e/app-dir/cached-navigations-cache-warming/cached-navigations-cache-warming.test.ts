@@ -4,7 +4,10 @@ import type { Page } from 'playwright'
 import { createRouterAct } from 'router-act'
 import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/dist/server/use-cache/use-cache-errors'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate prod
+// @force-gate !futureCompat
 describe('cached-navigations-cache-warming', () => {
   const { next } = nextTestSetup({
     files: __dirname,

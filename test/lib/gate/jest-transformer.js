@@ -16,7 +16,7 @@ const path = require('path')
 
 const { rewrite } = require('./pragma-transform')
 
-const IS_TEST_FILE = /\.test\.(js|jsx|ts|tsx|mjs)$/
+const IS_TEST_OR_HELPER_FILE = /\.(test|util)\.(js|jsx|ts|tsx|mjs)$/
 
 /** The transform key `next/jest` uses for its SWC transformer. */
 const TRANSFORM_KEY = '^.+\\.(js|jsx|ts|tsx|mjs)$'
@@ -52,7 +52,7 @@ function createTransformer(inputOptions) {
 
   return {
     process(src, filename, jestOptions) {
-      const rewritten = IS_TEST_FILE.test(filename)
+      const rewritten = IS_TEST_OR_HELPER_FILE.test(filename)
         ? rewrite(src, filename)
         : src
       return inner.process(rewritten, filename, jestOptions)

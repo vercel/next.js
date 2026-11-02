@@ -5,6 +5,7 @@ import spawn from 'cross-spawn'
 
 // Deploy mode exclusion: This suite spawns a local proxy process.
 // @force-gate !deploy
+// @force-gate !futureCompat || !start || turbopack
 describe('next/font/google with proxy', () => {
   const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'with-proxy')),

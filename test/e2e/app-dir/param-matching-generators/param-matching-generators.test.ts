@@ -6,6 +6,9 @@ import {
 } from 'next/dist/shared/lib/app-router-types'
 import { createRouterAct } from 'router-act'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('param-matching-generators', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,

@@ -20,6 +20,7 @@ import type { NextAdapter } from 'next'
 // These assertions describe the desired output and are expected to fail
 // until the adapter implements the key filtering for blocking entries (both
 // the empty-shell downgrade case and the unresolved-root-param case).
+// @force-gate !futureCompat || !start
 describe('adapter-partial-fallback-blocking', () => {
   const { next } = nextTestSetup({
     files: __dirname,

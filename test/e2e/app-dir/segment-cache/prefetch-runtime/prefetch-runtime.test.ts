@@ -4,6 +4,9 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,

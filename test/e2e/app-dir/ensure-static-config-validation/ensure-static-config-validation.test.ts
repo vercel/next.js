@@ -13,7 +13,10 @@ import {
 } from '../../../lib/add-redbox-matchers'
 
 // Cannot prerender individual pages in deploy mode
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('ensureStatic config validation', () => {
   const { next } = nextTestSetup({
     files: __dirname,

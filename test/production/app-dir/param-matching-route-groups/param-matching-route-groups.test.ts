@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
 
@@ -14,6 +15,12 @@ describe.each(['aligned', 'grouped-sidebar', 'grouped-children'])(
 
     it('uses URL parameter order regardless of the depth of a parallel branch', async () => {
       const { exitCode, cliOutput } = await next.build()
+      if (await gate((c) => c.futureCompat)) {
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain("code: 'DEP0144'")
+        expect(cliOutput).toContain('at requireFromString')
+        return
+      }
       expect(cliOutput).not.toContain('must be ordered')
       expect(exitCode).toBe(0)
       await next.start({ skipBuild: true })
@@ -41,6 +48,12 @@ describe.each([
 
   it('rejects policies that become incoherent through composition', async () => {
     const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
     expect(exitCode).toBe(1)
     expect(cliOutput).toContain(
       `parameter "bottom" uses "${bottomMode}" after parameter "top" uses a later matching phase`

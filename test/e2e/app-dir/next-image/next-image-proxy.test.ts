@@ -10,7 +10,10 @@ let proxyServer: https.Server
 
 // Deploy mode exclusion: This suite controls a local server or proxy process.
 // This test is skipped when deployed because it relies on a proxy server
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('next-image-proxy', () => {
   const { next } = nextTestSetup({
     files: __dirname,

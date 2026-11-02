@@ -3,6 +3,7 @@ import path from 'path'
 import type { NextAdapter } from 'next'
 import { nextTestSetup } from 'e2e-utils'
 import { version as nextVersion } from 'next/package.json'
+import { gate } from 'next-test-utils'
 
 process.env.TEST_EXPORT = '1'
 
@@ -36,8 +37,15 @@ describe('adapter-config export', () => {
       await next.remove(file)
     }
 
-    await next.build()
-    expect(next.cliOutput).toContain('onBuildComplete called')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).toContain('onBuildComplete called')
+    if (await gate((conditions) => conditions.futureCompat)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain('DEP0169')
+      expect(cliOutput).toContain('url.parse()')
+      return
+    }
+    expect(exitCode).toBe(0)
 
     const {
       outputs,

@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { readFile } from 'node:fs/promises'
@@ -17,6 +18,13 @@ describe('dynamicParams: false with a cache retained across builds', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
   it('rejects a removed build path even when its old cache entry still exists', async () => {
+    if (await gate((c) => c.futureCompat)) {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
     const original = await next.readFile('slugs.json')
     const cacheKey = getRouteCacheKey('/products/removed', {
       kind: RouteKind.APP_PAGE,
