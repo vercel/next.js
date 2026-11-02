@@ -357,6 +357,16 @@ export class NextInstance {
           }
 
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          let buildCommand =
+            (pkgScripts['build'] || this.buildCommand || 'next build') +
+            (this.buildArgs?.length ? ` ${this.buildArgs.join(' ')}` : '')
+          if (isNextDeploy) {
+            // Scope pending deprecations to the whole build command, not the
+            // package manager installing dependencies or running post-build.
+            buildCommand =
+              'NODE_PENDING_DEPRECATION=1 ' +
+              shellQuote(['sh', '-c', buildCommand])
+          }
           // Pin the same pnpm version the repo uses so corepack resolves a
           // consistent pnpm across isolated test dirs. Mirrors the logic in
           // `create-next-install.js` so skipInstall / skipIsolatedNext test
@@ -396,12 +406,7 @@ export class NextInstance {
                       }
                     : {}),
                   ...pkgScripts,
-                  build:
-                    (pkgScripts['build'] || this.buildCommand || 'next build') +
-                    (this.buildArgs?.length
-                      ? ` ${this.buildArgs.join(' ')}`
-                      : '') +
-                    ' && pnpm post-build',
+                  build: buildCommand + ' && pnpm post-build',
                 },
               },
               null,
