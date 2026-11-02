@@ -1,8 +1,0 @@
-{
-  "agent": "vercel-ai-gateway/codex",
-  "model": "openai/gpt-6-luna?reasoningEffort=high",
-  "codexVersion": "0.166.0",
-  "agentBrowser": "0.31.1",
-  "agentTimeoutSeconds": 1800,
-  "lighthouseSamples": 3
-}

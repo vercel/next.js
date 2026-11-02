@@ -35,8 +35,13 @@ without exporting it to `next-evals-oss` or publishing leaderboard scores.
 
 ## Additional measurements
 
-The [metrics comparison](../../studies/next-dev-loop-ux/README.md) uses this
-same prompt and starting app to record tokens, time, model cost, and production
-page measurements. These sit alongside the pass/fail result. Lighthouse
-values are repeated lab samples, not pass thresholds. Review the finished
-app and transcripts where visual quality or the agent's approach matters.
+Add `--metrics` to the same command to save the generated app and collect
+coding time, tokens, estimated model cost, and production page measurements:
+
+```bash
+pnpm eval agent-062-pokedex-dev-loop --variant baseline --variant skills --metrics
+```
+
+The normal grader still determines pass/fail. The collector measures each
+passing app after grading in a separate Sandbox. See [eval metrics](../../metrics/README.md)
+for model selection, pricing, saved reports, and measurement retries.

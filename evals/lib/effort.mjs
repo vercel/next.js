@@ -1,40 +1,35 @@
-import { readFileSync, readdirSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
-
-const root = resolve(process.argv[2] || 'evals/results/pokedex-dev-loop-cc')
-const pricingFile = process.argv[3]
-const pricing = pricingFile
-  ? JSON.parse(readFileSync(pricingFile, 'utf8')).pricing
-  : null
-
-function findRuns(dir) {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(dir, entry.name)
-    if (
-      entry.isDirectory() &&
-      !['project', 'workspace', 'harness'].includes(entry.name)
-    )
-      return findRuns(path)
-    return entry.isFile() && entry.name === 'result.json' ? [path] : []
-  })
-}
-
-function read(path) {
-  try {
-    return readFileSync(path, 'utf8')
-  } catch (error) {
-    if (error.code === 'ENOENT') return ''
-    throw error
-  }
-}
-
-// This study's Codex session records cumulative usage and per-request usage.
-// Do not sum cumulative totals, or count reasoning tokens a second time.
-function effort(raw) {
+export function effort(raw, pricing = null) {
   const events = raw
     .split('\n')
     .filter(Boolean)
-    .map((line) => JSON.parse(line))
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line)]
+      } catch {
+        return []
+      }
+    })
+  const claude = events.findLast(
+    (event) => event.type === 'result' && event.usage
+  )
+  if (claude) {
+    const usage = claude.usage
+    const cached = usage.cache_read_input_tokens ?? 0
+    const written = usage.cache_creation_input_tokens ?? 0
+    return {
+      inputTokens: (usage.input_tokens ?? 0) + cached + written,
+      cachedInputTokens: cached,
+      cacheWriteInputTokens: written,
+      outputTokens: usage.output_tokens ?? null,
+      estimatedModelUsd: pricing
+        ? (usage.input_tokens ?? 0) * Number(pricing.input) +
+          cached * Number(pricing.input_cache_read) +
+          written * Number(pricing.input_cache_write ?? pricing.input) +
+          (usage.output_tokens ?? 0) * Number(pricing.output)
+        : null,
+      traceSeconds: null,
+    }
+  }
   const turns = events.filter(
     (event) => event.type === 'turn.completed' && event.usage
   )
@@ -115,48 +110,3 @@ function effort(raw) {
         : null,
   }
 }
-
-const rows = findRuns(root)
-  .sort()
-  .map((path) => {
-    const dir = resolve(path, '..')
-    const result = JSON.parse(readFileSync(path, 'utf8'))
-    const verification = JSON.parse(
-      read(join(dir, 'verification.json')) || 'null'
-    )
-    const acceptance = JSON.parse(read(join(dir, 'acceptance.json')) || 'null')
-    const pageMeasurements = JSON.parse(
-      read(join(dir, 'measurements.json')) || 'null'
-    )
-    return {
-      run: relative(root, dir),
-      model: result.observedModel || result.model,
-      status: verification
-        ? verification.acceptanceExitCode === 0
-          ? 'passed'
-          : 'failed'
-        : result.status,
-      runnerSeconds: result.duration,
-      ...effort(read(join(dir, 'transcript-raw.jsonl'))),
-      agentSeconds: result.agentSeconds ?? null,
-      ...(acceptance ? { acceptance: acceptance.stats } : {}),
-      ...(pageMeasurements ? { pageMeasurements } : {}),
-      measurementStatus: pageMeasurements ? 'collected' : 'missing',
-    }
-  })
-
-console.log(
-  JSON.stringify(
-    {
-      notes: [
-        'Input tokens include cached input; cached input is shown separately, not added again.',
-        'Cost is an estimate using the supplied pricing, not a billing receipt. CLI aggregate usage uses base rates; per-request tiers are unavailable. Sandbox and serving cost are excluded.',
-        'Agent time excludes setup and verification. Runner time includes setup and any verification performed in that runner. Missing evidence remains null.',
-        'Lighthouse medians describe three mobile page-load lab samples, not field Core Web Vitals, INP, or complete UX quality.',
-      ],
-      runs: rows,
-    },
-    null,
-    2
-  )
-)

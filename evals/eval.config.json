@@ -69,6 +69,7 @@
   "agent-062-pokedex-dev-loop": {
     "skills": ["next-dev-loop"],
     "publish": false,
-    "timeout": 1800
+    "timeout": 1800,
+    "metrics": "pokedex"
   }
 }
