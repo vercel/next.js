@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_bitset::Bitset;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::module_graph::{
@@ -15,7 +15,7 @@ use crate::module_graph::{
 ///
 /// The bitmap holds indices into the [`crate::module_graph::chunk_group_info::ChunkGroupInfo`] of a
 /// single [`ModuleGraph`]. The same index means something entirely different in another graph, so
-/// the graph is stored alongside the bitmap and every operation asserts that it matches. Use
+/// the graph is stored alongside the bitmap and every operation checks that it matches. Use
 /// [`AvailableChunkGroups::translate`] to move availability to a different graph.
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
@@ -26,22 +26,31 @@ pub struct AvailableChunkGroups {
 }
 
 impl AvailableChunkGroups {
-    /// Panics in debug builds when `module_graph` is not the graph these chunk group indices
-    /// belong to. Chunk group indices of a different graph would silently resolve to unrelated
-    /// chunk groups, which drops modules from the output.
-    pub fn assert_module_graph(&self, module_graph: ResolvedVc<ModuleGraph>) {
-        debug_assert_eq!(
-            self.module_graph, module_graph,
-            "AvailableChunkGroups was created for a different ModuleGraph. Chunk group indices \
-             are only valid within the ChunkGroupInfo of the graph that produced them; use \
-             AvailableChunkGroups::translate to move them to another graph."
-        );
+    /// Errors when `module_graph` is not the graph these chunk group indices belong to. Chunk
+    /// group indices of a different graph would silently resolve to unrelated chunk groups, which
+    /// drops modules from the output.
+    ///
+    /// This is an error rather than a panic: with eventual consistency a graph can briefly be
+    /// paired with availability computed for another graph, and the computation is retried once
+    /// the data is consistent again.
+    pub fn assert_module_graph(&self, module_graph: ResolvedVc<ModuleGraph>) -> Result<()> {
+        if self.module_graph != module_graph {
+            bail!(
+                "AvailableChunkGroups was created for a different ModuleGraph. Chunk group \
+                 indices are only valid within the ChunkGroupInfo of the graph that produced \
+                 them; use AvailableChunkGroups::translate to move them to another graph. \
+                 (expected {:?}, got {:?})",
+                self.module_graph,
+                module_graph
+            );
+        }
+        Ok(())
     }
 
     /// The chunk groups that are available, for `module_graph`.
-    pub fn chunk_groups(&self, module_graph: ResolvedVc<ModuleGraph>) -> &Bitset {
-        self.assert_module_graph(module_graph);
-        &self.chunk_groups
+    pub fn chunk_groups(&self, module_graph: ResolvedVc<ModuleGraph>) -> Result<&Bitset> {
+        self.assert_module_graph(module_graph)?;
+        Ok(&self.chunk_groups)
     }
 }
 
@@ -58,6 +67,26 @@ impl AvailableChunkGroups {
         .cell()
     }
 
+    /// Creates the set of `chunk_groups`, which must not be empty.
+    ///
+    /// Equal sets of the same graph share one cell, no matter how they were computed. Narrowing an
+    /// availability down to the chunk groups that matter for a chunk group goes through here, so
+    /// availabilities that only differed in irrelevant chunk groups become identical task inputs.
+    #[turbo_tasks::function]
+    pub fn from_chunk_groups(
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunk_groups: Bitset,
+    ) -> Result<Vc<Self>> {
+        if chunk_groups.is_zero() {
+            bail!("AvailableChunkGroups must not be empty");
+        }
+        Ok(Self {
+            module_graph,
+            chunk_groups,
+        }
+        .cell())
+    }
+
     /// Adds `chunk_group` to the set. Adding a chunk group that is already available is a no-op:
     /// a chunk group can be reached again further down a chunking chain, and availability is a
     /// set, not a count.
@@ -66,15 +95,15 @@ impl AvailableChunkGroups {
         &self,
         module_graph: ResolvedVc<ModuleGraph>,
         chunk_group: u32,
-    ) -> Vc<Self> {
-        self.assert_module_graph(module_graph);
+    ) -> Result<Vc<Self>> {
+        self.assert_module_graph(module_graph)?;
         let mut chunk_groups = self.chunk_groups.clone();
         chunk_groups.insert(chunk_group);
-        Self {
+        Ok(Self {
             module_graph: self.module_graph,
             chunk_groups,
         }
-        .cell()
+        .cell())
     }
 
     /// Re-expresses this availability in terms of `module_graph`'s
@@ -123,42 +152,49 @@ impl AvailableChunkGroups {
     /// only meaningful within one [`ModuleGraph`]'s `ChunkGroupInfo` and denotes an unrelated chunk
     /// group in any other graph. Hashing indices would let two different availabilities, coming
     /// from two graphs, claim the same output path with different content.
+    ///
+    /// The identity hashes come from [`ChunkGroupInfo::chunk_group_ident_hashes`], computed once
+    /// per graph, so this reads a single cell and does no string work, however many chunk
+    /// groups are available.
+    ///
+    /// [`ChunkGroupInfo::chunk_group_ident_hashes`]:
+    /// crate::module_graph::chunk_group_info::ChunkGroupInfo::chunk_group_ident_hashes
     #[turbo_tasks::function]
     pub async fn hash(&self) -> Result<Vc<u64>> {
-        let chunk_group_info = self.module_graph.chunk_group_info().await?;
-        let keys = &chunk_group_info.chunk_group_keys;
+        let ident_hashes = self
+            .module_graph
+            .chunk_group_info()
+            .chunk_group_ident_hashes()
+            .await?;
 
-        let idents = self
+        let hashes = self
             .chunk_groups
             .iter()
-            .map(async |id| {
-                let key = keys.get_index(id as usize).with_context(|| {
+            .map(|id| {
+                ident_hashes.get(id as usize).copied().with_context(|| {
                     format!(
                         "available chunk group {id} is not a chunk group of the module graph it \
                          belongs to"
                     )
-                })?;
-                key.ident_str(keys).await
+                })
             })
-            .try_join()
-            .await?;
+            .collect::<Result<Vec<_>>>()?;
 
-        Ok(Vc::cell(hash_chunk_group_idents(idents)))
+        Ok(Vc::cell(hash_chunk_group_ident_hashes(hashes)))
     }
 }
 
-/// Hashes the identities of the available chunk groups.
+/// Hashes the identity hashes of the available chunk groups.
 ///
-/// The identities are sorted first: chunk groups are iterated in index order, which differs
-/// between graphs, so the set has to be put into an order that only depends on the identities
-/// themselves.
-fn hash_chunk_group_idents(mut idents: Vec<String>) -> u64 {
-    idents.sort_unstable();
+/// The hashes are sorted first: chunk groups are iterated in index order, which differs between
+/// graphs, so the set has to be put into an order that only depends on the identities themselves.
+fn hash_chunk_group_ident_hashes(mut hashes: Vec<u64>) -> u64 {
+    hashes.sort_unstable();
 
     let mut hasher = Xxh3Hash64Hasher::new();
-    hasher.write_value(idents.len());
-    for ident in &idents {
-        hasher.write_value(ident);
+    hasher.write_value(hashes.len());
+    for hash in hashes {
+        hasher.write_value(hash);
     }
     hasher.finish()
 }
@@ -194,8 +230,8 @@ mod tests {
     use turbo_tasks::FxIndexSet;
 
     use crate::{
-        chunk::available_chunk_groups::{hash_chunk_group_idents, translate_chunk_group},
-        module_graph::chunk_group_info::{ChunkGroupId, ChunkGroupKey},
+        chunk::available_chunk_groups::{hash_chunk_group_ident_hashes, translate_chunk_group},
+        module_graph::chunk_group_info::{ChunkGroupId, ChunkGroupKey, chunk_group_ident_hash},
     };
 
     fn isolated_merged(parent: usize, merge_tag: &str) -> ChunkGroupKey {
@@ -205,21 +241,28 @@ mod tests {
         }
     }
 
+    fn shared_merged(parent: usize, merge_tag: &str) -> ChunkGroupKey {
+        ChunkGroupKey::SharedMerged {
+            parent: ChunkGroupId::from(parent),
+            merge_tag: merge_tag.into(),
+        }
+    }
+
     /// The hash `AvailableChunkGroups::hash` produces for the chunk groups `ids` of `keys`.
     ///
-    /// Renders the keys the way `hash` does. Every key here is module-free, so rendering resolves
-    /// no module idents and needs no turbo-tasks context.
+    /// Hashes the keys the way `ChunkGroupInfo::chunk_group_ident_hashes` does. Every key here is
+    /// module-free, so rendering resolves no module idents and needs no turbo-tasks context.
     async fn hash_of(keys: &FxIndexSet<ChunkGroupKey>, ids: &[u32]) -> u64 {
-        let mut idents = Vec::new();
+        let mut hashes = Vec::new();
         for &id in ids {
-            idents.push(
-                keys[id as usize]
+            hashes.push(chunk_group_ident_hash(
+                &keys[id as usize]
                     .ident_str(keys)
                     .await
                     .expect("rendering a chunk group without modules cannot fail"),
-            );
+            ));
         }
-        hash_chunk_group_idents(idents)
+        hash_chunk_group_ident_hashes(hashes)
     }
 
     #[test]
@@ -342,6 +385,25 @@ mod tests {
         assert_ne!(hash_of(&keys, &[0]).await, hash_of(&keys, &[1]).await);
         assert_ne!(hash_of(&keys, &[2]).await, hash_of(&keys, &[3]).await);
         assert_ne!(hash_of(&keys, &[0]).await, hash_of(&keys, &[0, 1]).await);
+    }
+
+    #[tokio::test]
+    async fn merged_chunk_group_with_unknown_parent_is_an_error() {
+        // A key can carry a parent index from another (e.g. newer) `ChunkGroupInfo` than `keys`.
+        for key in [isolated_merged(1, "x"), shared_merged(1, "x")] {
+            let keys = FxIndexSet::from_iter([key]);
+            let error = keys[0]
+                .ident_str(&keys)
+                .await
+                .expect_err("an unknown merged parent must be reported as an error");
+
+            assert!(
+                error
+                    .to_string()
+                    .contains("parent chunk group 1 of a merged chunk group"),
+                "unexpected error: {error:?}"
+            );
+        }
     }
 
     #[tokio::test]

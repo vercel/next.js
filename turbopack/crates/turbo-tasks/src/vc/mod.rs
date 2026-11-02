@@ -1,6 +1,7 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+mod keyed_read_ref;
 mod local;
 pub(crate) mod operation;
 mod ord;
@@ -34,11 +35,15 @@ pub use crate::vc::{
         VcCellNewMode,
     },
     default::ValueDefault,
+    keyed_read_ref::KeyedReadRef,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     ord::OrdResolvedVc,
     raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
-    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    read::{
+        ReadKeyedReaderVcFuture, ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead,
+        VcTransparentRead,
+    },
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
@@ -439,6 +444,24 @@ where
         }
     }
 
+    /// Hint that the cell content this `Vc` points to is no longer needed, so it may be dropped to
+    /// free memory. Future reads might need to recompute the value.
+    ///
+    /// This resolves `self` like [`Vc::to_resolved`] does (tracking the dependencies on task
+    /// outputs, and waiting for them if needed), but unlike [`Vc::final_read_hint`] it never reads
+    /// the cell content. If the content isn't present (e.g. it was already dropped, or it was never
+    /// computed because its dependents were restored from a persistent cache), this does nothing,
+    /// and in particular doesn't recompute it.
+    ///
+    /// This does not track any dependency on the cell.
+    pub async fn drop_content_hint(self) -> Result<()> {
+        let RawVcUnpacked::TaskCell(task, index) = self.node.resolve().await?.unpack() else {
+            unreachable!("resolve always returns a TaskCell");
+        };
+        crate::turbo_tasks().drop_task_cell_content_hint(task, index);
+        Ok(())
+    }
+
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
     /// [`RawVcUnpacked::TaskCell`] representation.
     ///
@@ -568,6 +591,19 @@ where
     {
         let future: ReadVcFuture<T> = self.node.into_read().into();
         future.contains_key(key)
+    }
+
+    /// Read the value once for many synchronous keyed accesses via the returned
+    /// [`KeyedReadRef`] (`vc.keyed_reader().await?.get(key)`). This is more efficient than many
+    /// [`Vc::get`] / [`Vc::contains_key`] reads of the same cell within a single task.
+    ///
+    /// Once the [`KeyedReadRef`] is dropped, the task only depends on the accessed keys instead of
+    /// the full value. The returned future and the [`KeyedReadRef`] must be dropped within the
+    /// task execution that called this method, otherwise completing that execution panics. See
+    /// [`KeyedReadRef`] for details.
+    pub fn keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.keyed_reader()
     }
 }
 
