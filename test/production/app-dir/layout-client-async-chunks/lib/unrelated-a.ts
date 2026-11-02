@@ -1,5 +1,5 @@
 import { track } from './analytics'
-import Chart from '../app/dashboard/[id]/chart'
+import Chart from '../(root)/dashboard/[id]/chart'
 
 void import('./unrelated-b')
 export const references = { track, Chart }

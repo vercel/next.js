@@ -48,15 +48,15 @@ fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
     server_component_index: Option<u32>,
 ) -> FxIndexSet<u32> {
-    if let Some(server_component_index) = server_component_index {
-        let mut parent_indices = FxIndexSet::default();
-        if source_indices.contains(&server_component_index) {
-            parent_indices.insert(server_component_index);
-        }
-        return parent_indices;
+    let Some(server_component_index) = server_component_index else {
+        // Without an owner group, fall back to the source module's groups.
+        return source_indices;
+    };
+    let mut parent_indices = FxIndexSet::default();
+    if source_indices.contains(&server_component_index) {
+        parent_indices.insert(server_component_index);
     }
-    // Without an owner group, fall back to the source module's groups.
-    source_indices
+    parent_indices
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -94,7 +94,6 @@ async fn derived_isolated_merged_groups(
             let groups = chunk_group_info
                 .get_chunk_groups_for_module(*server_component)
                 .await?;
-            // Return an error, not a panic, for an eventually inconsistent graph update.
             let [group] = groups.as_slice() else {
                 bail!(
                     "expected exactly one chunk group for server component {}, found {}",
