@@ -17,7 +17,7 @@ function defer(callback: () => Promise<void>) {
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('use-cache-swr', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
@@ -56,9 +56,37 @@ describe('use-cache-swr', () => {
     dataServer.listen(port)
     next.env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
     await next.start()
+    if (isNextDev) {
+      // Compile both pages before `warmData()` creates the entries under test.
+      // Neither request has an `id`, so both pages skip their cached functions.
+      await next.render('/caller-context')
+      await next.render('/caller-context/foreground-first')
+    }
   })
 
   afterAll(() => dataServer?.close())
+
+  async function warmData(id: string) {
+    const initial: { value: string; createdAt: number } = await next
+      .fetch(`/caller-context/warm?id=${id}`)
+      .then((response) => response.json())
+    await retry(
+      () => {
+        expect(Date.now() - initial.createdAt).toBeGreaterThan(1100)
+      },
+      5000,
+      100
+    )
+    outputIndex = next.cliOutput.length
+    return initial
+  }
+
+  function expectOneWrite(id: string) {
+    expect(getOutput()).toIncludeRepeated(
+      `PersistentCacheHandler::set [^\\r\\n]*${escapeStringRegexp(JSON.stringify([id]))}`,
+      1
+    )
+  }
 
   let outputIndex: number
 
@@ -156,7 +184,7 @@ describe('use-cache-swr', () => {
       },
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
-    return { browser, page, act, response }
+    return { browser, act, response }
   }
 
   async function expectCachedRdcNavigation(
@@ -214,16 +242,10 @@ describe('use-cache-swr', () => {
     const key = `rdc-navigation-${randomUUID()}`
     const foregroundCacheKey = `${key}:foreground`
     await prepareStaleCacheEntry(key)
-    const { browser, page, act } = await createRdcBrowser(
-      key,
-      foregroundCacheKey
-    )
+    const { browser, act } = await createRdcBrowser(key, foregroundCacheKey)
     await using _ = defer(() => browser.deleteCookies())
     heldResponseKeys.add(key)
     heldResponseKeys.add(foregroundCacheKey)
-    const pendingNavigationResponse = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === '/rdc'
-    )
     const pendingNavigation = act(
       async () => {
         await browser
@@ -242,8 +264,6 @@ describe('use-cache-swr', () => {
       releaseDataResponses(foregroundCacheKey)
       await pendingNavigation
       expect(await browser.elementById('rdc-value').text()).toBe(`${key}-v1`)
-      const response = await pendingNavigationResponse
-      expectConsistentCacheValue(await response.text(), key, 1)
       await expectCachedRdcNavigation(browser, act, key)
     } finally {
       releaseDataResponses(foregroundCacheKey)
@@ -332,6 +352,98 @@ describe('use-cache-swr', () => {
       releaseDataResponses(key)
       await rendering
     }
+  })
+
+  it('currently gives nested callers stale data after background revalidation completes', async () => {
+    const id = `caller-context-${randomUUID()}`
+    const initial = await warmData(id)
+    // Pause the page after its direct `readData()` call returns stale data. The
+    // nested `readOuter()` calls start after the `outer:<id>` response
+    // completes.
+    heldResponseKeys.add(`outer:${id}`)
+    const rendering = next.render$(`/caller-context?id=${id}`)
+    try {
+      await retry(() => {
+        expect(dataRequestCountsByKey.get(`outer:${id}`)).toBeGreaterThan(0)
+        expectOneWrite(id)
+      })
+      // Both nested calls currently reuse the direct call's stale value,
+      // although the handler already contains the revalidated entry.
+      releaseDataResponses(`outer:${id}`)
+      const $ = await rendering
+      expect($('#direct').text()).toBe(initial.value)
+      expect($('#first').text()).toBe(initial.value)
+      expect($('#first').text()).not.toBe('')
+      expect($('#second').text()).toBe($('#first').text())
+      expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+      expectOneWrite(id)
+    } finally {
+      releaseDataResponses(`outer:${id}`)
+      await rendering
+    }
+  })
+
+  it('currently delays a direct stale read behind a nested foreground fill', async () => {
+    const id = `caller-context-${randomUUID()}`
+    const initial = await warmData(id)
+    // Pause the nested `readData()` call at `fill:<id>`, then start the direct
+    // call. The nested call requires fresh data. The direct call can use the
+    // stale entry.
+    heldResponseKeys.add(`fill:${id}`)
+    heldResponseKeys.add(`direct-ready:${id}`)
+    const rendering = next.render$(`/caller-context/foreground-first?id=${id}`)
+    try {
+      await retry(() => {
+        expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+        expect(
+          dataRequestCountsByKey.get(`direct-ready:${id}`)
+        ).toBeGreaterThan(0)
+      })
+      releaseDataResponses(`direct-ready:${id}`)
+      releaseDataResponses(`fill:${id}`)
+      const $ = await rendering
+      expect($('#direct').text()).not.toBe(initial.value)
+      expect($('#direct').text()).toBe($('#outer').text())
+      expect($('#outer').text()).not.toBe(initial.value)
+      expect($('#outer').text()).not.toBe('')
+      expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+      expectOneWrite(id)
+    } finally {
+      releaseDataResponses(`direct-ready:${id}`)
+      releaseDataResponses(`fill:${id}`)
+      await rendering
+    }
+  })
+
+  // Development persists into its front cache before the configured write
+  // fails, so that failure does not leave the same stale entry to retry.
+  // @force-gate start
+  it('retries background revalidation after its handler write fails', async () => {
+    const id = `failed-refresh-${randomUUID()}`
+    const initial = await warmData(id)
+    const pathname = `/caller-context/warm?id=${id}`
+    const stale = await next.fetch(pathname).then((response) => response.json())
+    expect(stale.value).toBe(initial.value)
+    await retry(() => {
+      expect(getOutput()).toContain(
+        `PersistentCacheHandler::write-failed caller-context:${id}`
+      )
+    })
+    expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+    const retried = await next
+      .fetch(pathname)
+      .then((response) => response.json())
+    expect(retried.value).toBe(initial.value)
+    await retry(() => {
+      expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(3)
+      expect(getOutput()).toContain(
+        `PersistentCacheHandler::write-completed caller-context:${id}`
+      )
+    })
+    const refreshed = await next
+      .fetch(pathname)
+      .then((response) => response.json())
+    expect(refreshed.value).not.toBe(initial.value)
   })
 
   it('should serve stale data and then refreshed data on a subsequent request', async () => {

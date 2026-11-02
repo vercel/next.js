@@ -111,6 +111,10 @@ pub struct ExecuteContext<'e> {
     /// teardown in `stop()` waits for this context to be dropped.
     _shutdown_guard: Option<RwLockReadGuard<'e, bool>>,
     task_lock_counter: TaskLockCounter,
+    /// Overrides the current task priority, which is otherwise read from the task-local task
+    /// state. Set for work that runs off the calling task's thread (see
+    /// [`ExecuteContext::with_current_task_priority`] and [`ExecuteContext::child_context`]).
+    current_task_priority: Option<TaskPriority>,
 }
 
 impl<'e> ExecuteContext<'e> {
@@ -125,7 +129,16 @@ impl<'e> ExecuteContext<'e> {
             _operation_guard: backend.start_operation(),
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: None,
         }
+    }
+
+    /// Makes [`ExecuteContext::get_current_task_priority`] return `priority` instead of reading
+    /// it from the task-local task state. Used when the work runs on another thread than the
+    /// calling task, where that task-local is not available.
+    pub(super) fn with_current_task_priority(mut self, priority: TaskPriority) -> Self {
+        self.current_task_priority = Some(priority);
+        self
     }
 
     /// Like [`ExecuteContext::new`], but owns the shutdown read guard that
@@ -143,6 +156,7 @@ impl<'e> ExecuteContext<'e> {
             _operation_guard: backend.start_operation(),
             _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: None,
         }
     }
 
@@ -165,6 +179,7 @@ impl<'e> ExecuteContext<'e> {
             _operation_guard: None,
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: None,
         }
     }
 
@@ -933,6 +948,13 @@ fn apply_restore_result(
 }
 
 impl<'e> ExecuteContext<'e> {
+    /// Creates a context that can be sent to another thread (e.g. a `scope_bounded` helper
+    /// thread) to continue work on behalf of this context.
+    ///
+    /// The current task priority is resolved here, on the calling thread, because the task-local
+    /// task state it is otherwise read from is not available on other threads. Without this,
+    /// tasks scheduled from the child context would get a priority that depends on which thread
+    /// the work happens to run on.
     pub fn child_context<'l>(&self) -> ChildExecuteContext<'l>
     where
         'e: 'l,
@@ -940,6 +962,7 @@ impl<'e> ExecuteContext<'e> {
         ChildExecuteContext {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
+            current_task_priority: self.get_current_task_priority(),
         }
     }
 
@@ -1153,7 +1176,8 @@ impl<'e> ExecuteContext<'e> {
     }
 
     pub fn get_current_task_priority(&self) -> TaskPriority {
-        self.turbo_tasks.get_current_task_priority()
+        self.current_task_priority
+            .unwrap_or_else(|| self.turbo_tasks.get_current_task_priority())
     }
 
     /// Record `task` as a GC candidate **if it is in fact collectible**.
@@ -1228,6 +1252,9 @@ impl<'e> ExecuteContext<'e> {
 pub struct ChildExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+    /// The priority of the task that created this context, resolved on its thread (see
+    /// [`ExecuteContext::child_context`]).
+    current_task_priority: TaskPriority,
 }
 
 impl<'e> ChildExecuteContext<'e> {
@@ -1241,6 +1268,7 @@ impl<'e> ChildExecuteContext<'e> {
             // already waits for, so it needs no shutdown guard of its own.
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: Some(self.current_task_priority),
         }
     }
 }
@@ -1748,7 +1776,7 @@ impl<'a> TaskGuard<'a> {
                     .map(|r| (r.task, TaskDataCategory::All)),
             )
             .chain(
-                self.iter_cell_dependencies_hashed()
+                self.iter_cell_dependencies_keyed()
                     .map(|(r, _)| (r.task, TaskDataCategory::All)),
             )
             .chain(
@@ -1816,8 +1844,8 @@ impl TaskStorageAccessors for TaskGuard<'_> {
 
 pub use self::{
     aggregation_update::{
-        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
-        is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob, CollectiblesUpdateVec, get_aggregation_number,
+        get_uppers, is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::{
         OutdatedEdge, capture_all_edges, cleanup_old_edges, cleanup_old_edges_deletions_only,
@@ -1825,7 +1853,7 @@ pub use self::{
     connect_child::connect_child,
     connect_children::connect_children,
     invalidate::{invalidate, make_task_dirty_internal},
-    leaf_distance_update::LeafDistanceUpdateQueue,
+    leaf_distance_update::{LeafDistanceUpdateQueue, compute_leaf_distance_update},
     prepare_new_children::prepare_new_children,
     update_cell::update_cell,
     update_collectible::UpdateCollectibleOperation,
@@ -2018,8 +2046,8 @@ mod must_exist_tests {
             .chain(data_only_ids.iter().map(|&task_id| (task_id, false)))
             .map(|(task_id, with_meta)| SnapshotItem::Put {
                 task_id,
-                data: Some(encoded_data.clone()),
-                meta: with_meta.then(|| encoded_meta.clone()),
+                data: Some(Box::from(&encoded_data[..])),
+                meta: with_meta.then(|| Box::from(&encoded_meta[..])),
                 task_type_hash: None,
                 #[cfg(feature = "print_cache_item_size")]
                 stats: Default::default(),

@@ -57,7 +57,8 @@ export function createReactServerErrorHandler(
   isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
-  spanToRecordOn?: any
+  spanToRecordOn?: any,
+  renderErrorsByDigest?: Map<string, DigestedError>
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
     // If the response was closed, we don't need to log the error.
@@ -114,6 +115,8 @@ export function createReactServerErrorHandler(
     if (!reactServerErrors.has(err.digest)) {
       reactServerErrors.set(err.digest, err)
     }
+
+    renderErrorsByDigest?.set(err.digest, err)
 
     // Format server errors in development to add more helpful error messages
     if (shouldFormatError) {

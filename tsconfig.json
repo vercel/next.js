@@ -19,6 +19,7 @@
       "test-data-service/*": ["./test/lib/test-data-service/*"],
       "test-log": ["./test/lib/test-log"],
       "router-act": ["./test/lib/router-act"],
+      "otel-span-tree": ["./test/lib/otel-span-tree"],
       "@next/playwright": ["./packages/next-playwright/src/index.ts"]
     }
   },

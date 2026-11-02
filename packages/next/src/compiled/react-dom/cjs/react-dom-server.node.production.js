@@ -551,6 +551,16 @@ function createRenderState(
         bootstrapChunks.push(endAsyncScript);
   return onHeaders;
 }
+function resumeRenderState(resumableState, nonce) {
+  return createRenderState(
+    resumableState,
+    nonce,
+    resumableState.externalRuntimeConfig,
+    void 0,
+    void 0,
+    void 0
+  );
+}
 function createResumableState(
   identifierPrefix,
   externalRuntimeConfig,
@@ -562,6 +572,7 @@ function createResumableState(
     idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
     nextFormID: 0,
     streamingFormat: 0,
+    externalRuntimeConfig: externalRuntimeConfig,
     bootstrapScriptContent: bootstrapScriptContent,
     bootstrapScripts: bootstrapScripts,
     bootstrapModules: bootstrapModules,
@@ -3436,10 +3447,9 @@ function pushTreeContext(baseContext, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     return {
@@ -7681,11 +7691,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-a6792708-20261019" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-e84e1492-20261031" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-canary-a6792708-20261019\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-canary-e84e1492-20261031\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7751,13 +7761,9 @@ function resumeRequestImpl(children, postponedState, options) {
   return resumeRequest(
     children,
     postponedState,
-    createRenderState(
+    resumeRenderState(
       postponedState.resumableState,
-      options ? options.nonce : void 0,
-      void 0,
-      void 0,
-      void 0,
-      void 0
+      options ? options.nonce : void 0
     ),
     options ? options.onError : void 0,
     options ? options.onBrowserBailout : void 0,
@@ -8025,13 +8031,9 @@ exports.resume = function (children, postponedState, options) {
       request = resumeRequest(
         children,
         postponedState,
-        createRenderState(
+        resumeRenderState(
           postponedState.resumableState,
-          options ? options.nonce : void 0,
-          void 0,
-          void 0,
-          void 0,
-          void 0
+          options ? options.nonce : void 0
         ),
         options ? options.onError : void 0,
         options ? options.onBrowserBailout : void 0,
@@ -8075,14 +8077,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8124,14 +8119,7 @@ exports.resumeAndPrerenderToNodeStream = function (
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8183,4 +8171,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-canary-a6792708-20261019";
+exports.version = "19.3.0-canary-e84e1492-20261031";

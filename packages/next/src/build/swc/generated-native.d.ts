@@ -139,15 +139,27 @@ export declare function lightningCssTransformStyleAttribute(
   opts: object
 ): unknown
 
+/** OS failures are returned as data so JS can distinguish retryable errors from unsupported locks. */
+export interface LockfileError {
+  message: string
+  transient: boolean
+  unsupported: boolean
+}
+
+export type LockfileResult =
+  | { type: 'acquired'; lockfile: { __napiType: 'Lockfile' } }
+  | { type: 'wouldBlock' }
+  | { type: 'error'; error: LockfileError }
+
 export declare function lockfileTryAcquire(
   path: string,
   content?: string | undefined | null
-): Promise<{ __napiType: 'Lockfile' } | null>
+): Promise<LockfileResult>
 
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
-): { __napiType: 'Lockfile' } | null
+): LockfileResult
 
 export declare function lockfileUnlock(lockfile: {
   __napiType: 'Lockfile'

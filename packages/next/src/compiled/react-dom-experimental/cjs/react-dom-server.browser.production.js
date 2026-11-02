@@ -461,6 +461,7 @@ function createRenderState(
         pushScriptImpl(externalRuntimeScript.chunks, {
           src: externalRuntimeConfig,
           async: !0,
+          crossOrigin: void 0,
           integrity: void 0,
           nonce: nonceScript
         }))
@@ -471,6 +472,7 @@ function createRenderState(
         pushScriptImpl(externalRuntimeScript.chunks, {
           src: externalRuntimeConfig.src,
           async: !0,
+          crossOrigin: externalRuntimeConfig.crossOrigin,
           integrity: externalRuntimeConfig.integrity,
           nonce: nonceScript
         })));
@@ -654,6 +656,16 @@ function createRenderState(
         bootstrapChunks.push(endAsyncScript);
   return onHeaders;
 }
+function resumeRenderState(resumableState, nonce) {
+  return createRenderState(
+    resumableState,
+    nonce,
+    resumableState.externalRuntimeConfig,
+    void 0,
+    void 0,
+    void 0
+  );
+}
 function createResumableState(
   identifierPrefix,
   externalRuntimeConfig,
@@ -667,6 +679,7 @@ function createResumableState(
     idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
     nextFormID: 0,
     streamingFormat: streamingFormat,
+    externalRuntimeConfig: externalRuntimeConfig,
     bootstrapScriptContent: bootstrapScriptContent,
     bootstrapScripts: bootstrapScripts,
     bootstrapModules: bootstrapModules,
@@ -3710,10 +3723,9 @@ function pushTreeContext(baseContext, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     return {
@@ -8046,12 +8058,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-a6792708-20261019" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-e84e1492-20261031" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-experimental-a6792708-20261019"
+        "19.3.0-experimental-e84e1492-20261031"
       )
     );
 }
@@ -8188,13 +8200,9 @@ exports.resume = function (children, postponedState, options) {
       request = resumeRequest(
         children,
         postponedState,
-        createRenderState(
+        resumeRenderState(
           postponedState.resumableState,
-          options ? options.nonce : void 0,
-          void 0,
-          void 0,
-          void 0,
-          void 0
+          options ? options.nonce : void 0
         ),
         options ? options.onError : void 0,
         options ? options.onBrowserBailout : void 0,
@@ -8231,14 +8239,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8266,4 +8267,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-experimental-a6792708-20261019";
+exports.version = "19.3.0-experimental-e84e1492-20261031";

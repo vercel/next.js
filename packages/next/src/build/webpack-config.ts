@@ -804,7 +804,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
-    ...((isRspack && jsConfigPath
+    ...(isRspack && jsConfigPath
       ? {
           // Skip paths that are routed to a .d.ts file
           restrictions: [/^(?!.*\.d\.ts$).*$/],
@@ -812,7 +812,7 @@ export default async function getBaseWebpackConfig(
             configFile: jsConfigPath,
           },
         }
-      : {}) as any),
+      : {}),
   }
 
   // Resolve server-relative imports (e.g. `/styles/foo`) from the app
@@ -2733,7 +2733,7 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.module.rules = [
-      ...(topRules as any),
+      ...topRules,
       {
         oneOf: [...innerRules, fileLoader],
       },

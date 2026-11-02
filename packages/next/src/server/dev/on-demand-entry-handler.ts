@@ -561,7 +561,7 @@ export function onDemandEntryHandler({
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
-  const curEntries = getEntries(multiCompiler.outputPath) as any
+  const curEntries = getEntries(multiCompiler.outputPath)
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
@@ -639,7 +639,7 @@ export function onDemandEntryHandler({
   }
 
   const startBuilding = (compilation: webpack.Compilation) => {
-    const compilationName = compilation.name as any as CompilerNameValues
+    const compilationName = compilation.name as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
     // Reset deferred entries state for this compilation cycle
     // This ensures onBeforeDeferredEntries will be called again during HMR

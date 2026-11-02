@@ -1280,18 +1280,15 @@ export async function ncc_json5(task, opts) {
     .ncc({ packageName: 'json5', externals })
     .target('src/compiled/json5')
 }
-externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
-export async function ncc_jsonwebtoken(task, opts) {
+externals['fast-jwt'] = 'next/dist/compiled/fast-jwt'
+export async function ncc_fast_jwt(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('jsonwebtoken')))
+    .source(relative(__dirname, require.resolve('fast-jwt')))
     .ncc({
-      packageName: 'jsonwebtoken',
-      externals: {
-        ...externals,
-        semver: 'next/dist/lib/semver-noop',
-      },
+      packageName: 'fast-jwt',
+      externals,
     })
-    .target('src/compiled/jsonwebtoken')
+    .target('src/compiled/fast-jwt')
 }
 externals['loader-runner'] = 'next/dist/compiled/loader-runner'
 export async function ncc_loader_runner(task, opts) {
@@ -2345,7 +2342,7 @@ export async function ncc(task, opts) {
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
-        'ncc_jsonwebtoken',
+        'ncc_fast_jwt',
         'ncc_loader_runner',
         'ncc_loader_utils2',
         'ncc_loader_utils3',

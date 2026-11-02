@@ -840,10 +840,16 @@ export default class DevServer extends Server {
           // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
-          // we write the static paths to partial manifest for
-          // fallback handling inside of entry handler's
-          const rawExistingManifest = await fs.promises.readFile(
-            pathJoin(this.distDir, PRERENDER_MANIFEST),
+          const prerenderManifestPath = pathJoin(
+            this.distDir,
+            PRERENDER_MANIFEST
+          )
+          // We write the static paths to the partial manifest for fallback handling
+          // inside of entry handlers
+          // NOTE: We're mutating a shared manifest, so we use sync reads/writes
+          // without any awaits in between to avoid races with other requests
+          const rawExistingManifest = fs.readFileSync(
+            prerenderManifestPath,
             'utf8'
           )
           const existingManifest: PrerenderManifest =
@@ -880,13 +886,10 @@ export default class DevServer extends Server {
             allowHeader: [],
           }
 
-          const updatedManifest = JSON.stringify(existingManifest)
+          const updatedManifest = JSON.stringify(existingManifest, null, 2)
 
           if (updatedManifest !== rawExistingManifest) {
-            await fs.promises.writeFile(
-              pathJoin(this.distDir, PRERENDER_MANIFEST),
-              updatedManifest
-            )
+            fs.writeFileSync(prerenderManifestPath, updatedManifest)
           }
         }
         this.staticPathsCache.set(pathname, value)

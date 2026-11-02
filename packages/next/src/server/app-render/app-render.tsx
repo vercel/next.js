@@ -74,6 +74,7 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
@@ -180,12 +181,14 @@ import {
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
+  consumeDynamicAccess,
+  type DynamicAccess,
+} from './dynamic-rendering'
+import {
   createDynamicValidationState,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
   PreludeState,
-  consumeDynamicAccess,
-  type DynamicAccess,
   logDisallowedDynamicError,
   trackDynamicHoleInStaticShell,
   getStaticShellDisallowedDynamicReasons,
@@ -200,18 +203,16 @@ import {
   throwIfDisallowedDynamicInStaticRoute,
   getDisallowedReasonsInStaticRoute,
   type InstantValidationHoleKind,
-} from './dynamic-rendering'
+} from './dynamic-rendering-validation'
 import { logBuildDebugHint } from './blocking-route-messages'
 import { ClientComponentLoadTracker } from '../client-component-renderer-logger'
-import { isNodeNextResponse } from '../base-http/helpers'
+import type { DevResponseLifecycle } from './dev-response-lifecycle'
 import { installGlobalModuleLoadingHandlers } from './install-global-module-loading-handlers'
-import { waitForResponseToFinish } from './wait-for-response'
 import {
   beginDevValidation,
   type DevValidationGeneration,
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
@@ -283,7 +284,6 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
-import { executeRevalidates } from '../revalidation-utils'
 import { trackPendingModules } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
@@ -419,6 +419,7 @@ export type AppRenderContext = {
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
+  devResponseLifecycle: DevResponseLifecycle | null
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
    * rendering/revalidating segments independently, they need to move to the
@@ -509,11 +510,14 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
+    // When global-not-found is present, use full components. Otherwise, keep
+    // the root layout to render a complete HTML document.
     hasGlobalNotFound
       ? components
-      : { 'global-error': components['global-error'] },
+      : {
+          layout: components.layout,
+          'global-error': components['global-error'],
+        },
     null, // staticSiblings
   ]
 }
@@ -838,9 +842,8 @@ async function generateDynamicFlightRenderResult(
   const requestAbortSignal =
     process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
-    requestStore.isHmrRefresh === true &&
-    isNodeNextResponse(ctx.res)
-      ? signalFromNodeResponse(ctx.res.originalResponse)
+    requestStore.isHmrRefresh === true
+      ? ctx.devResponseLifecycle?.getCloseSignal()
       : undefined
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -1401,9 +1404,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // render" button.
     const requestAbortSignal =
       renderOpts.experimental.serverComponentsHmrCancellation === true &&
-      initialRequestStore.isHmrRefresh === true &&
-      isNodeNextResponse(ctx.res)
-        ? signalFromNodeResponse(ctx.res.originalResponse)
+      initialRequestStore.isHmrRefresh === true
+        ? ctx.devResponseLifecycle?.getCloseSignal()
         : undefined
 
     const result = await stagedRenderWithCachesInDev({
@@ -2538,7 +2540,8 @@ async function prepareAppPageRender(
   routeMatch: RouteMatch,
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  renderCapabilities: AppRenderCapabilities
+  renderCapabilities: AppRenderCapabilities,
+  devResponseLifecycle: DevResponseLifecycle | null
 ): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -2674,6 +2677,7 @@ async function prepareAppPageRender(
     isNotFoundPath,
     nonce,
     res,
+    devResponseLifecycle,
     sharedContext,
     implicitTags,
   }
@@ -2769,7 +2773,8 @@ async function prerenderAppPage({
   }
 
   // If we have pending revalidates, wait until they are all resolved.
-  const maybeRevalidatesPromise = executeRevalidates(workStore)
+  const maybeRevalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   if (maybeRevalidatesPromise !== false) {
     const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -2857,7 +2862,6 @@ async function renderAppPage(
     implicitTags,
   } = ctx
   const { cacheComponents, setIsrStatus, serverActions } = renderOpts
-  const { cachedNavigations } = renderOpts.experimental
   const {
     isHmrRefresh,
     isPrefetchRequest,
@@ -2882,6 +2886,13 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
+
+  // MPA form submissions need a complete document with the submitted form
+  // state. Their new render can still reuse the extracted RDC.
+  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
+    postponedState = null
+  }
+
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     requestHeaders,
@@ -2922,6 +2933,9 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
+    // Register the close flush for Flight responses. These branches return
+    // before the HTML path executes pending revalidations.
+    workStore.afterContext.scheduleRevalidationsOnClose(workStore)
     if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
@@ -2942,7 +2956,7 @@ async function renderAppPage(
           createRequestStore,
           stagedFallbackParams
         )
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // MARK: RSC cacheComponents
         return generateStagedDynamicFlightRenderResultNode(ctx, requestStore)
       } else {
@@ -3087,7 +3101,8 @@ async function renderAppPage(
     }
 
     // If we have pending revalidates, wait until they are all resolved.
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
     if (maybeRevalidatesPromise !== false) {
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -3142,7 +3157,8 @@ async function renderToHTMLOrFlightImpl(
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | null
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3173,7 +3189,8 @@ async function renderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: false,
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
-    }
+    },
+    devResponseLifecycle
   )
   return renderAppPage(
     req,
@@ -3230,7 +3247,8 @@ async function prerenderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: isRoutePPREnabled,
       supportsPerSegmentPrefetching: true,
-    }
+    },
+    null
   )
   return prerenderAppPage(prepared)
 }
@@ -3249,7 +3267,8 @@ export type AppPageRender = (
   routeMatch: RouteMatch,
   parsedRequestHeaders: ParsedRequestHeaders,
   serverActionRequestMetadata: ServerActionRequestMetadata,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | null
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3352,7 +3371,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   routeMatch,
   parsedRequestHeaders,
   serverActionRequestMetadata,
-  stagedFallbackParams
+  stagedFallbackParams,
+  devResponseLifecycle
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3394,7 +3414,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     interpolatedParams,
     fallbackRouteParams,
     routeMatch,
-    stagedFallbackParams
+    stagedFallbackParams,
+    devResponseLifecycle
   )
 }
 
@@ -3547,7 +3568,6 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations } = renderOpts.experimental
   const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
@@ -3837,7 +3857,7 @@ async function renderToStream(
             requestId
           )
         }
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the shell byte length (`a`)
         // and, with Partial Prefetching, an embedded runtime prefetch that the
@@ -4783,8 +4803,8 @@ function runDevValidationInBackground(
       // the response has finished so that work cannot delay Flight delivery or
       // the client navigation.
       if (
-        isNodeNextResponse(ctx.res) &&
-        !(await waitForResponseToFinish(ctx.res.originalResponse))
+        ctx.devResponseLifecycle &&
+        !(await ctx.devResponseLifecycle.waitForFinish())
       ) {
         logValidationAborted(ctx)
         return
@@ -5382,6 +5402,17 @@ interface StagedDevRenderSetup {
 export enum PrefetchingMode {
   LegacySpeculative = 1,
   Partial = 2,
+}
+
+function shouldUseCachedNavigations(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    renderOpts.cacheComponents &&
+    renderOpts.experimental.cachedNavigations === true &&
+    !requestStore.draftMode.isEnabled
+  )
 }
 
 async function getPrefetchingModeForPage(
@@ -6315,7 +6346,11 @@ async function accumulateStreamChunksInto(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        collectStageChunk(accumulator, stageController.currentStage, value)
+        collectStageChunk(
+          accumulator,
+          stageController.currentStage,
+          encodeTextChunk(value)
+        )
       }
     } catch (err) {
       if (!cancelled) {
@@ -6397,7 +6432,7 @@ async function countStageBytesUntilAbortNode(
       increaseChunkByteLengths(
         byteLengths,
         stageController.currentStage,
-        (value as Uint8Array).byteLength
+        typeof value === 'string' ? Buffer.byteLength(value) : value.byteLength
       )
     }
   } catch (err) {
@@ -6596,8 +6631,7 @@ async function runWithDevValidationLogging(
 
   const requestId = ctx.requestId
   const url = ctx.url.href
-  const responseFinished =
-    !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
+  const responseFinished = ctx.devResponseLifecycle?.isFinished() ?? true
 
   console.log(
     formatValidationEvent({
@@ -8605,6 +8639,7 @@ async function validateInstantConfigInBuildWithSample(
       isNotFoundPath: outerCtx.isNotFoundPath,
       nonce: outerCtx.nonce,
       res: outerCtx.res,
+      devResponseLifecycle: outerCtx.devResponseLifecycle,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
     }
@@ -9012,6 +9047,11 @@ async function prerenderToStream(
   }
 
   const { reactServerErrorsByDigest } = workStore
+  // Collect errors reported by the page's RSC renderer to detect prerender
+  // failures. The work store's `reactServerErrorsByDigest` map also records
+  // errors from cached functions for logging, even when the page catches them.
+  // Those caught errors must not fail prerendering.
+  const renderErrorsByDigest = new Map<string, DigestedError>()
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
   function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
@@ -9027,7 +9067,9 @@ async function prerenderToStream(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
-    onHTMLRenderRSCError
+    onHTMLRenderRSCError,
+    undefined,
+    renderErrorsByDigest
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
@@ -10098,7 +10140,7 @@ async function prerenderToStream(
         reactServerResult.consume()
         return {
           error: undefined,
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(htmlStream, {
             getServerInsertedHTML,
@@ -10172,7 +10214,7 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream,
         dynamicAccess: consumeDynamicAccess(
@@ -10270,7 +10312,7 @@ async function prerenderToStream(
       })
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataStream(
@@ -10662,7 +10704,7 @@ async function prerenderToStream(
           errorServerResult.consume()
           return {
             error: errorType !== undefined ? undefined : { thrownValue: err },
-            digestErrorsMap: reactServerErrorsByDigest,
+            digestErrorsMap: renderErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
               getServerInsertedHTML,
@@ -10736,7 +10778,7 @@ async function prerenderToStream(
         errorServerResult.consume()
         return {
           error: errorType !== undefined ? undefined : { thrownValue: err },
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream,
           dynamicAccess: consumeDynamicAccess(
@@ -10843,7 +10885,7 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
           inlinedDataStream: createInlinedDataStream(
@@ -10993,7 +11035,7 @@ async function iterateStreamingPrerenderChunks(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        onChunk(value)
+        onChunk(encodeTextChunk(value))
       }
     } catch (err) {
       if (!cancelled) {

@@ -75,6 +75,9 @@ const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::All;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
 type TaskIdWithCountVec = SmallVec<[(TaskId, u32); 2]>;
+/// Collectible count changes of an [`AggregatedDataUpdate`]. Most updates change a single
+/// collectible, so one entry is stored inline.
+pub type CollectiblesUpdateVec = SmallVec<[(CollectibleRef, i32); 1]>;
 
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
@@ -348,9 +351,11 @@ struct DirtyContainerUpdate {
 ///
 /// The order of the result is unspecified. Counts are added without overflow checks; their sum is
 /// not expected to overflow.
-fn sum_collectibles_update<K: Hash + Eq + Copy>(mut update: Vec<(K, i32)>) -> Vec<(K, i32)> {
+fn sum_collectibles_update<K: Hash + Eq + Copy>(
+    mut update: SmallVec<[(K, i32); 1]>,
+) -> SmallVec<[(K, i32); 1]> {
     if update.len() < 2 {
-        update.retain(|&(_, count)| count != 0);
+        update.retain(|&mut (_, count)| count != 0);
         return update;
     }
     let mut sums: FxHashMap<K, i32> =
@@ -369,7 +374,7 @@ pub struct AggregatedDataUpdate {
     /// One of the inner tasks has changed its dirty state or aggregated dirty state.
     dirty_container_update: Option<DirtyContainerUpdate>,
     /// One of the inner tasks has changed its collectibles count or aggregated collectibles count.
-    collectibles_update: Vec<(CollectibleRef, i32)>,
+    collectibles_update: CollectiblesUpdateVec,
 }
 
 impl AggregatedDataUpdate {
@@ -390,8 +395,9 @@ impl AggregatedDataUpdate {
                 .unwrap_or_default();
             // Allocate an upper bound of the number of entries up front, so the update isn't
             // reallocated while the task is locked.
-            let mut collectibles_update =
-                Vec::with_capacity(task.collectibles_len() + task.aggregated_collectibles_len());
+            let mut collectibles_update = CollectiblesUpdateVec::with_capacity(
+                task.collectibles_len() + task.aggregated_collectibles_len(),
+            );
             collectibles_update.extend(task.iter_collectibles().map(|(&k, &v)| (k, v)));
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 {
@@ -670,7 +676,7 @@ impl AggregatedDataUpdate {
     pub fn new() -> Self {
         Self {
             dirty_container_update: None,
-            collectibles_update: Vec::new(),
+            collectibles_update: SmallVec::new(),
         }
     }
 
@@ -690,7 +696,7 @@ impl AggregatedDataUpdate {
     }
 
     /// Adds a collectibles update to the update.
-    pub fn collectibles_update(mut self, collectibles_update: Vec<(CollectibleRef, i32)>) -> Self {
+    pub fn collectibles_update(mut self, collectibles_update: CollectiblesUpdateVec) -> Self {
         self.collectibles_update = collectibles_update;
         self
     }
@@ -3588,6 +3594,7 @@ fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<
 #[cfg(test)]
 mod tests {
     use rustc_hash::{FxHashMap, FxHashSet};
+    use smallvec::{SmallVec, smallvec};
     use turbo_tasks::{CellId, TaskId, TraitTypeId, ValueTypeId};
 
     use super::{AggregatedDataUpdate, sum_collectibles_update};
@@ -3657,7 +3664,7 @@ mod tests {
     /// the unsummed ones: equal final counts, equal sets of keys whose presence changed, and every
     /// such key still flips.
     fn assert_equivalent(start: &FxHashMap<u32, i32>, update: &[(u32, i32)]) {
-        let summed = sum_collectibles_update(update.to_vec());
+        let summed = sum_collectibles_update(SmallVec::from_slice(update));
         let mut expected = FxHashMap::default();
         for &(key, count) in update {
             *expected.entry(key).or_insert(0) += count;
@@ -3688,28 +3695,45 @@ mod tests {
     #[test]
     fn optimize_sums_per_key_and_drops_zeros() {
         let update = [(1, -1), (2, 1), (1, 1), (3, 2), (2, -1), (3, 1)];
-        let summed = sum_collectibles_update(update.to_vec());
-        assert_eq!(summed, vec![(3, 3)]);
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
+        assert_eq!(summed.as_slice(), [(3, 3)]);
     }
 
     #[test]
     fn optimize_mixed_signs_and_counts() {
         let update = [(1, -2), (1, 1), (1, 1), (2, 5), (2, -3), (4, -1)];
-        let summed = sum_collectibles_update(update.to_vec());
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
         assert_eq!(as_map(&summed), [(2, 2), (4, -1)].into_iter().collect());
     }
 
     #[test]
     fn optimize_empty_and_single_entry() {
-        assert_eq!(sum_collectibles_update(Vec::<(u32, i32)>::new()), vec![]);
-        assert_eq!(sum_collectibles_update(vec![(7, 3)]), vec![(7, 3)]);
-        assert_eq!(sum_collectibles_update(vec![(7, 0)]), vec![]);
+        let empty = sum_collectibles_update(SmallVec::<[(u32, i32); 1]>::new());
+        assert!(empty.is_empty());
+        assert!(!empty.spilled());
+        let single = sum_collectibles_update(smallvec![(7u32, 3)]);
+        assert_eq!(single.as_slice(), [(7, 3)]);
+        assert!(!single.spilled());
+        assert!(sum_collectibles_update(smallvec![(7u32, 0)]).is_empty());
+    }
+
+    #[test]
+    fn optimize_reuses_the_allocation() {
+        let update: SmallVec<[(u32, i32); 1]> = smallvec![(1, 1), (2, 1), (1, 1), (3, -1)];
+        assert!(update.spilled());
+        let ptr = update.as_ptr();
+        let summed = sum_collectibles_update(update);
+        assert_eq!(summed.as_ptr(), ptr);
+        assert_eq!(
+            as_map(&summed),
+            [(1, 2), (2, 1), (3, -1)].into_iter().collect()
+        );
     }
 
     #[test]
     fn optimize_keeps_disjoint_keys() {
         let update: Vec<(u32, i32)> = (0..200).map(|k| (k, (k as i32 % 3) + 1)).collect();
-        let summed = sum_collectibles_update(update.clone());
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
         assert_eq!(as_map(&summed), as_map(&update));
     }
 
@@ -3722,7 +3746,7 @@ mod tests {
         let update = from_task_update(&own, &aggregated);
         assert_eq!(update.len(), 2004);
 
-        let summed = sum_collectibles_update(update.clone());
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
         assert_eq!(
             as_map(&summed),
             (1000..1004).map(|k| (k, 1)).collect::<FxHashMap<_, _>>()
@@ -3772,7 +3796,7 @@ mod tests {
         let b = collectible(2);
         let c = collectible(3);
         let update = AggregatedDataUpdate::new()
-            .collectibles_update(vec![(a, -1), (b, 2), (a, 1), (c, -1), (b, -1)])
+            .collectibles_update(smallvec![(a, -1), (b, 2), (a, 1), (c, -1), (b, -1)])
             .dirty_container_update(task_id, 1, 0)
             .optimize();
         assert_eq!(
@@ -3796,7 +3820,7 @@ mod tests {
 
         assert!(
             AggregatedDataUpdate::new()
-                .collectibles_update(vec![(a, -1), (a, 1)])
+                .collectibles_update(smallvec![(a, -1), (a, 1)])
                 .optimize()
                 .is_empty()
         );

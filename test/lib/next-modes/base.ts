@@ -551,8 +551,8 @@ export class NextInstance {
 
           await fs.writeFile(
             fileName,
-            `${content}\n` +
-              getDeploymentTestEnvAssignments() +
+            getDeploymentTestEnvAssignments() +
+              `${content}\n` +
               `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
@@ -953,6 +953,9 @@ export class NextInstance {
                   process.env.TEST_FILE_PATH!
                 )
                 .replace(/\//g, '-')}`,
+              ...(process.env.NEXT_TEST_RUN_NUMBER
+                ? [`run-${process.env.NEXT_TEST_RUN_NUMBER}`]
+                : []),
               `next-trace`
             ),
             { recursive: true }

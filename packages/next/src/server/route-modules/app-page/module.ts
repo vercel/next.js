@@ -39,6 +39,7 @@ import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
@@ -207,7 +208,8 @@ export class AppPageRouteModule extends RouteModule<
       context.routeMatch,
       context.parsedRequestHeaders,
       context.serverActionRequestMetadata,
-      context.stagedFallbackParams
+      context.stagedFallbackParams,
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
     )
   }
 

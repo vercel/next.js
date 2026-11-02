@@ -1411,7 +1411,7 @@ export async function createHotReloaderTurbopack(
                       page: name,
                       bundlePath: `app${name}`,
                       filename: '',
-                    } as any,
+                    },
                   }
                   break
                 }
@@ -2394,11 +2394,18 @@ export async function createHotReloaderTurbopack(
 
   if (lazyDynamicImportsSSR) {
     const previousEnsureChunk = globalThis.__turbopack_ensure_chunk__
-    const ensureChunk = async (chunkPath: string) => {
+    // Synchronous when there is nothing to compile, so the runtime can load
+    // the chunk without creating a new promise for it.
+    const ensureChunk = (chunkPath: string): void | Promise<void> => {
       if (!chunkPath.includes('lazy-compilation-')) return
 
       const keys = serverAssetMapper.getKeysByAsset(chunkPath)
-      if (keys.length === 0 || !(await project.activateLazyChunk(chunkPath))) {
+      if (keys.length === 0) return
+
+      return activateLazyChunk(chunkPath, keys)
+    }
+    const activateLazyChunk = async (chunkPath: string, keys: EntryKey[]) => {
+      if (!(await project.activateLazyChunk(chunkPath))) {
         return
       }
 

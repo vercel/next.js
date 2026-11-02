@@ -363,13 +363,14 @@ function updateRenderTreeOnNavigation(
       // case, because it acts like a root layout, but in the router tree, it
       // is rendered in the same position as app/layout.tsx.
       //
-      // Any navigation to the global Not Found route should trigger a
+      // Any navigation to or from the global Not Found route should trigger a
       // full-page navigation.
       //
       // TODO: We should probably model this by changing the key of the root
       // segment when this happens. Then the root layout check would work
       // as expected, without a special case.
-      newSegment === NOT_FOUND_SEGMENT_KEY
+      newSegment === NOT_FOUND_SEGMENT_KEY ||
+      oldRenderTree.segment === NOT_FOUND_SEGMENT_KEY
     ) {
       return null
     }
