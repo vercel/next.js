@@ -39,34 +39,24 @@ fn is_isolated_merged_group_for_parent(
     )
 }
 
-/// The chunk groups a client reference's merged group may hang off.
+/// The source chunk groups directly owned by a client reference's server component.
 ///
 /// A client reference is reached from its source module, which can sit in several chunk groups
 /// when the reference is shared between routes. When the reference belongs to a server component,
-/// use direct membership and async importer ancestry to find the groups owned by that component.
+/// select its group only if the source module belongs to it too.
 fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
     server_component_index: Option<u32>,
-    async_parent_indices: FxIndexSet<u32>,
-) -> Result<FxIndexSet<u32>> {
+) -> FxIndexSet<u32> {
     if let Some(server_component_index) = server_component_index {
         let mut parent_indices = FxIndexSet::default();
         if source_indices.contains(&server_component_index) {
             parent_indices.insert(server_component_index);
         }
-        // A reference may be imported both directly and through async chunks inside its owner.
-        parent_indices.extend(async_parent_indices);
-        if !parent_indices.is_empty() {
-            return Ok(parent_indices);
-        }
-        // Selecting all source groups without ownership proof could include unrelated routes'
-        // client entries.
-        bail!(
-            "source chunk groups have no direct or async ancestry match with the server component"
-        );
+        return parent_indices;
     }
     // Without an owner group, fall back to the source module's groups.
-    Ok(source_indices)
+    source_indices
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -104,8 +94,15 @@ async fn derived_isolated_merged_groups(
             let groups = chunk_group_info
                 .get_chunk_groups_for_module(*server_component)
                 .await?;
-            debug_assert_eq!(groups.len(), 1);
-            groups.first().map(|group| group.index)
+            // Return an error, not a panic, for an eventually inconsistent graph update.
+            let [group] = groups.as_slice() else {
+                bail!(
+                    "expected exactly one chunk group for server component {}, found {}",
+                    server_component.ident().to_string().await?,
+                    groups.len(),
+                );
+            };
+            Some(group.index)
         } else {
             None
         };
@@ -130,20 +127,22 @@ async fn derived_isolated_merged_groups(
                 }
             }
         }
-        let parent_indices = match relevant_parent_indices(
-            source_indices,
-            server_component_index,
-            async_parent_indices,
-        ) {
-            Ok(indices) => indices,
-            Err(error) => {
-                // ast-grep-ignore: no-context-format
-                return Err(error.context(format!(
-                    "could not select graph-derived isolated merged groups for {}",
-                    entry_module.ident().to_string().await?,
-                )));
-            }
-        };
+        let mut parent_indices = relevant_parent_indices(source_indices, server_component_index);
+        // A reference may be imported both directly and through async chunks inside its owner.
+        parent_indices.extend(async_parent_indices);
+        if server_component_index.is_some() && parent_indices.is_empty() {
+            // Selecting all source groups without ownership proof could include unrelated routes'
+            // client entries.
+            let error = anyhow::anyhow!(
+                "source chunk groups have no direct or async ancestry match with the server \
+                 component"
+            );
+            // ast-grep-ignore: no-context-format
+            return Err(error.context(format!(
+                "could not select graph-derived isolated merged groups for {}",
+                entry_module.ident().to_string().await?,
+            )));
+        }
 
         let mut found = false;
         for group in chunk_group_info
@@ -568,59 +567,9 @@ mod tests {
     use turbopack_core::module_graph::chunk_group_info::ChunkGroup;
 
     use crate::{
-        next_app::app_client_references_chunks::{
-            is_isolated_merged_group_for_parent, relevant_parent_indices,
-        },
+        next_app::app_client_references_chunks::is_isolated_merged_group_for_parent,
         next_client_reference::{CLIENT_MERGE_TAG, SSR_MERGE_TAG},
     };
-
-    #[test]
-    fn parent_indices_combine_direct_and_async_ownership() {
-        assert_eq!(
-            relevant_parent_indices(
-                FxIndexSet::from_iter([1, 2, 4]),
-                Some(2),
-                FxIndexSet::from_iter([1]),
-            )
-            .unwrap(),
-            FxIndexSet::from_iter([2, 1]),
-        );
-    }
-
-    #[test]
-    fn parent_indices_allow_fallback_only_without_owner_index() {
-        let source = FxIndexSet::from_iter([1, 2]);
-        assert_eq!(
-            relevant_parent_indices(source.clone(), None, FxIndexSet::default()).unwrap(),
-            source,
-        );
-    }
-
-    #[test]
-    fn parent_indices_accept_proven_async_ownership() {
-        assert_eq!(
-            relevant_parent_indices(
-                FxIndexSet::from_iter([1, 2]),
-                Some(3),
-                FxIndexSet::from_iter([2]),
-            )
-            .unwrap(),
-            FxIndexSet::from_iter([2]),
-        );
-    }
-
-    #[test]
-    fn known_owner_mismatch_is_an_error() {
-        for source in [FxIndexSet::from_iter([1, 2]), FxIndexSet::default()] {
-            let error =
-                relevant_parent_indices(source, Some(3), FxIndexSet::default()).unwrap_err();
-            assert!(
-                error
-                    .to_string()
-                    .contains("no direct or async ancestry match"),
-            );
-        }
-    }
 
     #[test]
     fn isolated_merged_groups_must_match_parent_and_tag() {
