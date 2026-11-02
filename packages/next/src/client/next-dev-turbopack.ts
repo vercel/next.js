@@ -17,9 +17,15 @@ window.next = {
   },
   emitter,
 }
+declare let __webpack_public_path__: string
 // TODO(as-any): pre-existing cast, not yet reviewed
 // eslint-disable-next-line @next/internal/no-as-any
-;(self as any).__next_set_public_path__ = () => {}
+;(self as any).__next_set_public_path__ = (path: string) => {
+  // Assigning switches chunk loading to the assigned path, so skip a no-op.
+  if (path !== __webpack_public_path__) {
+    __webpack_public_path__ = path
+  }
+}
 // TODO(as-any): pre-existing cast, not yet reviewed
 // eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__webpack_hash__ = ''
