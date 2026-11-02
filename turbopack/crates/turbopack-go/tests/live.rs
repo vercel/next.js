@@ -17,7 +17,7 @@ use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
     filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_source_set,
+    go_declarations, go_source_set, read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -87,7 +87,7 @@ impl Session {
         let go_context = self.go_context.clone();
         self.tt
             .run_once(async move {
-                let result = go_bundle_with_generated_files(
+                let operation = go_bundle_with_generated_files(
                     FileSystemPath {
                         fs: ResolvedVc::upcast(fs),
                         path: rcstr!(""),
@@ -95,10 +95,12 @@ impl Session {
                     files,
                     go_context,
                     generated,
+                );
+                let result = read_with_validated_inputs(
+                    || operation.read_strongly_consistent(),
+                    |value| Some(&**value),
                 )
-                .read_strongly_consistent()
                 .await?;
-                ensure!(result.is_current().await?, "stale result");
                 let file = match &result.outcome {
                     GoBuildOutcome::Success(file) => *file,
                     GoBuildOutcome::Failed(message) => anyhow::bail!("{message}"),
@@ -1336,6 +1338,54 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         "source generations must have distinct identities"
     );
     let result = build(current, generated.clone()).await?;
+    // An edit after a cached graph read must also recover before publication, without
+    // a watcher event or caller-owned retry loop. Re-select and re-analyze on retry.
+    std::fs::write(
+        session.project.join(directory).join("handler.go"),
+        "package main\nfunc GET() string { return \"v3\" }\n",
+    )?;
+    let result = session
+        .tt
+        .run_once({
+            let root = root.clone();
+            let options = options.clone();
+            let generated = generated.clone();
+            async move {
+                let mut cached = Some(result);
+                read_with_validated_inputs(
+                    || {
+                        let cached = cached.take();
+                        let root = root.clone();
+                        let options = options.clone();
+                        let generated = generated.clone();
+                        async move {
+                            if let Some(result) = cached {
+                                return Ok(result);
+                            }
+                            let sources = selected_sources(
+                                root.clone(),
+                                root.join(directory)?,
+                                GoSourceSelection::Directory,
+                                options.clone(),
+                            )
+                            .resolve()
+                            .strongly_consistent()
+                            .await?;
+                            let declarations = selected_declarations(sources, options.clone())
+                                .read_strongly_consistent()
+                                .await?;
+                            assert_eq!(declarations.functions, vec![rcstr!("GET")]);
+                            selected_bundle(sources, options.clone(), generated.clone())
+                                .read_strongly_consistent()
+                                .await
+                        }
+                    },
+                    |value| Some(&**value),
+                )
+                .await
+            }
+        })
+        .await?;
     let executable_result = result.clone();
     let bytes = session
         .tt
@@ -1352,7 +1402,7 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
             anyhow::Ok(bytes)
         })
         .await?;
-    assert_eq!(session.run_bytes(bytes).await?, "v2");
+    assert_eq!(session.run_bytes(bytes).await?, "v3");
     // A newly selected sibling also invalidates the existing artifact's publication token.
     session
         .write(

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, future::Future};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
@@ -358,13 +358,17 @@ pub enum EndpointOutputPaths {
 #[turbo_tasks::value(transparent)]
 pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);
 
-impl EndpointOutputPaths {
-    /// Check external inputs at the host's publication boundary. Compiler-specific
-    /// invalidation stays behind the endpoint API rather than leaking into bindings.
-    pub async fn validate(&self) -> Result<bool> {
-        match self {
-            Self::Native { build, .. } | Self::NativeFailed { build } => build.validate().await,
-            _ => Ok(true),
-        }
-    }
+/// Accept endpoint output using the native compiler's live-input validation contract.
+/// JavaScript and edge output require no additional validation.
+pub async fn read_with_validated_endpoint<T, F: Future<Output = Result<T>>>(
+    read: impl FnMut() -> F,
+    get_output: impl Fn(&T) -> Option<&EndpointOutputPaths>,
+) -> Result<T> {
+    turbopack_go::read_with_validated_inputs(read, |value| match get_output(value) {
+        Some(
+            EndpointOutputPaths::Native { build, .. } | EndpointOutputPaths::NativeFailed { build },
+        ) => Some(build),
+        _ => None,
+    })
+    .await
 }
