@@ -2069,8 +2069,8 @@ export function createAppPageEntrypoint({
 
         if (
           isSSG &&
-          // Static cache headers describe the response's content, even when the
-          // request is a dynamic RSC navigation.
+          // If we served a static response, we should set the cache headers
+          // regardless of whether it was a prefetch or navigation request.
           !isDynamicRSCResponse &&
           (!didPostpone || isPrefetchRSCRequest)
         ) {
