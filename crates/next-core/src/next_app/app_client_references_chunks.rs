@@ -39,26 +39,6 @@ fn is_isolated_merged_group_for_parent(
     )
 }
 
-/// The source chunk groups directly owned by a client reference's server component.
-///
-/// A client reference is reached from its source module, which can sit in several chunk groups
-/// when the reference is shared between routes. When the reference belongs to a server component,
-/// select its group only if the source module belongs to it too.
-fn relevant_parent_indices(
-    source_indices: FxIndexSet<u32>,
-    server_component_index: Option<u32>,
-) -> FxIndexSet<u32> {
-    let Some(server_component_index) = server_component_index else {
-        // Without an owner group, fall back to the source module's groups.
-        return source_indices;
-    };
-    let mut parent_indices = FxIndexSet::default();
-    if source_indices.contains(&server_component_index) {
-        parent_indices.insert(server_component_index);
-    }
-    parent_indices
-}
-
 /// A client reference, the module it is reached from, and the server component that owns it (if
 /// any).
 #[derive(Clone, Copy)]
@@ -126,7 +106,16 @@ async fn derived_isolated_merged_groups(
                 }
             }
         }
-        let mut parent_indices = relevant_parent_indices(source_indices, server_component_index);
+        let mut parent_indices = if let Some(owner_index) = server_component_index {
+            let mut indices = FxIndexSet::default();
+            if source_indices.contains(&owner_index) {
+                indices.insert(owner_index);
+            }
+            indices
+        } else {
+            // Without an owner group, fall back to the source module's groups.
+            source_indices
+        };
         // A reference may be imported both directly and through async chunks inside its owner.
         parent_indices.extend(async_parent_indices);
         if server_component_index.is_some() && parent_indices.is_empty() {
