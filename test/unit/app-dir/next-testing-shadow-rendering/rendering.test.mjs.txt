@@ -1,0 +1,115 @@
+import { test, expect } from 'vitest'
+import { page } from 'vitest/browser'
+import React, { createContext, useContext, useEffect, useId, useState } from 'react'
+import { createRoot, hydrateRoot } from 'react-dom/client'
+import { createPortal } from 'react-dom'
+import { renderToString } from 'react-dom/server'
+const h = React.createElement
+const Context = createContext('missing')
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+
+test('hydrates a nested provider and layout before trusted controlled input', async () => {
+  const rows = [], errors = [], host = document.createElement('div')
+  document.body.append(host)
+  function Form() {
+    const prefix = useContext(Context), [value, setValue] = useState('server'), [count, setCount] = useState(0), id = useId()
+    useEffect(() => { rows.push({ event: 'mounted', prefix }); host.dataset.ready = 'yes'; return () => rows.push({ event: 'unmounted', prefix }) }, [])
+    return h('section', { 'data-layout': prefix }, h('label', { htmlFor: id }, 'Hydrated field'), h('input', { id, 'data-testid': 'hydration-field', value, onChange(event) { rows.push({ event: 'change', trusted: event.nativeEvent.isTrusted, currentTargetIsField: event.currentTarget.id === id, value: event.currentTarget.value }); setValue(event.currentTarget.value) } }), h('button', { type: 'button', 'data-testid': 'hydration-add', onClick(event) { rows.push({ event: 'click', trusted: event.nativeEvent.isTrusted }); setCount(c => c + 1) } }, 'Add'), h('output', { 'data-testid': 'hydration-output' }, prefix + ':' + value + ':' + count))
+  }
+  const tree = h(Context.Provider, { value: 'layout' }, h('main', null, h(Form)))
+  host.innerHTML = renderToString(tree, { identifierPrefix: 'contract-' })
+  const original = host.querySelector('input'), label = host.querySelector('label')
+  const server = { value: original.value, labelTargetsField: label.htmlFor === original.id, output: host.querySelector('output').textContent }
+  const root = hydrateRoot(host, tree, { identifierPrefix: 'contract-', onRecoverableError: error => errors.push({ name: error.name, message: error.message }) })
+  try {
+    await expect.poll(() => host.dataset.ready).toBe('yes')
+    const retained = original === host.querySelector('input')
+    await page.getByTestId('hydration-field').fill('typed')
+    await page.getByTestId('hydration-add').click()
+    await expect.poll(() => host.querySelector('output').textContent).toBe('layout:typed:1')
+    root.unmount()
+    emit({ kind: 'hydration-layout', server, retained, rows, errors, childrenAfterUnmount: host.childNodes.length })
+    expect(errors).toEqual([])
+    expect(retained).toBe(true)
+    expect(rows.map(row => row.event)).toEqual(['mounted', 'change', 'click', 'unmounted'])
+  } finally { root.unmount(); host.remove() }
+})
+
+test('preserves portal context and state across provider rerender and cleanup', async () => {
+  const rows = [], host = document.createElement('div'), portal = document.createElement('div')
+  document.body.append(host, portal)
+  function Child() {
+    const prefix = useContext(Context), [count, setCount] = useState(0)
+    useEffect(() => { rows.push({ event: 'mounted' }); return () => rows.push({ event: 'unmounted' }) }, [])
+    return createPortal(h('button', { 'data-testid': 'portal-button', onClick(event) { rows.push({ event: 'portal-click', trusted: event.nativeEvent.isTrusted, currentTargetIsButton: event.currentTarget.tagName === 'BUTTON' }); setCount(c => c + 1) } }, prefix + ':' + count), portal)
+  }
+  function tree(prefix) { return h(Context.Provider, { value: prefix }, h('section', { onClick() { rows.push({ event: 'layout-bubble' }) } }, h(Child))) }
+  const root = createRoot(host)
+  try {
+    root.render(tree('first'))
+    await expect.poll(() => portal.textContent).toBe('first:0')
+    const original = portal.firstChild
+    await page.getByTestId('portal-button').click()
+    await expect.poll(() => portal.textContent).toBe('first:1')
+    root.render(tree('second'))
+    await expect.poll(() => portal.textContent).toBe('second:1')
+    const retained = original === portal.firstChild
+    root.unmount()
+    emit({ kind: 'portal-layout', retained, rows, hostChildren: host.childNodes.length, portalChildren: portal.childNodes.length })
+    expect(retained).toBe(true)
+    expect(rows.map(row => row.event)).toEqual(['mounted', 'portal-click', 'layout-bubble', 'unmounted'])
+  } finally { root.unmount(); host.remove(); portal.remove() }
+})
+
+test('dispatches trusted controlled input through an open shadow React root', async () => {
+  const rows = [], host = document.createElement('div'), shadow = host.attachShadow({ mode: 'open' }), container = document.createElement('div')
+  shadow.append(container); document.body.append(host)
+  function retarget(event) { rows.push({ event: 'outside-input', targetIsHost: event.target === host, pathStartsWithField: event.composedPath()[0] === shadow.querySelector('input'), trusted: event.isTrusted, composed: event.composed }) }
+  host.addEventListener('input', retarget)
+  function Form() {
+    const [value, setValue] = useState('shadow'), [count, setCount] = useState(0)
+    useEffect(() => { rows.push({ event: 'mounted' }); return () => rows.push({ event: 'unmounted' }) }, [])
+    return h('section', null, h('input', { 'aria-label': 'Shadow field', 'data-testid': 'shadow-field', value, onChange(event) { rows.push({ event: 'change', trusted: event.nativeEvent.isTrusted, currentTargetIsField: event.currentTarget === shadow.querySelector('input'), value: event.currentTarget.value }); setValue(event.currentTarget.value) } }), h('button', { 'data-testid': 'shadow-add', onClick() { rows.push({ event: 'click' }); setCount(c => c + 1) } }, 'Add shadow'), h('output', null, value + ':' + count))
+  }
+  const root = createRoot(container)
+  try {
+    root.render(h(Form))
+    await expect.poll(() => shadow.querySelector('output')?.textContent).toBe('shadow:0')
+    await page.getByTestId('shadow-field').fill('typed-shadow')
+    await expect.element(page.getByTestId('shadow-field')).toHaveValue('typed-shadow')
+    await expect.element(page.getByLabelText('Shadow field')).toHaveValue('typed-shadow')
+    await page.getByTestId('shadow-add').click()
+    await expect.poll(() => shadow.querySelector('output').textContent).toBe('typed-shadow:1')
+    root.unmount()
+    emit({ kind: 'shadow-react', rows, childrenAfterUnmount: container.childNodes.length })
+    expect(rows.filter(row => row.event === 'change')).toHaveLength(1)
+    expect(rows.filter(row => row.event === 'outside-input')).toHaveLength(1)
+  } finally { root.unmount(); host.removeEventListener('input', retarget); host.remove() }
+})
+
+test('resolves scoped nested shadow locators and replacement nodes with native selector semantics', async () => {
+  const section = document.createElement('section'), outside = document.createElement('input')
+  section.setAttribute('aria-label', 'Shadow scope'); outside.setAttribute('aria-label', 'Scoped value'); outside.value = 'outside'
+  const host = document.createElement('div'), shadow = host.attachShadow({ mode: 'open' }), nested = document.createElement('div'), inner = nested.attachShadow({ mode: 'open' })
+  shadow.append(nested); section.append(host); document.body.append(section, outside)
+  const makeField = () => { const field = document.createElement('input'); field.setAttribute('aria-label', 'Scoped value'); field.placeholder = 'Nested placeholder'; field.dataset.testid = 'nested-field'; return field }
+  const first = makeField(); first.value = 'first'; inner.append(first)
+  const scoped = page.getByRole('region', { name: 'Shadow scope', exact: true }), field = scoped.getByRole('textbox', { name: /^Scoped value$/, exact: true })
+  try {
+    const initialIdentity = field.element() === first
+    await expect.element(scoped.getByLabelText(/^Scoped value$/, { exact: true })).toHaveValue('first')
+    await expect.element(scoped.getByPlaceholder(/^Nested placeholder$/, { exact: true })).toHaveValue('first')
+    const replacement = makeField(); replacement.value = 'replacement'; first.replaceWith(replacement)
+    const replacementIdentity = field.element() === replacement
+    await field.fill('native-replacement')
+    await expect.element(scoped.getByTestId(/^nested-field$/)).toHaveValue('native-replacement')
+    const firstButton = document.createElement('button'), secondButton = document.createElement('button')
+    firstButton.textContent = secondButton.textContent = 'Duplicate'; inner.append(firstButton, secondButton)
+    const duplicate = scoped.getByRole('button', { name: 'Duplicate', exact: true })
+    let strict
+    try { duplicate.element() } catch (error) { strict = { name: error.name, message: error.message } }
+    const facts = { kind: 'nested-shadow-selectors', initialIdentity, replacementIdentity, firstDisconnected: !first.isConnected, firstValue: first.value, replacementValue: replacement.value, outsideValue: outside.value, all: duplicate.all().map(locator => locator.element() === firstButton ? 'first' : locator.element() === secondButton ? 'second' : 'unexpected'), zero: scoped.getByTestId('absent').elements().length, strict }
+    emit(facts)
+    expect(initialIdentity).toBe(true); expect(replacementIdentity).toBe(true); expect(first.value).toBe('first'); expect(outside.value).toBe('outside'); expect(facts.all).toEqual(['first', 'second']); expect(facts.zero).toBe(0); expect(strict.message).toMatch(/strict mode violation/)
+  } finally { section.remove(); outside.remove() }
+})

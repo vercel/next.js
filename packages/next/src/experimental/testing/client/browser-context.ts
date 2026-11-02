@@ -1009,6 +1009,18 @@ function createQueryLocator(
     throw new Error(`Unsupported browser query ${name}.`)
   const parent = root instanceof ElementLocator ? root.selector : ''
   const description = locatorFormatter.selector(name, args)
+  if (serializedClickTargets) {
+    let locator: ElementLocator
+    locator = new ElementLocator(
+      locatorFormatter.createQuery(() => {
+        const cache = locator as ElementLocator & LocatorCache
+        return cache._pwSelector || locator.selector
+      }),
+      parent ? `${parent} >> ${description}` : description,
+      root instanceof ElementLocator ? root.container : root
+    )
+    return locator
+  }
   return new ElementLocator(
     (native) => {
       const elements =
