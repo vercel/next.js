@@ -6,7 +6,7 @@ use turbo_tasks::{
     NonLocalValue, ReadRef, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkItemExt, MangleType, MinifyType, ModuleId},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, MangleType, MinifyType, ModuleId},
     code_builder::Code,
 };
 
@@ -46,48 +46,56 @@ pub async fn minified_module_factory(
     Ok(minify_chunk_item(&factory, source_maps, per_item_mangle(mangle))?.cell())
 }
 
+/// The final content of a chunk item and whether its factory is strict. Fails if the content failed
+/// to generate: reading it here surfaces that error before minifying rather than inside it.
+async fn final_content(
+    item: &EcmascriptChunkItemWithAsyncInfo,
+    async_info: Option<Vc<AsyncModuleInfo>>,
+) -> Result<(Vc<EcmascriptChunkItemContent>, bool)> {
+    let content = item
+        .chunk_item
+        .into_trait_ref()
+        .await?
+        .content_with_async_module_info(async_info, false)
+        .await?;
+    let strict = content.await?.options.strict;
+    Ok((content, strict))
+}
+
 async fn code_module_id_and_path(
     item: &EcmascriptChunkItemWithAsyncInfo,
     minify: MinifyType,
     source_maps: bool,
 ) -> Result<CodeModuleIdAndPath> {
     let async_info = item.async_info.map(|info| *info);
-    let factory = item.chunk_item.code(async_info).await?;
     // `MinifyType::NoMinify` here means the chunk will be minified as a whole later (or not at
     // all); only the per-item mode asks for the factory to be minified now. A strict factory keeps
     // its `"use strict"` directive either way; the chunk drops it where it places the factory in a
     // strict context (see `write_module_factories`).
-    let code = match minify {
-        MinifyType::Minify { mangle } => {
-            let minified = async {
-                let content = item
-                    .chunk_item
-                    .into_trait_ref()
-                    .await?
-                    .content_with_async_module_info(async_info, false)
-                    .await?;
-                minified_module_factory(content, source_maps, mangle.is_some()).await
-            }
-            .await;
-            match minified {
-                Ok(minified) => minified,
-                // Usually the content failed to generate: `code` already reported the issue and
-                // returned a factory that throws the error, so minify that instead. If the
-                // minification itself failed, this fails again with the same error.
-                Err(_) => ReadRef::new_owned(minify_chunk_item(
-                    &*factory.code.to_code().await?,
-                    source_maps,
-                    per_item_mangle(mangle.is_some()),
-                )?),
-            }
+    let per_item = match minify {
+        MinifyType::Minify { mangle } => final_content(item, async_info)
+            .await
+            .ok()
+            .map(|content| (content, mangle.is_some())),
+        MinifyType::NoMinify => None,
+    };
+    let (code, strict) = match per_item {
+        Some(((content, strict), mangle)) => (
+            minified_module_factory(content, source_maps, mangle).await?,
+            strict,
+        ),
+        // Not minified per item, or the content failed to generate: `code` reports the error as an
+        // issue and returns a factory that throws it.
+        None => {
+            let factory = item.chunk_item.code(async_info).await?;
+            (factory.code.to_code().await?, factory.strict)
         }
-        MinifyType::NoMinify => factory.code.to_code().await?,
     };
     Ok(CodeModuleIdAndPath {
         id: item.chunk_item.id().await?,
         code,
         path: item.chunk_item.asset_ident().to_string().owned().await?,
-        strict: factory.strict,
+        strict,
     })
 }
 
