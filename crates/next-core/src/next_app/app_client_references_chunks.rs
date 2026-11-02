@@ -70,7 +70,11 @@ async fn derived_isolated_merged_groups(
         let source_groups = chunk_group_info
             .get_chunk_groups_for_module(*source_module)
             .await?;
-        let server_component_index = if let Some(server_component) = server_component {
+        let source_indices = source_groups
+            .iter()
+            .map(|group| group.index)
+            .collect::<FxIndexSet<_>>();
+        let parent_indices = if let Some(server_component) = server_component {
             let groups = chunk_group_info
                 .get_chunk_groups_for_module(*server_component)
                 .await?;
@@ -81,15 +85,7 @@ async fn derived_isolated_merged_groups(
                     groups.len(),
                 );
             };
-            Some(group.index)
-        } else {
-            None
-        };
-        let source_indices = source_groups
-            .iter()
-            .map(|group| group.index)
-            .collect::<FxIndexSet<_>>();
-        let parent_indices = if let Some(owner_index) = server_component_index {
+            let owner_index = group.index;
             let mut indices = FxIndexSet::default();
             if source_indices.contains(&owner_index) {
                 indices.insert(owner_index);
