@@ -200,6 +200,40 @@ var REEXPORTED_OBJECTS = new WeakMap();
 }
 var contextPrototype = Context.prototype;
 contextPrototype.M = moduleFactories;
+var runtimePublicPath = '';
+// The public path before any assignment. Asset URLs are built with it.
+var defaultPublicPath = '';
+var publicPathInitialized = false;
+var publicPathAssigned = false;
+// Set by runtimes whose caches must be rekeyed once a public path is assigned.
+var onPublicPathAssigned;
+function initializePublicPath(defaultPath) {
+    if (!publicPathInitialized) {
+        runtimePublicPath = defaultPublicPath = defaultPath;
+        publicPathInitialized = true;
+    }
+}
+contextPrototype.B = initializePublicPath;
+/**
+ * Like webpack's asset modules, asset URLs under the default public path follow
+ * the public path assigned before the asset's module is evaluated.
+ */ function resolvePublicAssetUrl(url) {
+    return publicPathAssigned && defaultPublicPath !== '' && url.startsWith(defaultPublicPath) ? runtimePublicPath + url.slice(defaultPublicPath.length) : url;
+}
+contextPrototype.u = resolvePublicAssetUrl;
+Object.defineProperty(contextPrototype, 'p', {
+    get: function get() {
+        return runtimePublicPath;
+    },
+    set: function set(value) {
+        runtimePublicPath = value;
+        publicPathInitialized = true;
+        if (!publicPathAssigned) {
+            publicPathAssigned = true;
+            onPublicPathAssigned === null || onPublicPathAssigned === void 0 ? void 0 : onPublicPathAssigned();
+        }
+    }
+});
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 var toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -930,6 +964,9 @@ function _array_like_to_array(arr, len) {
 function _array_with_holes(arr) {
     if (Array.isArray(arr)) return arr;
 }
+function _array_without_holes(arr) {
+    if (Array.isArray(arr)) return _array_like_to_array(arr);
+}
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -955,6 +992,11 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
+}
+function _iterable_to_array(iter) {
+    if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) {
+        return Array.from(iter);
+    }
 }
 function _iterable_to_array_limit(arr, i) {
     var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
@@ -983,8 +1025,14 @@ function _iterable_to_array_limit(arr, i) {
 function _non_iterable_rest() {
     throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
 }
+function _non_iterable_spread() {
+    throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
 function _sliced_to_array(arr, i) {
     return _array_with_holes(arr) || _iterable_to_array_limit(arr, i) || _unsupported_iterable_to_array(arr, i) || _non_iterable_rest();
+}
+function _to_consumable_array(arr) {
+    return _array_without_holes(arr) || _iterable_to_array(arr) || _unsupported_iterable_to_array(arr) || _non_iterable_spread();
 }
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
@@ -1095,6 +1143,13 @@ function _unsupported_iterable_to_array(o, minLen) {
 }
 var browserContextPrototype = Context.prototype;
 var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+runtimePublicPath = defaultPublicPath = RUNTIME_CHUNK_BASE_PATH;
+// Chunk paths of URLs built under an assigned public path. That base may no
+// longer be current, so it cannot be stripped to recover the path.
+var assignedChunkPaths = new Map();
+function getRuntimeChunkBasePath() {
+    return publicPathAssigned ? runtimePublicPath : RUNTIME_CHUNK_BASE_PATH;
+}
 var availableModules = new Map();
 var availableModuleChunks = new Map();
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -1112,6 +1167,54 @@ function registerComponentChunkSizes(componentChunks, sizes) {
 }
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 var splitChunkPromises = new Map();
+// Caches keyed by `getChunkCacheKey`. Its keys change once a public path is assigned.
+var chunkUrlCaches = [
+    splitChunkPromises
+];
+onPublicPathAssigned = function onPublicPathAssigned1() {
+    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    try {
+        for(var _iterator = chunkUrlCaches[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+            var cache = _step.value;
+            var entries = _to_consumable_array(cache);
+            cache.clear();
+            var _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
+            try {
+                for(var _iterator1 = entries[Symbol.iterator](), _step1; !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
+                    var _step_value = _sliced_to_array(_step1.value, 2), chunkUrl = _step_value[0], value = _step_value[1];
+                    var key = getChunkCacheKey(chunkUrl);
+                    if (!cache.has(key)) cache.set(key, value);
+                }
+            } catch (err) {
+                _didIteratorError1 = true;
+                _iteratorError1 = err;
+            } finally{
+                try {
+                    if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
+                        _iterator1.return();
+                    }
+                } finally{
+                    if (_didIteratorError1) {
+                        throw _iteratorError1;
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                _iterator.return();
+            }
+        } finally{
+            if (_didIteratorError) {
+                throw _iteratorError;
+            }
+        }
+    }
+};
 function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
@@ -1317,6 +1420,13 @@ var loadedChunk = Promise.resolve(undefined);
 var instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(chunkEntry) {
+    if (publicPathAssigned) {
+        chunkEntry = typeof chunkEntry === 'string' ? rebaseChunkUrl(chunkEntry) : [
+            rebaseChunkUrl(chunkEntry[0]),
+            chunkEntry[1],
+            chunkEntry[2]
+        ];
+    }
     return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry);
 }
 browserContextPrototype.L = loadChunkByUrl;
@@ -1346,10 +1456,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
         // If we have component chunks for this merged chunk, load only the ones we don't already have
         // instead of the whole merged chunk.
         if (components !== undefined) {
-            var promise = splitChunkPromises.get(chunkUrl);
+            var cacheKey = getChunkCacheKey(chunkUrl);
+            var promise = splitChunkPromises.get(cacheKey);
             if (promise === undefined) {
                 promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-                splitChunkPromises.set(chunkUrl, promise);
+                splitChunkPromises.set(cacheKey, promise);
             }
             return promise;
         }
@@ -1371,6 +1482,10 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
 // Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
 // match the keys stored in `chunkComponents`.
 function chunkUrlToPath(chunkUrl) {
+    if (publicPathAssigned) {
+        var assignedPath = assignedChunkPaths.get(splitChunkUrl(chunkUrl)[0]);
+        if (assignedPath !== undefined) return assignedPath;
+    }
     var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     return src.startsWith(RUNTIME_CHUNK_BASE_PATH) ? src.slice(RUNTIME_CHUNK_BASE_PATH.length) : src;
 }
@@ -1481,10 +1596,51 @@ browserContextPrototype.q = exportUrl;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : RUNTIME_CHUNK_BASE_PATH;
+    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : getRuntimeChunkBasePath(), assetSuffix = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : ASSET_SUFFIX;
+    var url = `${basePath}${encodeChunkPath(chunkPath)}`;
+    if (publicPathAssigned) {
+        assignedChunkPaths.set(url, chunkPath);
+    }
+    return `${url}${assetSuffix}`;
+}
+function encodeChunkPath(chunkPath) {
     // Most chunk paths need no escaping.
-    var encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
-    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
+    return CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
+}
+function splitChunkUrl(chunkUrl) {
+    var suffixIndex = chunkUrl.search(/[?#]/);
+    return suffixIndex === -1 ? [
+        chunkUrl,
+        ''
+    ] : [
+        chunkUrl.slice(0, suffixIndex),
+        chunkUrl.slice(suffixIndex)
+    ];
+}
+/**
+ * Returns the chunk path for a URL pathname under the configured or an
+ * assigned base path, or `undefined` for any other URL.
+ */ function getOwnedChunkPath(pathname) {
+    var assignedPath = assignedChunkPaths.get(pathname);
+    if (assignedPath !== undefined) return assignedPath;
+    var basePath = RUNTIME_CHUNK_BASE_PATH;
+    var owned = basePath === '' ? !/^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/)/.test(pathname) : pathname.startsWith(basePath) && (basePath.startsWith('//') || !pathname.startsWith('//'));
+    return owned ? decodeURIComponent(pathname.slice(basePath.length)) : undefined;
+}
+// URLs from the server are built with the configured base path. Load them from
+// the assigned public path instead.
+function rebaseChunkUrl(chunkUrl) {
+    var _splitChunkUrl = _sliced_to_array(splitChunkUrl(chunkUrl), 2), pathname = _splitChunkUrl[0], suffix = _splitChunkUrl[1];
+    var chunkPath = getOwnedChunkPath(pathname);
+    return chunkPath === undefined ? chunkUrl : getChunkRelativeUrl(chunkPath, runtimePublicPath, suffix);
+}
+// Once a public path is assigned, the same chunk can be requested from several
+// base paths, so identify it by its path instead.
+function getChunkCacheKey(chunkUrl) {
+    if (!publicPathAssigned) return chunkUrl;
+    var _splitChunkUrl = _sliced_to_array(splitChunkUrl(chunkUrl), 2), pathname = _splitChunkUrl[0], suffix = _splitChunkUrl[1];
+    var chunkPath = getOwnedChunkPath(pathname);
+    return chunkPath === undefined ? chunkUrl : `${encodeChunkPath(chunkPath)}${suffix}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
@@ -1497,10 +1653,7 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    var chunkUrl = chunkScript.src;
-    var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    var path = src.startsWith(RUNTIME_CHUNK_BASE_PATH) ? src.slice(RUNTIME_CHUNK_BASE_PATH.length) : src;
-    return path;
+    return chunkUrlToPath(chunkScript.src);
 }
 /**
  * Return the ChunkUrl from a ChunkScript.
@@ -1772,8 +1925,11 @@ function getAssetSuffixFromScriptSrc() {
  *
  * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
  * to be escaped.
- */ function matchesChunkUrl(value, url, decodedUrl) {
-    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
+ */ function matchesChunkUrl(value, url, decodedUrl, chunkPath) {
+    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?') || chunkPath !== undefined && getOwnedChunkPath(splitChunkUrl(value)[0]) === chunkPath);
+}
+function getAssignedChunkPath(url) {
+    return publicPathAssigned ? getOwnedChunkPath(splitChunkUrl(url)[0]) : undefined;
 }
 // These lookups only search `<head>`: the runtime inserts its chunk tags there,
 // and chunk tags rendered into the HTML are expected there too. Tags in
@@ -1789,11 +1945,12 @@ function getAssetSuffixFromScriptSrc() {
  * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
  */ function findChunkScripts(url) {
     var decodedUrl = decodeURI(url);
+    var chunkPath = getAssignedChunkPath(url);
     var scripts = document.head.getElementsByTagName('script');
     var result = [];
     for(var i = 0; i < scripts.length; i++){
         var script = scripts[i];
-        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl, chunkPath)) {
             result.push(script);
         }
     }
@@ -1806,12 +1963,13 @@ function getAssetSuffixFromScriptSrc() {
  */ function findChunkLinks(url) {
     var stylesheetsOnly = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
     var decodedUrl = decodeURI(url);
+    var chunkPath = getAssignedChunkPath(url);
     var links = document.head.getElementsByTagName('link');
     var result = [];
     for(var i = 0; i < links.length; i++){
         var _link_getAttribute;
         var link = links[i];
-        if ((!stylesheetsOnly || ((_link_getAttribute = link.getAttribute('rel')) === null || _link_getAttribute === void 0 ? void 0 : _link_getAttribute.toLowerCase()) === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
+        if ((!stylesheetsOnly || ((_link_getAttribute = link.getAttribute('rel')) === null || _link_getAttribute === void 0 ? void 0 : _link_getAttribute.toLowerCase()) === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl, chunkPath)) {
             result.push(link);
         }
     }
@@ -1825,8 +1983,9 @@ function getAssetSuffixFromScriptSrc() {
 }
 var BACKEND;
 /**
- * Maps chunk paths to the corresponding resolver.
+ * Maps chunk cache keys to the corresponding resolver.
  */ var chunkResolvers = new Map();
+chunkUrlCaches.push(chunkResolvers);
 (function() {
     BACKEND = {
         registerChunk: function registerChunk(chunk, params) {
@@ -1914,7 +2073,8 @@ var BACKEND;
         }
     };
     function getOrCreateResolver(chunkUrl) {
-        var resolver = chunkResolvers.get(chunkUrl);
+        var cacheKey = getChunkCacheKey(chunkUrl);
+        var resolver = chunkResolvers.get(cacheKey);
         if (!resolver) {
             var resolve;
             var reject;
@@ -1933,7 +2093,7 @@ var BACKEND;
                 },
                 reject: reject
             };
-            chunkResolvers.set(chunkUrl, resolver);
+            chunkResolvers.set(cacheKey, resolver);
         }
         return resolver;
     }
@@ -1942,8 +2102,9 @@ var BACKEND;
    * We don't want to cache failed chunk loads: a later
    * request for the same chunk should try again.
    */ function rejectChunkResolver(chunkUrl, resolver, error) {
-        if (chunkResolvers.get(chunkUrl) === resolver) {
-            chunkResolvers.delete(chunkUrl);
+        var cacheKey = getChunkCacheKey(chunkUrl);
+        if (chunkResolvers.get(cacheKey) === resolver) {
+            chunkResolvers.delete(cacheKey);
         }
         resolver.reject(error);
     }
@@ -1957,7 +2118,7 @@ var BACKEND;
     /**
    * Handles a failed chunk load: retries the load once after a short delay.
    */ function onChunkLoadError(sourceType, chunkUrl, resolver, error, reload) {
-        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
+        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(getChunkCacheKey(chunkUrl)) !== resolver) {
             rejectChunkResolver(chunkUrl, resolver, error);
             return;
         }
@@ -1966,7 +2127,7 @@ var BACKEND;
             // if this chunk is being fetched multiple times, and one of those
             // attempts succeeds. or, if this chunk has another resolver
             // mapped to it - it's safe to skip retrying.
-            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+            if (resolver.resolved || chunkResolvers.get(getChunkCacheKey(chunkUrl)) !== resolver) {
                 return;
             }
             if (reload) {

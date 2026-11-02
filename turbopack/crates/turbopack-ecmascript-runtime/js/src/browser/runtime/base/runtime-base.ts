@@ -42,6 +42,16 @@ const RUNTIME_CHUNK_BASE_PATH =
     ? TURBOPACK_CHUNK_BASE_PATH
     : CHUNK_BASE_PATH
 
+runtimePublicPath = defaultPublicPath = RUNTIME_CHUNK_BASE_PATH
+
+// Chunk paths of URLs built under an assigned public path. That base may no
+// longer be current, so it cannot be stripped to recover the path.
+const assignedChunkPaths = new Map<string, ChunkPath | ChunkListPath>()
+
+function getRuntimeChunkBasePath(): string {
+  return publicPathAssigned ? runtimePublicPath : RUNTIME_CHUNK_BASE_PATH
+}
+
 // Provided by build or dev base
 declare function instantiateModule(
   id: ModuleId,
@@ -119,6 +129,19 @@ type ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[], number[]]
 
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 const splitChunkPromises: Map<ChunkUrl, Promise<any>> = new Map()
+
+// Caches keyed by `getChunkCacheKey`. Its keys change once a public path is assigned.
+const chunkUrlCaches: Map<ChunkUrl, unknown>[] = [splitChunkPromises]
+onPublicPathAssigned = () => {
+  for (const cache of chunkUrlCaches) {
+    const entries = [...cache]
+    cache.clear()
+    for (const [chunkUrl, value] of entries) {
+      const key = getChunkCacheKey(chunkUrl)
+      if (!cache.has(key)) cache.set(key, value)
+    }
+  }
+}
 
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,
@@ -277,6 +300,12 @@ function loadChunkByUrl(
   this: TurbopackBrowserBaseContext<Module>,
   chunkEntry: ChunkUrlOrMerged
 ) {
+  if (publicPathAssigned) {
+    chunkEntry =
+      typeof chunkEntry === 'string'
+        ? rebaseChunkUrl(chunkEntry)
+        : [rebaseChunkUrl(chunkEntry[0]), chunkEntry[1], chunkEntry[2]]
+  }
   return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl
@@ -311,7 +340,8 @@ function loadChunkByUrlInternal(
     // If we have component chunks for this merged chunk, load only the ones we don't already have
     // instead of the whole merged chunk.
     if (components !== undefined) {
-      let promise = splitChunkPromises.get(chunkUrl)
+      const cacheKey = getChunkCacheKey(chunkUrl)
+      let promise = splitChunkPromises.get(cacheKey)
       if (promise === undefined) {
         promise = loadComponentChunksOrWhole(
           sourceType,
@@ -319,7 +349,7 @@ function loadChunkByUrlInternal(
           components,
           chunkUrl
         )
-        splitChunkPromises.set(chunkUrl, promise)
+        splitChunkPromises.set(cacheKey, promise)
       }
       return promise
     }
@@ -344,6 +374,10 @@ function loadChunkByUrlInternal(
 // Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
 // match the keys stored in `chunkComponents`.
 function chunkUrlToPath(chunkUrl: ChunkUrl): ChunkPath {
+  if (publicPathAssigned) {
+    const assignedPath = assignedChunkPaths.get(splitChunkUrl(chunkUrl)[0])
+    if (assignedPath !== undefined) return assignedPath as ChunkPath
+  }
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
   return (
     src.startsWith(RUNTIME_CHUNK_BASE_PATH)
@@ -487,13 +521,69 @@ const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/
  */
 function getChunkRelativeUrl(
   chunkPath: ChunkPath | ChunkListPath,
-  basePath: string = RUNTIME_CHUNK_BASE_PATH
+  basePath: string = getRuntimeChunkBasePath(),
+  assetSuffix: string = ASSET_SUFFIX
 ): ChunkUrl {
+  const url = `${basePath}${encodeChunkPath(chunkPath)}`
+  if (publicPathAssigned) {
+    assignedChunkPaths.set(url, chunkPath)
+  }
+  return `${url}${assetSuffix}` as ChunkUrl
+}
+
+function encodeChunkPath(chunkPath: ChunkPath | ChunkListPath): string {
   // Most chunk paths need no escaping.
-  const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
+  return CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
     ? chunkPath.split('/').map(encodeURIComponent).join('/')
     : chunkPath
-  return `${basePath}${encodedPath}${ASSET_SUFFIX}` as ChunkUrl
+}
+
+function splitChunkUrl(chunkUrl: string): [pathname: string, suffix: string] {
+  const suffixIndex = chunkUrl.search(/[?#]/)
+  return suffixIndex === -1
+    ? [chunkUrl, '']
+    : [chunkUrl.slice(0, suffixIndex), chunkUrl.slice(suffixIndex)]
+}
+
+/**
+ * Returns the chunk path for a URL pathname under the configured or an
+ * assigned base path, or `undefined` for any other URL.
+ */
+function getOwnedChunkPath(
+  pathname: string
+): ChunkPath | ChunkListPath | undefined {
+  const assignedPath = assignedChunkPaths.get(pathname)
+  if (assignedPath !== undefined) return assignedPath
+  const basePath = RUNTIME_CHUNK_BASE_PATH
+  const owned =
+    basePath === ''
+      ? !/^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/)/.test(pathname)
+      : pathname.startsWith(basePath) &&
+        (basePath.startsWith('//') || !pathname.startsWith('//'))
+  return owned
+    ? (decodeURIComponent(pathname.slice(basePath.length)) as ChunkPath)
+    : undefined
+}
+
+// URLs from the server are built with the configured base path. Load them from
+// the assigned public path instead.
+function rebaseChunkUrl(chunkUrl: ChunkUrl): ChunkUrl {
+  const [pathname, suffix] = splitChunkUrl(chunkUrl)
+  const chunkPath = getOwnedChunkPath(pathname)
+  return chunkPath === undefined
+    ? chunkUrl
+    : getChunkRelativeUrl(chunkPath, runtimePublicPath, suffix)
+}
+
+// Once a public path is assigned, the same chunk can be requested from several
+// base paths, so identify it by its path instead.
+function getChunkCacheKey(chunkUrl: ChunkUrl): ChunkUrl {
+  if (!publicPathAssigned) return chunkUrl
+  const [pathname, suffix] = splitChunkUrl(chunkUrl)
+  const chunkPath = getOwnedChunkPath(pathname)
+  return chunkPath === undefined
+    ? chunkUrl
+    : (`${encodeChunkPath(chunkPath)}${suffix}` as ChunkUrl)
 }
 
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
@@ -518,12 +608,7 @@ function getPathFromScript(
   if (typeof chunkScript === 'string') {
     return chunkScript as ChunkPath | ChunkListPath
   }
-  const chunkUrl = chunkScript.src!
-  const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
-  const path = src.startsWith(RUNTIME_CHUNK_BASE_PATH)
-    ? src.slice(RUNTIME_CHUNK_BASE_PATH.length)
-    : src
-  return path as ChunkPath | ChunkListPath
+  return chunkUrlToPath(chunkScript.src!)
 }
 
 /**

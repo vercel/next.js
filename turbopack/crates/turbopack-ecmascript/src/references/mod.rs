@@ -16,6 +16,7 @@ pub mod import_meta_glob;
 pub mod member;
 pub mod node;
 pub mod pattern_mapping;
+pub mod public_path;
 pub mod raw;
 pub mod removal;
 pub mod require_context;
@@ -142,6 +143,7 @@ use crate::{
         import_meta_glob::{ImportMetaGlobAssetReference, parse_import_meta_glob},
         member::MemberReplacement,
         node::PackageJsonReference,
+        public_path::RuntimePublicPathReference,
         raw::{DirAssetReference, FileSourceReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
         typescript::{
@@ -1306,14 +1308,16 @@ async fn analyze_ecmascript_module_internal(
                         continue;
                     }
 
-                    // FreeVar("require") might be turbopackIgnore-d
-                    if !analysis_state
-                        .link_value(
-                            JsValue::FreeVar(var.clone()),
-                            eval_context.imports.get_attributes(span),
-                        )
-                        .await?
-                        .is_unknown()
+                    // FreeVar("require") might be turbopackIgnore-d. The public path is
+                    // mutable, so it links to an unknown value but is still replaced.
+                    if var == "__webpack_public_path__"
+                        || !analysis_state
+                            .link_value(
+                                JsValue::FreeVar(var.clone()),
+                                eval_context.imports.get_attributes(span),
+                            )
+                            .await?
+                            .is_unknown()
                     {
                         // Call handle free var
                         handle_free_var(
@@ -1613,6 +1617,12 @@ async fn compile_time_info_for_module_options(
     let mut free_var_references = free_var_references.owned().await?;
     let mut defines = defines.owned().await?;
 
+    free_var_references
+        .entry(vec![DefinableNameSegment::Name(rcstr!(
+            "__webpack_public_path__"
+        ))])
+        .or_insert(FreeVarReference::RuntimePublicPath(None));
+
     let (typeof_exports, typeof_module, typeof_this, require) = if is_esm {
         (
             rcstr!("undefined"),
@@ -1637,6 +1647,7 @@ async fn compile_time_info_for_module_options(
         (&[rcstr!("__dirname")], rcstr!("string")),
         (&[rcstr!("__filename")], rcstr!("string")),
         (&[rcstr!("global")], rcstr!("object")),
+        (&[rcstr!("__webpack_public_path__")], rcstr!("string")),
     ];
     for (typeof_path, typeof_value) in typeofs {
         let name = typeof_path
@@ -3791,11 +3802,13 @@ async fn handle_free_var_reference(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<bool> {
-    // We don't want to replace assignments as this would lead to invalid code.
-    if matches!(
-        ast_path,
-        // Matches assignments to members
-        [
+    // We don't want to replace assignments as this would lead to invalid code. The runtime
+    // public path is replaced with an assignable property, so it is the exception.
+    if !matches!(value, FreeVarReference::RuntimePublicPath(_))
+        && matches!(
+            ast_path,
+            // Matches assignments to members
+            [
             ..,
             AstParentKind::AssignExpr(AssignExprField::Left),
             AstParentKind::AssignTarget(AssignTargetField::Simple),
@@ -3809,7 +3822,8 @@ async fn handle_free_var_reference(
             AstParentKind::SimpleAssignTarget(SimpleAssignTargetField::Ident),
             AstParentKind::BindingIdent(BindingIdentField::Id),
         ]
-    ) {
+        )
+    {
         return Ok(false);
     }
 
@@ -3830,6 +3844,12 @@ async fn handle_free_var_reference(
             analysis.add_code_gen(MemberReplacement::new(
                 key.clone(),
                 value.clone(),
+                analysis.intern_path(ast_path),
+            ));
+        }
+        FreeVarReference::RuntimePublicPath(default_path) => {
+            analysis.add_code_gen(RuntimePublicPathReference::new(
+                default_path.clone(),
                 analysis.intern_path(ast_path),
             ));
         }

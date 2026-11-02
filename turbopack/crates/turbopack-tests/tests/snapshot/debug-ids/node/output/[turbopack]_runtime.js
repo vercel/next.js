@@ -53,6 +53,40 @@ const REEXPORTED_OBJECTS = new WeakMap();
 }
 const contextPrototype = Context.prototype;
 contextPrototype.M = moduleFactories;
+let runtimePublicPath = '';
+// The public path before any assignment. Asset URLs are built with it.
+let defaultPublicPath = '';
+let publicPathInitialized = false;
+let publicPathAssigned = false;
+// Set by runtimes whose caches must be rekeyed once a public path is assigned.
+let onPublicPathAssigned;
+function initializePublicPath(defaultPath) {
+    if (!publicPathInitialized) {
+        runtimePublicPath = defaultPublicPath = defaultPath;
+        publicPathInitialized = true;
+    }
+}
+contextPrototype.B = initializePublicPath;
+/**
+ * Like webpack's asset modules, asset URLs under the default public path follow
+ * the public path assigned before the asset's module is evaluated.
+ */ function resolvePublicAssetUrl(url) {
+    return publicPathAssigned && defaultPublicPath !== '' && url.startsWith(defaultPublicPath) ? runtimePublicPath + url.slice(defaultPublicPath.length) : url;
+}
+contextPrototype.u = resolvePublicAssetUrl;
+Object.defineProperty(contextPrototype, 'p', {
+    get () {
+        return runtimePublicPath;
+    },
+    set (value) {
+        runtimePublicPath = value;
+        publicPathInitialized = true;
+        if (!publicPathAssigned) {
+            publicPathAssigned = true;
+            onPublicPathAssigned?.();
+        }
+    }
+});
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -750,6 +784,7 @@ Context.prototype.F = resolveFileUrl;
  * Base Node.js runtime shared between production and development.
  * Contains chunk loading, module caching, and other non-HMR functionality.
  */ process.env.TURBOPACK = '1';
+runtimePublicPath = ASSET_PREFIX;
 const url = require('url');
 /**
  * Returns an absolute path to the given module's id.

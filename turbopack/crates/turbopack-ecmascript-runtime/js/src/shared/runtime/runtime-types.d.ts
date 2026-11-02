@@ -174,6 +174,9 @@ interface TurbopackBaseContext<M> {
   F: ResolveFileUrl
   U: RelativeURL
   b: ChunkBasePath
+  p: string
+  B: (defaultPath: string) => void
+  u: (url: string) => string
   X: AssetSuffix
   x: ExternalRequire
   y: ExternalImport
