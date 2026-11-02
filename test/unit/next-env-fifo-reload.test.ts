@@ -54,6 +54,23 @@ describe('fifo env reload', () => {
     }
   })
 
+  it('removes values when a regular .env file is emptied on reload', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'next-env-plain-'))
+    writeFileSync(join(dir, '.env'), 'NEXT_TEST_FIFO_SECRET=present\n')
+
+    try {
+      loadEnvConfig(dir, false, console, true)
+      expect(process.env.NEXT_TEST_FIFO_SECRET).toBe('present')
+
+      writeFileSync(join(dir, '.env'), '')
+      loadEnvConfig(dir, false, console, true)
+      expect(process.env.NEXT_TEST_FIFO_SECRET).toBeUndefined()
+    } finally {
+      delete process.env.NEXT_TEST_FIFO_SECRET
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('still replaces values when a forced reload reads new content', () => {
     const dir = mkdtempSync(join(tmpdir(), 'next-env-plain-'))
     writeFileSync(join(dir, '.env'), 'NEXT_TEST_FIFO_SECRET=updated\n')

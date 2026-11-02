@@ -139,11 +139,8 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  // Read the files before touching process.env: a forced reload that
-  // reads nothing must not wipe what a previous load populated. This
-  // happens with FIFO-mounted .env files from secret managers, which
-  // serve their contents once and read empty thereafter, and with any
-  // transient read failure on reload.
+  // Read the files before touching process.env, so a forced reload
+  // never wipes the environment before it knows what the re-read found.
   const nextLoadedEnvFiles: LoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'
@@ -183,13 +180,40 @@ export function loadEnvConfig(
     }
   }
 
-  if (
-    forceReload &&
-    combinedEnv &&
-    cachedLoadedEnvFiles.some((file) => file.contents.length > 0) &&
-    !nextLoadedEnvFiles.some((file) => file.contents.length > 0)
-  ) {
-    return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  // A FIFO-mounted .env file serves its contents once and reads empty
+  // thereafter, so a watcher-triggered forced reload must not lose the
+  // values it previously supplied. Carry those forward, but only for
+  // files that are still FIFOs: emptying or deleting a regular .env
+  // file must still remove its variables on reload.
+  if (forceReload) {
+    for (const previousFile of cachedLoadedEnvFiles) {
+      if (previousFile.contents.length === 0) {
+        continue
+      }
+      const nextFile = nextLoadedEnvFiles.find(
+        (file) => file.path === previousFile.path
+      )
+      if (nextFile && nextFile.contents.length > 0) {
+        continue
+      }
+      try {
+        const stats = fs.statSync(path.join(dir, previousFile.path))
+        if (!stats.isFIFO()) {
+          continue
+        }
+      } catch {
+        continue
+      }
+      if (nextFile) {
+        nextFile.contents = previousFile.contents
+      } else {
+        nextLoadedEnvFiles.push({
+          path: previousFile.path,
+          contents: previousFile.contents,
+          env: {},
+        })
+      }
+    }
   }
 
   replaceProcessEnv(initialEnv)
