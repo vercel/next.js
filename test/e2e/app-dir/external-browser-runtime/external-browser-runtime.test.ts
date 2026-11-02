@@ -21,6 +21,15 @@ describe('external-browser-runtime', () => {
     expect(html).toContain('<template data-rci=""')
   })
 
+  it('carries the Flight payload as data instead of inline scripts', async () => {
+    const html = await next.render('/')
+
+    expect(html).toContain('<template data-next-flight="')
+    // The inline `self.__next_f.push(...)` scripts are what the templates
+    // replace, so none should remain.
+    expect(html).not.toContain('self.__next_f')
+  })
+
   it('loads the runtime as a static asset', async () => {
     const $ = await next.render$('/')
 
