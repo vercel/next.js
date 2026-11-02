@@ -492,6 +492,7 @@ fn persistent_go_and_mixed_builds_reuse_compilation_across_processes() {
                     "node",
                     "--no-minify",
                     "--no-sourcemap",
+                    "--worker-threads=1",
                 ])
                 .env("TURBO_ENGINE_IGNORE_DIRTY", "1");
             command
@@ -519,7 +520,8 @@ fn persistent_go_and_mixed_builds_reuse_compilation_across_processes() {
             assert_eq!(
                 process.0.wait().unwrap().code(),
                 Some(0),
-                "mixed={mixed}: {output}"
+                "mixed={mixed}, expected_go={expected_go}, expected_builds={expected_builds}: \
+                 {output}"
             );
             assert_eq!(
                 run(&executable(project)).as_deref(),
@@ -533,7 +535,12 @@ fn persistent_go_and_mixed_builds_reuse_compilation_across_processes() {
                     "{output}"
                 );
             }
-            assert_eq!(builds(), expected_builds, "mixed={mixed}: {output}");
+            assert_eq!(
+                builds(),
+                expected_builds,
+                "mixed={mixed}, expected_go={expected_go}, expected_builds={expected_builds}: \
+                 {output}"
+            );
             assert!(!output.contains("panicked"), "{output}");
         };
         build("go-v1", "js-v1", 1);
