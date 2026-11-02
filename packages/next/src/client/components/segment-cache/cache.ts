@@ -1919,6 +1919,11 @@ export async function fetchRouteOnCacheMiss(
     }
 
     if (!response || !response.ok || !response.body) {
+      if (response && response.body) {
+        try {
+          response.body.cancel().catch(() => {})
+        } catch {}
+      }
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
       rejectRouteCacheEntry(entry, Date.now() + REJECTION_BACKOFF_MS)
@@ -2241,6 +2246,11 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     !wasServedFromPerSegmentCache(response) ||
     !response.body
   ) {
+    if (response && response.body) {
+      try {
+        response.body.cancel().catch(() => {})
+      } catch {}
+    }
     // Server responded with an error or a miss — fetched but not usable.
     return null
   }
@@ -2671,6 +2681,11 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
   try {
     const response = await fetchPrefetchResponse(url, headers)
     if (!response || !response.ok || !response.body) {
+      if (response && response.body) {
+        try {
+          response.body.cancel().catch(() => {})
+        } catch {}
+      }
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
       rejectSegmentEntriesIfStillPending(
@@ -2682,6 +2697,11 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
 
     const renderedSearch = getRenderedSearch(response)
     if (renderedSearch !== route.renderedSearch) {
+      if (response.body) {
+        try {
+          response.body.cancel().catch(() => {})
+        } catch {}
+      }
       // The search params that were used to render the target page are
       // different from the search params in the request URL. This only happens
       // when there's a dynamic rewrite in between the tree prefetch and the
@@ -3672,6 +3692,11 @@ async function fetchPrefetchResponse(
   const fetchPriority = 'low'
   const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {
+    if (response.body) {
+      try {
+        response.body.cancel().catch(() => {})
+      } catch {}
+    }
     return null
   }
 
@@ -3686,6 +3711,11 @@ async function fetchPrefetchResponse(
     const isFlightResponse =
       contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
     if (!isFlightResponse) {
+      if (response.body) {
+        try {
+          response.body.cancel().catch(() => {})
+        } catch {}
+      }
       return null
     }
   }
