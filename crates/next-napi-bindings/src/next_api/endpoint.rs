@@ -12,8 +12,8 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_native_file_systems_operation, endpoint_server_changed_operation,
-        endpoint_write_to_disk_operation,
+        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        read_with_validated_endpoint,
     },
 };
 use tracing::Instrument;
@@ -179,37 +179,22 @@ pub async fn endpoint_write_to_disk(
     let (written, issues) = ctx
         .turbo_tasks()
         .run(async move {
-            for _ in 0..8 {
-                let written_entrypoint_with_issues_op =
-                    get_written_endpoint_with_issues_operation(endpoint_op);
-                let read = read_strongly_consistent_and_apply_effects(
-                    written_entrypoint_with_issues_op,
-                    |v| &v.effects,
-                )
-                .await?;
-                let WrittenEndpointWithIssues {
-                    written, issues, ..
-                } = &*read;
-
-                if let Some(
-                    EndpointOutputPaths::Native { build, .. }
-                    | EndpointOutputPaths::NativeFailed { build },
-                ) = written.as_deref()
-                    && !build.is_current()?
-                {
-                    let systems = endpoint_native_file_systems_operation(endpoint_op)
-                        .read_strongly_consistent()
-                        .await?;
-                    for fs in systems.iter() {
-                        fs.await?.invalidate();
-                    }
-                    continue;
-                }
-                return Ok((written.clone(), issues.clone()));
-            }
-            anyhow::bail!(
-                "Go route sources changed repeatedly during compilation; retry the request"
+            let written_entrypoint_with_issues_op =
+                get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = read_with_validated_endpoint(
+                || {
+                    read_strongly_consistent_and_apply_effects(
+                        written_entrypoint_with_issues_op,
+                        |v| &v.effects,
+                    )
+                },
+                |value| value.written.as_deref(),
             )
+            .await?;
+            let WrittenEndpointWithIssues {
+                written, issues, ..
+            } = &*read;
+            Ok((written.clone(), issues.clone()))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
