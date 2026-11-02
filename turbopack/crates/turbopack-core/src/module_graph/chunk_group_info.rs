@@ -233,7 +233,7 @@ impl ChunkGroupInfo {
 
     /// Returns the chunk groups containing loaders of `module`, including their transitive
     /// importers across async boundaries. Non-async groups terminate a path; an async cycle is
-    /// visited only once. The keyed reader records only the async modules reached by this query.
+    /// visited only once.
     #[turbo_tasks::function]
     pub async fn get_async_loader_ancestor_chunk_groups(
         &self,
