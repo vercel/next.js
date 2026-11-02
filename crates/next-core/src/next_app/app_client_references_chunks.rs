@@ -46,16 +46,14 @@ fn is_isolated_merged_group_for_parent(
 /// use direct membership and async importer ancestry to find the groups owned by that component.
 fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
-    server_component_indices: Option<&FxIndexSet<u32>>,
+    server_component_index: Option<u32>,
     async_parent_indices: FxIndexSet<u32>,
 ) -> Result<FxIndexSet<u32>> {
-    if let Some(server_component_indices) = server_component_indices
-        && !server_component_indices.is_empty()
-    {
-        let mut parent_indices = source_indices
-            .intersection(server_component_indices)
-            .copied()
-            .collect::<FxIndexSet<_>>();
+    if let Some(server_component_index) = server_component_index {
+        let mut parent_indices = FxIndexSet::default();
+        if source_indices.contains(&server_component_index) {
+            parent_indices.insert(server_component_index);
+        }
         // A reference may be imported both directly and through async chunks inside its owner.
         parent_indices.extend(async_parent_indices);
         if !parent_indices.is_empty() {
@@ -67,8 +65,7 @@ fn relevant_parent_indices(
             "source chunk groups have no direct or async ancestry match with the server component"
         );
     }
-    // Framework references have no owner, and development's multi-graph setup may have no owner
-    // groups in this graph. Only these cases fall back to the source module's groups.
+    // Without an owner group, fall back to the source module's groups.
     Ok(source_indices)
 }
 
@@ -103,15 +100,12 @@ async fn derived_isolated_merged_groups(
         let source_groups = chunk_group_info
             .get_chunk_groups_for_module(*source_module)
             .await?;
-        let server_component_indices = if let Some(server_component) = server_component {
-            Some(
-                chunk_group_info
-                    .get_chunk_groups_for_module(*server_component)
-                    .await?
-                    .iter()
-                    .map(|group| group.index)
-                    .collect::<FxIndexSet<_>>(),
-            )
+        let server_component_index = if let Some(server_component) = server_component {
+            let groups = chunk_group_info
+                .get_chunk_groups_for_module(*server_component)
+                .await?;
+            debug_assert_eq!(groups.len(), 1);
+            groups.first().map(|group| group.index)
         } else {
             None
         };
@@ -120,9 +114,7 @@ async fn derived_isolated_merged_groups(
             .map(|group| group.index)
             .collect::<FxIndexSet<_>>();
         let mut async_parent_indices = FxIndexSet::default();
-        if let Some(owner_indices) = &server_component_indices
-            && !owner_indices.is_empty()
-        {
+        if let Some(owner_index) = server_component_index {
             // Async server imports create new groups without changing the reference's owner.
             // Follow their importer ancestry, not every group containing the shared proxy:
             // unrelated pages' merged groups can also contain other client entries.
@@ -132,7 +124,7 @@ async fn derived_isolated_merged_groups(
                         .get_async_loader_ancestor_chunk_groups(**module)
                         .await?
                         .iter()
-                        .any(|ancestor| owner_indices.contains(&ancestor.index))
+                        .any(|ancestor| ancestor.index == owner_index)
                 {
                     async_parent_indices.insert(group.index);
                 }
@@ -140,7 +132,7 @@ async fn derived_isolated_merged_groups(
         }
         let parent_indices = match relevant_parent_indices(
             source_indices,
-            server_component_indices.as_ref(),
+            server_component_index,
             async_parent_indices,
         ) {
             Ok(indices) => indices,
@@ -587,7 +579,7 @@ mod tests {
         assert_eq!(
             relevant_parent_indices(
                 FxIndexSet::from_iter([1, 2, 4]),
-                Some(&FxIndexSet::from_iter([2, 3])),
+                Some(2),
                 FxIndexSet::from_iter([1]),
             )
             .unwrap(),
@@ -596,19 +588,10 @@ mod tests {
     }
 
     #[test]
-    fn parent_indices_allow_fallback_only_without_owner_groups() {
+    fn parent_indices_allow_fallback_only_without_owner_index() {
         let source = FxIndexSet::from_iter([1, 2]);
         assert_eq!(
             relevant_parent_indices(source.clone(), None, FxIndexSet::default()).unwrap(),
-            source,
-        );
-        assert_eq!(
-            relevant_parent_indices(
-                source.clone(),
-                Some(&FxIndexSet::default()),
-                FxIndexSet::default(),
-            )
-            .unwrap(),
             source,
         );
     }
@@ -618,7 +601,7 @@ mod tests {
         assert_eq!(
             relevant_parent_indices(
                 FxIndexSet::from_iter([1, 2]),
-                Some(&FxIndexSet::from_iter([3])),
+                Some(3),
                 FxIndexSet::from_iter([2]),
             )
             .unwrap(),
@@ -629,12 +612,8 @@ mod tests {
     #[test]
     fn known_owner_mismatch_is_an_error() {
         for source in [FxIndexSet::from_iter([1, 2]), FxIndexSet::default()] {
-            let error = relevant_parent_indices(
-                source,
-                Some(&FxIndexSet::from_iter([3])),
-                FxIndexSet::default(),
-            )
-            .unwrap_err();
+            let error =
+                relevant_parent_indices(source, Some(3), FxIndexSet::default()).unwrap_err();
             assert!(
                 error
                     .to_string()
