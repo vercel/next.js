@@ -12,8 +12,33 @@ export function effort(raw, pricing = null) {
   const claude = events.findLast(
     (event) => event.type === 'result' && event.usage
   )
-  if (claude) {
-    const usage = claude.usage
+  const messages = new Map()
+  if (!claude) {
+    for (const event of events) {
+      const message = event.type === 'assistant' && event.message
+      if (!message?.id || !message.usage) continue
+      const previous = messages.get(message.id) ?? {}
+      const usage = {}
+      for (const name of [
+        'input_tokens',
+        'output_tokens',
+        'cache_read_input_tokens',
+        'cache_creation_input_tokens',
+      ]) {
+        usage[name] = Math.max(previous[name] ?? 0, message.usage[name] ?? 0)
+      }
+      messages.set(message.id, usage)
+    }
+  }
+  if (claude || messages.size) {
+    const usage =
+      claude?.usage ??
+      [...messages.values()].reduce((sum, item) => {
+        for (const [name, value] of Object.entries(item)) {
+          sum[name] = (sum[name] ?? 0) + value
+        }
+        return sum
+      }, {})
     const cached = usage.cache_read_input_tokens ?? 0
     const written = usage.cache_creation_input_tokens ?? 0
     return {

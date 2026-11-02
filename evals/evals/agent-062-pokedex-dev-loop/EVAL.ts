@@ -79,7 +79,8 @@ test('builds a working Pokédex with Cache Components and Partial Prefetching', 
     run('node', [
       '--input-type=commonjs',
       '-e',
-      `const {resolve} = require('node:path');
+      `process.env.NODE_ENV = 'production';
+const {resolve} = require('node:path');
 const load = require('./app/node_modules/next/dist/server/config').default;
 const {PHASE_PRODUCTION_BUILD} = require('./app/node_modules/next/constants');
 load(PHASE_PRODUCTION_BUILD, resolve('app')).then(config => {

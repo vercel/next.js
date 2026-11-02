@@ -115,7 +115,7 @@ if (
       JSON.stringify(
         findRuns(resolve(directory)).map((run) => ({
           run,
-          ...summarize(run, pricing),
+          ...(read(join(run, 'metrics.json'), null) ?? summarize(run, pricing)),
         })),
         null,
         2
