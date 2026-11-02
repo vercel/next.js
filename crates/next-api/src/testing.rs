@@ -2402,8 +2402,8 @@ async fn prepare_test_module_with_loading(
         HashMap::new();
     let mut native_unmock_runtime_targets = HashMap::new();
     let mut builtin_unmock_cuts = HashMap::new();
-    // The original-require bridge is a separate, bounded development Node fact.
-    // The older named-spy boolean alone does not establish this profile.
+    // The original-require bridge is a separate, bounded ordinary Node fact.
+    // Actual mode and test-entry facts establish the profile; named-spy alone does not.
     let allow_commonjs_original_require = if allow_cjs_named_spy
         && inherited.is_empty()
         && !layered_inputs
@@ -2420,7 +2420,8 @@ async fn prepare_test_module_with_loading(
         && plan.actual_imports.is_empty()
         && plan.mock_imports.is_empty()
         && plan.unmocks.is_empty()
-        && project.next_mode().await?.is_development()
+        && (project.next_mode().await?.is_development()
+            || (project.next_mode().await?.is_production() && production_factory_plan(&plan)))
         && let Some(entry) = project.await?.test_entry
     {
         let entry = entry.await?;

@@ -1060,6 +1060,790 @@
           "rawRowSHA256": "f06db28ec4d1be2039a33a857277b45cba86d0cd60382d2a21a2649ece43a0f4"
         }
       }
+    },
+    "production-base": {
+      "mode": "production",
+      "files": {
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "consumer.cjs": "5b9685eddb9a30c1c18f6228ea8d47d86366e98e3c3e43fb68c3864fa8afa2c9",
+        "contract.case.mjs": "4cea782e003c5f9c6045d814a617123c4ac4702ab6e887d53d3338f1c9a1df36"
+      },
+      "models": {
+        "20": {
+          "row": {
+            "name": "ordinary-require-composition",
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v20.20.0",
+          "rawReportSHA256": "8592979ffa181d546bb7ef745c5b76bfb551068ac942a805efb308ea19bcfca9",
+          "rawRowSHA256": "fd29bea4b655e2d1c5619dd929e8ead3411a2473bf4f845e80db5da1374b8c61"
+        },
+        "22": {
+          "row": {
+            "name": "ordinary-require-composition",
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v22.12.0",
+          "rawReportSHA256": "efd72d050107f2f3f4e40179cf985cfcb2cda353dbe91b4a7a4e55dcfc7d4e4c",
+          "rawRowSHA256": "fd29bea4b655e2d1c5619dd929e8ead3411a2473bf4f845e80db5da1374b8c61"
+        },
+        "24": {
+          "row": {
+            "name": "ordinary-require-composition",
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v24.0.0",
+          "rawReportSHA256": "ef1d21506860214a7d7afe41058fecac3f006bcbd170aee093745fdfa13f44e1",
+          "rawRowSHA256": "fd29bea4b655e2d1c5619dd929e8ead3411a2473bf4f845e80db5da1374b8c61"
+        },
+        "26": {
+          "row": {
+            "name": "ordinary-require-composition",
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v26.12.1",
+          "rawReportSHA256": "9c77156c33e7f7602048c665f9ec2a1044c50893a8684f610cf945d2a2a4f118",
+          "rawRowSHA256": "fd29bea4b655e2d1c5619dd929e8ead3411a2473bf4f845e80db5da1374b8c61"
+        }
+      }
+    },
+    "production-lazy": {
+      "mode": "production",
+      "files": {
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "consumer.cjs": "018f04829b4ed8919aee0f8015952494bda60c01cc696c4ad459af99cc6d5db6",
+        "contract.case.mjs": "b008e17c882cb4d2a2d5bf45a1293cd04802490444dbacfcf689e66153c84612"
+      },
+      "models": {
+        "20": {
+          "row": {
+            "name": "ordinary-lazy-require-composition",
+            "originalLazyBefore": true,
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v20.20.0",
+          "rawReportSHA256": "3c195fb428c161ebbdf4b0f5e75929ce8db7af9d714ea379e9e22e6854db323f",
+          "rawRowSHA256": "30d3b3f493f99259c4b117a0bee27fb2a377d722a747ad79d22a5875fade552d"
+        },
+        "22": {
+          "row": {
+            "name": "ordinary-lazy-require-composition",
+            "originalLazyBefore": true,
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v22.12.0",
+          "rawReportSHA256": "0f0cf80936a2d3a50416c6b863c6fa5472cdaf8a7d0aae861140605013bf9209",
+          "rawRowSHA256": "30d3b3f493f99259c4b117a0bee27fb2a377d722a747ad79d22a5875fade552d"
+        },
+        "24": {
+          "row": {
+            "name": "ordinary-lazy-require-composition",
+            "originalLazyBefore": true,
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v24.0.0",
+          "rawReportSHA256": "e97193d1adb2b6fee4ef0b01f626bf1651bd58443377a97dd017758896e6938d",
+          "rawRowSHA256": "30d3b3f493f99259c4b117a0bee27fb2a377d722a747ad79d22a5875fade552d"
+        },
+        "26": {
+          "row": {
+            "name": "ordinary-lazy-require-composition",
+            "originalLazyBefore": true,
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          "events": [
+            {
+              "name": "consumer-require"
+            },
+            {
+              "name": "target-evaluate"
+            },
+            {
+              "name": "consumer-require"
+            }
+          ],
+          "cases": {
+            "counts": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 1,
+              "numPassedTests": 1,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0
+            },
+            "success": true,
+            "files": [
+              {
+                "file": "contract.case.mjs",
+                "status": "passed",
+                "message": "",
+                "cases": [
+                  {
+                    "ancestorTitles": [],
+                    "fullName": "original CommonJS require and mocked ESM remain separate",
+                    "status": "passed",
+                    "title": "original CommonJS require and mocked ESM remain separate",
+                    "failureMessages": [],
+                    "meta": {},
+                    "tags": [],
+                    "benchmarks": []
+                  }
+                ]
+              }
+            ]
+          },
+          "actualNodeVersion": "v26.12.1",
+          "rawReportSHA256": "cba1f4b52341cf21039005ad75dcbb843738c1b3fb03ec711d9f42c65dc31e9c",
+          "rawRowSHA256": "30d3b3f493f99259c4b117a0bee27fb2a377d722a747ad79d22a5875fade552d"
+        }
+      }
     }
   }
 }

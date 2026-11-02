@@ -4,7 +4,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-it.each(['base', 'lazy', 'missing-fields'])(
+it.each([
+  'base',
+  'lazy',
+  'missing-fields',
+  'production-base',
+  'production-lazy',
+])(
   'preserves original CommonJS require alongside an ESM factory: %s',
   async (variant) => {
     const temporary = await mkdtemp(join(tmpdir(), 'next-cjs-composition-'))

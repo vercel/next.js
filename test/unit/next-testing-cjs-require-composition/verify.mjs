@@ -21,6 +21,8 @@ const corpus = JSON.parse(
 assert.equal(corpus.referenceVersion, '5.0.4')
 const contract = corpus.variants[variant]
 assert(contract)
+const mode = contract.mode ?? 'development'
+assert(['development', 'production'].includes(mode))
 const genuine = contract.models[engine]
 assert(genuine, 'Requires a measured genuine Node engine')
 assert(!fs.existsSync(output))
@@ -50,9 +52,24 @@ try {
   fs.writeFileSync(
     path.join(fixture, 'vitest.config.mjs'),
     'export default ' +
-      JSON.stringify({
-        test: { include: ['contract.case.mjs'], maxWorkers: 1 },
-      }) +
+      JSON.stringify(
+        mode === 'production'
+          ? {
+              test: {
+                projects: [
+                  {
+                    test: {
+                      name: 'production',
+                      mode,
+                      include: ['contract.case.mjs'],
+                    },
+                  },
+                ],
+                maxWorkers: 1,
+              },
+            }
+          : { test: { include: ['contract.case.mjs'], maxWorkers: 1 } }
+      ) +
       '\n'
   )
   fs.writeFileSync(
@@ -63,7 +80,7 @@ try {
     ...process.env,
     CI: '1',
     FORCE_COLOR: '0',
-    NODE_ENV: 'development',
+    NODE_ENV: mode,
     NEXT_TELEMETRY_DISABLED: '1',
     TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
     NEXT_REQUIRE_EVENTS: path.join(fixture, 'events.jsonl'),
@@ -116,6 +133,13 @@ try {
   const report = JSON.parse(
     fs.readFileSync(path.join(output, 'cases.json'), 'utf8')
   )
+  const started = report.next.events.filter(
+    (event) => event.type === 'file-start'
+  )
+  assert.equal(started.length, 1)
+  assert.equal(started[0].entry.profile.mode, mode)
+  assert.equal(started[0].entry.profile.environment, 'node')
+  assert.equal(started[0].entry.profile.runtime, 'nodejs')
   const actual = {
     row: JSON.parse(
       fs.readFileSync(path.join(output, 'rows.jsonl'), 'utf8').trim()
