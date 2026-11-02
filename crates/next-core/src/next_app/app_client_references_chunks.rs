@@ -45,26 +45,31 @@ fn is_isolated_merged_group_for_parent(
 /// when the reference is shared between routes. When the reference belongs to a server component,
 /// the relevant groups are the ones that contain that server component too.
 ///
-/// An empty intersection is not an error: an async import separates the source from its owner,
-/// and framework-level references have no server component at all. The caller can further narrow
-/// disjoint groups using async importer ancestry. Without that proof, falling back to the source
-/// module's own groups is conservative -- the reference is still chunked.
+/// Source groups are only a fallback for ownerless framework references or when the owner has no
+/// groups in this graph (the development multi-graph setup). With known owner groups, disjoint
+/// membership must be explained by async importer ancestry; otherwise selecting all source groups
+/// could pull unrelated routes' client entries into this component.
 fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
     server_component_indices: Option<&FxIndexSet<u32>>,
-) -> FxIndexSet<u32> {
-    let Some(server_component_indices) = server_component_indices else {
-        return source_indices;
+    async_parent_indices: FxIndexSet<u32>,
+) -> Result<FxIndexSet<u32>> {
+    let Some(server_component_indices) =
+        server_component_indices.filter(|indices| !indices.is_empty())
+    else {
+        return Ok(source_indices);
     };
     let intersection = source_indices
         .intersection(server_component_indices)
         .copied()
         .collect::<FxIndexSet<_>>();
-    if intersection.is_empty() {
-        source_indices
-    } else {
-        intersection
+    if !intersection.is_empty() {
+        return Ok(intersection);
     }
+    if !async_parent_indices.is_empty() {
+        return Ok(async_parent_indices);
+    }
+    bail!("source chunk groups have no direct or async ancestry match with the server component");
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -114,8 +119,7 @@ async fn derived_isolated_merged_groups(
             .iter()
             .map(|group| group.index)
             .collect::<FxIndexSet<_>>();
-        let mut parent_indices =
-            relevant_parent_indices(source_indices.clone(), server_component_indices.as_ref());
+        let mut async_parent_indices = FxIndexSet::default();
         if let Some(owner_indices) = &server_component_indices
             && !owner_indices.is_empty()
             && source_indices.is_disjoint(owner_indices)
@@ -123,7 +127,6 @@ async fn derived_isolated_merged_groups(
             // Async server imports create new groups without changing the reference's owner.
             // Follow their importer ancestry, not every group containing the shared proxy:
             // unrelated pages' merged groups can also contain other client entries.
-            let mut async_parent_indices = FxIndexSet::default();
             for group in source_groups.iter() {
                 if let ChunkGroup::Async(module) = &group.chunk_group
                     && chunk_group_info
@@ -135,11 +138,20 @@ async fn derived_isolated_merged_groups(
                     async_parent_indices.insert(group.index);
                 }
             }
-            // No proof means keeping the conservative fallback, not dropping a reference.
-            if !async_parent_indices.is_empty() {
-                parent_indices = async_parent_indices;
-            }
         }
+        let parent_indices = match relevant_parent_indices(
+            source_indices,
+            server_component_indices.as_ref(),
+            async_parent_indices,
+        ) {
+            Ok(indices) => indices,
+            Err(error) => {
+                return Err(error.context(format!(
+                    "could not select graph-derived isolated merged groups for {}",
+                    entry_module.ident().to_string().await?,
+                )));
+            }
+        };
 
         let mut found = false;
         for group in chunk_group_info
@@ -571,18 +583,64 @@ mod tests {
     };
 
     #[test]
-    fn parent_indices_prefer_a_non_empty_output_intersection() {
-        let source = FxIndexSet::from_iter([1, 2]);
-
+    fn parent_indices_prefer_direct_ownership() {
         assert_eq!(
-            relevant_parent_indices(source.clone(), Some(&FxIndexSet::from_iter([2, 3]))),
+            relevant_parent_indices(
+                FxIndexSet::from_iter([1, 2]),
+                Some(&FxIndexSet::from_iter([2, 3])),
+                FxIndexSet::from_iter([1]),
+            )
+            .unwrap(),
             FxIndexSet::from_iter([2]),
         );
+    }
+
+    #[test]
+    fn parent_indices_allow_fallback_only_without_owner_groups() {
+        let source = FxIndexSet::from_iter([1, 2]);
         assert_eq!(
-            relevant_parent_indices(source.clone(), Some(&FxIndexSet::from_iter([3]))),
+            relevant_parent_indices(source.clone(), None, FxIndexSet::default()).unwrap(),
             source,
         );
-        assert_eq!(relevant_parent_indices(source.clone(), None), source,);
+        assert_eq!(
+            relevant_parent_indices(
+                source.clone(),
+                Some(&FxIndexSet::default()),
+                FxIndexSet::default(),
+            )
+            .unwrap(),
+            source,
+        );
+    }
+
+    #[test]
+    fn parent_indices_accept_proven_async_ownership() {
+        assert_eq!(
+            relevant_parent_indices(
+                FxIndexSet::from_iter([1, 2]),
+                Some(&FxIndexSet::from_iter([3])),
+                FxIndexSet::from_iter([2]),
+            )
+            .unwrap(),
+            FxIndexSet::from_iter([2]),
+        );
+    }
+
+    #[test]
+    fn known_owner_mismatch_is_an_error() {
+        for source in [FxIndexSet::from_iter([1, 2]), FxIndexSet::default()] {
+            let error = relevant_parent_indices(
+                source,
+                Some(&FxIndexSet::from_iter([3])),
+                FxIndexSet::default(),
+            )
+            .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("no direct or async ancestry match"),
+            );
+        }
     }
 
     #[test]
