@@ -43,33 +43,33 @@ fn is_isolated_merged_group_for_parent(
 ///
 /// A client reference is reached from its source module, which can sit in several chunk groups
 /// when the reference is shared between routes. When the reference belongs to a server component,
-/// the relevant groups are the ones that contain that server component too.
-///
-/// Source groups are only a fallback for ownerless framework references or when the owner has no
-/// groups in this graph (the development multi-graph setup). With known owner groups, disjoint
-/// membership must be explained by async importer ancestry; otherwise selecting all source groups
-/// could pull unrelated routes' client entries into this component.
+/// use direct membership and async importer ancestry to find the groups owned by that component.
 fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
     server_component_indices: Option<&FxIndexSet<u32>>,
     async_parent_indices: FxIndexSet<u32>,
 ) -> Result<FxIndexSet<u32>> {
-    let Some(server_component_indices) =
-        server_component_indices.filter(|indices| !indices.is_empty())
-    else {
-        return Ok(source_indices);
-    };
-    let intersection = source_indices
-        .intersection(server_component_indices)
-        .copied()
-        .collect::<FxIndexSet<_>>();
-    if !intersection.is_empty() {
-        return Ok(intersection);
+    if let Some(server_component_indices) = server_component_indices
+        && !server_component_indices.is_empty()
+    {
+        let mut parent_indices = source_indices
+            .intersection(server_component_indices)
+            .copied()
+            .collect::<FxIndexSet<_>>();
+        // A reference may be imported both directly and through async chunks inside its owner.
+        parent_indices.extend(async_parent_indices);
+        if !parent_indices.is_empty() {
+            return Ok(parent_indices);
+        }
+        // Selecting all source groups without ownership proof could include unrelated routes'
+        // client entries.
+        bail!(
+            "source chunk groups have no direct or async ancestry match with the server component"
+        );
     }
-    if !async_parent_indices.is_empty() {
-        return Ok(async_parent_indices);
-    }
-    bail!("source chunk groups have no direct or async ancestry match with the server component");
+    // Framework references have no owner, and development's multi-graph setup may have no owner
+    // groups in this graph. Only these cases fall back to the source module's groups.
+    Ok(source_indices)
 }
 
 /// A client reference, the module it is reached from, and the server component that owns it (if
@@ -122,7 +122,6 @@ async fn derived_isolated_merged_groups(
         let mut async_parent_indices = FxIndexSet::default();
         if let Some(owner_indices) = &server_component_indices
             && !owner_indices.is_empty()
-            && source_indices.is_disjoint(owner_indices)
         {
             // Async server imports create new groups without changing the reference's owner.
             // Follow their importer ancestry, not every group containing the shared proxy:
@@ -584,15 +583,15 @@ mod tests {
     };
 
     #[test]
-    fn parent_indices_prefer_direct_ownership() {
+    fn parent_indices_combine_direct_and_async_ownership() {
         assert_eq!(
             relevant_parent_indices(
-                FxIndexSet::from_iter([1, 2]),
+                FxIndexSet::from_iter([1, 2, 4]),
                 Some(&FxIndexSet::from_iter([2, 3])),
                 FxIndexSet::from_iter([1]),
             )
             .unwrap(),
-            FxIndexSet::from_iter([2]),
+            FxIndexSet::from_iter([2, 1]),
         );
     }
 
