@@ -892,6 +892,13 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Minify each module separately instead of each finished chunk, so minification runs in
+   * parallel and is cached per module. The trade-off is slightly worse compression.
+   * Defaults to false. Only applies to production builds.
+   */
+  turbopackMinifyBeforeChunking?: boolean
+
+  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * true. Only applies to production builds; has no effect in development mode.
