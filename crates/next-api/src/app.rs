@@ -74,7 +74,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
-    GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoTarget, GoToolchainOptions,
+    GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
     go_bundle_from_sources, go_declarations, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
@@ -1154,10 +1154,9 @@ async fn managed_session(
     scope: RcStr,
     owner: ResolvedVc<GoSessionPool>,
     options: GoToolchainOptions,
-    target: Option<GoTarget>,
     watch: bool,
 ) -> Result<Vc<GoBuildSession>> {
-    Ok(*owner.await?.session(scope, options, target, watch).await?)
+    Ok(*owner.await?.session(scope, options, None, watch).await?)
 }
 
 #[turbo_tasks::value]
@@ -1214,27 +1213,18 @@ impl Endpoint for GoRouteEndpoint {
             poll_interval_ms: *project.watch_poll_interval_ms().await?,
         };
         let watch = *project.is_watch_enabled().await?;
-        let host = managed_session(scope.clone(), *owner, options.clone(), None, watch);
-        let target = if is_adapter_build(project).await? {
-            match &*project.next_config().adapter_go_target().await? {
-                Some(target) => Some(GoTarget::new(target.os.clone(), target.arch.clone())?),
-                None => None,
-            }
-        } else {
-            None
-        };
-        let session = managed_session(scope, *owner, options, target, watch);
+        let session = managed_session(scope, *owner, options, watch);
         let go_session = session.await?;
         let sources = go_source_set(
             source_root,
             directory.clone(),
             GoSourceSelection::Directory,
-            host,
+            session,
         )
         .to_resolved()
         .await?;
         let module_root = sources.await?.root.clone();
-        let analysis = go_declarations(*sources, host).await?;
+        let analysis = go_declarations(*sources, session).await?;
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
