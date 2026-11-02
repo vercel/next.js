@@ -98,6 +98,11 @@ const PNPM_TEST_DIR_SETTINGS = {
   strictDepBuilds: false,
   // pnpm auto-installs before running scripts, we want to be explicit about this in tests
   verifyDepsBeforeRun: false,
+  // With the global virtual store, pnpm otherwise sets `NODE_OPTIONS=--import=...` with an ESM
+  // hook for `NODE_PATH`. Any `--import` sends extensionless bins like `next/dist/bin/next`
+  // through the ESM loader, which rejects them before Node.js 20.10. This also drops `NODE_PATH`
+  // from bin shims. Not needed once we drop support for Node.js 20.9.
+  extendNodePath: false,
 }
 
 async function installDependencies(cwd, tmpDir) {
@@ -144,20 +149,28 @@ async function findConfigFile(fileName, installDir, isolationRoot) {
 }
 
 /**
- * Applies the supply-chain security settings from the repo root
- * `pnpm-workspace.yaml` to installs in the isolated test dir, by writing (or
- * merging into) a `pnpm-workspace.yaml` and a `.yarnrc.yml`. npm added
- * equivalent functionality in 11.10.0; we can configure it here once we
- * upgrade npm.
+ * Configures package managers for installs in the isolated test dir, by
+ * writing (or merging into) a `pnpm-workspace.yaml` and a `.yarnrc.yml`.
+ *
+ * This applies the supply-chain security settings from the repo root
+ * `pnpm-workspace.yaml`, along with test-specific pnpm settings. npm added
+ * equivalent security functionality in 11.10.0; we can configure it here once
+ * we upgrade npm.
  *
  * @param {string} installDir
  * @param {string} isolationRoot
+ * @param {boolean} pnpmGlobalVirtualStore
  * @returns {Promise<void>}
  */
-async function applyInstallSecuritySettings(installDir, isolationRoot) {
+async function applyInstallSettings(
+  installDir,
+  isolationRoot,
+  pnpmGlobalVirtualStore
+) {
   const pnpmSettings = {
     ...getPnpmSecuritySettings(),
     ...PNPM_TEST_DIR_SETTINGS,
+    enableGlobalVirtualStore: pnpmGlobalVirtualStore,
   }
   const workspaceFile = await findConfigFile(
     'pnpm-workspace.yaml',
@@ -326,6 +339,8 @@ async function packPackages(parentSpan) {
  * @param {object} [param0.packageJson]
  * @param {string} [param0.subDir]
  * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
+ * @param {boolean} [param0.pnpmGlobalVirtualStore] Install packages into
+ *   pnpm's global virtual store, so that they live outside of the project root.
  * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>}>}
  */
 async function createNextInstall({
@@ -336,6 +351,7 @@ async function createNextInstall({
   packageJson = {},
   subDir = '',
   beforeInstall,
+  pnpmGlobalVirtualStore = true,
 }) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
 
@@ -496,7 +512,11 @@ async function createNextInstall({
           : installCommand
         : null
 
-      await applyInstallSecuritySettings(installDir, isolationRoot)
+      await applyInstallSettings(
+        installDir,
+        isolationRoot,
+        pnpmGlobalVirtualStore
+      )
       await applyWorkspaceOverrides(installDir, isolationRoot, {
         ...workspacePkgOverrides,
         ...(resolutions || {}),

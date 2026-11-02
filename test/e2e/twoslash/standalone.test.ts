@@ -14,6 +14,8 @@ if (!isNextStart) {
 } else {
   describe('output: standalone with twoslash', () => {
     const { next } = nextTestSetup({
+      // Webpack and Rspack standalone tracing do not support the global virtual store.
+      pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
       files: __dirname,
       dependencies: {
         twoslash: '0.3.4',

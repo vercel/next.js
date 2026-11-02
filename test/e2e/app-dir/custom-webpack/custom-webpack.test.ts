@@ -56,6 +56,8 @@ describe('--custom-webpack with a shadowed webpack and no pnpm hoisting', () => 
       ? 'pnpm next dev --custom-webpack'
       : 'pnpm next start',
     skipStart: true,
+    // shadows webpack inside of the installed `next` package
+    pnpmGlobalVirtualStore: false,
   })
 
   it('uses the project webpack, not the one next would resolve', async () => {

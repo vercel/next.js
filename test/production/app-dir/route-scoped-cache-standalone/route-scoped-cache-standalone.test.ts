@@ -14,6 +14,8 @@ import type { ChildProcess } from 'node:child_process'
 
 describe('route-scoped-cache standalone', () => {
   const { next, skipped } = nextTestSetup({
+    // Webpack and Rspack standalone tracing do not support the global virtual store.
+    pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
     files: path.join(__dirname, '../route-scoped-cache'),
     skipStart: true,
     // Tests the self-hosted standalone distribution after moving it outside

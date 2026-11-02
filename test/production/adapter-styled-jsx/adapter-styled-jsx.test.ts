@@ -21,6 +21,8 @@ describe('adapter output - styled-jsx', () => {
       // and every style is silently missing from the server-rendered HTML.
       'styled-jsx': '5.1.7',
     },
+    // deletes files inside the installed `next` and `styled-jsx` packages
+    pnpmGlobalVirtualStore: false,
   })
 
   let buildComplete: BuildComplete

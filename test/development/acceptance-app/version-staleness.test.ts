@@ -14,6 +14,8 @@ describe('Error Overlay version staleness', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
+    // rewrites `node_modules/next/package.json`
+    pnpmGlobalVirtualStore: false,
   })
 
   it('should show version staleness in runtime error', async () => {

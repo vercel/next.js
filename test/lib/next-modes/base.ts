@@ -87,6 +87,14 @@ export interface NextInstanceOpts {
    * workspace-root detection, which the file affects.
    */
   deleteWorkspaceFile?: boolean
+  /**
+   * Install packages into pnpm's global virtual store, so that they live
+   * outside of the project root. Defaults to `true`. Disable for tests that
+   * modify files inside `node_modules`, which would otherwise write into the
+   * store shared by every test install, or that depend on the
+   * `node_modules/.pnpm` layout.
+   */
+  pnpmGlobalVirtualStore?: boolean
 }
 
 /**
@@ -134,11 +142,19 @@ export class NextInstance {
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
   public deleteWorkspaceFile: boolean = false
+  public pnpmGlobalVirtualStore: boolean = true
   private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    this.env = {
+      // Tests install with pnpm's global virtual store, which symlinks
+      // packages from outside of the project root. Turbopack only allows that
+      // once it's told about the store. Detection is a no-op without one.
+      __NEXT_EXPERIMENTAL_TURBOPACK_DETECT_GLOBAL_VIRTUAL_STORE: 'true',
+      ...this.env,
+    }
     const nextTestWasm =
       process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
     if (nextTestWasm) {
@@ -406,6 +422,11 @@ export class NextInstance {
             !this.dependencies &&
             !this.installCommand &&
             !this.packageJson &&
+            // the starter is installed at a fixed depth, and pnpm's
+            // .modules.yaml stores virtualStoreDir relative to that depth
+            !this.subDir &&
+            // the shared starter is installed with the global virtual store
+            this.pnpmGlobalVirtualStore &&
             !isNextDeploy
           ) {
             await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
@@ -431,6 +452,7 @@ export class NextInstance {
                 )
                 await this.beforeInstall(span)
               },
+              pnpmGlobalVirtualStore: this.pnpmGlobalVirtualStore,
             })
           }
         }

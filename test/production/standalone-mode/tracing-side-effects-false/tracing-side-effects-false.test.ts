@@ -7,6 +7,9 @@ describe('standalone mode - tracing-side-effects-false', () => {
     files: __dirname,
     dependencies,
     skipStart: true,
+    // asserts on `node_modules/foo` in the top-level `files` list, which excludes
+    // the virtual store
+    pnpmGlobalVirtualStore: false,
   })
 
   it('should trace sideeffect imports even when sideEffects is false', async () => {

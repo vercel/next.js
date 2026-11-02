@@ -76,6 +76,8 @@ describe('pnpm support', () => {
         },
       },
       buildCommand: 'pnpm run build',
+      // the fixture sets a custom `virtualStoreDir`
+      pnpmGlobalVirtualStore: false,
     })
 
     it('should execute client-side JS on each page in output: "standalone"', async () => {

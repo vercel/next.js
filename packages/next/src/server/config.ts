@@ -2492,6 +2492,17 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // Set by the test harness, which installs with pnpm's global virtual store.
+  // Not reported as a configured experimental feature, so that it doesn't
+  // change the startup output of every test.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_TURBOPACK_DETECT_GLOBAL_VIRTUAL_STORE ===
+      'true' &&
+    config.experimental.turbopackDetectGlobalVirtualStore === undefined
+  ) {
+    config.experimental.turbopackDetectGlobalVirtualStore = true
+  }
+
   // TODO: Remove this once serverComponentsHmrCancellation is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION ===

@@ -13,6 +13,18 @@ import {
   retry,
 } from 'next-test-utils'
 
+// Configured roots are `@`-prefixed. Tests ignore builtin roots, such as `gvs`
+// for the pnpm global virtual store that tests are installed with.
+function isConfiguredRootName(name: string): boolean {
+  return name.startsWith('@')
+}
+
+function findAdditionalRootIndex(nft: any, name: string): number {
+  const index = nft.additionalRoots.findIndex((root: any) => root.name === name)
+  expect(index).not.toBe(-1)
+  return index
+}
+
 // Non-adapter deploys do not exercise Next.js' adapter asset contract.
 // @force-gate turbopack && (!deploy || adapter)
 describe('turbopack additional roots', () => {
@@ -136,11 +148,19 @@ describe('turbopack additional roots', () => {
         '.next/server/app/page.js.nft.json'
       )
       const nft = await fs.readJson(nftPath)
+      const linkedRootIndex = findAdditionalRootIndex(nft, '@linkedPackages')
       expect(
-        path.resolve(path.dirname(nftPath), nft.additionalRoots[0].path)
+        path.resolve(
+          path.dirname(nftPath),
+          nft.additionalRoots[linkedRootIndex].path
+        )
       ).toBe(externalRoot)
       const crossRootSymlinks = nft.symlinks
-        .filter((symlink: [number, string, number?]) => symlink.length === 3)
+        .filter(
+          (symlink: [number, string, number?]) =>
+            symlink.length === 3 &&
+            isConfiguredRootName(nft.additionalRoots[symlink[2]!].name)
+        )
         .map(
           ([fileIndex, target, additionalRootIndex]: [
             number,
@@ -152,12 +172,14 @@ describe('turbopack additional roots', () => {
             additionalRoot: nft.additionalRoots[additionalRootIndex].name,
           })
         )
-      const additionalRoots = nft.additionalRoots.map((root: any) => {
-        const copy = { ...root }
-        delete copy.fileHashes
-        copy.path = '<temporary-root>'
-        return copy
-      })
+      const additionalRoots = nft.additionalRoots
+        .filter((root: any) => isConfiguredRootName(root.name))
+        .map((root: any) => {
+          const copy = { ...root }
+          delete copy.fileHashes
+          copy.path = '<temporary-root>'
+          return copy
+        })
 
       expect(crossRootSymlinks).toMatchInlineSnapshot(`
        [
@@ -231,8 +253,9 @@ describe('turbopack additional roots', () => {
       const nft = await fs.readJson(
         path.join(next.testDir, '.next/server/app/page.js.nft.json')
       )
+      const linkedRootIndex = findAdditionalRootIndex(nft, '@linkedPackages')
       const [sourceFileIndex] = nft.symlinks.find(
-        (symlink: [number, string, number?]) => symlink.length === 3
+        (symlink: [number, string, number?]) => symlink[2] === linkedRootIndex
       )
       expect(rootOutput!.assetsHashes[destination]).not.toBe(
         nft.fileHashes[sourceFileIndex]
@@ -241,12 +264,30 @@ describe('turbopack additional roots', () => {
       const instrumentationNft = await fs.readJson(
         path.join(next.testDir, '.next/server/instrumentation.js.nft.json')
       )
+      const instrumentationLinkedRootIndex = findAdditionalRootIndex(
+        instrumentationNft,
+        '@linkedPackages'
+      )
       expect(
         instrumentationNft.symlinks.some(
-          (symlink: [number, string, number?]) => symlink.length === 3
+          (symlink: [number, string, number?]) =>
+            symlink[2] === instrumentationLinkedRootIndex
         )
       ).toBe(true)
-      expect(await fs.readdir(stagingRoot)).toEqual([path.basename(source)])
+      const stagedLinks: string[] = []
+      for (const name of await fs.readdir(stagingRoot)) {
+        const segments = (
+          await fs.readlink(path.join(stagingRoot, name))
+        ).split(path.sep)
+        const rootsIndex = segments.indexOf('next_additional_roots')
+        if (
+          rootsIndex === -1 ||
+          isConfiguredRootName(segments[rootsIndex + 1])
+        ) {
+          stagedLinks.push(name)
+        }
+      }
+      expect(stagedLinks).toEqual([path.basename(source)])
 
       const equivalentSources = buildComplete.outputs.appPages
         .map((output) => output.assets[destination])
