@@ -40,7 +40,7 @@ export class NativeRouteManager {
         'utf8'
       )
     )
-    if (descriptor.version !== 1 || typeof descriptor.executable !== 'string') {
+    if (typeof descriptor?.executable !== 'string') {
       throw new Error('Invalid native route descriptor')
     }
     const goos = process.platform === 'win32' ? 'windows' : process.platform
