@@ -257,10 +257,27 @@ export async function executeWithEnvironment(
   let coverage: AnyTestCoverageCompletion | undefined
   let customCoverage: CustomCoverageCompletion | undefined
   let consoleDrain: Promise<void> | undefined
+  let taskUpdatesDrain: Promise<void> | undefined
+  let taskUpdatesDrainController: AbortController | undefined
+  let taskUpdatesDrainFailure: { error: unknown } | undefined
   let customSuite: Promise<void> | undefined
   let observedSnapshotPreparationFailure = false
   let snapshotPreparationHandoff: Promise<void> | undefined
   let snapshotPreparationHandoffFailure: { error: unknown } | undefined
+  const joinCallbackDrains = async () => {
+    const settled = await Promise.allSettled([
+      consoleDrain,
+      customSuite,
+      taskUpdatesDrain,
+    ])
+    const failures: unknown[] = []
+    for (const outcome of settled)
+      if (outcome.status === 'rejected') failures.push(outcome.reason)
+    if (taskUpdatesDrainFailure) failures.push(taskUpdatesDrainFailure.error)
+    if (failures.length === 1) throw failures[0]
+    if (failures.length)
+      throw new AggregateError(failures, 'Test worker callback drains failed.')
+  }
   const exit = await withFileCacheDirectory(async (directory) => {
     const input: WorkerInput = {
       artifact,
@@ -418,6 +435,54 @@ export async function executeWithEnvironment(
             })
           })()
           void consoleDrain.catch(() => {})
+        } else if (message.type === 'task-updates-drain') {
+          if (
+            !options.customCoverage ||
+            !(
+              options.captureTaskResults ||
+              options.preparePublicSnapshots === true
+            ) ||
+            taskUpdatesDrain ||
+            result ||
+            message.runId !== options.runId ||
+            message.entryId !== artifact.entryId ||
+            message.revision !== artifact.revision
+          )
+            throw new Error('Invalid task update drain request.')
+          const drainController = new AbortController()
+          taskUpdatesDrainController = drainController
+          const abort = () => drainController.abort(signal.reason)
+          signal.addEventListener('abort', abort, { once: true })
+          if (signal.aborted) abort()
+          taskUpdatesDrain = (async () => {
+            let error: ReturnType<typeof serializeDiagnostic> | undefined
+            try {
+              drainController.signal.throwIfAborted()
+              await drainConsoleCallbacks(
+                onConsoleDrain,
+                drainController.signal
+              )
+              drainController.signal.throwIfAborted()
+            } catch (failure) {
+              if (!signal.aborted || failure !== signal.reason)
+                taskUpdatesDrainFailure = { error: failure }
+              error = serializeDiagnostic(failure, { phase: 'cleanup' })
+            }
+            if (drainController.signal.aborted) return
+            await send({
+              type: 'task-updates-drained',
+              runId: options.runId,
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+              ...(error ? { error } : {}),
+            }).catch((failure) => {
+              if (!signal.aborted) throw failure
+            })
+          })().finally(() => {
+            signal.removeEventListener('abort', abort)
+            taskUpdatesDrainController = undefined
+          })
+          void taskUpdatesDrain.catch(() => {})
         } else if (message.type === 'custom-coverage-suite') {
           if (!options.customCoverage || !onCustomCoverageSuite || customSuite)
             throw new Error('Unrequested or duplicate custom coverage suite')
@@ -545,9 +610,13 @@ export async function executeWithEnvironment(
     }).finally(() =>
       userCancelSignal?.removeEventListener('abort', cancelByUser)
     )
+    taskUpdatesDrainController?.abort(
+      new Error('Test worker closed during task-update drain.')
+    )
     await userCancellationSend
     return { ...processExit, userCancellationFinalized }
   }).catch(async (error) => {
+    taskUpdatesDrainController?.abort(error)
     if (snapshotPreparationHandoff) await snapshotPreparationHandoff
     if (snapshotPreparationHandoffFailure)
       throw new AggregateError(
@@ -555,8 +624,11 @@ export async function executeWithEnvironment(
         'Test worker cleanup and snapshot preparation handoff failed.'
       )
     try {
-      await consoleDrain
-      await customSuite
+      if (taskUpdatesDrain) await joinCallbackDrains()
+      else {
+        await consoleDrain
+        await customSuite
+      }
     } catch (suiteError) {
       throw new AggregateError(
         [error, suiteError],
@@ -565,8 +637,11 @@ export async function executeWithEnvironment(
     }
     throw error
   })
-  await consoleDrain
-  await customSuite
+  if (taskUpdatesDrain) await joinCallbackDrains()
+  else {
+    await consoleDrain
+    await customSuite
+  }
   if (snapshotPreparationHandoff) await snapshotPreparationHandoff
   if (snapshotPreparationHandoffFailure)
     throw snapshotPreparationHandoffFailure.error

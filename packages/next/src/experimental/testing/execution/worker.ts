@@ -77,6 +77,7 @@ let pendingConsoleDrain:
       reject(error: unknown): void
     }
   | undefined
+let pendingTaskUpdatesDrain: typeof pendingConsoleDrain
 let pendingCustomSuite:
   | {
       completion: CustomCoverageCompletion
@@ -114,6 +115,30 @@ async function drainParentConsole(identity: {
     void received.catch(() => {})
     controller.signal.removeEventListener('abort', cancel)
     pendingConsoleDrain = undefined
+  }
+}
+
+async function drainParentTaskUpdates(identity: {
+  runId: string
+  entryId: string
+  revision: string
+}) {
+  controller.signal.throwIfAborted()
+  if (pendingTaskUpdatesDrain) throw new Error('Duplicate task update drain.')
+  let cancel!: () => void
+  const received = new Promise<void>((resolveReceived, reject) => {
+    pendingTaskUpdatesDrain = { ...identity, resolve: resolveReceived, reject }
+    cancel = () => reject(controller.signal.reason)
+    controller.signal.addEventListener('abort', cancel, { once: true })
+  })
+  void received.catch(() => {})
+  try {
+    await send({ type: 'task-updates-drain', ...identity })
+    await received
+  } finally {
+    void received.catch(() => {})
+    controller.signal.removeEventListener('abort', cancel)
+    pendingTaskUpdatesDrain = undefined
   }
 }
 
@@ -536,6 +561,31 @@ async function run({
     | ReturnType<typeof import('../mocking/runtime').initializeModuleMocking>
     | undefined
   let verifyProductionStaticMock: (() => Promise<void>) | undefined
+  let customTaskUpdatesFinished = false
+  const finishCustomTaskUpdates = async () => {
+    if (!customCollector || !taskUpdates || customTaskUpdatesFinished) return
+    customTaskUpdatesFinished = true
+    try {
+      await taskUpdates.finish()
+      await drainParentTaskUpdates({
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+      })
+    } catch (error) {
+      moduleHostCleanupComplete = false
+      snapshotHostComplete = false
+      coverageComplete = false
+      if (controller.signal.aborted && error === controller.signal.reason) {
+        if (status !== 'failed') status = 'cancelled'
+      } else {
+        status = 'failed'
+        if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
+      }
+    } finally {
+      taskUpdates.dispose()
+    }
+  }
   try {
     const staticRuntimeMocks =
       artifact.kind === 'node' &&
@@ -1493,7 +1543,7 @@ async function run({
         failure: moduleFailures.get(error),
       }
   } finally {
-    if (taskUpdates) {
+    if (taskUpdates && !customCollector) {
       try {
         await taskUpdates.finish()
       } catch (error) {
@@ -1880,6 +1930,9 @@ async function run({
           )
         await handOffCustomSuite({ ...identity, complete: true, payload })
       }
+      // Keep regular task updates live. Only the final trailing drain belongs
+      // after actual custom coverage capture and suite handoff, before stop.
+      await finishCustomTaskUpdates()
       await customCollector.dispose()
       await lateFailures.flush()
       captured = true
@@ -1907,16 +1960,20 @@ async function run({
       }
     } finally {
       try {
-        await customCollector?.dispose()
-      } catch (error) {
-        moduleHostCleanupComplete = false
-        snapshotHostComplete = false
-        status = 'failed'
-        await diagnostic(error, 'cleanup')
-        customCoverage = {
-          ...identity,
-          complete: false,
-          error: serializeDiagnostic(error, { phase: 'cleanup' }),
+        await finishCustomTaskUpdates()
+      } finally {
+        try {
+          await customCollector?.dispose()
+        } catch (error) {
+          moduleHostCleanupComplete = false
+          snapshotHostComplete = false
+          status = 'failed'
+          await diagnostic(error, 'cleanup')
+          customCoverage = {
+            ...identity,
+            complete: false,
+            error: serializeDiagnostic(error, { phase: 'cleanup' }),
+          }
         }
       }
     }
@@ -2058,6 +2115,22 @@ process.on(
         message.revision !== pending.revision
       ) {
         controller.abort(new Error('Mismatched console acknowledgement.'))
+      } else if (message.error) {
+        const error = new Error(message.error.message)
+        if (message.error.stack) error.stack = message.error.stack
+        pending.reject(error)
+      } else pending.resolve()
+    } else if (message.type === 'task-updates-drained') {
+      const pending = pendingTaskUpdatesDrain
+      if (
+        !pending ||
+        message.runId !== pending.runId ||
+        message.entryId !== pending.entryId ||
+        message.revision !== pending.revision
+      ) {
+        const error = new Error('Mismatched task update acknowledgement.')
+        if (pending) pending.reject(error)
+        else controller.abort(error)
       } else if (message.error) {
         const error = new Error(message.error.message)
         if (message.error.stack) error.stack = message.error.stack

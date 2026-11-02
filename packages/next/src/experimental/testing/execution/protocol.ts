@@ -49,6 +49,12 @@ export type WorkerMessage =
       entryId: string
       revision: string
     }
+  | {
+      type: 'task-updates-drain'
+      runId: string
+      entryId: string
+      revision: string
+    }
   | { type: 'custom-coverage-suite'; completion: CustomCoverageCompletion }
   | {
       type: 'complete'

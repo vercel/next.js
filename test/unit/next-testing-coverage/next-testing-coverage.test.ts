@@ -2928,6 +2928,347 @@ describe('real custom coverage provider ownership', () => {
     })
     return { result, facts }
   }
+  it.each(['held', 'reject', 'abort', 'worker-exit'])(
+    'owns the actual parent task callback drain for %s',
+    async (mode) => {
+      const f = await customFixture(
+        'normal',
+        `const actualInitialize=ReleaseProvider.prototype.initialize;ReleaseProvider.prototype.initialize=function(...args){const result=actualInitialize.apply(this,args);writeFileSync('actual-provider-pid.json',JSON.stringify(process.pid));return result};`
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      let release!: () => void
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      let entered!: () => void
+      const actualEntry = new Promise<void>((resolve) => {
+        entered = resolve
+      })
+      let returned!: () => void
+      const actualReturn = new Promise<void>((resolve) => {
+        returned = resolve
+      })
+      let enteredDrain = false
+      let execution: Promise<unknown> | undefined
+      let actualProviderPid: number | undefined
+      const actualFailure = new TypeError(
+        'actual parent task callback rejection'
+      )
+      try {
+        session = await openSession(f.root, controller.signal)
+        actualProviderPid = JSON.parse(
+          await readFile(join(f.root, 'actual-provider-pid.json'), 'utf8')
+        )
+        const { execute } = await import(
+          'next/dist/experimental/testing/execution/execute'
+        )
+        const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+          []
+        execution = execute(f.artifact, {
+          runId: 'custom-owned-task-drain',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          customCoverage: session.request,
+          captureTaskResults: true,
+          onEvent() {},
+          async onConsoleDrain() {
+            const trace = await readFile(
+              join(f.root, 'provider-trace.jsonl'),
+              'utf8'
+            )
+            if (!trace.includes('"name":"suite"')) return
+            enteredDrain = true
+            entered()
+            try {
+              if (mode === 'reject') throw actualFailure
+              await held
+            } finally {
+              returned()
+            }
+          },
+          async onCustomCoverageSuite(completion) {
+            await session!.afterSuite({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+          async onCustomCoverage(completion) {
+            facts.push({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+        })
+        void execution.catch(() => {})
+        expect(
+          await Promise.race([
+            actualEntry.then(() => true),
+            execution.then(
+              () => false,
+              () => false
+            ),
+          ])
+        ).toBe(true)
+        const pid = JSON.parse(
+          await readFile(join(f.root, 'body-pid.json'), 'utf8')
+        )
+        if (mode !== 'reject') expect(() => process.kill(pid, 0)).not.toThrow()
+        if (mode === 'held') {
+          expect(
+            await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+          ).not.toContain('"name":"stop"')
+          release()
+          expect(await execution).toMatchObject({ status: 'passed' })
+          expect(facts).toHaveLength(1)
+        } else if (mode === 'reject') {
+          await expect(execution).rejects.toBe(actualFailure)
+        } else if (mode === 'abort') {
+          controller.abort(new Error('actual parent task drain cancellation'))
+          expect(await execution).toMatchObject({ status: 'cancelled' })
+        } else {
+          process.kill(pid, 'SIGKILL')
+          await expect(execution).rejects.toThrow(
+            'Test worker closed during task-update drain.'
+          )
+        }
+        if (mode !== 'held') expect(facts).toEqual([])
+        expect(() => process.kill(pid, 0)).toThrow()
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        release()
+        if (enteredDrain) await actualReturn
+        if (execution) await Promise.allSettled([execution])
+        try {
+          if (session) await expect(session.dispose()).resolves.toBeUndefined()
+          if (actualProviderPid !== undefined)
+            expect(() => process.kill(actualProviderPid!, 0)).toThrow()
+        } finally {
+          controller.abort(new Error('parent task drain test cleanup'))
+          await rm(f.root, { recursive: true, force: true })
+        }
+      }
+    }
+  )
+  it.each([
+    'request-run',
+    'request-entry',
+    'request-revision',
+    'duplicate',
+    'unrequested',
+    'reply-run',
+  ])('rejects an actual invalid task drain exchange for %s', async (mode) => {
+    const f = await customFixture('normal')
+    const controller = new AbortController()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    const facts: unknown[] = []
+    const diagnostics: string[] = []
+    try {
+      const script =
+        mode === 'unrequested'
+          ? `const actualLoad=exports.loadTestModule;exports.loadTestModule=async()=>{await actualLoad();runner.getTestApi().afterAll(()=>process.send({type:'task-updates-drain',runId:'custom-invalid-task-drain',entryId:'custom:one',revision:'custom-r1'}))};`
+          : mode === 'reply-run'
+            ? `process.prependListener('message',message=>{if(message.type==='task-updates-drained')message.runId='wrong-owned-reply'});`
+            : `const actualSend=process.send.bind(process);process.send=function(message,callback){if(message.type==='task-updates-drain'){${mode === 'duplicate' ? 'const sent=actualSend(message,callback);actualSend(message);return sent' : 'return actualSend({...message,' + (mode === 'request-run' ? 'runId' : mode === 'request-entry' ? 'entryId' : 'revision') + ":'wrong-owned-request'},callback)"}}return actualSend(message,callback)};`
+      await customFileSystem.appendFile(
+        join(f.root, 'entry.cjs'),
+        '\n' + script
+      )
+      if (mode !== 'unrequested')
+        session = await openSession(f.root, controller.signal)
+      const { execute } = await import(
+        'next/dist/experimental/testing/execution/execute'
+      )
+      let rejection: unknown
+      let result: unknown
+      try {
+        result = await execute(f.artifact, {
+          runId: 'custom-invalid-task-drain',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          ...(session ? { customCoverage: session.request } : {}),
+          captureTaskResults: true,
+          onEvent(event) {
+            if (event.type === 'diagnostic')
+              diagnostics.push(event.diagnostic.message)
+          },
+          ...(session
+            ? {
+                async onCustomCoverageSuite(
+                  completion: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageCompletion
+                ) {
+                  await session!.afterSuite({
+                    completion,
+                    testFiles: ['contract.case.mjs'],
+                    environment: 'ssr',
+                  })
+                },
+                async onCustomCoverage(completion: unknown) {
+                  facts.push(completion)
+                },
+              }
+            : {}),
+        })
+      } catch (error) {
+        rejection = error
+      }
+      if (mode === 'reply-run') {
+        expect(rejection).toBeUndefined()
+        expect(result).toMatchObject({ status: 'failed' })
+        expect(diagnostics).toContain('Mismatched task update acknowledgement.')
+      } else {
+        const messages: string[] = []
+        const visit = (error: unknown) => {
+          if (error instanceof Error) messages.push(error.message)
+          if (error instanceof AggregateError)
+            for (const item of error.errors) visit(item)
+        }
+        visit(rejection)
+        expect(messages).toContain('Invalid task update drain request.')
+      }
+      expect(facts).toEqual([])
+      const pid = JSON.parse(
+        await readFile(join(f.root, 'body-pid.json'), 'utf8')
+      )
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      try {
+        await session?.dispose()
+      } finally {
+        controller.abort(new Error('invalid task drain test cleanup'))
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  })
+  it.each([
+    'normal',
+    'body-failure',
+    'take-failure',
+    'suite-failure',
+    'stop-failure',
+  ])(
+    'owns the final custom task batch through actual capture and cleanup for %s',
+    async (mode) => {
+      const f = await customFixture(
+        mode,
+        `
+${mode === 'take-failure' ? "import self from './provider.mjs';const actualTake=self.takeCoverage;self.takeCoverage=function(options){actualTake(options);throw new Error('actual final batch take failure')};" : ''}
+${mode === 'suite-failure' ? "const actualSuite=ReleaseProvider.prototype.onAfterSuiteRun;ReleaseProvider.prototype.onAfterSuiteRun=function(meta){actualSuite.call(this,meta);throw new Error('actual final batch suite failure')};" : ''}
+${mode === 'stop-failure' ? "import self from './provider.mjs';const actualStop=self.stopCoverage;self.stopCoverage=function(options){actualStop(options);throw new Error('actual final batch stop failure')};" : ''}
+`
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root, controller.signal)
+        const { execute } = await import(
+          'next/dist/experimental/testing/execution/execute'
+        )
+        const { appendFileSync } = await import('node:fs')
+        const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+          []
+        const callbacks: string[] = []
+        const result = await execute(f.artifact, {
+          runId: 'custom-final-batch-run',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          customCoverage: session.request,
+          captureTaskResults: true,
+          onEvent(event) {
+            if (event.type === 'task-update')
+              for (const actualResult of event.caseResults ?? []) {
+                callbacks.push(actualResult.status)
+                appendFileSync(
+                  join(f.root, 'provider-trace.jsonl'),
+                  JSON.stringify({ name: 'actual-case-callback' }) + '\n'
+                )
+              }
+          },
+          async onCustomCoverageSuite(completion) {
+            await session!.afterSuite({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+          async onCustomCoverage(completion) {
+            const pid = JSON.parse(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            )
+            expect(() => process.kill(pid, 0)).toThrow()
+            facts.push({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+        })
+        const trace = (
+          await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line).name)
+        expect(callbacks).toEqual([
+          mode === 'body-failure' ? 'failed' : 'passed',
+        ])
+        expect(
+          trace.filter((name) => name === 'actual-case-callback')
+        ).toHaveLength(1)
+        expect(trace.indexOf('actual-case-callback')).toBeGreaterThan(
+          trace.indexOf('take')
+        )
+        if (mode !== 'take-failure')
+          expect(trace.indexOf('actual-case-callback')).toBeGreaterThan(
+            trace.indexOf('suite')
+          )
+        expect(trace.indexOf('stop')).toBeGreaterThan(
+          trace.indexOf('actual-case-callback')
+        )
+        expect(result.status).toBe(mode === 'normal' ? 'passed' : 'failed')
+        expect(facts).toHaveLength(
+          mode === 'normal' || mode === 'body-failure' ? 1 : 0
+        )
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        try {
+          if (mode === 'suite-failure')
+            await expect(session?.dispose()).rejects.toThrow()
+          else await session?.dispose()
+        } finally {
+          controller.abort(new Error('final custom task batch cleanup'))
+          await rm(f.root, { recursive: true, force: true })
+        }
+      }
+    }
+  )
   it.each(['function', 'undefined'])(
     'prepares an actual %s result without transferring it before reporting',
     async (kind) => {
