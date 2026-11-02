@@ -36,6 +36,7 @@ use next_api::{
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
+    shutdown::ShutdownHooks,
 };
 use next_core::{
     app_structure::find_app_dir,
@@ -413,6 +414,7 @@ pub struct ProjectInstance {
     container: ResolvedVc<ProjectContainer>,
     // Never locked across an await point.
     exit_receiver: Mutex<Option<ExitReceiver>>,
+    shutdown: Arc<ShutdownHooks>,
     // Pin the ProjectContainer for as long as this struct survives.
     _container_gc_root: GcRoot<ProjectContainer>,
 }
@@ -643,9 +645,12 @@ pub fn project_new<'env>(
             let options = options.into_project_options();
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
+            let shutdown = Arc::new(ShutdownHooks::default());
+            let shutdown_hooks = TransientInstance::new(shutdown.clone());
             let (container, container_op, initialization_issues) = turbo_tasks
                 .run(async move {
-                    let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
+                    let container_op =
+                        ProjectContainer::new_operation(rcstr!("next.js"), is_dev, shutdown_hooks);
                     let initialization_issues =
                         ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
@@ -697,6 +702,7 @@ pub fn project_new<'env>(
                         turbopack_ctx,
                         container,
                         exit_receiver: Mutex::new(Some(exit_receiver)),
+                        shutdown,
                         _container_gc_root: container_gc_root,
                     }),
                 },
@@ -837,27 +843,15 @@ pub async fn project_invalidate_file_system_cache(
     Ok(())
 }
 
-/// Runs exit handlers for the project registered using the [`ExitHandler`] API.
+/// Runs resource cleanup and exit handlers for the project registered using the [`ExitHandler`]
+/// API.
 ///
-/// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
-/// one.
+/// This cleanup is included in `project_shutdown`, so callers should normally use only one API.
 #[napi]
 pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
-    let container = project.container;
-    if let Err(error) = project
-        .turbopack_ctx
-        .turbo_tasks()
-        .run_once(async move {
-            shutdown_go_operation(container)
-                .read_strongly_consistent()
-                .await
-        })
-        .await
-    {
-        eprintln!("Failed to shut down native Go workers: {error:#}");
-    }
+    run_shutdown_hooks(project).await;
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
 }
@@ -878,12 +872,26 @@ async fn run_exit_handlers(exit_receiver: &Mutex<Option<ExitReceiver>>) {
         .await;
 }
 
-#[turbo_tasks::function(operation, root)]
-fn shutdown_go_operation(container: ResolvedVc<ProjectContainer>) -> Vc<turbo_tasks::Completion> {
-    container.shutdown_go()
+/// Resource cleanup can still read task-backed state, so it must finish before engine shutdown.
+async fn run_shutdown_hooks(project: &ProjectInstance) {
+    if project.shutdown.is_empty() {
+        return;
+    }
+    let shutdown = project.shutdown.clone();
+    if let Err(error) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            shutdown.run().await;
+            Ok(())
+        })
+        .await
+    {
+        eprintln!("Failed to run project pre-shutdown hooks: {error:#}");
+    }
 }
 
-/// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+/// Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
 ///
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
 /// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
@@ -894,17 +902,7 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
-    let container = project.container;
-    if let Err(error) = tt
-        .run_once(async move {
-            shutdown_go_operation(container)
-                .read_strongly_consistent()
-                .await
-        })
-        .await
-    {
-        eprintln!("Failed to shut down native Go workers: {error:#}");
-    }
+    run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
