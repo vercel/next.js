@@ -134,6 +134,14 @@ describe('native-route-go', () => {
     nativePids.add(result.pid)
     return result
   }
+  const lifecyclePid = () =>
+    retry(async () => {
+      const response = await next.fetch('/lifecycle')
+      expect(response.status).toBe(200)
+      const { pid } = await response.json()
+      nativePids.add(pid)
+      return pid as number
+    }, 30_000)
   afterAll(async () => {
     for (const pid of nativePids) {
       await retry(async () => {
@@ -360,6 +368,78 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it.each(['delete', 'rename', 'replace'])(
+      'retires the Go worker after route %s',
+      async (change) => {
+        const path = 'app/lifecycle/route.go'
+        const source = await next.readFile(path)
+        const pid = await lifecyclePid()
+        try {
+          if (change === 'replace') {
+            await next.patchFile(
+              'app/lifecycle/route.ts',
+              'export function GET() { return new Response("javascript") }'
+            )
+          }
+          if (change === 'rename') {
+            await next.renameFolder('app/lifecycle', 'app/lifecycle-renamed')
+          } else {
+            await next.deleteFile(path)
+          }
+          await retry(async () => {
+            expect(() => process.kill(pid, 0)).toThrow()
+          }, 30_000)
+          if (change === 'replace') {
+            await retry(async () => {
+              expect(await next.render('/lifecycle')).toBe('javascript')
+            }, 30_000)
+          }
+        } finally {
+          if (change === 'rename') {
+            await next.renameFolder('app/lifecycle-renamed', 'app/lifecycle')
+          } else {
+            if (change === 'replace')
+              await next.deleteFile('app/lifecycle/route.ts')
+            await next.patchFile(path, source)
+          }
+        }
+      }
+    )
+    it('drains an active request when its Go route is removed', async () => {
+      const path = 'app/lifecycle/route.go'
+      const source = await next.readFile(path)
+      const controller = new AbortController()
+      try {
+        await lifecyclePid()
+        const response = await next.fetch('/lifecycle?stream=1', {
+          // Compression can buffer this deliberately unfinished JSON response.
+          headers: { 'accept-encoding': 'identity' },
+          signal: controller.signal,
+        })
+        const reader = response.body.getReader()
+        let line = ''
+        while (!line.includes('\n')) {
+          const { value, done } = await reader.read()
+          expect(done).toBe(false)
+          line += new TextDecoder().decode(value)
+        }
+        const { pid } = JSON.parse(line)
+        nativePids.add(pid)
+        await next.deleteFile(path)
+        await retry(async () => {
+          expect((await next.fetch('/lifecycle')).status).toBe(404)
+        }, 30_000)
+        expect(() => process.kill(pid, 0)).not.toThrow()
+        controller.abort()
+        await reader.cancel().catch(() => {})
+        await retry(async () => {
+          expect(() => process.kill(pid, 0)).toThrow()
+        }, 30_000)
+      } finally {
+        controller.abort()
+        await next.patchFile(path, source)
+      }
+    })
     it('reports conflicting Go and TS handlers from Rust and recovers', async () => {
       const path = 'app/(group)/native/[id]/route.ts'
       const outputStart = next.cliOutput.length
@@ -699,6 +779,7 @@ describe('native-route-go', () => {
         '/adapter-base/adapter-static',
         '/adapter-base/catch/[...slug]',
         '/adapter-base/explicit-methods',
+        '/adapter-base/lifecycle',
         '/adapter-base/methods',
         '/adapter-base/native/[id]',
       ])

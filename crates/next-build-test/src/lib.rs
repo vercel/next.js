@@ -223,7 +223,8 @@ pub async fn render_routes(
                                 endpoint_write_to_disk_with_apply(route.html_endpoint).await?;
                             }
                         }
-                        Route::AppRoute {
+                        Route::AppGoRoute { endpoint, .. }
+                        | Route::AppRoute {
                             original_name: _,
                             endpoint,
                             ..

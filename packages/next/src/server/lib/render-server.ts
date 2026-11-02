@@ -87,9 +87,6 @@ export async function propagateServerField(
     } else {
       // @ts-expect-error
       wrappedServer[_field] = value
-      if (field === 'appPathRoutes') {
-        wrappedServer.reconcileNativeRoutes(value)
-      }
     }
   }
 }

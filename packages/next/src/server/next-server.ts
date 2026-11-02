@@ -1113,6 +1113,8 @@ export default class NextNodeServer extends BaseServer<
           const { NativeRouteManager } =
             require('./lib/native-route.external') as typeof import('./lib/native-route.external')
           this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
+          if (this.nativeRoutePages)
+            this.nativeRoutes.reconcile(this.nativeRoutePages)
         }
         await this.nativeRoutes.invoke(
           match.definition.page,
@@ -2228,9 +2230,12 @@ export default class NextNodeServer extends BaseServer<
     this.cleanupListeners.add(listener)
   }
 
-  reconcileNativeRoutes(routes: Record<string, string[]>) {
-    this.nativeRoutes?.reconcile(new Set(Object.values(routes).flat()))
+  protected reconcileNativeRoutes(pages: ReadonlySet<string>) {
+    this.nativeRoutePages = pages
+    this.nativeRoutes?.reconcile(pages)
   }
+
+  private nativeRoutePages: ReadonlySet<string> | undefined = undefined
 
   private nativeRoutes: NativeRouteManager | undefined = undefined
 

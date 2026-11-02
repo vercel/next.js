@@ -194,7 +194,11 @@ describe('App Route written baselines', () => {
         ...options,
         page: '/api',
         pathname: '/api',
-        route: { type: 'app-route', endpoint, hasActionManifest: false },
+        route: {
+          type: type === 'native' ? 'app-route-go' : 'app-route',
+          endpoint,
+          hasActionManifest: false,
+        },
         manifestLoader: {
           ...options.manifestLoader,
           loadAppPathsManifest: jest.fn(),

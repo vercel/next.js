@@ -425,7 +425,8 @@ export async function handleRouteType({
 
       break
     }
-    case 'app-route': {
+    case 'app-route':
+    case 'app-route-go': {
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
@@ -677,7 +678,8 @@ export async function handleEntrypoints({
         })
         break
       }
-      case 'app-route': {
+      case 'app-route':
+      case 'app-route-go': {
         currentEntrypoints.app.set(route.originalName, route)
         break
       }
