@@ -123,14 +123,10 @@ Four failure modes. Check each:
   counts. Anchor framework-level checks here (extra renders,
   server/client boundary shifts, suspense fallbacks) — DOM asserts
   alone miss them. Use `agent-browser react tree --json` to get the tree
-  rather than a bare acknowledgement. Inspect the changed component to answer a specific
-  question; do not dump the full tree for every page.
+  rather than a bare acknowledgement.
 
 Pick the specific tool from `tools/list` or the agent-browser
 manual rather than from memory.
-
-Reuse passing checks while they still cover the current code. Repeat them
-when another edit or a new finding could change the result.
 
 ## gotchas
 
