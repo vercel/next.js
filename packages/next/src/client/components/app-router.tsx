@@ -1,5 +1,6 @@
 import type { RouteTree } from './segment-cache/cache'
 import React, {
+  Suspense,
   useEffect,
   useMemo,
   useInsertionEffect,
@@ -25,7 +26,10 @@ import {
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useActionQueue } from './use-action-queue'
-import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
+import {
+  consumeOptimisticHistoryEntryIfCurrent,
+  setLastCommittedTree,
+} from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { unresolvedThenable } from './unresolved-thenable'
@@ -147,8 +151,21 @@ function HistoryUpdater({
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
-      window.history.pushState(historyState, '', canonicalUrl)
+      if (consumeOptimisticHistoryEntryIfCurrent()) {
+        // The current entry is the optimistic one pushed when the navigation
+        // started, but the committed URL differs (e.g. the navigation
+        // redirected). Repurpose it instead of stacking a ghost entry for a
+        // URL the user never committed to.
+        window.history.replaceState(historyState, '', canonicalUrl)
+      } else {
+        window.history.pushState(historyState, '', canonicalUrl)
+      }
     } else {
+      // Either the optimistic entry already shows the committed URL (attach
+      // the real history state to it), or this commit doesn't push (replace,
+      // traverse, refresh). In both cases the tracked optimistic entry, if
+      // still current, is settled by this write.
+      consumeOptimisticHistoryEntryIfCurrent()
       window.history.replaceState(historyState, '', canonicalUrl)
     }
 
@@ -500,7 +517,12 @@ function Router({
 
   let content = (
     <RedirectBoundary>
-      {head}
+      {/* The head suspends on its own boundary so a pending head — e.g. when
+          the target's segment prefetch is still in flight during a soft
+          navigation — doesn't block the whole transition from committing.
+          Without this, the navigation would wait for the prefetch instead of
+          promptly showing loading.js. See https://github.com/vercel/next.js/issues/100968 */}
+      <Suspense fallback={null}>{head}</Suspense>
       {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
           When users wrap their layout in <Suspense>, this creates the component stack pattern
           "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}

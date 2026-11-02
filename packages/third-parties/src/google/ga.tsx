@@ -13,6 +13,67 @@ declare global {
 
 let currDataLayerName: string | undefined = undefined
 
+let formSubmitBridgeAttached = false
+
+/**
+ * Forwards client-side form submissions to the dataLayer as `form_submit`
+ * events.
+ *
+ * GA4 enhanced measurement auto-collects `form_submit` only for native form
+ * submissions. When a submit is handled client-side — `next/form`
+ * navigation, React server actions, or any `preventDefault()`-based AJAX
+ * handler — gtag observes the prevented submit and emits nothing, so the
+ * submission is never tracked (only `form_start` fires).
+ *
+ * This bridge listens for submits at the document level (bubble phase, so it
+ * runs after React's listeners) and forwards the ones that were prevented,
+ * mirroring enhanced measurement's `form_submit` parameters. Native
+ * (non-prevented) submits are left to enhanced measurement to avoid
+ * double-counting.
+ *
+ * See https://github.com/vercel/next.js/issues/100938
+ */
+function attachFormSubmitBridge() {
+  if (formSubmitBridgeAttached || typeof document === 'undefined') {
+    return
+  }
+  formSubmitBridgeAttached = true
+
+  document.addEventListener('submit', (event: Event) => {
+    const form = event.target
+    if (!(form instanceof HTMLFormElement)) {
+      return
+    }
+    if (!event.defaultPrevented) {
+      // Native submission — enhanced measurement auto-collects form_submit.
+      return
+    }
+    if (currDataLayerName === undefined || !window[currDataLayerName]) {
+      return
+    }
+    const params: Record<string, string | number> = {
+      form_destination: form.action,
+      form_length: form.elements.length,
+    }
+    if (form.id) {
+      params.form_id = form.id
+    }
+    const formName = form.getAttribute('name')
+    if (formName) {
+      params.form_name = formName
+    }
+    const submitter = (event as SubmitEvent).submitter
+    const submitText =
+      submitter instanceof HTMLInputElement
+        ? submitter.value || null
+        : submitter?.textContent?.trim() || null
+    if (submitText) {
+      params.form_submit_text = submitText.slice(0, 100)
+    }
+    sendGAEvent('event', 'form_submit', params)
+  })
+}
+
 export function GoogleAnalytics(props: GAParams) {
   const { gaId, debugMode, dataLayerName = 'dataLayer', nonce } = props
 
@@ -31,6 +92,10 @@ export function GoogleAnalytics(props: GAParams) {
         feature: 'next-third-parties-ga',
       },
     })
+
+    // Bridge client-side form submissions (next/form, server actions) that
+    // enhanced measurement would otherwise miss. Attaches once globally.
+    attachFormSubmitBridge()
   }, [])
 
   return (

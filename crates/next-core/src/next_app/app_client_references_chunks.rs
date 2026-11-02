@@ -11,7 +11,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupInfo, ChunkGroupKey},
+        chunk_group_info::{ChunkGroup, ChunkGroupInfo, ChunkGroupKey, ChunkGroups},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
@@ -49,6 +49,9 @@ fn is_isolated_merged_group_for_parent(
 /// server component do not necessarily share a chunk group, and framework-level references have no
 /// server component at all. Falling back to the source module's own groups is the conservative
 /// choice -- the reference is still chunked, just not narrowed to the component's groups.
+///
+/// The fallback is refined by [`narrow_disjoint_parents_to_server_component_subtree`], which
+/// prefers the source's groups below the server component over unrelated routes' groups.
 fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
     server_component_indices: Option<&FxIndexSet<u32>>,
@@ -64,6 +67,68 @@ fn relevant_parent_indices(
         source_indices
     } else {
         intersection
+    }
+}
+
+/// Returns the indices of those `source_async_groups` whose async loader lives in one of the
+/// server component's groups, i.e. the groups that hang off the server component.
+///
+/// Pure decision logic behind [`narrow_disjoint_parents_to_server_component_subtree`], kept sync
+/// so it can be unit tested without a module graph.
+fn async_groups_below_server_component(
+    source_async_groups: &[(u32, FxIndexSet<u32>)],
+    server_component_indices: &FxIndexSet<u32>,
+) -> FxIndexSet<u32> {
+    source_async_groups
+        .iter()
+        .filter(|(_, loader_indices)| !loader_indices.is_disjoint(server_component_indices))
+        .map(|(index, _)| *index)
+        .collect()
+}
+
+/// Narrows an empty-intersection fallback from [`relevant_parent_indices`] to the source's async
+/// chunk groups that sit below the server component's groups.
+///
+/// When a client reference is shared between routes, the source module's groups can include
+/// groups of unrelated routes. Chunking the reference from those groups' merged groups would drag
+/// the other routes' client modules into this segment. An async group instead hangs off its
+/// importers: when the async loader lives in one of the server component's groups, the group is
+/// part of this segment's own subtree (e.g. reached through the segment's own `import()`) and is
+/// the right parent.
+///
+/// Groups already narrowed to the server component (a non-empty intersection) and references
+/// without a server component are returned unchanged. When no async group sits below the server
+/// component, the conservative fallback is kept so the reference is still chunked.
+async fn narrow_disjoint_parents_to_server_component_subtree(
+    chunk_group_info: Vc<ChunkGroupInfo>,
+    source_groups: &ChunkGroups,
+    parent_indices: FxIndexSet<u32>,
+    server_component_indices: Option<&FxIndexSet<u32>>,
+) -> Result<FxIndexSet<u32>> {
+    let Some(server_component_indices) = server_component_indices else {
+        return Ok(parent_indices);
+    };
+    if !parent_indices.is_disjoint(server_component_indices) {
+        return Ok(parent_indices);
+    }
+    let mut source_async_groups = Vec::new();
+    for group in source_groups.iter() {
+        let ChunkGroup::Async(entry_module) = &group.chunk_group else {
+            continue;
+        };
+        let loader_indices = chunk_group_info
+            .get_async_loader_groups(*entry_module)
+            .await?
+            .iter()
+            .map(|group| group.index)
+            .collect::<FxIndexSet<_>>();
+        source_async_groups.push((group.index, loader_indices));
+    }
+    let below = async_groups_below_server_component(&source_async_groups, server_component_indices);
+    if below.is_empty() {
+        Ok(parent_indices)
+    } else {
+        Ok(below)
     }
 }
 
@@ -113,6 +178,13 @@ async fn derived_isolated_merged_groups(
         let source_indices = source_groups.iter().map(|group| group.index).collect();
         let parent_indices =
             relevant_parent_indices(source_indices, server_component_indices.as_ref());
+        let parent_indices = narrow_disjoint_parents_to_server_component_subtree(
+            chunk_group_info,
+            &source_groups,
+            parent_indices,
+            server_component_indices.as_ref(),
+        )
+        .await?;
 
         let mut found = false;
         for group in chunk_group_info
@@ -538,7 +610,8 @@ mod tests {
 
     use crate::{
         next_app::app_client_references_chunks::{
-            is_isolated_merged_group_for_parent, relevant_parent_indices,
+            async_groups_below_server_component, is_isolated_merged_group_for_parent,
+            relevant_parent_indices,
         },
         next_client_reference::{CLIENT_MERGE_TAG, SSR_MERGE_TAG},
     };
@@ -556,6 +629,36 @@ mod tests {
             source,
         );
         assert_eq!(relevant_parent_indices(source.clone(), None), source,);
+    }
+
+    #[test]
+    fn below_computation_prefers_async_groups_of_the_server_component_subtree() {
+        // Group 26 hangs off the server component's group 5 (its async loader lives there),
+        // group 12 hangs off an unrelated route's group 7.
+        let source_async_groups = [
+            (12, FxIndexSet::from_iter([7])),
+            (26, FxIndexSet::from_iter([5])),
+        ];
+        assert_eq!(
+            async_groups_below_server_component(
+                &source_async_groups,
+                &FxIndexSet::from_iter([5]),
+            ),
+            FxIndexSet::from_iter([26]),
+        );
+        // No async group below the server component: empty, so the caller keeps the
+        // conservative fallback.
+        assert_eq!(
+            async_groups_below_server_component(
+                &source_async_groups,
+                &FxIndexSet::from_iter([9]),
+            ),
+            FxIndexSet::default(),
+        );
+        assert_eq!(
+            async_groups_below_server_component(&[], &FxIndexSet::from_iter([5])),
+            FxIndexSet::default(),
+        );
     }
 
     #[test]

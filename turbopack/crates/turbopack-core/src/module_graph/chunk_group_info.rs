@@ -231,6 +231,34 @@ impl ChunkGroupInfo {
         ))
     }
 
+    /// Returns the chunk groups that contain the async loader for `module`, i.e. the groups the
+    /// module's async chunk group hangs off. Empty when `module` has no async chunk group.
+    ///
+    /// Callers use this to relate an async chunk group back to its importing groups, e.g. to
+    /// prefer a client reference's groups below its server component over unrelated routes'
+    /// groups. See `relevant_parent_indices` in next-core's `app_client_references_chunks`.
+    #[turbo_tasks::function]
+    pub async fn get_async_loader_groups(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroups>> {
+        let async_loader_chunk_groups = self.async_loader_chunk_groups.await?;
+        let Some(groups) = async_loader_chunk_groups.get(&module) else {
+            return Ok(Vc::cell(Vec::new()));
+        };
+        Ok(Vc::cell(
+            groups
+                .iter()
+                .map(|index| {
+                    Ok(ChunkGroupWithIndex {
+                        index,
+                        chunk_group: self.chunk_group_at(index as usize)?.clone(),
+                    })
+                })
+                .collect::<Result<_>>()?,
+        ))
+    }
+
     /// Returns the shared merged chunk group with `merge_tag` that `parent` is the parent of, if
     /// the graph produced one.
     ///
