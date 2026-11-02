@@ -146,6 +146,7 @@ async fn derived_isolated_merged_groups(
         ) {
             Ok(indices) => indices,
             Err(error) => {
+                // ast-grep-ignore: no-context-format
                 return Err(error.context(format!(
                     "could not select graph-derived isolated merged groups for {}",
                     entry_module.ident().to_string().await?,
