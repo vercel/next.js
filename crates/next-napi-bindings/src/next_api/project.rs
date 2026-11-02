@@ -646,14 +646,14 @@ pub fn project_new<'env>(
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
             let shutdown = Arc::new(ShutdownHooks::default());
-            let shutdown_hooks = TransientInstance::new(shutdown.clone());
+            let shutdown_hooks = shutdown.clone();
             let (container, container_op, initialization_issues) = turbo_tasks
                 .run(async move {
-                    let container_op =
-                        ProjectContainer::new_operation(rcstr!("next.js"), is_dev, shutdown_hooks);
+                    let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     let initialization_issues =
                         ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
+                    container.await?.register_shutdown_hooks(&shutdown_hooks);
                     // Return the operation itself so we can pin it below
                     Ok((container, container_op, initialization_issues))
                 })

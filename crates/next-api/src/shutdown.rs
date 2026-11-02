@@ -67,7 +67,7 @@ mod tests {
     };
 
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{TransientInstance, TurboTasks};
+    use turbo_tasks::TurboTasks;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::ShutdownHooks;
@@ -80,11 +80,12 @@ mod tests {
             noop_backing_storage(),
         ));
         let hooks = Arc::new(ShutdownHooks::default());
-        let project_hooks = TransientInstance::new(hooks.clone());
+        let project_hooks = hooks.clone();
         tt.run_once(async move {
-            ProjectContainer::new_operation(rcstr!("shutdown-test"), false, project_hooks)
+            ProjectContainer::new_operation(rcstr!("shutdown-test"), false)
                 .read_strongly_consistent()
-                .await?;
+                .await?
+                .register_shutdown_hooks(&project_hooks);
             anyhow::Ok(())
         })
         .await

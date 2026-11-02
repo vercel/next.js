@@ -44,8 +44,16 @@ pub async fn main_inner(
     }
 
     let shutdown = Arc::new(ShutdownHooks::default());
-    let shutdown_hooks = TransientInstance::new(shutdown.clone());
-    let result = run_project(tt, options, strategy, factor, limit, files, shutdown_hooks).await;
+    let result = run_project(
+        tt,
+        options,
+        strategy,
+        factor,
+        limit,
+        files,
+        shutdown.clone(),
+    )
+    .await;
     tt.run_once(async move {
         shutdown.run().await;
         Ok(())
@@ -61,14 +69,15 @@ async fn run_project(
     factor: usize,
     limit: usize,
     files: Option<Vec<String>>,
-    shutdown_hooks: TransientInstance<Arc<ShutdownHooks>>,
+    shutdown_hooks: Arc<ShutdownHooks>,
 ) -> Result<()> {
     let project = tt
-        .run(async {
-            let container_op =
-                ProjectContainer::new_operation(rcstr!("next.js"), options.dev, shutdown_hooks);
+        .run(async move {
+            let container_op = ProjectContainer::new_operation(rcstr!("next.js"), options.dev);
             ProjectContainer::initialize(container_op, options).await?;
-            container_op.resolve().strongly_consistent().await
+            let container = container_op.resolve().strongly_consistent().await?;
+            container.await?.register_shutdown_hooks(&shutdown_hooks);
+            anyhow::Ok(container)
         })
         .await?;
 
