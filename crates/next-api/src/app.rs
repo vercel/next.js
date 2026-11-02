@@ -1245,7 +1245,7 @@ impl Endpoint for GoRouteEndpoint {
             .map(|method| format!("\t\"{method}\": {method},"))
             .collect::<Vec<_>>()
             .join("\n");
-        let dispatch = include_str!("go_route_dispatch.go")
+        let dispatch = include_str!("templates/go_route_dispatch.go")
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
         // Adapter builds emit an independent PORT-based HTTP server for one route, with
         // URL matching and parameter extraction owned by that executable. Development
@@ -1255,12 +1255,12 @@ impl Endpoint for GoRouteEndpoint {
             let pathname = AppPath::from(this.page.clone()).to_string();
             let base_path = project.next_config().base_path().await?;
             let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
-            include_str!("go_route_adapter_main.go").replace(
+            include_str!("templates/go_route_adapter_main.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
                 &serde_json::to_string(&route_pattern)?,
             )
         } else {
-            include_str!("go_route_main.go").to_owned()
+            include_str!("templates/go_route_main.go").to_owned()
         };
         let generated_path = directory.join("zz_next_route_main.go")?;
         let dispatch_path = directory.join("zz_next_route_dispatch.go")?;
