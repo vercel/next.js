@@ -235,10 +235,13 @@ describe('documented HTTP contracts', () => {
     for (const asset of assets) {
       const response = await next.fetch(asset)
       expect(response.status).toBe(200)
-      expect({
-        asset,
-        cacheControl: response.headers.get('cache-control'),
-      }).toEqual({
+      // Deployments may omit the spaces between directives.
+      const cacheControl = response.headers
+        .get('cache-control')
+        ?.split(',')
+        .map((directive) => directive.trim())
+        .join(', ')
+      expect({ asset, cacheControl }).toEqual({
         asset,
         cacheControl: 'public, max-age=31536000, immutable',
       })

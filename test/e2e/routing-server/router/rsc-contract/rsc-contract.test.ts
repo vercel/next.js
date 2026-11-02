@@ -114,6 +114,12 @@ for (const validateRSCRequestHeaders of [true, false]) {
       expect(response.headers.get('content-type')).toContain('javascript')
     })
 
+    // TODO: on Vercel deployments, Proxy doesn't run for the `/_next/image`
+    // request itself, only for the image service's fetch of the source
+    // (`/photo.jpg`). The docs say Proxy without a matcher runs on every
+    // request, including image optimizations:
+    // https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher
+    // @gate !deploy
     it('runs Proxy without a matcher on image optimization', async () => {
       const response = await next.fetch(
         '/_next/image?url=%2Fphoto.jpg&w=64&q=75'

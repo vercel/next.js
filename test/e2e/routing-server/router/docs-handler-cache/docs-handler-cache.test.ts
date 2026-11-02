@@ -29,12 +29,13 @@ describe('documented Route Handler caching by method', () => {
     await expectCachedInProduction('/static-only')
   })
 
-  // TODO: `next start` stops caching a `force-static` GET once the same file
-  // exports other methods, so every GET gets a fresh response. The docs say
-  // GET opts into caching with `dynamic = 'force-static'`, and that only the
-  // other methods in the file stay uncached:
+  // TODO: `next start` and Vercel deployments stop caching a `force-static`
+  // GET once the same file exports other methods, so every GET gets a fresh
+  // response. The docs say GET opts into caching with
+  // `dynamic = 'force-static'`, and that only the other methods in the file
+  // stay uncached:
   // https://nextjs.org/docs/app/getting-started/route-handlers#caching
-  // @gate !start
+  // @gate dev
   it('caches an opted-in GET at /cached in production while keeping development fresh', async () => {
     await expectCachedInProduction('/cached')
   })

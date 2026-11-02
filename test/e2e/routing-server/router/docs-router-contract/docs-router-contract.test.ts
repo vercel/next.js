@@ -131,7 +131,13 @@ describe('documented routing phases', () => {
         expect(location.pathname).toBe('/api/echo')
         expect(location.searchParams.get('slug')).toBe('captured')
         expect(location.searchParams.get('original')).toBe('preserved')
-        const response = await next.fetch(path, init)
+        // Send the follow-up request a client makes for this status, rather
+        // than relying on fetch's redirect handling: Node.js 20's fetch fails
+        // to resend this body when following a deployment's redirect.
+        const response = await next.fetch(
+          location.pathname + location.search,
+          init
+        )
         expect(response.status).toBe(200)
         expect(await response.json()).toMatchObject({
           destination: 'echo',
