@@ -8,8 +8,9 @@ use next_core::{
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
-        get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
+        AppEntry, AppPage, FollowingAvailability, following_availability,
+        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
+        get_app_route_entry, get_client_references_chunks_for_hmr,
         metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
@@ -964,11 +965,14 @@ impl AppProject {
                             graph_options,
                         );
                         graphs.push(graph);
-                        let is_layout = module.server_path().await?.file_stem() == Some("layout");
-                        visited_modules = if is_layout {
-                            // Only propagate the visited_modules of the parent layout(s), not
-                            // across siblings such as loading.js and
-                            // page.js.
+                        visited_modules = if following_availability(&*module.server_path().await?)
+                            == FollowingAvailability::All
+                        {
+                            // Only propagate the visited_modules of parent layout(s) and templates.
+                            // Not across siblings such as loading.js and page.js: whether the page
+                            // can rely on the modules of a loading.js depends on whether it emits
+                            // CSS, which is only known after chunking, so the page's graph has to
+                            // contain them.
                             VisitedModules::concatenate(visited_modules, graph)
                         } else {
                             // Prevents graph index from getting out of sync.

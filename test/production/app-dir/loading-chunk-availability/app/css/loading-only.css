@@ -1,0 +1,5 @@
+/* Imported only by the client component of `loading.tsx`. */
+body.loading-only-marker-3f9a,
+body {
+  background-color: rgb(12, 34, 56);
+}
