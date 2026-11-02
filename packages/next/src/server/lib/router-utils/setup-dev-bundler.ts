@@ -8,6 +8,7 @@ import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteDefinition } from '../../route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
 
 import { createDefineEnv } from '../../../build/swc'
@@ -1226,14 +1227,20 @@ async function startWatcher(
         }),
         ...appRouteHandlers.map(({ route, page, filePath }) => {
           return {
-            kind: RouteKind.APP_ROUTE,
+            kind: filePath.endsWith('.go')
+              ? RouteKind.APP_ROUTE_GO
+              : RouteKind.APP_ROUTE,
             pathname: route,
             page,
             bundlePath: path.posix.join('app', normalizePagePath(page)),
             filename: filePath,
-          } satisfies AppRouteRouteDefinition
+          } satisfies AppRouteRouteDefinition | AppGoRouteRouteDefinition
         }),
-      ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
+      ] satisfies Array<
+        | AppPageRouteDefinition
+        | AppRouteRouteDefinition
+        | AppGoRouteRouteDefinition
+      >
 
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
