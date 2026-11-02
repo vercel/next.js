@@ -1316,7 +1316,7 @@ impl Endpoint for GoRouteEndpoint {
             go_session.go_context.exe_suffix
         );
         let node_root = project.node_root().owned().await?;
-        let descriptor = serde_json::json!({ "version": 1, "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        let descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         let output_root = to_sys_path(node_root.clone())
             .await?
             .context("native Go output requires a disk filesystem")?;

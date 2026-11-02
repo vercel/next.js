@@ -1229,10 +1229,9 @@ export async function handleBuildComplete({
             }
             const descriptor = JSON.parse(
               await fs.readFile(descriptorPath, 'utf8')
-            ) as { version: number; executable: string }
+            ) as { executable: string }
             if (
-              descriptor?.version !== 1 ||
-              typeof descriptor.executable !== 'string' ||
+              typeof descriptor?.executable !== 'string' ||
               path.isAbsolute(descriptor.executable)
             ) {
               throw new InvariantError(
