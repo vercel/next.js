@@ -89,10 +89,13 @@ async fn derived_isolated_merged_groups(
             .iter()
             .map(|group| group.index)
             .collect::<FxIndexSet<_>>();
-        let mut async_parent_indices = FxIndexSet::default();
-        if let Some(owner_index) = server_component_index {
-            // Async server imports create new groups without changing the reference's owner.
-            // Follow their importer ancestry, not every group containing the shared proxy:
+        let parent_indices = if let Some(owner_index) = server_component_index {
+            let mut indices = FxIndexSet::default();
+            if source_indices.contains(&owner_index) {
+                indices.insert(owner_index);
+            }
+            // A reference may be imported both directly and through async chunks inside its owner.
+            // Follow async importer ancestry, not every group containing the shared proxy:
             // unrelated pages' merged groups can also contain other client entries.
             for group in source_groups.iter() {
                 if let ChunkGroup::Async(module) = &group.chunk_group
@@ -102,29 +105,16 @@ async fn derived_isolated_merged_groups(
                         .iter()
                         .any(|ancestor| ancestor.index == owner_index)
                 {
-                    async_parent_indices.insert(group.index);
+                    indices.insert(group.index);
                 }
-            }
-        }
-        let mut parent_indices = if let Some(owner_index) = server_component_index {
-            let mut indices = FxIndexSet::default();
-            if source_indices.contains(&owner_index) {
-                indices.insert(owner_index);
             }
             indices
         } else {
             // Without an owner group, fall back to the source module's groups.
             source_indices
         };
-        // A reference may be imported both directly and through async chunks inside its owner.
-        parent_indices.extend(async_parent_indices);
-        if server_component_index.is_some() && parent_indices.is_empty() {
-            // Selecting all source groups without ownership proof could include unrelated routes'
-            // client entries.
-            let error = anyhow::anyhow!(
-                "source chunk groups have no direct or async ancestry match with the server \
-                 component"
-            );
+        if parent_indices.is_empty() {
+            let error = anyhow::anyhow!("source chunk groups have no eligible parent");
             // ast-grep-ignore: no-context-format
             return Err(error.context(format!(
                 "could not select graph-derived isolated merged groups for {}",
